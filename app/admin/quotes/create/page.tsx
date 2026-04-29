@@ -104,6 +104,41 @@ type CatalogSectionItem = {
   created_at?: string | null;
 };
 
+type ServiceItem = {
+  id: string;
+  catalogItemId?: string | number | null;
+  catalog_item_id?: string | number | null;
+  label: string;
+  price: number;
+  icon?: React.ReactNode;
+  createdAt?: string | null;
+  originalIndex?: number;
+};
+
+type AddonItem = {
+  id: string;
+  label: string;
+  price: number;
+  createdAt?: string | null;
+  originalIndex?: number;
+};
+
+type LogisticsItem = {
+  id: string;
+  label: string;
+  basePrice: number;
+  createdAt?: string | null;
+  originalIndex?: number;
+};
+
+type LineItem = {
+  id: string;
+  label: string;
+  basePrice: number;
+  createdAt?: string | null;
+  originalIndex?: number;
+};
+
 type CatalogEditType = "service" | "addon" | "logistics" | "line_item";
 
 type CatalogEditItem = {
@@ -267,26 +302,16 @@ const clampTextLength = (
   maxLength = MAX_QUOTE_OPTION_LABEL_LENGTH
 ) => value.slice(0, maxLength);
 
-const sanitizeCurrencyInput = (value: string) => {
-  const normalizedValue = value.replace(/[^\d.]/g, "");
-  const decimalIndex = normalizedValue.indexOf(".");
-
-  if (decimalIndex === -1) {
-    return normalizedValue;
-  }
-
-  const integerPart = normalizedValue.slice(0, decimalIndex);
-  const decimalPart = normalizedValue
-    .slice(decimalIndex + 1)
-    .replace(/\./g, "")
-    .slice(0, 2);
-
-  return `${integerPart}.${decimalPart}`;
+const parseRawPrice = (value: string) => {
+  let cleaned = value.replace(/[^0-9.]/g, "");
+  const parts = cleaned.split(".");
+  if (parts.length > 2) cleaned = parts[0] + "." + parts.slice(1).join("");
+  return cleaned;
 };
 
+const sanitizeCurrencyInput = (value: string) => parseRawPrice(value);
 const parseCurrencyInput = (value: string) => {
-  const sanitizedValue = sanitizeCurrencyInput(value);
-  const parsedValue = Number.parseFloat(sanitizedValue);
+  const parsedValue = parseFloat(parseRawPrice(value));
   return Number.isFinite(parsedValue) ? parsedValue : 0;
 };
 
@@ -1080,7 +1105,7 @@ export default function CreateQuotePage() {
 
   // Step 4: Logistics State
   const [selectedLogistics, setSelectedLogistics] = useState<string[]>([]);
-  const [logisticsItems, setLogisticsItems] = useState<any[]>([]);
+  const [logisticsItems, setLogisticsItems] = useState<LogisticsItem[]>([]);
   const [logisticsConfigs, setLogisticsConfigs] = useState<
     Record<string, { price: number }>
   >({});
@@ -1095,7 +1120,7 @@ export default function CreateQuotePage() {
   //Step 5: Custom Line Items State
   const [customItemName, setCustomItemName] = useState("");
   const [customItemCost, setCustomItemCost] = useState("");
-  const [lineItems, setLineItems] = useState<any[]>([]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [lineItemConfigs, setLineItemConfigs] = useState<
     Record<string, { price: number }>
   >({});
@@ -1132,13 +1157,13 @@ export default function CreateQuotePage() {
     Record<string, { quantity: number; estimatedPrice: number }>
   >({});
 
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
   const [photoShootTypes, setPhotoShootTypes] = useState<ShootTypeOption[]>([]);
   const [editingTypeOptions, setEditingTypeOptions] = useState<
     ShootTypeOption[]
   >([]);
-  const [addons, setAddons] = useState<any[]>([]);
+  const [addons, setAddons] = useState<AddonItem[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
   const [loadingEditingTypes, setLoadingEditingTypes] = useState(false);
@@ -1897,11 +1922,12 @@ export default function CreateQuotePage() {
     return config.estimatedPrice;
   };
 
-  const handleServicePriceUpdate = (serviceId: string, value: string) => {
+    const handleServicePriceUpdate = (serviceId, value) => {
     const config = serviceConfigs[serviceId];
     if (!config) return;
 
-    const nextPrice = parseCurrencyInput(value);
+    const raw = parseRawPrice(value);
+    const nextPrice = parseFloat(raw) || 0;
     handleConfigUpdate(serviceId, "estimatedPrice", nextPrice);
   };
 
@@ -3566,7 +3592,7 @@ export default function CreateQuotePage() {
         const { service, addon, logistics } = res.data;
 
         if (service) {
-          const mappedServices = service.map((item: any, idx: number) => {
+          const mappedServices = service.map((item: CatalogSectionItem, idx: number) => {
             const name =
               item.name.toLowerCase() === "location" ? "Studio" : item.name;
             return {
@@ -3634,7 +3660,7 @@ export default function CreateQuotePage() {
         }
 
         if (addon) {
-          const mappedAddons = addon.map((item: any, idx: number) => ({
+          const mappedAddons = addon.map((item: CatalogSectionItem, idx: number) => ({
             id: (item.catalog_item_id || `add-${idx}`).toString(),
             label: item.name,
             price: parseFloat(item.effective_rate) || 0,
@@ -3687,7 +3713,7 @@ export default function CreateQuotePage() {
         }
 
         if (logistics) {
-          const mappedLogistics = logistics.map((item: any, idx: number) => ({
+          const mappedLogistics = logistics.map((item: CatalogSectionItem, idx: number) => ({
             id: (item.catalog_item_id || `log-${idx}`).toString(),
             label: item.name,
             basePrice: parseFloat(item.effective_rate) || 0,
@@ -4724,42 +4750,37 @@ export default function CreateQuotePage() {
                                 </div>
 
                                 <div className="flex shrink-0 items-center gap-4">
-                                  <div className="relative w-[190px]">
-                                    <Input
-                                      value={
-                                        inputValue[item.id] !== undefined
-                                          ? inputValue[item.id]
-                                          : `$ ${formatAddonDisplayValue(config.price)}`
-                                      }
-                                      onChange={(e) => {
-                                        const raw = sanitizeCurrencyInput(e.target.value);
-                                        setInputValue((prev) => ({
+                                 <div className="relative w-[190px] h-[50px] bg-[#1A1A1F] border border-[#3B3B46] rounded-xl flex items-center px-5 transition-all focus-within:border-[#E8D1AB]">
+                                  <span className="text-white text-base font-medium mr-1 opacity-80">$</span>
+                                  <input
+                                    value={
+                                      inputValue[item.id] !== undefined 
+                                        ? inputValue[item.id] 
+                                        : config.price.toFixed(2)
+                                    }
+                                    onChange={(e) => {
+                                      const raw = parseRawPrice(e.target.value);
+                                      setInputValue((prev) => ({ ...prev, [item.id]: raw }));
+                                      
+                                      const num = parseFloat(raw);
+                                      if (!isNaN(num)) {
+                                        setLogisticsConfigs((prev) => ({
                                           ...prev,
-                                          [item.id]: `$ ${raw}`,
+                                          [item.id]: { ...prev[item.id], price: num },
                                         }));
-
-                                        const numericVal = Number.parseFloat(raw);
-                                        if (!Number.isNaN(numericVal)) {
-                                          setLogisticsConfigs((prev) => ({
-                                            ...prev,
-                                            [item.id]: {
-                                              ...prev[item.id],
-                                              price: numericVal,
-                                            },
-                                          }));
-                                        }
-                                      }}
-                                      onBlur={() => {
-                                        setInputValue((prev) => {
-                                          const next = { ...prev };
-                                          delete next[item.id];
-                                          return next;
-                                        });
-                                      }}
-                                      inputMode="decimal"
-                                      className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
-                                    />
-                                  </div>
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      setInputValue((prev) => {
+                                        const next = { ...prev };
+                                        delete next[item.id];
+                                        return next;
+                                      });
+                                    }}
+                                    className="bg-transparent border-0 outline-none text-white font-normal text-base w-full p-0 focus:ring-0"
+                                    inputMode="decimal"
+                                  />
+                                </div>
 
                                   <div className="flex items-center gap-5 ml-2">
                                     <button
@@ -5117,17 +5138,32 @@ export default function CreateQuotePage() {
                                 </div>
 
                                 {/* Price Override */}
-                                <div className="relative w-[190px]">
-                                  <Input
-                                    value={`$ ${getAddonDraftPrice(addonId).toFixed(2)}`}
-                                    onChange={(e) =>
-                                      handleAddonPriceUpdate(
-                                        addonId,
-                                        e.target.value,
-                                      )
+                                <div className="relative w-[190px] h-[50px] bg-[#1A1A1F] border border-[#3B3B46] rounded-xl flex items-center px-5 transition-all focus-within:border-[#E8D1AB]">
+                                  <span className="text-white text-base font-medium mr-1 opacity-80">$</span>
+                                  <input
+                                    value={
+                                      inputValue[addonId] !== undefined 
+                                        ? inputValue[addonId] 
+                                        : config.price.toFixed(2)
                                     }
+                                    onChange={(e) => {
+                                      const raw = parseRawPrice(e.target.value);
+                                      setInputValue((prev) => ({ ...prev, [addonId]: raw }));
+                                      
+                                      const num = parseFloat(raw);
+                                      if (!isNaN(num)) {
+                                        handleAddonConfigUpdate(addonId, "price", num);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      setInputValue((prev) => {
+                                        const next = { ...prev };
+                                        delete next[addonId];
+                                        return next;
+                                      });
+                                    }}
+                                    className="bg-transparent border-0 outline-none text-white font-normal text-base w-full p-0 focus:ring-0"
                                     inputMode="decimal"
-                                    className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
                                   />
                                 </div>
 
@@ -5720,7 +5756,7 @@ export default function CreateQuotePage() {
                                             handleConfigUpdate(
                                               serviceId,
                                               "duration",
-                                              config.duration - 1,
+                                              config.duration - 0.5,
                                             )
                                           }
                                           className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
@@ -5735,7 +5771,7 @@ export default function CreateQuotePage() {
                                             handleConfigUpdate(
                                               serviceId,
                                               "duration",
-                                              config.duration + 1,
+                                              config.duration + 0.5,
                                             )
                                           }
                                           className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
@@ -5804,60 +5840,67 @@ export default function CreateQuotePage() {
                                     </span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: Math.max(0, estimatedPrice - 50),
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "estimatedPrice",
-                                              config.estimatedPrice - 50,
-                                            )
-                                        }
+                                        type="button"
+                                        onClick={() => {
+                                          const current = isEditingService ? estimatedPrice : config.estimatedPrice;
+                                          const val = Math.max(0, current - 50);
+                                          if (isEditingService) {
+                                            setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
+                                          } else {
+                                            handleConfigUpdate(serviceId, "estimatedPrice", val);
+                                          }
+                                        }}
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
-                                      <Input
-                                        value={`$ ${formatAddonDisplayValue(isEditingService ? estimatedPrice : getServiceDraftPrice(serviceId))}`}
-                                        onChange={(e) =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: parseCurrencyInput(e.target.value),
-                                              },
-                                            }))
-                                            : handleServicePriceUpdate(
-                                              serviceId,
-                                              e.target.value,
-                                            )
-                                        }
-                                        inputMode="decimal"
-                                        className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
-                                      />
+
+                                      <div className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] flex items-center justify-center group focus-within:border-[#E8D1AB] transition-all px-2">
+                                        
+                                        <span className="text-white text-sm font-medium mr-1 opacity-80">$</span>
+                                        
+                                        <input
+                                          value={
+                                            inputValue[cardKey] !== undefined 
+                                              ? inputValue[cardKey] 
+                                              : (isEditingService ? estimatedPrice : config.estimatedPrice).toFixed(2)
+                                          }
+                                          onChange={(e) => {
+                                            const raw = parseRawPrice(e.target.value);
+                                            setInputValue((prev) => ({ ...prev, [cardKey]: raw }));
+                                            
+                                            const num = parseFloat(raw);
+                                            if (!isNaN(num)) {
+                                              if (isEditingService) {
+                                                setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: num } }));
+                                              } else {
+                                                handleConfigUpdate(serviceId, "estimatedPrice", num);
+                                              }
+                                            }
+                                          }}
+                                          onBlur={() => {
+                                            setInputValue((prev) => {
+                                              const next = { ...prev };
+                                              delete next[cardKey];
+                                              return next;
+                                            });
+                                          }}
+                                          className="bg-transparent border-0 outline-none text-white font-normal text-sm w-[70px] p-0 focus:ring-0"
+                                          inputMode="decimal"
+                                        />
+                                      </div>
+
                                       <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: Math.max(0, estimatedPrice + 50),
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "estimatedPrice",
-                                              config.estimatedPrice + 50,
-                                            )
-                                        }
+                                        type="button"
+                                        onClick={() => {
+                                          const current = isEditingService ? estimatedPrice : config.estimatedPrice;
+                                          const val = current + 50;
+                                          if (isEditingService) {
+                                            setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
+                                          } else {
+                                            handleConfigUpdate(serviceId, "estimatedPrice", val);
+                                          }
+                                        }}
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
@@ -6068,35 +6111,33 @@ export default function CreateQuotePage() {
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               /> */}
                               <Input
-                                //  Use defaultValue so the input is "uncontrolled" while typing
-                                defaultValue={`$ ${(config?.price || 0).toFixed(2)}`}
-
-                                // The key ensures the input resets if the external state changes 
-                                key={item.id + (config?.price || 0)}
-
+                                value={
+                                  inputValue[item.id] !== undefined
+                                    ? inputValue[item.id]
+                                    : (config?.price || 0).toFixed(2)
+                                }
                                 onChange={(e) => {
-                                  // Clean the input and update the background state
-                                  const raw = sanitizeCurrencyInput(e.target.value);
-                                  const numericVal = parseCurrencyInput(raw);
+                                  const raw = parseRawPrice(e.target.value);
+                                  setInputValue((prev) => ({ ...prev, [item.id]: raw }));
 
-                                  if (!Number.isNaN(numericVal)) {
+                                  const numericVal = parseFloat(raw);
+                                  if (!isNaN(numericVal)) {
                                     setLineItemConfigs((prev) => ({
                                       ...prev,
                                       [item.id]: {
                                         ...prev[item.id],
-                                        price: numericVal
+                                        price: numericVal,
                                       },
                                     }));
                                   }
                                 }}
-
-                                onBlur={(e) => {
-                                  // Clean up the display when they click away
-                                  const raw = sanitizeCurrencyInput(e.target.value);
-                                  const finalVal = parseCurrencyInput(raw);
-                                  e.target.value = `$ ${finalVal.toFixed(2)}`;
+                                onBlur={() => {
+                                  setInputValue((prev) => {
+                                    const next = { ...prev };
+                                    delete next[item.id];
+                                    return next;
+                                  });
                                 }}
-
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                                 inputMode="decimal"
                               />
@@ -6455,13 +6496,13 @@ export default function CreateQuotePage() {
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                              setTaxRate(val as any);
+                              setTaxRate(val);
 
                               const numericTax = parseFloat(val);
                               if (!isNaN(numericTax)) {
                                 const presets = [0, 5, 8.5, 10];
                                 if (presets.includes(numericTax) && !val.endsWith(".")) {
-                                  setSelectedTax(numericTax as any);
+                                  setSelectedTax(numericTax);
                                   setShowCustomTax(false);
                                 } else {
                                   setSelectedTax(-1);
@@ -6706,7 +6747,7 @@ export default function CreateQuotePage() {
                     return (
                       <>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          {[3, 5, 7].map((days: number) => (
+                          {[3, 7, 10].map((days: number) => (
                             <button
                               key={days}
                               onClick={() => handleValiditySelect(days)}
