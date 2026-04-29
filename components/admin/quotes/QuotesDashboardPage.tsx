@@ -14,6 +14,7 @@ import {
   subDays,
   subMonths,
 } from "date-fns";
+import { SquarePen } from "lucide-react";
 import QuotesEmptyState from "@/components/admin/quotes/QuotesEmptyState";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/components/ui/button";
@@ -48,10 +49,10 @@ import {
   Loader2,
   MoreHorizontal,
   MoreVertical,
-  Pencil,
   Search,
   XCircle,
 } from "lucide-react";
+import QuoteEditAccessModal from "@/components/admin/quotes/QuoteEditAccessModal";
 import { toast } from "react-hot-toast";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { persistQuoteEditorNavigationCache } from "@/lib/quoteEdit";
@@ -110,6 +111,7 @@ type DisplayQuoteRow = {
   salespersonId: string;
   salespersonKey: string;
   createdAtRaw: string;
+  shootDateValue: string;
   searchValue: string;
 };
 
@@ -265,8 +267,8 @@ const QuoteActionMenu = ({
           />
           {allowEdit ? (
             <QuoteActionMenuButton
-              icon={<Pencil size={18} />}
-              label="Update Quote"
+              icon={<SquarePen  size={18} />}
+              label="Edit"
               onClick={handleMenuAction(onEdit)}
             />
           ) : null}
@@ -377,6 +379,40 @@ const formatDate = (value: string) => {
     day: "numeric",
     year: "numeric",
   });
+};
+
+const getQuoteShootDateValue = (quote: SalesQuoteListItem) => {
+  const quoteRecord = quote as Record<string, unknown>;
+  const convertedBookingDetails = getRecord(quoteRecord.converted_booking_details);
+  const quoteBookingDays = Array.isArray(quoteRecord.booking_days) ? quoteRecord.booking_days : [];
+  const convertedBookingDays = Array.isArray(convertedBookingDetails?.booking_days)
+    ? convertedBookingDetails.booking_days
+    : [];
+  const firstBookingDay =
+    getRecord(convertedBookingDays[0]) || getRecord(quoteBookingDays[0]);
+  const dateValue = getText(
+    firstBookingDay?.date,
+    firstBookingDay?.event_date,
+    quoteRecord.start_date,
+    quoteRecord.shoot_date,
+    convertedBookingDetails?.start_date
+  );
+  const startTimeValue = getText(
+    firstBookingDay?.start_time,
+    quoteRecord.start_time,
+    convertedBookingDetails?.start_time
+  );
+
+  if (!dateValue) {
+    return "";
+  }
+
+  if (!startTimeValue) {
+    return dateValue;
+  }
+
+  const normalizedTime = startTimeValue.length === 5 ? `${startTimeValue}:00` : startTimeValue;
+  return `${dateValue}T${normalizedTime}`;
 };
 
 const formatLabel = (value: string) =>
@@ -869,6 +905,7 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     ),
     salespersonKey: salesperson.toLowerCase(),
     createdAtRaw: getText(quote.created_at, quote.updated_at),
+    shootDateValue: getQuoteShootDateValue(quote),
     searchValue: [
       client,
       project,
@@ -917,6 +954,14 @@ export default function QuotesDashboardPage({
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
   const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
+  const [editAccessState, setEditAccessState] = useState<{
+    quoteId: string;
+    quoteNumber: string;
+    clientName: string;
+    targetView: string;
+    shootDateValue?: string;
+  } | null>(null);
+  const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1275,10 +1320,7 @@ export default function QuotesDashboardPage({
     router.push(`${detailBaseHref}/${quoteId}?action=payment`);
   };
 
-  const handleEditQuote = (
-    quoteId: string,
-    targetView: string = "details"
-  ) => {
+  const proceedToEditQuote = (quoteId: string, targetView: string = "details") => {
     if (!quoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -1293,6 +1335,62 @@ export default function QuotesDashboardPage({
     });
 
     router.push(`${createHref}?${query.toString()}`);
+  };
+
+  const handleEditQuote = (quote: DisplayQuoteRow, targetView: string = "details") => {
+    if (!quote.id) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    setOpenActionMenuId(null);
+    setEditAccessState({
+      quoteId: quote.id,
+      quoteNumber: quote.quoteNumber || quote.id,
+      clientName: quote.client,
+      targetView,
+      shootDateValue: quote.shootDateValue,
+    });
+  };
+
+  const handleEditAccessProceed = async (payload: {
+    reason: string;
+    opsReviewConfirmed: boolean;
+  }) => {
+    if (!editAccessState?.quoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    setIsEditAccessSubmitting(true);
+
+    try {
+      const response = await salesApi.updateQuote(editAccessState.quoteId, {
+        edit_reason: payload.reason,
+        ops_review_confirmed: payload.opsReviewConfirmed,
+      });
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to confirm restricted edit access"
+        );
+      }
+
+      const { quoteId, targetView } = editAccessState;
+      setEditAccessState(null);
+      proceedToEditQuote(quoteId, targetView);
+    } catch (error) {
+      console.error("Failed to confirm restricted quote edit access", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm restricted quote edit access"
+      );
+    } finally {
+      setIsEditAccessSubmitting(false);
+    }
   };
 
   const statsIcons: Record<string, React.ReactNode> = {
@@ -1874,7 +1972,7 @@ export default function QuotesDashboardPage({
                             onDuplicate={() => {
                               void handleDuplicateQuote(quote.id);
                             }}
-                            onEdit={() => handleEditQuote(quote.id)}
+                            onEdit={() => handleEditQuote(quote)}
                             onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
                             onReject={() => {
                               void handleRejectQuote(quote.id, quote.statusKey);
@@ -1987,6 +2085,23 @@ export default function QuotesDashboardPage({
           </Button>
         </div>
       )}
+
+      <QuoteEditAccessModal
+        open={Boolean(editAccessState)}
+        onClose={() => {
+          if (isEditAccessSubmitting) {
+            return;
+          }
+          setEditAccessState(null);
+        }}
+        onProceed={(payload) => {
+          void handleEditAccessProceed(payload);
+        }}
+        quoteNumber={editAccessState?.quoteNumber || "Pending"}
+        clientName={editAccessState?.clientName || "Client"}
+        shootDateValue={editAccessState?.shootDateValue}
+        isSubmitting={isEditAccessSubmitting}
+      />
 
     </div>
   );

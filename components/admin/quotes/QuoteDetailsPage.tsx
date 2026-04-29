@@ -19,11 +19,19 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import ConvertBookingModal, {
   type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
+import QuoteEditAccessModal from "@/components/admin/quotes/QuoteEditAccessModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -193,6 +201,31 @@ const buildConvertModalInitialData = (
       endTime: singleEndTime,
     },
   };
+};
+
+const getQuoteEditShootDateValue = (quote?: SalesQuoteDetailData | null) => {
+  const bookingDays = quote?.converted_booking_details?.booking_days ?? [];
+  const firstBookingDay = Array.isArray(bookingDays) ? bookingDays[0] : null;
+  const dateValue = getQuoteText(
+    firstBookingDay?.date,
+    firstBookingDay?.event_date,
+    quote?.converted_booking_details?.start_date
+  );
+  const startTimeValue = getQuoteText(
+    firstBookingDay?.start_time,
+    quote?.converted_booking_details?.start_time
+  );
+
+  if (!dateValue) {
+    return "";
+  }
+
+  if (!startTimeValue) {
+    return dateValue;
+  }
+
+  const normalizedTime = startTimeValue.length === 5 ? `${startTimeValue}:00` : startTimeValue;
+  return `${dateValue}T${normalizedTime}`;
 };
 
 const getActivityBookingId = (activity: QuoteActivityLike | null | undefined) => {
@@ -393,6 +426,9 @@ const QuoteTopActions = ({
   isRejecting,
   isConverting,
   isSendingInvoice,
+  versions,
+  selectedVersionId,
+  onVersionChange,
 }: {
   onReject: () => void;
   onConvert: () => void;
@@ -408,8 +444,28 @@ const QuoteTopActions = ({
   isRejecting: boolean;
   isConverting: boolean;
   isSendingInvoice: boolean;
+  versions: any[];
+  selectedVersionId: string | null;
+  onVersionChange: (val: string) => void;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
+    {versions.length > 0 && (
+      <div className="mr-2 flex items-center gap-2">
+        <span className="text-sm font-medium text-[#8F8F95]">Version:</span>
+        <Select value={selectedVersionId || ""} onValueChange={onVersionChange}>
+          <SelectTrigger className="h-11 w-[140px] rounded-xl border-white/10 bg-[#1B1B1B] text-white">
+            <SelectValue placeholder="Select version" />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
+            {versions.map((v) => (
+              <SelectItem key={v.sales_quote_version_id || v.id} value={(v.sales_quote_version_id || v.id).toString()}>
+                Version {v.version_number}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    )}
     <Button
       type="button"
       onClick={onReject}
@@ -481,6 +537,8 @@ export default function QuoteDetailsPage({
   const router = useRouter();
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
@@ -490,6 +548,8 @@ export default function QuoteDetailsPage({
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [convertIntent, setConvertIntent] = useState<QuoteConvertIntent>("convert_only");
+  const [pendingEditView, setPendingEditView] = useState<QuoteEditorView | null>(null);
+  const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [convertModalInitialDataOverride, setConvertModalInitialDataOverride] =
     useState<ConvertBookingModalInitialData | null>(null);
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
@@ -536,12 +596,50 @@ export default function QuoteDetailsPage({
         }
 
         setQuote(quoteDetail);
-        const rawData = response?.data as any;
-        const sig = resolveSignatureSource(rawData);
+        const rawData =
+          response?.data && typeof response.data === "object"
+            ? (response.data as Record<string, unknown>)
+            : null;
+        const nestedData =
+          rawData?.data && typeof rawData.data === "object"
+            ? (rawData.data as Record<string, unknown>)
+            : null;
+        const sig =
+          typeof rawData?.signature_base64 === "string"
+            ? rawData.signature_base64
+            : typeof nestedData?.signature_base64 === "string"
+              ? nestedData.signature_base64
+              : null;
         if (sig) {
           setSignatureBase64(sig);
-          setSignerName(rawData?.signer_name ?? rawData?.data?.signer_name ?? null);
-          setSignedAt(rawData?.signed_at ?? rawData?.data?.signed_at ?? null);
+          setSignerName(
+            typeof rawData?.signer_name === "string"
+              ? rawData.signer_name
+              : typeof nestedData?.signer_name === "string"
+                ? nestedData.signer_name
+                : null
+          );
+          setSignedAt(
+            typeof rawData?.signed_at === "string"
+              ? rawData.signed_at
+              : typeof nestedData?.signed_at === "string"
+                ? nestedData.signed_at
+                : null
+          );
+        }
+
+        // Fetch versions after loading initial details
+        const versionsRes = await salesApi.getQuoteVersions(quoteId);
+        if (versionsRes?.success && isMounted) {
+          const versionsData = Array.isArray(versionsRes.data) ? versionsRes.data : versionsRes.data?.versions || [];
+          setVersions(versionsData);
+          // Set initial selected version to the current one if found
+          const currentVersion =
+            versionsData.find((v: any) => v?.is_current && v?.id != null) ||
+            versionsData.find((v: any) => v?.id != null);
+          if (currentVersion?.id != null && !selectedVersionId) {
+            setSelectedVersionId(String(currentVersion.id));
+          }
         }
       } catch (error) {
         console.error("Failed to load quote details", error);
@@ -567,6 +665,39 @@ export default function QuoteDetailsPage({
       isMounted = false;
     };
   }, [quoteId]);
+
+  useEffect(() => {
+    if (!selectedVersionId) return;
+    
+    // Skip if this is already the currently displayed quote's version
+    if (quote && (quote.version_id?.toString() === selectedVersionId || quote.id?.toString() === selectedVersionId)) {
+       return;
+    }
+
+    let isMounted = true;
+    const fetchVersionDetail = async () => {
+      setLoading(true);
+      try {
+        const response = await salesApi.getQuoteVersionDetail(quoteId, selectedVersionId);
+        if (response?.success && isMounted) {
+          const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+          if (quoteDetail) {
+            setQuote(quoteDetail);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch quote version detail", error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    void fetchVersionDetail();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedVersionId, quoteId]);
 
   useEffect(() => {
     const editViews: QuoteEditorView[] = [
@@ -642,6 +773,7 @@ export default function QuoteDetailsPage({
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
+  const editAccessShootDateValue = getQuoteEditShootDateValue(quote);
   const terms = normalizeQuoteTerms(
     quote?.terms_conditions,
     getDefaultQuoteTerms(getQuoteText(quote?.valid_until, quote?.expires_at) || null)
@@ -1190,7 +1322,7 @@ export default function QuoteDetailsPage({
     }
   };
 
-  const handleEditQuote = (targetView: QuoteEditorView) => {
+  const proceedToEditQuote = (targetView: QuoteEditorView) => {
     if (quote) {
       persistQuoteEditorNavigationCache(quoteId, quote);
     }
@@ -1199,6 +1331,45 @@ export default function QuoteDetailsPage({
     window.setTimeout(() => {
       router.push(`${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}`);
     }, 450);
+  };
+
+  const handleEditAccessProceed = async (payload: {
+    reason: string;
+    opsReviewConfirmed: boolean;
+  }) => {
+    if (!pendingEditView) {
+      return;
+    }
+
+    setIsEditAccessSubmitting(true);
+
+    try {
+      const response = await salesApi.updateQuote(quoteId, {
+        edit_reason: payload.reason,
+        ops_review_confirmed: payload.opsReviewConfirmed,
+      });
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to confirm restricted edit access"
+        );
+      }
+
+      const nextView = pendingEditView;
+      setPendingEditView(null);
+      proceedToEditQuote(nextView);
+    } catch (error) {
+      console.error("Failed to confirm restricted quote edit access", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm restricted quote edit access"
+      );
+    } finally {
+      setIsEditAccessSubmitting(false);
+    }
   };
 
   const topbarActions = (
@@ -1225,8 +1396,17 @@ export default function QuoteDetailsPage({
       isRejecting={isRejecting}
       isConverting={isConverting}
       isSendingInvoice={isSendingInvoice}
+      versions={versions}
+      selectedVersionId={selectedVersionId}
+      onVersionChange={(val) => setSelectedVersionId(val)}
     />
   );
+
+  const selectedVersionNumber = useMemo(() => {
+     if (!selectedVersionId || versions.length === 0) return null;
+     const v = versions.find((version) => version?.id != null && String(version.id) === selectedVersionId);
+     return v ? v.version_number : null;
+  }, [selectedVersionId, versions]);
 
   return (
     <div
@@ -1252,32 +1432,6 @@ export default function QuoteDetailsPage({
             <ArrowLeft size={18} />
             Back
           </button>
-
-          {/* <div className="flex flex-col gap-3 sm:flex-row">
-            <Button
-              type="button"
-              onClick={() => {
-                void handleViewInvoice();
-              }}
-              disabled={loading || !quote || isViewingInvoice || isSendingInvoice}
-              variant="outline"
-              className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
-            >
-              {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
-              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void handleSendInvoice();
-              }}
-              disabled={loading || !quote || isRejecting || isConverting || isSendingInvoice}
-              className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
-            >
-              {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
-              {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
-            </Button>
-          </div> */}
         </div>
 
         {loading ? (
@@ -1306,7 +1460,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Client Information"
               actionLabel="Edit Details"
-              onAction={() => handleEditQuote("details")}
+              onAction={() => setPendingEditView("details")}
             >
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -1315,9 +1469,23 @@ export default function QuoteDetailsPage({
                       {getInitials(clientName)}
                     </div>
                     <div className="min-w-0">
-                      <p className="break-words text-[26px] font-semibold leading-tight text-white">
-                        {clientName}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <p className="break-words text-[26px] font-semibold leading-tight text-white">
+                          {clientName}
+                        </p>
+                        {selectedVersionNumber && (
+                           <div className="flex flex-col items-start gap-1">
+                             <span className="rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
+                               Quote Version {selectedVersionNumber}
+                             </span>
+                             {quote?.edit_reason && (
+                               <p className="max-w-[300px] text-[13px] italic text-[#8F8F95] line-clamp-2" title={quote.edit_reason}>
+                                 "{quote.edit_reason}"
+                               </p>
+                             )}
+                           </div>
+                        )}
+                      </div>
                       <p className="mt-1 text-[24px] font-medium text-[#D8BC87]">
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
@@ -1545,7 +1713,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
               actionLabel="Edit Services"
-              onAction={() => handleEditQuote("services")}
+              onAction={() => setPendingEditView("services")}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -1565,7 +1733,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Add-On Includes"
               actionLabel="Edit Add ons"
-              onAction={() => handleEditQuote("addons")}
+              onAction={() => setPendingEditView("addons")}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1588,7 +1756,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Logistics"
               actionLabel="Edit Logistics"
-              onAction={() => handleEditQuote("logistics")}
+              onAction={() => setPendingEditView("logistics")}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1610,7 +1778,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Custom Line Item"
               actionLabel="Edit Items"
-              onAction={() => handleEditQuote("customlineitems")}
+              onAction={() => setPendingEditView("customlineitems")}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
@@ -1639,7 +1807,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Other Details"
               actionLabel="Edit Tax & Discounts"
-              onAction={() => handleEditQuote("discounts")}
+              onAction={() => setPendingEditView("discounts")}
             >
               <div className="space-y-6">
                 <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
@@ -1744,6 +1912,22 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+      />
+      <QuoteEditAccessModal
+        open={pendingEditView !== null}
+        onClose={() => {
+          if (isEditAccessSubmitting) {
+            return;
+          }
+          setPendingEditView(null);
+        }}
+        onProceed={(payload) => {
+          void handleEditAccessProceed(payload);
+        }}
+        quoteNumber={quoteNumber}
+        clientName={clientName}
+        shootDateValue={editAccessShootDateValue}
+        isSubmitting={isEditAccessSubmitting}
       />
       <ConvertBookingModal
         open={isConvertModalOpen}
