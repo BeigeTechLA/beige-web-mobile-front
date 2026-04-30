@@ -645,7 +645,7 @@ export const ShootsTable = ({
               </SelectContent>
             </Select>
 
-            <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
+            {/* <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
               isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"
             }`}>
               <button
@@ -674,7 +674,7 @@ export const ShootsTable = ({
               >
                 <Grid3X3 size={18} />
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

@@ -208,6 +208,9 @@ const GeneratePaymentLink = ({
         const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
         const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${effectiveBookingId}?t=${Date.now()}`;
         const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${effectiveBookingId}?download=1&t=${Date.now()}`;
+        const isManualInvoice =
+          String(invoicePdfUrl || "").includes("manual=1") ||
+          String(hostedInvoiceUrl || "").includes("manual=1");
 
         if (!hostedInvoiceUrl && !invoicePdfUrl) {
           toast.error("Preview URL not available");
@@ -219,16 +222,21 @@ const GeneratePaymentLink = ({
           window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
         }
 
-        // Trigger direct PDF download through backend proxy.
+        // For Stripe flow keep old behavior (auto-download via backend proxy).
+        // For Manual flow open/view only (no forced download).
         if (invoicePdfUrl) {
-          const link = document.createElement("a");
-          link.href = proxiedDownloadUrl || proxiedPdfUrl;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.click();
+          if (isManualInvoice) {
+            window.open(invoicePdfUrl || proxiedPdfUrl, "_blank", "noopener,noreferrer");
+          } else {
+            const link = document.createElement("a");
+            link.href = proxiedDownloadUrl || proxiedPdfUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.click();
+          }
         }
 
-        toast.success("Invoice opened and download started");
+        toast.success(isManualInvoice ? "Invoice opened" : "Invoice opened and download started");
       }
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Failed to preview invoice"));
