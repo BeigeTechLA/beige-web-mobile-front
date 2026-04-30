@@ -2867,8 +2867,11 @@ export default function CreateQuotePage() {
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
   const additionalPaymentDetails = React.useMemo(
-    () => getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote),
-    [previewQuote, quoteToEdit],
+    () =>
+      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
+        revisedTotalOverride: totalAfterTax,
+      }),
+    [previewQuote, quoteToEdit, totalAfterTax],
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -6587,12 +6590,19 @@ export default function CreateQuotePage() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            Additional Amount
+                            {additionalPaymentDetails.isDecrease
+                              ? "Decreasing Amount"
+                              : "Additional Amount"}
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.additionalAmount)}
+                            {`${additionalPaymentDetails.additionalAmount > 0 ? "+" : additionalPaymentDetails.additionalAmount < 0 ? "-" : ""}${formatCurrency(additionalPaymentDetails.displayAmount)}`}
                           </span>
                         </div>
+                        {additionalPaymentDetails.isDecrease ? (
+                          <p className="text-xs lg:text-sm text-[#E8D1AB]">
+                            This amount will be credited to the client.
+                          </p>
+                        ) : null}
                       </div>
                     </>
                   ) : null}

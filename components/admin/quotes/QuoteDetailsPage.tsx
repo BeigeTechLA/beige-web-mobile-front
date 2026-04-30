@@ -8,7 +8,6 @@ import {
   Camera,
   DollarSign,
   Eye,
-  FileText,
   Loader2,
   Mail,
   MapPin,
@@ -31,7 +30,9 @@ import ConvertBookingModal, {
   type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
-import QuoteEditAccessModal from "@/components/admin/quotes/QuoteEditAccessModal";
+import QuoteEditAccessModal, {
+  type QuoteEditAccessModalProps,
+} from "@/components/admin/quotes/QuoteEditAccessModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,7 @@ import {
 import { salesApi as salesRtkApi, useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import { useAppDispatch } from "@/lib/redux/hooks";
 import {
+  persistQuoteEditorEditReason,
   persistQuoteEditorNavigationCache,
   type QuoteEditorView,
 } from "@/lib/quoteEdit";
@@ -73,6 +75,7 @@ type QuoteDetailsPageProps = {
   quoteId: string;
   baseHref: string;
   TopbarComponent: React.ComponentType<TopbarComponentProps>;
+  EditAccessModalComponent?: React.ComponentType<QuoteEditAccessModalProps>;
 };
 
 type OtherDetailsTab = "discounts" | "tax";
@@ -486,12 +489,12 @@ const QuoteTopActions = ({
           <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
             {versions
               .map((v, index) => {
-                const rawVersionId = v?.sales_quote_version_id ?? v?.id;
-                if (rawVersionId == null) {
+                const rawVersionNumber = v?.version_number;
+                if (rawVersionNumber == null) {
                   return null;
                 }
                 return (
-                  <SelectItem key={`${rawVersionId}-${index}`} value={String(rawVersionId)}>
+                  <SelectItem key={`${rawVersionNumber}-${index}`} value={String(rawVersionNumber)}>
                     Version {v?.version_number ?? index + 1}
                   </SelectItem>
                 );
@@ -509,16 +512,6 @@ const QuoteTopActions = ({
     >
       {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
       {isRejecting ? "Rejecting..." : "Reject Quote"}
-    </Button>
-    <Button
-      type="button"
-      onClick={onConvert}
-      disabled={convertDisabled}
-      variant="outline"
-      className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
-    >
-      {isConverting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
-      {isConverting ? "Converting..." : "Convert to Booking"}
     </Button>
     <Button
       type="button"
@@ -564,6 +557,7 @@ export default function QuoteDetailsPage({
   quoteId,
   baseHref,
   TopbarComponent,
+  EditAccessModalComponent = QuoteEditAccessModal,
 }: QuoteDetailsPageProps) {
   const dispatch = useAppDispatch();
   const { isDark } = useResolvedTheme();
@@ -665,11 +659,11 @@ export default function QuoteDetailsPage({
           setVersions(versionsData);
           // Set initial selected version to the current one if found
           const currentVersion =
-            versionsData.find((v: any) => v?.is_current && (v?.sales_quote_version_id != null || v?.id != null)) ||
-            versionsData.find((v: any) => v?.sales_quote_version_id != null || v?.id != null);
-          const currentVersionId = currentVersion?.sales_quote_version_id ?? currentVersion?.id;
-          if (currentVersionId != null && !selectedVersionId) {
-            setSelectedVersionId(String(currentVersionId));
+            versionsData.find((v: any) => v?.is_current && v?.version_number != null) ||
+            versionsData.find((v: any) => v?.version_number != null);
+          const currentVersionNumber = currentVersion?.version_number;
+          if (currentVersionNumber != null && !selectedVersionId) {
+            setSelectedVersionId(String(currentVersionNumber));
           }
         }
       } catch (error) {
@@ -701,7 +695,7 @@ export default function QuoteDetailsPage({
     if (!selectedVersionId) return;
     
     // Skip if this is already the currently displayed quote's version
-    if (quote && (quote.version_id?.toString() === selectedVersionId || quote.id?.toString() === selectedVersionId)) {
+    if (quote && quote.version_number?.toString() === selectedVersionId) {
        return;
     }
 
@@ -1360,7 +1354,9 @@ export default function QuoteDetailsPage({
 
     toast.success("Opening quote editor");
     window.setTimeout(() => {
-      router.push(`${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}`);
+      router.push(
+        `${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}&editMode=full&returnTo=${encodeURIComponent(pathname)}`
+      );
     }, 450);
   };
 
@@ -1389,6 +1385,7 @@ export default function QuoteDetailsPage({
       }
 
       const nextView = pendingEditView;
+      persistQuoteEditorEditReason(quoteId, payload.reason);
       setPendingEditView(null);
       proceedToEditQuote(nextView);
     } catch (error) {
@@ -1435,7 +1432,7 @@ export default function QuoteDetailsPage({
 
   const selectedVersionNumber = useMemo(() => {
      if (!selectedVersionId || versions.length === 0) return null;
-     const v = versions.find((version) => version?.id != null && String(version.id) === selectedVersionId);
+     const v = versions.find((version) => version?.version_number != null && String(version.version_number) === selectedVersionId);
      return v ? v.version_number : null;
   }, [selectedVersionId, versions]);
 
@@ -1944,7 +1941,7 @@ export default function QuoteDetailsPage({
         quote={quote}
         quoteId={quoteId}
       />
-      <QuoteEditAccessModal
+      <EditAccessModalComponent
         open={pendingEditView !== null}
         onClose={() => {
           if (isEditAccessSubmitting) {

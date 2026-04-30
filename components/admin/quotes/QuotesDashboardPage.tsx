@@ -52,10 +52,15 @@ import {
   Search,
   XCircle,
 } from "lucide-react";
-import QuoteEditAccessModal from "@/components/admin/quotes/QuoteEditAccessModal";
+import QuoteEditAccessModal, {
+  type QuoteEditAccessModalProps,
+} from "@/components/admin/quotes/QuoteEditAccessModal";
 import { toast } from "react-hot-toast";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { persistQuoteEditorNavigationCache } from "@/lib/quoteEdit";
+import {
+  persistQuoteEditorEditReason,
+  persistQuoteEditorNavigationCache,
+} from "@/lib/quoteEdit";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 
 type TopbarComponentProps = {
@@ -66,6 +71,7 @@ type TopbarComponentProps = {
 type QuotesDashboardPageProps = {
   createHref: string;
   TopbarComponent: React.ComponentType<TopbarComponentProps>;
+  EditAccessModalComponent?: React.ComponentType<QuoteEditAccessModalProps>;
 };
 
 const CustomDollarIcon = ({ size = 20 }: { size?: number }) => (
@@ -932,6 +938,7 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function QuotesDashboardPage({
   createHref,
   TopbarComponent,
+  EditAccessModalComponent = QuoteEditAccessModal,
 }: QuotesDashboardPageProps) {
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
@@ -1380,6 +1387,7 @@ export default function QuotesDashboardPage({
       }
 
       const { quoteId, targetView } = editAccessState;
+      persistQuoteEditorEditReason(quoteId, payload.reason);
       setEditAccessState(null);
       proceedToEditQuote(quoteId, targetView);
     } catch (error) {
@@ -2100,7 +2108,7 @@ export default function QuotesDashboardPage({
         </div>
       )}
 
-      <QuoteEditAccessModal
+      <EditAccessModalComponent
         open={Boolean(editAccessState)}
         onClose={() => {
           if (isEditAccessSubmitting) {

@@ -62,10 +62,12 @@ import ConvertBookingModal, {
   type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
+import QuoteEditAccessModal from "@/components/admin/quotes/QuoteEditAccessModal";
 import {
   salesApi ,
   type LeadBookingSchedulePayload,
 } from "@/lib/api";
+import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 
@@ -289,6 +291,8 @@ export default function LeadDetailPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isConvertedBookingEditModalOpen, setIsConvertedBookingEditModalOpen] = useState(false);
   const [isUpdatingConvertedBooking, setIsUpdatingConvertedBooking] = useState(false);
+  const [pendingEditView, setPendingEditView] = useState<QuoteEditorView | null>(null);
+  const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
   const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "bank_transfer" | "credit_card" | "other">("cash");
@@ -652,6 +656,10 @@ export default function LeadDetailPage() {
   const startTime = formatTime(booking?.start_time);
   const endTime = formatTime(booking?.end_time);
   const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "Not set";
+  const quoteEditAccessShootDateValue =
+    booking?.event_date && booking?.start_time
+      ? `${booking.event_date}T${String(booking.start_time).slice(0, 5)}:00`
+      : booking?.event_date || null;
 
   // Extract data with defaults
   const clientName = lead?.client_name || lead?.guest_email || "Unknown User";
@@ -672,7 +680,6 @@ export default function LeadDetailPage() {
     Boolean(booking?.payment_id || booking?.payment_completed_at);
   const showCompletedPaymentMessage =
     isAmountPaid && !hasPendingAdditionalPayment;
-  const paidEditTooltipMessage = "Already paid. Editing is disabled for this booking.";
 
   const bookingDate = booking?.event_date
     ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
@@ -829,7 +836,6 @@ export default function LeadDetailPage() {
       ? "Stripe"
       : "Pending";
   const showManualPaymentPanel = !isAmountPaid || hasManualPaymentHistory;
-  const isPaymentLockedForEdits = isAmountPaid || manualPaymentSummary.hasFullPayment;
 
   const handleManualPaymentSubmit = async () => {
     const proofUrl = manualPaymentProofUrl.trim();
@@ -958,14 +964,66 @@ export default function LeadDetailPage() {
       return;
     }
 
+    setPendingEditView("details");
+  };
+
+  const proceedToEditQuote = (targetView: QuoteEditorView) => {
+    if (!editableQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
     const query = new URLSearchParams({
       quoteId: String(editableQuoteId),
-      view: "details",
+      view: targetView,
       editMode: "full",
       returnTo: pathname,
     });
 
-    router.push(`/admin/quotes/create?${query.toString()}`);
+    toast.success("Opening quote editor");
+    window.setTimeout(() => {
+      router.push(`/admin/quotes/create?${query.toString()}`);
+    }, 450);
+  };
+
+  const handleEditAccessProceed = async (payload: {
+    reason: string;
+    opsReviewConfirmed: boolean;
+  }) => {
+    if (!pendingEditView || !editableQuoteId) {
+      return;
+    }
+
+    setIsEditAccessSubmitting(true);
+
+    try {
+      const response = await salesApi.updateQuote(String(editableQuoteId), {
+        edit_reason: payload.reason,
+        ops_review_confirmed: payload.opsReviewConfirmed,
+      });
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to confirm restricted quote edit access"
+        );
+      }
+
+      const nextView = pendingEditView;
+      persistQuoteEditorEditReason(String(editableQuoteId), payload.reason);
+      setPendingEditView(null);
+      proceedToEditQuote(nextView);
+    } catch (error) {
+      console.error("Failed to confirm restricted quote edit access", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm restricted quote edit access"
+      );
+    } finally {
+      setIsEditAccessSubmitting(false);
+    }
   };
 
   const handleUpdateIntent = async (intent: string, notes: string) => {
@@ -1447,36 +1505,21 @@ export default function LeadDetailPage() {
                   <div className="group relative inline-flex">
                     <Button
                       onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
-                      disabled={isPaymentLockedForEdits}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                     >
                       Edit Details
                     </Button>
-                    {isPaymentLockedForEdits && (
-                      <HoverTooltip
-                        message={paidEditTooltipMessage}
-                        isDark={isDark}
-                        align="right"
-                      />
-                    )}
                   </div>
                 )}
                 {isQuoteConvertedLead && (
                   <div className="group relative inline-flex">
                     <Button
                       onClick={() => setIsConvertedBookingEditModalOpen(true)}
-                      disabled={isPaymentLockedForEdits || !convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      disabled={!convertedBookingInitialValues || isUpdatingConvertedBooking}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                     >
                       Edit Details
                     </Button>
-                    {isPaymentLockedForEdits && (
-                      <HoverTooltip
-                        message={paidEditTooltipMessage}
-                        isDark={isDark}
-                        align="right"
-                      />
-                    )}
                   </div>
                 )}
               </div>
@@ -2197,24 +2240,17 @@ export default function LeadDetailPage() {
                         <Button
                           type="button"
                           onClick={handleEditQuoteRedirect}
-                          disabled={isAmountPaid || !canEditQuote}
+                          disabled={!canEditQuote}
                           className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
                             isDark
                               ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
                               : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
-                          } ${isAmountPaid || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                          } ${!canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
                           aria-label="Edit Quote"
-                          title={!isAmountPaid ? "Edit Quote" : undefined}
+                          title="Edit Quote"
                         >
                           <Edit2 size={14} />
                         </Button>
-                        {isAmountPaid && (
-                          <HoverTooltip
-                            message={paidEditTooltipMessage}
-                            isDark={isDark}
-                            align="right"
-                          />
-                        )}
                       </div>
                     </div>
                   </div>
@@ -2363,6 +2399,22 @@ export default function LeadDetailPage() {
         title="Edit Booking Details"
         description="Update the booking type, shoot date and time, and location for this converted booking."
         submitLabel="Update Details"
+      />
+      <QuoteEditAccessModal
+        open={pendingEditView !== null}
+        onClose={() => {
+          if (isEditAccessSubmitting) {
+            return;
+          }
+          setPendingEditView(null);
+        }}
+        onProceed={(payload) => {
+          void handleEditAccessProceed(payload);
+        }}
+        quoteNumber={quotePricingDetails?.quoteDisplayNumber || String(editableQuoteId || "Pending")}
+        clientName={clientName}
+        shootDateValue={quoteEditAccessShootDateValue}
+        isSubmitting={isEditAccessSubmitting}
       />
 
       <Dialog open={isCPModalOpen} onOpenChange={setIsCPModalOpen}>

@@ -26,7 +26,6 @@ import {
   Loader2,
   Mail,
   TrendingDown,
-  TriangleAlert,
   X,
 } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
@@ -71,8 +70,10 @@ import {
   normalizeQuoteLineItems,
 } from "@/lib/quoteDetail";
 import {
+  clearQuoteEditorEditReason,
   buildQuoteEditorHydrationState,
   normalizeQuoteEditorView,
+  readQuoteEditorEditReason,
   readQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import {
@@ -318,6 +319,16 @@ type QuoteReviewFieldChange = {
   nextValue: string;
 };
 
+type QuoteReviewComparableItem = {
+  id: string;
+  key: string;
+  label: string;
+  name: string;
+  subtitle?: string;
+  section: "service" | "addon" | "logistics" | "custom";
+  amount: number;
+};
+
 const normalizeReviewKeyPart = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -334,6 +345,25 @@ const buildReviewItemKey = (
 
 const formatReviewDisplayLabel = (name: string, subtitle?: string | null) =>
   subtitle ? `${name} - ${subtitle.replace(/^\(|\)$/g, "")}` : name;
+
+const buildReviewItemGroups = (items: QuoteReviewComparableItem[]) => {
+  const groupedItems = new Map<string, QuoteReviewComparableItem>();
+
+  items.forEach((item) => {
+    const existingItem = groupedItems.get(item.key);
+    if (existingItem) {
+      groupedItems.set(item.key, {
+        ...existingItem,
+        amount: existingItem.amount + item.amount,
+      });
+      return;
+    }
+
+    groupedItems.set(item.key, { ...item });
+  });
+
+  return groupedItems;
+};
 
 const formatReviewValue = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -1627,6 +1657,28 @@ export default function CreateQuotePage() {
       isMounted = false;
     };
   }, [editQuoteId, router]);
+
+  React.useEffect(() => {
+    if (!editQuoteId) {
+      return;
+    }
+
+    const persistedReason = readQuoteEditorEditReason(editQuoteId);
+    const fallbackReason = String(quoteToEdit?.edit_reason || "").trim();
+    const nextReason = persistedReason || fallbackReason;
+
+    if (!nextReason) {
+      return;
+    }
+
+    setReviewChangeReason((currentValue) =>
+      currentValue.trim() ? currentValue : nextReason
+    );
+
+    if (persistedReason) {
+      clearQuoteEditorEditReason(editQuoteId);
+    }
+  }, [editQuoteId, quoteToEdit]);
 
   React.useEffect(() => {
     if (!editQuoteId || !quoteToEdit || !isCatalogLoaded) {
@@ -2943,8 +2995,11 @@ export default function CreateQuotePage() {
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
   const additionalPaymentDetails = React.useMemo(
-    () => getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote),
-    [previewQuote, quoteToEdit],
+    () =>
+      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
+        revisedTotalOverride: totalAfterTax,
+      }),
+    [previewQuote, quoteToEdit, totalAfterTax],
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -3144,7 +3199,7 @@ export default function CreateQuotePage() {
     });
 
   const currentDraftLineItems = React.useMemo(() => {
-    const payload = buildQuoteUpdatePayload({
+    const payload = buildQuoteDraftPayload({
       selectedClient,
       clientName,
       emailId,
@@ -3219,7 +3274,8 @@ export default function CreateQuotePage() {
           ? item.section_type
           : "service";
       const name =
-        String(
+        formatQuoteItemDisplayName(
+          String(
           item.item_name ||
             catalogMeta?.label ||
             (section === "service"
@@ -3227,9 +3283,10 @@ export default function CreateQuotePage() {
               : section === "addon"
                 ? "Add-on"
                 : section === "logistics"
-                  ? "Logistics"
+                ? "Logistics"
                   : "Custom Item"),
-        ).trim();
+          ).trim(),
+        );
       const quantity = Math.max(1, Number(item.quantity || 1));
       const duration = Math.max(0, Number(item.duration_hours || 0));
       const crew = Math.max(0, Number(item.crew_size || 0));
@@ -3296,14 +3353,17 @@ export default function CreateQuotePage() {
       ) ?? 0,
     );
     const nextTotal = Math.max(0, totalAfterTax);
-    const currentItemMap = new Map(
-      currentDraftLineItems.map((item) => [item.key, item] as const),
-    );
-    const originalItemMap = new Map(
-      originalLineItems.map((item) => [
-        buildReviewItemKey(item.section, item.name, item.subtitle),
-        item,
-      ] as const),
+    const currentItemMap = buildReviewItemGroups(currentDraftLineItems);
+    const originalItemMap = buildReviewItemGroups(
+      originalLineItems.map((item) => ({
+        id: item.id,
+        key: buildReviewItemKey(item.section, item.name, item.subtitle),
+        label: formatReviewDisplayLabel(item.name, item.subtitle),
+        name: item.name,
+        subtitle: item.subtitle,
+        section: item.section,
+        amount: Number(item.amount || 0),
+      })),
     );
 
     const lineChanges: QuoteReviewLineChange[] = [];
@@ -6989,7 +7049,7 @@ export default function CreateQuotePage() {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            Previously Paid
+                            Old Quote Total
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
                             {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
@@ -6997,12 +7057,19 @@ export default function CreateQuotePage() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            Additional Amount
+                            {additionalPaymentDetails.isDecrease
+                              ? "Service Change Amount"
+                              : "Additional Amount"}
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.additionalAmount)}
+                            {`${additionalPaymentDetails.additionalAmount > 0 ? "+" : additionalPaymentDetails.additionalAmount < 0 ? "-" : ""}${formatCurrency(additionalPaymentDetails.displayAmount)}`}
                           </span>
                         </div>
+                        {additionalPaymentDetails.isDecrease ? (
+                          <p className="text-xs lg:text-sm text-[#E8D1AB]">
+                            This amount will be added as Beige Credits after approval.
+                          </p>
+                        ) : null}
                       </div>
                     </>
                   ) : null}
@@ -7011,7 +7078,7 @@ export default function CreateQuotePage() {
 
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-xl font-medium text-white">
-                      Final Total
+                      New Quote Total
                     </span>
                     <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
                       {formatCurrency(totalAfterTax)}
@@ -7778,6 +7845,20 @@ export default function CreateQuotePage() {
               </div>
             </div>
 
+            {reviewChangesData.delta < 0 ? (
+              <div className="mt-4 rounded-[14px] border border-[#E8D1AB]/30 bg-[#201A10] px-5 py-4 text-[#E8D1AB]">
+                <p className="text-[15px] font-semibold">Credit Notice</p>
+                <p className="mt-2 text-[14px] leading-6 text-[#DCC79E]">
+                  This update decreases the quote total by{" "}
+                  <span className="font-semibold text-white">
+                    {formatCurrency(Math.abs(reviewChangesData.delta))}
+                  </span>
+                  . Review whether the difference should be added as account credit before
+                  saving this version.
+                </p>
+              </div>
+            ) : null}
+
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <div className="rounded-[12px] bg-[#141416] px-5 py-4">
                 <p className="text-sm text-[#9C9CA3]">Old Quote Total</p>
@@ -7796,15 +7877,19 @@ export default function CreateQuotePage() {
             {([
               ["Service Changes", reviewChangesData.serviceChanges],
               ["Add-On Changes", reviewChangesData.addonChanges],
+              ["Logistics Changes", reviewChangesData.logisticsChanges],
+              ["Custom Item Changes", reviewChangesData.customChanges],
             ] as const).map(([title, items]) =>
               items.length ? (
                 <div key={title} className="mt-5">
                   <h3 className="mb-3 text-[15px] font-medium text-[#A7A7AE]">{title}</h3>
                   <div className="space-y-3">
                     {items.map((item) => {
+                      const isRemoved = item.changeType === "removed";
+                      const isNegativeChange = isRemoved || item.delta < 0;
                       const isPositive = item.delta >= 0;
                       const toneClass =
-                        item.changeType === "removed"
+                        isRemoved
                           ? "border-[#6C161C] bg-[#2A090C] text-[#FF6B6B]"
                           : isPositive
                             ? "border-[#0C5B35] bg-[#031A12] text-[#00E18F]"
@@ -7817,12 +7902,12 @@ export default function CreateQuotePage() {
                         >
                           <div className="flex items-center gap-3">
                             <span className="text-[26px] leading-none">
-                              {item.changeType === "removed" ? "−" : "+"}
+                              {isNegativeChange ? "-" : "+"}
                             </span>
                             <div>
                               <p
                                 className={`text-[16px] font-medium ${
-                                  item.changeType === "removed" ? "line-through" : ""
+                                  isRemoved ? "line-through" : ""
                                 }`}
                               >
                                 {item.label}
@@ -7836,10 +7921,10 @@ export default function CreateQuotePage() {
                           </div>
                           <div
                             className={`text-[16px] font-semibold ${
-                              item.changeType === "removed" ? "line-through" : ""
+                              isRemoved ? "line-through" : ""
                             }`}
                           >
-                            {formatCurrency(Math.abs(item.delta))}
+                            {`${isNegativeChange ? "-" : "+"}${formatCurrency(Math.abs(item.delta))}`}
                           </div>
                         </div>
                       );
@@ -7856,18 +7941,6 @@ export default function CreateQuotePage() {
                 previousValue: item.previousValue || "None",
                 nextValue: item.nextValue || "None",
               })),
-              ...[...reviewChangesData.logisticsChanges, ...reviewChangesData.customChanges].map((item) => ({
-                id: item.id,
-                label: item.label,
-                previousValue:
-                  item.changeType === "added"
-                    ? "None"
-                    : formatCurrency(Math.abs(item.previousAmount)),
-                nextValue:
-                  item.changeType === "removed"
-                    ? "None"
-                    : formatCurrency(Math.abs(item.nextAmount)),
-              })),
             ].length ? (
               <div className="mt-5">
                 <h3 className="mb-3 text-[15px] font-medium text-[#A7A7AE]">Other Changes</h3>
@@ -7879,18 +7952,6 @@ export default function CreateQuotePage() {
                         label: item.label,
                         previousValue: item.previousValue || "None",
                         nextValue: item.nextValue || "None",
-                      })),
-                      ...[...reviewChangesData.logisticsChanges, ...reviewChangesData.customChanges].map((item) => ({
-                        id: item.id,
-                        label: item.label,
-                        previousValue:
-                          item.changeType === "added"
-                            ? "None"
-                            : formatCurrency(Math.abs(item.previousAmount)),
-                        nextValue:
-                          item.changeType === "removed"
-                            ? "None"
-                            : formatCurrency(Math.abs(item.nextAmount)),
                       })),
                     ].map((item) => (
                       <div key={item.id} className="rounded-[12px] bg-[#101012] p-4">
@@ -7916,21 +7977,7 @@ export default function CreateQuotePage() {
               </div>
             ) : null}
 
-            <div className="mt-7 rounded-[12px] border border-[#9A7105] bg-[#241C09] px-5 py-4">
-              <div className="flex items-start gap-4">
-                <div className="mt-0.5 text-[#F1BF3C]">
-                  <TriangleAlert size={28} />
-                </div>
-                <div>
-                  <p className="text-[16px] font-semibold text-[#F4C55B]">Reason Required</p>
-                  <p className="mt-1 text-sm leading-6 text-[#E2B952]">
-                    Please provide a reason for these changes as they may impact shoot execution.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5">
+            <div className="mt-7">
               <label className="mb-3 block text-[15px] font-medium text-[#9D9DA4]">
                 Reason for Change*
               </label>
@@ -8137,3 +8184,5 @@ export default function CreateQuotePage() {
     </div>
   );
 }
+
+
