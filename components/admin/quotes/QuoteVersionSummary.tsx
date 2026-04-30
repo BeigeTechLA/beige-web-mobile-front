@@ -62,6 +62,7 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
   const [isLoading, setIsLoading] = useState(true);
   const [versions, setVersions] = useState<any[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedVersionId, setSelectedVersionId] = useState<string>("");
 
   const fetchQuoteData = async (id: string, versionId?: string) => {
     setIsLoading(true);
@@ -91,31 +92,56 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
     }
   };
 
-  const fetchVersions = async () => {
-    try {
-      const response = await salesApi.getQuoteVersions(quoteId);
-      if (response?.success) {
-        const versionsData = Array.isArray(response.data)
-          ? response.data
-          : Array.isArray((response.data as any)?.versions)
-            ? (response.data as any).versions
-            : [];
-        setVersions(versionsData);
-      }
-    } catch (error) {
-      console.error("Failed to fetch quote versions:", error);
-    }
-  };
-
   useEffect(() => {
-    if (quoteId) {
-      fetchQuoteData(quoteId);
-      fetchVersions();
+    if (!quoteId) {
+      return;
     }
+
+    const initializeQuoteSummary = async () => {
+      setIsLoading(true);
+
+      try {
+        const versionsResponse = await salesApi.getQuoteVersions(quoteId);
+        const versionsData =
+          versionsResponse?.success
+            ? Array.isArray(versionsResponse.data)
+              ? versionsResponse.data
+              : Array.isArray((versionsResponse.data as any)?.versions)
+                ? (versionsResponse.data as any).versions
+                : []
+            : [];
+
+        setVersions(versionsData);
+
+        const defaultVersion =
+          versionsData.find((version) => version?.is_current && version?.version_number != null) ||
+          versionsData.find((version) => version?.version_number != null);
+
+        if (defaultVersion?.version_number != null) {
+          const versionId = String(defaultVersion.version_number);
+          setSelectedVersionId(versionId);
+          await fetchQuoteData(quoteId, versionId);
+          return;
+        }
+
+        await fetchQuoteData(quoteId);
+      } catch (error) {
+        console.error("Failed to initialize quote summary:", error);
+        await fetchQuoteData(quoteId);
+      }
+    };
+
+    void initializeQuoteSummary();
   }, [quoteId]);
 
   const currentVersionNumber = quote?.metadata?.version_number || quote?.version_number || 1;
   const clientName = quote?.client_name || quote?.guest_email || "Client";
+
+  useEffect(() => {
+    if (currentVersionNumber != null) {
+      setSelectedVersionId(String(currentVersionNumber));
+    }
+  }, [currentVersionNumber]);
   
   const lineItems = useMemo(() => {
     const items = quote?.line_items || quote?.items || quote?.quote_items || [];
@@ -144,8 +170,9 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
         </div>
         <div className="flex items-center gap-3">
           <Select
-            value={String(currentVersionNumber)}
+            value={selectedVersionId}
             onValueChange={(val) => {
+              setSelectedVersionId(val);
               const selectedVersion = versions.find(v => String(v.version_number) === val);
               if (selectedVersion) {
                 const versionNumber = selectedVersion.version_number;

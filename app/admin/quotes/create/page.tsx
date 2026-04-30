@@ -7039,7 +7039,7 @@ export default function CreateQuotePage() {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            Previously Paid
+                            Old Quote Total
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
                             {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
@@ -7048,16 +7048,16 @@ export default function CreateQuotePage() {
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
                             {additionalPaymentDetails.isDecrease
-                              ? "Decreasing Amount"
+                              ? "Service Change Amount"
                               : "Additional Amount"}
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.displayAmount)}
+                            {`${additionalPaymentDetails.additionalAmount > 0 ? "+" : additionalPaymentDetails.additionalAmount < 0 ? "-" : ""}${formatCurrency(additionalPaymentDetails.displayAmount)}`}
                           </span>
                         </div>
                         {additionalPaymentDetails.isDecrease ? (
                           <p className="text-xs lg:text-sm text-[#E8D1AB]">
-                            This amount will be credited to the client.
+                            This amount will be added as Beige Credits after approval.
                           </p>
                         ) : null}
                       </div>
@@ -7068,7 +7068,7 @@ export default function CreateQuotePage() {
 
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-xl font-medium text-white">
-                      Final Total
+                      New Quote Total
                     </span>
                     <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
                       {formatCurrency(totalAfterTax)}

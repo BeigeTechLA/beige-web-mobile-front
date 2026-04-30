@@ -6585,7 +6585,7 @@ export default function CreateQuotePage() {
                               : "Additional Amount"}
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.displayAmount)}
+                            {`${additionalPaymentDetails.additionalAmount > 0 ? "+" : additionalPaymentDetails.additionalAmount < 0 ? "-" : ""}${formatCurrency(additionalPaymentDetails.displayAmount)}`}
                           </span>
                         </div>
                         {additionalPaymentDetails.isDecrease ? (
