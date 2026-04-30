@@ -889,6 +889,7 @@ export default function AdminSaleRepManagerPage() {
                 totalPages={leadsTotalPages}
                 totalRecords={leadsTotalRecords}
                 limit={leadsLimit}
+                activeStatusFilter={statusFilter}
                 onPageChange={(page) => setLeadsCurrentPage(page)}
                 onRowClick={handleRowClick}
                 onOpenMenu={handleOpenMenu}
@@ -921,6 +922,10 @@ export default function AdminSaleRepManagerPage() {
             limit={usersLimit}
             headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
             onPageChange={(page) => setUsersCurrentPage(page)}
+            enableKanbanView
+            kanbanStatuses={[...BOOKING_STATUS_OPTIONS, "Approved", "Rejected", "Pending", "Unknown"]}
+            getItemId={(user) => user.id}
+            getItemStatus={(user) => user.bookingStatus || user.status}
             renderRow={(user) => (
               <tr
                 key={user.id}
@@ -982,6 +987,90 @@ export default function AdminSaleRepManagerPage() {
                   </button>
                 </td>
               </tr>
+            )}
+            renderKanbanCard={(user) => (
+              <div
+                onClick={() => handleUserRowClick(user)}
+                className={`group cursor-pointer rounded-2xl border p-4 transition-all ${
+                  isDark
+                    ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
+                    : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden ${
+                      isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
+                    }`}>
+                      {user.imageUrl ? (
+                        <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        user.initials
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
+                        {user.id}
+                      </p>
+                      <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${
+                        isDark ? "text-white" : "text-[#111111]"
+                      }`}>
+                        {user.name}
+                      </h4>
+                      <p className={`mt-1 text-sm truncate ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
+                      isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
+                    }`}
+                    onClick={(e) => {
+                      const rawId = user.id.replace('#', '');
+                      handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
+                    }}
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  <div className={`rounded-xl p-3 ${isDark ? "bg-[#101010]" : "bg-[#FAF6EE]"}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Type</p>
+                        <p className={`mt-1 text-sm font-medium ${isDark ? "text-[#F1F1F1]" : "text-[#222222]"}`}>
+                          {user.type}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Intent</p>
+                        <div className="mt-1">
+                          <IntentBadge intent={(user.intent as any) || "Warm"} size="sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <LeadsStatusBadge status={(user.bookingStatus as any) || user.status || "Unknown"} />
+                    <p className={`text-sm ${isDark ? "text-[#B9B9B9]" : "text-[#555555]"}`}>
+                      {user.phoneNumber || "N/A"}
+                    </p>
+                    {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                        {user.assignedSalesRepName || "Unassigned"}
+                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                    <p className={`text-xs ${isDark ? "text-[#5F5F5F]" : "text-[#9A9A9A]"}`}>
+                      {user.joinDate}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
             renderMobileDetails={(user) => (
               <div className="p-4 grid grid-cols-2 gap-4">
