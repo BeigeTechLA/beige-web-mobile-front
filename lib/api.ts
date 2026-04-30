@@ -1318,6 +1318,25 @@ export const DeleteProfileFile = async (crewFilesId: string | number, payload: a
 };
 
 export const adminApi = {
+  createInternalCredential: async (payload: {
+    name: string;
+    email: string;
+    password: string;
+    phone_number?: string;
+    user_type: number;
+  }) => {
+    try {
+      const response = await api.post('/auth/admin/create-internal-credential', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Internal Credential Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create internal credential',
+      };
+    }
+  },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/get-dashboard-summary', { params });

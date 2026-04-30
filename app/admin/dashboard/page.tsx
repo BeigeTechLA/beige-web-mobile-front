@@ -38,9 +38,14 @@ export default function AdminDashboardPage() {
     <>
       <Topbar pathname={pathname}
         actions={
-          <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black">
-            Book a Shoot
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => router.push("/admin/internal-credentials")} className="bg-white text-black hover:bg-white/90">
+              Internal Credentials
+            </Button>
+            <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black">
+              Book a Shoot
+            </Button>
+          </div>
         }
       />
 

@@ -858,14 +858,15 @@ export default function QuotesDashboardPage({
         return;
       }
 
-      setSalespersonOptions(
-        response.data
-          .map((salesRep) => ({
-            id: String(salesRep?.id ?? "").trim(),
-            name: String(salesRep?.name ?? "").trim(),
-          }))
-          .filter((salesRep) => salesRep.id && salesRep.name)
-      );
+      const uniqueSalespersonMap = new Map<string, SalesRepOption>();
+      response.data.forEach((salesRep) => {
+        const id = String(salesRep?.id ?? "").trim();
+        const name = String(salesRep?.name ?? "").trim();
+        if (!id || !name || uniqueSalespersonMap.has(id)) return;
+        uniqueSalespersonMap.set(id, { id, name });
+      });
+
+      setSalespersonOptions(Array.from(uniqueSalespersonMap.values()));
     };
 
     void fetchSalesReps();
@@ -1243,7 +1244,20 @@ export default function QuotesDashboardPage({
       hasChartData
   );
 
-  const showEmptyState = !loading && !hasOverviewData && displayQuotesData.length === 0;
+  const hasActiveFilters =
+    selectedSalesperson !== "all" ||
+    selectedStatusFilter !== "all" ||
+    Boolean(debouncedSearch.trim()) ||
+    Boolean(selectedDate);
+
+  // Show full empty-state only when there is genuinely no quotes data and
+  // no active filter/search/date constraints. Otherwise keep filters visible
+  // so user can change selection back.
+  const showEmptyState =
+    !loading &&
+    !hasOverviewData &&
+    displayQuotesData.length === 0 &&
+    !hasActiveFilters;
 
   return (
     <div className={`min-h-screen overflow-hidden ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
