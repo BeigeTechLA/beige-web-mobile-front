@@ -514,12 +514,16 @@ const buildCreatedClientDraft = ({
   email,
   phoneNumber,
   address,
+  clientId,
 }: {
   name: string;
   email: string;
   phoneNumber: string;
   address: string;
+  clientId?: string | number | null;
 }): ClientDropdownItem => ({
+  ...(clientId !== null && clientId !== undefined ? { client_id: clientId } : {}),
+  client_type: "guest",
   name,
   email,
   phone_number: phoneNumber,
@@ -2616,6 +2620,12 @@ export default function CreateQuotePage() {
             email: trimmedEmail,
             phoneNumber: trimmedPhone,
             address: trimmedAddress,
+            clientId:
+              (response as { data?: { client_id?: string | number; id?: string | number }; client_id?: string | number; id?: string | number })?.data?.client_id ??
+              (response as { data?: { client_id?: string | number; id?: string | number }; client_id?: string | number; id?: string | number })?.data?.id ??
+              (response as { data?: { client_id?: string | number; id?: string | number }; client_id?: string | number; id?: string | number })?.client_id ??
+              (response as { data?: { client_id?: string | number; id?: string | number }; client_id?: string | number; id?: string | number })?.id ??
+              null,
           });
 
           const dropdownResponse = await salesApi.getClientDropdown();
