@@ -30,6 +30,32 @@ type QuoteVersionSummaryProps = {
   quoteId: string;
 };
 
+const asRecord = (value: unknown): Record<string, any> | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, any>;
+};
+
+const extractVersionInfo = (value: unknown) => {
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  if (asRecord(record.version)) {
+    return record.version as Record<string, any>;
+  }
+
+  const nestedData = asRecord(record.data);
+  if (nestedData && asRecord(nestedData.version)) {
+    return nestedData.version as Record<string, any>;
+  }
+
+  return null;
+};
+
 export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProps) {
   const router = useRouter();
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
@@ -47,8 +73,7 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
       if (response?.success && response.data) {
         const unwrappedQuote = unwrapSalesQuoteDetail(response.data);
         if (unwrappedQuote) {
-          // Inject version info if it exists as a sibling to quote in response.data
-          const versionInfo = (response.data as any).version;
+          const versionInfo = extractVersionInfo(response.data);
           if (versionInfo) {
             unwrappedQuote.version_number = versionInfo.version_number;
             unwrappedQuote.metadata = {
@@ -69,8 +94,13 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
   const fetchVersions = async () => {
     try {
       const response = await salesApi.getQuoteVersions(quoteId);
-      if (response?.success && Array.isArray(response.data)) {
-        setVersions(response.data);
+      if (response?.success) {
+        const versionsData = Array.isArray(response.data)
+          ? response.data
+          : Array.isArray((response.data as any)?.versions)
+            ? (response.data as any).versions
+            : [];
+        setVersions(versionsData);
       }
     } catch (error) {
       console.error("Failed to fetch quote versions:", error);
@@ -118,9 +148,9 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
             onValueChange={(val) => {
               const selectedVersion = versions.find(v => String(v.version_number) === val);
               if (selectedVersion) {
-                const verId = selectedVersion.sales_quote_version_id || selectedVersion.id;
-                if (verId) {
-                  fetchQuoteData(quoteId, verId);
+                const versionNumber = selectedVersion.version_number;
+                if (versionNumber) {
+                  fetchQuoteData(quoteId, String(versionNumber));
                 }
               }
             }}

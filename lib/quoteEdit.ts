@@ -117,6 +117,11 @@ type QuoteEditorNavigationCacheEntry = {
   quote: SalesQuoteDetailData;
 };
 
+type QuoteEditorEditReasonCacheEntry = {
+  cachedAt: number;
+  reason: string;
+};
+
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const isEditingServiceLabel = (label: string) =>
@@ -136,6 +141,7 @@ const hasEditingConfiguration = (lineItem: SalesQuoteDetailLineItem) => {
   );
 };
 const QUOTE_EDITOR_NAVIGATION_CACHE_PREFIX = "quote-editor-navigation";
+const QUOTE_EDITOR_EDIT_REASON_CACHE_PREFIX = "quote-editor-edit-reason";
 const QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS = 10 * 60 * 1000;
 
 const EDITOR_VIEW_SET = new Set<QuoteEditorView>([
@@ -302,6 +308,9 @@ const ensureDateInputValue = (value: string | null, fallbackDays = 7) => {
 const getQuoteEditorNavigationCacheKey = (quoteId: string) =>
   `${QUOTE_EDITOR_NAVIGATION_CACHE_PREFIX}:${quoteId}`;
 
+const getQuoteEditorEditReasonCacheKey = (quoteId: string) =>
+  `${QUOTE_EDITOR_EDIT_REASON_CACHE_PREFIX}:${quoteId}`;
+
 export const persistQuoteEditorNavigationCache = (
   quoteId: string,
   quote: SalesQuoteDetailData
@@ -360,6 +369,76 @@ export const readQuoteEditorNavigationCache = (quoteId: string) => {
     console.error("Failed to read quote editor navigation cache", error);
     window.sessionStorage.removeItem(getQuoteEditorNavigationCacheKey(quoteId));
     return null;
+  }
+};
+
+export const persistQuoteEditorEditReason = (quoteId: string, reason: string) => {
+  if (typeof window === "undefined" || !quoteId.trim() || !reason.trim()) {
+    return;
+  }
+
+  try {
+    const cacheEntry: QuoteEditorEditReasonCacheEntry = {
+      cachedAt: Date.now(),
+      reason: reason.trim(),
+    };
+
+    window.sessionStorage.setItem(
+      getQuoteEditorEditReasonCacheKey(quoteId),
+      JSON.stringify(cacheEntry)
+    );
+  } catch (error) {
+    console.error("Failed to store quote editor edit reason", error);
+  }
+};
+
+export const readQuoteEditorEditReason = (quoteId: string) => {
+  if (typeof window === "undefined" || !quoteId.trim()) {
+    return "";
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(
+      getQuoteEditorEditReasonCacheKey(quoteId)
+    );
+
+    if (!rawValue) {
+      return "";
+    }
+
+    const parsedValue = JSON.parse(rawValue) as QuoteEditorEditReasonCacheEntry;
+    if (
+      !parsedValue ||
+      typeof parsedValue !== "object" ||
+      typeof parsedValue.cachedAt !== "number" ||
+      typeof parsedValue.reason !== "string"
+    ) {
+      window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+      return "";
+    }
+
+    if (Date.now() - parsedValue.cachedAt > QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+      return "";
+    }
+
+    return parsedValue.reason.trim();
+  } catch (error) {
+    console.error("Failed to read quote editor edit reason", error);
+    window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+    return "";
+  }
+};
+
+export const clearQuoteEditorEditReason = (quoteId: string) => {
+  if (typeof window === "undefined" || !quoteId.trim()) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+  } catch (error) {
+    console.error("Failed to clear quote editor edit reason", error);
   }
 };
 

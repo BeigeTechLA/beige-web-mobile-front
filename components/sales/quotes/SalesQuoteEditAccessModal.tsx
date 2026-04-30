@@ -12,16 +12,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-
-export type QuoteEditAccessModalProps = {
-  open: boolean;
-  onClose: () => void;
-  onProceed: (payload: { reason: string; opsReviewConfirmed: boolean }) => void;
-  quoteNumber: string;
-  clientName: string;
-  shootDateValue?: string | null;
-  isSubmitting?: boolean;
-};
+import type { QuoteEditAccessModalProps } from "@/components/admin/quotes/QuoteEditAccessModal";
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -75,7 +66,7 @@ const formatTimeRemaining = (value?: string | null) => {
   return `${totalDays} Days`;
 };
 
-export default function QuoteEditAccessModal({
+export default function SalesQuoteEditAccessModal({
   open,
   onClose,
   onProceed,
