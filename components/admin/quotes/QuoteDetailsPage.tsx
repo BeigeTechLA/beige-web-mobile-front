@@ -119,20 +119,48 @@ const joinAssetUrl = (baseUrl: string, assetPath: string) => {
   return `${normalizedBase}/${normalizedPath}`;
 };
 
+const resolveS3ProofUrl = (value?: string | null) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+  if (/^https?:\/\//i.test(rawValue)) return rawValue;
+  return joinAssetUrl(S3_PREFIX, rawValue);
+};
+
 const resolveSignatureSource = (rawData: any) => {
+  const nested = rawData?.data;
   const source =
     rawData?.signature_base64 ??
-    rawData?.data?.signature_base64 ??
+    nested?.signature_base64 ??
     rawData?.signature_path ??
-    rawData?.data?.signature_path;
+    nested?.signature_path ??
+    rawData?.file_path ??
+    nested?.file_path ??
+    rawData?.signature_url ??
+    nested?.signature_url ??
+    rawData?.file_url ??
+    nested?.file_url;
 
   if (!source) return null;
+  if (typeof source !== "string") return null;
 
-  if (source.startsWith("http") || source.startsWith("data:")) {
-    return source;
+  const value = source.trim();
+  if (!value) return null;
+
+  if (value.startsWith("data:")) {
+    return value;
   }
 
-  return joinAssetUrl(S3_PREFIX, source);
+  // Some responses send plain base64 without data URI prefix.
+  if (/^[A-Za-z0-9+/=\r\n]+$/.test(value) && value.length > 80) {
+    return `data:image/png;base64,${value}`;
+  }
+
+  if (/^https?:\/\//i.test(value) && !/localhost|127\.0\.0\.1|::1/i.test(value)) {
+    return value;
+  }
+
+  const normalizedPath = (value.match(/(?:^|\/)(signatures\/.+)$/i)?.[1] ?? value).replace(/^\/+/, "");
+  return joinAssetUrl(S3_PREFIX, normalizedPath);
 };
 
 const normalizeConvertModalTime = (value?: string | null) =>
@@ -456,11 +484,19 @@ const QuoteTopActions = ({
             <SelectValue placeholder="Select version" />
           </SelectTrigger>
           <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
-            {versions.map((v) => (
-              <SelectItem key={v.sales_quote_version_id || v.id} value={(v.sales_quote_version_id || v.id).toString()}>
-                Version {v.version_number}
-              </SelectItem>
-            ))}
+            {versions
+              .map((v, index) => {
+                const rawVersionId = v?.sales_quote_version_id ?? v?.id;
+                if (rawVersionId == null) {
+                  return null;
+                }
+                return (
+                  <SelectItem key={`${rawVersionId}-${index}`} value={String(rawVersionId)}>
+                    Version {v?.version_number ?? index + 1}
+                  </SelectItem>
+                );
+              })
+              .filter(Boolean)}
           </SelectContent>
         </Select>
       </div>
@@ -603,12 +639,7 @@ export default function QuoteDetailsPage({
           rawData?.data && typeof rawData.data === "object"
             ? (rawData.data as Record<string, unknown>)
             : null;
-        const sig =
-          typeof rawData?.signature_base64 === "string"
-            ? rawData.signature_base64
-            : typeof nestedData?.signature_base64 === "string"
-              ? nestedData.signature_base64
-              : null;
+        const sig = resolveSignatureSource(rawData);
         if (sig) {
           setSignatureBase64(sig);
           setSignerName(
@@ -634,10 +665,11 @@ export default function QuoteDetailsPage({
           setVersions(versionsData);
           // Set initial selected version to the current one if found
           const currentVersion =
-            versionsData.find((v: any) => v?.is_current && v?.id != null) ||
-            versionsData.find((v: any) => v?.id != null);
-          if (currentVersion?.id != null && !selectedVersionId) {
-            setSelectedVersionId(String(currentVersion.id));
+            versionsData.find((v: any) => v?.is_current && (v?.sales_quote_version_id != null || v?.id != null)) ||
+            versionsData.find((v: any) => v?.sales_quote_version_id != null || v?.id != null);
+          const currentVersionId = currentVersion?.sales_quote_version_id ?? currentVersion?.id;
+          if (currentVersionId != null && !selectedVersionId) {
+            setSelectedVersionId(String(currentVersionId));
           }
         }
       } catch (error) {
