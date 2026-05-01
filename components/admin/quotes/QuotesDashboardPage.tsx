@@ -115,6 +115,7 @@ type DisplayQuoteRow = {
 type SalesRepOption = {
   id: string;
   name: string;
+  role?: string;
 };
 
 type QuoteListPaginationState = {
@@ -863,7 +864,7 @@ export default function QuotesDashboardPage({
         const id = String(salesRep?.id ?? "").trim();
         const name = String(salesRep?.name ?? "").trim();
         if (!id || !name || uniqueSalespersonMap.has(id)) return;
-        uniqueSalespersonMap.set(id, { id, name });
+        uniqueSalespersonMap.set(id, { id, name, role: String(salesRep?.role ?? "").trim() || undefined });
       });
 
       setSalespersonOptions(Array.from(uniqueSalespersonMap.values()));
@@ -1524,7 +1525,14 @@ export default function QuotesDashboardPage({
                     <SelectItem value="all">All Salesperson</SelectItem>
                     {salespersonOptions.map((salesperson) => (
                       <SelectItem key={salesperson.id} value={salesperson.id}>
-                        {salesperson.name}
+                        <div className="flex flex-col leading-tight">
+                          <span>{salesperson.name}</span>
+                          {salesperson.role ? (
+                            <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                              {salesperson.role}
+                            </span>
+                          ) : null}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

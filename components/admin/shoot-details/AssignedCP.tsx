@@ -173,7 +173,7 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
         ) : (
           <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
             <button
-              onClick={() => router.push("/admin/select-creatives")}
+              onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
               className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg ${isDark
                 ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10"
                 : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
