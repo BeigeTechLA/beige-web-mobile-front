@@ -13,8 +13,6 @@ import {
   Clock,
   Loader2,
   Map,
-  Icon,
-  Info,
   ShieldCheck,
   FileImage,
   RefreshCw,
@@ -52,6 +50,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
 import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
+import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -189,7 +188,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         : "Date not set";
 
   const [durationHours, setDurationHours] = useState<number>(0);
-  const [acceptTerms, setAcceptTerms] = useState(true);
+  const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
+  const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
   const selectedStudios = normalizeSelectedStudios(data);
   const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
@@ -297,6 +297,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     if (!isValidPhoneNumber(data.phone)) {
       toast.error("Please enter a valid phone number");
       setErrors((prev) => [...prev, "contactError"]);
+      return;
+    }
+
+    if (!acceptServiceAgreement) {
+      toast.error("Please accept the Service Agreement to continue.");
       return;
     }
 
@@ -933,19 +938,30 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <div className="w-2.5 h-2.5 rounded-full bg-black" />
                 </div>
               </div>
-              <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center">
-                <input
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                />
+              <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2">
+                <input type="checkbox" checked={acceptServiceAgreement} readOnly />
                 <p className="text-sm text-[#999]">
-                  By continuing to payment, you agree to our{" "}
-                  <span className="text-[#E8D5B5]">Terms & Conditions</span>,{" "}
-                  <span className="text-[#E8D5B5]">Cancellation Policy</span>,
-                  and <span className="text-[#E8D5B5]">Privacy Policy</span>
+                  I have read and agree to the{" "}
+                  <button
+                    type="button"
+                    onClick={() => setIsServiceAgreementOpen(true)}
+                    className="text-[#E8D5B5] underline hover:text-[#f3e4cd]"
+                  >
+                    Service Agreement & Terms of Engagement
+                  </button>
+                  .
                 </p>
               </div>
+
+              <ServiceAgreementModal
+                isOpen={isServiceAgreementOpen}
+                initialChecked={acceptServiceAgreement}
+                onClose={() => setIsServiceAgreementOpen(false)}
+                onAccept={() => {
+                  setAcceptServiceAgreement(true);
+                  setIsServiceAgreementOpen(false);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -1250,3 +1266,4 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     </div>
   );
 };
+
