@@ -638,25 +638,25 @@ export const InvoiceTable = () => {
           </div>
 
           <div className="hidden lg:block w-full overflow-x-auto">
-            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse">
+            <table className="w-full min-w-[1180px] table-fixed text-left border-collapse">
               <colgroup>
-                <col className="w-[20%]" />
-                <col className="w-[12%]" />
-                <col className="w-[17%]" />
-                <col className="w-[22%]" />
                 <col className="w-[15%]" />
-                <col className="w-[10%]" />
-                <col className="w-[4%]" />
+                <col className="w-[12%]" />
+                <col className="w-[16%]" />
+                <col className="w-[17%]" />
+                <col className="w-[17%]" />
+                <col className="w-[15%]" />
+                <col className="w-[8%]" />
               </colgroup>
               <thead>
                 <tr className={`border-b text-xs font-medium uppercase tracking-[0.16em] transition-colors duration-300 ${isDark ? "text-[#E8D1AB] border-[#333333]" : "text-[#8A6A3D] border-[#E5E5E5] bg-[#FFFCF6]"}`}>
-                  <th className="py-4 px-6 font-medium">Invoice ID</th>
-                  <th className="py-4 px-6 font-medium">Booking ID</th>
-                  <th className="py-4 px-6 font-medium">Client Name</th>
-                  <th className="py-4 px-6 font-medium">Email</th>
-                  <th className="py-4 px-6 font-medium">Lead ID/Quote ID</th>
-                  <th className="py-4 px-6 font-medium">Payment Status</th>
-                  <th className="py-4 px-6 font-medium text-right">Action</th>
+                  <th className="py-4 px-6 font-medium whitespace-nowrap">Invoice ID</th>
+                  <th className="py-4 px-6 font-medium whitespace-nowrap">Booking ID</th>
+                  <th className="py-4 px-6 font-medium whitespace-nowrap">Client Name</th>
+                  <th className="py-4 px-6 font-medium whitespace-nowrap">Email</th>
+                  <th className="py-4 px-6 font-medium whitespace-nowrap">Lead ID/Quote ID</th>
+                  <th className="py-4 px-6 font-medium whitespace-nowrap">Payment Status</th>
+                  <th className="py-4 px-6 font-medium text-center whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -709,20 +709,22 @@ export const InvoiceTable = () => {
                         <td className="py-5 px-6 align-top">
                           <LeadsStatusBadge status={row.paymentStatus} />
                         </td>
-                        <td className="py-5 px-6 align-top text-right">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleDownload(row.invoicePdf);
-                            }}
-                            disabled={!row.invoicePdf}
-                            className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
-                            aria-label="Download invoice pdf"
-                            title="Download invoice pdf"
-                          >
-                            <Download size={18} />
-                          </button>
+                        <td className="py-5 px-6 align-top">
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleDownload(row.invoicePdf);
+                              }}
+                              disabled={!row.invoicePdf}
+                              className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
+                              aria-label="Download invoice pdf"
+                              title="Download invoice pdf"
+                            >
+                              <Download size={18} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                       {hasChildren && isExpanded && row.invoices.map((invoice) => (
@@ -753,20 +755,22 @@ export const InvoiceTable = () => {
                           <td className="py-4 px-6 align-top">
                             <LeadsStatusBadge status={invoice.paymentStatus} />
                           </td>
-                          <td className="py-4 px-6 align-top text-right">
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleDownload(invoice.invoicePdf);
-                              }}
-                              disabled={!invoice.invoicePdf}
-                              className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
-                              aria-label="Download invoice pdf"
-                              title="Download invoice pdf"
-                            >
-                              <Download size={16} />
-                            </button>
+                          <td className="py-4 px-6 align-top">
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDownload(invoice.invoicePdf);
+                                }}
+                                disabled={!invoice.invoicePdf}
+                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
+                                aria-label="Download invoice pdf"
+                                title="Download invoice pdf"
+                              >
+                                <Download size={16} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

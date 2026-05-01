@@ -1373,21 +1373,8 @@ export default function QuotesDashboardPage({
     setIsEditAccessSubmitting(true);
 
     try {
-      const response = await salesApi.updateQuote(editAccessState.quoteId, {
-        edit_reason: payload.reason,
-        ops_review_confirmed: payload.opsReviewConfirmed,
-      });
-
-      if (response?.error || response?.success === false) {
-        throw new Error(
-          typeof response?.error === "string"
-            ? response.error
-            : "Failed to confirm restricted edit access"
-        );
-      }
-
       const { quoteId, targetView } = editAccessState;
-      persistQuoteEditorEditReason(quoteId, payload.reason);
+      persistQuoteEditorEditReason(quoteId, payload.reason, payload.opsReviewConfirmed);
       setEditAccessState(null);
       proceedToEditQuote(quoteId, targetView);
     } catch (error) {

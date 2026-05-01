@@ -997,21 +997,12 @@ export default function SalesLeadDetailsPage() {
     setIsEditAccessSubmitting(true);
 
     try {
-      const response = await salesApi.updateQuote(String(editableQuoteId), {
-        edit_reason: payload.reason,
-        ops_review_confirmed: payload.opsReviewConfirmed,
-      });
-
-      if (response?.error || response?.success === false) {
-        throw new Error(
-          typeof response?.error === "string"
-            ? response.error
-            : "Failed to confirm restricted quote edit access"
-        );
-      }
-
       const nextView = pendingEditView;
-      persistQuoteEditorEditReason(String(editableQuoteId), payload.reason);
+      persistQuoteEditorEditReason(
+        String(editableQuoteId),
+        payload.reason,
+        payload.opsReviewConfirmed,
+      );
       setPendingEditView(null);
       proceedToEditQuote(nextView);
     } catch (error) {

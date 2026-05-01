@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Plus, Minus } from "lucide-react";
 
 import type { SalesQuoteDetailData } from "@/lib/api";
 import {
@@ -352,19 +353,34 @@ export default function QuotePreviewDocument({
                 <div className="mt-2 border-t border-black/10 pt-3" />
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-6">
-                    <span>Previously Paid</span>
+                    <span>Old Quote Total</span>
                     <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                      {formatQuoteCurrency(additionalPaymentDetails.previousTotal)}
+                    </span>
+                  </div>
+                  {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
+                    <div className="flex items-center justify-between gap-6">
+                      <span>Previously Paid</span>
+                      <span className="font-semibold">
+                        {formatQuoteCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                      </span>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-6">
+                    <div className="flex items-center gap-1.5">
+                      {additionalPaymentDetails.additionalAmount < 0 ? (
+                        <Minus size={14} className="text-red-600" />
+                      ) : (
+                        <Plus size={14} className="text-emerald-600" />
+                      )}
+                      <span>{additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}</span>
+                    </div>
+                    <span className={`font-semibold ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-600" : ""}`}>
+                      {formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-6">
-                    <span>Additional Amount</span>
-                    <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.additionalAmount)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-6">
-                    <span>Outstanding Amount</span>
+                    <span>Remaining Amount</span>
                     <span className="font-semibold">
                       {formatQuoteCurrency(additionalPaymentDetails.outstandingAmount)}
                     </span>

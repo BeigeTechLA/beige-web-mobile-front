@@ -16,6 +16,7 @@ import {
   MapPinned,
   Copy,
   Plus,
+  Minus,
   X,
   Clock,
   Circle,
@@ -997,21 +998,12 @@ export default function LeadDetailPage() {
     setIsEditAccessSubmitting(true);
 
     try {
-      const response = await salesApi.updateQuote(String(editableQuoteId), {
-        edit_reason: payload.reason,
-        ops_review_confirmed: payload.opsReviewConfirmed,
-      });
-
-      if (response?.error || response?.success === false) {
-        throw new Error(
-          typeof response?.error === "string"
-            ? response.error
-            : "Failed to confirm restricted quote edit access"
-        );
-      }
-
       const nextView = pendingEditView;
-      persistQuoteEditorEditReason(String(editableQuoteId), payload.reason);
+      persistQuoteEditorEditReason(
+        String(editableQuoteId),
+        payload.reason,
+        payload.opsReviewConfirmed,
+      );
       setPendingEditView(null);
       proceedToEditQuote(nextView);
     } catch (error) {
@@ -1768,11 +1760,60 @@ export default function LeadDetailPage() {
                   </>
                 )}
               </div>
+              {additionalPaymentDetails && (
+                <div className="flex flex-col gap-3 px-4 py-4 border-t border-dashed border-white/10 lg:px-9">
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Old Total</span>
+                    <span className={`text-sm font-mono ${isDark ? "text-white" : "text-black"}`}>
+                      {formatCurrencyValue(additionalPaymentDetails.revisedTotal - additionalPaymentDetails.additionalAmount)}
+                    </span>
+                  </div>
+                  {additionalPaymentDetails.previouslyPaidAmount > 0 && (
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#71717B] text-xs">Previously Paid</span>
+                      <span className={`text-sm font-mono ${isDark ? "text-white" : "text-black"}`}>
+                        {formatCurrencyValue(additionalPaymentDetails.previouslyPaidAmount)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium">
+                    <div className="flex items-center gap-1.5">
+                      {additionalPaymentDetails.additionalAmount < 0 ? (
+                        <Minus size={12} className="text-red-500" />
+                      ) : (
+                        <Plus size={12} className="text-emerald-500" />
+                      )}
+                      <span className="text-[#71717B] text-xs">
+                        {additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}
+                      </span>
+                    </div>
+                    <span className={`text-sm font-mono ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : (isDark ? "text-white" : "text-black")}`}>
+                      {formatCurrencyValue(Math.abs(additionalPaymentDetails.additionalAmount))}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
                 <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Total Amount</span>
                 <span className="lg:text-lg font-semibold text-[#E8D1AB]">${total.toLocaleString()}</span>
               </div>
+              {manualPaymentSummary.paidAmount > 0 && (
+                <div className="p-4 lg:px-9 lg:py-4 flex justify-between items-center border-t border-dashed border-white/10">
+                  <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Paid Amount</span>
+                  <span className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                    ${manualPaymentSummary.paidAmount.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {manualPaymentSummary.pendingAmount > 0 && (
+                <div className="p-4 lg:px-9 lg:py-4 flex justify-between items-center border-t border-dashed border-white/10">
+                  <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Remaining Amount</span>
+                  <span className="text-sm lg:text-base font-semibold text-[#E8D1AB]">
+                    ${manualPaymentSummary.pendingAmount.toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

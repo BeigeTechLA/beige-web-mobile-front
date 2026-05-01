@@ -102,7 +102,7 @@ const formatDateTime = (value: string | null | undefined) => {
   const parsed = parseISO(value);
   if (!isValid(parsed)) return value;
 
-  return format(parsed, "MMMM d, yyyy\nh:mm a");
+  return format(parsed, "d MMM, yyyy h:mm a");
 };
 
 const formatShortDateTime = (value: string | null | undefined) => {
@@ -111,7 +111,7 @@ const formatShortDateTime = (value: string | null | undefined) => {
   const parsed = parseISO(value);
   if (!isValid(parsed)) return value;
 
-  return format(parsed, "MMM d, yyyy h:mm a");
+  return format(parsed, "d MMM, yyyy h:mm a");
 };
 
 const normalizeStatus = (value: string | null | undefined) =>
@@ -527,7 +527,7 @@ const RequestDetailsModal = ({
 export default function QuoteChangeRequestsWorkspace({
   TopbarComponent,
   title = "Quote Change Request",
-  description = "Dynamic list from `sales/dashboard/quote-change-requests`. Click any request to open its details popup.",
+  description = "Dynamic list from 'sales/dashboard/quote-change-requests'. Click any request to open its details popup.",
   detailsHrefBase,
 }: QuoteChangeRequestsWorkspaceProps) {
   const pathname = usePathname();
