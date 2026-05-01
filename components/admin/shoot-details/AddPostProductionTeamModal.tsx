@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { X, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { adminApi } from "@/lib/api";
+import { adminApi, salesApi } from "@/lib/api";
 
 interface AddPostProductionTeamModalProps {
   isOpen: boolean;
@@ -38,24 +38,22 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
       const fetchMembers = async () => {
         try {
           setLoading(true);
-          const response = await adminApi.getPostProductionMembers();
-          // Some APIs return data directly, some under a 'data' field
-          const membersList = response.data || response;
+          const response = await salesApi.getSalesReps();
+          const membersList = Array.isArray(response?.data) ? response.data : [];
 
           if (Array.isArray(membersList)) {
-            setMembers(membersList.map((m: any) => ({
-              id: m.post_production_member_id,
-              name: `${m.first_name} ${m.last_name}`.trim() || m.full_name || "Unknown",
-              role: m.role || "Post Production",
-              email: m.email
-            })));
-          } else if (membersList && Array.isArray(membersList.data)) {
-            setMembers(membersList.data.map((m: any) => ({
-              id: m.post_production_member_id,
-              name: `${m.first_name} ${m.last_name}`.trim() || m.full_name || "Unknown",
-              role: m.role || "Post Production",
-              email: m.email
-            })));
+            setMembers(
+              membersList.map((m: any) => ({
+                id: Number(m.id),
+                name:
+                  m.name ||
+                  `${m.first_name || ""} ${m.last_name || ""}`.trim() ||
+                  m.full_name ||
+                  "Unknown",
+                role: m.role || "Sales Representative",
+                email: m.email,
+              })),
+            );
           }
         } catch (error) {
           console.error("Error fetching post production members:", error);
