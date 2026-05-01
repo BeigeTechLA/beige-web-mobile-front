@@ -1327,7 +1327,7 @@ function StripePaymentFormMulti({
         </Button>
       </form>
 
-      <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2 lg:mt-5">
+      {/* <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2 lg:mt-5">
         <input
           type="checkbox"
           checked={acceptTerms}
@@ -1339,7 +1339,7 @@ function StripePaymentFormMulti({
           <span className="text-[#E8D5B5]">Cancellation Policy</span>,
           and <span className="text-[#E8D5B5]">Privacy Policy</span>
         </p>
-      </div>
+      </div> */}
 
       <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2">
         <input type="checkbox" checked={acceptServiceAgreement} readOnly />
