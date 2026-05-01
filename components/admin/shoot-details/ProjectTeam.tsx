@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
@@ -19,7 +18,6 @@ interface TeamMember {
     id: number;
     name: string;
     role: string;
-    image: string;
     bgColor?: string;
 }
 
@@ -46,7 +44,6 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
                 id: m.post_production_member_id,
                 name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.full_name || "Unknown",
                 role: profile.role || "Post Production",
-                image: profile.profile_image || profile.image || "/images/crew/CREW(6).png",
                 bgColor: BG_COLORS[idx % BG_COLORS.length]
             };
         });
@@ -70,7 +67,6 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
                         id: m.post_production_member_id,
                         name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.full_name || "Unknown",
                         role: profile.role || "Post Production",
-                        image: profile.profile_image || profile.image || "/images/crew/CREW(6).png",
                         bgColor: BG_COLORS[idx % BG_COLORS.length]
                     };
                 });
@@ -173,7 +169,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
                     </button>
 
                     {/* Slider Section - Horizontal Coverflow */}
-                    <div className="w-full h-[220px] mt-24 relative z-10">
+                    <div className="w-full h-[250px] mt-24 relative z-10">
                         <Swiper
                             effect={"coverflow"}
                             grabCursor={true}
@@ -195,17 +191,22 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
                                 <SwiperSlide
                                     key={`${member.id}-${index}`}
                                     className={cn(
-                                        "!w-[280px] !h-[180px] rounded-2xl overflow-hidden shadow-lg transition-all duration-300",
+                                        "!w-[280px] !h-[250px] rounded-2xl overflow-hidden shadow-lg transition-all duration-300",
                                         member.bgColor,
                                         activeIndex === index ? 'opacity-100 scale-100' : 'opacity-40 scale-95'
                                     )}
                                 >
-                                    <Image
-                                        src={member.image}
-                                        alt={member.name}
-                                        fill
-                                        className="object-cover object-top"
-                                    />
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <span className="text-5xl font-bold text-black/85">
+                                            {(member.name || "U")
+                                                .split(" ")
+                                                .filter(Boolean)
+                                                .map((part) => part[0])
+                                                .join("")
+                                                .toUpperCase()
+                                                .slice(0, 2)}
+                                        </span>
+                                    </div>
                                 </SwiperSlide>
                             ))}
                         </Swiper>
