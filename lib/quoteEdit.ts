@@ -22,6 +22,7 @@ export type QuoteEditorClient = {
   client_id?: string | number | null;
   user_id?: string | number | null;
   id?: string | number | null;
+  client_type?: string | null;
   name?: string;
   email?: string;
   phone?: string;
@@ -120,6 +121,7 @@ type QuoteEditorNavigationCacheEntry = {
 type QuoteEditorEditReasonCacheEntry = {
   cachedAt: number;
   reason: string;
+  opsReviewConfirmed?: boolean;
 };
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -372,7 +374,11 @@ export const readQuoteEditorNavigationCache = (quoteId: string) => {
   }
 };
 
-export const persistQuoteEditorEditReason = (quoteId: string, reason: string) => {
+export const persistQuoteEditorEditReason = (
+  quoteId: string,
+  reason: string,
+  opsReviewConfirmed = false
+) => {
   if (typeof window === "undefined" || !quoteId.trim() || !reason.trim()) {
     return;
   }
@@ -381,6 +387,7 @@ export const persistQuoteEditorEditReason = (quoteId: string, reason: string) =>
     const cacheEntry: QuoteEditorEditReasonCacheEntry = {
       cachedAt: Date.now(),
       reason: reason.trim(),
+      opsReviewConfirmed,
     };
 
     window.sessionStorage.setItem(
@@ -427,6 +434,44 @@ export const readQuoteEditorEditReason = (quoteId: string) => {
     console.error("Failed to read quote editor edit reason", error);
     window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
     return "";
+  }
+};
+
+export const readQuoteEditorOpsReviewConfirmed = (quoteId: string) => {
+  if (typeof window === "undefined" || !quoteId.trim()) {
+    return false;
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(
+      getQuoteEditorEditReasonCacheKey(quoteId)
+    );
+
+    if (!rawValue) {
+      return false;
+    }
+
+    const parsedValue = JSON.parse(rawValue) as QuoteEditorEditReasonCacheEntry;
+    if (
+      !parsedValue ||
+      typeof parsedValue !== "object" ||
+      typeof parsedValue.cachedAt !== "number" ||
+      typeof parsedValue.reason !== "string"
+    ) {
+      window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+      return false;
+    }
+
+    if (Date.now() - parsedValue.cachedAt > QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+      return false;
+    }
+
+    return parsedValue.opsReviewConfirmed === true;
+  } catch (error) {
+    console.error("Failed to read quote editor ops review confirmation", error);
+    window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+    return false;
   }
 };
 
@@ -636,7 +681,8 @@ export const buildQuoteEditorHydrationState = ({
   });
 
   const clientUser = asRecord(quote.client_user);
-  const clientId = resolvePositiveIdString(quote.client_user_id ?? clientUser?.id);
+  const clientId = resolvePositiveIdString(quote.client_id);
+  const clientUserId = resolvePositiveIdString(quote.client_user_id ?? clientUser?.id);
   const validUntilValue = ensureDateInputValue(
     getQuoteText(quote.valid_until, quote.expires_at) || null,
     7
@@ -650,7 +696,9 @@ export const buildQuoteEditorHydrationState = ({
 
   return {
     selectedClient: {
-      ...(clientId ? { client_id: clientId, user_id: clientId, id: clientId } : {}),
+      ...(clientId ? { client_id: clientId, id: clientId } : {}),
+      ...(clientUserId ? { user_id: clientUserId } : {}),
+      client_type: clientUserId ? "registered" : clientId ? "guest" : null,
       name: getQuoteText(quote.client_name, clientUser?.name),
       email: getQuoteText(quote.client_email, quote.guest_email, clientUser?.email),
       phone: getQuoteText(quote.client_phone, clientUser?.phone),

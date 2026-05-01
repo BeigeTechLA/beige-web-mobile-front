@@ -19,6 +19,7 @@ export type QuoteAdditionalPaymentDetails = {
   additionalAmount: number;
   displayAmount: number;
   isDecrease: boolean;
+  previousTotal: number;
   previouslyPaidAmount: number;
   revisedTotal: number;
   outstandingAmount: number;
@@ -523,6 +524,14 @@ export const getQuoteAdditionalPaymentDetails = (
       additionalPayment?.previously_paid_amount
     ) ?? 0
   );
+  const previousTotal = Math.max(
+    0,
+    getQuoteNumber(
+      latestAmountSummary?.previous_total,
+      latestPaymentMetadata?.previous_total,
+      additionalPayment?.previous_total
+    ) ?? 0
+  );
   const revisedTotal = Math.max(
     0,
     getQuoteNumber(
@@ -560,6 +569,7 @@ export const getQuoteAdditionalPaymentDetails = (
 
   if (
     displayAmount <= 0 &&
+    previousTotal <= 0 &&
     previouslyPaidAmount <= 0 &&
     revisedTotal <= 0 &&
     outstandingAmount <= 0
@@ -571,6 +581,7 @@ export const getQuoteAdditionalPaymentDetails = (
     additionalAmount,
     displayAmount,
     isDecrease,
+    previousTotal,
     previouslyPaidAmount,
     revisedTotal,
     outstandingAmount,

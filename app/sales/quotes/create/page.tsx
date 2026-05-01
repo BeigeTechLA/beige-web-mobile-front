@@ -47,6 +47,7 @@ import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
+import QuoteReviewChangesModal from "@/components/quotes/QuoteReviewChangesModal";
 import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
 import {
   LocationPicker,
@@ -65,8 +66,11 @@ import {
   getQuoteLineItemEditingTypeLabel,
 } from "@/lib/quoteDetail";
 import {
+  clearQuoteEditorEditReason,
   buildQuoteEditorHydrationState,
   normalizeQuoteEditorView,
+  readQuoteEditorEditReason,
+  readQuoteEditorOpsReviewConfirmed,
   readQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import {
@@ -82,6 +86,10 @@ import {
   validateQuoteStep,
   type QuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
+import {
+  buildCurrentDraftReviewItems,
+  buildQuoteReviewChangesData,
+} from "@/lib/quoteReviewChanges";
 import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
@@ -1173,7 +1181,10 @@ export default function CreateQuotePage() {
   );
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isReviewChangesModalOpen, setIsReviewChangesModalOpen] = useState(false);
+  const [isVersionSaveSuccessOpen, setIsVersionSaveSuccessOpen] = useState(false);
   const [isQuoteSaved, setIsQuoteSaved] = useState(false);
+  const [hasUnsavedQuoteChanges, setHasUnsavedQuoteChanges] = useState(false);
   const [isViewingInvoice, setIsViewingInvoice] = useState(false);
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
@@ -1189,6 +1200,7 @@ export default function CreateQuotePage() {
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [quoteToEdit, setQuoteToEdit] =
     React.useState<SalesQuoteDetailData | null>(null);
+  const [reviewChangeReason, setReviewChangeReason] = React.useState("");
   const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
   const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] =
     React.useState(false);
@@ -1556,6 +1568,28 @@ export default function CreateQuotePage() {
       isMounted = false;
     };
   }, [editQuoteId, router]);
+
+  React.useEffect(() => {
+    if (!editQuoteId) {
+      return;
+    }
+
+    const persistedReason = readQuoteEditorEditReason(editQuoteId);
+    const fallbackReason = String(quoteToEdit?.edit_reason || "").trim();
+    const nextReason = persistedReason || fallbackReason;
+
+    if (!nextReason) {
+      return;
+    }
+
+    setReviewChangeReason((currentValue) =>
+      currentValue.trim() ? currentValue : nextReason
+    );
+
+    if (persistedReason) {
+      clearQuoteEditorEditReason(editQuoteId);
+    }
+  }, [editQuoteId, quoteToEdit]);
 
   React.useEffect(() => {
     if (!editQuoteId || !quoteToEdit || !isCatalogLoaded) {
@@ -2496,17 +2530,18 @@ export default function CreateQuotePage() {
     validUntil,
     selectedServices,
   });
+  const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
     isEditMode
       ? isFullEditFlow
         ? view === "tax"
-          ? quoteReviewValidation.isValid && !isQuoteSaved
+          ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
           : currentStepValidation.isValid
         : currentStepValidation.isValid
       : view === "tax"
-        ? quoteReviewValidation.isValid && !isQuoteSaved
+        ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
         : canContinueToNextStep;
 
   const handleContinue = async () => {
@@ -2935,11 +2970,15 @@ export default function CreateQuotePage() {
     return String(bookingId);
   }, [convertedBookingIdOverride, previewQuote, quoteToEdit]);
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId);
-  const showInvoiceActions = view === "tax" && isQuoteSaved && Boolean(resolvedInvoiceQuoteId);
+  const showInvoiceActions =
+    view === "tax" && hasCurrentSavedQuoteState && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
+  const showReviewChangesAction = isEditMode && isFullEditFlow && view === "tax";
   const convertBookingActionLabel = isConvertedToBooking
-    ? "Update Booking"
+    ? "Converted to Booking"
     : "Convert to Booking";
+  const isConvertBookingActionDisabled =
+    isConvertedToBooking || isViewingInvoice || isSendingInvoice || isConverting;
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
       selectedClient,
@@ -3070,12 +3109,144 @@ export default function CreateQuotePage() {
       appliedLineItemConfigs,
     });
 
+  const currentDraftLineItems = React.useMemo(() => {
+    const payload = buildQuoteDraftPayload({
+      selectedClient,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      projectDescription,
+      validityDays,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      taxLabel,
+      normalizedTaxRate,
+      selectedShootType: quoteDraftSelectedShootType,
+      shootTypes: quoteDraftShootTypes,
+      selectedEditingTypes,
+      editingTypeConfigs,
+      editingTypeOptions,
+      selectedServices,
+      services,
+      serviceConfigs,
+      selectedAddons,
+      addons,
+      appliedAddonConfigs,
+      logisticsItems: selectedLogisticsItems,
+      appliedLogisticsConfigs,
+      lineItems,
+      appliedLineItemConfigs,
+    });
+
+    return buildCurrentDraftReviewItems({
+      draftLineItems: payload.line_items,
+      services,
+      addons,
+      logisticsItems: selectedLogisticsItems,
+      lineItems,
+    });
+  }, [
+    address,
+    addons,
+    appliedAddonConfigs,
+    appliedLineItemConfigs,
+    appliedLogisticsConfigs,
+    clientName,
+    discountEnabled,
+    discountType,
+    discountValue,
+    editingTypeConfigs,
+    editingTypeOptions,
+    emailId,
+    lineItems,
+    normalizedTaxRate,
+    phoneNumber,
+    projectDescription,
+    quoteDraftSelectedShootType,
+    quoteDraftShootTypes,
+    selectedAddons,
+    selectedClient,
+    selectedEditingTypes,
+    selectedLogisticsItems,
+    selectedServices,
+    serviceConfigs,
+    services,
+    taxLabel,
+    validUntil,
+    validityDays,
+  ]);
+
+  const reviewChangesData = React.useMemo(
+    () =>
+      buildQuoteReviewChangesData({
+        quote: quoteToEdit,
+        currentDraftLineItems,
+        nextTotal: totalAfterTax,
+        clientName,
+        emailId,
+        phoneNumber,
+        address,
+        projectDescription,
+        validUntil,
+        discountEnabled,
+        discountType,
+        discountValue,
+        normalizedTaxRate,
+        taxLabel,
+        shootTypeLabel: storedShootTypeLabel,
+      }),
+    [
+      address,
+      clientName,
+      currentDraftLineItems,
+      discountEnabled,
+      discountType,
+      discountValue,
+      emailId,
+      normalizedTaxRate,
+      phoneNumber,
+      projectDescription,
+      storedShootTypeLabel,
+      quoteToEdit,
+      taxLabel,
+      totalAfterTax,
+      validUntil,
+    ],
+  );
+
+  React.useEffect(() => {
+    setHasUnsavedQuoteChanges(
+      Boolean(quoteToEdit) &&
+        (reviewChangesData.lineChanges.length > 0 ||
+          reviewChangesData.fieldChanges.length > 0 ||
+          Math.abs(reviewChangesData.delta) > 0.009),
+    );
+  }, [quoteToEdit, reviewChangesData]);
+
   const delayAfterSuccessToast = () =>
     new Promise((resolve) => window.setTimeout(resolve, 450));
 
+  const resolvedEditReason = React.useMemo(
+    () => reviewChangeReason.trim() || String(quoteToEdit?.edit_reason || "").trim(),
+    [quoteToEdit?.edit_reason, reviewChangeReason],
+  );
+  const resolvedOpsReviewConfirmed = React.useMemo(
+    () => (editQuoteId ? readQuoteEditorOpsReviewConfirmed(editQuoteId) : false),
+    [editQuoteId],
+  );
+
   const saveQuoteDraft = async (
     action: "preview" | "save" | "draft",
-    options?: { suppressRedirect?: boolean; openPreview?: boolean },
+    options?: {
+      suppressRedirect?: boolean;
+      openPreview?: boolean;
+      saveAsNewVersion?: boolean;
+      versionNotes?: string;
+      showVersionSuccess?: boolean;
+    },
   ) => {
     if (isCreatingQuoteDraft) return;
 
@@ -3087,6 +3258,14 @@ export default function CreateQuotePage() {
       ? {
         ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
         is_draft: action === "draft",
+        ...(resolvedEditReason ? { edit_reason: resolvedEditReason } : {}),
+        ...(resolvedOpsReviewConfirmed ? { ops_review_confirmed: true } : {}),
+        ...(options?.saveAsNewVersion
+          ? {
+            save_as_new_version: true,
+            version_notes: options.versionNotes?.trim() || undefined,
+          }
+          : {}),
       }
       : action === "save"
         ? {
@@ -3142,13 +3321,19 @@ export default function CreateQuotePage() {
       }
 
       if (action === "save") {
+        setIsQuoteSaved(true);
+        if (options?.showVersionSuccess) {
+          setIsReviewChangesModalOpen(false);
+          setIsVersionSaveSuccessOpen(true);
+          setReviewChangeReason("");
+          return;
+        }
         toast.success(
           isUpdatingExistingQuote
             ? "Quote updated successfully"
             : "Quote saved successfully",
         );
         await delayAfterSuccessToast();
-        setIsQuoteSaved(true);
         if (!shouldOpenPreview) {
           if (isEditMode && quoteEditReturnHref && !isFullEditFlow) {
             router.push(quoteEditReturnHref);
@@ -3259,6 +3444,33 @@ export default function CreateQuotePage() {
     await saveQuoteDraft("save");
   };
 
+  const handleOpenReviewChangesModal = () => {
+    if (!quoteReviewValidation.isValid) {
+      toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    setIsReviewChangesModalOpen(true);
+  };
+
+  const handleSaveAsNewVersion = async () => {
+    if (!effectiveQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (!reviewChangeReason.trim()) {
+      toast.error("Please provide a reason for these changes.");
+      return;
+    }
+
+    await saveQuoteDraft("save", {
+      saveAsNewVersion: true,
+      versionNotes: reviewChangeReason,
+      showVersionSuccess: true,
+    });
+  };
+
   const handleSaveCurrentEditStep = async () => {
     if (!editQuoteId || isCreatingQuoteDraft) {
       return;
@@ -3275,7 +3487,11 @@ export default function CreateQuotePage() {
     try {
       const response = await salesApi.updateQuote(
         editQuoteId,
-        getQuoteStepUpdatePayload(view),
+        {
+          ...getQuoteStepUpdatePayload(view),
+          ...(resolvedEditReason ? { edit_reason: resolvedEditReason } : {}),
+          ...(resolvedOpsReviewConfirmed ? { ops_review_confirmed: true } : {}),
+        },
       );
 
       if (response?.error || response?.success === false) {
@@ -3319,7 +3535,7 @@ export default function CreateQuotePage() {
       ? view === "tax"
         ? isCreatingQuoteDraft && activeQuoteAction === "save"
           ? "Saving Quote..."
-          : isQuoteSaved
+          : hasCurrentSavedQuoteState
             ? "Saved"
             : "Save Quote"
         : view === "details" && isCreatingClient
@@ -3331,7 +3547,7 @@ export default function CreateQuotePage() {
     : view === "tax"
       ? isCreatingQuoteDraft && activeQuoteAction === "save"
         ? "Saving Quote..."
-        : isQuoteSaved
+        : hasCurrentSavedQuoteState
           ? "Saved"
           : "Save Quote"
       : view === "details" && isCreatingClient
@@ -3467,6 +3683,9 @@ export default function CreateQuotePage() {
   const handleConvertToBooking = () => {
     if (!resolvedInvoiceQuoteId) {
       toast.error("Quote id is missing.");
+      return;
+    }
+    if (isConvertedToBooking) {
       return;
     }
 
@@ -6582,12 +6801,22 @@ export default function CreateQuotePage() {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            Previously Paid
+                            Old Quote Total
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                            {formatCurrency(additionalPaymentDetails.previousTotal)}
                           </span>
                         </div>
+                        {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm lg:text-base text-[#9F9FA9]">
+                              Previously Paid
+                            </span>
+                            <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                              {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                            </span>
+                          </div>
+                        ) : null}
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
                             {additionalPaymentDetails.isDecrease
@@ -7073,14 +7302,23 @@ export default function CreateQuotePage() {
         {/* Footer Actions */}
         <div className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
           <div className="flex gap-4">
-            <Button
-              variant="outline"
-              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
-              onClick={handleBack}
-            >
-              Back
-            </Button>
-            {!showInvoiceActions ? (
+          <Button
+            variant="outline"
+            className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
+            onClick={handleBack}
+          >
+            Back
+          </Button>
+          {!showInvoiceActions ? (
+            showReviewChangesAction ? (
+              <Button
+                className="bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all"
+                disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft}
+                onClick={handleOpenReviewChangesModal}
+              >
+                Review Changes
+              </Button>
+            ) : (
               <Button
                 className={`${view === "tax"
                   ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
@@ -7095,7 +7333,8 @@ export default function CreateQuotePage() {
               >
                 {primaryActionLabel}
               </Button>
-            ) : null}
+            )
+          ) : null}
           </div>
 
           <div className="flex gap-4 self-start sm:self-auto">
@@ -7104,11 +7343,11 @@ export default function CreateQuotePage() {
                 <Button
                   type="button"
                   onClick={handleConvertToBooking}
-                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  disabled={isConvertBookingActionDisabled}
                   variant="outline"
                   className="border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all shadow-lg disabled:opacity-70"
                 >
-                  {isConverting ? <Loader2 size={20} className="animate-spin" /> : null}
+                  {isConverting && !isConvertedToBooking ? <Loader2 size={20} className="animate-spin" /> : null}
                   {isConverting ? "Converting..." : convertBookingActionLabel}
                 </Button>
                 <Button
@@ -7178,7 +7417,7 @@ export default function CreateQuotePage() {
             <Button
               type="button"
               onClick={handleConvertToBooking}
-              disabled={isViewingInvoice || isSendingInvoice || isConverting}
+              disabled={isConvertBookingActionDisabled}
               className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isConverting ? "Converting..." : convertBookingActionLabel}
@@ -7216,6 +7455,16 @@ export default function CreateQuotePage() {
                 ? "Saving Draft..."
                 : "Save as Draft"}
             </Button>
+            {showReviewChangesAction ? (
+              <Button
+                type="button"
+                onClick={handleOpenReviewChangesModal}
+                disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              >
+                Review Changes
+              </Button>
+            ) : null}
             <Button
               type="button"
               onClick={handlePreviewQuote}
@@ -7266,20 +7515,30 @@ export default function CreateQuotePage() {
             Back
           </Button>
           {!showInvoiceActions ? (
-            <Button
-              className={`${canPrimaryAction
-                ? view === "tax"
-                  ? "bg-white text-[#1B1B1B]"
-                  : "bg-[#E8D1AB] text-[#101010]"
-                : isDark
-                  ? "bg-[#2A2B2D] text-zinc-600"
-                  : "bg-[#A4A5A6] text-white"
-                } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1 `}
-              disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
-              onClick={handlePrimaryAction}
-            >
-              {primaryActionLabel}
-            </Button>
+            showReviewChangesAction ? (
+              <Button
+                className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1"
+                disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft}
+                onClick={handleOpenReviewChangesModal}
+              >
+                Review Changes
+              </Button>
+            ) : (
+              <Button
+                className={`${canPrimaryAction
+                  ? view === "tax"
+                    ? "bg-white text-[#1B1B1B]"
+                    : "bg-[#E8D1AB] text-[#101010]"
+                  : isDark
+                    ? "bg-[#2A2B2D] text-zinc-600"
+                    : "bg-[#A4A5A6] text-white"
+                  } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1 `}
+                disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
+                onClick={handlePrimaryAction}
+              >
+                {primaryActionLabel}
+              </Button>
+            )
           ) : null}
         </div>
       </div>
@@ -7402,6 +7661,68 @@ export default function CreateQuotePage() {
               : "Convert to Booking"
         }
       />
+      <QuoteReviewChangesModal
+        open={isReviewChangesModalOpen}
+        onOpenChange={(open) => {
+          if (isCreatingQuoteDraft) {
+            return;
+          }
+          setIsReviewChangesModalOpen(open);
+        }}
+        reviewChangesData={reviewChangesData}
+        reviewChangeReason={reviewChangeReason}
+        onReviewChangeReason={setReviewChangeReason}
+        onConfirm={() => {
+          void handleSaveAsNewVersion();
+        }}
+        isSaving={isCreatingQuoteDraft && activeQuoteAction === "save"}
+      />
+      <AnimatePresence>
+        {isVersionSaveSuccessOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#111111] px-4"
+          >
+            <div className="relative mb-8 flex flex-col items-center justify-center">
+              <div className="relative h-[220px] w-[360px] lg:h-[344px] lg:w-[548px]">
+                <Image
+                  src="/images/misc/PaymentSuccess.gif"
+                  alt="Success Animation"
+                  fill
+                  className="object-contain"
+                  priority
+                  unoptimized
+                />
+              </div>
+            </div>
+
+            <h2 className="mb-2 text-center text-[28px] font-bold leading-tight text-white sm:text-[36px] lg:text-[40px]">
+              New Quote Version Created Successfully
+            </h2>
+            <p className="mx-auto mb-10 max-w-[450px] text-center text-[16px] text-[#A1A1AA] sm:text-[18px]">
+              A New Version Of This Quote Has Been Saved <br className="hidden sm:block" /> With
+              Updated Changes.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsVersionSaveSuccessOpen(false);
+                const targetId = createdQuoteId || editQuoteId || effectiveQuoteId;
+                const targetUrl = targetId
+                  ? `/sales/quotes/${encodeURIComponent(String(targetId))}`
+                  : "/sales/quotes";
+                router.push(targetUrl);
+              }}
+              className="flex h-14 min-w-[240px] items-center justify-center rounded-[12px] bg-[#E7D0A4] px-10 text-[16px] font-semibold text-black transition-colors hover:bg-[#E7D0A4]/90 sm:h-[60px]"
+            >
+              Continue
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <QuoteSummaryModal
         open={isSummaryModalOpen}
         onClose={() => setIsSummaryModalOpen(false)}

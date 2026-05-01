@@ -25,8 +25,6 @@ import {
   Eye,
   Loader2,
   Mail,
-  TrendingDown,
-  X,
 } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
@@ -49,6 +47,7 @@ import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
+import QuoteReviewChangesModal from "@/components/quotes/QuoteReviewChangesModal";
 import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
 import {
   LocationPicker,
@@ -63,17 +62,15 @@ import {
   extractQuoteLineItems,
   formatQuoteItemDisplayName,
   getQuoteAdditionalPaymentDetails,
-  getQuoteNumber,
-  getQuoteText,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
-  normalizeQuoteLineItems,
 } from "@/lib/quoteDetail";
 import {
   clearQuoteEditorEditReason,
   buildQuoteEditorHydrationState,
   normalizeQuoteEditorView,
   readQuoteEditorEditReason,
+  readQuoteEditorOpsReviewConfirmed,
   readQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import {
@@ -89,6 +86,10 @@ import {
   validateQuoteStep,
   type QuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
+import {
+  buildCurrentDraftReviewItems,
+  buildQuoteReviewChangesData,
+} from "@/lib/quoteReviewChanges";
 import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
@@ -301,77 +302,6 @@ const formatAddonDisplayValue = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-
-type QuoteReviewLineChange = {
-  id: string;
-  label: string;
-  section: "service" | "addon" | "logistics" | "custom";
-  changeType: "added" | "removed" | "updated";
-  previousAmount: number;
-  nextAmount: number;
-  delta: number;
-};
-
-type QuoteReviewFieldChange = {
-  id: string;
-  label: string;
-  previousValue: string;
-  nextValue: string;
-};
-
-type QuoteReviewComparableItem = {
-  id: string;
-  key: string;
-  label: string;
-  name: string;
-  subtitle?: string;
-  section: "service" | "addon" | "logistics" | "custom";
-  amount: number;
-};
-
-const normalizeReviewKeyPart = (value: string) =>
-  value.trim().toLowerCase().replace(/\s+/g, " ");
-
-const buildReviewItemKey = (
-  section: string,
-  name: string,
-  subtitle?: string | null,
-) =>
-  [
-    normalizeReviewKeyPart(section),
-    normalizeReviewKeyPart(name),
-    normalizeReviewKeyPart(subtitle || ""),
-  ].join("|");
-
-const formatReviewDisplayLabel = (name: string, subtitle?: string | null) =>
-  subtitle ? `${name} - ${subtitle.replace(/^\(|\)$/g, "")}` : name;
-
-const buildReviewItemGroups = (items: QuoteReviewComparableItem[]) => {
-  const groupedItems = new Map<string, QuoteReviewComparableItem>();
-
-  items.forEach((item) => {
-    const existingItem = groupedItems.get(item.key);
-    if (existingItem) {
-      groupedItems.set(item.key, {
-        ...existingItem,
-        amount: existingItem.amount + item.amount,
-      });
-      return;
-    }
-
-    groupedItems.set(item.key, { ...item });
-  });
-
-  return groupedItems;
-};
-
-const formatReviewValue = (value: unknown) => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return String(value).trim();
-};
 
 const MAX_QUOTE_OPTION_LABEL_LENGTH = 80;
 
@@ -1270,6 +1200,7 @@ export default function CreateQuotePage() {
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isQuoteSaved, setIsQuoteSaved] = useState(false);
+  const [hasUnsavedQuoteChanges, setHasUnsavedQuoteChanges] = useState(false);
   const [isViewingInvoice, setIsViewingInvoice] = useState(false);
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
@@ -2620,17 +2551,18 @@ export default function CreateQuotePage() {
     validUntil,
     selectedServices,
   });
+  const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
     isEditMode
       ? isFullEditFlow
         ? view === "tax"
-          ? quoteReviewValidation.isValid && !isQuoteSaved
+          ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
           : currentStepValidation.isValid
         : currentStepValidation.isValid
       : view === "tax"
-        ? quoteReviewValidation.isValid && !isQuoteSaved
+        ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
         : canContinueToNextStep;
 
   const handleContinue = async () => {
@@ -3063,11 +2995,14 @@ export default function CreateQuotePage() {
     return String(bookingId);
   }, [convertedBookingIdOverride, previewQuote, quoteToEdit]);
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId);
-  const showInvoiceActions = view === "tax" && isQuoteSaved && Boolean(resolvedInvoiceQuoteId);
+  const showInvoiceActions =
+    view === "tax" && hasCurrentSavedQuoteState && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
   const convertBookingActionLabel = isConvertedToBooking
-    ? "Update Booking"
+    ? "Converted to Booking"
     : "Convert to Booking";
+  const isConvertBookingActionDisabled =
+    isConvertedToBooking || isViewingInvoice || isSendingInvoice || isConverting;
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
       selectedClient,
@@ -3229,85 +3164,13 @@ export default function CreateQuotePage() {
       lineItems,
       appliedLineItemConfigs,
     });
-    const lineItemCatalog = new Map<string, { label: string; section: string }>();
 
-    services.forEach((item) => {
-      lineItemCatalog.set(String(item.id), {
-        label: String(item.label || item.name || "Service"),
-        section: "service",
-      });
-    });
-    addons.forEach((item) => {
-      lineItemCatalog.set(String(item.id), {
-        label: String(item.label || item.name || "Add-on"),
-        section: "addon",
-      });
-    });
-    selectedLogisticsItems.forEach((item) => {
-      lineItemCatalog.set(String(item.id), {
-        label: String(item.label || item.name || "Logistics"),
-        section: "logistics",
-      });
-    });
-    lineItems.forEach((item) => {
-      lineItemCatalog.set(String(item.id), {
-        label: String(item.label || item.name || "Custom Item"),
-        section: "custom",
-      });
-    });
-
-    return (payload.line_items || []).map((item, index) => {
-      const catalogMeta = item.catalog_item_id
-        ? lineItemCatalog.get(String(item.catalog_item_id))
-        : null;
-      const configuration = item.configuration as
-        | {
-            editing_type_label?: string;
-          }
-        | undefined;
-      const rawSubtitle = configuration?.editing_type_label?.trim() || "";
-      const subtitle = rawSubtitle ? `(${rawSubtitle})` : undefined;
-      const section =
-        item.section_type === "addon" ||
-        item.section_type === "logistics" ||
-        item.section_type === "custom"
-          ? item.section_type
-          : "service";
-      const name =
-        formatQuoteItemDisplayName(
-          String(
-          item.item_name ||
-            catalogMeta?.label ||
-            (section === "service"
-              ? "Service"
-              : section === "addon"
-                ? "Add-on"
-                : section === "logistics"
-                ? "Logistics"
-                  : "Custom Item"),
-          ).trim(),
-        );
-      const quantity = Math.max(1, Number(item.quantity || 1));
-      const duration = Math.max(0, Number(item.duration_hours || 0));
-      const crew = Math.max(0, Number(item.crew_size || 0));
-      const unitRate = Math.max(
-        0,
-        Number(item.estimated_pricing ?? item.unit_rate ?? 0),
-      );
-      const amount =
-        section === "service" && !subtitle
-          ? quantity * Math.max(duration, 1) * Math.max(crew, 1) * unitRate
-          : quantity * unitRate;
-
-      return {
-        id: `${section}-${item.catalog_item_id || item.item_name || index}`,
-        key: buildReviewItemKey(section, name, subtitle),
-        label: formatReviewDisplayLabel(name, subtitle),
-        name,
-        subtitle,
-        section,
-        amount,
-      };
+    return buildCurrentDraftReviewItems({
+      draftLineItems: payload.line_items,
+      services,
+      addons,
+      logisticsItems: selectedLogisticsItems,
+      lineItems,
     });
   }, [
     address,
@@ -3341,156 +3204,61 @@ export default function CreateQuotePage() {
   ]);
 
   const reviewChangesData = React.useMemo(() => {
-    const originalLineItems = quoteToEdit ? normalizeQuoteLineItems(quoteToEdit) : [];
-    const previousTotal = Math.max(
-      0,
-      getQuoteNumber(
-        quoteToEdit?.final_total,
-        quoteToEdit?.total_amount,
-        quoteToEdit?.amount_after_tax,
-        quoteToEdit?.amount_after_discount,
-        quoteToEdit?.total,
-      ) ?? 0,
-    );
-    const nextTotal = Math.max(0, totalAfterTax);
-    const currentItemMap = buildReviewItemGroups(currentDraftLineItems);
-    const originalItemMap = buildReviewItemGroups(
-      originalLineItems.map((item) => ({
-        id: item.id,
-        key: buildReviewItemKey(item.section, item.name, item.subtitle),
-        label: formatReviewDisplayLabel(item.name, item.subtitle),
-        name: item.name,
-        subtitle: item.subtitle,
-        section: item.section,
-        amount: Number(item.amount || 0),
-      })),
-    );
-
-    const lineChanges: QuoteReviewLineChange[] = [];
-
-    currentItemMap.forEach((item, key) => {
-      const previous = originalItemMap.get(key);
-      if (!previous) {
-        lineChanges.push({
-          id: `${key}-added`,
-          label: item.label,
-          section: item.section,
-          changeType: "added",
-          previousAmount: 0,
-          nextAmount: item.amount,
-          delta: item.amount,
-        });
-        return;
-      }
-
-      const previousAmount = Number(previous.amount || 0);
-      const nextAmount = Number(item.amount || 0);
-      if (Math.abs(previousAmount - nextAmount) > 0.009) {
-        lineChanges.push({
-          id: `${key}-updated`,
-          label: item.label,
-          section: item.section,
-          changeType: "updated",
-          previousAmount,
-          nextAmount,
-          delta: nextAmount - previousAmount,
-        });
-      }
+    return buildQuoteReviewChangesData({
+      quote: quoteToEdit,
+      currentDraftLineItems,
+      nextTotal: totalAfterTax,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      projectDescription,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      normalizedTaxRate,
+      taxLabel,
+      shootTypeLabel: storedShootTypeLabel,
     });
-
-    originalItemMap.forEach((item, key) => {
-      if (currentItemMap.has(key)) {
-        return;
-      }
-
-      lineChanges.push({
-        id: `${key}-removed`,
-        label: formatReviewDisplayLabel(item.name, item.subtitle),
-        section: item.section,
-        changeType: "removed",
-        previousAmount: Number(item.amount || 0),
-        nextAmount: 0,
-        delta: -Number(item.amount || 0),
-      });
-    });
-
-    const formatEditorDate = (value: string) => {
-      if (!value) {
-        return "";
-      }
-      const parsedDate = parseISO(value);
-      return isValid(parsedDate) ? format(parsedDate, "MMMM d, yyyy") : value;
-    };
-
-    const fieldChangeCandidates: QuoteReviewFieldChange[] = [
-      {
-        id: "project_description",
-        label: "Project Description",
-        previousValue: formatReviewValue(quoteToEdit?.project_description),
-        nextValue: projectDescription.trim(),
-      },
-      {
-        id: "valid_until",
-        label: "Quote Valid Until",
-        previousValue: formatEditorDate(String(quoteToEdit?.valid_until || "")),
-        nextValue: formatEditorDate(validUntil),
-      },
-      {
-        id: "discount",
-        label: "Discount",
-        previousValue:
-          Number(getQuoteNumber(quoteToEdit?.discount_value) ?? 0) > 0
-            ? `${getQuoteText(quoteToEdit?.discount_type) === "fixed_amount" ? "$" : ""}${getQuoteNumber(quoteToEdit?.discount_value) ?? 0}${getQuoteText(quoteToEdit?.discount_type) === "percentage" ? "%" : ""}`
-            : "None",
-        nextValue:
-          discountEnabled && Number(discountValue || 0) > 0
-            ? `${discountType === "fixed" ? "$" : ""}${Number(discountValue || 0)}${discountType === "percentage" ? "%" : ""}`
-            : "None",
-      },
-      {
-        id: "tax_rate",
-        label: "Tax Rate",
-        previousValue: `${getQuoteNumber(quoteToEdit?.tax_rate) ?? 0}%`,
-        nextValue: `${normalizedTaxRate}%`,
-      },
-      {
-        id: "tax_type",
-        label: "Tax Type",
-        previousValue: getQuoteText(quoteToEdit?.tax_type, "Sales Tax") || "Sales Tax",
-        nextValue: taxLabel || "Sales Tax",
-      },
-    ];
-
-    const fieldChanges = fieldChangeCandidates.filter(
-      (entry) => entry.previousValue !== entry.nextValue,
-    );
-
-    return {
-      previousTotal,
-      nextTotal,
-      delta: nextTotal - previousTotal,
-      lineChanges,
-      serviceChanges: lineChanges.filter((item) => item.section === "service"),
-      addonChanges: lineChanges.filter((item) => item.section === "addon"),
-      logisticsChanges: lineChanges.filter((item) => item.section === "logistics"),
-      customChanges: lineChanges.filter((item) => item.section === "custom"),
-      fieldChanges,
-    };
   }, [
+    address,
+    clientName,
     currentDraftLineItems,
     discountEnabled,
     discountType,
     discountValue,
+    emailId,
     normalizedTaxRate,
+    phoneNumber,
     projectDescription,
+    storedShootTypeLabel,
     quoteToEdit,
     taxLabel,
     totalAfterTax,
     validUntil,
   ]);
 
+  React.useEffect(() => {
+    setHasUnsavedQuoteChanges(
+      Boolean(quoteToEdit) &&
+        (reviewChangesData.lineChanges.length > 0 ||
+          reviewChangesData.fieldChanges.length > 0 ||
+          Math.abs(reviewChangesData.delta) > 0.009),
+    );
+  }, [quoteToEdit, reviewChangesData]);
+
   const delayAfterSuccessToast = () =>
     new Promise((resolve) => window.setTimeout(resolve, 450));
+
+  const resolvedEditReason = React.useMemo(
+    () => reviewChangeReason.trim() || String(quoteToEdit?.edit_reason || "").trim(),
+    [quoteToEdit?.edit_reason, reviewChangeReason],
+  );
+  const resolvedOpsReviewConfirmed = React.useMemo(
+    () => (editQuoteId ? readQuoteEditorOpsReviewConfirmed(editQuoteId) : false),
+    [editQuoteId],
+  );
 
   const saveQuoteDraft = async (
     action: "preview" | "save" | "draft",
@@ -3512,6 +3280,8 @@ export default function CreateQuotePage() {
       ? {
           ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
           is_draft: action === "draft",
+          ...(resolvedEditReason ? { edit_reason: resolvedEditReason } : {}),
+          ...(resolvedOpsReviewConfirmed ? { ops_review_confirmed: true } : {}),
           ...(options?.saveAsNewVersion
             ? {
                 save_as_new_version: true,
@@ -3739,7 +3509,11 @@ export default function CreateQuotePage() {
     try {
       const response = await salesApi.updateQuote(
         editQuoteId,
-        getQuoteStepUpdatePayload(view),
+        {
+          ...getQuoteStepUpdatePayload(view),
+          ...(resolvedEditReason ? { edit_reason: resolvedEditReason } : {}),
+          ...(resolvedOpsReviewConfirmed ? { ops_review_confirmed: true } : {}),
+        },
       );
 
       if (response?.error || response?.success === false) {
@@ -3784,7 +3558,7 @@ export default function CreateQuotePage() {
       ? view === "tax"
         ? isCreatingQuoteDraft && activeQuoteAction === "save"
           ? "Saving Quote..."
-          : isQuoteSaved
+          : hasCurrentSavedQuoteState
             ? "Saved"
             : "Save Quote"
         : view === "details" && isCreatingClient
@@ -3796,7 +3570,7 @@ export default function CreateQuotePage() {
     : view === "tax"
       ? isCreatingQuoteDraft && activeQuoteAction === "save"
         ? "Saving Quote..."
-        : isQuoteSaved
+        : hasCurrentSavedQuoteState
           ? "Saved"
           : "Save Quote"
       : view === "details" && isCreatingClient
@@ -3932,6 +3706,9 @@ export default function CreateQuotePage() {
   const handleConvertToBooking = () => {
     if (!resolvedInvoiceQuoteId) {
       toast.error("Quote id is missing.");
+      return;
+    }
+    if (isConvertedToBooking) {
       return;
     }
 
@@ -7052,9 +6829,19 @@ export default function CreateQuotePage() {
                             Old Quote Total
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                            {formatCurrency(additionalPaymentDetails.previousTotal)}
                           </span>
                         </div>
+                        {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm lg:text-base text-[#9F9FA9]">
+                              Previously Paid
+                            </span>
+                            <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                              {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                            </span>
+                          </div>
+                        ) : null}
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
                             {additionalPaymentDetails.isDecrease
@@ -7581,11 +7368,11 @@ export default function CreateQuotePage() {
                 <Button
                   type="button"
                   onClick={handleConvertToBooking}
-                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  disabled={isConvertBookingActionDisabled}
                   variant="outline"
                   className="border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all shadow-lg disabled:opacity-70"
                 >
-                  {isConverting ? <Loader2 size={20} className="animate-spin" /> : null}
+                  {isConverting && !isConvertedToBooking ? <Loader2 size={20} className="animate-spin" /> : null}
                   {isConverting ? "Converting..." : convertBookingActionLabel}
                 </Button>
                 <Button
@@ -7655,7 +7442,7 @@ export default function CreateQuotePage() {
             <Button
               type="button"
               onClick={handleConvertToBooking}
-              disabled={isViewingInvoice || isSendingInvoice || isConverting}
+              disabled={isConvertBookingActionDisabled}
               className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isConverting ? "Converting..." : convertBookingActionLabel}
@@ -7792,7 +7579,7 @@ export default function CreateQuotePage() {
         description={`Are you sure you want to delete this ${itemToDelete?.type === "service" ? "service" : itemToDelete?.type === "addon" ? "add-on" : itemToDelete?.type === "logistics" ? "logistics item" : itemToDelete?.type === "shoot_type" ? "shoot type" : itemToDelete?.type === "editing_type" ? "editing type" : "line item"}? This action cannot be undone.`}
         isLoading={isDeleting}
       />
-      <Dialog
+      <QuoteReviewChangesModal
         open={isReviewChangesModalOpen}
         onOpenChange={(open) => {
           if (isCreatingQuoteDraft) {
@@ -7800,221 +7587,14 @@ export default function CreateQuotePage() {
           }
           setIsReviewChangesModalOpen(open);
         }}
-      >
-        <DialogContent className="left-auto right-0 top-0 h-screen w-full max-w-[732px] translate-x-0 translate-y-0 rounded-none border-y-0 border-l border-r-0 border-[#2B2B2B] bg-[#050505] p-0 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04)] duration-300 sm:max-w-[732px]">
-          <div className="flex items-start justify-between border-b border-white/10 px-7 pb-7 pt-12">
-            <div>
-              <DialogTitle className="text-[32px] font-semibold leading-[1.05] text-white lg:text-[33px]">
-                Review Changes Before Saving
-              </DialogTitle>
-              <p className="mt-3 max-w-[520px] text-[15px] leading-6 text-[#96969E]">
-                Review the changes to your quote including price differences and service modifications.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsReviewChangesModalOpen(false)}
-              className="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#2A2220] text-white transition-colors hover:bg-[#3A302D]"
-            >
-              <X size={24} />
-            </button>
-          </div>
-
-          <div className="max-h-[calc(100vh-218px)] overflow-y-auto px-7 py-7">
-            <div className="rounded-[14px] bg-[#E7D0A4] px-5 py-4 text-black">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-[16px] font-semibold">
-                  {reviewChangesData.delta < 0 ? (
-                    <TrendingDown size={18} />
-                  ) : reviewChangesData.delta > 0 ? (
-                    <TrendingDown size={18} className="rotate-180" />
-                  ) : (
-                    <Minus size={18} />
-                  )}
-                  <span>
-                    {reviewChangesData.delta < 0
-                      ? "Price Decrease"
-                      : reviewChangesData.delta > 0
-                        ? "Price Increase"
-                        : "No Price Change"}
-                  </span>
-                </div>
-                <div className="text-[22px] font-bold tracking-tight">
-                  {`${reviewChangesData.delta > 0 ? "+" : reviewChangesData.delta < 0 ? "-" : ""}${formatCurrency(Math.abs(reviewChangesData.delta))}`}
-                </div>
-              </div>
-            </div>
-
-            {reviewChangesData.delta < 0 ? (
-              <div className="mt-4 rounded-[14px] border border-[#E8D1AB]/30 bg-[#201A10] px-5 py-4 text-[#E8D1AB]">
-                <p className="text-[15px] font-semibold">Credit Notice</p>
-                <p className="mt-2 text-[14px] leading-6 text-[#DCC79E]">
-                  This update decreases the quote total by{" "}
-                  <span className="font-semibold text-white">
-                    {formatCurrency(Math.abs(reviewChangesData.delta))}
-                  </span>
-                  . Review whether the difference should be added as account credit before
-                  saving this version.
-                </p>
-              </div>
-            ) : null}
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div className="rounded-[12px] bg-[#141416] px-5 py-4">
-                <p className="text-sm text-[#9C9CA3]">Old Quote Total</p>
-                <p className="mt-2 text-[18px] font-semibold text-white md:text-[19px]">
-                  {formatCurrency(reviewChangesData.previousTotal)}
-                </p>
-              </div>
-              <div className="rounded-[12px] bg-[#141416] px-5 py-4">
-                <p className="text-sm text-[#9C9CA3]">New Quote Total</p>
-                <p className="mt-2 text-[18px] font-semibold text-white md:text-[19px]">
-                  {formatCurrency(reviewChangesData.nextTotal)}
-                </p>
-              </div>
-            </div>
-
-            {([
-              ["Service Changes", reviewChangesData.serviceChanges],
-              ["Add-On Changes", reviewChangesData.addonChanges],
-              ["Logistics Changes", reviewChangesData.logisticsChanges],
-              ["Custom Item Changes", reviewChangesData.customChanges],
-            ] as const).map(([title, items]) =>
-              items.length ? (
-                <div key={title} className="mt-5">
-                  <h3 className="mb-3 text-[15px] font-medium text-[#A7A7AE]">{title}</h3>
-                  <div className="space-y-3">
-                    {items.map((item) => {
-                      const isRemoved = item.changeType === "removed";
-                      const isNegativeChange = isRemoved || item.delta < 0;
-                      const isPositive = item.delta >= 0;
-                      const toneClass =
-                        isRemoved
-                          ? "border-[#6C161C] bg-[#2A090C] text-[#FF6B6B]"
-                          : isPositive
-                            ? "border-[#0C5B35] bg-[#031A12] text-[#00E18F]"
-                            : "border-[#6C161C] bg-[#2A090C] text-[#FF6B6B]";
-
-                      return (
-                        <div
-                          key={item.id}
-                          className={`flex items-center justify-between rounded-[12px] border px-4 py-[15px] ${toneClass}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-[26px] leading-none">
-                              {isNegativeChange ? "-" : "+"}
-                            </span>
-                            <div>
-                              <p
-                                className={`text-[16px] font-medium ${
-                                  isRemoved ? "line-through" : ""
-                                }`}
-                              >
-                                {item.label}
-                              </p>
-                              {item.changeType === "updated" ? (
-                                <p className="text-sm opacity-80">
-                                  {formatCurrency(item.previousAmount)} to {formatCurrency(item.nextAmount)}
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div
-                            className={`text-[16px] font-semibold ${
-                              isRemoved ? "line-through" : ""
-                            }`}
-                          >
-                            {`${isNegativeChange ? "-" : "+"}${formatCurrency(Math.abs(item.delta))}`}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null,
-            )}
-
-            {[
-              ...reviewChangesData.fieldChanges.map((item) => ({
-                id: item.id,
-                label: item.label,
-                previousValue: item.previousValue || "None",
-                nextValue: item.nextValue || "None",
-              })),
-            ].length ? (
-              <div className="mt-5">
-                <h3 className="mb-3 text-[15px] font-medium text-[#A7A7AE]">Other Changes</h3>
-                <div className="rounded-[12px] bg-[#141416] p-5">
-                  <div className="space-y-4">
-                    {[
-                      ...reviewChangesData.fieldChanges.map((item) => ({
-                        id: item.id,
-                        label: item.label,
-                        previousValue: item.previousValue || "None",
-                        nextValue: item.nextValue || "None",
-                      })),
-                    ].map((item) => (
-                      <div key={item.id} className="rounded-[12px] bg-[#101012] p-4">
-                        <p className="text-[16px] font-medium text-white">{item.label}</p>
-                        <div className="mt-3 grid gap-3 md:grid-cols-2">
-                          <div>
-                            <p className="text-sm text-[#7D7D84]">Old:</p>
-                            <p className="mt-1 text-[15px] text-[#D4D4D8]">
-                              {item.previousValue || "None"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-[#7D7D84]">New:</p>
-                            <p className="mt-1 text-[15px] text-white">
-                              {item.nextValue || "None"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-7">
-              <label className="mb-3 block text-[15px] font-medium text-[#9D9DA4]">
-                Reason for Change*
-              </label>
-              <Textarea
-                value={reviewChangeReason}
-                onChange={(event) => setReviewChangeReason(event.target.value)}
-                placeholder="Explain why these changes are being made..."
-                className="min-h-[136px] rounded-[14px] border border-[#2E2E33] bg-black px-5 py-4 text-[15px] text-white placeholder:text-[#5F5F65]"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex flex-col gap-3 border-t border-white/10 px-7 py-7 sm:flex-row sm:justify-end sm:gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsReviewChangesModalOpen(false)}
-              disabled={isCreatingQuoteDraft}
-              className="h-[50px] min-w-[160px] rounded-[12px] border-[#363636] bg-[#111111] text-white hover:bg-[#181818] sm:min-w-[160px]"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void handleSaveAsNewVersion();
-              }}
-              disabled={isCreatingQuoteDraft || !reviewChangeReason.trim()}
-              className="h-[50px] min-w-[230px] rounded-[12px] bg-[#E7D0A4] text-black hover:bg-[#E7D0A4]/90 sm:min-w-[230px]"
-            >
-              {isCreatingQuoteDraft && activeQuoteAction === "save"
-                ? "Saving..."
-                : "Save as New Version"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        reviewChangesData={reviewChangesData}
+        reviewChangeReason={reviewChangeReason}
+        onReviewChangeReason={setReviewChangeReason}
+        onConfirm={() => {
+          void handleSaveAsNewVersion();
+        }}
+        isSaving={isCreatingQuoteDraft && activeQuoteAction === "save"}
+      />
       <AnimatePresence>
         {isVersionSaveSuccessOpen && (
           <motion.div
