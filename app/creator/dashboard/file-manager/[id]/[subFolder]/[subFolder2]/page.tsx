@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
+
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -56,7 +58,8 @@ export default function CreatorSubFolderDetailsPage() {
   const [files, setFiles] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
+
   const [status, setStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
