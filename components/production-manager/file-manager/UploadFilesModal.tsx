@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { X, UploadCloud, Trash2, File } from "lucide-react";
 
 interface UploadModalProps {
@@ -12,7 +12,14 @@ interface UploadModalProps {
 const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [selectionError, setSelectionError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setSelectionError(null);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -28,8 +35,16 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }
 
     const handleFiles = (files: FileList | null) => {
         if (files) {
-            const newFiles = Array.from(files);
-            setSelectedFiles((prev) => [...prev, ...newFiles]);
+            setSelectionError(null);
+            const incoming = Array.from(files);
+            const validIncoming = incoming.filter((file) => file.size > 0);
+            const emptyFileCount = incoming.length - validIncoming.length;
+
+            if (emptyFileCount > 0) {
+                setSelectionError("You cannot upload empty files.");
+            }
+
+            setSelectedFiles((prev) => [...prev, ...validIncoming]);
         }
     };
 
@@ -93,6 +108,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }
                                 Browse
                             </span>
                         </p>
+                        {selectionError && (
+                            <p className="mt-2 text-sm font-medium text-red-500">
+                                {selectionError}
+                            </p>
+                        )}
                     </div>
 
                     {/* New: File List Area */}

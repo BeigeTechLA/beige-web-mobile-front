@@ -301,7 +301,7 @@ export function LoginForm() {
             >
               <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
                 <h2 className="text-[#E8E8E8] lg:text-black text-[13px] lg:text-sm font-medium lg:font-semibold leading-tight">
-                  Create New Account As Client
+                  JOIN BEIGE
                 </h2>
 
                 <div className="w-6 h-6 lg:w-[30px] lg:h-[30px] rounded-full border border-white/20 lg:border-black flex items-center justify-center shrink-0">
@@ -324,7 +324,7 @@ export function LoginForm() {
             >
               <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
                 <h2 className="text-[#E8E8E8] lg:text-white text-[13px] lg:text-sm font-medium lg:font-semibold leading-tight">
-                  Create New Account As Creative Partner
+                  SHOOT FOR BEIGE
                 </h2>
 
                 <div className="w-6 h-6 lg:w-[30px] lg:h-[30px] rounded-full border border-white/20 lg:border-white flex items-center justify-center shrink-0">

@@ -12,6 +12,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const isImageFile = (contentType?: string, title?: string) => {
   if (contentType?.startsWith("image/")) return true;
@@ -68,21 +69,41 @@ export const FileCard = ({
   onOpen,
   onDownload,
   onDelete,
+  isSelected,
+  onSelect,
 }: {
   file: any,
   onMenuTrigger?: (e: React.MouseEvent<HTMLButtonElement>) => void,
   onOpen?: () => void
   onDownload?: () => void,
-  onDelete?: () => void
+  onDelete?: () => void,
+  isSelected?: boolean,
+  onSelect?: (selected: boolean) => void,
 }) => {
   const meta = getFileMeta(file.contentType, file.title);
   const FileIcon = meta.icon;
 
   return (
     <div
-      className="group w-full cursor-pointer bg-[#111111] rounded-xl border border-white/30 shadow-xl overflow-hidden"
+      className={`group w-full cursor-pointer bg-[#111111] rounded-xl border shadow-xl overflow-hidden relative transition-all ${
+        isSelected ? 'border-[#E8D1AB] ring-1 ring-[#E8D1AB]/50' : 'border-white/30 hover:border-white/40'
+      }`}
       onClick={onOpen}
     >
+      {onSelect && (
+        <div 
+          className={`absolute top-3 left-3 z-10 transition-opacity ${
+            isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox 
+            checked={isSelected} 
+            onCheckedChange={(checked) => onSelect(!!checked)}
+            className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+          />
+        </div>
+      )}
       <div className="p-5 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">

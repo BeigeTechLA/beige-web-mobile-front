@@ -16,7 +16,9 @@ import {
   Loader2,
   Search,
 } from "lucide-react";
+import { useViewMode } from "@/hooks/useViewMode";
 import { Button } from "@/components/ui/button";
+
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
@@ -121,7 +123,8 @@ export default function AffiliateFileManager() {
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
   const [status, setStatus] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
+
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -134,7 +134,7 @@ export default function LeadDetailPage() {
   const [isEditingSalesRep, setIsEditingSalesRep] = useState(false);
   const [isUpdatingSalesRep, setIsUpdatingSalesRep] = useState(false);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
-  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([]);
+  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string; subLabel?: string }[]>([]);
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
 
@@ -162,6 +162,7 @@ export default function LeadDetailPage() {
             result.data.map((rep: any) => ({
               label: rep.name || `${rep.first_name || ""} ${rep.last_name || ""}`.trim() || `Representative #${rep.id}`,
               value: String(rep.id),
+              subLabel: rep.role || "",
             }))
           );
         } else {
@@ -674,7 +675,14 @@ export default function LeadDetailPage() {
                                         : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
                                     }`}
                                   >
-                                    {option.label}
+                                    <div className="flex flex-col leading-tight">
+                                      <span>{option.label}</span>
+                                      {option.subLabel ? (
+                                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                          {option.subLabel}
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   </button>
                                 );
                               })}
