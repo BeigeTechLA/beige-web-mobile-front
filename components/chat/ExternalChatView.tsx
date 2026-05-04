@@ -1323,7 +1323,7 @@ export default function ExternalChatView({
                                 <span>{roomParticipantCount || 1}</span>
                                 <span>/</span>
                                 <span className={roomUnreadCount > 0 ? "font-medium text-[#E5D5B8]" : ""}>
-                                  {formatConversationMeta(metaDate)}
+                                  {formatConversationMeta(metaDate)} {formatDayLabel(metaDate)} 
                                 </span>
                               </div>
                               {roomUnreadCount > 0 ? (

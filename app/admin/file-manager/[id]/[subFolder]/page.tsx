@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
 import {
   ArrowLeft,
   FileArchive,
@@ -13,13 +14,20 @@ import {
   List,
   Loader2,
   MoreVertical,
+
   Presentation,
   Search,
-  Upload
+  Upload,
+  CheckSquare,
+  Square,
+  X as CloseIcon,
+  Download as DownloadIcon,
+  Trash2 as TrashIcon
 } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
@@ -131,8 +139,9 @@ export default function AdminFileManagerPhasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [isOpen, setIsOpen] = useState(false);
+
   const [status, setStatus] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
@@ -149,6 +158,8 @@ export default function AdminFileManagerPhasePage() {
   const [viewerFile, setViewerFile] = useState<any | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
+  const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const loadPhase = async () => {
     try {
@@ -414,6 +425,49 @@ export default function AdminFileManagerPhasePage() {
       setOpeningFileId(null);
     }
   };
+  
+  const toggleFileSelection = (filepath: string) => {
+    setSelectedFilePaths(prev => 
+      prev.includes(filepath) 
+        ? prev.filter(p => p !== filepath) 
+        : [...prev, filepath]
+    );
+  };
+
+  const handleBatchDownload = async () => {
+    if (selectedFilePaths.length === 0) return;
+    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
+    for (const path of selectedFilePaths) {
+      await handleDownloadFile({ filepath: path });
+      // Small delay to prevent browser from blocking multiple windows
+      await new Promise(r => setTimeout(r, 300));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedFilePaths.length === 0) return;
+    if (!isPreProduction) return;
+
+    try {
+      setIsDeleting(true);
+      const total = selectedFilePaths.length;
+      let count = 0;
+      
+      for (const path of selectedFilePaths) {
+        await fileManagerApi.deleteExternalEntry(path);
+        count++;
+      }
+      
+      toast.success(`Deleted ${count} file(s)`);
+      setSelectedFilePaths([]);
+      setIsDeleteModalOpen(false);
+      await loadPhase();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete files");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -512,7 +566,25 @@ export default function AdminFileManagerPhasePage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <div className="flex gap-2 ">
+                <div className="flex gap-2">
+                   {filteredFiles.length > 0 && (
+                     <Button
+                        variant="ghost"
+                      onClick={() => {
+                          const nextMode = !isSelectionMode;
+                          setIsSelectionMode(nextMode);
+                          if (!nextMode) setSelectedFilePaths([]);
+                      }}
+                        className={`gap-2 h-10 px-4 rounded-lg border transition-all ${
+                          isSelectionMode 
+                            ? 'bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90' 
+                            : 'bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20'
+                        }`}
+                      >
+                        <CheckSquare size={18} />
+                        <span className="hidden sm:inline">{isSelectionMode ? 'Cancel' : 'Select'}</span>
+                      </Button>
+                   )}
                   {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
                   <div className="md:hidden relative">
                     <Button
@@ -743,6 +815,8 @@ export default function AdminFileManagerPhasePage() {
                                     setSelectedFolder(null);
                                     setIsDeleteModalOpen(true);
                                   }}
+                                  isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                                  onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                                 />
                               ))}
                             </div>
@@ -837,7 +911,26 @@ export default function AdminFileManagerPhasePage() {
                               <table className="w-full text-left border-collapse">
                               <thead>
                                 <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                                  <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                                  {isSelectionMode && (
+                                    <th className="rounded-l-xl py-5 px-6 font-medium w-10">
+                                        <div onClick={(e) => e.stopPropagation()}>
+                                        <Checkbox 
+                                            checked={visibleFiles.length > 0 && visibleFiles.every(f => selectedFilePaths.includes(f.filepath || ""))}
+                                            onCheckedChange={(checked: boolean | "indeterminate") => {
+                                            if (checked === true) {
+                                                const allVisible = visibleFiles.map(f => f.filepath || "").filter(Boolean);
+                                                setSelectedFilePaths(prev => Array.from(new Set([...prev, ...allVisible])));
+                                            } else {
+                                                const allVisible = visibleFiles.map(f => f.filepath || "");
+                                                setSelectedFilePaths(prev => prev.filter(p => !allVisible.includes(p)));
+                                            }
+                                            }}
+                                            className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                                        />
+                                        </div>
+                                    </th>
+                                  )}
+                                  <th className={`${!isSelectionMode ? 'rounded-l-xl' : ''} py-5 px-6 font-medium`}>Name</th>
                                   <th className="py-5 px-6 text-center font-medium">Type</th>
                                   <th className="py-5 px-6 text-center font-medium">Last Updated</th>
                                   <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
@@ -847,9 +940,18 @@ export default function AdminFileManagerPhasePage() {
                                 {visibleFiles.map((item) => (
                                   <tr
                                     key={item.id}
-                                    className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                                    className={`hover:bg-white/[0.02] transition-colors cursor-pointer ${(isSelectionMode && selectedFilePaths.includes(item.filepath || "")) ? 'bg-white/[0.04]' : ''}`}
                                     onClick={() => handleOpenFile(item)}
                                   >
+                                    {isSelectionMode && (
+                                        <td className="py-5 px-6" onClick={(e) => e.stopPropagation()}>
+                                        <Checkbox 
+                                            checked={selectedFilePaths.includes(item.filepath || "")}
+                                            onCheckedChange={() => toggleFileSelection(item.filepath || "")}
+                                            className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                                        />
+                                        </td>
+                                    )}
                                     <td className="py-5 px-6 text-white flex gap-2 items-center">
                                       {item.label === "image" && previewUrls[item.id] ? (
                                         <div className="h-10 w-10 overflow-hidden rounded-md border border-white/5 bg-[#1A1A1A]">
@@ -929,6 +1031,8 @@ export default function AdminFileManagerPhasePage() {
                             setSelectedFolder(null);
                             setIsDeleteModalOpen(true);
                           }}
+                          isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                          onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                         />
                       ))}
                     </div>
@@ -954,7 +1058,26 @@ export default function AdminFileManagerPhasePage() {
                       <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                          <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                          {isSelectionMode && (
+                            <th className="rounded-l-xl py-5 px-6 font-medium w-10">
+                                <div onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox 
+                                    checked={visibleFiles.length > 0 && visibleFiles.every(f => selectedFilePaths.includes(f.filepath || ""))}
+                                    onCheckedChange={(checked: boolean | "indeterminate") => {
+                                        if (checked === true) {
+                                        const allVisible = visibleFiles.map(f => f.filepath || "").filter(Boolean);
+                                        setSelectedFilePaths(prev => Array.from(new Set([...prev, ...allVisible])));
+                                        } else {
+                                        const allVisible = visibleFiles.map(f => f.filepath || "");
+                                        setSelectedFilePaths(prev => prev.filter(p => !allVisible.includes(p)));
+                                        }
+                                    }}
+                                    className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                                    />
+                                </div>
+                            </th>
+                          )}
+                          <th className={`${!isSelectionMode ? 'rounded-l-xl' : ''} py-5 px-6 font-medium`}>Name</th>
                           <th className="py-5 px-6 text-center font-medium">Type</th>
                           <th className="py-5 px-6 text-center font-medium">Last Updated</th>
                           <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
@@ -964,9 +1087,18 @@ export default function AdminFileManagerPhasePage() {
                         {visibleFiles.map((item) => (
                           <tr
                             key={item.id}
-                            className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                            className={`hover:bg-white/[0.02] transition-colors cursor-pointer ${(isSelectionMode && selectedFilePaths.includes(item.filepath || "")) ? 'bg-white/[0.04]' : ''}`}
                             onClick={() => handleOpenFile(item)}
                           >
+                            {isSelectionMode && (
+                                <td className="py-5 px-6" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox 
+                                    checked={selectedFilePaths.includes(item.filepath || "")}
+                                    onCheckedChange={() => toggleFileSelection(item.filepath || "")}
+                                    className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                                />
+                                </td>
+                            )}
                             <td className="py-5 px-6 text-white flex gap-2 items-center">
                               {item.label === "image" && previewUrls[item.id] ? (
                                 <div className="h-10 w-10 overflow-hidden rounded-md border border-white/5 bg-[#1A1A1A]">
@@ -1072,10 +1204,24 @@ export default function AdminFileManagerPhasePage() {
 
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={() => (selectedFile ? handleDeleteFile(selectedFile) : handleDeleteSelectedFolder())}
-          itemName={selectedFile?.title || selectedFolder?.title || "this item"}
-          itemType={selectedFile ? "file" : "folder"}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+          }}
+          onConfirm={() => {
+            if (selectedFilePaths.length > 0) {
+              handleBatchDelete();
+            } else if (selectedFile) {
+              handleDeleteFile(selectedFile);
+            } else {
+              handleDeleteSelectedFolder();
+            }
+          }}
+          itemName={
+            selectedFilePaths.length > 0 
+              ? `${selectedFilePaths.length} selected files` 
+              : selectedFile?.title || selectedFolder?.title || "this item"
+          }
+          itemType={selectedFile || selectedFilePaths.length > 0 ? "file" : "folder"}
           isDeleting={isDeleting}
         />
 
@@ -1090,6 +1236,57 @@ export default function AdminFileManagerPhasePage() {
           contentType={viewerFile?.contentType}
           fileMetaId={viewerFile?.filepath || null}
         />
+
+        {/* Batch Action Toolbar */}
+        {selectedFilePaths.length > 0 && (
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-xl px-4">
+            <div className="bg-[#171717] border border-[#E8D1AB]/50 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#E8D1AB] text-black h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm">
+                  {selectedFilePaths.length}
+                </div>
+                <span className="text-white font-medium">Files selected</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  className="text-white/70 hover:text-white gap-2"
+                  onClick={() => setSelectedFilePaths([])}
+                >
+                  Clear
+                </Button>
+                
+                <div className="h-6 w-[1px] bg-white/10 mx-1" />
+                
+                <Button 
+                  className="bg-white/10 text-white hover:bg-white/20 gap-2 border border-white/10"
+                  onClick={handleBatchDownload}
+                >
+                  <DownloadIcon size={18} />
+                  Download
+                </Button>
+                
+                {isPreProduction && (
+                  <Button 
+                    className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    <TrashIcon size={18} />
+                    Delete
+                  </Button>
+                )}
+              </div>
+
+              <button 
+                onClick={() => setSelectedFilePaths([])}
+                className="text-white/40 hover:text-white"
+              >
+                <CloseIcon size={20} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {isPreProduction ? (
           <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">

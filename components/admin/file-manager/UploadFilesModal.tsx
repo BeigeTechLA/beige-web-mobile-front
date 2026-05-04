@@ -53,6 +53,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const batchPolicySupportedRef = useRef<boolean>(true);
   const batchMetadataSupportedRef = useRef<boolean>(true);
   const previewUrlsRef = useRef<Set<string>>(new Set());
+  const [selectionError, setSelectionError] = useState<string | null>(null);
 
   const uploadedCount = useMemo(
     () => selectedFiles.filter((item) => item.status === "uploaded").length,
@@ -88,6 +89,12 @@ const UploadModal: React.FC<UploadModalProps> = ({
       previewUrlsRef.current.clear();
     };
   }, []);
+useEffect(() => {
+  if (!isOpen) {
+    setSelectionError(null);
+    setStatusMessage(null); 
+  }
+}, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -103,11 +110,13 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
   const handleFiles = (files: FileList | null) => {
     if (files) {
+      setSelectionError(null); 
       const now = Date.now();
       const incoming = Array.from(files);
       const validIncoming = incoming.filter((file) => file.size > 0);
       const emptyFileCount = incoming.length - validIncoming.length;
       setSelectedFiles((prev) => {
+
         const existingSignatures = new Set(prev.map((item) => item.signature));
         const deduped = validIncoming
           .map((file, index) => {
@@ -131,13 +140,13 @@ const UploadModal: React.FC<UploadModalProps> = ({
         const duplicateCount = validIncoming.length - deduped.length;
         const notices: string[] = [];
         if (emptyFileCount > 0) {
-          notices.push(`${emptyFileCount} empty file(s) were skipped.`);
+          notices.push("You cannot upload empty files.");
         }
         if (duplicateCount > 0) {
           notices.push(`${duplicateCount} duplicate file(s) were skipped.`);
         }
         if (notices.length > 0) {
-          setStatusMessage(notices.join(" "));
+          setSelectionError(notices.join(" "));
         }
 
         return [...prev, ...deduped];
@@ -595,6 +604,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
                 Browse
               </span>
             </p>
+             {selectionError && (
+              <p className="mt-2 text-sm font-medium text-red-500">
+                {selectionError}
+              </p>
+            )}
           </div>
 
           {/* New: File List Area */}

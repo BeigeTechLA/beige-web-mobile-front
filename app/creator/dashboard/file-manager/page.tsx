@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
 import {
   Grid3X3,
   History,
@@ -11,6 +12,7 @@ import {
   MoreVertical,
   Search,
 } from "lucide-react";
+
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
@@ -44,8 +46,9 @@ export default function CreatorFileManagerPage() {
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
