@@ -78,6 +78,7 @@ const getLatestQuotePaymentSummaryMetadata = (
     const hasRelevantPaymentSummary =
       getQuoteNumber(
         metadata.extra_amount,
+        metadata.reduced_amount,
         metadata.collected_amount,
         metadata.amount_paid,
         metadata.new_total,
@@ -548,14 +549,28 @@ export const getQuoteAdditionalPaymentDetails = (
     revisedTotal > 0 || previouslyPaidAmount > 0
       ? revisedTotal - previouslyPaidAmount
       : 0;
-  const rawAdditionalAmount = revisedTotalOverride !== undefined
-    ? derivedAdditionalAmount
-    : getQuoteNumber(
-        latestPaymentMetadata?.extra_amount,
-        derivedAdditionalAmount,
-        latestAmountSummary?.total_delta,
-        additionalPayment?.additional_amount
-      ) ?? derivedAdditionalAmount;
+
+  const metadataExtraAmount = getQuoteNumber(latestPaymentMetadata?.extra_amount);
+  const metadataReducedAmount = getQuoteNumber(latestPaymentMetadata?.reduced_amount);
+
+  let effectiveMetadataAmount = metadataExtraAmount;
+  if (
+    metadataReducedAmount !== undefined &&
+    metadataReducedAmount > 0 &&
+    (metadataExtraAmount === undefined || metadataExtraAmount === 0)
+  ) {
+    effectiveMetadataAmount = -metadataReducedAmount;
+  }
+
+  const rawAdditionalAmount =
+    revisedTotalOverride !== undefined
+      ? derivedAdditionalAmount
+      : getQuoteNumber(
+          effectiveMetadataAmount,
+          derivedAdditionalAmount,
+          latestAmountSummary?.total_delta,
+          additionalPayment?.additional_amount
+        ) ?? derivedAdditionalAmount;
   const additionalAmount = rawAdditionalAmount;
   const outstandingAmount = Math.max(
     0,

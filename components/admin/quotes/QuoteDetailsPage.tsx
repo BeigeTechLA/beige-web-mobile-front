@@ -79,7 +79,7 @@ type QuoteDetailsPageProps = {
 };
 
 type OtherDetailsTab = "discounts" | "tax";
-type QuoteConvertIntent = "convert_only" | "send_invoice";
+type QuoteConvertIntent = "convert_only" | "send_invoice" | "view_invoice";
 
 type QuoteActivityLike = {
   activity_type?: string;
@@ -472,16 +472,12 @@ const QuoteTopActions = ({
   onConvert,
   onPaymentTransaction,
   onPreview,
-  onSendInvoice,
   previewDisabled,
-  sendDisabled,
   rejectDisabled,
   convertDisabled,
-  showSendInvoice,
   paymentDisabled,
   isRejecting,
   isConverting,
-  isSendingInvoice,
   versions,
   selectedVersionId,
   onVersionChange,
@@ -490,16 +486,12 @@ const QuoteTopActions = ({
   onConvert: () => void;
   onPaymentTransaction: () => void;
   onPreview: () => void;
-  onSendInvoice: () => void;
   previewDisabled: boolean;
-  sendDisabled: boolean;
   rejectDisabled: boolean;
   convertDisabled: boolean;
-  showSendInvoice: boolean;
   paymentDisabled: boolean;
   isRejecting: boolean;
   isConverting: boolean;
-  isSendingInvoice: boolean;
   versions: any[];
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
@@ -558,17 +550,6 @@ const QuoteTopActions = ({
       <Eye size={18} />
       Preview Quote
     </Button>
-    {showSendInvoice ? (
-      <Button
-        type="button"
-        onClick={onSendInvoice}
-        disabled={sendDisabled}
-        className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
-      >
-        {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
-        {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
-      </Button>
-    ) : null}
   </div>
 );
 
@@ -820,7 +801,10 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
-  const canSendInvoiceFromDetails = ["accepted", "approved", "confirmed"].includes(
+  const canSendInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
+    normalizedQuoteStatus
+  );
+  const canViewInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
     normalizedQuoteStatus
   );
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
@@ -1160,11 +1144,6 @@ export default function QuoteDetailsPage({
       return;
     }
 
-    if (!isConvertedToBooking) {
-      toast.error("Convert this quote to a booking before viewing the invoice.");
-      return;
-    }
-
     setIsViewingInvoice(true);
     try {
       const response = await salesApi.previewQuoteInvoice(resolvedQuoteId);
@@ -1256,12 +1235,6 @@ export default function QuoteDetailsPage({
   const handleSendInvoice = async () => {
     if (!resolvedQuoteId) {
       toast.error("Quote id is missing.");
-      return;
-    }
-
-    if (!isConvertedToBooking || !convertedBookingId) {
-      setConvertIntent("send_invoice");
-      setIsConvertModalOpen(true);
       return;
     }
 
@@ -1372,10 +1345,6 @@ export default function QuoteDetailsPage({
       );
       dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
       setIsConvertModalOpen(false);
-
-      if (convertIntent === "send_invoice") {
-        await sendQuoteInvoiceRequest();
-      }
     } catch (error) {
       console.error("Failed to convert quote to booking", error);
       toast.error(
@@ -1438,18 +1407,12 @@ export default function QuoteDetailsPage({
         void handlePaymentTransactionAction();
       }}
       onPreview={() => setIsPreviewOpen(true)}
-      onSendInvoice={() => {
-        void handleSendInvoice();
-      }}
       previewDisabled={!quote || loading}
-      sendDisabled={!quote || loading || isRejecting || isConverting || isSendingInvoice}
       rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       convertDisabled={!quote || loading || isRejecting || isConverting}
-      showSendInvoice={Boolean(quote) && canSendInvoiceFromDetails}
       paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment}
       isRejecting={isRejecting}
       isConverting={isConverting}
-      isSendingInvoice={isSendingInvoice}
       versions={versions}
       selectedVersionId={selectedVersionId}
       onVersionChange={(val) => setSelectedVersionId(val)}
@@ -1486,6 +1449,38 @@ export default function QuoteDetailsPage({
             <ArrowLeft size={18} />
             Back
           </button>
+
+          {!loading && quote && (
+            <div className="flex flex-wrap items-center gap-3">
+              {canViewInvoiceFromDetails && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleViewInvoice();
+                  }}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  variant="outline"
+                  className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-5 text-white hover:bg-[#232323]"
+                >
+                  {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
+                  {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+                </Button>
+              )}
+              {canSendInvoiceFromDetails && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleSendInvoice();
+                  }}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
+                >
+                  {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
+                  {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -2004,31 +1999,19 @@ export default function QuoteDetailsPage({
         initialData={convertModalInitialData}
         showLocationField={false}
         title={
-          convertIntent === "send_invoice"
-            ? isConvertedToBooking
-              ? "Update Booking Before Sending Invoice"
-              : "Convert to Booking Before Sending Invoice"
-            : isConvertedToBooking
-              ? "Update Booking"
-              : "Convert to Booking"
+          isConvertedToBooking
+            ? "Update Booking"
+            : "Convert to Booking"
         }
         description={
-          convertIntent === "send_invoice"
-            ? isConvertedToBooking
-              ? "Review or update the existing booking date and time below, then continue to send the invoice."
-              : "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
-            : isConvertedToBooking
-              ? "Review or update the existing booking date and time below."
-              : "Select booking type, shoot date and time before continuing."
+          isConvertedToBooking
+            ? "Review or update the existing booking date and time below."
+            : "Select booking type, shoot date and time before continuing."
         }
         submitLabel={
-          convertIntent === "send_invoice"
-            ? isConvertedToBooking
-              ? "Save & Send Invoice"
-              : "Convert & Send Invoice"
-            : isConvertedToBooking
-              ? "Save Booking Details"
-              : "Convert to Booking"
+          isConvertedToBooking
+            ? "Save Booking Details"
+            : "Convert to Booking"
         }
       />
     </div>

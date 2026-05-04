@@ -368,15 +368,10 @@ export default function QuotePreviewDocument({
                   ) : null}
                   <div className="flex items-center justify-between gap-6">
                     <div className="flex items-center gap-1.5">
-                      {additionalPaymentDetails.additionalAmount < 0 ? (
-                        <Minus size={14} className="text-red-600" />
-                      ) : (
-                        <Plus size={14} className="text-emerald-600" />
-                      )}
                       <span>{additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}</span>
                     </div>
                     <span className={`font-semibold ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-600" : ""}`}>
-                      {formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
+                      {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-6">

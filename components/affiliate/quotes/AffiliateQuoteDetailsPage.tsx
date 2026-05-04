@@ -685,7 +685,7 @@ export default function AffiliateQuoteDetailsPage({
         ) : (
           <div className="space-y-6">
             <SectionShell title="Client Information">
-              <div className="flex flex-col gap-6">rej
+              <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 items-start gap-4">
                     <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[22px] bg-[#F3D9A7] text-[24px] font-semibold text-black">
