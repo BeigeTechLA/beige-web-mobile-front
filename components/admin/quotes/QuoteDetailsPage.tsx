@@ -233,6 +233,32 @@ const buildConvertModalInitialData = (
   };
 };
 
+const mergeVersionQuoteWithPrimaryContext = (
+  current: SalesQuoteDetailData | null,
+  incoming: SalesQuoteDetailData
+): SalesQuoteDetailData => {
+  if (!current) return incoming;
+
+  const incomingLeadId = incoming?.lead_id;
+  const incomingBookingId = (incoming as Record<string, unknown>)?.booking_id;
+  const incomingActivities = Array.isArray(incoming?.activities) ? incoming.activities : [];
+
+  return {
+    ...incoming,
+    lead_id:
+      incomingLeadId !== undefined && incomingLeadId !== null && String(incomingLeadId).trim()
+        ? incomingLeadId
+        : current.lead_id,
+    booking_id:
+      incomingBookingId !== undefined && incomingBookingId !== null && String(incomingBookingId).trim()
+        ? incomingBookingId
+        : (current as Record<string, unknown>)?.booking_id,
+    activities: incomingActivities.length > 0 ? incomingActivities : current.activities,
+    converted_booking_details:
+      incoming.converted_booking_details || current.converted_booking_details,
+  };
+};
+
 const getQuoteEditShootDateValue = (quote?: SalesQuoteDetailData | null) => {
   const bookingDays = quote?.converted_booking_details?.booking_days ?? [];
   const firstBookingDay = Array.isArray(bookingDays) ? bookingDays[0] : null;
@@ -707,7 +733,9 @@ export default function QuoteDetailsPage({
         if (response?.success && isMounted) {
           const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
           if (quoteDetail) {
-            setQuote(quoteDetail);
+            setQuote((current) =>
+              mergeVersionQuoteWithPrimaryContext(current, quoteDetail)
+            );
           }
         }
       } catch (error) {
@@ -807,8 +835,19 @@ export default function QuoteDetailsPage({
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? quoteId
   );
   const quoteLeadId = useMemo(() => {
-    const leadId = Number((quote as Record<string, unknown> | null)?.["lead_id"]);
-    return Number.isInteger(leadId) && leadId > 0 ? leadId : null;
+    const quoteRecord = quote as Record<string, unknown> | null;
+    const directLeadId = Number(quoteRecord?.["lead_id"]);
+    if (Number.isInteger(directLeadId) && directLeadId > 0) {
+      return directLeadId;
+    }
+
+    const activityLeadId = Number(
+      ((quote?.activities as QuoteActivityLike[] | undefined) || []).find(
+        (activity) => activity?.metadata?.lead_id !== undefined && activity?.metadata?.lead_id !== null
+      )?.metadata?.lead_id
+    );
+
+    return Number.isInteger(activityLeadId) && activityLeadId > 0 ? activityLeadId : null;
   }, [quote]);
   const { data: linkedLeadDetails, refetch: refetchLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
     skip: !quoteLeadId,
@@ -1718,6 +1757,16 @@ export default function QuoteDetailsPage({
                         </div>
                       </div>
                     ) : null}
+                  </div>
+                ) : isConvertedToBooking ? (
+                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
+                    <p className="text-sm text-emerald-200">
+                      This quote is already converted to booking
+                      {convertedBookingId ? ` #${convertedBookingId}` : ""}.
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-300/90">
+                      Lead linkage is unavailable in this response, so manual payment updates from this panel are hidden.
+                    </p>
                   </div>
                 ) : (
                   <p className="text-sm text-[#8F8F95]">Lead is not linked with this quote yet.</p>
