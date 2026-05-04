@@ -6819,12 +6819,12 @@ export default function CreateQuotePage() {
                         ) : null}
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            {additionalPaymentDetails.isDecrease
-                              ? "Decreasing Amount"
+                            {additionalPaymentDetails.additionalAmount < 0
+                              ? "Reduced Amount"
                               : "Additional Amount"}
                           </span>
-                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {`${additionalPaymentDetails.additionalAmount > 0 ? "+" : additionalPaymentDetails.additionalAmount < 0 ? "-" : ""}${formatCurrency(additionalPaymentDetails.displayAmount)}`}
+                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : "text-[#9F9FA9]"}`}>
+                            {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                           </span>
                         </div>
                         {additionalPaymentDetails.isDecrease ? (
@@ -6840,7 +6840,7 @@ export default function CreateQuotePage() {
 
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-xl font-medium text-white">
-                      Final Total
+                      New Quote Total
                     </span>
                     <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
                       {formatCurrency(totalAfterDiscount)}

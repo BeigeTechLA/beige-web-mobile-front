@@ -3551,7 +3551,8 @@ export default function CreateQuotePage() {
     : view === "tax"
       ? handleSaveQuote
       : handleContinue;
-  const showReviewChangesAction = isEditMode && isFullEditFlow && view === "tax";
+  const showReviewChangesAction =
+    isEditMode && isFullEditFlow && !isDuplicateFlow && view === "tax";
 
   const primaryActionLabel = isEditMode
     ? isFullEditFlow
@@ -6844,12 +6845,12 @@ export default function CreateQuotePage() {
                         ) : null}
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            {additionalPaymentDetails.isDecrease
-                              ? "Service Change Amount"
+                            {additionalPaymentDetails.additionalAmount < 0
+                              ? "Reduced Amount"
                               : "Additional Amount"}
                           </span>
-                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {`${additionalPaymentDetails.additionalAmount > 0 ? "+" : additionalPaymentDetails.additionalAmount < 0 ? "-" : ""}${formatCurrency(additionalPaymentDetails.displayAmount)}`}
+                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : "text-[#9F9FA9]"}`}>
+                            {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                           </span>
                         </div>
                         {additionalPaymentDetails.isDecrease ? (

@@ -1786,17 +1786,12 @@ export default function LeadDetailPage() {
                   )}
                   <div className="flex justify-between font-medium">
                     <div className="flex items-center gap-1.5">
-                      {additionalPaymentDetails.additionalAmount < 0 ? (
-                        <Minus size={12} className="text-red-500" />
-                      ) : (
-                        <Plus size={12} className="text-emerald-500" />
-                      )}
                       <span className="text-[#71717B] text-xs">
                         {additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}
                       </span>
                     </div>
                     <span className={`text-sm font-mono ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : (isDark ? "text-white" : "text-black")}`}>
-                      {formatCurrencyValue(Math.abs(additionalPaymentDetails.additionalAmount))}
+                      {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatCurrencyValue(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
                 </div>
