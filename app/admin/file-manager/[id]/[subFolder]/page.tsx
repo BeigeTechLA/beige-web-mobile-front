@@ -442,33 +442,32 @@ export default function AdminFileManagerPhasePage() {
         </Button>
 
         {loading ? (
-<div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
         }`}>
-        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-      </div>     
-         ) : error ? (
+            <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+          </div>
+        ) : error ? (
           <div className="text-red-300 text-sm">{error || "Folder not found"}</div>
         ) : (
           <>
             <div>
               <div className="flex items-start gap-5 mb-2 lg:mb-6">
-                <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+                <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
                   {getDisplayInitials(workspaceName)}
                 </div>
                 <div className="min-w-0 text-white max-w-3xl flex-1">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+                  <div className="flex flex-row lg:items-center gap-2">
                     <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                       {workspaceName}
                     </h1>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 flex items-center gap-1.5 ${
-                      phaseSlug === "post-production"
+                    <span className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border border-white/5 flex items-center gap-1.5 h-fit w-fit ${phaseSlug === "post-production"
                         ? "bg-[#E8D2FB] text-[#540B94]"
                         : "bg-[#FDF4FF] text-[#C026D3]"
-                    }`}>
+                      }`}>
                       {viewState.title}
                     </span>
                   </div>
-                  <p className="hidden lg:block text-sm text-[#D0D0D0]">
+                  <p className="text-xs lg:text-sm text-[#D0D0D0]">
                     <span className="text-[#AAA7A7]">Project Code: </span>
                     {workspaceCode}
                   </p>
@@ -484,10 +483,10 @@ export default function AdminFileManagerPhasePage() {
                   ) : null} */}
                 </div>
               </div>
-              <p className="lg:hidden text-xs text-[#D0D0D0]">
+              {/* <p className="lg:hidden text-xs text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {workspaceCode}
-              </p>
+              </p> */}
               {/* {workspaceConsoleUrl ? (
                 <a
                   href={workspaceConsoleUrl}
@@ -529,9 +528,8 @@ export default function AdminFileManagerPhasePage() {
                             setViewMode("grid");
                             setIsOpen(false);
                           }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                            viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                          }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                            }`}
                         >
                           <Grid3X3 size={18} />
                           Grid View
@@ -541,9 +539,8 @@ export default function AdminFileManagerPhasePage() {
                             setViewMode("list");
                             setIsOpen(false);
                           }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                            viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                          }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                            }`}
                         >
                           <List size={18} />
                           List View
@@ -554,21 +551,19 @@ export default function AdminFileManagerPhasePage() {
                   <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                     <Button
                       onClick={() => setViewMode("grid")}
-                      className={`px-5 py-2.5 rounded-l-lg transition-colors ${
-                        viewMode === "grid"
+                      className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === "grid"
                           ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                           : "bg-transparent text-white/40 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <Grid3X3 size={20} />
                     </Button>
                     <Button
                       onClick={() => setViewMode("list")}
-                      className={`px-5 py-2.5 rounded-r-lg transition-colors ${
-                        viewMode === "list"
+                      className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === "list"
                           ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                           : "bg-transparent text-white/40 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <List size={20} />
                     </Button>
@@ -835,64 +830,64 @@ export default function AdminFileManagerPhasePage() {
                           <div className="space-y-4">
                             <div className="overflow-x-auto">
                               <table className="w-full text-left border-collapse">
-                              <thead>
-                                <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                                  <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                                  <th className="py-5 px-6 text-center font-medium">Type</th>
-                                  <th className="py-5 px-6 text-center font-medium">Last Updated</th>
-                                  <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {visibleFiles.map((item) => (
-                                  <tr
-                                    key={item.id}
-                                    className="hover:bg-white/[0.02] transition-colors cursor-pointer"
-                                    onClick={() => handleOpenFile(item)}
-                                  >
-                                    <td className="py-5 px-6 text-white flex gap-2 items-center">
-                                      {item.label === "image" && previewUrls[item.id] ? (
-                                        <div className="h-10 w-10 overflow-hidden rounded-md border border-white/5 bg-[#1A1A1A]">
-                                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                                          <img
-                                            src={previewUrls[item.id]}
-                                            alt={item.title || "Preview"}
-                                            className="h-full w-full object-cover"
-                                          />
-                                        </div>
-                                      ) : (
-                                        <div className={`h-10 w-10 ${item.badgeClass} flex items-center justify-center rounded-md`}>
-                                          <item.icon className={item.accentClass} size={20} />
-                                        </div>
-                                      )}
-                                      <span className="text-sm font-semibold">{item.title}</span>
-                                    </td>
-                                    <td className="py-5 px-6 text-center text-white/60 text-sm">
-                                      {openingFileId === item.id ? "OPENING..." : item.label}
-                                    </td>
-                                    <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
-                                    <td className="py-5 px-6 text-right">
-                                      <div className="flex items-center justify-end gap-2">
-                                        <Button variant="ghost" className="text-white/40 hover:text-white" onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDownloadFile(item);
-                                        }}>
-                                          Download
-                                        </Button>
-                                        <Button variant="ghost" className="text-white/40 hover:text-[#F04438]" onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedFile(item);
-                                          setSelectedFolder(null);
-                                          if (isPreProduction) setIsDeleteModalOpen(true);
-                                        }}>
-                                          Delete
-                                        </Button>
-                                      </div>
-                                    </td>
+                                <thead>
+                                  <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                                    <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                                    <th className="py-5 px-6 text-center font-medium">Type</th>
+                                    <th className="py-5 px-6 text-center font-medium">Last Updated</th>
+                                    <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                </thead>
+                                <tbody>
+                                  {visibleFiles.map((item) => (
+                                    <tr
+                                      key={item.id}
+                                      className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                                      onClick={() => handleOpenFile(item)}
+                                    >
+                                      <td className="py-5 px-6 text-white flex gap-2 items-center">
+                                        {item.label === "image" && previewUrls[item.id] ? (
+                                          <div className="h-10 w-10 overflow-hidden rounded-md border border-white/5 bg-[#1A1A1A]">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                              src={previewUrls[item.id]}
+                                              alt={item.title || "Preview"}
+                                              className="h-full w-full object-cover"
+                                            />
+                                          </div>
+                                        ) : (
+                                          <div className={`h-10 w-10 ${item.badgeClass} flex items-center justify-center rounded-md`}>
+                                            <item.icon className={item.accentClass} size={20} />
+                                          </div>
+                                        )}
+                                        <span className="text-sm font-semibold">{item.title}</span>
+                                      </td>
+                                      <td className="py-5 px-6 text-center text-white/60 text-sm">
+                                        {openingFileId === item.id ? "OPENING..." : item.label}
+                                      </td>
+                                      <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                                      <td className="py-5 px-6 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                          <Button variant="ghost" className="text-white/40 hover:text-white" onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadFile(item);
+                                          }}>
+                                            Download
+                                          </Button>
+                                          <Button variant="ghost" className="text-white/40 hover:text-[#F04438]" onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedFile(item);
+                                            setSelectedFolder(null);
+                                            if (isPreProduction) setIsDeleteModalOpen(true);
+                                          }}>
+                                            Delete
+                                          </Button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
                             {hasMoreFiles ? (
                               <div className="flex justify-center">
@@ -952,64 +947,64 @@ export default function AdminFileManagerPhasePage() {
                   <div className="space-y-4">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                          <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                          <th className="py-5 px-6 text-center font-medium">Type</th>
-                          <th className="py-5 px-6 text-center font-medium">Last Updated</th>
-                          <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleFiles.map((item) => (
-                          <tr
-                            key={item.id}
-                            className="hover:bg-white/[0.02] transition-colors cursor-pointer"
-                            onClick={() => handleOpenFile(item)}
-                          >
-                            <td className="py-5 px-6 text-white flex gap-2 items-center">
-                              {item.label === "image" && previewUrls[item.id] ? (
-                                <div className="h-10 w-10 overflow-hidden rounded-md border border-white/5 bg-[#1A1A1A]">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={previewUrls[item.id]}
-                                    alt={item.title || "Preview"}
-                                    className="h-full w-full object-cover"
-                                  />
-                                </div>
-                              ) : (
-                                <div className={`h-10 w-10 ${item.badgeClass} flex items-center justify-center rounded-md`}>
-                                  <item.icon className={item.accentClass} size={20} />
-                                </div>
-                              )}
-                              <span className="text-sm font-semibold">{item.title}</span>
-                            </td>
-                            <td className="py-5 px-6 text-center text-white/60 text-sm">
-                              {openingFileId === item.id ? "OPENING..." : item.label}
-                            </td>
-                            <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
-                            <td className="py-5 px-6 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" className="text-white/40 hover:text-white" onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownloadFile(item);
-                                }}>
-                                  Download
-                                </Button>
-                                <Button variant="ghost" className="text-white/40 hover:text-[#F04438]" onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedFile(item);
-                                  setSelectedFolder(null);
-                                  if (isPreProduction) setIsDeleteModalOpen(true);
-                                }}>
-                                  Delete
-                                </Button>
-                              </div>
-                            </td>
+                        <thead>
+                          <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                            <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                            <th className="py-5 px-6 text-center font-medium">Type</th>
+                            <th className="py-5 px-6 text-center font-medium">Last Updated</th>
+                            <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {visibleFiles.map((item) => (
+                            <tr
+                              key={item.id}
+                              className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                              onClick={() => handleOpenFile(item)}
+                            >
+                              <td className="py-5 px-6 text-white flex gap-2 items-center">
+                                {item.label === "image" && previewUrls[item.id] ? (
+                                  <div className="h-10 w-10 overflow-hidden rounded-md border border-white/5 bg-[#1A1A1A]">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={previewUrls[item.id]}
+                                      alt={item.title || "Preview"}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className={`h-10 w-10 ${item.badgeClass} flex items-center justify-center rounded-md`}>
+                                    <item.icon className={item.accentClass} size={20} />
+                                  </div>
+                                )}
+                                <span className="text-sm font-semibold">{item.title}</span>
+                              </td>
+                              <td className="py-5 px-6 text-center text-white/60 text-sm">
+                                {openingFileId === item.id ? "OPENING..." : item.label}
+                              </td>
+                              <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                              <td className="py-5 px-6 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button variant="ghost" className="text-white/40 hover:text-white" onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadFile(item);
+                                  }}>
+                                    Download
+                                  </Button>
+                                  <Button variant="ghost" className="text-white/40 hover:text-[#F04438]" onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedFile(item);
+                                    setSelectedFolder(null);
+                                    if (isPreProduction) setIsDeleteModalOpen(true);
+                                  }}>
+                                    Delete
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                     {hasMoreFiles ? (
                       <div className="flex justify-center">

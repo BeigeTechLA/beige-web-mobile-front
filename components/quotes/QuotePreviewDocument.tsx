@@ -117,7 +117,7 @@ const ServiceTable = ({
         // className={`hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b pb-3 text-sm font-medium md:grid ${
         //   isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
         // }`}
-        className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[8px] lg:text-sm font-medium grid ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
+        className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[8px] lg:text-sm font-medium grid gap-2 ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
           }`}
       >
         <p>Description</p>
