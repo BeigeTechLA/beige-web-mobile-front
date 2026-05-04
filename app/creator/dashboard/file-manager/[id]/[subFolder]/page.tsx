@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
-import { ArrowLeft, CalendarClock, FolderPlus, Grid3X3, List, Loader2, Search, Upload } from "lucide-react";
+import { ArrowLeft, CalendarClock, FolderOpen, FolderPlus, Grid3X3, List, Loader2, MoreVertical, Search, Upload } from "lucide-react";
 
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
+import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
@@ -29,9 +30,28 @@ import { toast } from "sonner";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
+const getFileExtension = (title?: string) => {
+  const parts = String(title || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() || "" : "";
+};
+const isImageFile = (contentType?: string, title?: string) => {
+  const extension = getFileExtension(title);
+  if (extension) {
+    return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(extension);
+  }
+  return Boolean(contentType?.startsWith("image/"));
+};
+const isVideoFile = (contentType?: string, title?: string) => {
+  const extension = getFileExtension(title);
+  if (extension) {
+    return ["mp4", "mov", "avi", "mkv", "webm"].includes(extension);
+  }
+  return Boolean(contentType?.startsWith("video/"));
+};
 
 export default function CreatorFileManagerPhasePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams<{ id: string; subFolder: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
@@ -52,6 +72,7 @@ export default function CreatorFileManagerPhasePage() {
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [selectedFile, setSelectedFile] = useState<Record<string, unknown> | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
@@ -189,7 +210,7 @@ export default function CreatorFileManagerPhasePage() {
     const previewableFiles = visibleFiles.filter(
       (file) =>
         file.filepath &&
-        (file.contentType?.startsWith("image/") || file.contentType?.startsWith("video/"))
+        (isImageFile(file.contentType, file.title) || isVideoFile(file.contentType, file.title))
     );
 
     if (!previewableFiles.length) return;
@@ -228,9 +249,15 @@ export default function CreatorFileManagerPhasePage() {
   const isCommonEventPreProductionRoot =
     isCommonEventWorkspace && phaseSlug === "pre-production";
   const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot;
+  const canDeleteFolders = isCommonEventWorkspace;
+  const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
 
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
+    if (!canDeleteFolders) {
+      toast.error("Folders can only be deleted in common events.");
+      return;
+    }
 
     try {
       setIsDeleting(true);
@@ -261,6 +288,10 @@ export default function CreatorFileManagerPhasePage() {
   const handleDeleteFile = async (file: Record<string, unknown> | null) => {
     const targetFile = file || selectedFile;
     if (!targetFile || typeof targetFile.filepath !== "string") return;
+    if (!canDeleteFiles) {
+      toast.error("Files can only be deleted in post-production for normal events.");
+      return;
+    }
 
     try {
       setIsDeleting(true);
@@ -274,6 +305,20 @@ export default function CreatorFileManagerPhasePage() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleOpenMenu = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    folder: UiFolderItem
+  ) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSelectedFolder(folder);
+    const isNearRightEdge = window.innerWidth - rect.right < 250;
+    const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
+    setMenuAnchor({
+      x: isNearRightEdge ? rect.left - 210 : rect.right - 10,
+      y: isNearBottomEdge ? rect.top - 230 : rect.top - 20,
+    });
   };
 
   const handleOpenFile = async (file: Record<string, unknown>) => {
@@ -333,11 +378,11 @@ export default function CreatorFileManagerPhasePage() {
       </div>
 
       {loading ? (
-<div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
         }`}>
-        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-      </div>    
-        ) : error ? (
+          <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+        </div>
+      ) : error ? (
         <div className="text-sm text-red-300">{error || "Folder not found"}</div>
       ) : (
         <>
@@ -352,11 +397,10 @@ export default function CreatorFileManagerPhasePage() {
                     {workspaceName}
                   </h1>
                   <span
-                    className={`flex items-center gap-1.5 rounded-full border border-white/5 px-2.5 py-1 text-xs font-medium ${
-                      phaseSlug === "post-production"
+                    className={`flex items-center gap-1.5 rounded-full border border-white/5 px-2.5 py-1 text-xs font-medium ${phaseSlug === "post-production"
                         ? "bg-[#E8D2FB] text-[#540B94]"
                         : "bg-[#FDF4FF] text-[#C026D3]"
-                    }`}
+                      }`}
                   >
                     {viewState.title}
                   </span>
@@ -412,21 +456,19 @@ export default function CreatorFileManagerPhasePage() {
                 <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
                   <Button
                     onClick={() => setViewMode("grid")}
-                    className={`rounded-l-lg px-5 py-2.5 transition-colors ${
-                      viewMode === "grid"
+                    className={`rounded-l-lg px-5 py-2.5 transition-colors ${viewMode === "grid"
                         ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                         : "bg-transparent text-white/40 hover:text-white"
-                    }`}
+                      }`}
                   >
                     <Grid3X3 size={20} />
                   </Button>
                   <Button
                     onClick={() => setViewMode("list")}
-                    className={`rounded-r-lg px-5 py-2.5 transition-colors ${
-                      viewMode === "list"
+                    className={`rounded-r-lg px-5 py-2.5 transition-colors ${viewMode === "list"
                         ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                         : "bg-transparent text-white/40 hover:text-white"
-                    }`}
+                      }`}
                   >
                     <List size={20} />
                   </Button>
@@ -463,11 +505,15 @@ export default function CreatorFileManagerPhasePage() {
                           toast.error(err instanceof Error ? err.message : "Failed to download folder");
                         }
                       }}
-                      onDelete={() => {
-                        setSelectedFolder(folder);
-                        setSelectedFile(null);
-                        setIsDeleteModalOpen(true);
-                      }}
+                      onDelete={
+                        canDeleteFolders
+                          ? () => {
+                            setSelectedFolder(folder);
+                            setSelectedFile(null);
+                            setIsDeleteModalOpen(true);
+                          }
+                          : undefined
+                      }
                       onRename={() => toast.info("Folder rename is the next safe step.")}
                     />
                   ))}
@@ -476,12 +522,58 @@ export default function CreatorFileManagerPhasePage() {
                 <div className="flex flex-col gap-3">
                   <div className="lg:hidden">
                     {filteredFolders.map((folder) => (
-                        <MobileFolderRow
-                          key={folder.id}
-                          folder={folder}
-                          handleOpenMenu={() => undefined}
-                        />
+                      <MobileFolderRow
+                        key={folder.id}
+                        folder={folder}
+                        handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                      />
                     ))}
+                  </div>
+                  <div className="hidden overflow-x-auto lg:block">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                          <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                          <th className="py-5 px-6 text-center font-medium">Files</th>
+                          <th className="py-5 px-6 text-center font-medium">Last Updated</th>
+                          <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredFolders.map((item) => (
+                          <tr
+                            key={item.id}
+                            className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                            onClick={(e) => {
+                              if ((e.target as HTMLElement).closest("button")) return;
+                              router.push(item.href || `${pathname}/${item.id}`);
+                            }}
+                          >
+                            <td className="py-5 px-6">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                  <FolderOpen className="text-[#E8D1AB]" size={20} />
+                                </div>
+                                <span className="text-white text-sm font-medium">{item.title}</span>
+                              </div>
+                            </td>
+                            <td className="py-5 px-6 text-center text-white/60 text-sm">
+                              {String(item.fileCount).padStart(2, "0")}
+                            </td>
+                            <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                            <td className="py-5 px-6 text-right">
+                              <Button
+                                variant="ghost"
+                                className="h-10 w-10 rounded-full p-0 text-white/40 hover:bg-white/10 hover:text-white"
+                                onClick={(e) => handleOpenMenu(e, item)}
+                              >
+                                <MoreVertical size={20} />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )
@@ -504,81 +596,97 @@ export default function CreatorFileManagerPhasePage() {
                           userInitials={folder.userInitials}
                           onOpenLinkModal={() => undefined}
                           href={folder.href}
-                          showMenu={false}
+                          onDelete={
+                            canDeleteFolders
+                              ? () => {
+                                setSelectedFolder(folder);
+                                setSelectedFile(null);
+                                setIsDeleteModalOpen(true);
+                              }
+                              : undefined
+                          }
                         />
                       ))}
                     </div>
                   )}
                 </div>
 
-	                <div>
-	                  <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
-	                  {filteredFiles.length === 0 ? (
-	                    <EmptyFileState />
-	                  ) : (
-	                    <div className="space-y-4">
-	                      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-	                        {visibleFiles.map((file) => (
-	                        <FileCard
-	                          key={file.id}
-	                          file={{ ...file, previewUrl: previewUrls[file.id] }}
-	                          onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-	                          onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
-                          onDelete={() => {
-                            setSelectedFile(file as unknown as Record<string, unknown>);
-	                            setIsDeleteModalOpen(true);
-	                          }}
-	                        />
-	                        ))}
-	                      </div>
-	                      {hasMoreFiles ? (
-	                        <div className="flex justify-center">
-	                          <Button
-	                            type="button"
-	                            className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-	                            onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
-	                          >
-	                            View More
-	                          </Button>
-	                        </div>
-	                      ) : null}
-	                    </div>
-	                  )}
-	                </div>
-	              </div>
-	            ) : viewMode === "grid" ? (
+                <div>
+                  <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
+                  {filteredFiles.length === 0 ? (
+                    <EmptyFileState />
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                        {visibleFiles.map((file) => (
+                          <FileCard
+                            key={file.id}
+                            file={{ ...file, previewUrl: previewUrls[file.id] }}
+                            onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+                            onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                            onDelete={
+                              canDeleteFiles
+                                ? () => {
+                                  setSelectedFile(file as unknown as Record<string, unknown>);
+                                  setIsDeleteModalOpen(true);
+                                }
+                                : undefined
+                            }
+                          />
+                        ))}
+                      </div>
+                      {hasMoreFiles ? (
+                        <div className="flex justify-center">
+                          <Button
+                            type="button"
+                            className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                            onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                          >
+                            View More
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : viewMode === "grid" ? (
               filteredFiles.length === 0 ? (
                 <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
               ) : (
-	                <div className="space-y-4">
-	                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-	                    {visibleFiles.map((file) => (
-	                    <FileCard
-	                      key={file.id}
-	                      file={{ ...file, previewUrl: previewUrls[file.id] }}
-	                      onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-	                      onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
-                      onDelete={() => {
-                        setSelectedFile(file as unknown as Record<string, unknown>);
-	                        setIsDeleteModalOpen(true);
-	                      }}
-	                    />
-	                    ))}
-	                  </div>
-	                  {hasMoreFiles ? (
-	                    <div className="flex justify-center">
-	                      <Button
-	                        type="button"
-	                        className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-	                        onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
-	                      >
-	                        View More
-	                      </Button>
-	                    </div>
-	                  ) : null}
-	                </div>
-	              )
-	            ) : null}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                    {visibleFiles.map((file) => (
+                      <FileCard
+                        key={file.id}
+                        file={{ ...file, previewUrl: previewUrls[file.id] }}
+                        onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+                        onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                        onDelete={
+                          canDeleteFiles
+                            ? () => {
+                              setSelectedFile(file as unknown as Record<string, unknown>);
+                              setIsDeleteModalOpen(true);
+                            }
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                  {hasMoreFiles ? (
+                    <div className="flex justify-center">
+                      <Button
+                        type="button"
+                        className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                        onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                      >
+                        View More
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            ) : null}
           </div>
         </>
       )}
@@ -610,6 +718,39 @@ export default function CreatorFileManagerPhasePage() {
         itemType={selectedFile ? "file" : "folder"}
         isDeleting={isDeleting}
       />
+      {menuAnchor && selectedFolder ? (
+        <FileActionMenu
+          folderName={selectedFolder.title}
+          isOpen={true}
+          onClose={() => setMenuAnchor(null)}
+          onOpenLinkModal={() => undefined}
+          anchor={menuAnchor}
+          href={selectedFolder.href}
+          onDownload={async () => {
+            try {
+              const slug = selectedFolder.href?.split("/").filter(Boolean).pop();
+              const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
+                phase: currentPhase,
+                path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+              });
+              if (result?.url) {
+                window.open(result.url, "_blank", "noopener,noreferrer");
+              }
+            } catch (err: unknown) {
+              toast.error(err instanceof Error ? err.message : "Failed to download folder");
+            }
+          }}
+          onDelete={
+            canDeleteFolders
+              ? () => {
+                  setSelectedFile(null);
+                  setIsDeleteModalOpen(true);
+                }
+              : undefined
+          }
+          onRename={() => toast.info("Folder rename is the next safe step.")}
+        />
+      ) : null}
 
       <FileViewerModal
         isOpen={!!viewerFile}

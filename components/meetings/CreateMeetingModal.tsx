@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi } from "@/lib/meetingsApi";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
+import { getBrowserTimeZone } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 type MeetingType = "pre_production" | "post_production";
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
@@ -503,6 +504,7 @@ const getNextValidTime = () => {
         description: description.trim(),
         startDateTime: startIso,
         endDateTime: endIso,
+        timeZone: getBrowserTimeZone(),
         orderId: activeOrderId,
       });
 

@@ -323,7 +323,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
                         className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-white hover:bg-[#222222]"
                       >
                         <Eye size={14} />
-                        View Details
+                        {isAdminView ? "Edit / Reschedule" : "View Details"}
                       </button>
                       {canDeleteThisMeeting ? (
                         <button

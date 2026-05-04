@@ -184,6 +184,10 @@ export default function CreatorFileManagerPage() {
 
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
+    if (!isCommonEventWorkspaceId(selectedFolder.id)) {
+      toast.error("Only common event folders can be deleted.");
+      return;
+    }
 
     try {
       setIsDeleting(true);
@@ -341,8 +345,10 @@ export default function CreatorFileManagerPage() {
                 }}
                 href={folder.href}
                 onDelete={() => {
-                  setSelectedFolder(folder);
-                  setIsDeleteModalOpen(true);
+                  if (isCommonEventWorkspaceId(folder.id)) {
+                    setSelectedFolder(folder);
+                    setIsDeleteModalOpen(true);
+                  }
                 }}
                 onDownload={() => handleDownloadSelectedFolder(folder)}
                 onRename={() => toast.info("Folder rename is the next safe step.")}
@@ -415,7 +421,11 @@ export default function CreatorFileManagerPage() {
           anchor={menuAnchor}
           href={selectedFolder?.href}
           onDownload={handleDownloadSelectedFolder}
-          onDelete={() => setIsDeleteModalOpen(true)}
+          onDelete={
+            selectedFolder && isCommonEventWorkspaceId(selectedFolder.id)
+              ? () => setIsDeleteModalOpen(true)
+              : undefined
+          }
           onRename={() => toast.info("Folder rename is the next safe step.")}
         />
       )}

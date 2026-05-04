@@ -15,13 +15,21 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const isImageFile = (contentType?: string, title?: string) => {
+  const extension = getFileExtension(title);
+  if (extension) {
+    return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(extension);
+  }
   if (contentType?.startsWith("image/")) return true;
-  return /\.(png|jpe?g|gif|webp|svg)$/i.test(title || "");
+  return false;
 };
 
 const isVideoFile = (contentType?: string, title?: string) => {
+  const extension = getFileExtension(title);
+  if (extension) {
+    return ["mp4", "mov", "avi", "mkv", "webm"].includes(extension);
+  }
   if (contentType?.startsWith("video/")) return true;
-  return /\.(mp4|mov|avi|mkv|webm)$/i.test(title || "");
+  return false;
 };
 
 const getFileExtension = (title?: string) => {

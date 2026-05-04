@@ -320,6 +320,18 @@ const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
   "Closed – Lost",
 ];
 
+const SHOOT_STAGE_OPTIONS = [
+  { label: "All Shoot Stages", value: "all" },
+  { label: "Initiated", value: "initiated" },
+  { label: "Pre Production", value: "preproduction" },
+  { label: "Shoot Day", value: "shootday" },
+  { label: "Post Production", value: "postproduction" },
+  { label: "Revision", value: "revision" },
+  { label: "Completed", value: "completed" },
+  { label: "Assets Delivered", value: "assetsdelivered" },
+  { label: "Cancelled", value: "cancelled" },
+] as const;
+
 export default function SalesLeadsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -341,13 +353,15 @@ export default function SalesLeadsPage() {
 
   // --- LEADS STATE (Booking Tab) ---
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
-  const leadsLimit = 10;
+  const [leadsViewMode, setLeadsViewMode] = useState<"list" | "grid">("list");
+  const leadsLimit = leadsViewMode === "grid" ? 50 : 10;
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
   // Filters state
   const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
   const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+  const [shootStageFilter, setShootStageFilter] = useState<string>("all");
   const [assignedRepIdFilter, setAssignedRepIdFilter] = useState<string>("all");
   const [clientAssignedRepIdFilter, setClientAssignedRepIdFilter] = useState<string>("all");
   const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([
@@ -438,6 +452,7 @@ export default function SalesLeadsPage() {
       if (parsedFilters.leadTypeFilter) setLeadTypeFilter(parsedFilters.leadTypeFilter);
       if (parsedFilters.statusFilter) setStatusFilter(parsedFilters.statusFilter);
       if (parsedFilters.intentFilter) setIntentFilter(parsedFilters.intentFilter);
+      if (parsedFilters.shootStageFilter) setShootStageFilter(parsedFilters.shootStageFilter);
 
       if (canManageFilters) {
         if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(parsedFilters.assignedRepIdFilter);
@@ -460,7 +475,7 @@ export default function SalesLeadsPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, assignedRepIdFilter, debouncedSearch]);
+  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, debouncedSearch, leadsViewMode]);
 
   useEffect(() => {
     setUsersCurrentPage(1);
@@ -509,6 +524,7 @@ export default function SalesLeadsPage() {
           leadTypeFilter,
           statusFilter,
           intentFilter,
+          shootStageFilter,
           assignedRepIdFilter,
           clientAssignedRepIdFilter,
           leadsCurrentPage,
@@ -525,6 +541,7 @@ export default function SalesLeadsPage() {
     leadTypeFilter,
     statusFilter,
     intentFilter,
+    shootStageFilter,
     assignedRepIdFilter,
     clientAssignedRepIdFilter,
     leadsCurrentPage,
@@ -539,7 +556,12 @@ export default function SalesLeadsPage() {
         search: debouncedSearch || undefined,
         // Mapping the filters to API keys
         lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
-        status: statusFilter === "All" ? undefined : statusFilter,
+        status:
+          leadsViewMode === "grid" && shootStageFilter !== "all"
+            ? shootStageFilter
+            : statusFilter === "All"
+              ? undefined
+              : statusFilter,
         assigned_to: canManageSalesDashboardFilters && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
         // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
         intent: intentFilter === "All" ? undefined : intentFilter,
@@ -1021,6 +1043,14 @@ export default function SalesLeadsPage() {
                     options={["All", "Hot", "Warm", "Cold"]}
                     onChange={(val) => setIntentFilter(val as any)}
                   />
+                  {leadsViewMode === "grid" && (
+                    <BasicDropdown
+                      label="Shoot Stage"
+                      value={shootStageFilter}
+                      options={SHOOT_STAGE_OPTIONS as any}
+                      onChange={(val) => setShootStageFilter(val)}
+                    />
+                  )}
                   <BasicDropdown
                     label="All Statuses"
                     value={statusFilter}
@@ -1081,6 +1111,7 @@ export default function SalesLeadsPage() {
                 totalRecords={leadsTotalRecords}
                 limit={leadsLimit}
                 activeStatusFilter={statusFilter}
+                onViewModeChange={setLeadsViewMode}
                 onPageChange={(page) => setLeadsCurrentPage(page)}
                 onRowClick={handleRowClick}
                 onOpenMenu={handleOpenMenu}

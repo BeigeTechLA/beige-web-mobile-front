@@ -4,11 +4,13 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 
-import Image from "next/image";
 import {
   ArrowLeft,
   CalendarClock,
   Download,
+  FileArchive,
+  FileSpreadsheet,
+  FileText,
   FileVideo,
   FolderPlus,
   Grid3X3,
@@ -38,9 +40,36 @@ import {
 import { getProject } from "@/lib/api";
 import { toast } from "sonner";
 
-const defaultImgSrc = "/images/misc/Data.png";
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
+const getFileExtension = (title?: string) => {
+  const parts = String(title || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() || "" : "";
+};
+const isImageFile = (contentType?: string, title?: string) => {
+  const extension = getFileExtension(title);
+  if (extension) {
+    return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(extension);
+  }
+  return Boolean(contentType?.startsWith("image/"));
+};
+const isVideoFile = (contentType?: string, title?: string) => {
+  const extension = getFileExtension(title);
+  if (extension) {
+    return ["mp4", "mov", "avi", "mkv", "webm"].includes(extension);
+  }
+  return Boolean(contentType?.startsWith("video/"));
+};
+const getFileMeta = (contentType?: string, title?: string) => {
+  const extension = getFileExtension(title);
+  if (isImageFile(contentType, title)) return { icon: ImageIcon, label: "image", accentClass: "text-[#22C55E]" };
+  if (isVideoFile(contentType, title)) return { icon: FileVideo, label: "video", accentClass: "text-[#E8D1AB]" };
+  if (contentType === "application/pdf" || extension === "pdf") return { icon: FileText, label: "pdf", accentClass: "text-[#F04438]" };
+  if (["doc", "docx", "txt", "rtf"].includes(extension)) return { icon: FileText, label: extension || "doc", accentClass: "text-[#3B82F6]" };
+  if (["xls", "xlsx", "csv"].includes(extension)) return { icon: FileSpreadsheet, label: extension || "sheet", accentClass: "text-[#10B981]" };
+  if (["zip", "rar", "7z", "tar", "gz"].includes(extension)) return { icon: FileArchive, label: extension || "zip", accentClass: "text-[#A855F7]" };
+  return { icon: FileText, label: extension || "file", accentClass: "text-white/80" };
+};
 
 export default function CreatorSubFolderDetailsPage() {
   const router = useRouter();
@@ -71,6 +100,7 @@ export default function CreatorSubFolderDetailsPage() {
   const [viewerFile, setViewerFile] = useState<Record<string, unknown> | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<Record<string, unknown> | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<Record<string, unknown> | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
 
@@ -159,6 +189,7 @@ export default function CreatorSubFolderDetailsPage() {
           category: String(folder?.folderType || "folder"),
           isLinked: true,
           userInitials: getDisplayInitials(folderName || "Folder"),
+          resourcePath: String(folder?.path || nextPath),
           href: `/creator/dashboard/file-manager/${projectId}/${phaseSlug}/${String(folderName || "folder").toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
             nextPath
           )}`,
@@ -167,13 +198,7 @@ export default function CreatorSubFolderDetailsPage() {
     [currentFolderPath, folders, phaseSlug, projectId]
   );
 
-  const folderFiles = useMemo(() => {
-    return mapExternalFilesToUi(files as never[]).map((file) => ({
-      ...file,
-      type: file.title.toLowerCase().match(/\.(mp4|mov|avi|mkv|webm)$/) ? "video" : "image",
-      src: defaultImgSrc,
-    }));
-  }, [files]);
+  const folderFiles = useMemo(() => mapExternalFilesToUi(files as never[]), [files]);
 
   const filteredData = useMemo(() => {
     let items = folderFiles;
@@ -214,7 +239,7 @@ export default function CreatorSubFolderDetailsPage() {
     const previewableFiles = visibleFiles.filter(
       (file) =>
         file.filepath &&
-        (file.contentType?.startsWith("image/") || file.contentType?.startsWith("video/"))
+        (isImageFile(file.contentType, file.title) || isVideoFile(file.contentType, file.title))
     );
     if (!previewableFiles.length) return;
 
@@ -276,6 +301,10 @@ export default function CreatorSubFolderDetailsPage() {
   const handleDeleteFile = async (file: Record<string, unknown> | null) => {
     const targetFile = file || selectedFile;
     if (!targetFile || typeof targetFile.filepath !== "string") return;
+    if (!(isCommonEventWorkspace || phaseSlug === "post-production")) {
+      toast.error("Files can only be deleted in post-production for normal events.");
+      return;
+    }
 
     try {
       setIsDeleting(true);
@@ -286,6 +315,28 @@ export default function CreatorSubFolderDetailsPage() {
       await loadFiles();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to delete file");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteFolder = async (folder: Record<string, unknown> | null) => {
+    const targetFolder = folder || selectedFolder;
+    if (!targetFolder || typeof targetFolder.resourcePath !== "string") return;
+    if (!isCommonEventWorkspace) {
+      toast.error("Folders can only be deleted in common events.");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await fileManagerApi.deleteExternalEntry(targetFolder.resourcePath);
+      toast.success("Folder deleted");
+      setIsDeleteModalOpen(false);
+      setSelectedFolder(null);
+      await loadFiles();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete folder");
     } finally {
       setIsDeleting(false);
     }
@@ -309,6 +360,8 @@ export default function CreatorSubFolderDetailsPage() {
 
   const canUpload = isCommonEventWorkspace || (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate));
   const showUploadLockBanner = !isCommonEventWorkspace && phaseSlug === "post-production" && !canUpload;
+  const canDeleteFolders = isCommonEventWorkspace;
+  const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
@@ -442,22 +495,30 @@ export default function CreatorSubFolderDetailsPage() {
 	              <h3 className="mb-3 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
 	              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
 	                {filteredFolders.map((folder) => (
-	                  <FolderCard
-	                    key={folder.id}
-	                    title={folder.title}
+		                  <FolderCard
+		                    key={folder.id}
+		                    title={folder.title}
 	                    fileCount={folder.fileCount}
 	                    lastOpened={folder.lastOpened || "recently"}
 	                    category={folder.category}
 	                    isLinked={folder.isLinked}
-	                    userInitials={folder.userInitials}
-	                    onOpenLinkModal={() => undefined}
-	                    href={folder.href}
-	                    showMenu={false}
-	                  />
-	                ))}
-	              </div>
-	            </div>
-	          ) : null}
+		                    userInitials={folder.userInitials}
+			                    onOpenLinkModal={() => undefined}
+			                    href={folder.href}
+			                    onDelete={
+                          canDeleteFolders
+                            ? () => {
+                                setSelectedFolder(folder as unknown as Record<string, unknown>);
+                                setSelectedFile(null);
+                                setIsDeleteModalOpen(true);
+                              }
+                            : undefined
+                        }
+			                  />
+		                ))}
+		              </div>
+		            </div>
+		          ) : null}
 
 	          {viewMode === "grid" ? (
 	            filteredData.length === 0 ? (
@@ -473,11 +534,11 @@ export default function CreatorSubFolderDetailsPage() {
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <div className="min-w-0 flex items-center gap-2">
-                        {file.type === "video" ? (
-                          <FileVideo size={16} className="shrink-0 text-[#E8D1AB]" />
-                        ) : (
-                          <ImageIcon size={16} className="shrink-0 text-[#E8D1AB]" />
-                        )}
+                        {(() => {
+                          const meta = getFileMeta(file.contentType, file.title);
+                          const Icon = meta.icon;
+                          return <Icon size={16} className={`shrink-0 ${meta.accentClass}`} />;
+                        })()}
                         <span className="truncate text-sm text-white lg:text-base">{file.title}</span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -490,28 +551,30 @@ export default function CreatorSubFolderDetailsPage() {
                         >
                           <Download size={16} />
                         </button>
-                        <button
-                          className="text-white/70 hover:text-[#F04438]"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFile(file as unknown as Record<string, unknown>);
-                            setIsDeleteModalOpen(true);
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {canDeleteFiles ? (
+                          <button
+                            className="text-white/70 hover:text-[#F04438]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedFile(file as unknown as Record<string, unknown>);
+                              setIsDeleteModalOpen(true);
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
                     <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-white/5 bg-[#1A1A1A]">
-                      {file.contentType?.startsWith("image/") && previewUrls[file.id] ? (
+                      {isImageFile(file.contentType, file.title) && previewUrls[file.id] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={previewUrls[file.id]}
                           alt={file.title || "Preview"}
                           className="h-full w-full object-cover transition-transform group-hover:scale-105"
                         />
-                      ) : file.contentType?.startsWith("video/") && previewUrls[file.id] ? (
+                      ) : isVideoFile(file.contentType, file.title) && previewUrls[file.id] ? (
                         <div className="relative h-full w-full">
                           <video
                             src={previewUrls[file.id]}
@@ -527,14 +590,17 @@ export default function CreatorSubFolderDetailsPage() {
                           </div>
                         </div>
                       ) : (
-                        <Image
-                          src={typeof file.src === "string" ? file.src : defaultImgSrc}
-                          alt={typeof file.title === "string" ? file.title : "Default file icon"}
-                          width={158}
-                          height={150}
-                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                        />
-	                      )}
+                        <div className="flex flex-col items-center gap-2">
+                          {(() => {
+                            const meta = getFileMeta(file.contentType, file.title);
+                            const Icon = meta.icon;
+                            return <Icon size={42} className={meta.accentClass} />;
+                          })()}
+                          <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] uppercase tracking-wide text-white/70">
+                            {getFileMeta(file.contentType, file.title).label}
+                          </span>
+                        </div>
+		                      )}
 	                    </div>
 	                  </div>
 	                  ))}
@@ -576,22 +642,25 @@ export default function CreatorSubFolderDetailsPage() {
 	                        <td className="whitespace-nowrap px-6 py-5">
 	                          <div className="flex items-center gap-3">
 	                            <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-white/5 bg-[#1A1A1A]">
-	                              <Image
-	                                src={typeof file.src === "string" ? file.src : defaultImgSrc}
-	                                alt={typeof file.title === "string" ? file.title : "Default Image"}
-	                                fill
-	                                className="object-cover"
-	                              />
+                              {(() => {
+                                const meta = getFileMeta(file.contentType, file.title);
+                                const Icon = meta.icon;
+                                return <Icon size={16} className={`${meta.accentClass} absolute inset-0 m-auto`} />;
+                              })()}
 	                            </div>
 	                            <span className="max-w-[200px] truncate font-medium text-white">{file.title}</span>
 	                          </div>
 	                        </td>
 	                        <td className="whitespace-nowrap px-6 py-5">
 	                          <div className="flex items-center gap-2 capitalize text-white/60">
-	                            {file.type === "video" ? <FileVideo size={14} className="text-[#E8D1AB]" /> : <ImageIcon size={14} className="text-[#E8D1AB]" />}
-	                            {String(file.type || "")}
-	                          </div>
-	                        </td>
+                            {(() => {
+                              const meta = getFileMeta(file.contentType, file.title);
+                              const Icon = meta.icon;
+                              return <Icon size={14} className={meta.accentClass} />;
+                            })()}
+                            {getFileMeta(file.contentType, file.title).label}
+                          </div>
+                        </td>
 	                        <td className="whitespace-nowrap px-6 py-5 text-xs italic text-white/40">{file.lastOpened}</td>
 	                        <td className="whitespace-nowrap px-6 py-5 text-right">
 	                          <div className="flex items-center justify-end gap-2">
@@ -604,16 +673,18 @@ export default function CreatorSubFolderDetailsPage() {
 	                            >
 	                              <Download size={16} />
 	                            </button>
-	                            <button
-	                              className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
-	                              onClick={(e) => {
-	                                e.stopPropagation();
-	                                setSelectedFile(file as unknown as Record<string, unknown>);
-	                                setIsDeleteModalOpen(true);
-	                              }}
-	                            >
-	                              {openingFileId === file.id ? <span className="text-[10px]">...</span> : <Trash2 size={16} />}
-	                            </button>
+                            {canDeleteFiles ? (
+                              <button
+                                className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedFile(file as unknown as Record<string, unknown>);
+                                  setIsDeleteModalOpen(true);
+                                }}
+                              >
+                                {openingFileId === file.id ? <span className="text-[10px]">...</span> : <Trash2 size={16} />}
+                              </button>
+                            ) : null}
 	                          </div>
 	                        </td>
 	                      </tr>
@@ -660,9 +731,18 @@ export default function CreatorSubFolderDetailsPage() {
       <DeleteConfirmModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={() => handleDeleteFile(selectedFile)}
-        itemName={typeof selectedFile?.title === "string" ? selectedFile.title : "this file"}
-        itemType="file"
+        onConfirm={() => {
+          if (selectedFile) return handleDeleteFile(selectedFile);
+          return handleDeleteFolder(selectedFolder);
+        }}
+        itemName={
+          typeof selectedFile?.title === "string"
+            ? selectedFile.title
+            : typeof selectedFolder?.title === "string"
+              ? selectedFolder.title
+              : "this item"
+        }
+        itemType={selectedFile ? "file" : "folder"}
         isDeleting={isDeleting}
       />
 

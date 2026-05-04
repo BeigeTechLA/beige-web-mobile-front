@@ -15,6 +15,7 @@ import {
   List,
   Loader2,
   Search,
+  Upload,
 } from "lucide-react";
 import { useViewMode } from "@/hooks/useViewMode";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
+import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { affiliateApi } from "@/lib/api";
 import {
   fileManagerApi,
@@ -137,6 +139,7 @@ export default function AffiliateFileManager() {
   const [phaseFolders, setPhaseFolders] = useState<BrowserFolder[]>([]);
   const [phaseFiles, setPhaseFiles] = useState<BrowserFile[]>([]);
   const [isPhaseLoading, setIsPhaseLoading] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
 
@@ -678,6 +681,17 @@ export default function AffiliateFileManager() {
   const canRunFaceScan = Boolean(
     selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
   );
+  const isSelectedWorkspaceCommonEvent = Boolean(
+    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
+  );
+  const canUploadInSelectedPhase = Boolean(
+    selectedWorkspace && selectedPhase === "pre" && !isSelectedWorkspaceCommonEvent
+  );
+  const uploadPath = useMemo(() => {
+    if (!selectedWorkspace || !canUploadInSelectedPhase) return undefined;
+    const basePath = `${selectedWorkspace.title}/Pre-Production`;
+    return selectedPath ? `${basePath}/${selectedPath}` : basePath;
+  }, [canUploadInSelectedPhase, selectedPath, selectedWorkspace]);
 
   const renderRoot = () => {
     if (loading) {
@@ -893,10 +907,20 @@ export default function AffiliateFileManager() {
       phase.title.toLowerCase().includes(searchTerm.trim().toLowerCase())
     );
 
-    return (
-      <div className="space-y-8">
-        <div>
-          <div className="flex items-start gap-5 mb-2 lg:mb-6">
+	    return (
+	      <div className="space-y-8">
+	        <div>
+            <div className="mb-5 flex items-center justify-end">
+              {canUploadInSelectedPhase ? (
+                <Button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                >
+                  <Upload size={18} /> Upload Files
+                </Button>
+              ) : null}
+            </div>
+	          <div className="flex items-start gap-5 mb-2 lg:mb-6">
             <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
               {selectedWorkspace.userInitials}
             </div>
@@ -1054,16 +1078,22 @@ export default function AffiliateFileManager() {
                 >
                   {selectedPhase === "post" ? "Post Production" : "Pre Production"}
                 </span>
-                <span className="px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 bg-[#1A1A1A] text-[#E8D1AB]">
-                  View Only
+                <span
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 ${
+                    canUploadInSelectedPhase
+                      ? "bg-[#D4FFE4] text-[#16A34A] border-[#6ce9a6]/20"
+                      : "bg-[#1A1A1A] text-[#E8D1AB]"
+                  }`}
+                >
+                  {canUploadInSelectedPhase ? "Upload Enabled" : "View Only"}
                 </span>
               </div>
               <p className="hidden lg:block text-sm text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace?.externalId}
               </p>
-              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
-              {/* {selectedWorkspace?.consoleUrl ? (
+	              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
+	              {/* {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -1183,14 +1213,16 @@ export default function AffiliateFileManager() {
                   </div>
                 ) : null}
               </div>
-            ) : (
-              <EmptyFileState
-                title="No File Uploaded"
-                description="No files have been uploaded for this project yet."
-              />
-            )}
-          </div>
-        ) : null}
+	            ) : (
+	              <EmptyFileState
+	                title="No File Uploaded"
+	                description="No files have been uploaded for this project yet."
+                  onAction={canUploadInSelectedPhase ? () => setIsUploadModalOpen(true) : undefined}
+                  actionLabel={canUploadInSelectedPhase ? "Upload Files" : undefined}
+	              />
+	            )}
+	          </div>
+	        ) : null}
       </div>
     );
   };
@@ -1442,6 +1474,18 @@ export default function AffiliateFileManager() {
           </div>
         </div>
       ) : null}
+
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        folderName={selectedWorkspace?.title || "Pre Production"}
+        uploadPath={uploadPath}
+        onUploadComplete={async () => {
+          if (selectedWorkspace && selectedPhase) {
+            await loadPhase(selectedWorkspace, selectedPhase, selectedPath);
+          }
+        }}
+      />
 
       <FileViewerModal
         isOpen={viewerOpen}

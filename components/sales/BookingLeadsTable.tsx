@@ -32,6 +32,7 @@ interface LeadsTableProps {
   totalRecords: number;
   limit: number;
   activeStatusFilter?: BookingStatus | "All";
+  onViewModeChange?: (mode: "list" | "grid") => void;
   onPageChange: (page: number) => void;
   onRowClick: (id: number) => void;
   onOpenMenu: (
@@ -95,6 +96,7 @@ export default function LeadsTable({
   totalRecords,
   limit,
   activeStatusFilter = "All",
+  onViewModeChange,
   onPageChange,
   onRowClick,
   onOpenMenu,
@@ -105,6 +107,10 @@ export default function LeadsTable({
   const [kanbanOrder, setKanbanOrder] = useState<Record<string, number[]>>({});
   const [draggedLeadId, setDraggedLeadId] = useState<number | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    onViewModeChange?.(viewMode);
+  }, [onViewModeChange, viewMode]);
 
 const visibleStatuses = useMemo(() => {
   if (activeStatusFilter !== "All") {

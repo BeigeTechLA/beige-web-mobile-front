@@ -264,6 +264,44 @@ interface FaceScanIndexStatusResponse {
 type ExternalFileUrlData = { url: string; duration: number };
 type ExternalFileUrlResponse = { success: boolean; data: ExternalFileUrlData };
 
+const getApiOriginForExternalLinks = (): string | null => {
+  const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
+  if (endpoint) {
+    try {
+      return new URL(endpoint).origin;
+    } catch {
+      // ignore invalid endpoint and use fallback below
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return null;
+};
+
+const normalizeExternalLinkUrl = (rawUrl?: string): string => {
+  if (!rawUrl) return "";
+
+  try {
+    const parsed = new URL(rawUrl);
+    const isLocalHost =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "::1";
+
+    if (!isLocalHost) return rawUrl;
+
+    const origin = getApiOriginForExternalLinks();
+    if (!origin) return rawUrl;
+
+    return `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return rawUrl;
+  }
+};
+
 export interface UiFolderItem {
   id: string;
   title: string;
@@ -704,6 +742,9 @@ export const fileManagerApi = {
       "external-file-manager/file-download-url",
       { filepath }
     );
+    if (response?.data?.url) {
+      response.data.url = normalizeExternalLinkUrl(response.data.url);
+    }
     return response.data;
   },
 
@@ -719,6 +760,9 @@ export const fileManagerApi = {
         path: options?.path,
       }
     );
+    if (response?.data?.url) {
+      response.data.url = normalizeExternalLinkUrl(response.data.url);
+    }
     return response.data;
   },
 
