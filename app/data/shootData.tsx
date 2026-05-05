@@ -3,20 +3,20 @@ type Option = {
   value: string;
 };
 
-const COACHELLA_SHOOT_TYPE = {
-  key: "coachella",
-  title: "Coachella",
-  details: "Video podcasts, livestreams",
-  image: "https://d1pgtgqp0jru64.cloudfront.net/Rectangle-3851.png",
-  stats: [] as Option[],
-};
+// const COACHELLA_SHOOT_TYPE = {
+//   key: "coachella",
+//   title: "Coachella",
+//   details: "Video podcasts, livestreams",
+//   image: "https://d1pgtgqp0jru64.cloudfront.net/Rectangle-3851.png",
+//   stats: [] as Option[],
+// };
 
 // ============================================
 // SHOOT TYPES CATEGORIZED
 // ============================================
 
 export const videoShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
-  COACHELLA_SHOOT_TYPE,
+  // COACHELLA_SHOOT_TYPE,
   {
     key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
@@ -68,7 +68,7 @@ export const videoShootTypes: { key: string; title: string; details: string; ima
 ];
 
 export const photoShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
-  COACHELLA_SHOOT_TYPE,
+  // COACHELLA_SHOOT_TYPE,
   {
     key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
@@ -114,7 +114,7 @@ export const photoShootTypes: { key: string; title: string; details: string; ima
 ];
 
 export const hybridShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
-  COACHELLA_SHOOT_TYPE,
+  // COACHELLA_SHOOT_TYPE,
   {
     key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
@@ -166,7 +166,7 @@ export const hybridShootTypes: { key: string; title: string; details: string; im
 ];
 
 export const newshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
-  COACHELLA_SHOOT_TYPE,
+  // COACHELLA_SHOOT_TYPE,
   {
     key: "music", title: "Music Video", details: "Artists-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
       { label: "People", value: "50-300" },
