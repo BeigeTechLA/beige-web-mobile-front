@@ -52,6 +52,7 @@ interface ShootRecord {
   price: string;
   rawPrice: number; // Added for correct numerical sorting
   status: ShootStatus;
+  hasAssignedCp: boolean;
 }
 
 const KANBAN_STATUS_ORDER: ShootStatus[] = [
@@ -180,6 +181,7 @@ export const ShootsTable = ({
   detailBasePath = "/admin/shoots",
   enablePriceSort = true,
 }: ShootsTableProps) => {
+  const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
   const router = useRouter();
   const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
   const dragAutoScrollFrameRef = React.useRef<number | null>(null);
@@ -191,6 +193,7 @@ export const ShootsTable = ({
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
   const [kanbanOrder, setKanbanOrder] = useState<Record<ShootStatus, string[]>>({} as Record<ShootStatus, string[]>);
   const [draggedShootId, setDraggedShootId] = useState<string | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<ShootStatus | null>(null);
@@ -200,6 +203,7 @@ export const ShootsTable = ({
   const [range, setRange] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   // --- SORTING STATE ---
@@ -209,6 +213,28 @@ export const ShootsTable = ({
   });
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    try {
+      const savedViewMode = window.localStorage.getItem(SHOOTS_VIEW_MODE_KEY);
+      if (savedViewMode === "grid" || savedViewMode === "list") {
+        setViewMode(savedViewMode);
+      }
+    } catch (error) {
+      console.error("Failed to restore shoots view mode:", error);
+    } finally {
+      setHasRestoredViewMode(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasRestoredViewMode) return;
+    try {
+      window.localStorage.setItem(SHOOTS_VIEW_MODE_KEY, viewMode);
+    } catch (error) {
+      console.error("Failed to persist shoots view mode:", error);
+    }
+  }, [hasRestoredViewMode, viewMode]);
 
   useEffect(() => {
     return () => {
@@ -250,6 +276,10 @@ export const ShootsTable = ({
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
+        if (cpAssignmentFilter !== "all") {
+          params.cp_assignment = cpAssignmentFilter;
+        }
+
         const projectsResponse = await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
 
@@ -265,6 +295,15 @@ export const ShootsTable = ({
           const priceValue = project.total_paid_amount
             ? parseFloat(project.total_paid_amount)
             : project.budget ? parseFloat(project.budget) : 0;
+          const selectedCrewIds = Array.isArray(project.selected_crew_ids)
+            ? project.selected_crew_ids
+            : [];
+          const assignedCrews = Array.isArray(item?.assignedCrew)
+            ? item.assignedCrew
+            : Array.isArray(project.assigned_crews)
+              ? project.assigned_crews
+              : [];
+          const hasAssignedCp = assignedCrews.length > 0 || selectedCrewIds.length > 0;
 
           return {
             id: `#${project.stream_project_booking_id}`,
@@ -280,6 +319,7 @@ export const ShootsTable = ({
                 : "$0.00",
             rawPrice: priceValue,
             status: statusLabel,
+            hasAssignedCp,
           };
         });
         setShoots(mappedShoots);
@@ -291,7 +331,7 @@ export const ShootsTable = ({
     };
 
     fetchData();
-  }, [range, statusFilter, categoryFilter, externalSelectedDate]);
+  }, [range, statusFilter, categoryFilter, cpAssignmentFilter, externalSelectedDate]);
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
@@ -305,6 +345,12 @@ export const ShootsTable = ({
       if (statusFilter === "all") return true;
       return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
     });
+
+    if (cpAssignmentFilter !== "all") {
+      result = result.filter((shoot) =>
+        cpAssignmentFilter === "assigned" ? shoot.hasAssignedCp : !shoot.hasAssignedCp
+      );
+    }
 
     // 2. Sort
     if (sortConfig.direction !== null) {
@@ -334,7 +380,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig, statusFilter]);
+  }, [shoots, searchQuery, sortConfig, statusFilter, cpAssignmentFilter]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -399,7 +445,6 @@ export const ShootsTable = ({
 
   const kanbanColumns = useMemo(() => {
     const grouped = new Map<ShootStatus, ShootRecord[]>();
-    const gridStartIndex = (currentPage - 1) * itemsPerPage;
 
     visibleKanbanStatuses.forEach((status) => {
       grouped.set(status, []);
@@ -423,23 +468,12 @@ export const ShootsTable = ({
       return {
         status,
         totalItems: orderedItems.length,
-        items: orderedItems.slice(gridStartIndex, gridStartIndex + itemsPerPage),
+        items: orderedItems,
       };
     });
-  }, [processedShoots, visibleKanbanStatuses, kanbanOrder, currentPage]);
+  }, [processedShoots, visibleKanbanStatuses, kanbanOrder]);
 
-  const gridTotalPages = useMemo(() => {
-    const maxColumnCount = Math.max(
-      0,
-      ...visibleKanbanStatuses.map(
-        (status) => processedShoots.filter((shoot) => shoot.status === status).length
-      )
-    );
-
-    return Math.max(1, Math.ceil(maxColumnCount / itemsPerPage));
-  }, [processedShoots, visibleKanbanStatuses]);
-
-  const totalPages = viewMode === "grid" ? gridTotalPages : listTotalPages;
+  const totalPages = listTotalPages;
 
   useEffect(() => {
     const nextPage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
@@ -645,7 +679,18 @@ export const ShootsTable = ({
               </SelectContent>
             </Select>
 
-            {/* <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
+            <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => { setCpAssignmentFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                <SelectValue placeholder="CP Assignment" />
+              </SelectTrigger>
+              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                <SelectItem value="all">All CP Assignment</SelectItem>
+                <SelectItem value="assigned">CP Assigned</SelectItem>
+                <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
               isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"
             }`}>
               <button
@@ -674,7 +719,7 @@ export const ShootsTable = ({
               >
                 <Grid3X3 size={18} />
               </button>
-            </div> */}
+            </div>
           </div>
         </div>
       </div>
@@ -1027,12 +1072,10 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && processedShoots.length > 0 && (
+        !loading && processedShoots.length > 0 && viewMode !== "grid" && (
           <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-              {viewMode === "grid"
-                ? `Showing up to ${itemsPerPage} cards per status column`
-                : `Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
+              {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
             </div>
             <div className="flex gap-2 items-center">
               <button
