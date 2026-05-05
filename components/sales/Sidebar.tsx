@@ -46,6 +46,7 @@ const salesMenuItems: SalesMenuItem[] = [
     link: '/sales/quotes',
     children: [
       { name: 'All Quotes', link: '/sales/quotes' },
+      { name: 'Change Request', link: '/sales/quotes/change-requests' },
       { name: 'Master Pricing', link: '/sales/quotes/pricing' }
     ],
   },
@@ -150,6 +151,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
     if (pathname === "/sales/dashboard" || pathname?.startsWith("/sales/sales-people")) {
       setExpanded((prev) => (prev.includes("Sales") ? prev : [...prev, "Sales"]));
+    }
+
+    if (pathname?.startsWith("/sales/quotes")) {
+      setQuotesExpanded(true);
     }
   }, [currentUserTypeId, pathname]);
 
@@ -359,7 +364,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {item.name === 'Quotes' && item.children && quotesExpanded && user?.user_type_id === 7 && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item.children.map((child) => {
-                      if (child.name === 'Master Pricing' && !isSalesAdmin) return null;
+                      if ((child.name === 'Master Pricing' || child.name === 'Change Request') && !isSalesAdmin) return null;
 
                       return (
                         <button

@@ -78,6 +78,7 @@ export interface CreateEventPayload {
   description?: string;
   startDateTime: string;
   endDateTime: string;
+  timeZone?: string;
   orderId: string | number;
 }
 

@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowUpToLine,
   Camera,
   DollarSign,
   Eye,
-  FileText,
   Loader2,
   Mail,
   MapPin,
@@ -18,11 +18,21 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import ConvertBookingModal, {
   type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
+import QuoteEditAccessModal, {
+  type QuoteEditAccessModalProps,
+} from "@/components/admin/quotes/QuoteEditAccessModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +40,10 @@ import {
   type SalesQuoteConvertToBookingPayload,
   type SalesQuoteDetailData,
 } from "@/lib/api";
-import { salesApi as salesRtkApi } from "@/lib/redux/features/sales/salesApi";
+import { salesApi as salesRtkApi, useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import { useAppDispatch } from "@/lib/redux/hooks";
 import {
+  persistQuoteEditorEditReason,
   persistQuoteEditorNavigationCache,
   type QuoteEditorView,
 } from "@/lib/quoteEdit";
@@ -64,14 +75,16 @@ type QuoteDetailsPageProps = {
   quoteId: string;
   baseHref: string;
   TopbarComponent: React.ComponentType<TopbarComponentProps>;
+  EditAccessModalComponent?: React.ComponentType<QuoteEditAccessModalProps>;
 };
 
 type OtherDetailsTab = "discounts" | "tax";
-type QuoteConvertIntent = "convert_only" | "send_invoice";
+type QuoteConvertIntent = "convert_only" | "send_invoice" | "view_invoice";
 
 type QuoteActivityLike = {
   activity_type?: string;
   message?: string;
+  activity_data?: unknown;
   metadata?: {
     booking_id?: number | string;
     lead_id?: number | string;
@@ -99,6 +112,58 @@ type QuoteConvertedBookingDetailsLike = {
   end_time?: string | null;
   location?: string | null;
   booking_days?: QuoteConvertedBookingDayLike[] | null;
+};
+const S3_PREFIX =
+  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+
+const joinAssetUrl = (baseUrl: string, assetPath: string) => {
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const normalizedPath = assetPath.replace(/^\/+/, "");
+  return `${normalizedBase}/${normalizedPath}`;
+};
+
+const resolveS3ProofUrl = (value?: string | null) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+  if (/^https?:\/\//i.test(rawValue)) return rawValue;
+  return joinAssetUrl(S3_PREFIX, rawValue);
+};
+
+const resolveSignatureSource = (rawData: any) => {
+  const nested = rawData?.data;
+  const source =
+    rawData?.signature_base64 ??
+    nested?.signature_base64 ??
+    rawData?.signature_path ??
+    nested?.signature_path ??
+    rawData?.file_path ??
+    nested?.file_path ??
+    rawData?.signature_url ??
+    nested?.signature_url ??
+    rawData?.file_url ??
+    nested?.file_url;
+
+  if (!source) return null;
+  if (typeof source !== "string") return null;
+
+  const value = source.trim();
+  if (!value) return null;
+
+  if (value.startsWith("data:")) {
+    return value;
+  }
+
+  // Some responses send plain base64 without data URI prefix.
+  if (/^[A-Za-z0-9+/=\r\n]+$/.test(value) && value.length > 80) {
+    return `data:image/png;base64,${value}`;
+  }
+
+  if (/^https?:\/\//i.test(value) && !/localhost|127\.0\.0\.1|::1/i.test(value)) {
+    return value;
+  }
+
+  const normalizedPath = (value.match(/(?:^|\/)(signatures\/.+)$/i)?.[1] ?? value).replace(/^\/+/, "");
+  return joinAssetUrl(S3_PREFIX, normalizedPath);
 };
 
 const normalizeConvertModalTime = (value?: string | null) =>
@@ -168,6 +233,57 @@ const buildConvertModalInitialData = (
   };
 };
 
+const mergeVersionQuoteWithPrimaryContext = (
+  current: SalesQuoteDetailData | null,
+  incoming: SalesQuoteDetailData
+): SalesQuoteDetailData => {
+  if (!current) return incoming;
+
+  const incomingLeadId = incoming?.lead_id;
+  const incomingBookingId = (incoming as Record<string, unknown>)?.booking_id;
+  const incomingActivities = Array.isArray(incoming?.activities) ? incoming.activities : [];
+
+  return {
+    ...incoming,
+    lead_id:
+      incomingLeadId !== undefined && incomingLeadId !== null && String(incomingLeadId).trim()
+        ? incomingLeadId
+        : current.lead_id,
+    booking_id:
+      incomingBookingId !== undefined && incomingBookingId !== null && String(incomingBookingId).trim()
+        ? incomingBookingId
+        : (current as Record<string, unknown>)?.booking_id,
+    activities: incomingActivities.length > 0 ? incomingActivities : current.activities,
+    converted_booking_details:
+      incoming.converted_booking_details || current.converted_booking_details,
+  };
+};
+
+const getQuoteEditShootDateValue = (quote?: SalesQuoteDetailData | null) => {
+  const bookingDays = quote?.converted_booking_details?.booking_days ?? [];
+  const firstBookingDay = Array.isArray(bookingDays) ? bookingDays[0] : null;
+  const dateValue = getQuoteText(
+    firstBookingDay?.date,
+    firstBookingDay?.event_date,
+    quote?.converted_booking_details?.start_date
+  );
+  const startTimeValue = getQuoteText(
+    firstBookingDay?.start_time,
+    quote?.converted_booking_details?.start_time
+  );
+
+  if (!dateValue) {
+    return "";
+  }
+
+  if (!startTimeValue) {
+    return dateValue;
+  }
+
+  const normalizedTime = startTimeValue.length === 5 ? `${startTimeValue}:00` : startTimeValue;
+  return `${dateValue}T${normalizedTime}`;
+};
+
 const getActivityBookingId = (activity: QuoteActivityLike | null | undefined) => {
   if (!activity) {
     return null;
@@ -212,6 +328,10 @@ const getStatusStyles = (status: string) => {
 
   if (["paid"].includes(normalizedStatus)) {
     return "border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534]";
+  }
+
+  if (normalizedStatus === "partially paid") {
+    return "border border-[#FCD34D]/25 bg-[#FEF3C7] text-[#92400E]";
   }
 
   if (["accepted", "approved", "confirmed"].includes(normalizedStatus)) {
@@ -350,23 +470,58 @@ const ServiceLineCard = ({
 const QuoteTopActions = ({
   onReject,
   onConvert,
+  onPaymentTransaction,
   onPreview,
   previewDisabled,
   rejectDisabled,
   convertDisabled,
+  paymentDisabled,
   isRejecting,
   isConverting,
+  versions,
+  selectedVersionId,
+  onVersionChange,
 }: {
   onReject: () => void;
   onConvert: () => void;
+  onPaymentTransaction: () => void;
   onPreview: () => void;
   previewDisabled: boolean;
   rejectDisabled: boolean;
   convertDisabled: boolean;
+  paymentDisabled: boolean;
   isRejecting: boolean;
   isConverting: boolean;
+  versions: any[];
+  selectedVersionId: string | null;
+  onVersionChange: (val: string) => void;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
+    {versions.length > 0 && (
+      <div className="mr-2 flex items-center gap-2">
+        <span className="text-sm font-medium text-[#8F8F95]">Version:</span>
+        <Select value={selectedVersionId || ""} onValueChange={onVersionChange}>
+          <SelectTrigger className="h-11 w-[140px] rounded-xl border-white/10 bg-[#1B1B1B] text-white">
+            <SelectValue placeholder="Select version" />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
+            {versions
+              .map((v, index) => {
+                const rawVersionNumber = v?.version_number;
+                if (rawVersionNumber == null) {
+                  return null;
+                }
+                return (
+                  <SelectItem key={`${rawVersionNumber}-${index}`} value={String(rawVersionNumber)}>
+                    Version {v?.version_number ?? index + 1}
+                  </SelectItem>
+                );
+              })
+              .filter(Boolean)}
+          </SelectContent>
+        </Select>
+      </div>
+    )}
     <Button
       type="button"
       onClick={onReject}
@@ -378,13 +533,13 @@ const QuoteTopActions = ({
     </Button>
     <Button
       type="button"
-      onClick={onConvert}
-      disabled={convertDisabled}
+      onClick={onPaymentTransaction}
+      disabled={paymentDisabled}
       variant="outline"
-      className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
+      className="h-11 rounded-xl border-[#E8D1AB]/30 bg-[#201A10] px-4 text-[#E8D1AB] hover:bg-[#2A2114]"
     >
-      {isConverting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
-      {isConverting ? "Converting..." : "Convert to Booking"}
+      <DollarSign size={18} />
+      Record Payment
     </Button>
     <Button
       type="button"
@@ -409,13 +564,17 @@ export default function QuoteDetailsPage({
   quoteId,
   baseHref,
   TopbarComponent,
+  EditAccessModalComponent = QuoteEditAccessModal,
 }: QuoteDetailsPageProps) {
   const dispatch = useAppDispatch();
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
@@ -425,6 +584,8 @@ export default function QuoteDetailsPage({
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [convertIntent, setConvertIntent] = useState<QuoteConvertIntent>("convert_only");
+  const [pendingEditView, setPendingEditView] = useState<QuoteEditorView | null>(null);
+  const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [convertModalInitialDataOverride, setConvertModalInitialDataOverride] =
     useState<ConvertBookingModalInitialData | null>(null);
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
@@ -432,6 +593,17 @@ export default function QuoteDetailsPage({
   const [signatureBase64, setSignatureBase64] = useState<string | null>(null);
   const [signerName, setSignerName] = useState<string | null>(null);
   const [signedAt, setSignedAt] = useState<string | null>(null);
+  const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
+  const [manualPaymentAmount, setManualPaymentAmount] = useState("");
+  const [manualPaymentMode, setManualPaymentMode] = useState<ManualPaymentMode>("cash");
+  const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
+  const [manualPaymentNotes, setManualPaymentNotes] = useState("");
+  const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
+  const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
+  const [isUploadingManualProof, setIsUploadingManualProof] = useState(false);
+  const [isSubmittingManualPayment, setIsSubmittingManualPayment] = useState(false);
+  const paymentSectionRef = useRef<HTMLDivElement | null>(null);
+  const hasTriggeredPaymentActionRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -460,12 +632,46 @@ export default function QuoteDetailsPage({
         }
 
         setQuote(quoteDetail);
-        const rawData = response?.data as any;
-        const sig = rawData?.signature_base64 ?? (rawData?.data as any)?.signature_base64;
+        const rawData =
+          response?.data && typeof response.data === "object"
+            ? (response.data as Record<string, unknown>)
+            : null;
+        const nestedData =
+          rawData?.data && typeof rawData.data === "object"
+            ? (rawData.data as Record<string, unknown>)
+            : null;
+        const sig = resolveSignatureSource(rawData);
         if (sig) {
           setSignatureBase64(sig);
-          setSignerName(rawData?.signer_name ?? rawData?.data?.signer_name ?? null);
-          setSignedAt(rawData?.signed_at ?? rawData?.data?.signed_at ?? null);
+          setSignerName(
+            typeof rawData?.signer_name === "string"
+              ? rawData.signer_name
+              : typeof nestedData?.signer_name === "string"
+                ? nestedData.signer_name
+                : null
+          );
+          setSignedAt(
+            typeof rawData?.signed_at === "string"
+              ? rawData.signed_at
+              : typeof nestedData?.signed_at === "string"
+                ? nestedData.signed_at
+                : null
+          );
+        }
+
+        // Fetch versions after loading initial details
+        const versionsRes = await salesApi.getQuoteVersions(quoteId);
+        if (versionsRes?.success && isMounted) {
+          const versionsData = Array.isArray(versionsRes.data) ? versionsRes.data : versionsRes.data?.versions || [];
+          setVersions(versionsData);
+          // Set initial selected version to the current one if found
+          const currentVersion =
+            versionsData.find((v: any) => v?.is_current && v?.version_number != null) ||
+            versionsData.find((v: any) => v?.version_number != null);
+          const currentVersionNumber = currentVersion?.version_number;
+          if (currentVersionNumber != null && !selectedVersionId) {
+            setSelectedVersionId(String(currentVersionNumber));
+          }
         }
       } catch (error) {
         console.error("Failed to load quote details", error);
@@ -491,6 +697,41 @@ export default function QuoteDetailsPage({
       isMounted = false;
     };
   }, [quoteId]);
+
+  useEffect(() => {
+    if (!selectedVersionId) return;
+    
+    // Skip if this is already the currently displayed quote's version
+    if (quote && quote.version_number?.toString() === selectedVersionId) {
+       return;
+    }
+
+    let isMounted = true;
+    const fetchVersionDetail = async () => {
+      setLoading(true);
+      try {
+        const response = await salesApi.getQuoteVersionDetail(quoteId, selectedVersionId);
+        if (response?.success && isMounted) {
+          const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+          if (quoteDetail) {
+            setQuote((current) =>
+              mergeVersionQuoteWithPrimaryContext(current, quoteDetail)
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch quote version detail", error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    void fetchVersionDetail();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedVersionId, quoteId]);
 
   useEffect(() => {
     const editViews: QuoteEditorView[] = [
@@ -560,9 +801,16 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
+  const canSendInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
+    normalizedQuoteStatus
+  );
+  const canViewInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
+    normalizedQuoteStatus
+  );
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
+  const editAccessShootDateValue = getQuoteEditShootDateValue(quote);
   const terms = normalizeQuoteTerms(
     quote?.terms_conditions,
     getDefaultQuoteTerms(getQuoteText(quote?.valid_until, quote?.expires_at) || null)
@@ -570,6 +818,24 @@ export default function QuoteDetailsPage({
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? quoteId
   );
+  const quoteLeadId = useMemo(() => {
+    const quoteRecord = quote as Record<string, unknown> | null;
+    const directLeadId = Number(quoteRecord?.["lead_id"]);
+    if (Number.isInteger(directLeadId) && directLeadId > 0) {
+      return directLeadId;
+    }
+
+    const activityLeadId = Number(
+      ((quote?.activities as QuoteActivityLike[] | undefined) || []).find(
+        (activity) => activity?.metadata?.lead_id !== undefined && activity?.metadata?.lead_id !== null
+      )?.metadata?.lead_id
+    );
+
+    return Number.isInteger(activityLeadId) && activityLeadId > 0 ? activityLeadId : null;
+  }, [quote]);
+  const { data: linkedLeadDetails, refetch: refetchLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
+    skip: !quoteLeadId,
+  });
   const conversionActivity = useMemo(() => {
     const activities = (quote?.activities as QuoteActivityLike[] | undefined) || [];
 
@@ -626,6 +892,194 @@ export default function QuoteDetailsPage({
   const conversionMetaLabel = conversionActivity?.created_at
     ? `Converted on ${formatQuoteDate(conversionActivity.created_at)}${conversionActivity?.performed_by?.name ? ` by ${conversionActivity.performed_by.name}` : ""}`
     : null;
+  const bookingIdFromQuote = Number(convertedBookingId ?? quote?.booking_id);
+  const resolvedBookingId = Number.isInteger(bookingIdFromQuote) && bookingIdFromQuote > 0 ? bookingIdFromQuote : null;
+  const manualPaymentEntries = useMemo<ManualPaymentEntry[]>(() => {
+    const parseEntries = (activities: Array<{ activity_type?: string; activity_data?: unknown; created_at?: string | null }> | undefined) =>
+      (activities || [])
+        .filter((activity) => activity?.activity_type === "payment_completed" && activity?.activity_data)
+        .map((activity) => {
+          try {
+            const payload =
+              typeof activity.activity_data === "string"
+                ? JSON.parse(activity.activity_data)
+                : activity.activity_data;
+            if (!payload || (payload as ManualPaymentActivityMeta).payment_method !== "manual") return null;
+            return {
+              createdAt: activity.created_at || null,
+              data: payload as ManualPaymentActivityMeta,
+            };
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean) as ManualPaymentEntry[];
+
+    const leadEntries = parseEntries(linkedLeadDetails?.activities);
+    const quoteEntries = parseEntries(quote?.activities as Array<{ activity_type?: string; activity_data?: unknown; created_at?: string | null }> | undefined);
+    const merged = [...leadEntries, ...quoteEntries];
+
+    const unique = merged.filter((entry, index, arr) => {
+      const key = `${entry.createdAt || ""}|${entry.data.payment_type || ""}|${entry.data.amount || ""}|${entry.data.proof_url || ""}`;
+      return index === arr.findIndex((candidate) => {
+        const candidateKey = `${candidate.createdAt || ""}|${candidate.data.payment_type || ""}|${candidate.data.amount || ""}|${candidate.data.proof_url || ""}`;
+        return candidateKey === key;
+      });
+    });
+
+    return unique.sort(
+      (a, b) =>
+        new Date(String(b.createdAt || 0)).getTime() -
+        new Date(String(a.createdAt || 0)).getTime()
+    );
+  }, [linkedLeadDetails?.activities, quote?.activities]);
+  const leadPaymentStatus = String(linkedLeadDetails?.payment_status || "").toLowerCase();
+  const totalPaymentAmount = Number(linkedLeadDetails?.pricing_breakdown?.total || finalTotal || 0);
+  const hasFullPaymentFromActivity = manualPaymentEntries.some((entry) => entry.data.payment_type === "full");
+  const partialPaidFromActivity = manualPaymentEntries.reduce((sum, entry) => {
+    if (entry.data.payment_type !== "partial") return sum;
+    const numeric = Number(entry.data.amount || 0);
+    return sum + (Number.isFinite(numeric) ? numeric : 0);
+  }, 0);
+  const hasFullPayment =
+    hasFullPaymentFromActivity ||
+    ["paid", "success", "completed"].includes(leadPaymentStatus);
+  const paidAmount = hasFullPayment ? totalPaymentAmount : partialPaidFromActivity;
+  const pendingAmount = Math.max(totalPaymentAmount - paidAmount, 0);
+  const isPartiallyPaid = !hasFullPayment && paidAmount > 0 && pendingAmount > 0;
+  const latestManualPaymentEntry = manualPaymentEntries[0] || null;
+  const canTakeManualPayment = !hasFullPayment && pendingAmount > 0;
+  const displayStatus = hasFullPayment
+    ? "Paid"
+    : isPartiallyPaid
+      ? "Partially Paid"
+      : quoteStatus;
+
+  const ensureBookingForPayment = useCallback(async () => {
+    if (resolvedBookingId) {
+      return { bookingId: resolvedBookingId, leadId: quoteLeadId ?? undefined };
+    }
+    if (!resolvedQuoteId) {
+      toast.error("Quote id is missing.");
+      return null;
+    }
+
+    const convertedDetails = (quote?.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined) ?? null;
+    const booking = linkedLeadDetails?.booking;
+    const startDate = String(convertedDetails?.start_date || booking?.event_date || "").trim();
+    const startTime = String(convertedDetails?.start_time || booking?.start_time || "").slice(0, 5);
+    const endTime = String(convertedDetails?.end_time || booking?.end_time || "").slice(0, 5);
+    if (!startDate || !startTime || !endTime) {
+      toast.error("Missing booking date/time to auto-convert. Please convert once, then continue payment.");
+      return null;
+    }
+
+    const response = await salesApi.convertQuoteToBooking(resolvedQuoteId, {
+      booking_type: "single_day",
+      time_zone: getBrowserTimeZone(),
+      start_date: startDate,
+      start_time: `${startTime}:00`,
+      end_time: `${endTime}:00`,
+      location: convertedDetails?.location || "",
+    });
+
+    if (!response?.success || !response?.data?.booking_id) {
+      toast.error(response?.error || "Failed to convert quote to booking");
+      return null;
+    }
+
+    setConvertedBookingIdOverride(String(response.data.booking_id));
+    setIsConvertedOverride(true);
+    toast.success(`Converted to booking #${response.data.booking_id}`);
+    return {
+      bookingId: Number(response.data.booking_id),
+      leadId: quoteLeadId ?? (response.data.lead_id ? Number(response.data.lead_id) : undefined),
+    };
+  }, [linkedLeadDetails?.booking, quote, quoteLeadId, resolvedBookingId, resolvedQuoteId]);
+
+  const handleManualProofUpload = async (file: File | null) => {
+    if (!file) return;
+    setIsUploadingManualProof(true);
+    try {
+      const response = await salesApi.uploadManualPaymentProof(file);
+      if (!response?.success || !response?.data?.proof_url) {
+        toast.error(response?.error || response?.message || "Failed to upload proof");
+        return;
+      }
+      setManualPaymentProofUrl(response.data.proof_url);
+      setManualPaymentProofFileName(file.name);
+      toast.success("Proof uploaded successfully");
+    } finally {
+      setIsUploadingManualProof(false);
+    }
+  };
+
+  const handleManualPaymentSubmit = async () => {
+    if (!quoteLeadId) {
+      toast.error("Lead not linked with this quote");
+      return;
+    }
+    if (!manualPaymentProofUrl.trim()) {
+      toast.error("Proof upload is required");
+      return;
+    }
+    if (manualPaymentType === "partial") {
+      const amount = Number(manualPaymentAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        toast.error("Enter valid partial amount");
+        return;
+      }
+      if (amount > pendingAmount) {
+        toast.error("Partial amount cannot exceed pending amount");
+        return;
+      }
+    }
+
+    const ensured = await ensureBookingForPayment();
+    if (!ensured) return;
+
+    setIsSubmittingManualPayment(true);
+    try {
+      const amount = Number(manualPaymentAmount);
+      const response = await salesApi.recordLeadManualPayment(ensured.leadId ?? quoteLeadId, {
+        payment_type: manualPaymentType,
+        amount: manualPaymentType === "partial" ? amount : undefined,
+        payment_mode: manualPaymentMode,
+        other_payment_mode: manualPaymentMode === "other" ? manualPaymentOtherMode.trim() : undefined,
+        proof_url: manualPaymentProofUrl.trim(),
+        notes: manualPaymentNotes.trim() || undefined,
+      });
+      if (!response?.success) {
+        toast.error(response?.error || response?.message || "Failed to save payment");
+        return;
+      }
+      toast.success("Manual payment saved");
+      setManualPaymentAmount("");
+      setManualPaymentOtherMode("");
+      setManualPaymentNotes("");
+      setManualPaymentProofUrl("");
+      setManualPaymentProofFileName("");
+      void refetchLeadDetails();
+    } finally {
+      setIsSubmittingManualPayment(false);
+    }
+  };
+
+  const handlePaymentTransactionAction = useCallback(async () => {
+    if (!quoteLeadId) {
+      toast.error("Lead is not linked with this quote yet.");
+      return;
+    }
+    await ensureBookingForPayment();
+    paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [ensureBookingForPayment, quoteLeadId]);
+
+  useEffect(() => {
+    if (searchParams.get("action") !== "payment") return;
+    if (!quote || hasTriggeredPaymentActionRef.current) return;
+    hasTriggeredPaymentActionRef.current = true;
+    void handlePaymentTransactionAction();
+  }, [handlePaymentTransactionAction, quote, searchParams]);
 
   const breadcrumbOverrides = useMemo(
     () => ({
@@ -687,11 +1141,6 @@ export default function QuoteDetailsPage({
   const handleViewInvoice = async () => {
     if (!resolvedQuoteId) {
       toast.error("Quote id is missing.");
-      return;
-    }
-
-    if (!isConvertedToBooking) {
-      toast.error("Convert this quote to a booking before viewing the invoice.");
       return;
     }
 
@@ -786,12 +1235,6 @@ export default function QuoteDetailsPage({
   const handleSendInvoice = async () => {
     if (!resolvedQuoteId) {
       toast.error("Quote id is missing.");
-      return;
-    }
-
-    if (!isConvertedToBooking || !convertedBookingId) {
-      setConvertIntent("send_invoice");
-      setIsConvertModalOpen(true);
       return;
     }
 
@@ -902,10 +1345,6 @@ export default function QuoteDetailsPage({
       );
       dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
       setIsConvertModalOpen(false);
-
-      if (convertIntent === "send_invoice") {
-        await sendQuoteInvoiceRequest();
-      }
     } catch (error) {
       console.error("Failed to convert quote to booking", error);
       toast.error(
@@ -916,15 +1355,44 @@ export default function QuoteDetailsPage({
     }
   };
 
-  const handleEditQuote = (targetView: QuoteEditorView) => {
+  const proceedToEditQuote = (targetView: QuoteEditorView) => {
     if (quote) {
       persistQuoteEditorNavigationCache(quoteId, quote);
     }
 
     toast.success("Opening quote editor");
     window.setTimeout(() => {
-      router.push(`${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}`);
+      router.push(
+        `${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}&editMode=full&returnTo=${encodeURIComponent(pathname)}`
+      );
     }, 450);
+  };
+
+  const handleEditAccessProceed = async (payload: {
+    reason: string;
+    opsReviewConfirmed: boolean;
+  }) => {
+    if (!pendingEditView) {
+      return;
+    }
+
+    setIsEditAccessSubmitting(true);
+
+    try {
+      const nextView = pendingEditView;
+      persistQuoteEditorEditReason(quoteId, payload.reason, payload.opsReviewConfirmed);
+      setPendingEditView(null);
+      proceedToEditQuote(nextView);
+    } catch (error) {
+      console.error("Failed to confirm restricted quote edit access", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm restricted quote edit access"
+      );
+    } finally {
+      setIsEditAccessSubmitting(false);
+    }
   };
 
   const topbarActions = (
@@ -935,14 +1403,27 @@ export default function QuoteDetailsPage({
       onConvert={() => {
         void handleConvertQuoteToBooking();
       }}
+      onPaymentTransaction={() => {
+        void handlePaymentTransactionAction();
+      }}
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || loading}
       rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       convertDisabled={!quote || loading || isRejecting || isConverting}
+      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment}
       isRejecting={isRejecting}
       isConverting={isConverting}
+      versions={versions}
+      selectedVersionId={selectedVersionId}
+      onVersionChange={(val) => setSelectedVersionId(val)}
     />
   );
+
+  const selectedVersionNumber = useMemo(() => {
+     if (!selectedVersionId || versions.length === 0) return null;
+     const v = versions.find((version) => version?.version_number != null && String(version.version_number) === selectedVersionId);
+     return v ? v.version_number : null;
+  }, [selectedVersionId, versions]);
 
   return (
     <div
@@ -969,31 +1450,37 @@ export default function QuoteDetailsPage({
             Back
           </button>
 
-          {/* <div className="flex flex-col gap-3 sm:flex-row">
-            <Button
-              type="button"
-              onClick={() => {
-                void handleViewInvoice();
-              }}
-              disabled={loading || !quote || isViewingInvoice || isSendingInvoice}
-              variant="outline"
-              className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
-            >
-              {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
-              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void handleSendInvoice();
-              }}
-              disabled={loading || !quote || isRejecting || isConverting || isSendingInvoice}
-              className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
-            >
-              {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
-              {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
-            </Button>
-          </div> */}
+          {!loading && quote && (
+            <div className="flex flex-wrap items-center gap-3">
+              {canViewInvoiceFromDetails && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleViewInvoice();
+                  }}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  variant="outline"
+                  className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-5 text-white hover:bg-[#232323]"
+                >
+                  {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
+                  {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+                </Button>
+              )}
+              {canSendInvoiceFromDetails && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleSendInvoice();
+                  }}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
+                >
+                  {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
+                  {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -1022,7 +1509,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Client Information"
               actionLabel="Edit Details"
-              onAction={() => handleEditQuote("details")}
+              onAction={() => setPendingEditView("details")}
             >
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -1031,9 +1518,23 @@ export default function QuoteDetailsPage({
                       {getInitials(clientName)}
                     </div>
                     <div className="min-w-0">
-                      <p className="break-words text-[26px] font-semibold leading-tight text-white">
-                        {clientName}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <p className="break-words text-[26px] font-semibold leading-tight text-white">
+                          {clientName}
+                        </p>
+                        {selectedVersionNumber && (
+                           <div className="flex flex-col items-start gap-1">
+                             <span className="rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
+                               Quote Version {selectedVersionNumber}
+                             </span>
+                             {quote?.edit_reason && (
+                               <p className="max-w-[300px] text-[13px] italic text-[#8F8F95] line-clamp-2" title={quote.edit_reason}>
+                                 "{quote.edit_reason}"
+                               </p>
+                             )}
+                           </div>
+                        )}
+                      </div>
                       <p className="mt-1 text-[24px] font-medium text-[#D8BC87]">
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
@@ -1043,14 +1544,14 @@ export default function QuoteDetailsPage({
                       <div className="flex flex-col items-end gap-2">
                   <span
                     className={`inline-flex h-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
-                      quoteStatus
+                      displayStatus
                     )}`}
                   >
-                    {formatStatusLabel(quoteStatus)}
+                    {formatStatusLabel(displayStatus)}
                   </span>
                         {signatureBase64 && (
                           <div className="mt-3 flex flex-col items-end gap-2">
-                            <div className="border border-white/10 rounded-lg p-2 bg-white/5">
+                            <div className="border border-white/10 rounded-lg p-2 bg-white">
                               <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
                             </div>
                             <p className="text-xs text-[#8F8F95]">{signerName ?? "Client"}</p>
@@ -1093,10 +1594,185 @@ export default function QuoteDetailsPage({
               </div>
             </SectionShell>
 
+            <SectionShell title="Payment">
+              <div className="space-y-4" ref={paymentSectionRef}>
+                {quoteLeadId ? (
+                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4">
+                    <h3 className="text-base font-semibold text-white">Manual Payment Update</h3>
+                    {latestManualPaymentEntry?.createdAt ? (
+                      <p className="mt-1 text-xs text-white/55">
+                        Last updated {formatQuoteDate(latestManualPaymentEntry.createdAt)}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-xs text-white/70">
+                      Paid: <span className="text-emerald-400">{formatQuoteCurrency(paidAmount)}</span>
+                      {" · "}
+                      Pending: <span className="text-amber-400">{formatQuoteCurrency(pendingAmount)}</span>
+                    </p>
+                    {hasFullPayment ? (
+                      <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                        Full payment already completed. New payment entry is locked.
+                      </div>
+                    ) : null}
+
+                    {canTakeManualPayment ? (
+                      <>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {(["full", "partial"] as const).map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setManualPaymentType(type)}
+                              disabled={hasFullPayment}
+                              className={`h-10 rounded-lg border text-sm font-medium ${
+                                manualPaymentType === type
+                                  ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                                  : "border-white/20 text-white/70"
+                              }`}
+                            >
+                              {type === "full" ? "Full Payment" : "Partial Payment"}
+                            </button>
+                          ))}
+                        </div>
+
+                        {manualPaymentType === "partial" ? (
+                          <input
+                            type="number"
+                            value={manualPaymentAmount}
+                            onChange={(event) => setManualPaymentAmount(event.target.value)}
+                            placeholder="Enter partial amount"
+                            className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                          />
+                        ) : null}
+
+                        <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
+                          <SelectTrigger className="mt-3 h-11 rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white">
+                            <SelectValue placeholder="Select payment mode" />
+                          </SelectTrigger>
+                          <SelectContent className="border-[#333333] bg-[#111111] text-white">
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="credit_card">Credit Card</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {manualPaymentMode === "other" ? (
+                          <input
+                            type="text"
+                            value={manualPaymentOtherMode}
+                            onChange={(event) => setManualPaymentOtherMode(event.target.value)}
+                            placeholder="Enter payment mode"
+                            className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                          />
+                        ) : null}
+
+                        <div className="mt-3 rounded-lg border border-white/20 p-3">
+                          <label className="mb-2 block text-xs text-[#71717B]">Proof Upload (Required)</label>
+                          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 text-sm text-white">
+                            <ArrowUpToLine size={14} />
+                            {isUploadingManualProof ? "Uploading..." : "Choose File"}
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              onChange={(event) => {
+                                const file = event.target.files?.[0] || null;
+                                void handleManualProofUpload(file);
+                              }}
+                            />
+                          </label>
+                          {manualPaymentProofFileName ? (
+                            <p className="mt-2 text-xs text-[#71717B]">{manualPaymentProofFileName}</p>
+                          ) : null}
+                        </div>
+
+                        <textarea
+                          value={manualPaymentNotes}
+                          onChange={(event) => setManualPaymentNotes(event.target.value)}
+                          placeholder="Add notes"
+                          className="mt-3 min-h-[84px] w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm text-white outline-none"
+                        />
+
+                        <div className="mt-3 flex justify-end">
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              void handleManualPaymentSubmit();
+                            }}
+                            disabled={isSubmittingManualPayment || isUploadingManualProof || hasFullPayment}
+                            className="h-11 rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90"
+                          >
+                            {isSubmittingManualPayment ? <Loader2 size={16} className="animate-spin" /> : null}
+                            {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
+                          </Button>
+                        </div>
+                      </>
+                    ) : null}
+
+                    {manualPaymentEntries.length > 0 ? (
+                      <div className="mt-3 rounded-lg border border-white/15 bg-white/[0.02] p-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
+                          Uploaded Payment Proofs
+                        </p>
+                        <div className="space-y-2">
+                          {manualPaymentEntries.map((entry, index) => {
+                            const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
+                            const paidMode = entry.data.payment_mode
+                              ? String(entry.data.payment_mode).replace(/_/g, " ")
+                              : "manual";
+
+                            return (
+                              <div
+                                key={`${entry.createdAt || "entry"}-${index}`}
+                                className="rounded-md border border-white/10 px-3 py-2 text-xs"
+                              >
+                                <p className="text-white/80">
+                                  {entry.data.payment_type === "partial"
+                                    ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
+                                    : "Full payment marked"}{" "}
+                                  via {paidMode}
+                                </p>
+                                <p className="mt-1 text-white/45">
+                                  {entry.createdAt ? formatQuoteDate(entry.createdAt) : "Date unavailable"}
+                                </p>
+                                {proofUrl ? (
+                                  <a
+                                    href={proofUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
+                                  >
+                                    Download Proof
+                                  </a>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : isConvertedToBooking ? (
+                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
+                    <p className="text-sm text-emerald-200">
+                      This quote is already converted to booking
+                      {convertedBookingId ? ` #${convertedBookingId}` : ""}.
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-300/90">
+                      Lead linkage is unavailable in this response, so manual payment updates from this panel are hidden.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#8F8F95]">Lead is not linked with this quote yet.</p>
+                )}
+              </div>
+            </SectionShell>
+
             <SectionShell
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
               actionLabel="Edit Services"
-              onAction={() => handleEditQuote("services")}
+              onAction={() => setPendingEditView("services")}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -1116,7 +1792,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Add-On Includes"
               actionLabel="Edit Add ons"
-              onAction={() => handleEditQuote("addons")}
+              onAction={() => setPendingEditView("addons")}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1139,7 +1815,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Logistics"
               actionLabel="Edit Logistics"
-              onAction={() => handleEditQuote("logistics")}
+              onAction={() => setPendingEditView("logistics")}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1161,7 +1837,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Custom Line Item"
               actionLabel="Edit Items"
-              onAction={() => handleEditQuote("customlineitems")}
+              onAction={() => setPendingEditView("customlineitems")}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
@@ -1190,7 +1866,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Other Details"
               actionLabel="Edit Tax & Discounts"
-              onAction={() => handleEditQuote("discounts")}
+              onAction={() => setPendingEditView("discounts")}
             >
               <div className="space-y-6">
                 <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
@@ -1296,6 +1972,22 @@ export default function QuoteDetailsPage({
         quote={quote}
         quoteId={quoteId}
       />
+      <EditAccessModalComponent
+        open={pendingEditView !== null}
+        onClose={() => {
+          if (isEditAccessSubmitting) {
+            return;
+          }
+          setPendingEditView(null);
+        }}
+        onProceed={(payload) => {
+          void handleEditAccessProceed(payload);
+        }}
+        quoteNumber={quoteNumber}
+        clientName={clientName}
+        shootDateValue={editAccessShootDateValue}
+        isSubmitting={isEditAccessSubmitting}
+      />
       <ConvertBookingModal
         open={isConvertModalOpen}
         onClose={() => setIsConvertModalOpen(false)}
@@ -1307,31 +1999,19 @@ export default function QuoteDetailsPage({
         initialData={convertModalInitialData}
         showLocationField={false}
         title={
-          convertIntent === "send_invoice"
-            ? isConvertedToBooking
-              ? "Update Booking Before Sending Invoice"
-              : "Convert to Booking Before Sending Invoice"
-            : isConvertedToBooking
-              ? "Update Booking"
-              : "Convert to Booking"
+          isConvertedToBooking
+            ? "Update Booking"
+            : "Convert to Booking"
         }
         description={
-          convertIntent === "send_invoice"
-            ? isConvertedToBooking
-              ? "Review or update the existing booking date and time below, then continue to send the invoice."
-              : "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
-            : isConvertedToBooking
-              ? "Review or update the existing booking date and time below."
-              : "Select booking type, shoot date and time before continuing."
+          isConvertedToBooking
+            ? "Review or update the existing booking date and time below."
+            : "Select booking type, shoot date and time before continuing."
         }
         submitLabel={
-          convertIntent === "send_invoice"
-            ? isConvertedToBooking
-              ? "Save & Send Invoice"
-              : "Convert & Send Invoice"
-            : isConvertedToBooking
-              ? "Save Booking Details"
-              : "Convert to Booking"
+          isConvertedToBooking
+            ? "Save Booking Details"
+            : "Convert to Booking"
         }
       />
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Plus, Minus } from "lucide-react";
 
 import type { SalesQuoteDetailData } from "@/lib/api";
 import {
@@ -29,6 +30,31 @@ const COMPANY_PROFILE = {
   addressLines: ["9200 Sunset Blvd. #215", "West Hollywood, CA 90069"],
   email: "sales@beigecorporation.io",
   phone: "323-826-7230",
+};
+
+const S3_PREFIX =
+  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+
+const resolveSignatureSource = (...sources: Array<unknown>) => {
+  const baseUrl = S3_PREFIX.replace(/\/+$/, "");
+
+  for (const source of sources) {
+    if (typeof source !== "string") {
+      continue;
+    }
+
+    const value = source.trim();
+    if (!value) continue;
+    if (value.startsWith("data:")) return value;
+    if (/^https?:\/\//i.test(value) && !/localhost|127\.0\.0\.1|::1/i.test(value)) {
+      return value;
+    }
+
+    const path = (value.match(/(?:^|\/)(signatures\/.+)$/i)?.[1] ?? value).replace(/^\/+/, "");
+    return `${baseUrl}/${path}`;
+  }
+
+  return null;
 };
 
 const formatCount = (value: number) => String(Math.max(0, value)).padStart(2, "0");
@@ -167,7 +193,7 @@ export default function QuotePreviewDocument({
   if (!quoteData) {
     return null;
   }
-
+  const isRejected = getQuoteText(quoteData.status)?.toLowerCase() === "rejected";
   const lineItems = normalizeQuoteLineItems(quoteData);
   const serviceItems = lineItems.filter((item) => item.section === "service");
   const addonItems = lineItems.filter((item) => item.section === "addon");
@@ -219,6 +245,12 @@ export default function QuotePreviewDocument({
     fallbackTerms
   );
   const terms = isLegacyDefaultQuoteTerms(normalizedTerms) ? fallbackTerms : normalizedTerms;
+  const signatureSource = resolveSignatureSource(
+    quoteData.signature_base64,
+    quoteData.signature_path,
+    (quote as Record<string, unknown>)?.signature_base64,
+    (quote as Record<string, unknown>)?.signature_path,
+  );
   return (
     <div
       className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
@@ -321,19 +353,29 @@ export default function QuotePreviewDocument({
                 <div className="mt-2 border-t border-black/10 pt-3" />
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-6">
-                    <span>Previously Paid</span>
+                    <span>Old Quote Total</span>
                     <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                      {formatQuoteCurrency(additionalPaymentDetails.previousTotal)}
+                    </span>
+                  </div>
+                  {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
+                    <div className="flex items-center justify-between gap-6">
+                      <span>Previously Paid</span>
+                      <span className="font-semibold">
+                        {formatQuoteCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                      </span>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-6">
+                    <div className="flex items-center gap-1.5">
+                      <span>{additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}</span>
+                    </div>
+                    <span className={`font-semibold ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-600" : ""}`}>
+                      {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-6">
-                    <span>Additional Amount</span>
-                    <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.additionalAmount)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-6">
-                    <span>Outstanding Amount</span>
+                    <span>Remaining Amount</span>
                     <span className="font-semibold">
                       {formatQuoteCurrency(additionalPaymentDetails.outstandingAmount)}
                     </span>
@@ -372,15 +414,18 @@ export default function QuotePreviewDocument({
       ))}
     </ul>
 
+
+
     {/* Right - Signature */}
+  {!isRejected && (
     <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
-      {quoteData.signature_base64 ? (
+      {signatureSource ? (
         <>
           <div className={`border rounded-lg p-3 w-full max-w-[220px] ${
-            isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
+            isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
           }`}>
             <img
-              src={quoteData.signature_base64}
+              src={signatureSource}
               alt="Signature"
               className="w-full max-h-20 object-contain"
             />
@@ -400,7 +445,7 @@ export default function QuotePreviewDocument({
         </div>
       )}
     </div>
-
+    )}
   </div>
 </section>
 

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
 import {
   Grid3X3,
   History,
@@ -11,6 +12,7 @@ import {
   MoreVertical,
   Search,
 } from "lucide-react";
+
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
@@ -44,8 +46,9 @@ export default function CreatorFileManagerPage() {
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -181,6 +184,10 @@ export default function CreatorFileManagerPage() {
 
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
+    if (!isCommonEventWorkspaceId(selectedFolder.id)) {
+      toast.error("Only common event folders can be deleted.");
+      return;
+    }
 
     try {
       setIsDeleting(true);
@@ -338,8 +345,10 @@ export default function CreatorFileManagerPage() {
                 }}
                 href={folder.href}
                 onDelete={() => {
-                  setSelectedFolder(folder);
-                  setIsDeleteModalOpen(true);
+                  if (isCommonEventWorkspaceId(folder.id)) {
+                    setSelectedFolder(folder);
+                    setIsDeleteModalOpen(true);
+                  }
                 }}
                 onDownload={() => handleDownloadSelectedFolder(folder)}
                 onRename={() => toast.info("Folder rename is the next safe step.")}
@@ -412,7 +421,11 @@ export default function CreatorFileManagerPage() {
           anchor={menuAnchor}
           href={selectedFolder?.href}
           onDownload={handleDownloadSelectedFolder}
-          onDelete={() => setIsDeleteModalOpen(true)}
+          onDelete={
+            selectedFolder && isCommonEventWorkspaceId(selectedFolder.id)
+              ? () => setIsDeleteModalOpen(true)
+              : undefined
+          }
           onRename={() => toast.info("Folder rename is the next safe step.")}
         />
       )}

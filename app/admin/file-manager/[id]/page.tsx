@@ -2,7 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
 import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Search, Upload } from "lucide-react";
+
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
@@ -35,8 +37,9 @@ export default function AdminFolderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [isOpen, setIsOpen] = useState(false);
+
   const [status, setStatus] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

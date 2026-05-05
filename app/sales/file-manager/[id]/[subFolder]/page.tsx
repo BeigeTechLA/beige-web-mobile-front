@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
 import {
   ArrowLeft,
   FileArchive,
@@ -13,6 +14,7 @@ import {
   List,
   Loader2,
   MoreVertical,
+
   Presentation,
   Search,
   Upload
@@ -99,8 +101,9 @@ export default function SalesFileManagerPhasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
+
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [uploadPathOverride, setUploadPathOverride] = useState<string | undefined>(undefined);

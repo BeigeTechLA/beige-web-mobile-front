@@ -301,6 +301,9 @@ export interface SalesQuoteListItem {
   id?: number | string;
   quote_id?: number | string;
   sales_quote_id?: number | string;
+  client_user_id?: number | string;
+  user_id?: number | string;
+  client_id?: number | string;
   quote_number?: string;
   client_name?: string;
   client?: string;
@@ -349,6 +352,69 @@ export interface QuotesListEnvelope {
 export interface QuotesListResponse {
   success: boolean;
   data: SalesQuoteListItem[] | QuotesListEnvelope | null;
+  error?: string;
+}
+
+export interface QuoteChangeRequestUser {
+  id?: number | string;
+  name?: string | null;
+  email?: string | null;
+  [key: string]: unknown;
+}
+
+export interface QuoteChangeRequestSummary {
+  summary?: string | null;
+  lines?: string[] | null;
+  [key: string]: unknown;
+}
+
+export interface QuoteChangeRequestItem {
+  activity_id?: number | string;
+  quote_id?: number | string | null;
+  quote_number?: string | null;
+  booking_id?: number | string | null;
+  client_name?: string | null;
+  client_email?: string | null;
+  assigned_sales_rep?: QuoteChangeRequestUser | null;
+  requested_by?: QuoteChangeRequestUser | null;
+  request_type?: string | null;
+  previous_total?: number | string | null;
+  new_total?: number | string | null;
+  extra_amount?: number | string | null;
+  reduced_amount?: number | string | null;
+  approval_status?: string | null;
+  overall_change_summary?: QuoteChangeRequestSummary | null;
+  created_at?: string | null;
+  [key: string]: unknown;
+}
+
+export interface QuoteChangeRequestsEnvelope {
+  pagination?: QuotesListPagination | null;
+  items?: QuoteChangeRequestItem[];
+  rows?: QuoteChangeRequestItem[];
+  results?: QuoteChangeRequestItem[];
+  list?: QuoteChangeRequestItem[];
+  data?: QuoteChangeRequestItem[];
+  [key: string]: unknown;
+}
+
+export interface QuoteChangeRequestsResponse {
+  success: boolean;
+  data: QuoteChangeRequestItem[] | QuoteChangeRequestsEnvelope | null;
+  message?: string;
+  error?: string;
+}
+
+export interface QuoteChangeRequestReviewResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    request?: QuoteChangeRequestItem | null;
+    account_credit?: unknown;
+    approved_entries?: unknown[];
+    rejected_entries?: unknown[];
+    [key: string]: unknown;
+  } | null;
   error?: string;
 }
 
@@ -2176,6 +2242,53 @@ export const salesApi = {
       };
     }
   },
+  getClientQuotesList: async (
+    clientUserId: number | string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      range?: string;
+      date_on?: string;
+      assigned_sales_rep_id?: number | string;
+    } = {}
+  ) => {
+    try {
+      const response = await api.get<QuotesListResponse>('/sales/quotes', {
+        params: {
+          ...params,
+          client_user_id: clientUserId,
+          user_id: clientUserId,
+          client_id: clientUserId,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Quotes List Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch client quotes list',
+      };
+    }
+  },
+  updateAffiliateQuoteStatus: async (quoteId: number | string, status: string) => {
+    try {
+      void status;
+      const response = await api.get<SalesQuoteStatusUpdateResponse>(
+        `/sales/quotes/reject/${quoteId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Affiliate Quote Status Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update affiliate quote status',
+      };
+    }
+  },
   getQuoteDetail: async (quoteId: number | string) => {
     try {
       const response = await api.get<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`);
@@ -2186,6 +2299,32 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch quote detail',
+      };
+    }
+  },
+  getQuoteVersions: async (quoteId: number | string) => {
+    try {
+      const response = await api.get(`/sales/quotes/${quoteId}/versions`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Versions Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch quote versions',
+      };
+    }
+  },
+  getQuoteVersionDetail: async (quoteId: number | string, versionId: number | string) => {
+    try {
+      const response = await api.get(`/sales/quotes/${quoteId}/versions/${versionId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Version Detail Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch quote version detail',
       };
     }
   },
@@ -2228,6 +2367,89 @@ export const salesApi = {
         data: null,
         error: error.response?.data?.message || 'Failed to fetch invoice history',
       };
+    }
+  },
+  getQuoteChangeRequests: async (
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      approval_status?: string;
+      request_type?: string;
+    } = {}
+  ) => {
+    try {
+      const response = await api.get<QuoteChangeRequestsResponse>(
+        '/sales/dashboard/quote-change-requests',
+        { params }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      console.error(
+        'Get Quote Change Requests Error:',
+        axios.isAxiosError(error) ? error.response?.data || error.message : error
+      );
+
+      return {
+        success: false,
+        data: null,
+        message: errorMessage || 'Failed to fetch quote change requests',
+        error: errorMessage || 'Failed to fetch quote change requests',
+      } satisfies QuoteChangeRequestsResponse;
+    }
+  },
+  approveQuoteChangeRequest: async (activityId: number | string) => {
+    try {
+      const response = await api.post<QuoteChangeRequestReviewResponse>(
+        '/sales/dashboard/quote-change-requests/approve',
+        { activity_id: activityId }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      console.error(
+        'Approve Quote Change Request Error:',
+        axios.isAxiosError(error) ? error.response?.data || error.message : error
+      );
+
+      return {
+        success: false,
+        data: null,
+        message: errorMessage || 'Failed to approve quote change request',
+        error: errorMessage || 'Failed to approve quote change request',
+      } satisfies QuoteChangeRequestReviewResponse;
+    }
+  },
+  rejectQuoteChangeRequest: async (activityId: number | string) => {
+    try {
+      const response = await api.post<QuoteChangeRequestReviewResponse>(
+        '/sales/dashboard/quote-change-requests/reject',
+        { activity_id: activityId }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      console.error(
+        'Reject Quote Change Request Error:',
+        axios.isAxiosError(error) ? error.response?.data || error.message : error
+      );
+
+      return {
+        success: false,
+        data: null,
+        message: errorMessage || 'Failed to reject quote change request',
+        error: errorMessage || 'Failed to reject quote change request',
+      } satisfies QuoteChangeRequestReviewResponse;
     }
   },
   previewQuoteInvoice: async (quoteId: number | string) => {
@@ -2613,6 +2835,87 @@ export const salesApi = {
       };
     }
   },
+  recordLeadManualPayment: async (
+    leadId: number | string,
+    payload: {
+      payment_type: "full" | "partial";
+      amount?: number;
+      payment_mode: "cash" | "bank_transfer" | "credit_card" | "other";
+      other_payment_mode?: string;
+      proof_url: string;
+      notes?: string;
+    }
+  ) => {
+    try {
+      const response = await api.post(`/sales/leads/${leadId}/manual-payment`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Record Lead Manual Payment Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to record manual payment',
+      };
+    }
+  },
+  recordClientLeadManualPayment: async (
+    leadId: number | string,
+    payload: {
+      payment_type: "full" | "partial";
+      amount?: number;
+      payment_mode: "cash" | "bank_transfer" | "credit_card" | "other";
+      other_payment_mode?: string;
+      proof_url: string;
+      notes?: string;
+    }
+  ) => {
+    try {
+      const response = await api.post(`/sales/client-leads/${leadId}/manual-payment`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Record Client Lead Manual Payment Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to record manual payment',
+      };
+    }
+  },
+  uploadManualPaymentProof: async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("proof_file", file);
+      const response = await api.post('/sales/leads/manual-payment/upload-proof', formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Upload Manual Payment Proof Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to upload proof file',
+      };
+    }
+  },
+  getLeadPaymentMeta: async (leadId: number | string, isClientLead = false) => {
+    try {
+      const endpoint = isClientLead ? `/sales/client-leads/${leadId}` : `/sales/leads/${leadId}`;
+      const response = await api.get(endpoint);
+      const lead = response?.data?.data || null;
+      return {
+        success: true,
+        data: lead,
+      };
+    } catch (error: any) {
+      console.error('Get Lead Payment Meta Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch lead payment details',
+      };
+    }
+  },
   changeClientLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
     try {
       const response = await api.put(`/sales/client-leads/${leadId}/change-sales-rep`, {
@@ -2674,6 +2977,33 @@ export const salesApi = {
     }
   },
 
+  signAndAcceptQuote: async (payload: {
+    quote_id: number | string;
+    signature: File;
+    signer_email: string;
+    signer_name: string;
+  }) => {
+    try {
+      const formData = new FormData();
+      formData.append('quote_id', String(payload.quote_id));
+      formData.append('signature', payload.signature);
+      formData.append('signer_email', payload.signer_email);
+      formData.append('signer_name', payload.signer_name);
+
+      const response = await api.post('/signatures/sign', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Sign And Accept Quote Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to sign and accept quote',
+      };
+    }
+  },
+
   getSignatureByQuote: async (quote_id: number | string) => {
     try {
       const response = await api.get(`/signatures/quote/${quote_id}`);
@@ -2693,5 +3023,3 @@ export const salesApi = {
     return `${baseUrl}signatures/download/${quote_id}`;
   },
 };
-
-

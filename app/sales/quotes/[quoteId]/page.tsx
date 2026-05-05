@@ -4,6 +4,7 @@ import React from "react";
 
 import Topbar from "@/components/sales/Topbar";
 import QuoteDetailsPage from "@/components/admin/quotes/QuoteDetailsPage";
+import SalesQuoteEditAccessModal from "@/components/sales/quotes/SalesQuoteEditAccessModal";
 
 type PageProps = {
   params: Promise<{
@@ -19,6 +20,7 @@ export default function SalesQuoteDetailsRoute({ params }: PageProps) {
       quoteId={quoteId}
       baseHref="/sales/quotes"
       TopbarComponent={Topbar}
+      EditAccessModalComponent={SalesQuoteEditAccessModal}
     />
   );
 }
