@@ -371,7 +371,7 @@ export default function SubFolderDetailsPage() {
             <div className="bg-[#101010] flex flex-col gap-5 p-5 border-b border-b-[#3D3D3D] rounded-2xl">
               <div className="flex flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 lg:gap-4">
-                  <div className="bg-[#1A1A1A] p-3 rounded-full">
+                  <div className="bg-[#1A1A1A] flex h-12 w-12 items-center justify-center rounded-full shrink-0">
                     <span className="text-white text-xl font-semibold">{getDisplayInitials(workspaceName)}</span>
                   </div>
                   <h1 className="text-base text-[#E8D1AB] font-semibold">

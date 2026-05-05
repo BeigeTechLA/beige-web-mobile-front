@@ -300,10 +300,10 @@ export default function AffiliateFileManager() {
     const previewableFiles = phaseFiles
       .slice(0, visibleFileCount)
       .filter(
-      (file) =>
-        file.filepath &&
-        (file.contentType?.startsWith("image/") ||
-          file.contentType?.startsWith("video/"))
+        (file) =>
+          file.filepath &&
+          (file.contentType?.startsWith("image/") ||
+            file.contentType?.startsWith("video/"))
       );
 
     if (!previewableFiles.length) return;
@@ -555,9 +555,8 @@ export default function AffiliateFileManager() {
       />
       <label
         htmlFor={uploadInputId}
-        className={`inline-flex cursor-pointer items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${
-          isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
-        }`}
+        className={`inline-flex cursor-pointer items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
+          }`}
       >
         {isFaceScanning ? "Scanning..." : "Upload Face Photo"}
       </label>
@@ -565,9 +564,8 @@ export default function AffiliateFileManager() {
         type="button"
         onClick={handleOpenCamera}
         disabled={isFaceScanning}
-        className={`inline-flex items-center gap-1 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${
-          isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
-        }`}
+        className={`inline-flex items-center gap-1 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
+          }`}
       >
         <Camera size={14} />
         Use Camera
@@ -832,16 +830,16 @@ export default function AffiliateFileManager() {
             className="w-full lg:max-w-[350px] bg-[#18181b] rounded-xl lg:rounded-3xl border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group text-left"
           >
             <div className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="flex gap-3 items-start">
-                  <div>
+              <div className="flex items-start justify-between gap-1">
+                <div className="flex gap-3 items-start min-w-0">
+                  <div className="shrink-0">
                     <FolderOpen
                       className="text-[#E8D1AB] fill-[#E8D1AB]/20"
                       size={24}
                     />
                   </div>
-                  <div>
-                    <h3 className="text-white font-semibold text-sm leading-tight">
+                  <div className="min-w-0">
+                    <h3 className="text-white font-semibold text-sm leading-tight break-words">
                       {workspace.title}
                     </h3>
                     <p className="text-[#E8D1AB]/60 text-sm mt-1">
@@ -849,7 +847,7 @@ export default function AffiliateFileManager() {
                     </p>
                   </div>
                 </div>
-                <ExternalLink className="text-white/40 mt-1" size={16} />
+                <ExternalLink className="text-white/40 mt-1 shrink-0" size={16} />
               </div>
 
               <div className="flex flex-wrap gap-2 mt-4">
@@ -921,19 +919,19 @@ export default function AffiliateFileManager() {
               ) : null}
             </div>
 	          <div className="flex items-start gap-5 mb-2 lg:mb-6">
-            <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+            <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
               {selectedWorkspace.userInitials}
             </div>
             <div className="min-w-0 text-white max-w-3xl flex-1">
-              <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+              <div className="flex flex-row lg:items-center gap-2">
                 <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                   {selectedWorkspace.title}
                 </h1>
-                <span className="px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+                <span className="px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
                   Active Project
                 </span>
               </div>
-              <p className="hidden lg:block text-sm text-[#D0D0D0]">
+              <p className="text-xs lg:text-sm text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace.externalId}
               </p>
@@ -950,10 +948,10 @@ export default function AffiliateFileManager() {
               ) : null} */}
             </div>
           </div>
-          <p className="lg:hidden text-xs text-[#D0D0D0]">
+          {/* <p className="lg:hidden text-xs text-[#D0D0D0]">
             <span className="text-[#AAA7A7]">Project Code: </span>
             {selectedWorkspace.externalId}
-          </p>
+          </p> */}
           {/* {selectedWorkspace.consoleUrl ? (
             <a
               href={selectedWorkspace.consoleUrl}
@@ -983,20 +981,20 @@ export default function AffiliateFileManager() {
                       onClick={() => handleOpenMatchedImage(match)}
                       className="w-full text-left"
                     >
-                    {match.url ? (
-                      <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={match.url}
-                          alt="Matched face result"
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
-                        Preview unavailable
-                      </div>
-                    )}
+                      {match.url ? (
+                        <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={match.url}
+                            alt="Matched face result"
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
+                          Preview unavailable
+                        </div>
+                      )}
                     </button>
                     <div className="p-2 text-xs text-white/70">
                       Confidence: {Math.round((match.confidence || 0) * 100)}%
@@ -1024,10 +1022,10 @@ export default function AffiliateFileManager() {
                   fileCount={phase.fileCount}
                   lastOpened={formatRelativeTime(
                     (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
-                      selectedWorkspace.lastOpened
+                    selectedWorkspace.lastOpened
                   )}
                   userInitials={selectedWorkspace.userInitials}
-                  onOpenLinkModal={() => {}}
+                  onOpenLinkModal={() => { }}
                   onOpen={() => {
                     setSelectedPhase(phase.id as "pre" | "post");
                     setSelectedPath("");
@@ -1058,19 +1056,19 @@ export default function AffiliateFileManager() {
     }
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-4 lg:space-y-8">
         <div>
           <div className="flex items-start gap-5 mb-2 lg:mb-6">
-            <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+            <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
               {selectedWorkspace?.userInitials}
             </div>
             <div className="min-w-0 text-white max-w-3xl flex-1">
-              <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+              <div className="flex flex-row lg:items-center gap-2">
                 <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                   {selectedWorkspace?.title}
                 </h1>
                 <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 flex items-center gap-1.5 ${
+                  className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border border-white/5 flex items-center gap-1.5 h-fit w-fit ${
                     selectedPhase === "post"
                       ? "bg-[#E8D2FB] text-[#540B94]"
                       : "bg-[#FDF4FF] text-[#C026D3]"
@@ -1088,7 +1086,7 @@ export default function AffiliateFileManager() {
                   {canUploadInSelectedPhase ? "Upload Enabled" : "View Only"}
                 </span>
               </div>
-              <p className="hidden lg:block text-sm text-[#D0D0D0]">
+              <p className="text-xs lg:text-sm text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace?.externalId}
               </p>
@@ -1123,20 +1121,20 @@ export default function AffiliateFileManager() {
                     onClick={() => handleOpenMatchedImage(match)}
                     className="w-full text-left"
                   >
-                  {match.url ? (
-                    <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={match.url}
-                        alt="Matched face result"
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
-                      Preview unavailable
-                    </div>
-                  )}
+                    {match.url ? (
+                      <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={match.url}
+                          alt="Matched face result"
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
+                        Preview unavailable
+                      </div>
+                    )}
                   </button>
                   <div className="p-2 text-xs text-white/70">
                     Confidence: {Math.round((match.confidence || 0) * 100)}%
@@ -1168,7 +1166,7 @@ export default function AffiliateFileManager() {
                   isLinked={true}
                   lastOpened={formatRelativeTime(folder.lastOpened)}
                   userInitials={getInitials(folder.title)}
-                  onOpenLinkModal={() => {}}
+                  onOpenLinkModal={() => { }}
                   onOpen={() => {
                     const nextPath = [selectedPath, folder.name]
                       .filter(Boolean)
@@ -1281,11 +1279,10 @@ export default function AffiliateFileManager() {
                 <Button
                   key={tab.name}
                   onClick={() => setSelectedTab(tab.name)}
-                  className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${
-                    selectedTab === tab.name
+                  className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${selectedTab === tab.name
                       ? "bg-white text-black shadow-lg scale-[1.02]"
                       : "text-white/60 hover:bg-white/10 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <tab.icon size={20} className="shrink-0" />
                   <span className="leading-none">{tab.name}</span>
@@ -1336,11 +1333,10 @@ export default function AffiliateFileManager() {
                         setViewMode("grid");
                         setIsViewMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                        viewMode === "grid"
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid"
                           ? "bg-white/10 text-white"
                           : "text-white/60 hover:bg-white/5"
-                      }`}
+                        }`}
                     >
                       <Grid3X3 size={18} />
                       Grid View
@@ -1350,11 +1346,10 @@ export default function AffiliateFileManager() {
                         setViewMode("list");
                         setIsViewMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                        viewMode === "list"
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list"
                           ? "bg-white/10 text-white"
                           : "text-white/60 hover:bg-white/5"
-                      }`}
+                        }`}
                     >
                       <List size={18} />
                       List View
@@ -1366,21 +1361,19 @@ export default function AffiliateFileManager() {
               <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                 <Button
                   onClick={() => setViewMode("grid")}
-                  className={`px-5 py-2.5 rounded-l-lg transition-colors ${
-                    viewMode === "grid"
+                  className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === "grid"
                       ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                       : "bg-transparent text-white/40 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <Grid3X3 size={20} />
                 </Button>
                 <Button
                   onClick={() => setViewMode("list")}
-                  className={`px-5 py-2.5 rounded-r-lg transition-colors ${
-                    viewMode === "list"
+                  className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === "list"
                       ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                       : "bg-transparent text-white/40 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <List size={20} />
                 </Button>
@@ -1451,9 +1444,8 @@ export default function AffiliateFileManager() {
                   type="button"
                   onClick={handleCloseCamera}
                   disabled={isCameraProcessing}
-                  className={`rounded-md border border-white/15 px-3 py-1.5 text-sm text-white ${
-                    isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
-                  }`}
+                  className={`rounded-md border border-white/15 px-3 py-1.5 text-sm text-white ${isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+                    }`}
                 >
                   Cancel
                 </button>
@@ -1461,11 +1453,10 @@ export default function AffiliateFileManager() {
                   type="button"
                   onClick={handleCaptureFromCamera}
                   disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
-                  className={`rounded-md px-3 py-1.5 text-sm ${
-                    cameraError || isFaceScanning || isCameraProcessing
+                  className={`rounded-md px-3 py-1.5 text-sm ${cameraError || isFaceScanning || isCameraProcessing
                       ? "cursor-not-allowed bg-[#E8D1AB]/30 text-black/70"
                       : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
-                  }`}
+                    }`}
                 >
                   {isFaceScanning || isCameraProcessing ? "Scanning..." : "Capture & Scan"}
                 </button>

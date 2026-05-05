@@ -4816,7 +4816,7 @@ export default function CreateQuotePage() {
                           : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                           }`}
                       >
-                        <div className="absolute right-4 top-4 z-10 flex items-center gap-3">
+                        <div className="absolute top-6 right-5 z-10 flex items-center gap-2">
                           <button
                             type="button"
                             onClick={(event) => {
@@ -4852,7 +4852,7 @@ export default function CreateQuotePage() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1 space-y-2">
-                            <div className="block w-full truncate font-medium text-base text-white leading-none">
+                            <div className="block w-full truncate font-medium text-base text-white">
                               {item.label}
                             </div>
                             <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -5182,7 +5182,7 @@ export default function CreateQuotePage() {
                               )}
                             </div>
                             <div className="min-w-0 flex-1 space-y-2">
-                              <div className="block w-full truncate font-medium text-base text-white leading-none">
+                              <div className="block w-full truncate font-medium text-base text-white">
                                 {addon.label}
                               </div>
                               <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -5191,7 +5191,7 @@ export default function CreateQuotePage() {
                             </div>
                           </div>
                         </button>
-                        <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
+                        <div className="absolute top-6 right-5 z-10 flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => openEditCatalogItem(addon, "addon")}
@@ -5553,7 +5553,7 @@ export default function CreateQuotePage() {
                                 : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
                                 }`}
                             >
-                              <div className="mb-2 w-full truncate pr-6 font-medium text-base leading-none text-white">
+                              <div className="mb-2 w-full truncate pr-6 font-medium text-base text-white">
                                 {getServiceDisplayLabel(service.label)}
                               </div>
                               <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
