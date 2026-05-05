@@ -207,7 +207,7 @@ export default function CreatorFolderDetailsPage() {
       }
 
       setHasCreatedCpFolders(true);
-      toast.success("Your folder has been created in Pre Production and Post Production. Please open either folder to upload files.");
+      toast.success("Your folders are ready in both Pre Production and Post Production. Open either folder below to upload files.");
       await loadWorkspace();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to create your folder");
@@ -347,44 +347,38 @@ export default function CreatorFolderDetailsPage() {
 
             {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
               <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
-                First create your folder, then you can access your folders and upload files.
-                <br />
-                Once created, you can see your folder in Pre Production and Post Production as well.
+                No folders yet. Create one to get started - it will appear in both Pre Production and Post Production
+                {/* <br />
+                Once created, you can see your folder in Pre Production and Post Production as well. */}
               </div>
             ) : isCommonEventWorkspace && hasCreatedCpFolders && (preProductionFolder || postProductionFolder) ? (
               <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
                 <p>
-                  Your folder is ready in both Pre Production and Post Production.
+                  Your folders are ready in both{" "}
                   {preProductionFolder ? (
-                    <>
-                      {" "}To open your Pre Production folder,{" "}
-                      <button
-                        type="button"
-                        onClick={() => void handleOpenPersonalPhaseFolder("pre")}
-                        className="font-semibold underline underline-offset-4 transition-colors hover:text-[#F4E7CC]"
-                      >
-                        click here
-                      </button>
-                      .
-                    </>
-                  ) : null}
-                </p>
-                <p className="mt-1">
-                  {postProductionFolder ? (
-                    <>
-                      To open your Post Production folder,{" "}
-                      <button
-                        type="button"
-                        onClick={() => void handleOpenPersonalPhaseFolder("post")}
-                        className="font-semibold underline underline-offset-4 transition-colors hover:text-[#F4E7CC]"
-                      >
-                        click here
-                      </button>
-                      .
-                    </>
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenPersonalPhaseFolder("pre")}
+                      className="font-semibold underline underline-offset-4 transition-colors hover:text-[#F4E7CC]"
+                    >
+                      Pre Production
+                    </button>
                   ) : (
-                    <>You can upload files in either folder.</>
+                    <span className="font-semibold">Pre Production</span>
+                  )}{" "}
+                  and{" "}
+                  {postProductionFolder ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenPersonalPhaseFolder("post")}
+                      className="font-semibold underline underline-offset-4 transition-colors hover:text-[#F4E7CC]"
+                    >
+                      Post Production
+                    </button>
+                  ) : (
+                    <span className="font-semibold">Post Production</span>
                   )}
+                  . Open either folder below to upload files.
                 </p>
               </div>
             ) : null}
