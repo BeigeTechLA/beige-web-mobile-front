@@ -20,7 +20,7 @@ import {
   Trash2,
   Info
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 // UI Components
 import {
@@ -51,11 +51,13 @@ import { StatCard } from "@/components/admin/StatCard";
 
 export default function RequestsShootsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   /* ---------------- VIEW TOGGLE STATE ---------------- */
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const view = (searchParams.get("view") as "grid" | "list") || "grid";
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"requests" | "shoots">("requests");
+  const activeTab = (searchParams.get("tab") as "requests" | "shoots") || "requests";
 
   // Modals & Data State
   const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
@@ -146,7 +148,7 @@ export default function RequestsShootsPage() {
         pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
           ? pendingRes.data.filter((p: any) => {
               const dateStr = p.event_date || p.shoot_date;
-              return isUpcomingDate(dateStr) && !isCompletedFlag(p);
+              return isUpcomingDate(dateStr);
             })
           : [];
       if (pendingFiltered.length > 0) {
@@ -251,7 +253,7 @@ export default function RequestsShootsPage() {
 
   const isCompletedFlag = (item: any) => {
     const flag = item?.is_completed ?? item?.project?.is_completed;
-    return flag === true || flag === 1;
+    return flag === true || flag === 1 || flag === "1";
   };
 
   /* ---------------- ACTIONS ---------------- */
@@ -301,9 +303,17 @@ export default function RequestsShootsPage() {
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 
-  const handleSelect = (mode: 'grid' | 'list') => {
-    setView(mode);
+  const handleViewChange = (mode: 'grid' | 'list') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", mode);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     setIsOpen(false);
+  };
+
+  const handleTabChange = (tabName: "requests" | "shoots") => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
 
@@ -350,7 +360,7 @@ export default function RequestsShootsPage() {
         {/* 2. Tabs */}
         <div className="inline-flex items-center gap-1 rounded-xl bg-[#171717] border border-white/10 p-1">
           <button
-            onClick={() => setActiveTab("requests")}
+            onClick={() => handleTabChange("requests")}
             className={`px-4 py-2 text-sm rounded-lg transition-colors ${
               activeTab === "requests"
                 ? "bg-[#E8D1AB] text-black"
@@ -360,7 +370,7 @@ export default function RequestsShootsPage() {
             Requests
           </button>
           <button
-            onClick={() => setActiveTab("shoots")}
+            onClick={() => handleTabChange("shoots")}
             className={`px-4 py-2 text-sm rounded-lg transition-colors ${
               activeTab === "shoots"
                 ? "bg-[#E8D1AB] text-black"
@@ -449,7 +459,7 @@ export default function RequestsShootsPage() {
               {isOpen && (
                 <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
                   <button
-                    onClick={() => handleSelect('grid')}
+                    onClick={() => handleViewChange('grid')}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
                       }`}
                   >
@@ -457,7 +467,7 @@ export default function RequestsShootsPage() {
                     Grid View
                   </button>
                   <button
-                    onClick={() => handleSelect('list')}
+                    onClick={() => handleViewChange('list')}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
                       }`}
                   >
@@ -471,14 +481,14 @@ export default function RequestsShootsPage() {
             {/* DESKTOP VIEW: Original Toggle */}
             <div className="hidden lg:flex bg-[#1A1A1A] p-1 rounded-xl border border-white/5 w-fit">
               <button
-                onClick={() => setView("grid")}
+                onClick={() => handleViewChange("grid")}
                 className={`p-2 rounded-lg transition-all ${view === "grid" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
                   }`}
               >
                 <Grid3X3 size={20} />
               </button>
               <button
-                onClick={() => setView("list")}
+                onClick={() => handleViewChange("list")}
                 className={`p-2 rounded-lg transition-all ${view === "list" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
                   }`}
               >

@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 export type DropdownOption = {
   label: string;
   value: string;
+  subLabel?: string;
 };
 
 type OptionType = string | DropdownOption;
@@ -67,7 +68,7 @@ export const BasicDropdown = ({
 
   const normalizedOptions = options.map(normalizeOption);
   const filteredOptions = normalizedOptions.filter((opt) =>
-    opt.label.toLowerCase().includes(searchQuery.toLowerCase())
+    `${opt.label} ${opt.subLabel || ""}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const selectedOption = normalizedOptions.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || value || label || "Status";
@@ -152,7 +153,14 @@ export const BasicDropdown = ({
                     : (isDark ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-black/70 hover:bg-black/5 hover:text-black")
                   }`}
               >
-                {normalized.label}
+                <div className="flex flex-col leading-tight">
+                  <span>{normalized.label}</span>
+                  {normalized.subLabel ? (
+                    <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                      {normalized.subLabel}
+                    </span>
+                  ) : null}
+                </div>
               </div>
             );
           })}

@@ -2,7 +2,21 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, FileText, FolderOpen, Grid3X3, List, Loader2, MoreVertical, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  FileArchive,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  FileVideo,
+  FolderOpen,
+  Grid3X3,
+  List,
+  Loader2,
+  MoreVertical,
+  Presentation,
+  Search
+} from "lucide-react";
 import { FolderCard } from "@/components/production-manager/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/production-manager/BasicDropdown";
@@ -20,6 +34,47 @@ import {
 } from "@/lib/fileManagerApi";
 
 const STATUSES = ["Linked", "Unlinked"];
+const FILES_PAGE_SIZE = 20;
+
+const getFileExtension = (title?: string) => {
+  const parts = (title || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() || "" : "";
+};
+
+const getFileMeta = (file: any) => {
+  const extension = getFileExtension(file?.title);
+  const contentType = file?.contentType || "";
+
+  if (contentType.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(extension)) {
+    return { icon: FileImage, label: "image", accentClass: "text-[#22C55E]", badgeClass: "bg-[#22C55E]/15" };
+  }
+
+  if (contentType.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm"].includes(extension)) {
+    return { icon: FileVideo, label: "video", accentClass: "text-[#E8D1AB]", badgeClass: "bg-[#E8D1AB]/15" };
+  }
+
+  if (contentType === "application/pdf" || extension === "pdf") {
+    return { icon: FileText, label: "pdf", accentClass: "text-[#F04438]", badgeClass: "bg-[#F04438]/15" };
+  }
+
+  if (["doc", "docx", "txt", "rtf"].includes(extension)) {
+    return { icon: FileText, label: extension || "doc", accentClass: "text-[#3B82F6]", badgeClass: "bg-[#3B82F6]/15" };
+  }
+
+  if (["ppt", "pptx", "key"].includes(extension)) {
+    return { icon: Presentation, label: extension || "ppt", accentClass: "text-[#F97316]", badgeClass: "bg-[#F97316]/15" };
+  }
+
+  if (["xls", "xlsx", "csv"].includes(extension)) {
+    return { icon: FileSpreadsheet, label: extension || "sheet", accentClass: "text-[#10B981]", badgeClass: "bg-[#10B981]/15" };
+  }
+
+  if (["zip", "rar", "7z", "tar", "gz"].includes(extension)) {
+    return { icon: FileArchive, label: extension || "zip", accentClass: "text-[#A855F7]", badgeClass: "bg-[#A855F7]/15" };
+  }
+
+  return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
+};
 
 export default function ProductionManagerFolderDetailsPage() {
   const router = useRouter();
@@ -37,6 +92,7 @@ export default function ProductionManagerFolderDetailsPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
 
   useEffect(() => {
     let mounted = true;
@@ -114,9 +170,24 @@ export default function ProductionManagerFolderDetailsPage() {
   }, [searchTerm, viewState.folders]);
 
   const filteredFiles = useMemo(() => {
+    const filesWithMeta = viewState.files.map((file) => ({
+      ...file,
+      ...getFileMeta(file),
+    }));
     const query = searchTerm.toLowerCase();
-    return viewState.files.filter((item) => item.title.toLowerCase().includes(query));
+    return filesWithMeta.filter((item) => item.title.toLowerCase().includes(query));
   }, [searchTerm, viewState.files]);
+
+  const visibleFiles = useMemo(
+    () => filteredFiles.slice(0, visibleFileCount),
+    [filteredFiles, visibleFileCount]
+  );
+
+  const hasMoreFiles = filteredFiles.length > visibleFileCount;
+
+  useEffect(() => {
+    setVisibleFileCount(FILES_PAGE_SIZE);
+  }, [searchTerm, projectId, phaseSlug, nestedSlug, viewState.kind]);
 
   return (
     <>
@@ -172,7 +243,7 @@ export default function ProductionManagerFolderDetailsPage() {
                 />
               </div>
               <div className="flex gap-2 ">
-                <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} />
+                {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
                 <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                   <Button
                     onClick={() => setViewMode("grid")}
@@ -233,46 +304,70 @@ export default function ProductionManagerFolderDetailsPage() {
                 </div>
               )
             ) : viewMode === "grid" ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-                {filteredFiles.map((file) => (
-                  <FileCard key={file.id} file={file} onMenuTrigger={() => {}} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                  {visibleFiles.map((file) => (
+                    <FileCard key={file.id} file={file} onMenuTrigger={() => {}} />
+                  ))}
+                </div>
+                {hasMoreFiles && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                      className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                    >
+                      View More
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                      <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                      <th className="py-5 px-6 font-medium text-center">Type</th>
-                      <th className="py-5 px-6 font-medium text-center">Last Updated</th>
-                      <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredFiles.map((item) => (
-                      <tr key={item.id} className="items-center hover:bg-white/[0.02] transition-colors">
-                        <td className="py-5 px-6 text-white flex gap-2 items-center">
-                          <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
-                            <FileText className="text-[#F04438]" size={20} />
-                          </div>
-                          <span className="text-sm font-semibold">{item.title}</span>
-                        </td>
-                        <td className="py-5 px-6 text-center text-white/60 text-sm">FILE</td>
-                        <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
-                        <td className="py-5 px-6 text-right">
-                          <Button
-                            variant="ghost"
-                            className="text-white hover:text-white/90 transition-colors"
-                            onClick={() => {}}
-                          >
-                            <MoreVertical size={30} />
-                          </Button>
-                        </td>
+              <div className="hidden lg:block">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                        <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                        <th className="py-5 px-6 font-medium text-center">Type</th>
+                        <th className="py-5 px-6 font-medium text-center">Last Updated</th>
+                        <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {visibleFiles.map((item) => (
+                        <tr key={item.id} className="items-center hover:bg-white/[0.02] transition-colors">
+                          <td className="py-5 px-6 text-white flex gap-2 items-center">
+                            <div className={`h-10 w-10 ${item.badgeClass} flex items-center justify-center rounded-md`}>
+                              <item.icon className={item.accentClass} size={20} />
+                            </div>
+                            <span className="text-sm font-semibold">{item.title}</span>
+                          </td>
+                          <td className="py-5 px-6 text-center text-white/60 text-sm">{item.label}</td>
+                          <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                          <td className="py-5 px-6 text-right">
+                            <Button
+                              variant="ghost"
+                              className="text-white hover:text-white/90 transition-colors"
+                              onClick={() => {}}
+                            >
+                              <MoreVertical size={30} />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {hasMoreFiles && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                      className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                    >
+                      View More
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

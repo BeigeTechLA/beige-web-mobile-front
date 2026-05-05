@@ -94,15 +94,19 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
-  const canCreateMeeting = role === "admin" || role === "client";
-  const canDeleteMeeting = role === "admin" || role === "client";
+  const normalizedUserRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
+  const isSalesAdminView = role === "sales" && normalizedUserRole === "sales_admin";
+  const isAdminView = role === "admin" || isSalesAdminView;
+  const effectiveRoleForActions: RoleVariant = isAdminView ? "admin" : role;
+  const canCreateMeeting = effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
+  const canDeleteMeeting = effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
 
   const loadMeetings = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const response =
-        role === "admin"
+        isAdminView
           ? await meetingsApi.listAll({ limit: 100, page: 1, sortBy: "meeting_date_time:desc" })
           : currentUserId
             ? await meetingsApi.listByUser(currentUserId, { limit: 100, page: 1, sortBy: "meeting_date_time:desc" })
@@ -114,7 +118,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     } finally {
       setLoading(false);
     }
-  }, [currentUserId, role]);
+  }, [currentUserId, isAdminView]);
 
   useEffect(() => {
     loadMeetings();
@@ -232,7 +236,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
               const canRespond =
                 !!meeting.id &&
                 !!currentUserId &&
-                role !== "admin" &&
+                !isAdminView &&
                 !isClientCreatedBySelf &&
                 !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
               const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
@@ -351,7 +355,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
       <CreateMeetingModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        role={role}
+        role={effectiveRoleForActions}
         onCreated={loadMeetings}
       />
 
@@ -359,7 +363,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         open={!!selectedMeeting}
         onClose={() => setSelectedMeeting(null)}
         meeting={selectedMeeting}
-        role={role}
+        role={effectiveRoleForActions}
         currentUserId={currentUserId}
         currentUserEmail={currentUserEmail}
         onUpdated={loadMeetings}

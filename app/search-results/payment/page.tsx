@@ -31,6 +31,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { BookingSummaryModal } from "@/src/components/landing/BookingSummaryModal";
 import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
+import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -238,6 +239,33 @@ const extractContactName = (value?: string | null) => {
   return "";
 };
 
+const isEmail = (value?: string | null) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return false;
+  if (cleaned.includes("@")) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned);
+};
+
+const extractNameFromProjectName = (value?: string | null) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return "";
+
+  const dealPrefixMatch = cleaned.match(/^deal\s*-\s*(.+)$/i);
+  if (dealPrefixMatch?.[1]) return dealPrefixMatch[1].trim();
+
+  return "";
+};
+
+const pickDisplayName = (...values: Array<string | null | undefined>) => {
+  for (const value of values) {
+    const cleaned = String(value || "").trim();
+    if (!cleaned) continue;
+    if (isEmail(cleaned)) continue;
+    return cleaned;
+  }
+  return "";
+};
+
 const getInitials = (value?: string | null) => {
   const cleaned = String(value || "").trim();
   if (!cleaned) return "NA";
@@ -293,6 +321,14 @@ const resolveGuestEmail = (booking?: any, fallbackEmail?: string | null) => {
   );
 };
 
+const normalizeDiscountCodeValue = (value?: string | null) => {
+  const normalized = String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+  return normalized || null;
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -302,6 +338,10 @@ function StripePaymentFormMulti({
   shootId,
   booking,
   quote,
+  accountCredit,
+  useAccountCredit,
+  creditAppliedAmount,
+  onToggleAccountCredit,
   setPaymentDetails,
   refreshPaymentIntent, // NEW PROP: used to update price in background
 }: {
@@ -312,8 +352,12 @@ function StripePaymentFormMulti({
   shootId: string | null;
   booking: any;
   quote: any;
+  accountCredit?: any;
+  useAccountCredit: boolean;
+  creditAppliedAmount: number;
+  onToggleAccountCredit: (enabled: boolean) => Promise<void> | void;
   setPaymentDetails: (details: any) => void;
-  refreshPaymentIntent: (updatedDetails: any) => Promise<void>; // NEW TYPE
+  refreshPaymentIntent: (updatedDetails: any, useCreditOverride?: boolean) => Promise<void>; // NEW TYPE
 }) {
   const { user, isAuthenticated } = useAuth()
   const stripe = useStripe();
@@ -342,10 +386,18 @@ function StripePaymentFormMulti({
 
   // Terms&Condn accept
   const [acceptTerms, setAcceptTerms] = useState(true);
+  const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
+  const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
 
   const isFree = amount === 0;
+  const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
+  const canUseAccountCredit =
+    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
   const isReferralLocked =
     isFree && parseFloat(quote?.discount_total || quote?.discount_amount || 0) > 0;
+  const activeDiscountCode = normalizeDiscountCodeValue(
+    quote?.applied_discount_code || quote?.discount_code
+  );
 
   useEffect(() => {
     if (!isReferralLocked) return;
@@ -356,41 +408,20 @@ function StripePaymentFormMulti({
     });
   }, [isReferralLocked]);
 
-  // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
-  useEffect(() => {
-    const existingDiscountTotal = parseFloat(quote?.discount_total || quote?.discount_amount || 0);
-    const savedCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
-    const urlCode = urlDiscount?.toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-    // Logic: If URL code is different from saved code, prioritize the URL code
-    if (urlCode && urlCode !== savedCode && !discountCode) {
-      setDiscountCode(urlCode);
-      validateDiscountCode(urlCode);
-    }
-    // Otherwise, fallback to the saved code if it exists
-    else if (existingDiscountTotal > 0 && !discountCode) {
-      setDiscountValid(true);
-      if (savedCode) {
-        setDiscountCode(savedCode);
-      }
-    }
-  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_code, quote?.discount_total, quote?.discount_amount]);
-
   // TRIGGER APPLICATION: Trigger when discount is valid and differs from what is active
   useEffect(() => {
-    const urlCode = urlDiscount?.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const savedCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+    const urlCode = normalizeDiscountCodeValue(urlDiscount);
 
     // Condition to apply: It's valid AND (nothing is applied OR it's a different code than what's saved)
     if (urlCode && discountValid === true && !isValidatingDiscount) {
-      if (parseFloat(quote?.discount_total || quote?.discount_amount || 0) === 0 || urlCode !== savedCode) {
+      if (urlCode !== activeDiscountCode) {
         // Prevent infinite loop: Only apply if the current input matches the urlCode
         if (discountCode === urlCode) {
           applyDiscountCode();
         }
       }
     }
-  }, [discountValid, urlDiscount, quote?.applied_discount_code, quote?.discount_code]);
+  }, [discountValid, urlDiscount, activeDiscountCode, isValidatingDiscount, discountCode]);
 
   // Debounced referral code validation
   const validateReferralCode = React.useCallback(
@@ -497,7 +528,7 @@ function StripePaymentFormMulti({
       }
 
       // If typed matches active exactly, it's valid
-      const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+      const activeCode = activeDiscountCode;
       if (activeCode === code.toUpperCase()) {
         setDiscountValid(true);
         return;
@@ -536,8 +567,24 @@ function StripePaymentFormMulti({
         setIsValidatingDiscount(false);
       }
     }, 500),
-    [shootId, quote?.applied_discount_code, quote?.discount_code],
+    [shootId, activeDiscountCode],
   );
+
+  // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
+  useEffect(() => {
+    const urlCode = normalizeDiscountCodeValue(urlDiscount);
+
+    // Logic: If URL code is different from saved code, prioritize the URL code
+    if (urlCode && urlCode !== activeDiscountCode && !discountCode) {
+      setDiscountCode(urlCode);
+      validateDiscountCode(urlCode);
+    }
+    // Otherwise, hydrate only an actual saved discount code.
+    else if (activeDiscountCode && !discountCode) {
+      setDiscountValid(true);
+      setDiscountCode(activeDiscountCode);
+    }
+  }, [urlDiscount, activeDiscountCode, discountCode, validateDiscountCode]);
 
   // Immediate discount validation (used on submit)
   const validateDiscountCodeNow = async (code: string) => {
@@ -547,7 +594,7 @@ function StripePaymentFormMulti({
       return false;
     }
 
-    const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+    const activeCode = activeDiscountCode;
     if (activeCode === code.toUpperCase()) {
       return true;
     }
@@ -633,7 +680,7 @@ function StripePaymentFormMulti({
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setDiscountCode(upperCode);
     validateDiscountCode(upperCode);
-    if (!upperCode && (quote?.applied_discount_code || quote?.discount_code)) {
+    if (!upperCode && activeDiscountCode) {
       clearDiscountCode();
     }
   };
@@ -643,7 +690,7 @@ function StripePaymentFormMulti({
     if (!discountCode || !discountValid || !quoteId) return;
 
     // Check if it is already applied
-    const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+    const activeCode = activeDiscountCode;
     if (activeCode === discountCode.toUpperCase()) return;
 
     setIsValidatingDiscount(true);
@@ -697,7 +744,7 @@ function StripePaymentFormMulti({
 
   const clearDiscountCode = async () => {
     const quoteId = quote?.quote_id || quote?.id;
-    const activeCode = quote?.applied_discount_code || quote?.discount_code;
+    const activeCode = activeDiscountCode;
     if (!activeCode || !quoteId || !shootId) {
       setDiscountCode("");
       setDiscountValid(null);
@@ -757,6 +804,16 @@ function StripePaymentFormMulti({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!acceptTerms) {
+      onError("Please accept Terms & Conditions to continue.");
+      return;
+    }
+
+    if (!acceptServiceAgreement) {
+      onError("Please accept the Service Agreement to continue.");
+      return;
+    }
 
     // Validate referral code on confirm before payment APIs
     if (referralCode.length > 0) {
@@ -1053,7 +1110,7 @@ function StripePaymentFormMulti({
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingDiscount ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
-              ) : discountValid === true && discountCode.toUpperCase() !== (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() ? (
+              ) : discountValid === true && discountCode.toUpperCase() !== activeDiscountCode ? (
                 <button
                   type="button"
                   onClick={applyDiscountCode}
@@ -1061,7 +1118,7 @@ function StripePaymentFormMulti({
                 >
                   Apply
                 </button>
-              ) : discountValid === true && discountCode.toUpperCase() === (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() ? (
+              ) : discountValid === true && discountCode.toUpperCase() === activeDiscountCode ? (
                 <button
                   type="button"
                   onClick={clearDiscountCode}
@@ -1074,13 +1131,13 @@ function StripePaymentFormMulti({
               ) : null}
             </div>
           </div>
-          {discountValid === true && discountCode.toUpperCase() === (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() && (
+          {discountValid === true && discountCode.toUpperCase() === activeDiscountCode && (
             <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
               <Check className="w-4 h-4" />
               Discount applied: You Save {formatCurrency(quote.discount_total || quote.discount_amount)}
             </p>
           )}
-          {discountValid === true && discountData && discountCode.toUpperCase() !== (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() && (
+          {discountValid === true && discountData && discountCode.toUpperCase() !== activeDiscountCode && (
             <p className="text-blue-400 text-sm mt-2">
               Click &apos;Apply&apos; to update your total with this code.
             </p>
@@ -1093,6 +1150,56 @@ function StripePaymentFormMulti({
             </p>
           )}
         </div>
+
+        {/* Account Credit */}
+        {/* <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
+          <label
+            className={`flex items-start justify-between gap-4 rounded-xl transition ${
+              canUseAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={Boolean(useAccountCredit && canUseAccountCredit)}
+                disabled={!canUseAccountCredit}
+                onChange={(e) => onToggleAccountCredit(e.target.checked)}
+              />
+              <div
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+                  useAccountCredit && canUseAccountCredit
+                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
+                    : "border-white/40 bg-[#272626] text-transparent"
+                }`}
+              >
+                <Check className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm lg:text-base text-white font-semibold tracking-wide">
+                  Use Account Credit
+                </span>
+                <span className="text-xs lg:text-sm text-white/60 mt-0.5">
+                  Available balance: {formatCurrency(availableCreditAmount || 0)}
+                </span>
+              </div>
+            </div>
+            {canUseAccountCredit && (
+              <span className="text-[10px] lg:text-xs font-semibold uppercase tracking-[0.12em] text-[#E8D1AB] bg-[#E8D1AB]/10 border border-[#E8D1AB]/30 rounded-full px-2.5 py-1">
+                Credit Ready
+              </span>
+            )}
+          </label>
+          {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
+            <div className="mt-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300 flex items-center justify-between">
+              <span>Credit applied</span>
+              <span className="font-semibold">-{formatCurrency(creditAppliedAmount)}</span>
+            </div>
+          )}
+          {!canUseAccountCredit && (
+            <p className="text-white/50 text-sm mt-3">No account credit available for this booking.</p>
+          )}
+        </div> */}
 
         {/* Submit Button */}
         <Button
@@ -1108,7 +1215,7 @@ function StripePaymentFormMulti({
         </Button>
       </form>
 
-      <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2 lg:mt-5">
+      {/* <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2 lg:mt-5">
         <input
           type="checkbox"
           checked={acceptTerms}
@@ -1120,7 +1227,32 @@ function StripePaymentFormMulti({
           <span className="text-[#E8D5B5]">Cancellation Policy</span>,
           and <span className="text-[#E8D5B5]">Privacy Policy</span>
         </p>
+      </div> */}
+
+      <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2">
+        <input type="checkbox" checked={acceptServiceAgreement} readOnly />
+        <p className="text-sm text-[#999]">
+          I have read and agree to the{" "}
+          <button
+            type="button"
+            onClick={() => setIsServiceAgreementOpen(true)}
+            className="text-[#E8D5B5] underline hover:text-[#f3e4cd]"
+          >
+            Service Agreement & Terms of Engagement
+          </button>
+          .
+        </p>
       </div>
+
+      <ServiceAgreementModal
+        isOpen={isServiceAgreementOpen}
+        initialChecked={acceptServiceAgreement}
+        onClose={() => setIsServiceAgreementOpen(false)}
+        onAccept={() => {
+          setAcceptServiceAgreement(true);
+          setIsServiceAgreementOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -1142,6 +1274,7 @@ function MultiCreatorPaymentContent() {
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
+  const [useAccountCredit, setUseAccountCredit] = useState(false);
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -1283,9 +1416,15 @@ function MultiCreatorPaymentContent() {
     });
   }, [paymentDetails]);
 
-  const fetchIntent = async (details: any) => {
+  const fetchIntent = async (details: any, useCreditOverride: boolean = useAccountCredit) => {
     if (!details || !shootId) return;
     const { booking, quote } = details;
+    const rawQuoteTotal = parseFloat(quote?.total || 0);
+    const availableCredit = parseFloat(details?.account_credit?.available_credit_amount || 0);
+    const canUseCredit = Boolean(details?.account_credit?.can_use_credit) && availableCredit > 0;
+    const creditToApply =
+      useCreditOverride && canUseCredit ? Math.min(availableCredit, rawQuoteTotal) : 0;
+    const payableAmount = Math.max(rawQuoteTotal - creditToApply, 0);
 
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
@@ -1293,8 +1432,10 @@ function MultiCreatorPaymentContent() {
         `${API_BASE_URL}payments/create-intent-multi`,
         {
           booking_id: shootId,
-          amount: parseFloat(quote.total || 0),
+          amount: payableAmount,
           guest_email: resolveGuestEmail(booking, summaryData?.client_email),
+          use_credit: useCreditOverride && canUseCredit,
+          credit_amount_used: creditToApply,
         },
         {
           headers: getAuthHeaders(),
@@ -1310,9 +1451,9 @@ function MultiCreatorPaymentContent() {
     }
   };
 
-  const refreshPaymentIntent = async (updatedDetails: any) => {
+  const refreshPaymentIntent = async (updatedDetails: any, useCreditOverride?: boolean) => {
     setIsUpdatingIntent(true);
-    await fetchIntent(updatedDetails);
+    await fetchIntent(updatedDetails, useCreditOverride ?? useAccountCredit);
     setIsUpdatingIntent(false);
   };
 
@@ -1373,6 +1514,21 @@ function MultiCreatorPaymentContent() {
     fetchPaymentDetails();
   }, [shootId]);
 
+  useEffect(() => {
+    const availableCredit = parseFloat(paymentDetails?.account_credit?.available_credit_amount || 0);
+    const canUseCredit =
+      Boolean(paymentDetails?.account_credit?.can_use_credit) && availableCredit > 0;
+    if (!canUseCredit && useAccountCredit) {
+      setUseAccountCredit(false);
+      refreshPaymentIntent(paymentDetails, false);
+    }
+  }, [
+    paymentDetails?.account_credit?.available_credit_amount,
+    paymentDetails?.account_credit?.can_use_credit,
+    paymentDetails,
+    useAccountCredit,
+  ]);
+
   const handlePaymentSuccess = async (
     paymentIntentId: string,
     referralCode?: string,
@@ -1385,6 +1541,8 @@ function MultiCreatorPaymentContent() {
           paymentIntentId,
           booking_id: shootId,
           referral_code: referralCode || null,
+          use_credit: useAccountCredit && canUseAccountCredit,
+          credit_amount_used: creditAppliedAmount,
         },
         {
           headers: getAuthHeaders(),
@@ -1436,19 +1594,32 @@ function MultiCreatorPaymentContent() {
   const { booking, creators, quote } = paymentDetails;
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
+  const accountCredit = paymentDetails?.account_credit || {};
+  const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
+  const canUseAccountCredit =
+    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
+  const creditAppliedAmount =
+    isQuoteValid && canUseAccountCredit && useAccountCredit
+      ? Math.min(availableCreditAmount, quoteTotal || 0)
+      : 0;
+  const payableTotal = isQuoteValid
+    ? Math.max((quoteTotal || 0) - creditAppliedAmount, 0)
+    : 0;
 
   const customerName =
-    extractContactName(summaryData?.description) ||
-    extractContactName(booking?.description) ||
-    summaryData?.client_name ||
-    summaryData?.clientName ||
-    booking?.full_name ||
-    booking?.fullName ||
-    booking?.client_name ||
-    booking?.guest_name ||
-    booking?.user?.name ||
-    booking?.guest_email ||
-    "Customer";
+    pickDisplayName(
+      extractContactName(summaryData?.description),
+      extractContactName(booking?.description),
+      summaryData?.client_name,
+      summaryData?.clientName,
+      booking?.full_name,
+      booking?.fullName,
+      booking?.client_name,
+      booking?.guest_name,
+      booking?.user?.name,
+      extractNameFromProjectName(summaryData?.project_name),
+      extractNameFromProjectName(booking?.project_name),
+    ) || "Customer";
 
   const shootCategory = toTitleCase(
     (summaryData?.shoot_type || booking?.shoot_type || "").trim(),
@@ -1546,6 +1717,11 @@ function MultiCreatorPaymentContent() {
 
   // Date Time info to manage Multiday shoot format
   const dateTimeInfo = getBookingDetails(booking)
+  const handleAccountCreditToggle = async (enabled: boolean) => {
+    const nextValue = Boolean(enabled && canUseAccountCredit);
+    setUseAccountCredit(nextValue);
+    await refreshPaymentIntent(paymentDetails, nextValue);
+  };
 
   return (
     <div className="pt-20 md:pt-32 pb-20 min-h-screen">
@@ -1584,12 +1760,16 @@ function MultiCreatorPaymentContent() {
                 <Elements stripe={stripePromise}>
                   <StripePaymentFormMulti
                     clientSecret={clientSecret}
-                    amount={quoteTotal || 0}
+                    amount={payableTotal || 0}
                     onSuccess={handlePaymentSuccess}
                     onError={handlePaymentError}
                     shootId={shootId}
                     booking={booking}
                     quote={quote}
+                    accountCredit={accountCredit}
+                    useAccountCredit={useAccountCredit}
+                    creditAppliedAmount={creditAppliedAmount}
+                    onToggleAccountCredit={handleAccountCreditToggle}
                     setPaymentDetails={setPaymentDetails}
                     refreshPaymentIntent={refreshPaymentIntent}
                   />
@@ -1871,6 +2051,15 @@ function MultiCreatorPaymentContent() {
                             </span>
                           </div>
                         )}
+
+                        {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
+                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                            <span className="text-green-700 font-medium">Account Credit Applied</span>
+                            <span className="text-green-700 font-bold">
+                              -{formatCurrency(creditAppliedAmount)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="p-6 lg:p-10 text-lg lg:text-2xl flex justify-between items-start bg-[#E8D1AB] rounded-b-[20px]">
@@ -1878,7 +2067,7 @@ function MultiCreatorPaymentContent() {
                         <span className="font-bold">Total</span>
                         <span className="lg:text-lg text-[#545557]">Amount Due</span>
                       </div>
-                      <span className="text-xl lg:text-[30px] font-bold">{formatCurrency(quoteTotal || 0)}</span>
+                      <span className="text-xl lg:text-[30px] font-bold">{formatCurrency(payableTotal || 0)}</span>
                     </div>
                   </>
                 )}
@@ -1936,3 +2125,4 @@ export default function MultiCreatorPaymentPage() {
     </main>
   );
 }
+

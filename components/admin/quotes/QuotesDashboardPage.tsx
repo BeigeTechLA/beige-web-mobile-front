@@ -53,6 +53,8 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { persistQuoteEditorNavigationCache } from "@/lib/quoteEdit";
+import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -113,6 +115,7 @@ type DisplayQuoteRow = {
 type SalesRepOption = {
   id: string;
   name: string;
+  role?: string;
 };
 
 type QuoteListPaginationState = {
@@ -261,7 +264,7 @@ const QuoteActionMenu = ({
           {allowEdit ? (
             <QuoteActionMenuButton
               icon={<Pencil size={18} />}
-              label="Edit"
+              label="Update Quote"
               onClick={handleMenuAction(onEdit)}
             />
           ) : null}
@@ -581,6 +584,10 @@ const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
     case "paid":
       return "bg-[#D6FFE6] text-[#27AE60] border-transparent";
+    case "partially paid":
+    case "partial_paid":
+    case "partially_paid":
+      return "bg-[#FFF6E9] text-[#D4A017] border-transparent";
     case "accepted":
     case "confirmed":
       return "bg-[#D6FFE6] text-[#27AE60] border-transparent";
@@ -796,6 +803,15 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
   };
 };
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function QuotesDashboardPage({
   createHref,
   TopbarComponent,
@@ -813,14 +829,18 @@ export default function QuotesDashboardPage({
   const [quotes, setQuotes] = useState<SalesQuoteListItem[]>([]);
   const [quoteSummary, setQuoteSummary] = useState<Record<string, number>>({});
   const [quotePagination, setQuotePagination] = useState<QuoteListPaginationState>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  // const [searchTerm, setSearchTerm] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
   const [salespersonOptions, setSalespersonOptions] = useState<SalesRepOption[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
+  const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 500);
 
   useEffect(() => {
     if (selectedDate) {
@@ -839,14 +859,15 @@ export default function QuotesDashboardPage({
         return;
       }
 
-      setSalespersonOptions(
-        response.data
-          .map((salesRep) => ({
-            id: String(salesRep?.id ?? "").trim(),
-            name: String(salesRep?.name ?? "").trim(),
-          }))
-          .filter((salesRep) => salesRep.id && salesRep.name)
-      );
+      const uniqueSalespersonMap = new Map<string, SalesRepOption>();
+      response.data.forEach((salesRep) => {
+        const id = String(salesRep?.id ?? "").trim();
+        const name = String(salesRep?.name ?? "").trim();
+        if (!id || !name || uniqueSalespersonMap.has(id)) return;
+        uniqueSalespersonMap.set(id, { id, name, role: String(salesRep?.role ?? "").trim() || undefined });
+      });
+
+      setSalespersonOptions(Array.from(uniqueSalespersonMap.values()));
     };
 
     void fetchSalesReps();
@@ -854,7 +875,10 @@ export default function QuotesDashboardPage({
 
   useEffect(() => {
     const fetchQuotesData = async () => {
-      setLoading(true);
+      const isFirstLoad = loading;
+      if (!isFirstLoad) {
+        setIsRefreshing(true);
+      }
 
       try {
         const effectiveRange = selectedDate ? "custom" : chartRange;
@@ -864,7 +888,6 @@ export default function QuotesDashboardPage({
         const dashboardParams = {
           range: effectiveRange,
           ...(effectiveDateOn ? { date_on: effectiveDateOn } : {}),
-          ...(selectedStatusFilter !== "all" ? { status: selectedStatusFilter } : {}),
           ...(selectedSalesperson !== "all"
             ? { assigned_sales_rep_id: selectedSalesperson }
             : {}),
@@ -875,7 +898,7 @@ export default function QuotesDashboardPage({
           salesApi.getQuotesList({
             page: currentPage,
             limit: QUOTES_PER_PAGE,
-            ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}),
+            ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
             ...(selectedStatusFilter !== "all"
               ? { status: selectedStatusFilter }
               : {}),
@@ -903,6 +926,7 @@ export default function QuotesDashboardPage({
         setQuotePagination(null);
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     };
 
@@ -910,20 +934,11 @@ export default function QuotesDashboardPage({
   }, [
     chartRange,
     currentPage,
-    searchTerm,
+    debouncedSearch,
     selectedDate,
     selectedSalesperson,
     selectedStatusFilter,
   ]);
-
-  const handleUnsupportedQuoteAction = (
-    actionLabel: "Duplicate" | "Edit" | "Reject Quote"
-  ) => {
-    setOpenActionMenuId(null);
-    toast(actionLabel === "Reject Quote"
-      ? "Reject quote action is not available yet."
-      : `${actionLabel} action is not available yet.`);
-  };
 
   const handleRejectQuote = async (quoteId: string, currentStatus?: string) => {
     setOpenActionMenuId(null);
@@ -977,6 +992,62 @@ export default function QuotesDashboardPage({
     }
   };
 
+  const handleDuplicateQuote = async (quoteId: string) => {
+    setOpenActionMenuId(null);
+
+    if (!quoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (duplicatingQuoteId === quoteId) {
+      return;
+    }
+
+    setDuplicatingQuoteId(quoteId);
+
+    try {
+      const response = await salesApi.duplicateQuote(quoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to duplicate quote"
+        );
+      }
+
+      const duplicatedQuote = unwrapSalesQuoteDetail(response?.data ?? null);
+      const duplicatedQuoteId =
+        extractQuoteIdFromResponse(response) ?? extractQuoteIdFromResponse(duplicatedQuote);
+
+      if (!duplicatedQuoteId) {
+        throw new Error("Duplicated quote id is missing.");
+      }
+
+      if (duplicatedQuote) {
+        persistQuoteEditorNavigationCache(duplicatedQuoteId, duplicatedQuote);
+      }
+
+      toast.success("Quote duplicated successfully");
+
+      const query = new URLSearchParams({
+        quoteId: duplicatedQuoteId,
+        view: "details",
+        editMode: "full",
+        duplicate: "1",
+        returnTo: pathname,
+      });
+
+      window.setTimeout(() => {
+        router.push(`${createHref}?${query.toString()}`);
+      }, 450);
+    } catch (error) {
+      console.error("Failed to duplicate quote", error);
+      toast.error(error instanceof Error ? error.message : "Failed to duplicate quote");
+    } finally {
+      setDuplicatingQuoteId(null);
+    }
+  };
+
   const handleViewQuoteDetails = (quoteId: string) => {
     if (!quoteId) {
       toast.error("Quote id is missing.");
@@ -989,7 +1060,6 @@ export default function QuotesDashboardPage({
 
   const handleEditQuote = (
     quoteId: string,
-    statusKey: string,
     targetView: string = "details"
   ) => {
     if (!quoteId) {
@@ -997,13 +1067,15 @@ export default function QuotesDashboardPage({
       return;
     }
 
-    if (statusKey.trim().toLowerCase() === "paid") {
-      toast.error("Paid quotes cannot be edited.");
-      return;
-    }
-
     setOpenActionMenuId(null);
-    router.push(`${createHref}?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}`);
+    const query = new URLSearchParams({
+      quoteId: quoteId,
+      view: targetView,
+      editMode: "full",
+      returnTo: pathname,
+    });
+
+    router.push(`${createHref}?${query.toString()}`);
   };
 
   const statsIcons: Record<string, React.ReactNode> = {
@@ -1144,7 +1216,7 @@ export default function QuotesDashboardPage({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [chartRange, searchTerm, selectedDate, selectedSalesperson, selectedStatusFilter]);
+  }, [chartRange, debouncedSearch, selectedDate, selectedSalesperson, selectedStatusFilter]);
 
   const totalFilteredQuotes = quotePagination?.total ?? filteredQuotesData.length;
   const totalListPages = Math.max(1, quotePagination?.totalPages ?? 1);
@@ -1173,7 +1245,20 @@ export default function QuotesDashboardPage({
       hasChartData
   );
 
-  const showEmptyState = !loading && !hasOverviewData && displayQuotesData.length === 0;
+  const hasActiveFilters =
+    selectedSalesperson !== "all" ||
+    selectedStatusFilter !== "all" ||
+    Boolean(debouncedSearch.trim()) ||
+    Boolean(selectedDate);
+
+  // Show full empty-state only when there is genuinely no quotes data and
+  // no active filter/search/date constraints. Otherwise keep filters visible
+  // so user can change selection back.
+  const showEmptyState =
+    !loading &&
+    !hasOverviewData &&
+    displayQuotesData.length === 0 &&
+    !hasActiveFilters;
 
   return (
     <div className={`min-h-screen overflow-hidden ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
@@ -1283,6 +1368,7 @@ export default function QuotesDashboardPage({
                     key={stat.title}
                     onClick={() => {
                       setSelectedStat(stat.title);
+                      setSelectedStatusFilter(getStatusFilterForStat(stat.title));
                     }}
                     className={`${bgColor} ${textColor} flex h-40 cursor-pointer flex-col justify-between rounded-2xl p-6 transition-all hover:scale-[1.02] active:scale-[0.98]`}
                   >
@@ -1399,7 +1485,7 @@ export default function QuotesDashboardPage({
           </div>
         ) : showEmptyState ? (
           <QuotesEmptyState createHref={createHref} />
-        ) : displayQuotesData.length > 0 ? (
+        ) : (
           <>
             <div className="mb-6 mt-8 flex flex-col gap-4 md:flex-row">
               <div className="relative flex-1">
@@ -1408,16 +1494,15 @@ export default function QuotesDashboardPage({
                   size={18}
                 />
                 <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search by client name, quote number or project..."
-                  className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${
-                    isDark
-                      ? "border-[#FFFFFF33] bg-[#202020] focus:border-[#E5D5B8]/50"
-                      : "border-[#E3E3E3] bg-white focus:border-[#A4A5A6]"
-                  }`}
-                />
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by client name, quote number..."
+                className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${
+                  isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E3E3E3] bg-white"
+                }`}
+              />
+	              {isRefreshing && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[#E5D5B8]" size={18} />}
               </div>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
@@ -1440,7 +1525,14 @@ export default function QuotesDashboardPage({
                     <SelectItem value="all">All Salesperson</SelectItem>
                     {salespersonOptions.map((salesperson) => (
                       <SelectItem key={salesperson.id} value={salesperson.id}>
-                        {salesperson.name}
+                        <div className="flex flex-col leading-tight">
+                          <span>{salesperson.name}</span>
+                          {salesperson.role ? (
+                            <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                              {salesperson.role}
+                            </span>
+                          ) : null}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1553,7 +1645,7 @@ export default function QuotesDashboardPage({
                         </td>
                         <td className="px-4 py-4 text-right md:px-6 md:text-left">
                           <span
-                            className={`rounded-full border px-3 py-1 text-[12px] font-medium md:text-base ${quote.statusColor}`}
+                            className={`inline-flex w-fit items-center justify-center whitespace-nowrap rounded-full border px-3 py-1 text-[12px] font-medium leading-none md:text-sm ${quote.statusColor}`}
                           >
                             {quote.status}
                           </span>
@@ -1571,12 +1663,14 @@ export default function QuotesDashboardPage({
                             onViewDetails={() => {
                               handleViewQuoteDetails(quote.id);
                             }}
-                            onDuplicate={() => handleUnsupportedQuoteAction("Duplicate")}
-                            onEdit={() => handleEditQuote(quote.id, quote.statusKey)}
+                            onDuplicate={() => {
+                              void handleDuplicateQuote(quote.id);
+                            }}
+                            onEdit={() => handleEditQuote(quote.id)}
                             onReject={() => {
                               void handleRejectQuote(quote.id, quote.statusKey);
                             }}
-                            allowEdit={quote.statusKey !== "paid"}
+                            allowEdit
                           />
                         </td>
                       </tr>
@@ -1667,7 +1761,7 @@ export default function QuotesDashboardPage({
               </div>
             )}
           </>
-        ) : null}
+        )}
       </div>
 
       {!loading && !showEmptyState && (

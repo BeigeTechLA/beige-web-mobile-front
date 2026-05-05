@@ -444,6 +444,7 @@ export default function AdminSaleRepManagerPage() {
           const mappedOptions = result.data.map((rep: any) => ({
             label: rep.name || `${rep.first_name || ""} ${rep.last_name || ""}`.trim() || `Representative #${rep.id}`,
             value: String(rep.id),
+            subLabel: rep.role || "",
           }));
           setSalesRepOptions([{ label: "All Representatives", value: "all" }, ...mappedOptions]);
         } else {

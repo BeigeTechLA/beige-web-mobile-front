@@ -95,6 +95,8 @@ export default function ClientDetailsPage() {
 
     const client = clientData?.client;
     const affiliate = clientData?.affiliate;
+    const accountCredit = clientData?.account_credit;
+    const creditHistory = clientData?.credit_history || [];
 
     return (
         <>
@@ -189,6 +191,84 @@ export default function ClientDetailsPage() {
                 </div>
 
                 {/* Shoots Management Section */}
+              {/* <div className={`border rounded-2xl p-8 space-y-6 ${isDark ? "bg-[#0D0D0D] border-[#222]" : "bg-gray-50 border-gray-100"}`}>
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-bold leading-none">Account Credit</h2>
+                        <span className={`text-xs px-3 py-1 rounded-full font-semibold ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB] border border-[#E8D1AB]/30" : "bg-[#FFF8EA] text-[#8A6A00] border border-[#E7D7BC]"}`}>
+                            Wallet Summary
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className={`rounded-xl border p-4 ${isDark ? "bg-[#111] border-[#2A2A2A]" : "bg-white border-gray-200"}`}>
+                            <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Available</p>
+                            <p className="mt-2 text-xl font-semibold text-emerald-500">
+                                {formatCurrency(accountCredit?.available_credit_amount || 0)}
+                            </p>
+                        </div>
+                        <div className={`rounded-xl border p-4 ${isDark ? "bg-[#111] border-[#2A2A2A]" : "bg-white border-gray-200"}`}>
+                            <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Used</p>
+                            <p className="mt-2 text-xl font-semibold text-orange-400">
+                                {formatCurrency(accountCredit?.used_credit_amount || 0)}
+                            </p>
+                        </div>
+                        <div className={`rounded-xl border p-4 ${isDark ? "bg-[#111] border-[#2A2A2A]" : "bg-white border-gray-200"}`}>
+                            <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Total</p>
+                            <p className={`mt-2 text-xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                {formatCurrency(accountCredit?.total_credit_amount || 0)}
+                            </p>
+                        </div>
+                        <div className={`rounded-xl border p-4 ${isDark ? "bg-[#111] border-[#2A2A2A]" : "bg-white border-gray-200"}`}>
+                            <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Pending</p>
+                            <p className={`mt-2 text-xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                {formatCurrency(accountCredit?.pending_credit_amount || 0)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className={`border rounded-2xl overflow-hidden ${isDark ? "bg-[#0D0D0D] border-[#222]" : "bg-white border-[#E5E5E5]"}`}>
+                        <div className={`px-6 py-4 border-b ${isDark ? "border-[#2A2A2A] text-white" : "border-[#E5E5E5] text-black"} font-semibold`}>
+                            Recent Credit Activity
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className={`text-xs font-medium uppercase tracking-wider ${isDark ? "text-[#888] bg-[#0D0D0D]" : "text-[#00000080] bg-[#FFFCF6]"}`}>
+                                        <th className="py-4 px-6">Date</th>
+                                        <th className="py-4 px-6">Type</th>
+                                        <th className="py-4 px-6">Booking</th>
+                                        <th className="py-4 px-6 text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {creditHistory.length > 0 ? creditHistory.map((entry: any) => (
+                                        <tr key={entry.account_credit_ledger_id} className={`${isDark ? "border-t border-[#2A2A2A]" : "border-t border-[#F0F0F0]"}`}>
+                                            <td className={`py-4 px-6 ${isDark ? "text-white" : "text-black"}`}>
+                                                {entry.created_at ? format(new Date(entry.created_at), "MMM d, yyyy") : "N/A"}
+                                            </td>
+                                            <td className={`py-4 px-6 capitalize ${isDark ? "text-[#CCC]" : "text-gray-600"}`}>
+                                                {entry.entry_type?.replace(/_/g, " ") || "N/A"}
+                                            </td>
+                                            <td className={`py-4 px-6 ${isDark ? "text-[#CCC]" : "text-gray-700"}`}>
+                                                {entry.booking_name || (entry.booking_id ? `#${entry.booking_id}` : "N/A")}
+                                            </td>
+                                            <td className={`py-4 px-6 text-right font-semibold ${entry.direction === "debit" ? "text-orange-400" : "text-emerald-500"}`}>
+                                                {entry.direction === "debit" ? "-" : "+"}{formatCurrency(entry.amount || 0)}
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td colSpan={4} className={`py-10 text-center ${isDark ? "text-[#666]" : "text-gray-400"}`}>
+                                                No credit activity found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>*/}
+
                 <div className="space-y-6 pt-4">
                     <div className="flex items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold leading-none">Shoots Management</h2>

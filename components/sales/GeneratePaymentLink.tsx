@@ -27,9 +27,25 @@ interface GeneratePaymentLinkProps {
     is_used: boolean;
     is_expired: boolean;
   } | null;
+  additionalPaymentStatus?: string | null;
+  additionalPaymentOutstandingAmount?: number | string | null;
   isClientLead?: boolean;
   isDark?: boolean;
 }
+
+const formatCurrencyValue = (value?: number | string | null) => {
+  const numericValue =
+    typeof value === "number" ? value : Number.parseFloat(String(value ?? 0));
+
+  if (!Number.isFinite(numericValue)) return "$0.00";
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numericValue);
+};
 
 const GeneratePaymentLink = ({
   leadId,
@@ -39,6 +55,8 @@ const GeneratePaymentLink = ({
   discountLockedMessage,
   bookingStatus,
   activeLink,
+  additionalPaymentStatus,
+  additionalPaymentOutstandingAmount,
   isClientLead,
   isDark = true,
 }: GeneratePaymentLinkProps) => {
@@ -73,8 +91,17 @@ const GeneratePaymentLink = ({
   const [sendInvoice, { isLoading: isSendingInvoice }] = useSendInvoiceMutation();
 
   const isPaidBooking = String(bookingStatus || "").toLowerCase() === "paid";
-  const showInvoiceActions = (!!paymentData && !paymentData.isExpired) || isPaidBooking;
-  const showGenerateSection = !isPaidBooking && (!paymentData || (paymentData.isExpired && !activeLink));
+  const hasPendingAdditionalPayment =
+    Number(additionalPaymentOutstandingAmount ?? 0) > 0 &&
+    !["paid", "success", "completed"].includes(
+      String(additionalPaymentStatus || "").trim().toLowerCase()
+    );
+  const showInvoiceActions =
+    (!!paymentData && !paymentData.isExpired) || isPaidBooking || hasPendingAdditionalPayment;
+  const showGenerateSection =
+    !isPaidBooking &&
+    !hasPendingAdditionalPayment &&
+    (!paymentData || (paymentData.isExpired && !activeLink));
   const shouldAttachDiscount =
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
@@ -304,7 +331,7 @@ const GeneratePaymentLink = ({
               {isGenerating ? "Generating..." : "Generate Payment Link"}
             </Button>
           </div>
-        ) : paymentData ? (
+        ) : paymentData && !isPaidBooking ? (
           /* Active / Expired Link UI */
           <div className="space-y-4 mt-6">
             <div className={`border rounded-xl p-4 space-y-4 transition-colors ${paymentData.isExpired
@@ -366,6 +393,17 @@ const GeneratePaymentLink = ({
                 </button>
               </div>
             )}
+          </div>
+        ) : hasPendingAdditionalPayment ? (
+          <div className={`mt-4 rounded-xl border p-4 transition-colors ${
+            isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E7D7BC] bg-[#FFF8EA]"
+            }`}>
+            <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+              Additional payment is pending.
+            </p>
+            <p className={`text-xs mt-1 ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
+              Outstanding amount: {formatCurrencyValue(additionalPaymentOutstandingAmount)}. Use the buttons above to view the invoice or send it to the client.
+            </p>
           </div>
         ) : (
           <div className={`mt-4 rounded-xl border p-4 transition-colors ${isDark ? "border-emerald-500/25 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50"

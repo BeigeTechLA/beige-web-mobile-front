@@ -260,6 +260,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         booking_id: number;
         crew_roles: Record<string, number>;
         location?: string;
+        location_latitude?: number;
+        location_longitude?: number;
         description?: string;
         reference_links?: string;
       } = {
@@ -271,6 +273,16 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
       if (!isEditingOnly && data.location) {
         payload.location = data.location;
+        payload.location_latitude =
+          data.locationDetails?.coordinates?.lat ??
+          data.locationDetails?.lat ??
+          data.locationDetails?.center?.[1] ??
+          undefined;
+        payload.location_longitude =
+          data.locationDetails?.coordinates?.lng ??
+          data.locationDetails?.lng ??
+          data.locationDetails?.center?.[0] ??
+          undefined;
       }
 
       const response = await updateBookingCrew(payload).unwrap();
@@ -476,7 +488,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         {isCoachella && (
           <p className="mt-3 text-sm text-[#E8D1AB] flex items-center gap-2">
             <MapPin size={16} />
-            Location is locked for Coachella events as they are exclusively held here.
+            Location is locked for Coachella events.
+            {/* as they are exclusively held here */}
           </p>
         )}
       </div>

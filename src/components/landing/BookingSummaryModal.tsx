@@ -378,7 +378,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                    )}
                    {data.pricing.discount_code_discount > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
-                        <span>Discount Code Discount</span>
+                        <span>Discount</span>
                         <span>-{formatCurrency(data.pricing.discount_code_discount)}</span>
                      </div>
                    )}
@@ -392,6 +392,12 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                      <div className="flex justify-between text-sm text-green-500 font-medium">
                         <span>Referral Code Discount</span>
                         <span>-{formatCurrency(data.pricing.referral_discount)}</span>
+                     </div>
+                   )}
+                   {data.pricing.credit_applied > 0 && (
+                     <div className="flex justify-between text-sm text-green-500 font-medium">
+                        <span>Account Credit</span>
+                        <span>-{formatCurrency(data.pricing.credit_applied)}</span>
                      </div>
                    )}
                    

@@ -423,6 +423,36 @@ export interface SalesQuoteDetailData {
   final_total?: number | string;
   amount_after_discount?: number | string;
   booking_id?: number | string;
+  additional_payment?: {
+    additional_amount?: number | string | null;
+    previously_paid_amount?: number | string | null;
+    revised_total?: number | string | null;
+    outstanding_amount?: number | string | null;
+    payment_status?: string | null;
+    last_sent_at?: string | null;
+    invoice_number?: string | null;
+    invoice_url?: string | null;
+  } | null;
+  converted_booking_details?: {
+    booking_id?: number | string;
+    booking_type?: string | null;
+    time_zone?: string | null;
+    start_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    duration_hours?: number | string | null;
+    location?: string | null;
+    reference_links?: string | null;
+    special_instructions?: string | null;
+    booking_days?: Array<{
+      date?: string | null;
+      event_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+      duration_hours?: number | string | null;
+      time_zone?: string | null;
+    }> | null;
+  } | null;
   accepted_at?: string | null;
   terms_conditions?: string | string[] | null;
   line_items?: SalesQuoteDetailLineItem[];
@@ -501,12 +531,16 @@ export type SalesQuoteConvertSingleDayPayload = {
   start_time: string;
   end_time: string;
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
 };
 
 export type SalesQuoteConvertMultiDayPayload = {
   booking_type: "multi_day";
   time_zone: string;
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_days: Array<{
     date: string;
     start_time: string;
@@ -527,6 +561,8 @@ export interface SalesQuoteConvertToBookingResponse {
 
 export type LeadBookingScheduleSingleDayPayload = {
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_type: "single_day";
   time_zone: string;
   start_date: string;
@@ -536,6 +572,8 @@ export type LeadBookingScheduleSingleDayPayload = {
 
 export type LeadBookingScheduleMultiDayPayload = {
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_type: "multi_day";
   time_zone: string;
   booking_days: Array<{
@@ -638,6 +676,44 @@ export const affiliateApi = {
         success: false,
         data: null,
         error: 'Failed to fetch dashboard summary',
+      };
+    }
+  },
+
+  // Get client credit summary (available/used/pending)
+  getClientCreditSummary: async (token: string) => {
+    try {
+      const response = await api.get('/client/credit/summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Credit Summary Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch credit summary',
+      };
+    }
+  },
+
+  // Get client credit history (where credit was created/used)
+  getClientCreditHistory: async (
+    token: string,
+    params: { page?: number; limit?: number } = {}
+  ) => {
+    try {
+      const response = await api.get('/client/credit/history', {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Credit History Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch credit history',
       };
     }
   },
@@ -1242,6 +1318,25 @@ export const DeleteProfileFile = async (crewFilesId: string | number, payload: a
 };
 
 export const adminApi = {
+  createInternalCredential: async (payload: {
+    name: string;
+    email: string;
+    password: string;
+    phone_number?: string;
+    user_type: number;
+  }) => {
+    try {
+      const response = await api.post('/auth/admin/create-internal-credential', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Internal Credential Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create internal credential',
+      };
+    }
+  },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/get-dashboard-summary', { params });
@@ -2022,6 +2117,22 @@ export const salesApi = {
       };
     }
   },
+  duplicateQuote: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteDetailResponse>(
+        `/sales/quotes/${quoteId}/duplicate`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Duplicate Quote Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to duplicate quote',
+      };
+    }
+  },
   getQuotesDashboard: async (
     params: {
       range?: string;
@@ -2543,4 +2654,44 @@ export const salesApi = {
       };
     }
   },
+
+  saveSignature: async (payload: {
+    quote_id: number | string;
+    signer_name: string;
+    signer_email?: string;
+    signature_base64: string;
+  }) => {
+    try {
+      const response = await api.post('/signatures/sign', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Signature Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to save signature',
+      };
+    }
+  },
+
+  getSignatureByQuote: async (quote_id: number | string) => {
+    try {
+      const response = await api.get(`/signatures/quote/${quote_id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Signature Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch signature',
+      };
+    }
+  },
+
+  downloadSignedPdf: (quote_id: number | string) => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+    return `${baseUrl}signatures/download/${quote_id}`;
+  },
 };
+
+

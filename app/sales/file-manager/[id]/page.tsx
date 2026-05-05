@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Grid3X3, List, MoreVertical, Search, Upload } from "lucide-react";
+import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Search, Upload } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
@@ -172,8 +172,11 @@ export default function SalesFolderDetailsPage() {
         </Button>
 
         {loading ? (
-          <div className="text-white/70 text-sm">Loading project...</div>
-        ) : error ? (
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div> 
+          ) : error ? (
           <div className="text-red-300 text-sm">{error || "Workspace not found"}</div>
         ) : !workspaceName ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-[#111111] p-6 text-sm text-white/65">
@@ -241,7 +244,7 @@ export default function SalesFolderDetailsPage() {
                   />
                 </div>
                 <div className="flex gap-2 ">
-                  <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} />
+                  {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
                   <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                     <Button
                       onClick={() => setViewMode("grid")}

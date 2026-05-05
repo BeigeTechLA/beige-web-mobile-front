@@ -104,6 +104,14 @@ interface ExternalWorkspacesResponse {
   success: boolean;
   data: {
     workspaces: ExternalWorkspaceSummary[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+    };
   };
 }
 
@@ -174,9 +182,22 @@ interface FaceScanResponse {
   success: boolean;
   data: {
     externalId: string;
-    scanMode: "full_face_scan";
+    scanMode: "full_face_scan" | "indexed_plus_fallback_scan";
     integrated: boolean;
     candidatesCount: number;
+    indexedCandidatesCount?: number;
+    scannedCandidatesCount?: number;
+    backgroundIndexQueued?: number;
+    noFaceDetectedInScanImage?: boolean;
+    minScore?: number;
+    indexStatus?: {
+      state: "ready" | "partial" | "not_indexed" | "indexing" | "empty";
+      totalCandidates: number;
+      readyCandidates: number;
+      skippedCandidates?: number;
+      pendingCandidates: number;
+      coverage: number;
+    };
     matches: Array<{
       path?: string;
       score?: number;
@@ -186,6 +207,62 @@ interface FaceScanResponse {
     provider?: string | null;
   };
 }
+
+interface ExternalBatchUploadPolicyResponse {
+  success: boolean;
+  data: {
+    total: number;
+    successCount: number;
+    failureCount: number;
+    items: Array<{
+      filepath: string;
+      success: boolean;
+      data?: ExternalUploadPolicyResponse["data"];
+      error?: string;
+      code?: number;
+    }>;
+  };
+}
+
+interface ExternalBatchFileUploadedResponse {
+  success: boolean;
+  data: {
+    total: number;
+    successCount: number;
+    failureCount: number;
+    items: Array<{
+      filepath: string;
+      success: boolean;
+      created?: boolean;
+      error?: string;
+      code?: number;
+      data?: {
+        id: string;
+        path: string;
+        name: string;
+        size: number;
+      };
+    }>;
+  };
+}
+
+interface FaceScanIndexStatusResponse {
+  success: boolean;
+  data: {
+    externalId: string;
+    state: "ready" | "partial" | "not_indexed" | "indexing" | "empty";
+    totalCandidates: number;
+    readyCandidates: number;
+    skippedCandidates?: number;
+    indexingCandidates: number;
+    failedCandidates: number;
+    pendingCandidates: number;
+    coverage: number;
+  };
+}
+
+type ExternalFileUrlData = { url: string; duration: number };
+type ExternalFileUrlResponse = { success: boolean; data: ExternalFileUrlData };
 
 export interface UiFolderItem {
   id: string;
@@ -242,6 +319,61 @@ const PRE_PRODUCTION_CATEGORIES = ["REFERENCE_MATERIAL", "THUMBNAIL"];
 const RAW_FOOTAGE_CATEGORIES = ["RAW_FOOTAGE", "RAW_AUDIO"];
 const EDITED_FOOTAGE_CATEGORIES = ["EDIT_DRAFT", "EDIT_REVISION"];
 const FINAL_DELIVERABLE_CATEGORIES = ["EDIT_FINAL", "CLIENT_DELIVERABLE"];
+const FILE_VIEW_URL_CACHE_TTL_MS = Math.max(
+  30_000,
+  Number(process.env.NEXT_PUBLIC_FILE_VIEW_URL_CACHE_TTL_MS || 10 * 60 * 1000)
+);
+const FILE_VIEW_URL_CONCURRENCY = Math.max(
+  1,
+  Number(process.env.NEXT_PUBLIC_FILE_VIEW_URL_CONCURRENCY || 6)
+);
+const FILE_VIEW_URL_EXPIRY_BUFFER_MS = 30_000;
+const FILE_VIEW_URL_CACHE_MAX_ENTRIES = Math.max(
+  200,
+  Number(process.env.NEXT_PUBLIC_FILE_VIEW_URL_CACHE_MAX_ENTRIES || 2000)
+);
+const fileViewUrlCache = new Map<string, { value: ExternalFileUrlData; expiresAt: number }>();
+const fileViewUrlInFlight = new Map<string, Promise<ExternalFileUrlData>>();
+let activeFileViewUrlRequests = 0;
+const fileViewUrlQueue: Array<() => void> = [];
+
+const runFileViewUrlTask = async <T,>(task: () => Promise<T>): Promise<T> => {
+  await new Promise<void>((resolve) => {
+    const execute = () => {
+      activeFileViewUrlRequests += 1;
+      resolve();
+    };
+
+    if (activeFileViewUrlRequests < FILE_VIEW_URL_CONCURRENCY) {
+      execute();
+      return;
+    }
+
+    fileViewUrlQueue.push(execute);
+  });
+
+  try {
+    return await task();
+  } finally {
+    activeFileViewUrlRequests = Math.max(0, activeFileViewUrlRequests - 1);
+    const next = fileViewUrlQueue.shift();
+    if (next) next();
+  }
+};
+
+const setCachedFileViewUrl = (filepath: string, value: ExternalFileUrlData) => {
+  const rawDurationMs = Number(value?.duration || 0) * 1000;
+  const durationMs = rawDurationMs > 0 ? rawDurationMs : FILE_VIEW_URL_CACHE_TTL_MS;
+  const safeDurationMs = Math.max(30_000, durationMs - FILE_VIEW_URL_EXPIRY_BUFFER_MS);
+  const expiresAt = Date.now() + safeDurationMs;
+  fileViewUrlCache.set(filepath, { value, expiresAt });
+
+  while (fileViewUrlCache.size > FILE_VIEW_URL_CACHE_MAX_ENTRIES) {
+    const oldestKey = fileViewUrlCache.keys().next().value;
+    if (!oldestKey) break;
+    fileViewUrlCache.delete(oldestKey);
+  }
+};
 
 const prettifyExternalFolderName = (name?: string) => {
   const normalized = String(name || "").trim();
@@ -345,6 +477,29 @@ export const fileManagerApi = {
     return response.data.workspaces || [];
   },
 
+  async listExternalWorkspacesPaginated(options?: { page?: number; limit?: number; search?: string }) {
+    const params: Record<string, string | number> = {};
+    if (options?.page) params.page = options.page;
+    if (options?.limit) params.limit = options.limit;
+    if (options?.search) params.search = options.search;
+
+    const response = await apiClient.get<ExternalWorkspacesResponse>(
+      "external-file-manager/workspaces",
+      params
+    );
+    return {
+      workspaces: response.data.workspaces || [],
+      pagination: response.data.pagination || {
+        page: options?.page || 1,
+        limit: options?.limit || (response.data.workspaces || []).length || 1,
+        total: (response.data.workspaces || []).length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    };
+  },
+
   async listCommonEvents() {
     const response = await apiClient.get<CommonEventResponse>("external-file-manager/common-events");
     return response.data || [];
@@ -385,9 +540,46 @@ export const fileManagerApi = {
     scanImageBase64?: string;
     scanImageUrl?: string;
     threshold?: number;
+    minScore?: number;
     maxResults?: number;
+    candidateLimit?: number;
+    fallbackCandidateLimit?: number;
+    backgroundReindex?: boolean;
+    backgroundBatchLimit?: number;
+    backgroundConcurrency?: number;
+    providerTimeoutMs?: number;
   }) {
     const response = await apiClient.post<FaceScanResponse>("external-file-manager/face-scan/search", payload);
+    return response.data;
+  },
+
+  async getFaceScanIndexStatus(externalId: string) {
+    const response = await apiClient.get<FaceScanIndexStatusResponse>(
+      `external-file-manager/face-scan/index-status/${encodeURIComponent(String(externalId || ""))}`
+    );
+    return response.data;
+  },
+
+  async reindexFaceEmbeddings(payload: {
+    externalId: string;
+    candidateLimit?: number;
+    concurrency?: number;
+    sync?: boolean;
+    providerTimeoutMs?: number;
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        externalId: string;
+        mode?: "background" | "sync";
+        totalCandidates: number;
+        selectedCandidates: number;
+        queuedCandidates?: number;
+        indexed?: number;
+        skipped?: number;
+        failed?: number;
+      };
+    }>("external-file-manager/face-scan/reindex", payload);
     return response.data;
   },
 
@@ -428,6 +620,16 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async getExternalUploadPoliciesBatch(
+    items: Array<{ filepath: string; fileContentType: string; fileSize: number }>
+  ) {
+    const response = await apiClient.post<ExternalBatchUploadPolicyResponse>(
+      "external-file-manager/upload-policies/batch",
+      { items }
+    );
+    return response.data;
+  },
+
   async notifyExternalFileUploaded(filepath: string, file: File) {
     return apiClient.post("external-file-manager/file-uploaded", {
       filepath,
@@ -435,6 +637,16 @@ export const fileManagerApi = {
       fileSize: file.size,
       fileName: file.name,
     });
+  },
+
+  async notifyExternalFilesUploadedBatch(
+    items: Array<{ filepath: string; fileContentType: string; fileSize: number; fileName: string }>
+  ) {
+    const response = await apiClient.post<ExternalBatchFileUploadedResponse>(
+      "external-file-manager/files-uploaded/batch",
+      { items }
+    );
+    return response.data;
   },
 
   async uploadExternalFile(
@@ -457,11 +669,34 @@ export const fileManagerApi = {
   },
 
   async getExternalFileViewUrl(filepath: string) {
-    const response = await apiClient.post<{ success: boolean; data: { url: string; duration: number } }>(
-      "external-file-manager/file-view-url",
-      { filepath }
-    );
-    return response.data;
+    const normalizedPath = String(filepath || "").trim();
+    if (!normalizedPath) {
+      throw new Error("filepath is required");
+    }
+
+    const cached = fileViewUrlCache.get(normalizedPath);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    const existingRequest = fileViewUrlInFlight.get(normalizedPath);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const request = runFileViewUrlTask(async () => {
+      const response = await apiClient.post<ExternalFileUrlResponse>(
+        "external-file-manager/file-view-url",
+        { filepath: normalizedPath }
+      );
+      setCachedFileViewUrl(normalizedPath, response.data);
+      return response.data;
+    }).finally(() => {
+      fileViewUrlInFlight.delete(normalizedPath);
+    });
+
+    fileViewUrlInFlight.set(normalizedPath, request);
+    return request;
   },
 
   async getExternalFileDownloadUrl(filepath: string) {
@@ -675,7 +910,7 @@ export const mapExternalWorkspaceToFolderCard = (
   id: workspace.externalId,
   title: workspace.folderName,
   fileCount: workspace.fileCount || 0,
-  category: inferWorkspaceCategory(workspace.folderName),
+  category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
   isLinked: true,
   lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
   userInitials: getDisplayInitials(workspace.folderName),

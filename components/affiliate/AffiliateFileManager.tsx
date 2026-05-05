@@ -71,6 +71,7 @@ interface ProjectLite {
   stream_project_booking_id?: string | number;
   booking_id?: string | number;
 }
+const FILES_PAGE_SIZE = 20;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
@@ -134,6 +135,7 @@ export default function AffiliateFileManager() {
   const [phaseFiles, setPhaseFiles] = useState<BrowserFile[]>([]);
   const [isPhaseLoading, setIsPhaseLoading] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerName, setViewerName] = useState("");
@@ -289,12 +291,14 @@ export default function AffiliateFileManager() {
   }, [selectedWorkspace, selectedPhase, selectedPath]);
 
   useEffect(() => {
-    const previewableFiles = phaseFiles.filter(
+    const previewableFiles = phaseFiles
+      .slice(0, visibleFileCount)
+      .filter(
       (file) =>
         file.filepath &&
         (file.contentType?.startsWith("image/") ||
           file.contentType?.startsWith("video/"))
-    );
+      );
 
     if (!previewableFiles.length) return;
 
@@ -323,7 +327,7 @@ export default function AffiliateFileManager() {
     return () => {
       active = false;
     };
-  }, [phaseFiles]);
+  }, [phaseFiles, visibleFileCount]);
 
   const stopCamera = useCallback(() => {
     if (cameraStreamRef.current) {
@@ -643,6 +647,15 @@ export default function AffiliateFileManager() {
       ),
     [phaseFiles, searchTerm]
   );
+  const visibleFiles = useMemo(
+    () => filteredFiles.slice(0, visibleFileCount),
+    [filteredFiles, visibleFileCount]
+  );
+  const hasMoreFiles = filteredFiles.length > visibleFileCount;
+
+  useEffect(() => {
+    setVisibleFileCount(FILES_PAGE_SIZE);
+  }, [selectedWorkspace?.externalId, selectedPhase, selectedPath, searchTerm, phaseFiles.length]);
 
   const breadcrumb = useMemo(() => {
     const items = ["File Manager"];
@@ -1140,19 +1153,32 @@ export default function AffiliateFileManager() {
           <div>
             <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
             {filteredFiles.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-                {filteredFiles.map((file) => (
-                  <FileCard
-                    key={file.id}
-                    file={{
-                      ...file,
-                      previewUrl: previewUrls[file.id],
-                      lastOpened: formatRelativeTime(file.lastOpened),
-                    }}
-                    onOpen={() => handleOpenFile(file)}
-                    onDownload={() => handleDownloadFile(file)}
-                  />
-                ))}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                  {visibleFiles.map((file) => (
+                    <FileCard
+                      key={file.id}
+                      file={{
+                        ...file,
+                        previewUrl: previewUrls[file.id],
+                        lastOpened: formatRelativeTime(file.lastOpened),
+                      }}
+                      onOpen={() => handleOpenFile(file)}
+                      onDownload={() => handleDownloadFile(file)}
+                    />
+                  ))}
+                </div>
+                {hasMoreFiles ? (
+                  <div className="flex justify-center">
+                    <Button
+                      type="button"
+                      className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                      onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                    >
+                      View More
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <EmptyFileState
@@ -1253,12 +1279,12 @@ export default function AffiliateFileManager() {
               />
             </div>
             <div className="flex gap-2">
-              <BasicDropdown
+              {/* <BasicDropdown
                 label="Status"
                 value={status}
                 onChange={setStatus}
                 options={["Linked", "Unlinked"]}
-              />
+              /> */}
 
               <div className="md:hidden relative">
                 <Button

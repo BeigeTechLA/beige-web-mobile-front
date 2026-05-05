@@ -4,6 +4,7 @@ import React from "react";
 
 import type { SalesQuoteDetailData } from "@/lib/api";
 import {
+  getQuoteAdditionalPaymentDetails,
   formatQuoteCurrency,
   formatQuoteDate,
   getQuoteNumber,
@@ -186,6 +187,7 @@ export default function QuotePreviewDocument({
   const taxAmount = discountedSubtotal * (taxRate / 100);
   const amountAfterTax = discountedSubtotal + taxAmount;
   const finalTotal = amountAfterTax;
+  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData);
 
   const resolvedQuoteId = String(
     quoteData.sales_quote_id ?? quoteData.quote_id ?? quoteData.id ?? quoteId ?? ""
@@ -314,6 +316,31 @@ export default function QuotePreviewDocument({
               <span>{taxType} ({taxRate}%)</span>
               <span className="font-semibold">{formatQuoteCurrency(taxAmount)}</span>
             </div>
+            {additionalPaymentDetails ? (
+              <>
+                <div className="mt-2 border-t border-black/10 pt-3" />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-6">
+                    <span>Previously Paid</span>
+                    <span className="font-semibold">
+                      {formatQuoteCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-6">
+                    <span>Additional Amount</span>
+                    <span className="font-semibold">
+                      {formatQuoteCurrency(additionalPaymentDetails.additionalAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-6">
+                    <span>Outstanding Amount</span>
+                    <span className="font-semibold">
+                      {formatQuoteCurrency(additionalPaymentDetails.outstandingAmount)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
 
           <div className={`mt-5 rounded-[16px] px-4 py-4 lg:px-5 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
@@ -330,17 +357,52 @@ export default function QuotePreviewDocument({
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
-        <section className="space-y-4">
-          <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
-          <ul
-            className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-base ${isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
-              }`}
-          >
-            {terms.map((term, index) => (
-              <li key={`${term}-${index}`}>{term}</li>
-            ))}
-          </ul>
-        </section>
+       <section className="space-y-4">
+  <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
+  <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+    
+    {/* Left - Terms list */}
+    <ul
+      className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-base flex-1 ${
+        isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
+      }`}
+    >
+      {terms.map((term, index) => (
+        <li key={`${term}-${index}`}>{term}</li>
+      ))}
+    </ul>
+
+    {/* Right - Signature */}
+    <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
+      {quoteData.signature_base64 ? (
+        <>
+          <div className={`border rounded-lg p-3 w-full max-w-[220px] ${
+            isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
+          }`}>
+            <img
+              src={quoteData.signature_base64}
+              alt="Signature"
+              className="w-full max-h-20 object-contain"
+            />
+          </div>
+          <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${
+            isDark ? "border-white/20 text-white/50" : "border-gray-300 text-gray-400"
+          }`}>
+            <p>{quoteData.client_name ?? "Client"}</p>
+            <p>{formatQuoteDate(quoteData.signed_at ?? quoteData.updated_at)}</p>
+          </div>
+        </>
+      ) : (
+        <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${
+          isDark ? "border-white/20 text-white/30" : "border-gray-300 text-gray-400"
+        }`}>
+          <p>Authorized Signature</p>
+        </div>
+      )}
+    </div>
+
+  </div>
+</section>
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter,useSearchParams, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
 import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
@@ -54,15 +54,27 @@ type ProjectDetails = {
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { id } = use(params);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState("Overview");
+  // const [activeTab, setActiveTab] = useState("Overview");
+  const activeTab = searchParams.get("tab") || "Overview";
+
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+
+
+  // 3. Helper to update the URL when a tab is clicked
+  const handleTabChange = (tabName: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
 
   useEffect(() => {
     setMounted(true);
@@ -224,7 +236,7 @@ const projectData: ProjectDetails | undefined =
           </Button>
 
           <div className={`rounded-lg lg:rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
-            <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
             <div className="px-5 py-6 lg:py-9">
               {activeTab === "Overview" && (
                 <>

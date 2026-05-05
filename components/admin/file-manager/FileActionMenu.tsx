@@ -15,13 +15,14 @@ interface FileActionMenuProps {
   anchor: { x: number; y: number }; // Add this
   folderName: string | number | null;
   href?: string;
+  onOpen?: () => void;
   onDownload?: () => void;
   onDelete?: () => void;
   onRename?: () => void;
 }
 
 const FileActionMenu: React.FC<FileActionMenuProps> = ({
-  isOpen, onClose, anchor, folderName, href, onDownload, onDelete
+  isOpen, onClose, anchor, folderName, href, onOpen, onDownload, onDelete
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,6 +30,11 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
   if (!isOpen) return null;
 
   const handleOpenFolder = () => {
+    if (onOpen) {
+      onOpen();
+      onClose();
+      return;
+    }
     const folder = folderName?.toString().trim().toLowerCase().split(" ").join("-")
     router.push(href || `${pathname}/${folder}`);
     onClose();

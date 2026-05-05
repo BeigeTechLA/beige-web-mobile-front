@@ -118,10 +118,31 @@ const formatDateUI = (dateStr: string | null | undefined) => {
   });
 };
 
+const formatDateTimeUI = (dateStr: string | null | undefined) => {
+  if (!dateStr) return null;
+  const parsedDate = parseDate(dateStr) || new Date(dateStr);
+  if (!parsedDate || Number.isNaN(parsedDate.getTime())) return null;
+
+  return parsedDate.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
 const formatLeadSource = (value?: string | null) => {
   if (!value) return "Website";
   return value
     .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const formatStatusLabel = (value?: string | null) => {
+  if (!value) return "Pending";
+  return value
+    .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
@@ -230,7 +251,7 @@ export default function LeadDetailPage() {
   const [isEditingSalesRep, setIsEditingSalesRep] = useState(false);
   const [isUpdatingSalesRep, setIsUpdatingSalesRep] = useState(false);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
-  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([]);
+  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string; subLabel?: string }[]>([]);
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isConvertedBookingEditModalOpen, setIsConvertedBookingEditModalOpen] = useState(false);
@@ -260,6 +281,7 @@ export default function LeadDetailPage() {
             result.data.map((rep: any) => ({
               label: rep.name || `${rep.first_name || ""} ${rep.last_name || ""}`.trim() || `Representative #${rep.id}`,
               value: String(rep.id),
+              subLabel: rep.role || "",
             }))
           );
         } else {
@@ -300,6 +322,48 @@ export default function LeadDetailPage() {
   const booking = lead?.booking;
   const primaryQuote = booking?.primary_quote;
   const projectedQuote = lead?.projected_quote;
+  const rawAdditionalPayment = lead?.custom_quote?.additional_payment;
+  const additionalPaymentOutstandingAmount = Number(
+    rawAdditionalPayment?.outstanding_amount ?? 0
+  );
+  const hasPendingAdditionalPayment =
+    additionalPaymentOutstandingAmount > 0 &&
+    !["paid", "success", "completed"].includes(
+      String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase()
+    );
+  const additionalPaymentDetails = useMemo(() => {
+    if (!rawAdditionalPayment) return null;
+
+    const additionalAmount = Number(rawAdditionalPayment.additional_amount ?? 0);
+    const previouslyPaidAmount = Number(rawAdditionalPayment.previously_paid_amount ?? 0);
+    const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
+    const outstandingAmount = Number(
+      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - previouslyPaidAmount, 0)
+    );
+    if (
+      additionalAmount <= 0 &&
+      previouslyPaidAmount <= 0 &&
+      revisedTotal <= 0 &&
+      outstandingAmount <= 0 &&
+      !String(rawAdditionalPayment.payment_status || "").trim() &&
+      !rawAdditionalPayment.invoice_number &&
+      !rawAdditionalPayment.last_sent_at
+    ) {
+      return null;
+    }
+
+    return {
+      additionalAmount,
+      previouslyPaidAmount,
+      revisedTotal,
+      outstandingAmount,
+      paymentStatusLabel: formatStatusLabel(rawAdditionalPayment.payment_status),
+      invoiceNumber: rawAdditionalPayment.invoice_number
+        ? String(rawAdditionalPayment.invoice_number).trim()
+        : null,
+      lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
+    };
+  }, [rawAdditionalPayment]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -560,6 +624,8 @@ export default function LeadDetailPage() {
       String(lead?.payment_status || "").trim().toLowerCase()
     ) ||
     Boolean(booking?.payment_id || booking?.payment_completed_at);
+  const showCompletedPaymentMessage =
+    isAmountPaid && !hasPendingAdditionalPayment;
   const paidEditTooltipMessage = "Already paid. Editing is disabled for this booking.";
 
   const bookingDate = booking?.event_date
@@ -577,9 +643,24 @@ export default function LeadDetailPage() {
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
   const discountAmount = lead?.pricing_breakdown?.discount || 0;
-  const total = isQuoteConvertedLead
-    ? Number(primaryQuote?.total ?? lead?.pricing_breakdown?.total ?? 0)
-    : lead?.pricing_breakdown?.total || 0;
+  const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
+  const totalBeforeCredit = Number(
+    lead?.pricing_breakdown?.total_before_credit ??
+      primaryQuote?.total ??
+      lead?.pricing_breakdown?.total ??
+      0
+  );
+  const totalAfterCredit = Number(
+    lead?.pricing_breakdown?.total_after_credit ??
+      primaryQuote?.total ??
+      lead?.pricing_breakdown?.total ??
+      0
+  );
+  const total = creditApplied > 0
+    ? totalAfterCredit
+    : (isQuoteConvertedLead
+      ? Number(primaryQuote?.total ?? totalAfterCredit)
+      : totalAfterCredit);
 
   const referralInfo = useMemo(() => {
     const notes = booking?.primary_quote?.notes || "";
@@ -953,7 +1034,14 @@ export default function LeadDetailPage() {
                                       : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
                                       }`}
                                   >
-                                    {option.label}
+                                    <div className="flex flex-col leading-tight">
+                                      <span>{option.label}</span>
+                                      {option.subLabel ? (
+                                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                          {option.subLabel}
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   </button>
                                 );
                               })}
@@ -1269,6 +1357,67 @@ export default function LeadDetailPage() {
                     </p>
                   </div>
                 )}
+                {additionalPaymentDetails && (
+                  <div
+                    className={`rounded-2xl border p-4 ${
+                      isDark
+                        ? "border-[#E8D1AB]/20 bg-[#1B1710]"
+                        : "border-[#E8D1AB] bg-[#FFF8EA]"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                          Additional Payment Breakdown
+                        </p>
+                        <p className={`mt-1 text-xs ${isDark ? "text-white/60" : "text-black/55"}`}>
+                          {additionalPaymentDetails.invoiceNumber
+                            ? `Invoice ${additionalPaymentDetails.invoiceNumber}`
+                            : "Updated booking amount"}
+                          {additionalPaymentDetails.lastSentAtLabel
+                            ? ` · Sent ${additionalPaymentDetails.lastSentAtLabel}`
+                            : ""}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-[11px] font-medium ${
+                          hasPendingAdditionalPayment
+                            ? isDark
+                              ? "bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                              : "bg-[#FDECC8] text-[#8A5B00]"
+                            : isDark
+                              ? "bg-emerald-500/15 text-emerald-300"
+                              : "bg-emerald-100 text-emerald-700"
+                        }`}
+                      >
+                        {additionalPaymentDetails.paymentStatusLabel}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {[
+                        ["Previously Paid", additionalPaymentDetails.previouslyPaidAmount],
+                        ["Additional Amount", additionalPaymentDetails.additionalAmount],
+                        ["Revised Total", additionalPaymentDetails.revisedTotal],
+                        ["Outstanding Amount", additionalPaymentDetails.outstandingAmount],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label as string}
+                          className={`rounded-xl border px-3 py-3 ${
+                            isDark ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-white/70"
+                          }`}
+                        >
+                          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#71717B]">
+                            {label}
+                          </p>
+                          <p className={`mt-2 text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                            {formatCurrencyValue(value as number)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {/* <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Base Price</span>
                   <span className="text-sm lg:text-base text-white">${basePrice.toLocaleString()}</span>
@@ -1321,6 +1470,20 @@ export default function LeadDetailPage() {
                     <span className="text-[#71717B] text-xs">Referral Discount</span>
                     <span className="text-sm lg:text-base text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
                   </div>
+                )}
+                {creditApplied > 0 && (
+                  <>
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#71717B] text-xs">Total Before Credit</span>
+                      <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>
+                        ${totalBeforeCredit.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#71717B] text-xs">Account Credit Used</span>
+                      <span className="text-sm lg:text-base text-emerald-400">-${creditApplied.toLocaleString()}</span>
+                    </div>
+                  </>
                 )}
               </div>
               <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />
@@ -1452,10 +1615,21 @@ export default function LeadDetailPage() {
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
 
-                {isAmountPaid && (
+                {showCompletedPaymentMessage && (
                   <div className={`rounded-xl border p-4 transition-colors ${isDark ? "border-emerald-500/25 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50"}`}>
                     <p className={`text-sm font-medium ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
                       Payment is already completed.
+                    </p>
+                  </div>
+                )}
+
+                {hasPendingAdditionalPayment && (
+                  <div className={`rounded-xl border p-4 transition-colors ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E7D7BC] bg-[#FFF8EA]"}`}>
+                    <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+                      Additional payment is pending.
+                    </p>
+                    <p className={`mt-1 text-xs ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
+                      Outstanding amount: {formatCurrencyValue(additionalPaymentOutstandingAmount)}.
                     </p>
                   </div>
                 )}
@@ -1504,6 +1678,8 @@ export default function LeadDetailPage() {
               bookingStatus={status}
               isDark={isDark}
               activeLink={lead?.active_payment_link}
+              additionalPaymentStatus={rawAdditionalPayment?.payment_status}
+              additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
             />
 
             {quotePricingDetails && (

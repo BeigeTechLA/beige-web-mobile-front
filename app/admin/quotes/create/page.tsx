@@ -10,7 +10,6 @@ import {
   Save,
   Check,
   MoreVertical,
-  Calendar,
   Minus,
   Trash2,
   Pencil,
@@ -40,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import DottedDivider from "@/components/admin/DottedDivider";
 import ConvertBookingModal, {
+  type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,7 +60,7 @@ import {
 import {
   extractQuoteLineItems,
   formatQuoteItemDisplayName,
-  getQuoteText,
+  getQuoteAdditionalPaymentDetails,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
 } from "@/lib/quoteDetail";
@@ -90,6 +90,8 @@ import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
+import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
+import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -210,6 +212,7 @@ type ClientDropdownItem = {
   client_location?: string | number | null;
   street_address?: string | number | null;
   full_address?: string | number | null;
+  client_type?: string | number | null;
 };
 
 const PROTECTED_SERVICE_ORDER = [
@@ -285,6 +288,81 @@ const parseCurrencyInput = (value: string) => {
   const sanitizedValue = sanitizeCurrencyInput(value);
   const parsedValue = Number.parseFloat(sanitizedValue);
   return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
+
+const normalizeConvertModalTime = (value?: string | null) => {
+  if (!value) return "";
+  const trimmedValue = String(value).trim();
+  const match = trimmedValue.match(/^(\d{2}:\d{2})/);
+  return match?.[1] || "";
+};
+
+const buildConvertModalInitialData = (
+  booking?: {
+    event_location?: string;
+    event_date?: string;
+    start_time?: string;
+    end_time?: string;
+    booking_days?: Array<{
+      event_date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+  } | null,
+): ConvertBookingModalInitialData | null => {
+  if (!booking) {
+    return null;
+  }
+
+  const bookingDays = Array.isArray(booking.booking_days)
+    ? booking.booking_days
+        .filter((day) => day?.event_date)
+        .map((day) => ({
+          date: day.event_date,
+          startTime: normalizeConvertModalTime(day.start_time),
+          endTime: normalizeConvertModalTime(day.end_time),
+        }))
+        .filter((day) => day.startTime && day.endTime)
+    : [];
+
+  if (bookingDays.length > 1) {
+    const [firstDay] = bookingDays;
+    const sameTimings = bookingDays.every(
+      (day) =>
+        day.startTime === firstDay.startTime && day.endTime === firstDay.endTime,
+    );
+
+    return {
+      bookingType: "multi_day",
+      location: booking.event_location || "",
+      multiDay: {
+        sameTimings,
+        sharedStartTime: sameTimings ? firstDay.startTime : undefined,
+        sharedEndTime: sameTimings ? firstDay.endTime : undefined,
+        days: bookingDays,
+      },
+    };
+  }
+
+  const singleDayDate = bookingDays[0]?.date || booking.event_date || "";
+  const singleDayStartTime =
+    bookingDays[0]?.startTime || normalizeConvertModalTime(booking.start_time);
+  const singleDayEndTime =
+    bookingDays[0]?.endTime || normalizeConvertModalTime(booking.end_time);
+
+  if (!singleDayDate || !singleDayStartTime || !singleDayEndTime) {
+    return null;
+  }
+
+  return {
+    bookingType: "single_day",
+    location: booking.event_location || "",
+    singleDay: {
+      date: singleDayDate,
+      startTime: singleDayStartTime,
+      endTime: singleDayEndTime,
+    },
+  };
 };
 
 const mergeCatalogItemsById = <T extends { id: string }>(
@@ -363,12 +441,16 @@ const buildCreatedClientDraft = ({
   email,
   phoneNumber,
   address,
+  clientId,
 }: {
   name: string;
   email: string;
   phoneNumber: string;
   address: string;
+  clientId?: string | number | null;
 }): ClientDropdownItem => ({
+  ...(clientId !== null && clientId !== undefined ? { client_id: clientId } : {}),
+  client_type: "guest",
   name,
   email,
   phone_number: phoneNumber,
@@ -915,6 +997,9 @@ export default function CreateQuotePage() {
   const isEditMode = Boolean(editQuoteId);
   const editModeParam = searchParams.get("editMode");
   const isFullEditFlow = isEditMode && editModeParam === "full";
+  const isDuplicateFlow = ["1", "true"].includes(
+    String(searchParams.get("duplicate") || "").trim().toLowerCase(),
+  );
   const returnToParam = searchParams.get("returnTo");
   const [createdQuoteId, setCreatedQuoteId] = useState<string | null>(null);
   const effectiveQuoteId = editQuoteId || createdQuoteId;
@@ -923,9 +1008,9 @@ export default function CreateQuotePage() {
     isEditMode ? "details" : "selection",
   );
   const quoteEditReturnHref =
-    returnToParam && returnToParam.startsWith("/") ? returnToParam : null;
-  const paidQuoteRedirectHref = quoteEditReturnHref ||
-    (editQuoteId ? `/admin/quotes/${encodeURIComponent(editQuoteId)}` : "/admin/quotes");
+    !isDuplicateFlow && returnToParam && returnToParam.startsWith("/")
+      ? returnToParam
+      : null;
 
   // Using a Record so it works for multiple rows/items in a list
   const [inputValue, setInputValue] = useState<Record<string, string>>({});
@@ -1050,6 +1135,9 @@ export default function CreateQuotePage() {
   const [editingTypeConfigs, setEditingTypeConfigs] = useState<
     Record<string, { quantity: number; estimatedPrice: number }>
   >({});
+  const [estimatedPriceDrafts, setEstimatedPriceDrafts] = useState<
+    Record<string, string>
+  >({});
 
   const [services, setServices] = useState<any[]>([]);
   const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
@@ -1087,6 +1175,8 @@ export default function CreateQuotePage() {
   const [isConverting, setIsConverting] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [convertIntent, setConvertIntent] = useState<"convert_only" | "send_invoice" | "view_invoice">("convert_only");
+  const [convertModalInitialDataOverride, setConvertModalInitialDataOverride] =
+    useState<ConvertBookingModalInitialData | null>(null);
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] =
     useState<string | null>(null);
   const [isConvertedOverride, setIsConvertedOverride] = useState(false);
@@ -1098,11 +1188,6 @@ export default function CreateQuotePage() {
   const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
   const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] =
     React.useState(false);
-  const isPaidQuoteEdit =
-    isEditMode &&
-    ["paid"].includes(
-      getQuoteText(quoteToEdit?.quote_status, quoteToEdit?.status).trim().toLowerCase()
-    );
   const [isCatalogLoaded, setIsCatalogLoaded] = React.useState(false);
   const hydratedQuoteIdRef = React.useRef<string | null>(null);
   const hydratingQuoteIdRef = React.useRef<string | null>(null);
@@ -1112,6 +1197,22 @@ export default function CreateQuotePage() {
   const logisticsItemsRef = React.useRef(logisticsItems);
   const lineItemsRef = React.useRef(lineItems);
   const editingTypeOptionsRef = React.useRef(editingTypeOptions);
+  const quoteLeadId = React.useMemo(() => {
+    const leadIdValue = quoteToEdit?.["lead_id"] ?? previewQuote?.["lead_id"];
+    const normalizedLeadId = Number(leadIdValue);
+    return Number.isInteger(normalizedLeadId) && normalizedLeadId > 0
+      ? normalizedLeadId
+      : null;
+  }, [previewQuote, quoteToEdit]);
+  const { data: linkedLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
+    skip: !quoteLeadId,
+  });
+  const convertModalInitialData = React.useMemo(
+    () =>
+      convertModalInitialDataOverride ||
+      buildConvertModalInitialData(linkedLeadDetails?.booking),
+    [convertModalInitialDataOverride, linkedLeadDetails],
+  );
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -1189,6 +1290,10 @@ export default function CreateQuotePage() {
   React.useEffect(() => {
     fetchCatalog();
   }, []);
+
+  React.useEffect(() => {
+    setConvertModalInitialDataOverride(null);
+  }, [effectiveQuoteId]);
 
   React.useEffect(() => {
     servicesRef.current = services;
@@ -1420,17 +1525,6 @@ export default function CreateQuotePage() {
           return;
         }
 
-        const normalizedQuoteStatus = getQuoteText(
-          quoteDetail.quote_status,
-          quoteDetail.status,
-        ).trim().toLowerCase();
-
-        if (normalizedQuoteStatus === "paid") {
-          toast.error("Paid quotes cannot be edited.");
-          router.replace(paidQuoteRedirectHref);
-          return;
-        }
-
         setQuoteToEdit(quoteDetail);
       } catch (error) {
         console.error("Failed to load quote for edit", error);
@@ -1457,7 +1551,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [editQuoteId, paidQuoteRedirectHref, router]);
+  }, [editQuoteId, router]);
 
   React.useEffect(() => {
     if (!editQuoteId || !quoteToEdit || !isCatalogLoaded) {
@@ -1818,6 +1912,56 @@ export default function CreateQuotePage() {
     handleConfigUpdate(serviceId, "estimatedPrice", nextPrice);
   };
 
+  const getEstimatedPriceInputKey = (
+    isEditingService: boolean,
+    serviceId: string,
+    editingTypeId: string,
+  ) => (isEditingService ? `editing:${editingTypeId}` : `service:${serviceId}`);
+
+  const getAddonPriceInputKey = (addonId: string) => `addon:${addonId}`;
+  const getLineItemPriceInputKey = (lineItemId: string) =>
+    `line_item:${lineItemId}`;
+
+  const getEstimatedPriceInputValue = (
+    inputKey: string,
+    persistedValue: number,
+  ) =>
+    Object.prototype.hasOwnProperty.call(estimatedPriceDrafts, inputKey)
+      ? estimatedPriceDrafts[inputKey]
+      : `$ ${formatAddonDisplayValue(persistedValue)}`;
+
+  const getCurrencyDraftInputValue = (
+    inputKey: string,
+    persistedValue: number,
+  ) =>
+    Object.prototype.hasOwnProperty.call(estimatedPriceDrafts, inputKey)
+      ? estimatedPriceDrafts[inputKey]
+      : `$ ${formatAddonDisplayValue(persistedValue)}`;
+
+  const setEstimatedPriceDraftValue = (inputKey: string, value: string) => {
+    const sanitizedValue = sanitizeCurrencyInput(value);
+    setEstimatedPriceDrafts((prev) => ({
+      ...prev,
+      [inputKey]: sanitizedValue,
+    }));
+  };
+
+  const commitEstimatedPriceDraftValue = (
+    inputKey: string,
+    persistedValue: number,
+    onCommit: (nextValue: number) => void,
+  ) => {
+    const draftValue = estimatedPriceDrafts[inputKey];
+    const nextValue =
+      draftValue === undefined ? persistedValue : parseCurrencyInput(draftValue);
+    onCommit(nextValue);
+    setEstimatedPriceDrafts((prev) => {
+      const nextDrafts = { ...prev };
+      delete nextDrafts[inputKey];
+      return nextDrafts;
+    });
+  };
+
   const handleAddonConfigUpdate = (
     addonId: string,
     field: string,
@@ -1827,6 +1971,13 @@ export default function CreateQuotePage() {
       field === "quantity" ? Math.max(1, value) : Math.max(0, value);
 
     setAddonConfigs((prev) => ({
+      ...prev,
+      [addonId]: {
+        ...prev[addonId],
+        [field]: nextValue,
+      },
+    }));
+    setAppliedAddonConfigs((prev) => ({
       ...prev,
       [addonId]: {
         ...prev[addonId],
@@ -2137,9 +2288,17 @@ export default function CreateQuotePage() {
                     <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
                   )}
                 </div>
-                <span className="font-semibold text-lg">
-                  {getClientDisplayName(client)}
-                </span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate font-semibold text-lg">
+                    {getClientDisplayName(client)}
+                  </span>
+                  <ClientTypeBadge
+                    clientType={client.client_type}
+                    userId={client.user_id}
+                    isDark={isDark}
+                    isSelected={isSelectedClient}
+                  />
+                </div>
               </div>
             );
           })
@@ -2442,6 +2601,12 @@ export default function CreateQuotePage() {
             email: trimmedEmail,
             phoneNumber: trimmedPhone,
             address: trimmedAddress,
+            clientId:
+              (response as { data?: { client_id?: string | number; id?: string | number }; client_id?: string | number; id?: string | number })?.data?.client_id ??
+              (response as { data?: { client_id?: string | number; id?: string | number }; client_id?: string | number; id?: string | number })?.data?.id ??
+              (response as { data?: { client_id?: string | number; id?: string | number }; client_id?: string | number; id?: string | number })?.client_id ??
+              (response as { data?: { client_id?: string | number; id?: string | number }; client_id?: string | number; id?: string | number })?.id ??
+              null,
           });
 
           const dropdownResponse = await salesApi.getClientDropdown();
@@ -2635,12 +2800,12 @@ export default function CreateQuotePage() {
     .map((itemId) => logisticsItems.find((item) => item.id === itemId))
     .filter((item): item is (typeof logisticsItems)[number] => Boolean(item));
   const totalLogisticsCost = selectedLogisticsItems.reduce((total, item) => {
-    const config = appliedLogisticsConfigs[item.id];
+    const config = logisticsConfigs[item.id] ?? appliedLogisticsConfigs[item.id];
     if (!config) return total;
     return total + config.price;
   }, 0);
   const totalLineItemsCost = lineItems.reduce((total, item) => {
-    const config = appliedLineItemConfigs[item.id];
+    const config = lineItemConfigs[item.id] ?? appliedLineItemConfigs[item.id];
     if (!config) return total;
     return total + config.price;
   }, 0);
@@ -2754,6 +2919,10 @@ export default function CreateQuotePage() {
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
+  const additionalPaymentDetails = React.useMemo(
+    () => getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote),
+    [previewQuote, quoteToEdit],
+  );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
 
@@ -2818,7 +2987,9 @@ export default function CreateQuotePage() {
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId);
   const showInvoiceActions = view === "tax" && isQuoteSaved && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
-
+  const convertBookingActionLabel = isConvertedToBooking
+    ? "Update Booking"
+    : "Convert to Booking";
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
       selectedClient,
@@ -2956,12 +3127,6 @@ export default function CreateQuotePage() {
     action: "preview" | "save" | "draft",
     options?: { suppressRedirect?: boolean; openPreview?: boolean },
   ) => {
-    if (isPaidQuoteEdit) {
-      toast.error("Paid quotes cannot be edited.");
-      router.replace(paidQuoteRedirectHref);
-      return;
-    }
-
     if (isCreatingQuoteDraft) return;
 
     const isUpdatingExistingQuote = Boolean(effectiveQuoteId);
@@ -3035,7 +3200,7 @@ export default function CreateQuotePage() {
         await delayAfterSuccessToast();
         setIsQuoteSaved(true);
         if (!shouldOpenPreview) {
-          if (isEditMode && quoteEditReturnHref) {
+          if (isEditMode && quoteEditReturnHref && !isFullEditFlow) {
             router.push(quoteEditReturnHref);
             return;
           }
@@ -3149,12 +3314,6 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (isPaidQuoteEdit) {
-      toast.error("Paid quotes cannot be edited.");
-      router.replace(paidQuoteRedirectHref);
-      return;
-    }
-
     if (!currentStepValidation.isValid) {
       toast.error(getQuoteValidationMessage(currentStepValidation));
       return;
@@ -3179,6 +3338,10 @@ export default function CreateQuotePage() {
 
       toast.success("Quote updated successfully");
       await delayAfterSuccessToast();
+      if (isDuplicateFlow) {
+        return;
+      }
+
       router.push(quoteEditReturnHref || editQuoteDetailsHref);
     } catch (error) {
       console.error("Failed to save quote edit step", error);
@@ -3307,12 +3470,6 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (!isConvertedToBooking) {
-      setConvertIntent("view_invoice");
-      setIsConvertModalOpen(true);
-      return;
-    }
-
     await previewQuoteInvoiceRequest();
   };
 
@@ -3354,13 +3511,17 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (!isConvertedToBooking) {
-      setConvertIntent("send_invoice");
-      setIsConvertModalOpen(true);
+    await sendQuoteInvoiceRequest();
+  };
+
+  const handleConvertToBooking = () => {
+    if (!resolvedInvoiceQuoteId) {
+      toast.error("Quote id is missing.");
       return;
     }
 
-    await sendQuoteInvoiceRequest();
+    setConvertIntent("convert_only");
+    setIsConvertModalOpen(true);
   };
 
   const handleConvertBookingSubmit = async (
@@ -3373,6 +3534,7 @@ export default function CreateQuotePage() {
 
     setIsConverting(true);
     try {
+      const wasAlreadyConverted = isConvertedToBooking;
       const browserTimeZone = getBrowserTimeZone();
       let payload: SalesQuoteConvertToBookingPayload;
 
@@ -3387,6 +3549,9 @@ export default function CreateQuotePage() {
           start_date: bookingData.singleDay.date,
           start_time: `${bookingData.singleDay.startTime}:00`,
           end_time: `${bookingData.singleDay.endTime}:00`,
+          location: bookingData.location || "",
+          location_latitude: bookingData.location_latitude ?? undefined,
+          location_longitude: bookingData.location_longitude ?? undefined,
         };
       } else {
         if (!bookingData.multiDay) {
@@ -3396,6 +3561,9 @@ export default function CreateQuotePage() {
         payload = {
           booking_type: "multi_day",
           time_zone: browserTimeZone,
+          location: bookingData.location || "",
+          location_latitude: bookingData.location_latitude ?? undefined,
+          location_longitude: bookingData.location_longitude ?? undefined,
           booking_days: bookingData.multiDay.days.map((day) => ({
             date: day.date,
             start_time: `${day.startTime}:00`,
@@ -3427,6 +3595,7 @@ export default function CreateQuotePage() {
         setConvertedBookingIdOverride(nextBookingId);
       }
       setIsConvertedOverride(true);
+      setConvertModalInitialDataOverride(bookingData);
       setQuoteToEdit((current) =>
         current
           ? {
@@ -3437,7 +3606,9 @@ export default function CreateQuotePage() {
       );
 
       toast.success(
-        `Your quote has been converted into booking${nextBookingId ? ` #${nextBookingId}` : ""}. You can continue with invoice actions now.`,
+        wasAlreadyConverted
+          ? "Booking date and time updated. Continuing with invoice actions now."
+          : `Your quote has been converted into booking${nextBookingId ? ` #${nextBookingId}` : ""}. You can continue with invoice actions now.`,
       );
       setIsConvertModalOpen(false);
 
@@ -4599,9 +4770,6 @@ export default function CreateQuotePage() {
                       <div className="space-y-4 lg:space-y-6">
                         {selectedLogisticsItems.map((item) => {
                           const config = logisticsConfigs[item.id];
-                          const hasPendingChanges = hasPendingLogisticsChanges(
-                            item.id,
-                          );
                           if (!config) return null;
 
                           return (
@@ -4646,6 +4814,13 @@ export default function CreateQuotePage() {
                                               price: numericVal,
                                             },
                                           }));
+                                          setAppliedLogisticsConfigs((prev) => ({
+                                            ...prev,
+                                            [item.id]: {
+                                              ...prev[item.id],
+                                              price: numericVal,
+                                            },
+                                          }));
                                         }
                                       }}
                                       onBlur={() => {
@@ -4666,14 +4841,6 @@ export default function CreateQuotePage() {
                                       className="text-red-500 hover:text-red-400 transition-colors"
                                     >
                                       <Trash2 size={18} />
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        applyLogisticsChanges(item.id, item.label)
-                                      }
-                                      className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                    >
-                                      <Check size={18} strokeWidth={3} />
                                     </button>
                                   </div>
                                 </div>
@@ -4713,6 +4880,13 @@ export default function CreateQuotePage() {
                                               price: numericVal,
                                             },
                                           }));
+                                          setAppliedLogisticsConfigs((prev) => ({
+                                            ...prev,
+                                            [item.id]: {
+                                              ...prev[item.id],
+                                              price: numericVal,
+                                            },
+                                          }));
                                         }
                                       }}
                                       onBlur={() => {
@@ -4731,14 +4905,6 @@ export default function CreateQuotePage() {
                                     className="text-red-500 hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      applyLogisticsChanges(item.id, item.label)
-                                    }
-                                    className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                  >
-                                    <Check size={18} strokeWidth={3} />
                                   </button>
                                 </div>
                               </div>
@@ -4952,12 +5118,10 @@ export default function CreateQuotePage() {
                     </div>
 
                     <div className="space-y-4 lg:space-y-6">
-                      {selectedAddons.map((addonId) => {
-                        const addon = addons.find((a) => a.id === addonId);
-                        const config = addonConfigs[addonId];
-                        const hasPendingChanges =
-                          hasPendingAddonChanges(addonId);
-                        if (!addon || !config) return null;
+                        {selectedAddons.map((addonId) => {
+                          const addon = addons.find((a) => a.id === addonId);
+                          const config = addonConfigs[addonId];
+                          if (!addon || !config) return null;
 
                         return (
                           <div
@@ -5017,17 +5181,50 @@ export default function CreateQuotePage() {
 
                                 {/* Price Override */}
                                 <div className="relative w-[190px]">
+                                  {(() => {
+                                    const addonInputKey =
+                                      getAddonPriceInputKey(addonId);
+
+                                    return (
                                   <Input
-                                    value={`$ ${getAddonDraftPrice(addonId).toFixed(2)}`}
+                                    value={getCurrencyDraftInputValue(
+                                      addonInputKey,
+                                      getAddonDraftPrice(addonId),
+                                    )}
+                                    onFocus={(e) => {
+                                      setEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        e.target.value,
+                                      );
+                                    }}
                                     onChange={(e) =>
-                                      handleAddonPriceUpdate(
-                                        addonId,
+                                      setEstimatedPriceDraftValue(
+                                        addonInputKey,
                                         e.target.value,
                                       )
                                     }
+                                    onBlur={() =>
+                                      commitEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        getAddonDraftPrice(addonId),
+                                        (nextValue) => {
+                                          handleAddonPriceUpdate(
+                                            addonId,
+                                            String(nextValue),
+                                          );
+                                        },
+                                      )
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      }
+                                    }}
                                     inputMode="decimal"
                                     className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
                                   />
+                                    );
+                                  })()}
                                 </div>
 
                                 <div className="flex items-center gap-5 ml-2">
@@ -5036,14 +5233,6 @@ export default function CreateQuotePage() {
                                     className="text-red-500 hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      applyAddonChanges(addonId, addon.label)
-                                    }
-                                    className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                  >
-                                    <Check size={18} strokeWidth={3} />
                                   </button>
                                 </div>
                               </div>
@@ -5096,31 +5285,56 @@ export default function CreateQuotePage() {
                               </div>
                               <div className="flex gap-3 items-center">
                                 <div className="relative flex-1">
+                                  {(() => {
+                                    const addonInputKey =
+                                      getAddonPriceInputKey(addonId);
+
+                                    return (
                                   <Input
-                                    value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
+                                    value={getCurrencyDraftInputValue(
+                                      addonInputKey,
+                                      getAddonDraftPrice(addonId),
+                                    )}
+                                    onFocus={(e) => {
+                                      setEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        e.target.value,
+                                      );
+                                    }}
                                     onChange={(e) =>
-                                      handleAddonPriceUpdate(
-                                        addonId,
+                                      setEstimatedPriceDraftValue(
+                                        addonInputKey,
                                         e.target.value,
                                       )
                                     }
+                                    onBlur={() =>
+                                      commitEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        getAddonDraftPrice(addonId),
+                                        (nextValue) => {
+                                          handleAddonPriceUpdate(
+                                            addonId,
+                                            String(nextValue),
+                                          );
+                                        },
+                                      )
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      }
+                                    }}
                                     inputMode="decimal"
                                     className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
                                   />
+                                    );
+                                  })()}
                                 </div>
                                 <button
                                   onClick={() => removeSelectedAddon(addonId)}
                                   className="text-red-500 hover:text-red-400 transition-colors"
                                 >
                                   <Trash2 size={18} />
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    applyAddonChanges(addonId, addon.label)
-                                  }
-                                  className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                >
-                                  <Check size={18} strokeWidth={3} />
                                 </button>
                               </div>
                             </div>
@@ -5534,6 +5748,11 @@ export default function CreateQuotePage() {
                                 : null;
                               const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
                               const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+                              const estimatedPriceInputKey = getEstimatedPriceInputKey(
+                                isEditingService,
+                                serviceId,
+                                editingTypeId,
+                              );
                               const serviceTotal = isEditingService
                                 ? quantity * estimatedPrice
                                 : config.duration *
@@ -5723,21 +5942,54 @@ export default function CreateQuotePage() {
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
                                       <Input
-                                        value={`$ ${formatAddonDisplayValue(isEditingService ? estimatedPrice : getServiceDraftPrice(serviceId))}`}
-                                        onChange={(e) =>
+                                        value={getEstimatedPriceInputValue(
+                                          estimatedPriceInputKey,
                                           isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: parseCurrencyInput(e.target.value),
-                                              },
-                                            }))
-                                            : handleServicePriceUpdate(
-                                              serviceId,
-                                              e.target.value,
-                                            )
+                                            ? estimatedPrice
+                                            : getServiceDraftPrice(serviceId),
+                                        )}
+                                        onFocus={(e) => {
+                                          setEstimatedPriceDraftValue(
+                                            estimatedPriceInputKey,
+                                            e.target.value,
+                                          );
+                                        }}
+                                        onChange={(e) =>
+                                          setEstimatedPriceDraftValue(
+                                            estimatedPriceInputKey,
+                                            e.target.value,
+                                          )
                                         }
+                                        onBlur={() =>
+                                          commitEstimatedPriceDraftValue(
+                                            estimatedPriceInputKey,
+                                            isEditingService
+                                              ? estimatedPrice
+                                              : getServiceDraftPrice(serviceId),
+                                            (nextValue) => {
+                                              if (isEditingService) {
+                                                setEditingTypeConfigs((prev) => ({
+                                                  ...prev,
+                                                  [editingTypeId]: {
+                                                    quantity,
+                                                    estimatedPrice: nextValue,
+                                                  },
+                                                }));
+                                                return;
+                                              }
+
+                                              handleServicePriceUpdate(
+                                                serviceId,
+                                                String(nextValue),
+                                              );
+                                            },
+                                          )
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.currentTarget.blur();
+                                          }
+                                        }}
                                         inputMode="decimal"
                                         className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
                                       />
@@ -5805,17 +6057,22 @@ export default function CreateQuotePage() {
                       }}
                       className={`w-full group bg-transparent rounded-xl px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? "ring-1 ring-[#8E826A]/30" : ""}`}
                     >
-                      <span
-                        className={
-                          selectedClient
-                            ? "text-white text-[16px] font-normal"
-                            : "text-[#6B6B6B] text-[16px] font-normal"
-                        }
-                      >
-                        {selectedClient
-                          ? getClientDisplayName(selectedClient)
-                          : "Choose a Client..."}
-                      </span>
+                      {selectedClient ? (
+                        <span className="flex min-w-0 items-center gap-2 text-white text-[16px] font-normal">
+                          <span className="truncate">
+                            {getClientDisplayName(selectedClient)}
+                          </span>
+                          <ClientTypeBadge
+                            clientType={selectedClient.client_type}
+                            userId={selectedClient.user_id}
+                            isDark={isDark}
+                          />
+                        </span>
+                      ) : (
+                        <span className="text-[#6B6B6B] text-[16px] font-normal">
+                          Choose a Client...
+                        </span>
+                      )}
                       <ChevronDown
                         size={20}
                         className={`text-[#E5E5E5] transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
@@ -5913,7 +6170,6 @@ export default function CreateQuotePage() {
                 <div className="space-y-4 lg:space-y-6 p-4 lg:p-8 lg:pb-6">
                   {lineItems.map((item) => {
                     const config = lineItemConfigs[item.id];
-                    const hasPendingChanges = hasPendingLineItemChanges(item.id);
                     const isProtectedLineItem = isProtectedLineItemLabel(
                       item.label,
                     );
@@ -5962,35 +6218,49 @@ export default function CreateQuotePage() {
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               /> */}
                               <Input
-                                //  Use defaultValue so the input is "uncontrolled" while typing
-                                defaultValue={`$ ${(config?.price || 0).toFixed(2)}`}
-
-                                // The key ensures the input resets if the external state changes 
-                                key={item.id + (config?.price || 0)}
-
-                                onChange={(e) => {
-                                  // Clean the input and update the background state
-                                  const raw = sanitizeCurrencyInput(e.target.value);
-                                  const numericVal = parseCurrencyInput(raw);
-
-                                  if (!Number.isNaN(numericVal)) {
-                                    setLineItemConfigs((prev) => ({
-                                      ...prev,
-                                      [item.id]: {
-                                        ...prev[item.id],
-                                        price: numericVal
-                                      },
-                                    }));
+                                value={getCurrencyDraftInputValue(
+                                  getLineItemPriceInputKey(item.id),
+                                  config?.price || 0,
+                                )}
+                                onFocus={(e) => {
+                                  setEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    e.target.value,
+                                  );
+                                }}
+                                onChange={(e) =>
+                                  setEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    e.target.value,
+                                  )
+                                }
+                                onBlur={() =>
+                                  commitEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    config?.price || 0,
+                                    (nextValue) => {
+                                      setLineItemConfigs((prev) => ({
+                                        ...prev,
+                                        [item.id]: {
+                                          ...prev[item.id],
+                                          price: nextValue,
+                                        },
+                                      }));
+                                      setAppliedLineItemConfigs((prev) => ({
+                                        ...prev,
+                                        [item.id]: {
+                                          ...prev[item.id],
+                                          price: nextValue,
+                                        },
+                                      }));
+                                    },
+                                  )
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.currentTarget.blur();
                                   }
                                 }}
-
-                                onBlur={(e) => {
-                                  // Clean up the display when they click away
-                                  const raw = sanitizeCurrencyInput(e.target.value);
-                                  const finalVal = parseCurrencyInput(raw);
-                                  e.target.value = `$ ${finalVal.toFixed(2)}`;
-                                }}
-
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                                 inputMode="decimal"
                               />
@@ -6017,14 +6287,6 @@ export default function CreateQuotePage() {
                                   <Trash2 size={18} />
                                 </button>
                               )}
-                              <button
-                                onClick={() =>
-                                  applyLineItemChanges(item.id, item.label)
-                                }
-                                className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-700/70 hover:text-green-600"}`}
-                              >
-                                <Check size={18} strokeWidth={3} />
-                              </button>
                             </div>
                           </div>
                         </div>
@@ -6437,6 +6699,29 @@ export default function CreateQuotePage() {
                       {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
+                  {additionalPaymentDetails ? (
+                    <>
+                      <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm lg:text-base text-[#9F9FA9]">
+                            Previously Paid
+                          </span>
+                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                            {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm lg:text-base text-[#9F9FA9]">
+                            Additional Amount
+                          </span>
+                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                            {formatCurrency(additionalPaymentDetails.additionalAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
 
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
 
@@ -6448,6 +6733,7 @@ export default function CreateQuotePage() {
                       {formatCurrency(totalAfterDiscount)}
                     </span>
                   </div>
+
                 </div>
               </div>
             </div>
@@ -6929,8 +7215,18 @@ export default function CreateQuotePage() {
           </div>
 
           <div className="flex gap-4 self-start sm:self-auto">
-            {showInvoiceActions ? (
+              {showInvoiceActions ? (
               <>
+                <Button
+                  type="button"
+                  onClick={handleConvertToBooking}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  variant="outline"
+                  className="border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all shadow-lg disabled:opacity-70"
+                >
+                  {isConverting ? <Loader2 size={20} className="animate-spin" /> : null}
+                  {isConverting ? "Converting..." : convertBookingActionLabel}
+                </Button>
                 <Button
                   type="button"
                   onClick={() => {
@@ -6994,7 +7290,15 @@ export default function CreateQuotePage() {
       {/* --- FLOATING MOBILE BUTTON --- */}
       <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
         {showInvoiceActions ? (
-          <div className="flex gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Button
+              type="button"
+              onClick={handleConvertToBooking}
+              disabled={isViewingInvoice || isSendingInvoice || isConverting}
+              className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              {isConverting ? "Converting..." : convertBookingActionLabel}
+            </Button>
             <Button
               type="button"
               onClick={() => {
@@ -7179,23 +7483,40 @@ export default function CreateQuotePage() {
         }}
         isSubmitting={isConverting}
         isDark={isDark}
+        initialData={convertModalInitialData}
         showLocationField={false}
         maxDurationHours={selectedServicesMaxDurationHours}
         title={
           convertIntent === "send_invoice"
-            ? "Convert to Booking Before Sending Invoice"
+            ? isConvertedToBooking
+              ? "Confirm Date & Time Before Sending Invoice"
+              : "Convert to Booking Before Sending Invoice"
             : convertIntent === "view_invoice"
               ? "Convert to Booking Before Viewing Invoice"
-            : "Convert to Booking"
+            : isConvertedToBooking
+              ? "Update Booking"
+              : "Convert to Booking"
         }
         description={
           convertIntent === "send_invoice"
-            ? "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
+            ? isConvertedToBooking
+              ? "Review or update the booking date and time below, then continue to send the invoice."
+              : "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
             : convertIntent === "view_invoice"
               ? "This quote must be converted to a booking before an invoice can be viewed. Complete the booking details below to continue."
-            : "Select booking type, shoot date and time before continuing."
+            : isConvertedToBooking
+              ? "Review or update the booking date and time below."
+              : "Select booking type, shoot date and time before continuing."
         }
-        submitLabel="Convert to Booking"
+        submitLabel={
+          convertIntent === "send_invoice"
+            ? isConvertedToBooking
+              ? "Save & Send Invoice"
+              : "Convert & Send Invoice"
+            : isConvertedToBooking
+              ? "Save Booking Details"
+              : "Convert to Booking"
+        }
       />
       <QuoteSummaryModal
         open={isSummaryModalOpen}

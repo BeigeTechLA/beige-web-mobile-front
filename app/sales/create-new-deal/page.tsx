@@ -55,6 +55,7 @@ import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/ti
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
+import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import Topbar from "@/components/admin/Topbar";
 import { getFormattedDateString } from "@/lib/utils";
 
@@ -73,6 +74,7 @@ const intentOptions = [
 
 type ClientDropdownItem = {
   client_id?: string | number | null;
+  user_id?: string | number | null;
   id?: string | number | null;
   name?: string | number | null;
   client_name?: string | number | null;
@@ -85,6 +87,7 @@ type ClientDropdownItem = {
   mobile_number?: string | number | null;
   phone_number?: string | number | null;
   client_phone?: string | number | null;
+  client_type?: string | number | null;
 };
 
 const pickFirstClientValue = (
@@ -913,6 +916,16 @@ export default function ClientDetailPage() {
         start_date_time: formData.startDate,
         duration_hours: durationHours,
         location: formData.location,
+        location_latitude:
+          formData.locationDetails?.coordinates?.lat ??
+          formData.locationDetails?.lat ??
+          formData.locationDetails?.center?.[1] ??
+          undefined,
+        location_longitude:
+          formData.locationDetails?.coordinates?.lng ??
+          formData.locationDetails?.lng ??
+          formData.locationDetails?.center?.[0] ??
+          undefined,
         crew_roles: crewRoles,
         crew_size: crewSize,
         selected_crew_ids: formData.selectedCrewIds || [],
@@ -1069,7 +1082,15 @@ export default function ClientDetailPage() {
                               }`}
                           >
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{displayName}</p>
+                              <div className="flex min-w-0 items-center gap-2">
+                                <p className="truncate text-sm font-medium">{displayName}</p>
+                                <ClientTypeBadge
+                                  clientType={client.client_type}
+                                  userId={client.user_id}
+                                  isDark={isDark}
+                                  isSelected={isSelected}
+                                />
+                              </div>
                               {(email || phone) && (
                                 <p className={`mt-1 truncate text-xs ${isSelected ? "text-black/70" : isDark ? "text-white/50" : "text-black/50"}`}>
                                   {[email, phone].filter(Boolean).join(" • ")}

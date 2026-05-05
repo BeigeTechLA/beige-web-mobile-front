@@ -13,8 +13,6 @@ import {
   Clock,
   Loader2,
   Map,
-  Icon,
-  Info,
   ShieldCheck,
   FileImage,
   RefreshCw,
@@ -53,6 +51,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
 import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
+import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -144,6 +143,36 @@ const isValidPhoneNumber = (value: string) => {
   return digitCount >= 7 && digitCount <= 15;
 };
 
+const parseValidDate = (value?: string) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDisplayDate = (value?: string) => {
+  const parsed = parseValidDate(value);
+  return parsed ? format(parsed, "d MMMM, yyyy") : "";
+};
+const formatSummaryDate = (value?: string) => formatDisplayDate(value) || "Date not set";
+
+const formatDisplayTime = (value?: string) => {
+  if (!value) return "";
+
+  const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (timeMatch) {
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      const parsed = new Date();
+      parsed.setHours(hours, minutes, 0, 0);
+      return format(parsed, "h:mm a").toUpperCase();
+    }
+  }
+
+  const parsed = parseValidDate(value);
+  return parsed ? format(parsed, "h:mm a").toUpperCase() : value;
+};
+
 export const V3Step4BookConfirm: React.FC<Props> = ({
   data,
   updateData,
@@ -193,33 +222,26 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const allSameTime = isMultiDay && sortedBookingDays.every(
     (d) => d.startTime === firstDay?.startTime && d.endTime === firstDay?.endTime
   );
-  const displayDateText = isMultiDay
-    ? `${sortedBookingDays.length} days • ${format(new Date(firstDay.date), "EEE, dd MMM yyyy")} - ${format(new Date(lastDay.date), "EEE, dd MMM yyyy")}`
-    : isEditingOnly && data.expectedDeliveryDate
-      ? format(new Date(data.expectedDeliveryDate), "EEEE, dd MMM yyyy")
-      : data.startDate
-        ? format(new Date(data.startDate), "EEEE, dd MMM yyyy")
-        : "Date not set";
   const displayTimeText = isMultiDay
     ? allSameTime && firstDay?.startTime && firstDay?.endTime
-      ? `${firstDay.startTime} - ${firstDay.endTime}`
+      ? `${formatDisplayTime(firstDay.startTime)} - ${formatDisplayTime(firstDay.endTime)}`
       : "Multiple times"
     : isEditingOnly
       ? "Not required for editing-only projects"
       : data.startDate && data.endDate
-        ? `${format(new Date(data.startDate), "h:mm a")} - ${format(new Date(data.endDate), "h:mm a")}`
+        ? `${formatDisplayTime(data.startDate)} - ${formatDisplayTime(data.endDate)}`
         : "Time not set";
-  const formatSummaryDate = (value: string) => format(new Date(value), "dd MMM, yyyy");
-  const summaryDateText = displayDateText && (isMultiDay
+  const summaryDateText = isMultiDay
     ? `${sortedBookingDays.length} Days • ${formatSummaryDate(firstDay.date)} - ${formatSummaryDate(lastDay.date)}`
     : isEditingOnly && data.expectedDeliveryDate
       ? formatSummaryDate(data.expectedDeliveryDate)
       : data.startDate
         ? formatSummaryDate(data.startDate)
-        : "Date not set");
+        : "Date not set";
 
   const [durationHours, setDurationHours] = useState<number>(0);
-  const [acceptTerms, setAcceptTerms] = useState(true);
+  const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
+  const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
   const selectedStudios = normalizeSelectedStudios(data);
   const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
@@ -327,6 +349,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     if (!isValidPhoneNumber(data.phone)) {
       toast.error("Please enter a valid phone number");
       setErrors((prev) => [...prev, "contactError"]);
+      return;
+    }
+
+    if (!acceptServiceAgreement) {
+      toast.error("Please accept the Service Agreement to continue.");
       return;
     }
 
@@ -1046,8 +1073,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                               <Calendar size={13} />
                               <span>
                                 {studio.pricingMode === "hourly"
-                                  ? `${studio.selectedDate || ""} | ${studio.startTime || ""} - ${studio.endTime || ""}`
-                                  : "Fri, 17 Jan - Mon, 20 Jan"}
+                                  ? `${formatDisplayDate(studio.selectedDate)} | ${formatDisplayTime(studio.startTime)} - ${formatDisplayTime(studio.endTime)}`
+                                  : firstDay?.date && lastDay?.date
+                                    ? `${formatDisplayDate(firstDay.date)} - ${formatDisplayDate(lastDay.date)}`
+                                    : data.startDate && data.endDate
+                                      ? `${formatDisplayDate(data.startDate)} - ${formatDisplayDate(data.endDate)}`
+                                      : "Date not set"}
                               </span>
                             </div>
                           </div>
@@ -1126,19 +1157,30 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <div className="w-2.5 h-2.5 rounded-full bg-black" />
                 </div>
               </div>
-              <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center">
-                <input
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                />
+              <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2">
+                <input type="checkbox" checked={acceptServiceAgreement} readOnly />
                 <p className="text-sm text-[#999]">
-                  By continuing to payment, you agree to our{" "}
-                  <span className="text-[#E8D5B5]">Terms & Conditions</span>,{" "}
-                  <span className="text-[#E8D5B5]">Cancellation Policy</span>,
-                  and <span className="text-[#E8D5B5]">Privacy Policy</span>
+                  I have read and agree to the{" "}
+                  <button
+                    type="button"
+                    onClick={() => setIsServiceAgreementOpen(true)}
+                    className="text-[#E8D5B5] underline hover:text-[#f3e4cd]"
+                  >
+                    Service Agreement & Terms of Engagement
+                  </button>
+                  .
                 </p>
               </div>
+
+              <ServiceAgreementModal
+                isOpen={isServiceAgreementOpen}
+                initialChecked={acceptServiceAgreement}
+                onClose={() => setIsServiceAgreementOpen(false)}
+                onAccept={() => {
+                  setAcceptServiceAgreement(true);
+                  setIsServiceAgreementOpen(false);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -1517,3 +1559,4 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     </div>
   );
 };
+
