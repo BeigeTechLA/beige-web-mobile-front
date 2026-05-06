@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import {
   ArrowLeft,
   Camera,
+  CheckSquare,
   Download,
   ExternalLink,
   FolderOpen,
@@ -16,6 +17,7 @@ import {
   Loader2,
   Search,
   Upload,
+  X as CloseIcon,
 } from "lucide-react";
 import { useViewMode } from "@/hooks/useViewMode";
 import { Button } from "@/components/ui/button";
@@ -142,6 +144,8 @@ export default function AffiliateFileManager() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
+  const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerName, setViewerName] = useState("");
@@ -297,6 +301,11 @@ export default function AffiliateFileManager() {
   }, [selectedWorkspace, selectedPhase, selectedPath]);
 
   useEffect(() => {
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
+  }, [selectedWorkspace?.externalId, selectedPhase, selectedPath]);
+
+  useEffect(() => {
     const previewableFiles = phaseFiles
       .slice(0, visibleFileCount)
       .filter(
@@ -380,11 +389,57 @@ export default function AffiliateFileManager() {
     try {
       const response = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (response?.url) {
-        window.open(response.url, "_blank", "noopener,noreferrer");
+        const link = document.createElement("a");
+        link.href = response.url;
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
       }
     } catch (err) {
       console.error("Failed to download file:", err);
     }
+  };
+
+  const triggerBatchFileDownload = (url: string) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 5000);
+  };
+
+  const toggleFileSelection = (filepath: string) => {
+    setSelectedFilePaths((prev) =>
+      prev.includes(filepath)
+        ? prev.filter((path) => path !== filepath)
+        : [...prev, filepath]
+    );
+  };
+
+  const handleBatchDownload = async () => {
+    if (selectedFilePaths.length === 0) return;
+
+    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
+
+    for (const path of selectedFilePaths) {
+      try {
+        const response = await fileManagerApi.getExternalFileDownloadUrl(path);
+        if (response?.url) {
+          triggerBatchFileDownload(response.url);
+        }
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Failed to download file");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
   };
 
   const fileToBase64 = (file: File) =>
@@ -1105,6 +1160,26 @@ export default function AffiliateFileManager() {
           </div>
         </div>
 
+        {filteredFiles.length > 0 ? (
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const nextMode = !isSelectionMode;
+                setIsSelectionMode(nextMode);
+                if (!nextMode) setSelectedFilePaths([]);
+              }}
+              className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
+                ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                : "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                }`}
+            >
+              <CheckSquare size={18} />
+              <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+            </Button>
+          </div>
+        ) : null}
+
         {canRunFaceScan && faceMatches.length > 0 ? (
           <div className="rounded-xl border border-white/10 bg-[#141414] p-4">
             <p className="mb-3 text-sm font-medium text-[#E8D1AB]">
@@ -1196,6 +1271,8 @@ export default function AffiliateFileManager() {
                       }}
                       onOpen={() => handleOpenFile(file)}
                       onDownload={() => handleDownloadFile(file)}
+                      isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                      onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                     />
                   ))}
                 </div>
@@ -1403,6 +1480,52 @@ export default function AffiliateFileManager() {
       ) : (
         renderRoot()
       )}
+
+      {selectedFilePaths.length > 0 ? (
+        <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8D1AB]/50 bg-[#171717] p-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
+                {selectedFilePaths.length}
+              </div>
+              <span className="font-medium text-white">Files selected</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="gap-2 text-white/70 hover:text-white"
+                onClick={() => {
+                  setSelectedFilePaths([]);
+                  setIsSelectionMode(false);
+                }}
+              >
+                Clear
+              </Button>
+
+              <div className="mx-1 h-6 w-[1px] bg-white/10" />
+
+              <Button
+                className="gap-2 border border-white/10 bg-white/10 text-white hover:bg-white/20"
+                onClick={handleBatchDownload}
+              >
+                <Download size={18} />
+                Download
+              </Button>
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedFilePaths([]);
+                setIsSelectionMode(false);
+              }}
+              className="text-white/40 hover:text-white"
+            >
+              <CloseIcon size={20} />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {isCameraOpen ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4">

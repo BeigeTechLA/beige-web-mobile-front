@@ -13,6 +13,16 @@ interface FeaturedWorkModalProps {
   editItem?: any | null;
 }
 
+interface PreviewItem {
+  id: string;
+  src: string;
+}
+
+interface StoredFileItem {
+  file: File;
+  signature: string;
+}
+
 const MAX_FILE_SIZE_MB = 30;
 const MAX_TOTAL_PROJECT_MB = 50;
 
@@ -20,13 +30,19 @@ const MAX_TOTAL_PROJECT_MB = 50;
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const ALLOWED_EXT_TEXT = "png, jpg, jpeg, webp";
 
+const createPreviewId = () =>
+  `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+const getFileSignature = (file: File) =>
+  [file.name, file.size, file.lastModified, file.type].join("__");
+
 const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [addTagsOpen, setAddTagsOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [rawFiles, setRawFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<PreviewItem[]>([]);
+  const [rawFiles, setRawFiles] = useState<StoredFileItem[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -39,8 +55,19 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
       if (editItem) {
         setTitle(editItem.title || "");
         setTags(editItem.tags || []);
-        setImagePreviews(editItem.previews || (editItem.image ? [editItem.image] : []));
-        setRawFiles(editItem.files || []);
+        const previews = editItem.previews || (editItem.image ? [editItem.image] : []);
+        setImagePreviews(
+          previews.map((src: string) => ({
+            id: createPreviewId(),
+            src,
+          }))
+        );
+        setRawFiles(
+          (editItem.files || []).map((file: File) => ({
+            file,
+            signature: getFileSignature(file),
+          }))
+        );
       } else {
         setTitle("");
         setTags([]);
@@ -77,8 +104,11 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
     try {
       setIsCompressing(true);
 
-      const newPreviews: string[] = [];
-      const newRawFiles: File[] = [];
+      const newPreviews: PreviewItem[] = [];
+      const newRawFiles: StoredFileItem[] = [];
+      const existingSignatures = new Set(rawFiles.map((item) => item.signature));
+      const batchSignatures = new Set<string>();
+      let skippedDuplicateCount = 0;
 
       for (const file of files) {
         let processedFile = file;
@@ -86,6 +116,12 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
         // Compress images
         if (file.type.startsWith('image/')) {
           processedFile = await compressImage(file);
+        }
+
+        const signature = getFileSignature(processedFile);
+        if (existingSignatures.has(signature) || batchSignatures.has(signature)) {
+          skippedDuplicateCount += 1;
+          continue;
         }
 
         const base64 = await new Promise<string>((resolve, reject) => {
@@ -97,12 +133,27 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
           // but handleFileChange is only for NEW files.
         });
 
-        newPreviews.push(base64);
-        newRawFiles.push(processedFile);
+        newPreviews.push({
+          id: createPreviewId(),
+          src: base64,
+        });
+        newRawFiles.push({
+          file: processedFile,
+          signature,
+        });
+        batchSignatures.add(signature);
       }
 
-      setImagePreviews((prev) => [...prev, ...newPreviews]);
-      setRawFiles((prev) => [...prev, ...newRawFiles]);
+      if (newPreviews.length > 0) {
+        setImagePreviews((prev) => [...prev, ...newPreviews]);
+        setRawFiles((prev) => [...prev, ...newRawFiles]);
+      }
+
+      if (skippedDuplicateCount > 0) {
+        toast.error("Duplicate image skipped", {
+          description: `${skippedDuplicateCount} image(s) already added.`
+        });
+      }
 
     } catch (error) {
       console.error("Upload error:", error);
@@ -133,8 +184,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
       id: editItem ? editItem.id : Date.now(),
       title,
       tags,
-      previews: imagePreviews,
-      files: rawFiles,
+      previews: imagePreviews.map((item) => item.src),
+      files: rawFiles.map((item) => item.file),
     });
 
     onClose();
@@ -187,9 +238,9 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 relative">
                   {/* Previews logic remains same */}
-                  {imagePreviews.map((src, index) => (
-                    <div key={index} className="relative rounded-[12px] overflow-hidden border border-white/20 aspect-square group">
-                      <img src={src} className="w-full h-full object-cover" />
+                  {imagePreviews.map((preview, index) => (
+                    <div key={preview.id} className="relative rounded-[12px] overflow-hidden border border-white/20 aspect-square group">
+                      <img src={preview.src} className="w-full h-full object-cover" />
                       <button
                         onClick={() => {
                           setImagePreviews((prev) => prev.filter((_, i) => i !== index));
