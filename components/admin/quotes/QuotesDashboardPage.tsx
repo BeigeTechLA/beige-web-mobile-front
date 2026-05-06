@@ -478,8 +478,11 @@ const getSelectedStatForStatus = (statusFilter: string) => {
   switch (statusFilter) {
     case "accepted":
     case "confirmed":
+    case "paid":
       return "Accepted Quotes";
     case "pending":
+    case "sent":
+    case "viewed":
       return "Pending Quotes";
     case "draft":
       return "Draft Quotes";
@@ -1535,7 +1538,29 @@ export default function QuotesDashboardPage({
     [displayQuotesData]
   );
 
-  const filteredQuotesData = useMemo(() => displayQuotesData, [displayQuotesData]);
+  const filteredQuotesData = useMemo(() => {
+    if (selectedStatusFilter === "all") {
+      return displayQuotesData;
+    }
+
+    return displayQuotesData.filter((quote) => {
+      const statusKey = quote.statusKey;
+      
+      if (selectedStatusFilter === "accepted") {
+        return statusKey === "accepted" || statusKey === "confirmed" || statusKey === "paid";
+      }
+
+      if (selectedStatusFilter === "pending") {
+        return statusKey === "pending" || statusKey === "sent" || statusKey === "viewed";
+      }
+
+      if (selectedStatusFilter === "rejected") {
+        return statusKey === "rejected" || statusKey === "cancelled";
+      }
+
+      return statusKey === selectedStatusFilter;
+    });
+  }, [displayQuotesData, selectedStatusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1690,8 +1715,13 @@ export default function QuotesDashboardPage({
                   <div
                     key={stat.title}
                     onClick={() => {
-                      setSelectedStat(stat.title);
-                      setSelectedStatusFilter(getStatusFilterForStat(stat.title));
+                      if (selectedStat === stat.title) {
+                        setSelectedStat("Total Quotes");
+                        setSelectedStatusFilter("all");
+                      } else {
+                        setSelectedStat(stat.title);
+                        setSelectedStatusFilter(getStatusFilterForStat(stat.title));
+                      }
                     }}
                     className={`${bgColor} ${textColor} flex h-40 cursor-pointer flex-col justify-between rounded-2xl p-6 transition-all hover:scale-[1.02] active:scale-[0.98]`}
                   >

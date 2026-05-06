@@ -376,18 +376,25 @@ export default function SalesLeadDetailsPage() {
     !["paid", "success", "completed"].includes(
       String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase()
     );
+
+  useEffect(() => {
+    // Refetch lead data on mount to ensure fresh data after navigating back from quote editor
+    refetch();
+  }, [refetch]);
+
   const additionalPaymentDetails = useMemo(() => {
     if (!rawAdditionalPayment) return null;
 
-    const additionalAmount = Number(rawAdditionalPayment.additional_amount ?? 0);
-    const previouslyPaidAmount = Number(rawAdditionalPayment.previously_paid_amount ?? 0);
+    const actuallyPaidAmount = Number(lead?.pricing_breakdown?.total_paid ?? 0);
     const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
     const outstandingAmount = Number(
-      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - previouslyPaidAmount, 0)
+      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - actuallyPaidAmount, 0)
     );
+    const additionalAmount = revisedTotal - actuallyPaidAmount;
+
     if (
-      additionalAmount <= 0 &&
-      previouslyPaidAmount <= 0 &&
+      Math.abs(additionalAmount) <= 0.009 &&
+      actuallyPaidAmount <= 0 &&
       revisedTotal <= 0 &&
       outstandingAmount <= 0 &&
       !String(rawAdditionalPayment.payment_status || "").trim() &&
@@ -399,7 +406,8 @@ export default function SalesLeadDetailsPage() {
 
     return {
       additionalAmount,
-      previouslyPaidAmount,
+      isDecrease: additionalAmount < -0.009,
+      previouslyPaidAmount: actuallyPaidAmount,
       revisedTotal,
       outstandingAmount,
       paymentStatusLabel: formatStatusLabel(rawAdditionalPayment.payment_status),
@@ -408,7 +416,7 @@ export default function SalesLeadDetailsPage() {
         : null,
       lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
     };
-  }, [rawAdditionalPayment]);
+  }, [rawAdditionalPayment, lead?.pricing_breakdown?.total_paid]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -826,9 +834,11 @@ export default function SalesLeadDetailsPage() {
       : "Paid (Manual)"
     : null;
 
-  const effectiveStatusLabel = manualPaymentSummary.isPartiallyPaid
-    ? "Partially Paid"
-    : status;
+  const effectiveStatusLabel = hasPendingAdditionalPayment
+    ? "Pending"
+    : manualPaymentSummary.isPartiallyPaid
+      ? "Partially Paid"
+      : status;
   const hasManualPaymentHistory = manualPaymentEntries.length > 0;
   const paymentMethodLabel = hasManualPaymentHistory
     ? "Manual"
@@ -1670,7 +1680,10 @@ export default function SalesLeadDetailsPage() {
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {[
                         ["Previously Paid", additionalPaymentDetails.previouslyPaidAmount],
-                        ["Additional Amount", additionalPaymentDetails.additionalAmount],
+                        [
+                          additionalPaymentDetails.isDecrease ? "Reduced Amount" : "Additional Amount",
+                          additionalPaymentDetails.additionalAmount
+                        ],
                         ["Revised Total", additionalPaymentDetails.revisedTotal],
                         ["Outstanding Amount", additionalPaymentDetails.outstandingAmount],
                       ].map(([label, value]) => (
@@ -1683,12 +1696,24 @@ export default function SalesLeadDetailsPage() {
                           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#71717B]">
                             {label}
                           </p>
-                          <p className={`mt-2 text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                            {formatCurrencyValue(value as number)}
+                          <p className={`mt-2 text-base font-semibold ${
+                            label === "Reduced Amount" || (typeof value === 'number' && value < 0)
+                              ? "text-red-500"
+                              : isDark ? "text-white" : "text-black"
+                          }`}>
+                            {label === "Reduced Amount" || label === "Additional Amount"
+                              ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                              : ""}
+                            {formatCurrencyValue(Math.abs(value as number))}
                           </p>
                         </div>
                       ))}
                     </div>
+                    {additionalPaymentDetails.isDecrease && (
+                      <p className={`mt-3 text-xs font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+                        This reduced amount will be added as Beige Credits after approval.
+                      </p>
+                    )}
                   </div>
                 )}
                 {/* <div className="flex justify-between font-medium">

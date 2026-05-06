@@ -2903,10 +2903,12 @@ export default function CreateQuotePage() {
   const totalAfterDiscount = totalAfterTax;
   const additionalPaymentDetails = React.useMemo(
     () =>
-      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
+      getQuoteAdditionalPaymentDetails(previewQuote ?? quoteToEdit, {
         revisedTotalOverride: totalAfterTax,
+        previouslyPaidOverride: linkedLeadDetails?.pricing_breakdown?.total_paid,
+        previousTotalOverride: linkedLeadDetails?.pricing_breakdown?.total_amount,
       }),
-    [previewQuote, quoteToEdit, totalAfterTax],
+    [previewQuote, quoteToEdit, totalAfterTax, linkedLeadDetails?.pricing_breakdown?.total_paid, linkedLeadDetails?.pricing_breakdown?.total_amount],
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -3429,6 +3431,15 @@ export default function CreateQuotePage() {
   const handlePreviewQuote = async () => {
     if (!quoteReviewValidation.isValid) {
       toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    if (!hasUnsavedQuoteChanges && (previewQuote || quoteToEdit)) {
+      if (!previewQuote && quoteToEdit) {
+        setPreviewQuote(quoteToEdit);
+        setPreviewQuoteId(effectiveQuoteId);
+      }
+      setIsPreviewModalOpen(true);
       return;
     }
 
@@ -6818,18 +6829,18 @@ export default function CreateQuotePage() {
                           </div>
                         ) : null}
                         <div className="flex justify-between items-center">
-                          <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            {additionalPaymentDetails.additionalAmount < 0
+                          <span className="text-sm lg:text-base text-white font-medium">
+                            {additionalPaymentDetails.isDecrease
                               ? "Reduced Amount"
                               : "Additional Amount"}
                           </span>
-                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : "text-[#9F9FA9]"}`}>
-                            {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
+                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.isDecrease ? "text-red-500" : "text-[#9F9FA9]"}`}>
+                            {additionalPaymentDetails.isDecrease ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.totalDelta))}
                           </span>
                         </div>
                         {additionalPaymentDetails.isDecrease ? (
                           <p className="text-xs lg:text-sm text-[#E8D1AB]">
-                            This amount will be credited to the client.
+                            This reduced amount will be added as Beige Credits after approval.
                           </p>
                         ) : null}
                       </div>
