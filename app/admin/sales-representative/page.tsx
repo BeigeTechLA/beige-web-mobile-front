@@ -346,6 +346,36 @@ const CP_ASSIGNMENT_OPTIONS = [
   { label: "CP Not Assigned", value: "not_assigned" },
 ] as const;
 
+const PRODUCTION_FILTER_OPTIONS = [
+  { label: "All Production", value: "all" },
+  { label: "Pre Production - File Not Provided", value: "pre_production_file_not_provided" },
+  { label: "Pre Production - Meeting Not Done", value: "pre_production_meeting_not_done" },
+  { label: "Post Production - Meeting Not Done", value: "post_production_meeting_not_done" },
+  { label: "Post Production - File Not Uploaded", value: "post_production_file_not_uploaded" },
+] as const;
+
+const normalizeAssignedRepFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "all";
+  const lower = raw.toLowerCase();
+  if (lower === "all") return "all";
+  if (lower === "unassigned") return "unassigned";
+  if (/^\d+$/.test(raw)) return raw;
+  return "all";
+};
+
+const PRODUCTION_FILTER_ALLOWED_VALUES = new Set(
+  PRODUCTION_FILTER_OPTIONS.map((option) => option.value)
+);
+
+const normalizeProductionFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "all";
+  const lower = raw.toLowerCase();
+  if (lower === "all" || lower === "all production") return "all";
+  return PRODUCTION_FILTER_ALLOWED_VALUES.has(raw) ? raw : "all";
+};
+
 export default function AdminSaleRepManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -369,6 +399,7 @@ export default function AdminSaleRepManagerPage() {
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
   const [leadsViewMode, setLeadsViewMode] = useState<"list" | "grid">("list");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [productionFilter, setProductionFilter] = useState<string>("all");
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
   // Filters state
@@ -390,6 +421,7 @@ export default function AdminSaleRepManagerPage() {
     shootStageFilter !== "all" ||
     assignedRepIdFilter !== "all" ||
     cpAssignmentFilter !== "all" ||
+    productionFilter !== "all" ||
     Boolean(debouncedSearch)
   );
   const leadsLimit =
@@ -449,12 +481,13 @@ export default function AdminSaleRepManagerPage() {
       if (parsed.statusFilter) setStatusFilter(parsed.statusFilter);
       if (parsed.intentFilter) setIntentFilter(parsed.intentFilter);
       if (parsed.shootStageFilter) setShootStageFilter(parsed.shootStageFilter);
-      if (parsed.assignedRepIdFilter) setAssignedRepIdFilter(parsed.assignedRepIdFilter);
+      if (parsed.assignedRepIdFilter) setAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsed.assignedRepIdFilter));
       if (parsed.cpAssignmentFilter) setCpAssignmentFilter(parsed.cpAssignmentFilter);
+      if (parsed.productionFilter) setProductionFilter(normalizeProductionFilterValue(parsed.productionFilter));
       if (parsed.leadsViewMode === "grid" || parsed.leadsViewMode === "list") {
         setLeadsViewMode(parsed.leadsViewMode);
       }
-      if (parsed.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(parsed.clientAssignedRepIdFilter);
+      if (parsed.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsed.clientAssignedRepIdFilter));
       if (parsed.leadsCurrentPage) setLeadsCurrentPage(parsed.leadsCurrentPage);
       if (parsed.usersCurrentPage) setUsersCurrentPage(parsed.usersCurrentPage);
     } catch (error) {
@@ -470,7 +503,7 @@ export default function AdminSaleRepManagerPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, cpAssignmentFilter, debouncedSearch, leadsViewMode]);
+  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, cpAssignmentFilter, productionFilter, debouncedSearch, leadsViewMode]);
 
   useEffect(() => {
     setUsersCurrentPage(1);
@@ -517,6 +550,20 @@ export default function AdminSaleRepManagerPage() {
   }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
 
   useEffect(() => {
+    const normalizedAssigned = normalizeAssignedRepFilterValue(assignedRepIdFilter);
+    const normalizedClientAssigned = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
+    const validValues = new Set(salesRepOptions.map((option) => option.value));
+
+    if (normalizedAssigned !== "all" && normalizedAssigned !== "unassigned" && !validValues.has(normalizedAssigned)) {
+      setAssignedRepIdFilter("all");
+    }
+
+    if (normalizedClientAssigned !== "all" && normalizedClientAssigned !== "unassigned" && !validValues.has(normalizedClientAssigned)) {
+      setClientAssignedRepIdFilter("all");
+    }
+  }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
+
+  useEffect(() => {
     if (!mounted || !hasRestoredFiltersRef.current) return;
 
     try {
@@ -531,6 +578,7 @@ export default function AdminSaleRepManagerPage() {
           shootStageFilter,
           assignedRepIdFilter,
           cpAssignmentFilter,
+          productionFilter,
           clientAssignedRepIdFilter,
           leadsViewMode,
           leadsCurrentPage,
@@ -550,6 +598,7 @@ export default function AdminSaleRepManagerPage() {
     shootStageFilter,
     assignedRepIdFilter,
     cpAssignmentFilter,
+    productionFilter,
     clientAssignedRepIdFilter,
     leadsViewMode,
     leadsCurrentPage,
@@ -570,10 +619,17 @@ export default function AdminSaleRepManagerPage() {
             : statusFilter === "All"
               ? undefined
               : statusFilter,
-        assigned_to: assignedRepIdFilter === "all" ? undefined : assignedRepIdFilter,
+        assigned_to:
+          normalizeAssignedRepFilterValue(assignedRepIdFilter) === "all"
+            ? undefined
+            : normalizeAssignedRepFilterValue(assignedRepIdFilter),
         cp_assignment:
           leadsViewMode === "grid" && cpAssignmentFilter !== "all"
             ? cpAssignmentFilter
+            : undefined,
+        production_filter:
+          leadsViewMode === "grid" && normalizeProductionFilterValue(productionFilter) !== "all"
+            ? normalizeProductionFilterValue(productionFilter)
             : undefined,
         // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
         intent: intentFilter === "All" ? undefined : intentFilter,
@@ -601,8 +657,9 @@ export default function AdminSaleRepManagerPage() {
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (usersStatusFilter !== "all") params.status = usersStatusFilter;
-      if (activeTab === "Client" && clientAssignedRepIdFilter !== "all") {
-        params.assigned_to = clientAssignedRepIdFilter;
+      const normalizedClientAssignedRep = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
+      if (activeTab === "Client" && normalizedClientAssignedRep !== "all") {
+        params.assigned_to = normalizedClientAssignedRep;
       }
 
       let allUsers: UserData[] = [];
@@ -869,7 +926,7 @@ export default function AdminSaleRepManagerPage() {
                     searchable
                     searchPlaceholder="Search representative..."
                     onChange={(val) => {
-                      setAssignedRepIdFilter(val);
+                      setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
                     }}
                     openAlign={"right"}
                   />
@@ -907,7 +964,7 @@ export default function AdminSaleRepManagerPage() {
                     searchable
                     searchPlaceholder="Search representative..."
                     onChange={(val) => {
-                      setClientAssignedRepIdFilter(val);
+                      setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
                     }}
                     openAlign={"right"}
                   />
@@ -990,7 +1047,7 @@ export default function AdminSaleRepManagerPage() {
                   searchable
                   searchPlaceholder="Search representative..."
                   onChange={(val) => {
-                    setAssignedRepIdFilter(val);
+                    setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
                   }}
                   openAlign={"right"}
                 />
@@ -1011,6 +1068,12 @@ export default function AdminSaleRepManagerPage() {
                   value={cpAssignmentFilter}
                   options={CP_ASSIGNMENT_OPTIONS as any}
                   onChange={(val) => setCpAssignmentFilter(val as "all" | "assigned" | "not_assigned")}
+                />
+                <BasicDropdown
+                  label="Production"
+                  value={productionFilter}
+                  options={PRODUCTION_FILTER_OPTIONS as any}
+                  onChange={(val) => setProductionFilter(normalizeProductionFilterValue(val))}
                 />
                 <BasicDropdown
                   label="All Statuses"

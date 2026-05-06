@@ -339,6 +339,36 @@ const CP_ASSIGNMENT_OPTIONS = [
   { label: "CP Not Assigned", value: "not_assigned" },
 ] as const;
 
+const PRODUCTION_FILTER_OPTIONS = [
+  { label: "All Production", value: "all" },
+  { label: "Pre Production - File Not Provided", value: "pre_production_file_not_provided" },
+  { label: "Pre Production - Meeting Not Done", value: "pre_production_meeting_not_done" },
+  { label: "Post Production - Meeting Not Done", value: "post_production_meeting_not_done" },
+  { label: "Post Production - File Not Uploaded", value: "post_production_file_not_uploaded" },
+] as const;
+
+const normalizeAssignedRepFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "all";
+  const lower = raw.toLowerCase();
+  if (lower === "all") return "all";
+  if (lower === "unassigned") return "unassigned";
+  if (/^\d+$/.test(raw)) return raw;
+  return "all";
+};
+
+const PRODUCTION_FILTER_ALLOWED_VALUES = new Set(
+  PRODUCTION_FILTER_OPTIONS.map((option) => option.value)
+);
+
+const normalizeProductionFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "all";
+  const lower = raw.toLowerCase();
+  if (lower === "all" || lower === "all production") return "all";
+  return PRODUCTION_FILTER_ALLOWED_VALUES.has(raw) ? raw : "all";
+};
+
 export default function SalesLeadsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -362,6 +392,7 @@ export default function SalesLeadsPage() {
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
   const [leadsViewMode, setLeadsViewMode] = useState<"list" | "grid">("list");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [productionFilter, setProductionFilter] = useState<string>("all");
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
   // Filters state
@@ -381,6 +412,7 @@ export default function SalesLeadsPage() {
     shootStageFilter !== "all" ||
     assignedRepIdFilter !== "all" ||
     cpAssignmentFilter !== "all" ||
+    productionFilter !== "all" ||
     Boolean(debouncedSearch)
   );
   const leadsLimit =
@@ -468,13 +500,14 @@ export default function SalesLeadsPage() {
       if (parsedFilters.intentFilter) setIntentFilter(parsedFilters.intentFilter);
       if (parsedFilters.shootStageFilter) setShootStageFilter(parsedFilters.shootStageFilter);
       if (parsedFilters.cpAssignmentFilter) setCpAssignmentFilter(parsedFilters.cpAssignmentFilter);
+      if (parsedFilters.productionFilter) setProductionFilter(normalizeProductionFilterValue(parsedFilters.productionFilter));
       if (parsedFilters.leadsViewMode === "grid" || parsedFilters.leadsViewMode === "list") {
         setLeadsViewMode(parsedFilters.leadsViewMode);
       }
 
       if (canManageFilters) {
-        if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(parsedFilters.assignedRepIdFilter);
-        if (parsedFilters.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(parsedFilters.clientAssignedRepIdFilter);
+        if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsedFilters.assignedRepIdFilter));
+        if (parsedFilters.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsedFilters.clientAssignedRepIdFilter));
       }
 
       if (parsedFilters.leadsCurrentPage) setLeadsCurrentPage(parsedFilters.leadsCurrentPage);
@@ -492,7 +525,7 @@ export default function SalesLeadsPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, cpAssignmentFilter, debouncedSearch, leadsViewMode]);
+  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, cpAssignmentFilter, productionFilter, debouncedSearch, leadsViewMode]);
 
   useEffect(() => {
     setUsersCurrentPage(1);
@@ -543,6 +576,7 @@ export default function SalesLeadsPage() {
           intentFilter,
           shootStageFilter,
           cpAssignmentFilter,
+          productionFilter,
           assignedRepIdFilter,
           clientAssignedRepIdFilter,
           leadsViewMode,
@@ -562,12 +596,27 @@ export default function SalesLeadsPage() {
     intentFilter,
     shootStageFilter,
     cpAssignmentFilter,
+    productionFilter,
     assignedRepIdFilter,
     clientAssignedRepIdFilter,
     leadsViewMode,
     leadsCurrentPage,
     usersCurrentPage,
   ]);
+
+  useEffect(() => {
+    const normalizedAssigned = normalizeAssignedRepFilterValue(assignedRepIdFilter);
+    const normalizedClientAssigned = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
+    const validValues = new Set(salesRepOptions.map((option) => option.value));
+
+    if (normalizedAssigned !== "all" && normalizedAssigned !== "unassigned" && !validValues.has(normalizedAssigned)) {
+      setAssignedRepIdFilter("all");
+    }
+
+    if (normalizedClientAssigned !== "all" && normalizedClientAssigned !== "unassigned" && !validValues.has(normalizedClientAssigned)) {
+      setClientAssignedRepIdFilter("all");
+    }
+  }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
 
   // --- LEADS API CALL WITH FILTERS ---
   const leadsQueryArgs = token
@@ -583,10 +632,17 @@ export default function SalesLeadsPage() {
             : statusFilter === "All"
               ? undefined
               : statusFilter,
-        assigned_to: canManageSalesDashboardFilters && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
+        assigned_to:
+          canManageSalesDashboardFilters && normalizeAssignedRepFilterValue(assignedRepIdFilter) !== "all"
+            ? normalizeAssignedRepFilterValue(assignedRepIdFilter)
+            : undefined,
         cp_assignment:
           leadsViewMode === "grid" && cpAssignmentFilter !== "all"
             ? cpAssignmentFilter
+            : undefined,
+        production_filter:
+          leadsViewMode === "grid" && normalizeProductionFilterValue(productionFilter) !== "all"
+            ? normalizeProductionFilterValue(productionFilter)
             : undefined,
         // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
         intent: intentFilter === "All" ? undefined : intentFilter,
@@ -613,8 +669,9 @@ export default function SalesLeadsPage() {
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (usersStatusFilter !== "all") params.status = usersStatusFilter;
-      if (activeTab === "Client" && canManageSalesDashboardFilters && clientAssignedRepIdFilter !== "all") {
-        params.assigned_to = clientAssignedRepIdFilter;
+      const normalizedClientAssignedRep = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
+      if (activeTab === "Client" && canManageSalesDashboardFilters && normalizedClientAssignedRep !== "all") {
+        params.assigned_to = normalizedClientAssignedRep;
       }
 
       let allUsers: UserData[] = [];
@@ -1058,7 +1115,7 @@ export default function SalesLeadsPage() {
                       options={salesRepOptions}
                       searchable
                       searchPlaceholder="Search representative..."
-                      onChange={(val) => setAssignedRepIdFilter(val)}
+                      onChange={(val) => setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}
                       openAlign={"right"}
                     />
                   )}
@@ -1086,7 +1143,7 @@ export default function SalesLeadsPage() {
                     options={salesRepOptions}
                     searchable
                     searchPlaceholder="Search representative..."
-                    onChange={(val) => setClientAssignedRepIdFilter(val)}
+                    onChange={(val) => setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}
                     openAlign={"right"}
                   />
                 </div>
@@ -1168,7 +1225,7 @@ export default function SalesLeadsPage() {
                     options={salesRepOptions}
                     searchable
                     searchPlaceholder="Search representative..."
-                    onChange={(val) => setAssignedRepIdFilter(val)}
+                    onChange={(val) => setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}
                     openAlign={"right"}
                   />
                 )}
@@ -1189,6 +1246,12 @@ export default function SalesLeadsPage() {
                   value={cpAssignmentFilter}
                   options={CP_ASSIGNMENT_OPTIONS as any}
                   onChange={(val) => setCpAssignmentFilter(val as "all" | "assigned" | "not_assigned")}
+                />
+                <BasicDropdown
+                  label="Production"
+                  value={productionFilter}
+                  options={PRODUCTION_FILTER_OPTIONS as any}
+                  onChange={(val) => setProductionFilter(normalizeProductionFilterValue(val))}
                 />
                 <BasicDropdown
                   label="All Statuses"

@@ -568,12 +568,11 @@ const visibleStatuses = useMemo(() => {
                     >
                       <div className="space-y-1 min-w-0">
                         <p>{lead.lastActivity}</p>
-                        {(lead.assignedSalesRepName || lead.assignedSalesRepEmail) && (
-                          <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
-                            {lead.assignedSalesRepName || "Unassigned"}
-                            {lead.assignedSalesRepEmail ? ` - ${lead.assignedSalesRepEmail}` : ""}
-                          </p>
-                        )}
+                        <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                          {lead.assignedSalesRepName || "Unassigned"}
+                          {" - "}
+                          {lead.assignedSalesRepEmail || "N/A"}
+                        </p>
                       </div>
                     </td>
                     <td className={`p-3 lg:py-5 text-right border-b group-last:border-0 ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
