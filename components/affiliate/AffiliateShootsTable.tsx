@@ -44,6 +44,43 @@ interface AffiliateShootsTableProps {
   externalSelectedDate?: Date | null;
 }
 
+const FILTER_STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "initiated", label: "Initiated" },
+  { value: "preproduction", label: "Pre Production" },
+  { value: "shootday", label: "Shoot Day" },
+  { value: "postproduction", label: "Post Production" },
+  { value: "revision", label: "Revision" },
+  { value: "completed", label: "Completed" },
+  { value: "assetsdelivered", label: "Assets Delivered" },
+  { value: "pending", label: "Pending" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const FILTER_STATUS_TO_LABEL: Record<string, Status> = {
+  initiated: "Initiated",
+  preproduction: "PreProduction",
+  shootday: "Shoot Day",
+  postproduction: "PostProduction",
+  revision: "Revision",
+  completed: "Completed",
+  assetsdelivered: "Assets Delivered",
+  pending: "Pending",
+  cancelled: "Cancelled",
+};
+
+const FILTER_CATEGORY_OPTIONS = [
+  { value: "all", label: "All Categories" },
+  { value: "corporate", label: "Corporate" },
+  { value: "wedding", label: "Wedding" },
+  { value: "private", label: "Private Events" },
+  { value: "commercial", label: "Commercial" },
+  { value: "social", label: "Social Content" },
+  { value: "podcasts", label: "Podcasts" },
+  { value: "music", label: "Music Videos" },
+  { value: "narrative", label: "Narrative" },
+];
+
 export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +93,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   // Filtering states
   const [range, setRange] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -89,9 +127,9 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
       setLoading(true);
       try {
         const params: any = { range };
-        if (statusFilter !== "all") {
-          params.status = statusFilter;
-        }
+        // Client endpoint currently rejects admin-style status/category keys
+        // (e.g. `initiated`, `preproduction`), so we apply those filters
+        // client-side below instead of sending them as query params.
         if (debouncedSearch) {
           params.search = debouncedSearch;
         }
@@ -147,7 +185,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
     };
 
     fetchData();
-  }, [range, statusFilter, debouncedSearch, externalSelectedDate]);
+  }, [range, statusFilter, categoryFilter, debouncedSearch, externalSelectedDate]);
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
@@ -156,6 +194,18 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
       shoot.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shoot.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    if (statusFilter !== "all") {
+      const selectedStatus = FILTER_STATUS_TO_LABEL[statusFilter];
+      if (selectedStatus) {
+        result = result.filter((shoot) => shoot.status === selectedStatus);
+      }
+    }
+
+    if (categoryFilter !== "all") {
+      const query = categoryFilter.toLowerCase();
+      result = result.filter((shoot) => shoot.category.toLowerCase().includes(query));
+    }
 
     // 2. Sort
     if (sortConfig.direction !== null) {
@@ -185,7 +235,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig]);
+  }, [shoots, searchQuery, sortConfig, statusFilter, categoryFilter]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -260,20 +310,33 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={categoryFilter} onValueChange={(value) => { setCategoryFilter(value); setCurrentPage(1); }}>
+            <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+              {FILTER_CATEGORY_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}>
             <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
+              {FILTER_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
-          <Select value={range} onValueChange={setRange}>
+          <Select value={range} onValueChange={(value) => { setRange(value); setCurrentPage(1); }}>
             <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
               <SelectValue placeholder="Range" />
             </SelectTrigger>

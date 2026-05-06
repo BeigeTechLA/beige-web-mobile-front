@@ -31,6 +31,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { BookingSummaryModal } from "@/src/components/landing/BookingSummaryModal";
 import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
+import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -385,6 +386,8 @@ function StripePaymentFormMulti({
 
   // Terms&Condn accept
   const [acceptTerms, setAcceptTerms] = useState(true);
+  const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
+  const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
 
   const isFree = amount === 0;
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
@@ -802,6 +805,16 @@ function StripePaymentFormMulti({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!acceptTerms) {
+      onError("Please accept Terms & Conditions to continue.");
+      return;
+    }
+
+    if (!acceptServiceAgreement) {
+      onError("Please accept the Service Agreement to continue.");
+      return;
+    }
+
     // Validate referral code on confirm before payment APIs
     if (referralCode.length > 0) {
       const isValid = await validateReferralCodeNow(referralCode);
@@ -1202,7 +1215,7 @@ function StripePaymentFormMulti({
         </Button>
       </form>
 
-      <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2 lg:mt-5">
+      {/* <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2 lg:mt-5">
         <input
           type="checkbox"
           checked={acceptTerms}
@@ -1214,7 +1227,32 @@ function StripePaymentFormMulti({
           <span className="text-[#E8D5B5]">Cancellation Policy</span>,
           and <span className="text-[#E8D5B5]">Privacy Policy</span>
         </p>
+      </div> */}
+
+      <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2">
+        <input type="checkbox" checked={acceptServiceAgreement} readOnly />
+        <p className="text-sm text-[#999]">
+          I have read and agree to the{" "}
+          <button
+            type="button"
+            onClick={() => setIsServiceAgreementOpen(true)}
+            className="text-[#E8D5B5] underline hover:text-[#f3e4cd]"
+          >
+            Service Agreement & Terms of Engagement
+          </button>
+          .
+        </p>
       </div>
+
+      <ServiceAgreementModal
+        isOpen={isServiceAgreementOpen}
+        initialChecked={acceptServiceAgreement}
+        onClose={() => setIsServiceAgreementOpen(false)}
+        onAccept={() => {
+          setAcceptServiceAgreement(true);
+          setIsServiceAgreementOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -1756,7 +1794,7 @@ function MultiCreatorPaymentContent() {
               </div>
               {/* <div className="bg-white rounded-[20px] text-black py-3 lg:py-5"> */}
               <div className="rounded-b-[20px] text-black">
-                <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-start">
+                <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-center">
                   <div className="w-10 h-10 lg:h-[82px] lg:w-[82px] rounded-full bg-[#333333] flex items-center justify-center text-[#FFFFFF85] font-semibold lg:text-2xl">
                     {getInitials(customerName)}
                   </div>
@@ -2087,3 +2125,4 @@ export default function MultiCreatorPaymentPage() {
     </main>
   );
 }
+

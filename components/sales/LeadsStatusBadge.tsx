@@ -21,6 +21,7 @@ export type BookingStatus =
   | "Closed - Lost"
   | "In-Progress"
   | "Paid"
+  | "Partially Paid"
   | "Cancelled"
   | "Unknown"
   | string;
@@ -62,6 +63,7 @@ const BOOKING_STATUS_STYLES: Record<
   // --- Success Group ---
   "Booked": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
   "Paid": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
+  "Partially Paid": { bg: "bg-[#FFF4C9]", text: "text-[#BA6605]" },
 
   // --- Lost / Cancelled Group ---
   "Closed – Lost": { bg: "bg-[#FFB9B9]", text: "text-[#F03434]" },

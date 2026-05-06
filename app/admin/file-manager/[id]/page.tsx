@@ -2,7 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
 import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Search, Upload } from "lucide-react";
+
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
@@ -35,8 +37,9 @@ export default function AdminFolderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [isOpen, setIsOpen] = useState(false);
+
   const [status, setStatus] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -176,20 +179,20 @@ export default function AdminFolderDetailsPage() {
         ) : (
           <>
             <div>
-              <div className="flex items-start gap-5 mb-2 lg:mb-6">
-                <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+              <div className="flex items-start gap-5 mb-3 lg:mb-6">
+                <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
                   {getDisplayInitials(workspaceName)}
                 </div>
                 <div className="min-w-0 text-white max-w-3xl flex-1">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+                  <div className="flex flex-row lg:items-center gap-2">
                     <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                       {workspaceName}
                     </h1>
-                    <span className="px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+                    <span className="px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
                       Active Project
                     </span>
                   </div>
-                  <p className="hidden lg:block text-sm text-[#D0D0D0]">
+                  <p className="text-xs lg:text-sm text-[#D0D0D0]">
                     <span className="text-[#AAA7A7]">Project Code: </span>
                     {workspaceCode}
                   </p>
@@ -206,10 +209,10 @@ export default function AdminFolderDetailsPage() {
                 </div>
               </div>
 
-              <p className="lg:hidden text-xs text-[#D0D0D0]">
+              {/* <p className="lg:hidden text-xs text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {workspaceCode}
-              </p>
+              </p> */}
               {/* {workspaceConsoleUrl ? (
                 <a
                   href={workspaceConsoleUrl}

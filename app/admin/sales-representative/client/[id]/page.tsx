@@ -19,7 +19,8 @@ import {
   X,
   Clock,
   Circle,
-  Pencil
+  Pencil,
+  Minus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -133,7 +134,7 @@ export default function LeadDetailPage() {
   const [isEditingSalesRep, setIsEditingSalesRep] = useState(false);
   const [isUpdatingSalesRep, setIsUpdatingSalesRep] = useState(false);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
-  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([]);
+  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string; subLabel?: string }[]>([]);
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string>("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
 
@@ -161,6 +162,7 @@ export default function LeadDetailPage() {
             result.data.map((rep: any) => ({
               label: rep.name || `${rep.first_name || ""} ${rep.last_name || ""}`.trim() || `Representative #${rep.id}`,
               value: String(rep.id),
+              subLabel: rep.role || "",
             }))
           );
         } else {
@@ -351,6 +353,68 @@ export default function LeadDetailPage() {
   const referralDiscountAmount = referralInfo.amount;
   const discountCodeDiscount = Math.max(0, discountAmount - referralDiscountAmount);
   const discountCodeValue = lead?.discount_codes?.[0]?.code || null;
+  const manualPaymentSummary = useMemo(() => {
+    const manualActivities = (lead?.activities || [])
+      .filter((activity: any) => activity?.activity_type === "payment_completed" && activity?.activity_data)
+      .map((activity: any) => {
+        try {
+          const payload = typeof activity.activity_data === "string"
+            ? JSON.parse(activity.activity_data)
+            : activity.activity_data;
+          if (!payload || (payload as any).payment_method !== "manual") return null;
+          return payload as any;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as any[];
+
+    const hasFullPayment = manualActivities.some((entry) => entry.payment_type === "full");
+    const partialPaid = manualActivities.reduce((sum, entry) => {
+      if (entry.payment_type !== "partial") return sum;
+      const numeric = Number(entry.amount || 0);
+      return sum + (Number.isFinite(numeric) ? numeric : 0);
+    }, 0);
+
+    const resolvedTotal = total > 0 ? total : 0;
+    const paidAmount = hasFullPayment ? resolvedTotal : partialPaid;
+    const pendingAmount = Math.max(resolvedTotal - paidAmount, 0);
+
+    return {
+      hasFullPayment,
+      paidAmount,
+      pendingAmount,
+      isPartiallyPaid: !hasFullPayment && paidAmount > 0 && pendingAmount > 0,
+    };
+  }, [lead?.activities, total]);
+
+  const additionalPaymentDetails = useMemo(() => {
+    const rawAdditionalPayment = lead?.custom_quote?.additional_payment;
+    if (!rawAdditionalPayment) return null;
+
+    const additionalAmount = Number(rawAdditionalPayment.additional_amount ?? 0);
+    const previouslyPaidAmount = Number(rawAdditionalPayment.previously_paid_amount ?? 0);
+    const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
+    const outstandingAmount = Number(
+      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - previouslyPaidAmount, 0)
+    );
+    
+    if (
+      additionalAmount <= 0 &&
+      previouslyPaidAmount <= 0 &&
+      revisedTotal <= 0 &&
+      outstandingAmount <= 0
+    ) {
+      return null;
+    }
+
+    return {
+      additionalAmount,
+      previouslyPaidAmount,
+      revisedTotal,
+      outstandingAmount,
+    };
+  }, [lead?.custom_quote?.additional_payment]);
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
@@ -611,7 +675,14 @@ export default function LeadDetailPage() {
                                         : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
                                     }`}
                                   >
-                                    {option.label}
+                                    <div className="flex flex-col leading-tight">
+                                      <span>{option.label}</span>
+                                      {option.subLabel ? (
+                                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                          {option.subLabel}
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   </button>
                                 );
                               })}
@@ -950,11 +1021,55 @@ export default function LeadDetailPage() {
                   </>
                 )}
               </div>
+              {additionalPaymentDetails && (
+                <div className="flex flex-col gap-3 px-4 py-4 border-t border-dashed border-white/10 lg:px-9">
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Old Total</span>
+                    <span className={`text-sm font-mono ${isDark ? "text-white" : "text-black"}`}>
+                      ${(additionalPaymentDetails.revisedTotal - additionalPaymentDetails.additionalAmount).toLocaleString()}
+                    </span>
+                  </div>
+                  {additionalPaymentDetails.previouslyPaidAmount > 0 && (
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#71717B] text-xs">Previously Paid</span>
+                      <span className={`text-sm font-mono ${isDark ? "text-white" : "text-black"}`}>
+                        ${additionalPaymentDetails.previouslyPaidAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[#71717B] text-xs">
+                        {additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}
+                      </span>
+                    </div>
+                    <span className={`text-sm font-mono ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : (isDark ? "text-white" : "text-black")}`}>
+                      {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}${Math.abs(additionalPaymentDetails.additionalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
                 <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Total Amount</span>
                 <span className="lg:text-lg font-semibold text-[#E8D1AB]">${total.toLocaleString()}</span>
               </div>
+              {manualPaymentSummary.paidAmount > 0 && (
+                <div className="p-4 lg:px-9 lg:py-4 flex justify-between items-center border-t border-dashed border-white/10">
+                  <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Paid Amount</span>
+                  <span className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                    ${manualPaymentSummary.paidAmount.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {manualPaymentSummary.pendingAmount > 0 && (
+                <div className="p-4 lg:px-9 lg:py-4 flex justify-between items-center border-t border-dashed border-white/10">
+                  <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Remaining Amount</span>
+                  <span className="text-sm lg:text-base font-semibold text-[#E8D1AB]">
+                    ${manualPaymentSummary.pendingAmount.toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

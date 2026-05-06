@@ -2,7 +2,9 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
 import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Plus, Search } from "lucide-react";
+
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
@@ -10,7 +12,6 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
-import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import {
   fileManagerApi,
@@ -36,13 +37,12 @@ export default function CreatorFolderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
+
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingMyFolder, setIsCreatingMyFolder] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [createdCpFolderName, setCreatedCpFolderName] = useState<string>("");
   const [hasCreatedCpFolders, setHasCreatedCpFolders] = useState<boolean | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
@@ -116,6 +116,15 @@ export default function CreatorFolderDetailsPage() {
     return items.filter((item) => item.title.toLowerCase().includes(query));
   }, [folders, searchTerm, status]);
 
+  const preProductionFolder = useMemo(
+    () => folders.find((folder) => folder.title.toLowerCase().includes("pre production")),
+    [folders]
+  );
+  const postProductionFolder = useMemo(
+    () => folders.find((folder) => folder.title.toLowerCase().includes("post production")),
+    [folders]
+  );
+
   const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, folder: UiFolderItem) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setSelectedFolder(folder);
@@ -168,6 +177,10 @@ export default function CreatorFolderDetailsPage() {
 
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
+    if (!isCommonEventWorkspace) {
+      toast.error("Folders can only be deleted in common events.");
+      return;
+    }
 
     try {
       setIsDeleting(true);
@@ -200,16 +213,34 @@ export default function CreatorFolderDetailsPage() {
         throw new Error("Failed to create Creative Partner folder");
       }
 
-      const folderName = fulfilled[0]?.folderName || "My Folder";
-      setCreatedCpFolderName(folderName);
       setHasCreatedCpFolders(true);
-      toast.success("Your Creative Partner folder is ready in Pre and Post Production");
+      toast.success("Your folders are ready in both Pre Production and Post Production. Open either folder below to upload files.");
       await loadWorkspace();
-      setIsUploadModalOpen(true);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to create your folder");
     } finally {
       setIsCreatingMyFolder(false);
+    }
+  };
+
+  const handleOpenPersonalPhaseFolder = async (phase: "pre" | "post") => {
+    const phaseSlug = phase === "post" ? "post-production" : "pre-production";
+    try {
+      const phaseData = await fileManagerApi.getExternalWorkspaceFiles(projectId, phase);
+      const personalFolderName = String(phaseData?.folders?.[0]?.name || "").trim();
+
+      if (!personalFolderName) {
+        router.push(`/creator/dashboard/file-manager/${projectId}/${phaseSlug}`);
+        return;
+      }
+
+      router.push(
+        `/creator/dashboard/file-manager/${projectId}/${phaseSlug}/${personalFolderName
+          .toLowerCase()
+          .replace(/\s+/g, "-")}?path=${encodeURIComponent(personalFolderName)}`
+      );
+    } catch {
+      toast.error("Please create your folder first, then open Pre Production or Post Production.");
     }
   };
 
@@ -323,9 +354,39 @@ export default function CreatorFolderDetailsPage() {
 
             {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
               <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
-                First create your folder, then you can access your folders and upload files.
-                <br />
-                Once created, you can see your folder in Pre Production and Post Production as well.
+                No folders yet. Create one to get started - it will appear in both Pre Production and Post Production
+                {/* <br />
+                Once created, you can see your folder in Pre Production and Post Production as well. */}
+              </div>
+            ) : isCommonEventWorkspace && hasCreatedCpFolders && (preProductionFolder || postProductionFolder) ? (
+              <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
+                <p>
+                  Your folders are ready in both{" "}
+                  {preProductionFolder ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenPersonalPhaseFolder("pre")}
+                      className="font-semibold underline underline-offset-4 transition-colors hover:text-[#F4E7CC]"
+                    >
+                      Pre Production
+                    </button>
+                  ) : (
+                    <span className="font-semibold">Pre Production</span>
+                  )}{" "}
+                  and{" "}
+                  {postProductionFolder ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenPersonalPhaseFolder("post")}
+                      className="font-semibold underline underline-offset-4 transition-colors hover:text-[#F4E7CC]"
+                    >
+                      Post Production
+                    </button>
+                  ) : (
+                    <span className="font-semibold">Post Production</span>
+                  )}
+                  . Open either folder below to upload files.
+                </p>
               </div>
             ) : null}
 
@@ -349,10 +410,14 @@ export default function CreatorFolderDetailsPage() {
                     onDownload={async () => {
                       await handleDownloadSelectedFolder(folder);
                     }}
-                    onDelete={() => {
-                      setSelectedFolder(folder);
-                      setIsDeleteModalOpen(true);
-                    }}
+                    onDelete={
+                      isCommonEventWorkspace
+                        ? () => {
+                            setSelectedFolder(folder);
+                            setIsDeleteModalOpen(true);
+                          }
+                        : undefined
+                    }
                     onRename={() => toast.info("Folder rename is the next safe step.")}
                   />
                 ))}
@@ -450,7 +515,7 @@ export default function CreatorFolderDetailsPage() {
             }
           }}
           onDownload={handleDownloadSelectedFolder}
-          onDelete={() => setIsDeleteModalOpen(true)}
+          onDelete={isCommonEventWorkspace ? () => setIsDeleteModalOpen(true) : undefined}
           onRename={() => toast.info("Folder rename is the next safe step.")}
         />
       )}
@@ -470,17 +535,6 @@ export default function CreatorFolderDetailsPage() {
         isDeleting={isDeleting}
       />
 
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        folderName={createdCpFolderName || workspaceName || "My CP Folder"}
-        uploadPath={
-          workspaceName && createdCpFolderName
-            ? `${workspaceName}/Pre-Production/${createdCpFolderName}`
-            : undefined
-        }
-        onUploadComplete={loadWorkspace}
-      />
     </div>
   );
 }

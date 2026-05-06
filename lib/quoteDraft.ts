@@ -16,6 +16,7 @@ type QuoteDraftClient = {
   client_id?: string | number | null;
   user_id?: string | number | null;
   id?: string | number | null;
+  client_type?: string | number | null;
   name?: string;
   email?: string;
   phone?: string;
@@ -52,7 +53,8 @@ type QuoteDraftSimplePriceConfig = {
 
 export interface QuoteDraftPayload {
   pricing_mode: "general";
-  client_user_id?: number;
+  client_user_id?: number | null;
+  client_id?: number | null;
   client_name?: string;
   client_email?: string;
   client_phone?: string;
@@ -145,11 +147,7 @@ const QUOTE_DRAFT_STEP_ORDER: QuoteDraftStep[] = [
 export function buildQuoteDraftPayload(
   input: BuildQuoteDraftPayloadInput
 ): QuoteDraftPayload {
-  const clientUserId = getPositiveInteger(
-    input.selectedClient?.user_id ??
-      input.selectedClient?.client_id ??
-      input.selectedClient?.id
-  );
+  const { clientUserId, clientId } = resolveClientIdentifiers(input.selectedClient);
   const shootTypeLabel =
     input.shootTypes.find((type) => String(type.id) === input.selectedShootType)?.label ??
     toTitleCase(input.selectedShootType);
@@ -186,7 +184,8 @@ export function buildQuoteDraftPayload(
 
   const payload: QuoteDraftPayload = {
     pricing_mode: "general",
-    ...(clientUserId ? { client_user_id: clientUserId } : {}),
+    ...(clientUserId !== undefined ? { client_user_id: clientUserId } : {}),
+    ...(clientId ? { client_id: clientId } : {}),
   };
 
   if (includeSelection) {
@@ -246,18 +245,15 @@ export function buildQuoteStepUpdatePayload(
   input: BuildQuoteDraftPayloadInput,
   step: QuoteDraftStep
 ): QuoteUpdatePayload {
-  const clientUserId = getPositiveInteger(
-    input.selectedClient?.user_id ??
-      input.selectedClient?.client_id ??
-      input.selectedClient?.id
-  );
+  const { clientUserId, clientId } = resolveClientIdentifiers(input.selectedClient);
   const shootTypeLabel =
     input.shootTypes.find((type) => String(type.id) === input.selectedShootType)?.label ??
     toTitleCase(input.selectedShootType);
 
   if (step === "selection" || step === "details") {
     return {
-      ...(clientUserId ? { client_user_id: clientUserId } : {}),
+      ...(clientUserId !== undefined ? { client_user_id: clientUserId } : {}),
+      ...(clientId ? { client_id: clientId } : {}),
       client_name: input.clientName.trim() || input.selectedClient?.name?.trim() || "",
       client_email: input.emailId.trim() || input.selectedClient?.email?.trim() || "",
       client_phone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
@@ -321,6 +317,48 @@ export function buildQuoteStepUpdatePayload(
   }
 
   return buildQuoteUpdatePayload(input);
+}
+
+function normalizeClientType(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().toLowerCase();
+}
+
+function resolveClientIdentifiers(selectedClient: QuoteDraftClient | null): {
+  clientUserId?: number | null;
+  clientId?: number;
+} {
+  const clientType = normalizeClientType(selectedClient?.client_type);
+  const userId = getPositiveInteger(selectedClient?.user_id);
+  const clientId = getPositiveInteger(selectedClient?.client_id ?? selectedClient?.id);
+
+  if (clientType === "registered") {
+    return {
+      clientUserId: userId ?? null,
+      ...(clientId ? { clientId } : {}),
+    };
+  }
+
+  if (clientType === "guest") {
+    return clientId ? { clientUserId: null, clientId } : {};
+  }
+
+  // Fallback for legacy/incomplete dropdown items: when user_id exists, treat as registered and include both ids when present.
+  if (userId) {
+    return {
+      clientUserId: userId,
+      ...(clientId ? { clientId } : {}),
+    };
+  }
+
+  if (clientId) {
+    return { clientUserId: null, clientId };
+  }
+
+  return {};
 }
 
 function normalizeQuoteUpdateLineItems(

@@ -217,7 +217,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
           {/* Close button — absolutely positioned so it doesn't affect flex layout */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-all no-print"
+            className="absolute top-3 right-3 p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-all no-print"
           >
             <X size={24} />
           </button>
@@ -226,7 +226,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
           <img
             src="/images/blackBeigeLogo.png"
             alt="Beige Logo"
-            className="w-20 h-auto object-contain print:w-24"
+            className="w-20 h-auto object-contain print:w-24 lg:mr-8"
           />
        </div>
 

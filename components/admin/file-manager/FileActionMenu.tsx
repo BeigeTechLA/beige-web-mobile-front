@@ -102,20 +102,22 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
         </div>
 
         {/* Divider */}
-        <div className="h-[1px] w-full bg-white/10" />
-
-        {/* Section 3: Danger Zone */}
-        <div className="flex flex-col p-1.5">
-          <MenuButton
-            icon={<Trash2 size={18} />}
-            label="Delete"
-            variant="danger"
-            onClick={() => {
-              onDelete?.();
-              onClose();
-            }}
-          />
-        </div>
+        {onDelete ? (
+          <>
+            <div className="h-[1px] w-full bg-white/10" />
+            <div className="flex flex-col p-1.5">
+              <MenuButton
+                icon={<Trash2 size={18} />}
+                label="Delete"
+                variant="danger"
+                onClick={() => {
+                  onDelete();
+                  onClose();
+                }}
+              />
+            </div>
+          </>
+        ) : null}
       </div>
     </>
   );

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { X, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { adminApi } from "@/lib/api";
+import { adminApi, salesApi } from "@/lib/api";
 
 interface AddPostProductionTeamModalProps {
   isOpen: boolean;
@@ -38,27 +38,27 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
       const fetchMembers = async () => {
         try {
           setLoading(true);
-          const response = await adminApi.getPostProductionMembers();
-          // Some APIs return data directly, some under a 'data' field
-          const membersList = response.data || response;
+          // Use same API as sales representative dashboard.
+          const response = await salesApi.getSalesReps();
+          const membersList = response?.data || [];
 
-          if (Array.isArray(membersList)) {
-            setMembers(membersList.map((m: any) => ({
-              id: m.post_production_member_id,
-              name: `${m.first_name} ${m.last_name}`.trim() || m.full_name || "Unknown",
-              role: m.role || "Post Production",
-              email: m.email
-            })));
-          } else if (membersList && Array.isArray(membersList.data)) {
-            setMembers(membersList.data.map((m: any) => ({
-              id: m.post_production_member_id,
-              name: `${m.first_name} ${m.last_name}`.trim() || m.full_name || "Unknown",
-              role: m.role || "Post Production",
-              email: m.email
-            })));
+          if (response?.success && Array.isArray(membersList)) {
+            setMembers(
+              membersList.map((m: any) => ({
+                id: Number(m.id),
+                name:
+                  String(m.name || `${m.first_name || ""} ${m.last_name || ""}`)
+                    .trim() || "Unknown",
+                role: m.role || "Post Production",
+                email: m.email,
+              }))
+            );
+          } else {
+            setMembers([]);
           }
         } catch (error) {
           console.error("Error fetching post production members:", error);
+          setMembers([]);
         } finally {
           setLoading(false);
         }

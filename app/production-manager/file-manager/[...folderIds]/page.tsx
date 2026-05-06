@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
+
 import {
   ArrowLeft,
   FileArchive,
@@ -87,8 +89,9 @@ export default function ProductionManagerFolderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
+
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);

@@ -13,8 +13,6 @@ import {
   Clock,
   Loader2,
   Map,
-  Icon,
-  Info,
   ShieldCheck,
   FileImage,
   RefreshCw,
@@ -52,6 +50,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
 import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
+import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -189,7 +188,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         : "Date not set";
 
   const [durationHours, setDurationHours] = useState<number>(0);
-  const [acceptTerms, setAcceptTerms] = useState(true);
+  const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
+  const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
   const selectedStudios = normalizeSelectedStudios(data);
   const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
@@ -297,6 +297,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     if (!isValidPhoneNumber(data.phone)) {
       toast.error("Please enter a valid phone number");
       setErrors((prev) => [...prev, "contactError"]);
+      return;
+    }
+
+    if (!acceptServiceAgreement) {
+      toast.error("Please accept the Service Agreement to continue.");
       return;
     }
 
@@ -700,35 +705,63 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                  <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
                       <Calendar size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-base lg:text-lg font-medium capitalize">
-                    {summaryDateText}
-                      </span>
-                      <span className="text-sm text-[#A9A9A9]">Date</span>
+                      {isMultiDay ? (
+                        <>
+                          <span className="text-[#A9A9A9] text-sm mb-1">
+                            {sortedBookingDays.length} Days
+                          </span>
+                          {sortedBookingDays.map((day, idx) => (
+                            
+                            <span key={idx} className="text-white text-sm lg:text-base font-medium">
+                            <span className="text-[#A9A9A9]">• </span>
+                              {formatSummaryDate(day.date)}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        <span className="text-white text-base lg:text-lg font-medium capitalize">
+                          {summaryDateText}
+                        </span>
+                      )}
+                      
                     </div>
                   </div>
                 </div>
-              {!isEditingOnly && (
-                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                {!isEditingOnly && (
+                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 h-fit">
+                  <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
                       <Clock size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-base lg:text-lg font-medium capitalize">
-                        {displayTimeText}
-                      </span>
-                      <span className="text-sm text-[#A9A9A9]">Time</span>
+                      {isMultiDay && !allSameTime ? (
+                        <>
+                          <span className="text-[#A9A9A9] text-sm mb-1">Per Day</span>
+                          {sortedBookingDays.map((day, idx) => (
+                            <span key={idx} className="text-white text-sm lg:text-base font-medium">
+                              <span className="text-[#A9A9A9]">• </span>
+                              {day.startTime && day.endTime
+                                ? `${formatDisplayTime(day.startTime)} – ${formatDisplayTime(day.endTime)}`
+                                : "Time not set"}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        <span className="text-white text-base lg:text-lg font-medium capitalize">
+                          {displayTimeText}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-                 )}
+                )}
               </div>
-             
+                             
               {!isEditingOnly && (
               <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
                 <div className="flex items-center gap-3">
@@ -933,19 +966,30 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <div className="w-2.5 h-2.5 rounded-full bg-black" />
                 </div>
               </div>
-              <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center">
-                <input
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                />
+              <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2">
+                <input type="checkbox" checked={acceptServiceAgreement} readOnly />
                 <p className="text-sm text-[#999]">
-                  By continuing to payment, you agree to our{" "}
-                  <span className="text-[#E8D5B5]">Terms & Conditions</span>,{" "}
-                  <span className="text-[#E8D5B5]">Cancellation Policy</span>,
-                  and <span className="text-[#E8D5B5]">Privacy Policy</span>
+                  I have read and agree to the{" "}
+                  <button
+                    type="button"
+                    onClick={() => setIsServiceAgreementOpen(true)}
+                    className="text-[#E8D5B5] underline hover:text-[#f3e4cd]"
+                  >
+                    Service Agreement & Terms of Engagement
+                  </button>
+                  .
                 </p>
               </div>
+
+              <ServiceAgreementModal
+                isOpen={isServiceAgreementOpen}
+                initialChecked={acceptServiceAgreement}
+                onClose={() => setIsServiceAgreementOpen(false)}
+                onAccept={() => {
+                  setAcceptServiceAgreement(true);
+                  setIsServiceAgreementOpen(false);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -1250,3 +1294,4 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     </div>
   );
 };
+

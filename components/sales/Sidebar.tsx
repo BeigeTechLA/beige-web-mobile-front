@@ -9,21 +9,38 @@ import { isSalesRouteAllowedWhileInactive } from "@/lib/sales-status";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
-const CustomQuotesIcon = ({ size = 24 }) => (
-  <div
-    style={{
-      width: size,
-      height: size,
-      backgroundColor: 'currentColor',
-      WebkitMaskImage: `url('/images/misc/Quotes.svg')`,
-      maskImage: `url('/images/misc/Quotes.svg')`,
-      WebkitMaskRepeat: 'no-repeat',
-      maskRepeat: 'no-repeat',
-      WebkitMaskSize: 'contain',
-      maskSize: 'contain'
-    }}
-  />
-);
+const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
+  const inactiveIcon = '/images/misc/Quotes.svg';
+  const activeIcon = '/images/misc/QuotesActive.svg';
+
+  return (
+    <div
+      {...props}
+      style={{
+        width: size,
+        height: size,
+        ...(isActive
+          ? {
+            // ACTIVE STATE: Normal background image (shows original SVG colors)
+            backgroundImage: `url('${activeIcon}')`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'contain',
+            backgroundPosition: 'center',
+          }
+          : {
+            // INACTIVE STATE: Masking effect (inherits currentColor/gray)
+            backgroundColor: 'currentColor',
+            WebkitMaskImage: `url('${inactiveIcon}')`,
+            maskImage: `url('${inactiveIcon}')`,
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat',
+            WebkitMaskSize: 'contain',
+            maskSize: 'contain',
+          }),
+      }}
+    />
+  );
+};
 
 const salesMenuItems: SalesMenuItem[] = [
   {
@@ -46,6 +63,7 @@ const salesMenuItems: SalesMenuItem[] = [
     link: '/sales/quotes',
     children: [
       { name: 'All Quotes', link: '/sales/quotes' },
+      { name: 'Change Request', link: '/sales/quotes/change-requests' },
       { name: 'Master Pricing', link: '/sales/quotes/pricing' }
     ],
   },
@@ -150,6 +168,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
     if (pathname === "/sales/dashboard" || pathname?.startsWith("/sales/sales-people")) {
       setExpanded((prev) => (prev.includes("Sales") ? prev : [...prev, "Sales"]));
+    }
+
+    if (pathname?.startsWith("/sales/quotes")) {
+      setQuotesExpanded(true);
     }
   }, [currentUserTypeId, pathname]);
 
@@ -286,7 +308,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     className={`${baseClass} ${active ? activeClass : inactiveClass} ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <item.icon size={20} />
+                      <item.icon size={20} {...(item.name === 'Quotes' ? { isActive: active } : {})} />
                       <span className="min-w-0 truncate text-left font-medium whitespace-nowrap">
                         {item.name}
                       </span>
@@ -297,7 +319,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   /* Render a DIV instead of a LINK if disabled */
                   <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
                     <div className="flex items-center gap-3">
-                      <item.icon size={20} />
+                      <item.icon size={20} {...(item.name === 'Quotes' ? { isActive: active } : {})} />
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </div>
@@ -328,7 +350,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                       }`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <item.icon size={20} />
+                      <item.icon size={20} {...(item.name === 'Quotes' ? { isActive: active } : {})} />
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </button>
@@ -359,7 +381,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {item.name === 'Quotes' && item.children && quotesExpanded && user?.user_type_id === 7 && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item.children.map((child) => {
-                      if (child.name === 'Master Pricing' && !isSalesAdmin) return null;
+                      if ((child.name === 'Master Pricing' || child.name === 'Change Request') && !isSalesAdmin) return null;
 
                       return (
                         <button

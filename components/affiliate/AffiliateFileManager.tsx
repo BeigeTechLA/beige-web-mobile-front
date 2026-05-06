@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import {
   ArrowLeft,
   Camera,
+  CheckSquare,
   Download,
   ExternalLink,
   FolderOpen,
@@ -15,14 +16,19 @@ import {
   List,
   Loader2,
   Search,
+  Upload,
+  X as CloseIcon,
 } from "lucide-react";
+import { useViewMode } from "@/hooks/useViewMode";
 import { Button } from "@/components/ui/button";
+
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
+import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { affiliateApi } from "@/lib/api";
 import {
   fileManagerApi,
@@ -121,7 +127,8 @@ export default function AffiliateFileManager() {
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
   const [status, setStatus] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
+
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,8 +141,11 @@ export default function AffiliateFileManager() {
   const [phaseFolders, setPhaseFolders] = useState<BrowserFolder[]>([]);
   const [phaseFiles, setPhaseFiles] = useState<BrowserFile[]>([]);
   const [isPhaseLoading, setIsPhaseLoading] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
+  const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerName, setViewerName] = useState("");
@@ -291,13 +301,18 @@ export default function AffiliateFileManager() {
   }, [selectedWorkspace, selectedPhase, selectedPath]);
 
   useEffect(() => {
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
+  }, [selectedWorkspace?.externalId, selectedPhase, selectedPath]);
+
+  useEffect(() => {
     const previewableFiles = phaseFiles
       .slice(0, visibleFileCount)
       .filter(
-      (file) =>
-        file.filepath &&
-        (file.contentType?.startsWith("image/") ||
-          file.contentType?.startsWith("video/"))
+        (file) =>
+          file.filepath &&
+          (file.contentType?.startsWith("image/") ||
+            file.contentType?.startsWith("video/"))
       );
 
     if (!previewableFiles.length) return;
@@ -374,11 +389,57 @@ export default function AffiliateFileManager() {
     try {
       const response = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (response?.url) {
-        window.open(response.url, "_blank", "noopener,noreferrer");
+        const link = document.createElement("a");
+        link.href = response.url;
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
       }
     } catch (err) {
       console.error("Failed to download file:", err);
     }
+  };
+
+  const triggerBatchFileDownload = (url: string) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 5000);
+  };
+
+  const toggleFileSelection = (filepath: string) => {
+    setSelectedFilePaths((prev) =>
+      prev.includes(filepath)
+        ? prev.filter((path) => path !== filepath)
+        : [...prev, filepath]
+    );
+  };
+
+  const handleBatchDownload = async () => {
+    if (selectedFilePaths.length === 0) return;
+
+    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
+
+    for (const path of selectedFilePaths) {
+      try {
+        const response = await fileManagerApi.getExternalFileDownloadUrl(path);
+        if (response?.url) {
+          triggerBatchFileDownload(response.url);
+        }
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Failed to download file");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
   };
 
   const fileToBase64 = (file: File) =>
@@ -549,9 +610,8 @@ export default function AffiliateFileManager() {
       />
       <label
         htmlFor={uploadInputId}
-        className={`inline-flex cursor-pointer items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${
-          isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
-        }`}
+        className={`inline-flex cursor-pointer items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
+          }`}
       >
         {isFaceScanning ? "Scanning..." : "Upload Face Photo"}
       </label>
@@ -559,9 +619,8 @@ export default function AffiliateFileManager() {
         type="button"
         onClick={handleOpenCamera}
         disabled={isFaceScanning}
-        className={`inline-flex items-center gap-1 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${
-          isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
-        }`}
+        className={`inline-flex items-center gap-1 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
+          }`}
       >
         <Camera size={14} />
         Use Camera
@@ -675,6 +734,17 @@ export default function AffiliateFileManager() {
   const canRunFaceScan = Boolean(
     selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
   );
+  const isSelectedWorkspaceCommonEvent = Boolean(
+    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
+  );
+  const canUploadInSelectedPhase = Boolean(
+    selectedWorkspace && selectedPhase === "pre" && !isSelectedWorkspaceCommonEvent
+  );
+  const uploadPath = useMemo(() => {
+    if (!selectedWorkspace || !canUploadInSelectedPhase) return undefined;
+    const basePath = `${selectedWorkspace.title}/Pre-Production`;
+    return selectedPath ? `${basePath}/${selectedPath}` : basePath;
+  }, [canUploadInSelectedPhase, selectedPath, selectedWorkspace]);
 
   const renderRoot = () => {
     if (loading) {
@@ -815,16 +885,16 @@ export default function AffiliateFileManager() {
             className="w-full lg:max-w-[350px] bg-[#18181b] rounded-xl lg:rounded-3xl border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group text-left"
           >
             <div className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="flex gap-3 items-start">
-                  <div>
+              <div className="flex items-start justify-between gap-1">
+                <div className="flex gap-3 items-start min-w-0">
+                  <div className="shrink-0">
                     <FolderOpen
                       className="text-[#E8D1AB] fill-[#E8D1AB]/20"
                       size={24}
                     />
                   </div>
-                  <div>
-                    <h3 className="text-white font-semibold text-sm leading-tight">
+                  <div className="min-w-0">
+                    <h3 className="text-white font-semibold text-sm leading-tight break-words">
                       {workspace.title}
                     </h3>
                     <p className="text-[#E8D1AB]/60 text-sm mt-1">
@@ -832,7 +902,7 @@ export default function AffiliateFileManager() {
                     </p>
                   </div>
                 </div>
-                <ExternalLink className="text-white/40 mt-1" size={16} />
+                <ExternalLink className="text-white/40 mt-1 shrink-0" size={16} />
               </div>
 
               <div className="flex flex-wrap gap-2 mt-4">
@@ -890,23 +960,33 @@ export default function AffiliateFileManager() {
       phase.title.toLowerCase().includes(searchTerm.trim().toLowerCase())
     );
 
-    return (
-      <div className="space-y-8">
-        <div>
-          <div className="flex items-start gap-5 mb-2 lg:mb-6">
-            <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+	    return (
+	      <div className="space-y-8">
+	        <div>
+            <div className="mb-5 flex items-center justify-end">
+              {canUploadInSelectedPhase ? (
+                <Button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                >
+                  <Upload size={18} /> Upload Files
+                </Button>
+              ) : null}
+            </div>
+	          <div className="flex items-start gap-5 mb-2 lg:mb-6">
+            <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
               {selectedWorkspace.userInitials}
             </div>
             <div className="min-w-0 text-white max-w-3xl flex-1">
-              <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+              <div className="flex flex-row lg:items-center gap-2">
                 <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                   {selectedWorkspace.title}
                 </h1>
-                <span className="px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+                <span className="px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
                   Active Project
                 </span>
               </div>
-              <p className="hidden lg:block text-sm text-[#D0D0D0]">
+              <p className="text-xs lg:text-sm text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace.externalId}
               </p>
@@ -923,10 +1003,10 @@ export default function AffiliateFileManager() {
               ) : null} */}
             </div>
           </div>
-          <p className="lg:hidden text-xs text-[#D0D0D0]">
+          {/* <p className="lg:hidden text-xs text-[#D0D0D0]">
             <span className="text-[#AAA7A7]">Project Code: </span>
             {selectedWorkspace.externalId}
-          </p>
+          </p> */}
           {/* {selectedWorkspace.consoleUrl ? (
             <a
               href={selectedWorkspace.consoleUrl}
@@ -956,20 +1036,20 @@ export default function AffiliateFileManager() {
                       onClick={() => handleOpenMatchedImage(match)}
                       className="w-full text-left"
                     >
-                    {match.url ? (
-                      <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={match.url}
-                          alt="Matched face result"
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
-                        Preview unavailable
-                      </div>
-                    )}
+                      {match.url ? (
+                        <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={match.url}
+                            alt="Matched face result"
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
+                          Preview unavailable
+                        </div>
+                      )}
                     </button>
                     <div className="p-2 text-xs text-white/70">
                       Confidence: {Math.round((match.confidence || 0) * 100)}%
@@ -997,10 +1077,10 @@ export default function AffiliateFileManager() {
                   fileCount={phase.fileCount}
                   lastOpened={formatRelativeTime(
                     (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
-                      selectedWorkspace.lastOpened
+                    selectedWorkspace.lastOpened
                   )}
                   userInitials={selectedWorkspace.userInitials}
-                  onOpenLinkModal={() => {}}
+                  onOpenLinkModal={() => { }}
                   onOpen={() => {
                     setSelectedPhase(phase.id as "pre" | "post");
                     setSelectedPath("");
@@ -1031,19 +1111,19 @@ export default function AffiliateFileManager() {
     }
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-4 lg:space-y-8">
         <div>
           <div className="flex items-start gap-5 mb-2 lg:mb-6">
-            <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+            <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
               {selectedWorkspace?.userInitials}
             </div>
             <div className="min-w-0 text-white max-w-3xl flex-1">
-              <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+              <div className="flex flex-row lg:items-center gap-2">
                 <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                   {selectedWorkspace?.title}
                 </h1>
                 <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 flex items-center gap-1.5 ${
+                  className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border border-white/5 flex items-center gap-1.5 h-fit w-fit ${
                     selectedPhase === "post"
                       ? "bg-[#E8D2FB] text-[#540B94]"
                       : "bg-[#FDF4FF] text-[#C026D3]"
@@ -1051,16 +1131,22 @@ export default function AffiliateFileManager() {
                 >
                   {selectedPhase === "post" ? "Post Production" : "Pre Production"}
                 </span>
-                <span className="px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 bg-[#1A1A1A] text-[#E8D1AB]">
-                  View Only
+                <span
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 ${
+                    canUploadInSelectedPhase
+                      ? "bg-[#D4FFE4] text-[#16A34A] border-[#6ce9a6]/20"
+                      : "bg-[#1A1A1A] text-[#E8D1AB]"
+                  }`}
+                >
+                  {canUploadInSelectedPhase ? "Upload Enabled" : "View Only"}
                 </span>
               </div>
-              <p className="hidden lg:block text-sm text-[#D0D0D0]">
+              <p className="text-xs lg:text-sm text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace?.externalId}
               </p>
-              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
-              {/* {selectedWorkspace?.consoleUrl ? (
+	              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
+	              {/* {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -1073,6 +1159,26 @@ export default function AffiliateFileManager() {
             </div>
           </div>
         </div>
+
+        {filteredFiles.length > 0 ? (
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const nextMode = !isSelectionMode;
+                setIsSelectionMode(nextMode);
+                if (!nextMode) setSelectedFilePaths([]);
+              }}
+              className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
+                ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                : "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                }`}
+            >
+              <CheckSquare size={18} />
+              <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+            </Button>
+          </div>
+        ) : null}
 
         {canRunFaceScan && faceMatches.length > 0 ? (
           <div className="rounded-xl border border-white/10 bg-[#141414] p-4">
@@ -1090,20 +1196,20 @@ export default function AffiliateFileManager() {
                     onClick={() => handleOpenMatchedImage(match)}
                     className="w-full text-left"
                   >
-                  {match.url ? (
-                    <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={match.url}
-                        alt="Matched face result"
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
-                      Preview unavailable
-                    </div>
-                  )}
+                    {match.url ? (
+                      <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={match.url}
+                          alt="Matched face result"
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
+                        Preview unavailable
+                      </div>
+                    )}
                   </button>
                   <div className="p-2 text-xs text-white/70">
                     Confidence: {Math.round((match.confidence || 0) * 100)}%
@@ -1135,7 +1241,7 @@ export default function AffiliateFileManager() {
                   isLinked={true}
                   lastOpened={formatRelativeTime(folder.lastOpened)}
                   userInitials={getInitials(folder.title)}
-                  onOpenLinkModal={() => {}}
+                  onOpenLinkModal={() => { }}
                   onOpen={() => {
                     const nextPath = [selectedPath, folder.name]
                       .filter(Boolean)
@@ -1165,6 +1271,8 @@ export default function AffiliateFileManager() {
                       }}
                       onOpen={() => handleOpenFile(file)}
                       onDownload={() => handleDownloadFile(file)}
+                      isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                      onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                     />
                   ))}
                 </div>
@@ -1180,14 +1288,16 @@ export default function AffiliateFileManager() {
                   </div>
                 ) : null}
               </div>
-            ) : (
-              <EmptyFileState
-                title="No File Uploaded"
-                description="No files have been uploaded for this project yet."
-              />
-            )}
-          </div>
-        ) : null}
+	            ) : (
+	              <EmptyFileState
+	                title="No File Uploaded"
+	                description="No files have been uploaded for this project yet."
+                  onAction={canUploadInSelectedPhase ? () => setIsUploadModalOpen(true) : undefined}
+                  actionLabel={canUploadInSelectedPhase ? "Upload Files" : undefined}
+	              />
+	            )}
+	          </div>
+	        ) : null}
       </div>
     );
   };
@@ -1246,11 +1356,10 @@ export default function AffiliateFileManager() {
                 <Button
                   key={tab.name}
                   onClick={() => setSelectedTab(tab.name)}
-                  className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${
-                    selectedTab === tab.name
+                  className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${selectedTab === tab.name
                       ? "bg-white text-black shadow-lg scale-[1.02]"
                       : "text-white/60 hover:bg-white/10 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <tab.icon size={20} className="shrink-0" />
                   <span className="leading-none">{tab.name}</span>
@@ -1301,11 +1410,10 @@ export default function AffiliateFileManager() {
                         setViewMode("grid");
                         setIsViewMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                        viewMode === "grid"
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid"
                           ? "bg-white/10 text-white"
                           : "text-white/60 hover:bg-white/5"
-                      }`}
+                        }`}
                     >
                       <Grid3X3 size={18} />
                       Grid View
@@ -1315,11 +1423,10 @@ export default function AffiliateFileManager() {
                         setViewMode("list");
                         setIsViewMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                        viewMode === "list"
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list"
                           ? "bg-white/10 text-white"
                           : "text-white/60 hover:bg-white/5"
-                      }`}
+                        }`}
                     >
                       <List size={18} />
                       List View
@@ -1331,21 +1438,19 @@ export default function AffiliateFileManager() {
               <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                 <Button
                   onClick={() => setViewMode("grid")}
-                  className={`px-5 py-2.5 rounded-l-lg transition-colors ${
-                    viewMode === "grid"
+                  className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === "grid"
                       ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                       : "bg-transparent text-white/40 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <Grid3X3 size={20} />
                 </Button>
                 <Button
                   onClick={() => setViewMode("list")}
-                  className={`px-5 py-2.5 rounded-r-lg transition-colors ${
-                    viewMode === "list"
+                  className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === "list"
                       ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                       : "bg-transparent text-white/40 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <List size={20} />
                 </Button>
@@ -1375,6 +1480,52 @@ export default function AffiliateFileManager() {
       ) : (
         renderRoot()
       )}
+
+      {selectedFilePaths.length > 0 ? (
+        <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8D1AB]/50 bg-[#171717] p-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
+                {selectedFilePaths.length}
+              </div>
+              <span className="font-medium text-white">Files selected</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="gap-2 text-white/70 hover:text-white"
+                onClick={() => {
+                  setSelectedFilePaths([]);
+                  setIsSelectionMode(false);
+                }}
+              >
+                Clear
+              </Button>
+
+              <div className="mx-1 h-6 w-[1px] bg-white/10" />
+
+              <Button
+                className="gap-2 border border-white/10 bg-white/10 text-white hover:bg-white/20"
+                onClick={handleBatchDownload}
+              >
+                <Download size={18} />
+                Download
+              </Button>
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedFilePaths([]);
+                setIsSelectionMode(false);
+              }}
+              className="text-white/40 hover:text-white"
+            >
+              <CloseIcon size={20} />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {isCameraOpen ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4">
@@ -1416,9 +1567,8 @@ export default function AffiliateFileManager() {
                   type="button"
                   onClick={handleCloseCamera}
                   disabled={isCameraProcessing}
-                  className={`rounded-md border border-white/15 px-3 py-1.5 text-sm text-white ${
-                    isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
-                  }`}
+                  className={`rounded-md border border-white/15 px-3 py-1.5 text-sm text-white ${isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+                    }`}
                 >
                   Cancel
                 </button>
@@ -1426,11 +1576,10 @@ export default function AffiliateFileManager() {
                   type="button"
                   onClick={handleCaptureFromCamera}
                   disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
-                  className={`rounded-md px-3 py-1.5 text-sm ${
-                    cameraError || isFaceScanning || isCameraProcessing
+                  className={`rounded-md px-3 py-1.5 text-sm ${cameraError || isFaceScanning || isCameraProcessing
                       ? "cursor-not-allowed bg-[#E8D1AB]/30 text-black/70"
                       : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
-                  }`}
+                    }`}
                 >
                   {isFaceScanning || isCameraProcessing ? "Scanning..." : "Capture & Scan"}
                 </button>
@@ -1439,6 +1588,18 @@ export default function AffiliateFileManager() {
           </div>
         </div>
       ) : null}
+
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        folderName={selectedWorkspace?.title || "Pre Production"}
+        uploadPath={uploadPath}
+        onUploadComplete={async () => {
+          if (selectedWorkspace && selectedPhase) {
+            await loadPhase(selectedWorkspace, selectedPhase, selectedPath);
+          }
+        }}
+      />
 
       <FileViewerModal
         isOpen={viewerOpen}
