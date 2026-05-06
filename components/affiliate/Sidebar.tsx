@@ -7,21 +7,38 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
-const CustomQuotesIcon = ({ size = 24 }) => (
-  <div
-    style={{
-      width: size,
-      height: size,
-      backgroundColor: 'currentColor',
-      WebkitMaskImage: `url('/images/misc/Quotes.svg')`,
-      maskImage: `url('/images/misc/Quotes.svg')`,
-      WebkitMaskRepeat: 'no-repeat',
-      maskRepeat: 'no-repeat',
-      WebkitMaskSize: 'contain',
-      maskSize: 'contain'
-    }}
-  />
-);
+const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
+  const inactiveIcon = '/images/misc/Quotes.svg';
+  const activeIcon = '/images/misc/QuotesActive.svg';
+
+  return (
+    <div
+      {...props}
+      style={{
+        width: size,
+        height: size,
+        ...(isActive
+          ? {
+            // ACTIVE STATE: Normal background image (shows original SVG colors)
+            backgroundImage: `url('${activeIcon}')`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'contain',
+            backgroundPosition: 'center',
+          }
+          : {
+            // INACTIVE STATE: Masking effect (inherits currentColor/gray)
+            backgroundColor: 'currentColor',
+            WebkitMaskImage: `url('${inactiveIcon}')`,
+            maskImage: `url('${inactiveIcon}')`,
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat',
+            WebkitMaskSize: 'contain',
+            maskSize: 'contain',
+          }),
+      }}
+    />
+  );
+};
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard' },
@@ -29,7 +46,7 @@ const menuItems = [
   { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager' },
   { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself' },
   { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages'},
+  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages' },
   { name: 'Shoots', icon: Camera, link: '/affiliate/shoots' },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes' },
   { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot' },
@@ -142,15 +159,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     onClick={() => !isDisabled && toggleExpand(item.name)}
                     className={`${baseClass} ${active ? activeClass : inactiveClass} ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <item.icon size={20} />
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <item.icon size={20} {...(item.name === 'Quotes' ? { isActive: active } : {})} />
                       <span className="font-medium">{item.name}</span>
                     </div>
-                    <ChevronDown size={16} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                    <ChevronDown size={16} className={`shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                   </button>
                 ) : isDisabled ? (
                   <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
-                    <item.icon size={20} />
+                    <item.icon size={20} {...(item.name === 'Quotes' ? { isActive: active } : {})} />
                     <span>{item.name}</span>
                   </div>
                 ) : (
@@ -158,8 +175,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     href={item.link || '#'}
                     className={`${baseClass} ${active ? activeClass : inactiveClass}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <item.icon size={20} />
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <item.icon size={20} {...(item.name === 'Quotes' ? { isActive: active } : {})} />
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </Link>
@@ -176,8 +193,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                           href={child.link}
                           onClick={() => handleLinkClick(child.link)}
                           className={`block px-4 py-2 text-sm rounded-lg transition-colors ${isChildActive
-                              ? (isDark ? "text-white font-medium" : "text-[#101010] font-bold")
-                              : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
+                            ? (isDark ? "text-white font-medium" : "text-[#101010] font-bold")
+                            : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
                             }`}
                         >
                           {child.name}
