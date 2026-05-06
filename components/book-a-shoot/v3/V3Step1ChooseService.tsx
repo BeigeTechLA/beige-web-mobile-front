@@ -109,7 +109,8 @@ const COACHELLA_SHOOT_TYPE_OPTION: ShootTypeOption = {
 
 const withCoachellaOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
   const nonCoachellaTypes = types.filter((type) => type.key !== COACHELLA_SHOOT_TYPE_KEY);
-  return [COACHELLA_SHOOT_TYPE_OPTION, ...nonCoachellaTypes];
+  // return [COACHELLA_SHOOT_TYPE_OPTION, ...nonCoachellaTypes];
+  return nonCoachellaTypes;
 };
 
 export const V3Step1ChooseService: React.FC<Props> = ({
