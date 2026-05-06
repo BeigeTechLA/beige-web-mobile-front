@@ -25,6 +25,12 @@ import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 
+const STUDIO_BOOKING_TYPES = [
+  { key: "production", value: "Production" },
+  { key: "audio", value: "Audio" },
+  { key: "event", value: "Event" }
+];
+
 const datePickerColours = {
   inputBackground: "#171717",
   inputText: "#FFFFFF",
@@ -170,8 +176,10 @@ export const V3BrowseStudios: React.FC<Props> = ({
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(data.bookingType || "single_day");
   const [visibleCount, setVisibleCount] = useState(6);
+  const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(data.bookingFor || "");
 
   // Ref Varibales
+  const studioTypeRef = useRef<HTMLDivElement>(null);
   const studiosRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
   const reelRef = useRef<HTMLDivElement>(null);
@@ -513,19 +521,41 @@ export const V3BrowseStudios: React.FC<Props> = ({
     return eachDayOfInterval({ start, end });
   }, [currentCalendarMonth]);
 
+  console.log(data);
+
+
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}
       <div className="text-center">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">
-          Browse available studios
+          Beige Content House
         </h2>
         <p className="text-white/60">Discover studios that match your needs with complete details and availability.</p>
       </div>
 
+      {!data.contentType.includes("studio") && (
+        <div ref={studioTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+          <p className="text-lg lg:text-xl font-medium mb-3 lg:mb-5">What type of studio do you need?</p>
+          <div className="flex-1">
+            <DropdownSelect
+              title="Booking For"
+              options={STUDIO_BOOKING_TYPES}
+              value={bookingFor}
+              onChange={setBookingFor}
+              bgColour="bg-[#101010]"
+            />
+          </div>
+
+          <div className={`px-7 py-3.5 rounded-xl bg-[#211F1C] text-[#E8D1AB] font-medium text-xs lg:text-sm mt-4 w-fit`}>
+            Note : Studios are shown based on your selected category. Pricing, availability, and rules may vary.
+          </div>
+        </div>
+      )}
+
       {/* Studio Listings */}
       <div ref={studiosRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        <p className="text-lg lg:text-xl fotn-medium mb-3 lg:mb-5">5 Studio Available Based on Categories</p>
+        <p className="text-lg lg:text-xl font-medium mb-3 lg:mb-5">5 Studio Available Based on Categories</p>
         <div className="flex gap-2 lg:gap-4 mb-5 lg:mb-10">
           {/* Search field */}
           <div className="relative flex-1 min-w-[240px]">
@@ -579,7 +609,7 @@ export const V3BrowseStudios: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* Crew Coutn */}
+      {/* Crew Count */}
       <div ref={crewCountRef} className="pt-6 lg:pt-15 border-t border-white/10">
         <div className="relative">
           <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
@@ -594,7 +624,7 @@ export const V3BrowseStudios: React.FC<Props> = ({
       </div>
 
       {/* Update Booking DateTime */}
-      <div ref={bookingRef} className="py-6 lg:py-15 border-y border-white/10 space-y-6">
+      <div ref={bookingRef} className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
         <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
 
         <div className="flex gap-4">
@@ -989,32 +1019,37 @@ export const V3BrowseStudios: React.FC<Props> = ({
       </div>
 
       {/* Browser Creators */}
-      <div className="bg-[#101010] border border-[#FFFFFF4D] rounded-xl p-3 lg:p-5 flex justify-between items-center">
-        <div className="flex gap-4 items-center ">
-          <div className="bg-[#171717] rounded-xl p-4.5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42" fill="none">
-              <circle cx="21" cy="22.75" r="5.25" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M17.4999 34.9998H24.4999C29.4155 34.9998 31.8734 34.9998 33.6389 33.8201C34.4033 33.3094 35.0595 32.6531 35.5702 31.8888C36.7499 30.1232 36.7499 27.6654 36.7499 22.7498C36.7499 17.8342 36.7497 15.3768 35.57 13.6112C35.0592 12.8469 34.403 12.1906 33.6387 11.6799C31.8731 10.5002 29.4153 10.5002 24.4997 10.5002H17.4997C12.5841 10.5002 10.1262 10.5002 8.36068 11.6799C7.59635 12.1906 6.94009 12.8469 6.42938 13.6112C5.24993 15.3764 5.24993 17.8331 5.24993 22.7466L5.24993 22.7498C5.24993 27.6654 5.24993 30.1232 6.42964 31.8888C6.94035 32.6531 7.59661 33.3094 8.36094 33.8201C10.1265 34.9998 12.5843 34.9998 17.4999 34.9998Z" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M31.5 17.5H30.625" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M26.25 5.25H15.75" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-lg lg:text-xl text-white font-medium">
-              Need a Photographer or Videographer for your Studio?
-            </p>
-            <p className="text-[#A9A9A9] text-xs lg:text-sm">
-              Bring your shoot to life with top photographers/videographers at your studio.
-            </p>
+      {
+        (data.contentType.length == 1 && data.contentType.includes("studio")) &&
+        <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+          <div className="bg-[#101010] border border-[#FFFFFF4D] rounded-xl p-3 lg:p-5 flex justify-between items-center">
+            <div className="flex gap-4 items-center ">
+              <div className="bg-[#171717] rounded-xl p-4.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42" fill="none">
+                  <circle cx="21" cy="22.75" r="5.25" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M17.4999 34.9998H24.4999C29.4155 34.9998 31.8734 34.9998 33.6389 33.8201C34.4033 33.3094 35.0595 32.6531 35.5702 31.8888C36.7499 30.1232 36.7499 27.6654 36.7499 22.7498C36.7499 17.8342 36.7497 15.3768 35.57 13.6112C35.0592 12.8469 34.403 12.1906 33.6387 11.6799C31.8731 10.5002 29.4153 10.5002 24.4997 10.5002H17.4997C12.5841 10.5002 10.1262 10.5002 8.36068 11.6799C7.59635 12.1906 6.94009 12.8469 6.42938 13.6112C5.24993 15.3764 5.24993 17.8331 5.24993 22.7466L5.24993 22.7498C5.24993 27.6654 5.24993 30.1232 6.42964 31.8888C6.94035 32.6531 7.59661 33.3094 8.36094 33.8201C10.1265 34.9998 12.5843 34.9998 17.4999 34.9998Z" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M31.5 17.5H30.625" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M26.25 5.25H15.75" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-lg lg:text-xl text-white font-medium">
+                  Need a Photographer or Videographer for your Studio?
+                </p>
+                <p className="text-[#A9A9A9] text-xs lg:text-sm">
+                  Bring your shoot to life with top photographers/videographers at your studio.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handleBrowseCreators}
+              className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] flex items-center justify-center text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+            >
+              Browse Creators
+            </Button>
           </div>
         </div>
-        <Button
-          onClick={handleBrowseCreators}
-          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] flex items-center justify-center text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
-        >
-          Browse Creators
-        </Button>
-      </div>
+      }
 
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">

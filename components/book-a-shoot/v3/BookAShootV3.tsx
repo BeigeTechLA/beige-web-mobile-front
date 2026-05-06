@@ -166,7 +166,8 @@ export const BookAShootV3 = () => {
     }
   }, [formData.shootType, formData.location, updateData]);
 
-  const nextStep = async (forceBrowseCreators?: boolean) => {
+  // forceBrowseOptions to be used when alt steps related to studios are added 
+  const nextStep = async (forceBrowseOptions?: boolean) => {
     // Track lead when moving from step 1 to 2 (if not already tracked)
     // if (internalStep === 1 && !leadTracked && formData.email) {
     //   try {
@@ -295,7 +296,7 @@ export const BookAShootV3 = () => {
 
     // --- Journey 2 specific: Next from 1.5 (Browse Studios) goes straight to Book & Confirm ---
     if (internalStep === 1.5 && isStudioFlow) {
-      const shouldBrowse = forceBrowseCreators ?? formData.isBrowsingCreators;
+      const shouldBrowse = forceBrowseOptions ?? formData.isBrowsingCreators;
 
       if (shouldBrowse) {
         setInternalStep(1.7);
@@ -309,6 +310,26 @@ export const BookAShootV3 = () => {
     if (internalStep === 1.7) {
       setInternalStep(6);
       setActiveStep(4); // Adjust based on dynamic steps length
+      return;
+    }
+
+    if (internalStep === 2) {
+      const shouldBrowse = forceBrowseOptions ?? formData.isBrowsingStudios;
+      // If user opted to browse studios after entering details
+      if (shouldBrowse) {
+        setInternalStep(2.5); // New "Browse Studios" step for Journey 3
+        setActiveStep(2);
+        return;
+      }
+      setInternalStep(3);
+      setActiveStep(2);
+      return;
+    }
+
+    // --- Step 2.5 Logic (The New Step) ---
+    if (internalStep === 2.5) {
+      setInternalStep(3);
+      setActiveStep(2);
       return;
     }
 
@@ -361,6 +382,22 @@ export const BookAShootV3 = () => {
   };
 
   const prevStep = () => {
+    // Back from Step 3: check if we should go to 2.5 or 2
+    if (internalStep === 3) {
+      if (formData.isBrowsingStudios) {
+        setInternalStep(2.5);
+        return;
+      }
+      setInternalStep(2);
+      return;
+    }
+
+    // Back from New Step 2.5 goes to More Details
+    if (internalStep === 2.5) {
+      setInternalStep(2);
+      return;
+    }
+
     // StudioJourney 2 accomodation
     if (internalStep === 2 && isStudioFlow) {
       setInternalStep(1.5);
@@ -709,6 +746,8 @@ export const BookAShootV3 = () => {
         return <V3StudioChooseCreators {...props} />; //  new component
       case 2:
         return <V3Step2MoreDetails {...props} />;
+      case 2.5: // New Step for non-studio primary flows
+        return <V3BrowseStudios {...props} />;
       case 3:
         return <V3Step3CrewMatching {...props} />;
       case 4:

@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
-  onNext: () => void;
+  onNext: (isBrowsingStudios?: boolean) => void;
   onBack: () => void;
 }
 
@@ -50,6 +50,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const COACHELLA_DEFAULT_LOCATION = "Indio, California, United States";
   const { user, isAuthenticated } = useAuth()
 
+  console.log(data);
   // Local state for team members if not stored in main data yet
   // In a real app, we might want to store this in data.teamIncluded or similar structure
   // For now, let's derive initial state from data.contentType
@@ -63,6 +64,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const locationRef = useRef<HTMLDivElement>(null);
   const detailsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
+  const studioRef = useRef<HTMLDivElement>(null);
 
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
   const isCoachella = data.shootType === "coachella";
@@ -135,12 +137,12 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       booking_form_fields: formFields
     });
   }, [])
-    
+
   const handleRemoveAllExtra = () => {
-    updateData({ 
-        addTeamMembers: false,
-        extraRoleSelections: {}, // Clear persisted counts
-        teamIncluded: [] 
+    updateData({
+      addTeamMembers: false,
+      extraRoleSelections: {}, // Clear persisted counts
+      teamIncluded: []
     });
     setExtraTeam({}); // Clear local UI state
     scrollToRef(locationRef);
@@ -357,6 +359,14 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     }, 100);
   };
 
+  const handleBrowseStudios = async () => {
+    // Update state so it's saved for back-navigation later
+    updateData({ isBrowsingStudios: true });
+
+    // Pass true directly to ensure the parent acts on it immediately
+    onNext(true);
+  }
+
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
 
@@ -393,110 +403,110 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       </div>
       {/* Add More Team Members */}
       {!isEditingOnly && (
-      <div ref={extraTeamRef}>
-        <div className="flex flex-col gap-3 lg:gap-6">
-          <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
-          <div className="flex gap-2 lg:gap-6">
-            <button
-              onClick={() => updateData({ addTeamMembers: true })}
-              // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-            >
-              <span className="font-medium text-sm lg:text-lg pr-2">
-                Yes
-              </span>
-              <div
-                className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${data.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+        <div ref={extraTeamRef}>
+          <div className="flex flex-col gap-3 lg:gap-6">
+            <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
+            <div className="flex gap-2 lg:gap-6">
+              <button
+                onClick={() => updateData({ addTeamMembers: true })}
+                // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
-                {data.addTeamMembers && (
-                  <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                )}
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                {handleRemoveAllExtra}
-                updateData({ addTeamMembers: false });
-                setExtraTeam({});
-                updateData({ teamIncluded: [] });
-                scrollToRef(locationRef);
-              }}
-              // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-            >
-              <span className="font-medium text-sm lg:text-lg pr-2">
-                No
-              </span>
-              <div
-                className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${!data.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                <span className="font-medium text-sm lg:text-lg pr-2">
+                  Yes
+                </span>
+                <div
+                  className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${data.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                >
+                  {data.addTeamMembers && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  { handleRemoveAllExtra }
+                  updateData({ addTeamMembers: false });
+                  setExtraTeam({});
+                  updateData({ teamIncluded: [] });
+                  scrollToRef(locationRef);
+                }}
+                // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
-                {!data.addTeamMembers && (
-                  <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                )}
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {data.addTeamMembers && (
-          <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
-            <div className="flex flex-col gap-4">
-              {availableRolesToAdd.length > 0 ? (
-                availableRolesToAdd.map((role) => (
-                  <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">
-                        {role.icon}
-                      </div>
-                      <div>
-                        <div className="text-lg font-medium text-white">{role.label}</div>
-                        {/* <div className="text-sm text-[#E8D1AB]">${role.price.toFixed(2)}</div> */}
-                      </div>
-                    </div>
-                    <QuantityControl
-                      value={extraTeam[role.id] || 0}
-                      onIncrease={() => handleExtraTeamChange(role.id, 1)}
-                      onDecrease={() => handleExtraTeamChange(role.id, -1)}
-                    />
-                  </div>
-                ))
-              ) : (
-                <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
-              )}
+                <span className="font-medium text-sm lg:text-lg pr-2">
+                  No
+                </span>
+                <div
+                  className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${!data.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                >
+                  {!data.addTeamMembers && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
             </div>
           </div>
-        )}
-      </div>
+
+          {data.addTeamMembers && (
+            <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
+              <div className="flex flex-col gap-4">
+                {availableRolesToAdd.length > 0 ? (
+                  availableRolesToAdd.map((role) => (
+                    <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">
+                          {role.icon}
+                        </div>
+                        <div>
+                          <div className="text-lg font-medium text-white">{role.label}</div>
+                          {/* <div className="text-sm text-[#E8D1AB]">${role.price.toFixed(2)}</div> */}
+                        </div>
+                      </div>
+                      <QuantityControl
+                        value={extraTeam[role.id] || 0}
+                        onIncrease={() => handleExtraTeamChange(role.id, 1)}
+                        onDecrease={() => handleExtraTeamChange(role.id, -1)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Location */}
       {!isEditingOnly && (
-      <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3>
-        <LocationPicker
-          value={data.location}
-          onChange={(address, details) => {
-            updateData({ location: address, locationDetails: details });
-            if (address) scrollToRef(detailsRef); // Scroll to details once location set
-          }}
-          placeholder="Search for a location"
-          colors={darkThemeColors}
-          // error
-          hasError={errors.includes("locationError")}
-          disabled={isCoachella}
-        />
-        {isCoachella && (
-          <p className="mt-3 text-sm text-[#E8D1AB] flex items-center gap-2">
-            <MapPin size={16} />
-            Location is locked for Coachella events.
-            {/* as they are exclusively held here */}
-          </p>
-        )}
-      </div>
+        <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
+          <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3>
+          <LocationPicker
+            value={data.location}
+            onChange={(address, details) => {
+              updateData({ location: address, locationDetails: details });
+              if (address) scrollToRef(detailsRef); // Scroll to details once location set
+            }}
+            placeholder="Search for a location"
+            colors={darkThemeColors}
+            // error
+            hasError={errors.includes("locationError")}
+            disabled={isCoachella}
+          />
+          {isCoachella && (
+            <p className="mt-3 text-sm text-[#E8D1AB] flex items-center gap-2">
+              <MapPin size={16} />
+              Location is locked for Coachella events.
+              {/* as they are exclusively held here */}
+            </p>
+          )}
+        </div>
       )}
 
       {/* Details Form */}
-      <div ref={detailsRef} className="pt-6 lg:pt-15 border-t border-white/10 flex flex-col gap-4 lg:gap-10">
+      <div ref={detailsRef} className="py-6 lg:py-15 border-y border-white/10 flex flex-col gap-4 lg:gap-10">
         <div className="relative">
           <label
             htmlFor="specialInstructions"
@@ -529,8 +539,40 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
             className="w-full rounded-[12px] border border-white/30 p-4 pt-6 text-white outline-none focus:border-white/60 transition-all resize-none bg-[#101010] text-sm lg:text-base"
           />
         </div>
-
       </div>
+
+      {/* Need a Studio: conditionally shown when Studios is not selected in step 1 */}
+      {(!data.contentType.includes("studio")) && (
+        <div ref={studioRef} className="bg-[#101010] border border-[#FFFFFF4D] rounded-xl p-3 lg:p-5 flex justify-between items-center">
+          <div className="flex gap-4 items-center ">
+            <div className="bg-[#171717] rounded-xl p-4.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42" fill="none">
+                <path d="M10.5 38.5V7C10.5 6.07174 10.8687 5.1815 11.5251 4.52513C12.1815 3.86875 13.0717 3.5 14 3.5H28C28.9283 3.5 29.8185 3.86875 30.4749 4.52513C31.1313 5.1815 31.5 6.07174 31.5 7V38.5H10.5Z" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10.5 21H7C6.07174 21 5.1815 21.3687 4.52513 22.0251C3.86875 22.6815 3.5 23.5717 3.5 24.5V35C3.5 35.9283 3.86875 36.8185 4.52513 37.4749C5.1815 38.1313 6.07174 38.5 7 38.5H10.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M31.5 15.75H35C35.9283 15.75 36.8185 16.1187 37.4749 16.7751C38.1312 17.4315 38.5 18.3217 38.5 19.25V35C38.5 35.9283 38.1312 36.8185 37.4749 37.4749C36.8185 38.1313 35.9283 38.5 35 38.5H31.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M17.5 10.5H24.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M17.5 17.5H24.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M17.5 24.5H24.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M17.5 31.5H24.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-lg lg:text-xl text-white font-medium">
+                Need a Studio?
+              </p>
+              <p className="text-[#A9A9A9] text-xs lg:text-sm">
+                Add a professional studio to your booking and get 15% off
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={handleBrowseStudios}
+            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] flex items-center justify-center text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          >
+            Browse Studios
+          </Button>
+        </div>
+      )}
 
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">

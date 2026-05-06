@@ -19,6 +19,7 @@ export type BookingDataV3 = {
   projectName: string;
   description: string;
   isBrowsingCreators?: boolean;
+  isBrowsingStudios?: boolean;
 
   // Date & Time
   startDate: string;
