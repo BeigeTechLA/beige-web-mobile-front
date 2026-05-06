@@ -1168,6 +1168,9 @@ export default function CreateQuotePage() {
   const [editingTypeConfigs, setEditingTypeConfigs] = useState<
     Record<string, { quantity: number; estimatedPrice: number }>
   >({});
+  const [estimatedPriceDrafts, setEstimatedPriceDrafts] = useState<
+    Record<string, string>
+  >({});
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
@@ -1971,6 +1974,56 @@ export default function CreateQuotePage() {
     handleConfigUpdate(serviceId, "estimatedPrice", nextPrice);
   };
 
+  const getEstimatedPriceInputKey = (
+    isEditingService: boolean,
+    serviceId: string,
+    editingTypeId: string,
+  ) => (isEditingService ? `editing:${editingTypeId}` : `service:${serviceId}`);
+
+  const getAddonPriceInputKey = (addonId: string) => `addon:${addonId}`;
+  const getLineItemPriceInputKey = (lineItemId: string) =>
+    `line_item:${lineItemId}`;
+
+  const getEstimatedPriceInputValue = (
+    inputKey: string,
+    persistedValue: number,
+  ) =>
+    Object.prototype.hasOwnProperty.call(estimatedPriceDrafts, inputKey)
+      ? estimatedPriceDrafts[inputKey]
+      : `$ ${formatAddonDisplayValue(persistedValue)}`;
+
+  const getCurrencyDraftInputValue = (
+    inputKey: string,
+    persistedValue: number,
+  ) =>
+    Object.prototype.hasOwnProperty.call(estimatedPriceDrafts, inputKey)
+      ? estimatedPriceDrafts[inputKey]
+      : `$ ${formatAddonDisplayValue(persistedValue)}`;
+
+  const setEstimatedPriceDraftValue = (inputKey: string, value: string) => {
+    const sanitizedValue = sanitizeCurrencyInput(value);
+    setEstimatedPriceDrafts((prev) => ({
+      ...prev,
+      [inputKey]: sanitizedValue,
+    }));
+  };
+
+  const commitEstimatedPriceDraftValue = (
+    inputKey: string,
+    persistedValue: number,
+    onCommit: (nextValue: number) => void,
+  ) => {
+    const draftValue = estimatedPriceDrafts[inputKey];
+    const nextValue =
+      draftValue === undefined ? persistedValue : parseCurrencyInput(draftValue);
+    onCommit(nextValue);
+    setEstimatedPriceDrafts((prev) => {
+      const nextDrafts = { ...prev };
+      delete nextDrafts[inputKey];
+      return nextDrafts;
+    });
+  };
+
   const handleAddonConfigUpdate = (
     addonId: string,
     field: string,
@@ -1980,6 +2033,13 @@ export default function CreateQuotePage() {
       field === "quantity" ? Math.max(1, value) : Math.max(0, value);
 
     setAddonConfigs((prev) => ({
+      ...prev,
+      [addonId]: {
+        ...prev[addonId],
+        [field]: nextValue,
+      },
+    }));
+    setAppliedAddonConfigs((prev) => ({
       ...prev,
       [addonId]: {
         ...prev[addonId],
@@ -2807,12 +2867,12 @@ export default function CreateQuotePage() {
     .map((itemId) => logisticsItems.find((item) => item.id === itemId))
     .filter((item): item is (typeof logisticsItems)[number] => Boolean(item));
   const totalLogisticsCost = selectedLogisticsItems.reduce((total, item) => {
-    const config = appliedLogisticsConfigs[item.id];
+    const config = logisticsConfigs[item.id] ?? appliedLogisticsConfigs[item.id];
     if (!config) return total;
     return total + config.price;
   }, 0);
   const totalLineItemsCost = lineItems.reduce((total, item) => {
-    const config = appliedLineItemConfigs[item.id];
+    const config = lineItemConfigs[item.id] ?? appliedLineItemConfigs[item.id];
     if (!config) return total;
     return total + config.price;
   }, 0);
@@ -4963,9 +5023,6 @@ export default function CreateQuotePage() {
                       <div className="space-y-4 lg:space-y-6">
                         {selectedLogisticsItems.map((item) => {
                           const config = logisticsConfigs[item.id];
-                          const hasPendingChanges = hasPendingLogisticsChanges(
-                            item.id,
-                          );
                           if (!config) return null;
 
                           return (
@@ -5005,6 +5062,10 @@ export default function CreateQuotePage() {
                                           ...prev,
                                           [item.id]: { ...prev[item.id], price: num },
                                         }));
+                                        setAppliedLogisticsConfigs((prev) => ({
+                                          ...prev,
+                                          [item.id]: { ...prev[item.id], price: num },
+                                        }));
                                       }
                                     }}
                                     onBlur={() => {
@@ -5025,14 +5086,6 @@ export default function CreateQuotePage() {
                                       className="text-red-500 hover:text-red-400 transition-colors"
                                     >
                                       <Trash2 size={18} />
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        applyLogisticsChanges(item.id, item.label)
-                                      }
-                                      className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                    >
-                                      <Check size={18} strokeWidth={3} />
                                     </button>
                                   </div>
                                 </div>
@@ -5072,6 +5125,13 @@ export default function CreateQuotePage() {
                                               price: numericVal,
                                             },
                                           }));
+                                          setAppliedLogisticsConfigs((prev) => ({
+                                            ...prev,
+                                            [item.id]: {
+                                              ...prev[item.id],
+                                              price: numericVal,
+                                            },
+                                          }));
                                         }
                                       }}
                                       onBlur={() => {
@@ -5090,14 +5150,6 @@ export default function CreateQuotePage() {
                                     className="text-red-500 hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      applyLogisticsChanges(item.id, item.label)
-                                    }
-                                    className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                  >
-                                    <Check size={18} strokeWidth={3} />
                                   </button>
                                 </div>
                               </div>
@@ -5311,12 +5363,10 @@ export default function CreateQuotePage() {
                     </div>
 
                     <div className="space-y-4 lg:space-y-6">
-                      {selectedAddons.map((addonId) => {
-                        const addon = addons.find((a) => a.id === addonId);
-                        const config = addonConfigs[addonId];
-                        const hasPendingChanges =
-                          hasPendingAddonChanges(addonId);
-                        if (!addon || !config) return null;
+                        {selectedAddons.map((addonId) => {
+                          const addon = addons.find((a) => a.id === addonId);
+                          const config = addonConfigs[addonId];
+                          if (!addon || !config) return null;
 
                         return (
                           <div
@@ -5375,33 +5425,50 @@ export default function CreateQuotePage() {
                                 </div>
 
                                 {/* Price Override */}
-                                <div className="relative w-[190px] h-[50px] bg-[#1A1A1F] border border-[#3B3B46] rounded-xl flex items-center px-5 transition-all focus-within:border-[#E8D1AB]">
-                                  <span className="text-white text-base font-medium mr-1 opacity-80">$</span>
-                                  <input
-                                    value={
-                                      inputValue[addonId] !== undefined 
-                                        ? inputValue[addonId] 
-                                        : config.price.toFixed(2)
+                                <div className="relative w-[190px]">
+                                  {(() => {
+                                    const addonInputKey =
+                                      getAddonPriceInputKey(addonId);
+
+                                    return (
+                                  <Input
+                                    value={getCurrencyDraftInputValue(
+                                      addonInputKey,
+                                      getAddonDraftPrice(addonId),
+                                    )}
+                                    onFocus={(e) => {
+                                      setEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        e.target.value,
+                                      );
+                                    }}
+                                    onChange={(e) =>
+                                      setEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        e.target.value,
+                                      )
                                     }
-                                    onChange={(e) => {
-                                      const raw = parseRawPrice(e.target.value);
-                                      setInputValue((prev) => ({ ...prev, [addonId]: raw }));
-                                      
-                                      const num = parseFloat(raw);
-                                      if (!isNaN(num)) {
-                                        handleAddonConfigUpdate(addonId, "price", num);
+                                    onBlur={() =>
+                                      commitEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        getAddonDraftPrice(addonId),
+                                        (nextValue) => {
+                                          handleAddonPriceUpdate(
+                                            addonId,
+                                            String(nextValue),
+                                          );
+                                        },
+                                      )
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
                                       }
                                     }}
-                                    onBlur={() => {
-                                      setInputValue((prev) => {
-                                        const next = { ...prev };
-                                        delete next[addonId];
-                                        return next;
-                                      });
-                                    }}
-                                    className="bg-transparent border-0 outline-none text-white font-normal text-base w-full p-0 focus:ring-0"
                                     inputMode="decimal"
                                   />
+                                    );
+                                  })()}
                                 </div>
 
                                 <div className="flex items-center gap-5 ml-2">
@@ -5410,14 +5477,6 @@ export default function CreateQuotePage() {
                                     className="text-red-500 hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      applyAddonChanges(addonId, addon.label)
-                                    }
-                                    className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                  >
-                                    <Check size={18} strokeWidth={3} />
                                   </button>
                                 </div>
                               </div>
@@ -5470,31 +5529,56 @@ export default function CreateQuotePage() {
                               </div>
                               <div className="flex gap-3 items-center">
                                 <div className="relative flex-1">
+                                  {(() => {
+                                    const addonInputKey =
+                                      getAddonPriceInputKey(addonId);
+
+                                    return (
                                   <Input
-                                    value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
+                                    value={getCurrencyDraftInputValue(
+                                      addonInputKey,
+                                      getAddonDraftPrice(addonId),
+                                    )}
+                                    onFocus={(e) => {
+                                      setEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        e.target.value,
+                                      );
+                                    }}
                                     onChange={(e) =>
-                                      handleAddonPriceUpdate(
-                                        addonId,
+                                      setEstimatedPriceDraftValue(
+                                        addonInputKey,
                                         e.target.value,
                                       )
                                     }
+                                    onBlur={() =>
+                                      commitEstimatedPriceDraftValue(
+                                        addonInputKey,
+                                        getAddonDraftPrice(addonId),
+                                        (nextValue) => {
+                                          handleAddonPriceUpdate(
+                                            addonId,
+                                            String(nextValue),
+                                          );
+                                        },
+                                      )
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      }
+                                    }}
                                     inputMode="decimal"
                                     className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
                                   />
+                                    );
+                                  })()}
                                 </div>
                                 <button
                                   onClick={() => removeSelectedAddon(addonId)}
                                   className="text-red-500 hover:text-red-400 transition-colors"
                                 >
                                   <Trash2 size={18} />
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    applyAddonChanges(addonId, addon.label)
-                                  }
-                                  className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                >
-                                  <Check size={18} strokeWidth={3} />
                                 </button>
                               </div>
                             </div>
@@ -5908,6 +5992,11 @@ export default function CreateQuotePage() {
                                 : null;
                               const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
                               const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+                              const estimatedPriceInputKey = getEstimatedPriceInputKey(
+                                isEditingService,
+                                serviceId,
+                                editingTypeId,
+                              );
                               const serviceTotal = isEditingService
                                 ? quantity * estimatedPrice
                                 : config.duration *
@@ -6091,42 +6180,58 @@ export default function CreateQuotePage() {
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
-
-                                      <div className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] flex items-center justify-center group focus-within:border-[#E8D1AB] transition-all px-2">
-                                        
-                                        <span className="text-white text-sm font-medium mr-1 opacity-80">$</span>
-                                        
-                                        <input
-                                          value={
-                                            inputValue[cardKey] !== undefined 
-                                              ? inputValue[cardKey] 
-                                              : (isEditingService ? estimatedPrice : config.estimatedPrice).toFixed(2)
-                                          }
-                                          onChange={(e) => {
-                                            const raw = parseRawPrice(e.target.value);
-                                            setInputValue((prev) => ({ ...prev, [cardKey]: raw }));
-                                            
-                                            const num = parseFloat(raw);
-                                            if (!isNaN(num)) {
+                                      <Input
+                                        value={getEstimatedPriceInputValue(
+                                          estimatedPriceInputKey,
+                                          isEditingService
+                                            ? estimatedPrice
+                                            : getServiceDraftPrice(serviceId),
+                                        )}
+                                        onFocus={(e) => {
+                                          setEstimatedPriceDraftValue(
+                                            estimatedPriceInputKey,
+                                            e.target.value,
+                                          );
+                                        }}
+                                        onChange={(e) =>
+                                          setEstimatedPriceDraftValue(
+                                            estimatedPriceInputKey,
+                                            e.target.value,
+                                          )
+                                        }
+                                        onBlur={() =>
+                                          commitEstimatedPriceDraftValue(
+                                            estimatedPriceInputKey,
+                                            isEditingService
+                                              ? estimatedPrice
+                                              : getServiceDraftPrice(serviceId),
+                                            (nextValue) => {
                                               if (isEditingService) {
-                                                setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: num } }));
-                                              } else {
-                                                handleConfigUpdate(serviceId, "estimatedPrice", num);
+                                                setEditingTypeConfigs((prev) => ({
+                                                  ...prev,
+                                                  [editingTypeId]: {
+                                                    quantity,
+                                                    estimatedPrice: nextValue,
+                                                  },
+                                                }));
+                                                return;
                                               }
-                                            }
-                                          }}
-                                          onBlur={() => {
-                                            setInputValue((prev) => {
-                                              const next = { ...prev };
-                                              delete next[cardKey];
-                                              return next;
-                                            });
-                                          }}
-                                          className="bg-transparent border-0 outline-none text-white font-normal text-sm w-[70px] p-0 focus:ring-0"
-                                          inputMode="decimal"
-                                        />
-                                      </div>
 
+                                              handleServicePriceUpdate(
+                                                serviceId,
+                                                String(nextValue),
+                                              );
+                                            },
+                                          )
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.currentTarget.blur();
+                                          }
+                                        }}
+                                        inputMode="decimal"
+                                        className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
+                                      />
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -6299,7 +6404,6 @@ export default function CreateQuotePage() {
                 <div className="space-y-4 lg:space-y-6 p-4 lg:p-8 lg:pb-6">
                   {lineItems.map((item) => {
                     const config = lineItemConfigs[item.id];
-                    const hasPendingChanges = hasPendingLineItemChanges(item.id);
                     const isProtectedLineItem = isProtectedLineItemLabel(
                       item.label,
                     );
@@ -6348,32 +6452,48 @@ export default function CreateQuotePage() {
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               /> */}
                               <Input
-                                value={
-                                  inputValue[item.id] !== undefined
-                                    ? inputValue[item.id]
-                                    : (config?.price || 0).toFixed(2)
-                                }
-                                onChange={(e) => {
-                                  const raw = parseRawPrice(e.target.value);
-                                  setInputValue((prev) => ({ ...prev, [item.id]: raw }));
-
-                                  const numericVal = parseFloat(raw);
-                                  if (!isNaN(numericVal)) {
-                                    setLineItemConfigs((prev) => ({
-                                      ...prev,
-                                      [item.id]: {
-                                        ...prev[item.id],
-                                        price: numericVal,
-                                      },
-                                    }));
-                                  }
+                                value={getCurrencyDraftInputValue(
+                                  getLineItemPriceInputKey(item.id),
+                                  config?.price || 0,
+                                )}
+                                onFocus={(e) => {
+                                  setEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    e.target.value,
+                                  );
                                 }}
-                                onBlur={() => {
-                                  setInputValue((prev) => {
-                                    const next = { ...prev };
-                                    delete next[item.id];
-                                    return next;
-                                  });
+                                onChange={(e) =>
+                                  setEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    e.target.value,
+                                  )
+                                }
+                                onBlur={() =>
+                                  commitEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    config?.price || 0,
+                                    (nextValue) => {
+                                      setLineItemConfigs((prev) => ({
+                                        ...prev,
+                                        [item.id]: {
+                                          ...prev[item.id],
+                                          price: nextValue,
+                                        },
+                                      }));
+                                      setAppliedLineItemConfigs((prev) => ({
+                                        ...prev,
+                                        [item.id]: {
+                                          ...prev[item.id],
+                                          price: nextValue,
+                                        },
+                                      }));
+                                    },
+                                  )
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                  }
                                 }}
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                                 inputMode="decimal"
@@ -6401,14 +6521,6 @@ export default function CreateQuotePage() {
                                   <Trash2 size={18} />
                                 </button>
                               )}
-                              <button
-                                onClick={() =>
-                                  applyLineItemChanges(item.id, item.label)
-                                }
-                                className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-700/70 hover:text-green-600"}`}
-                              >
-                                <Check size={18} strokeWidth={3} />
-                              </button>
                             </div>
                           </div>
                         </div>
