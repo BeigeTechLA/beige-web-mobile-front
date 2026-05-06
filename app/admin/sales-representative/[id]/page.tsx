@@ -1460,7 +1460,7 @@ export default function LeadDetailPage() {
 
                             {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
                             <div className={`px-2 transition-all duration-500 transform ${index === activeCPIndex ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"}`}>
-                              <div className="flex justify-between items-start mb-4">
+                              <div className="flex gap-2 justify-between items-start mb-4">
                                 <div className="min-w-0">
                                   <h3 className={`text-xl font-bold truncate leading-tight ${isDark ? "text-white" : "text-black"}`}>{cp.name}</h3>
                                   <p className={`${isDark ? "text-[#8E8E8E]" : "text-[#666666]"} text-sm mt-0.5`}>{cp.role}</p>
