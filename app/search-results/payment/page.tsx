@@ -1794,7 +1794,7 @@ function MultiCreatorPaymentContent() {
               </div>
               {/* <div className="bg-white rounded-[20px] text-black py-3 lg:py-5"> */}
               <div className="rounded-b-[20px] text-black">
-                <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-start">
+                <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-center">
                   <div className="w-10 h-10 lg:h-[82px] lg:w-[82px] rounded-full bg-[#333333] flex items-center justify-center text-[#FFFFFF85] font-semibold lg:text-2xl">
                     {getInitials(customerName)}
                   </div>

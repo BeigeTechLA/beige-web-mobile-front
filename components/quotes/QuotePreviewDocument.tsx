@@ -143,7 +143,7 @@ const ServiceTable = ({
         // className={`hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b pb-3 text-sm font-medium md:grid ${
         //   isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
         // }`}
-        className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[8px] lg:text-sm font-medium grid gap-2 ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
+        className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[9px] lg:text-sm font-medium grid gap-2 ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
           }`}
       >
         <p>Description</p>
@@ -153,31 +153,59 @@ const ServiceTable = ({
         <p className="text-right">Amount</p>
       </div>
       <div className="space-y-4">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            // className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-lg ${
-            //   isDark ? "text-white/90" : "text-black/80"
-            // }`}
-            className={`grid gap-2 text-[10px] grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-base ${isDark ? "text-white/90" : "text-black/80"}`}
-          >
-            <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-              {item.subtitle || shootTypeLabel ? (
-                <>
-                  {item.name} - <span className="text-[#E8D1AB]">{item.subtitle || `(${shootTypeLabel})`}</span>
-                </>
-              ) : (
-                item.name
-              )}
-            </p>
-            <p className="md:text-center">{formatCount(item.quantity)}</p>
-            <p className="md:text-center">{formatDuration(item.duration)}</p>
-            <p className="md:text-center">{item.crew > 0 ? formatCount(item.crew) : "-"}</p>
-            <p className={`font-medium md:text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
-              {formatQuoteCurrency(item.amount)}
-            </p>
-          </div>
-        ))}
+        {items.map((item) => {
+          const splitName = item.name.split("-")
+          const hasCustom = splitName.length > 1 && splitName.some(part => part.toLowerCase().includes("custom"));
+
+          return (
+            <div
+              key={item.id}
+              // className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-lg ${
+              //   isDark ? "text-white/90" : "text-black/80"
+              // }`}
+              className={`grid gap-2 text-[11px] grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-base ${isDark ? "text-white/90" : "text-black/80"}`}
+            >
+              <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                {item.subtitle || shootTypeLabel ? (
+                  <>
+                    {hasCustom ? (
+                      splitName.map((part, index) => {
+                        const isCustomPart = part.toLowerCase().includes("custom");
+                        return (
+                          <React.Fragment key={index}>
+                            <span className={`${isCustomPart ? "text-[#E8D1AB] text-[9px] block lg:inline lg:text-base" : "text-white"}`}>
+                              {part}
+                            </span>
+                            {/* Hide the hyphen on mobile when it breaks to a new line */}
+                            {index < splitName.length - 1 && (
+                              <span className="hidden lg:inline">{" - "}</span>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    ) : (
+                      <span className="block lg:inline">{item.name}</span>
+                    )}
+
+                    {/* The trailing subtitle/label section */}
+                    <span className="hidden lg:inline">{" - "}</span>
+                    <span className="text-[#E8D1AB] text-[9px] block lg:inline lg:text-base">
+                      {item.subtitle || `(${shootTypeLabel})`}
+                    </span>
+                  </>
+                ) : (
+                  item.name
+                )}
+              </p>
+              <p className="text-center">{formatCount(item.quantity)}</p>
+              <p className="text-center">{formatDuration(item.duration)}</p>
+              <p className="text-center">{item.crew > 0 ? formatCount(item.crew) : "-"}</p>
+              <p className={`font-medium text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
+                {formatQuoteCurrency(item.amount)}
+              </p>
+            </div>
+          )
+        })}
       </div>
     </section>
   );
@@ -263,25 +291,25 @@ export default function QuotePreviewDocument({
               <div className="flex h-[58px] w-[58px] items-center justify-center rounded-2xl bg-[#E8D1AB]">
                 <BeigeMark />
               </div>
-                <div>
-                  <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
-                    {COMPANY_PROFILE.name}
+              <div>
+                <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
+                  {COMPANY_PROFILE.name}
+                </p>
+                {COMPANY_PROFILE.subtitle ? (
+                  <p className={`text-sm lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
+                    {COMPANY_PROFILE.subtitle}
                   </p>
-                  {COMPANY_PROFILE.subtitle ? (
-                    <p className={`text-sm lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
-                      {COMPANY_PROFILE.subtitle}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className={`space-y-1 text-sm leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
-                {COMPANY_PROFILE.addressLines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-                <p>{COMPANY_PROFILE.email} {COMPANY_PROFILE.phone}</p>
+                ) : null}
               </div>
             </div>
+
+            <div className={`space-y-1 text-sm leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
+              {COMPANY_PROFILE.addressLines.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+              <p>{COMPANY_PROFILE.email} {COMPANY_PROFILE.phone}</p>
+            </div>
+          </div>
 
           <div className="text-left lg:text-right">
             <h3 className={`text-[38px] font-bold tracking-tight lg:text-[64px] ${isDark ? "text-white" : "text-[#101010]"}`}>
@@ -399,55 +427,51 @@ export default function QuotePreviewDocument({
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
-       <section className="space-y-4">
-  <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
-  <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-    
-    {/* Left - Terms list */}
-    <ul
-      className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-base flex-1 ${
-        isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
-      }`}
-    >
-      {terms.map((term, index) => (
-        <li key={`${term}-${index}`}>{term}</li>
-      ))}
-    </ul>
+        <section className="space-y-4">
+          <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+
+            {/* Left - Terms list */}
+            <ul
+              className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-base flex-1 ${isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
+                }`}
+            >
+              {terms.map((term, index) => (
+                <li key={`${term}-${index}`}>{term}</li>
+              ))}
+            </ul>
 
 
 
-    {/* Right - Signature */}
-  {!isRejected && (
-    <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
-      {signatureSource ? (
-        <>
-          <div className={`border rounded-lg p-3 w-full max-w-[220px] ${
-            isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
-          }`}>
-            <img
-              src={signatureSource}
-              alt="Signature"
-              className="w-full max-h-20 object-contain"
-            />
+            {/* Right - Signature */}
+            {!isRejected && (
+              <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
+                {signatureSource ? (
+                  <>
+                    <div className={`border rounded-lg p-3 w-full max-w-[220px] ${isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
+                      }`}>
+                      <img
+                        src={signatureSource}
+                        alt="Signature"
+                        className="w-full max-h-20 object-contain"
+                      />
+                    </div>
+                    <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${isDark ? "border-white/20 text-white/50" : "border-gray-300 text-gray-400"
+                      }`}>
+                      <p>{quoteData.client_name ?? "Client"}</p>
+                      <p>{formatQuoteDate(quoteData.signed_at ?? quoteData.updated_at)}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${isDark ? "border-white/20 text-white/30" : "border-gray-300 text-gray-400"
+                    }`}>
+                    <p>Authorized Signature</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${
-            isDark ? "border-white/20 text-white/50" : "border-gray-300 text-gray-400"
-          }`}>
-            <p>{quoteData.client_name ?? "Client"}</p>
-            <p>{formatQuoteDate(quoteData.signed_at ?? quoteData.updated_at)}</p>
-          </div>
-        </>
-      ) : (
-        <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${
-          isDark ? "border-white/20 text-white/30" : "border-gray-300 text-gray-400"
-        }`}>
-          <p>Authorized Signature</p>
-        </div>
-      )}
-    </div>
-    )}
-  </div>
-</section>
+        </section>
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
