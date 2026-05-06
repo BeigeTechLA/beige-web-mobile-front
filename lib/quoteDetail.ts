@@ -505,6 +505,8 @@ export const getQuoteAdditionalPaymentDetails = (
   quote: SalesQuoteDetailData | null | undefined,
   options?: {
     revisedTotalOverride?: number | null;
+    previouslyPaidOverride?: number | null;
+    previousTotalOverride?: number | null;
   }
 ): QuoteAdditionalPaymentDetails | null => {
   const additionalPayment = asRecord(quote?.additional_payment);
@@ -512,6 +514,8 @@ export const getQuoteAdditionalPaymentDetails = (
   const latestChangeSummary = asRecord(latestPaymentMetadata?.change_summary);
   const latestAmountSummary = asRecord(latestChangeSummary?.amount_summary);
   const revisedTotalOverride = getQuoteNumber(options?.revisedTotalOverride);
+  const previouslyPaidOverride = getQuoteNumber(options?.previouslyPaidOverride);
+  const previousTotalOverride = getQuoteNumber(options?.previousTotalOverride);
 
   if (!additionalPayment && !latestPaymentMetadata && !latestAmountSummary) {
     return null;
@@ -519,15 +523,19 @@ export const getQuoteAdditionalPaymentDetails = (
 
   const previouslyPaidAmount = Math.max(
     0,
-    getQuoteNumber(
-      latestPaymentMetadata?.collected_amount,
-      latestPaymentMetadata?.amount_paid,
-      additionalPayment?.previously_paid_amount
-    ) ?? 0
+    previouslyPaidOverride !== undefined
+      ? previouslyPaidOverride
+      : getQuoteNumber(
+          latestPaymentMetadata?.collected_amount,
+          latestPaymentMetadata?.amount_paid,
+          additionalPayment?.previously_paid_amount
+        ) ?? 0
   );
   const previousTotal = Math.max(
     0,
     getQuoteNumber(
+      previousTotalOverride,
+      revisedTotalOverride !== undefined ? additionalPayment?.revised_total : undefined,
       latestAmountSummary?.previous_total,
       latestPaymentMetadata?.previous_total,
       additionalPayment?.previous_total
@@ -562,28 +570,13 @@ export const getQuoteAdditionalPaymentDetails = (
     effectiveMetadataAmount = -metadataReducedAmount;
   }
 
-  const rawAdditionalAmount =
-    revisedTotalOverride !== undefined
-      ? derivedAdditionalAmount
-      : getQuoteNumber(
-          effectiveMetadataAmount,
-          derivedAdditionalAmount,
-          latestAmountSummary?.total_delta,
-          additionalPayment?.additional_amount
-        ) ?? derivedAdditionalAmount;
-  const additionalAmount = rawAdditionalAmount;
-  const outstandingAmount = Math.max(
-    0,
-    revisedTotalOverride !== undefined
-      ? Math.max(derivedAdditionalAmount, 0)
-      : getQuoteNumber(additionalPayment?.outstanding_amount, latestPaymentMetadata?.extra_amount) ??
-          Math.max(revisedTotal - previouslyPaidAmount, 0)
-  );
-  const displayAmount = Math.abs(additionalAmount);
-  const isDecrease = additionalAmount < 0;
+  const totalDelta = revisedTotal - previousTotal;
+  const outstandingAmount = Math.max(0, revisedTotal - previouslyPaidAmount);
+  const displayAmount = Math.abs(totalDelta);
+  const isDecrease = totalDelta < -0.009;
 
   if (
-    displayAmount <= 0 &&
+    displayAmount <= 0.009 &&
     previousTotal <= 0 &&
     previouslyPaidAmount <= 0 &&
     revisedTotal <= 0 &&
@@ -593,7 +586,8 @@ export const getQuoteAdditionalPaymentDetails = (
   }
 
   return {
-    additionalAmount,
+    additionalAmount: totalDelta,
+    totalDelta,
     displayAmount,
     isDecrease,
     previousTotal,

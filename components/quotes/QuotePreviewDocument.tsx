@@ -374,12 +374,6 @@ export default function QuotePreviewDocument({
                       {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-6">
-                    <span>Remaining Amount</span>
-                    <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.outstandingAmount)}
-                    </span>
-                  </div>
                 </div>
               </>
             ) : null}
