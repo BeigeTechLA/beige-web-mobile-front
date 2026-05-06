@@ -7,6 +7,7 @@ import { useViewMode } from "@/hooks/useViewMode";
 import {
   ArrowLeft,
   CalendarClock,
+  CheckSquare,
   Download,
   FileArchive,
   FileSpreadsheet,
@@ -18,11 +19,14 @@ import {
   List,
   Loader2,
   Play,
+  Presentation,
   Search,
   Trash2,
   Upload,
+  X as CloseIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
@@ -66,6 +70,7 @@ const getFileMeta = (contentType?: string, title?: string) => {
   if (isVideoFile(contentType, title)) return { icon: FileVideo, label: "video", accentClass: "text-[#E8D1AB]" };
   if (contentType === "application/pdf" || extension === "pdf") return { icon: FileText, label: "pdf", accentClass: "text-[#F04438]" };
   if (["doc", "docx", "txt", "rtf"].includes(extension)) return { icon: FileText, label: extension || "doc", accentClass: "text-[#3B82F6]" };
+  if (["ppt", "pptx", "key"].includes(extension)) return { icon: Presentation, label: extension || "ppt", accentClass: "text-[#F97316]" };
   if (["xls", "xlsx", "csv"].includes(extension)) return { icon: FileSpreadsheet, label: extension || "sheet", accentClass: "text-[#10B981]" };
   if (["zip", "rar", "7z", "tar", "gz"].includes(extension)) return { icon: FileArchive, label: extension || "zip", accentClass: "text-[#A855F7]" };
   return { icon: FileText, label: extension || "file", accentClass: "text-white/80" };
@@ -103,6 +108,8 @@ export default function CreatorSubFolderDetailsPage() {
   const [selectedFolder, setSelectedFolder] = useState<Record<string, unknown> | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
+  const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const isOnOrAfterShootDay = useCallback((date?: string | null) => {
     if (!date) return false;
@@ -236,6 +243,11 @@ export default function CreatorSubFolderDetailsPage() {
   }, [currentFolderPath, phaseSlug, projectId, searchTerm, folderFiles.length]);
 
   useEffect(() => {
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
+  }, [currentFolderPath, phaseSlug, projectId]);
+
+  useEffect(() => {
     const previewableFiles = visibleFiles.filter(
       (file) =>
         file.filepath &&
@@ -291,11 +303,27 @@ export default function CreatorSubFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        const link = document.createElement("a");
+        link.href = result.url;
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download file");
     }
+  };
+
+  const triggerBatchFileDownload = (url: string) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 5000);
   };
 
   const handleDeleteFile = async (file: Record<string, unknown> | null) => {
@@ -362,6 +390,69 @@ export default function CreatorSubFolderDetailsPage() {
   const showUploadLockBanner = !isCommonEventWorkspace && phaseSlug === "post-production" && !canUpload;
   const canDeleteFolders = isCommonEventWorkspace;
   const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
+  const allVisibleFilesSelected =
+    visibleFiles.length > 0 &&
+    visibleFiles.every((file) => selectedFilePaths.includes(file.filepath || ""));
+  const someVisibleFilesSelected =
+    visibleFiles.some((file) => selectedFilePaths.includes(file.filepath || "")) &&
+    !allVisibleFilesSelected;
+
+  const toggleFileSelection = (filepath: string) => {
+    setSelectedFilePaths((prev) =>
+      prev.includes(filepath)
+        ? prev.filter((path) => path !== filepath)
+        : [...prev, filepath]
+    );
+  };
+
+  const handleBatchDownload = async () => {
+    if (selectedFilePaths.length === 0) return;
+    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
+
+    for (const path of selectedFilePaths) {
+      try {
+        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
+        if (result?.url) {
+          triggerBatchFileDownload(result.url);
+        }
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to download file");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedFilePaths.length === 0) return;
+    if (!canDeleteFiles) {
+      toast.error("Files can only be deleted in post-production for normal events.");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      let count = 0;
+
+      for (const path of selectedFilePaths) {
+        await fileManagerApi.deleteExternalEntry(path);
+        count++;
+      }
+
+      toast.success(`Deleted ${count} file(s)`);
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+      setIsDeleteModalOpen(false);
+      await loadFiles();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete files");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
@@ -464,6 +555,23 @@ export default function CreatorSubFolderDetailsPage() {
               />
             </div>
             <div className="flex gap-2">
+              {filteredData.length > 0 ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    const nextMode = !isSelectionMode;
+                    setIsSelectionMode(nextMode);
+                    if (!nextMode) setSelectedFilePaths([]);
+                  }}
+                  className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
+                    ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                    : "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                    }`}
+                >
+                  <CheckSquare size={18} />
+                  <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+                </Button>
+              ) : null}
               {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
               <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
                 <Button
@@ -529,9 +637,18 @@ export default function CreatorSubFolderDetailsPage() {
 	                  {visibleFiles.map((file) => (
 	                  <div
 	                    key={file.id}
-	                    className="group relative cursor-pointer rounded-xl border border-white/10 bg-[#111111] p-4 transition-all hover:border-white/20 lg:p-[19px]"
+	                    className={`group relative cursor-pointer rounded-xl border bg-[#111111] p-4 transition-all hover:border-white/20 lg:p-[19px] ${isSelectionMode && selectedFilePaths.includes(file.filepath || "") ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/50" : "border-white/10"}`}
 	                    onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
                   >
+                    {isSelectionMode ? (
+                      <div className="absolute left-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedFilePaths.includes(file.filepath || "")}
+                          onCheckedChange={() => toggleFileSelection(file.filepath || "")}
+                          className="border-white/50 bg-[#111111]/90 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                        />
+                      </div>
+                    ) : null}
                     <div className="mb-3 flex items-center justify-between">
                       <div className="min-w-0 flex items-center gap-2">
                         {(() => {
@@ -626,7 +743,28 @@ export default function CreatorSubFolderDetailsPage() {
 	                <table className="w-full text-left text-sm">
 	                  <thead className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
 	                    <tr>
-	                      <th className="rounded-l-xl px-6 py-5 font-medium">File title</th>
+                        {isSelectionMode ? (
+                          <th className="w-10 rounded-l-xl px-6 py-5 font-medium">
+                            <Checkbox
+                              checked={allVisibleFilesSelected ? true : someVisibleFilesSelected ? "indeterminate" : false}
+                              onCheckedChange={() => {
+                                const visiblePaths = visibleFiles
+                                  .map((file) => file.filepath || "")
+                                  .filter(Boolean);
+
+                                setSelectedFilePaths((prev) => {
+                                  if (allVisibleFilesSelected) {
+                                    return prev.filter((path) => !visiblePaths.includes(path));
+                                  }
+
+                                  return Array.from(new Set([...prev, ...visiblePaths]));
+                                });
+                              }}
+                              className="h-5 w-5 border-white/50 data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                            />
+                          </th>
+                        ) : null}
+	                      <th className={`${!isSelectionMode ? "rounded-l-xl" : ""} px-6 py-5 font-medium`}>File title</th>
 	                      <th className="px-6 py-5 font-medium">Type</th>
 	                      <th className="px-6 py-5 font-medium">Last Opened</th>
 	                      <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
@@ -636,13 +774,42 @@ export default function CreatorSubFolderDetailsPage() {
 	                    {visibleFiles.map((file) => (
 	                      <tr
 	                        key={file.id}
-	                        className="group cursor-pointer transition-colors hover:bg-white/[0.02]"
+	                        className={`group cursor-pointer transition-colors hover:bg-white/[0.02] ${isSelectionMode && selectedFilePaths.includes(file.filepath || "") ? "bg-white/[0.04]" : ""}`}
 	                        onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
 	                      >
+                          {isSelectionMode ? (
+                            <td className="whitespace-nowrap px-6 py-5" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedFilePaths.includes(file.filepath || "")}
+                                onCheckedChange={() => toggleFileSelection(file.filepath || "")}
+                                className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                              />
+                            </td>
+                          ) : null}
 	                        <td className="whitespace-nowrap px-6 py-5">
 	                          <div className="flex items-center gap-3">
-	                            <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-white/5 bg-[#1A1A1A]">
-                              {(() => {
+	                            <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded border border-white/5 bg-[#1A1A1A]">
+                              {isImageFile(file.contentType, file.title) && previewUrls[file.id] ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={previewUrls[file.id]}
+                                  alt={file.title || "Preview"}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : isVideoFile(file.contentType, file.title) && previewUrls[file.id] ? (
+                                <div className="relative h-full w-full">
+                                  <video
+                                    src={previewUrls[file.id]}
+                                    className="h-full w-full object-cover"
+                                    muted
+                                    playsInline
+                                    preload="metadata"
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+                                    <Play size={14} className="ml-0.5 text-white" fill="currentColor" />
+                                  </div>
+                                </div>
+                              ) : (() => {
                                 const meta = getFileMeta(file.contentType, file.title);
                                 const Icon = meta.icon;
                                 return <Icon size={16} className={`${meta.accentClass} absolute inset-0 m-auto`} />;
@@ -652,12 +819,7 @@ export default function CreatorSubFolderDetailsPage() {
 	                          </div>
 	                        </td>
 	                        <td className="whitespace-nowrap px-6 py-5">
-	                          <div className="flex items-center gap-2 capitalize text-white/60">
-                            {(() => {
-                              const meta = getFileMeta(file.contentType, file.title);
-                              const Icon = meta.icon;
-                              return <Icon size={14} className={meta.accentClass} />;
-                            })()}
+	                          <div className="capitalize text-white/60">
                             {getFileMeta(file.contentType, file.title).label}
                           </div>
                         </td>
@@ -732,17 +894,20 @@ export default function CreatorSubFolderDetailsPage() {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={() => {
+          if (selectedFilePaths.length > 0) return handleBatchDelete();
           if (selectedFile) return handleDeleteFile(selectedFile);
           return handleDeleteFolder(selectedFolder);
         }}
         itemName={
-          typeof selectedFile?.title === "string"
+          selectedFilePaths.length > 0
+            ? `${selectedFilePaths.length} selected files`
+            : typeof selectedFile?.title === "string"
             ? selectedFile.title
             : typeof selectedFolder?.title === "string"
               ? selectedFolder.title
               : "this item"
         }
-        itemType={selectedFile ? "file" : "folder"}
+        itemType={selectedFile || selectedFilePaths.length > 0 ? "file" : "folder"}
         isDeleting={isDeleting}
       />
 
@@ -757,6 +922,62 @@ export default function CreatorSubFolderDetailsPage() {
         contentType={typeof viewerFile?.contentType === "string" ? viewerFile.contentType : undefined}
         fileMetaId={typeof viewerFile?.filepath === "string" ? viewerFile.filepath : null}
       />
+
+      {selectedFilePaths.length > 0 ? (
+        <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8D1AB]/50 bg-[#171717] p-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
+                {selectedFilePaths.length}
+              </div>
+              <span className="font-medium text-white">Files selected</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="gap-2 text-white/70 hover:text-white"
+                onClick={() => {
+                  setSelectedFilePaths([]);
+                  setIsSelectionMode(false);
+                }}
+              >
+                Clear
+              </Button>
+
+              <div className="mx-1 h-6 w-[1px] bg-white/10" />
+
+              <Button
+                className="gap-2 border border-white/10 bg-white/10 text-white hover:bg-white/20"
+                onClick={handleBatchDownload}
+              >
+                <Download size={18} />
+                Download
+              </Button>
+
+              {canDeleteFiles ? (
+                <Button
+                  className="gap-2 bg-[#F04438] text-white hover:bg-[#F04438]/90"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                >
+                  <Trash2 size={18} />
+                  Delete
+                </Button>
+              ) : null}
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedFilePaths([]);
+                setIsSelectionMode(false);
+              }}
+              className="text-white/40 hover:text-white"
+            >
+              <CloseIcon size={20} />
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

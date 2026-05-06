@@ -278,7 +278,7 @@ const projectData: ProjectDetails | undefined =
         </div>
 
         {/* Right Sidebar (Timeline) */}
-        < div className="hidden lg:block" >
+        <div className="hidden lg:block h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
           <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
         </div>
 

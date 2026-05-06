@@ -512,15 +512,15 @@ export default function MeetingDetailsModal({
                     href={meetingData.meetLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-disabled={isCompleted}
+                    aria-disabled={isCompleted || isCancelled}
                     onClick={(event) => {
-                      if (isCompleted) {
+                      if (isCompleted || isCancelled) {
                         event.preventDefault();
                       }
                     }}
                     className={cn(
                       "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold",
-                      isCompleted
+                      isCompleted || isCancelled
                         ? "cursor-not-allowed border border-white/10 bg-[#111111] text-white/30"
                         : "bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
                     )}

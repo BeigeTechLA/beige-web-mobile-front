@@ -271,11 +271,27 @@ export default function SubFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        const link = document.createElement("a");
+        link.href = result.url;
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download file");
     }
+  };
+
+  const triggerBatchFileDownload = (url: string) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 5000);
   };
 
   const handleDeleteFile = async (file: any) => {
@@ -309,9 +325,18 @@ export default function SubFolderDetailsPage() {
     if (selectedFilePaths.length === 0) return;
     toast.info(`Starting download for ${selectedFilePaths.length} files...`);
     for (const path of selectedFilePaths) {
-      await handleDownloadFile({ filepath: path });
+      try {
+        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
+        if (result?.url) {
+          triggerBatchFileDownload(result.url);
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to download file");
+      }
       await new Promise(r => setTimeout(r, 300));
     }
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
   };
 
   const handleBatchDelete = async () => {
@@ -327,6 +352,7 @@ export default function SubFolderDetailsPage() {
       }
       toast.success(`Deleted ${count} file(s)`);
       setSelectedFilePaths([]);
+      setIsSelectionMode(false);
       setIsDeleteModalOpen(false);
       await loadFiles();
     } catch (err: any) {
