@@ -17,53 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type ShootStatus =
-  | "Booked"
-  | "Cancelled"
-  | "In-Progress"
-  | "Initiated"
-  | "PreProduction"
-  | "Shoot Day"
-  | "PostProduction"
-  | "Revision"
-  | "Completed"
-  | "Assets Delivered"
-  | "Unknown";
-
-interface ShootRecord {
-  id: string;
-  customerName: string;
-  initials: string;
-  date: string;
-  rawDate: number; // Added for correct chronological sorting
-  category: string;
-  price: string;
-  rawPrice: number; // Added for correct numerical sorting
-  status: ShootStatus;
-}
-
-const KANBAN_STATUS_ORDER: ShootStatus[] = [
-  "Initiated",
-  "PreProduction",
-  "Shoot Day",
-  "PostProduction",
-  "Revision",
-  "Completed",
-  "Assets Delivered",
-  "Cancelled",
-];
-
-const FILTER_STATUS_COLUMN_MAP: Record<string, ShootStatus> = {
-  initiated: "Initiated",
-  preproduction: "PreProduction",
-  shootday: "Shoot Day",
-  postproduction: "PostProduction",
-  revision: "Revision",
-  completed: "Completed",
-  assetsdelivered: "Assets Delivered",
-  cancelled: "Cancelled",
-};
-
 const FILTER_STATUS_OPTIONS = [
   { value: "all", label: "All Status" },
   { value: "initiated", label: "Initiated" },
