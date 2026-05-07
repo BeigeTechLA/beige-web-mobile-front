@@ -84,7 +84,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           {isShootsPage ? (
             <h1 className={`font-semibold text-sm whitespace-nowrap ${isDark ? "text-white" : "text-[#101010]"}`}>
-              {title}
+              Shoot Management
             </h1>
           ) : (
             <nav className={`flex items-center gap-2 text-xs whitespace-nowrap ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
@@ -105,6 +105,10 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
               })}
             </nav>
           )}
+        </div>
+
+        <div>
+          {actions}
         </div>
       </div>
 

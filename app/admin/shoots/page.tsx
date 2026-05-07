@@ -3,12 +3,78 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 
 import { ShootsTable } from '@/components/admin/ShootsTable';
-import { ArrowUpToLine } from 'lucide-react';
+import { ArrowUpToLine, Search } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
 import DottedDivider from '@/components/admin/DottedDivider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type ShootStatus =
+  | "Booked"
+  | "Cancelled"
+  | "In-Progress"
+  | "Initiated"
+  | "PreProduction"
+  | "Shoot Day"
+  | "PostProduction"
+  | "Revision"
+  | "Completed"
+  | "Assets Delivered"
+  | "Unknown";
+
+interface ShootRecord {
+  id: string;
+  customerName: string;
+  initials: string;
+  date: string;
+  rawDate: number; // Added for correct chronological sorting
+  category: string;
+  price: string;
+  rawPrice: number; // Added for correct numerical sorting
+  status: ShootStatus;
+}
+
+const KANBAN_STATUS_ORDER: ShootStatus[] = [
+  "Initiated",
+  "PreProduction",
+  "Shoot Day",
+  "PostProduction",
+  "Revision",
+  "Completed",
+  "Assets Delivered",
+  "Cancelled",
+];
+
+const FILTER_STATUS_COLUMN_MAP: Record<string, ShootStatus> = {
+  initiated: "Initiated",
+  preproduction: "PreProduction",
+  shootday: "Shoot Day",
+  postproduction: "PostProduction",
+  revision: "Revision",
+  completed: "Completed",
+  assetsdelivered: "Assets Delivered",
+  cancelled: "Cancelled",
+};
+
+const FILTER_STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "initiated", label: "Initiated" },
+  { value: "preproduction", label: "Pre Production" },
+  { value: "shootday", label: "Shoot Day" },
+  { value: "postproduction", label: "Post Production" },
+  { value: "revision", label: "Revision" },
+  { value: "completed", label: "Completed" },
+  { value: "assetsdelivered", label: "Assets Delivered" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
 
 export default function ShootsPage() {
   const router = useRouter()
@@ -18,7 +84,12 @@ export default function ShootsPage() {
   useEffect(() => setMounted(true), []);
   const pathname = usePathname();
 
+  // --- Filter States ---
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [range, setRange] = useState("all");
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -36,15 +107,67 @@ export default function ShootsPage() {
     <>
       <Topbar pathname={pathname}
         actions={
-          <>
-            {/* Need to add search bar, filters  */}
+          <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
+            {/* Search Bar */}
+            <div className="relative w-full lg:w-[280px] flex items-center">
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
+              <input
+                type="text"
+                placeholder="Search project name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full border rounded-lg h-12 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+                  }`}
+              />
+            </div>
+
+            {/* Filters Group */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className={`w-[130px] rounded-lg h-12 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="corporate">Corporate</SelectItem>
+                  <SelectItem value="wedding">Wedding</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                  {/* ... add others as needed */}
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className={`w-[120px] rounded-lg h-12 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                  {FILTER_STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={range} onValueChange={setRange}>
+                <SelectTrigger className={`w-[110px] rounded-lg h-12 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                  <SelectValue placeholder="Range" />
+                </SelectTrigger>
+                <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                  <SelectItem value="all">All time</SelectItem>
+                  <SelectItem value="week">Week</SelectItem>
+                  <SelectItem value="month">Month</SelectItem>
+                  <SelectItem value="year">Year</SelectItem>
+                  {selectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
             </Button>
             <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
               Book a Shoot
             </Button>
-          </>
+          </div>
         }
       />
 
@@ -65,7 +188,17 @@ export default function ShootsPage() {
 
         {/* <DottedDivider className="my-0" />  */}
 
-        <ShootsTable externalSelectedDate={selectedDate} />
+        <ShootsTable
+          externalSelectedDate={selectedDate}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          categoryFilter={categoryFilter}
+          setCategoryFilter={setCategoryFilter}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          range={range}
+          setRange={setRange}
+        />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
