@@ -24,6 +24,11 @@ type QuotePreviewModalProps = {
   quote: SalesQuoteDetailData | null;
   quoteId?: string | null;
   isLoading?: boolean;
+  paymentSummaryOverrides?: {
+    previousTotal?: number;
+    previouslyPaid?: number;
+    revisedTotal?: number;
+  };
 };
 
 const PreviewActionButton = ({
@@ -48,6 +53,7 @@ export default function QuotePreviewModal({
   quote,
   quoteId,
   isLoading = false,
+  paymentSummaryOverrides,
 }: QuotePreviewModalProps) {
   const { isDark } = useResolvedTheme();
   const [copied, setCopied] = React.useState(false);
@@ -299,7 +305,11 @@ export default function QuotePreviewModal({
                 </div>
               </div>
 
-              <QuotePreviewDocument quote={quoteData} quoteId={quoteId} />
+              <QuotePreviewDocument
+                quote={quoteData}
+                quoteId={quoteId}
+                paymentSummaryOverrides={paymentSummaryOverrides}
+              />
             </>
           )}
         </div>

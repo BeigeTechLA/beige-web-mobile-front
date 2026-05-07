@@ -948,18 +948,28 @@ export default function QuoteDetailsPage({
     );
   }, [linkedLeadDetails?.activities, quote?.activities]);
   const leadPaymentStatus = String(linkedLeadDetails?.payment_status || "").toLowerCase();
-  const totalPaymentAmount = Number(linkedLeadDetails?.pricing_breakdown?.total || finalTotal || 0);
+  const totalPaymentAmount = Number(finalTotal || linkedLeadDetails?.pricing_breakdown?.total || 0);
+  
+  // Account for previous payments from lead or quote context
+  const leadCollectedAmount = Number(linkedLeadDetails?.collected_amount) || 0;
+  const quotePreviouslyPaid = Number(quote?.additional_payment?.previously_paid_amount) || 0;
+  const effectivePreviouslyPaid = leadCollectedAmount || quotePreviouslyPaid;
+
   const hasFullPaymentFromActivity = manualPaymentEntries.some((entry) => entry.data.payment_type === "full");
   const partialPaidFromActivity = manualPaymentEntries.reduce((sum, entry) => {
     if (entry.data.payment_type !== "partial") return sum;
     const numeric = Number(entry.data.amount || 0);
     return sum + (Number.isFinite(numeric) ? numeric : 0);
   }, 0);
+  const quotePaymentStatus = String(quote?.additional_payment?.payment_status || "").toLowerCase();
+  const quoteOutstandingAmount = Number(quote?.additional_payment?.outstanding_amount) || 0;
+
   const hasFullPayment =
-    hasFullPaymentFromActivity ||
-    ["paid", "success", "completed"].includes(leadPaymentStatus);
-  const paidAmount = hasFullPayment ? totalPaymentAmount : partialPaidFromActivity;
-  const pendingAmount = Math.max(totalPaymentAmount - paidAmount, 0);
+    (hasFullPaymentFromActivity || ["paid", "success", "completed"].includes(leadPaymentStatus)) &&
+    quotePaymentStatus !== "pending" &&
+    quoteOutstandingAmount <= 0;
+  const paidAmount = hasFullPayment ? totalPaymentAmount : (effectivePreviouslyPaid || partialPaidFromActivity);
+  const pendingAmount = totalPaymentAmount - paidAmount;
   const isPartiallyPaid = !hasFullPayment && paidAmount > 0 && pendingAmount > 0;
   const latestManualPaymentEntry = manualPaymentEntries[0] || null;
   const canTakeManualPayment = !hasFullPayment && pendingAmount > 0;
@@ -1621,7 +1631,16 @@ export default function QuoteDetailsPage({
                     <p className="mt-2 text-xs text-white/70">
                       Paid: <span className="text-emerald-400">{formatQuoteCurrency(paidAmount)}</span>
                       {" · "}
-                      Pending: <span className="text-amber-400">{formatQuoteCurrency(pendingAmount)}</span>
+                      Pending:{" "}
+                      <span className={pendingAmount < 0 ? "text-red-400" : "text-amber-400"}>
+                        {pendingAmount < 0 ? "-" : ""}
+                        {formatQuoteCurrency(Math.abs(pendingAmount))}
+                      </span>
+                      {pendingAmount < 0 && (
+                        <span className="ml-1 text-[10px] text-golden italic">
+                          (This reduced amount will be added as Beige Credits after approval)
+                        </span>
+                      )}
                     </p>
                     {hasFullPayment ? (
                       <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">

@@ -17,6 +17,7 @@ export type NormalizedQuoteLineItem = {
 
 export type QuoteAdditionalPaymentDetails = {
   additionalAmount: number;
+  totalDelta: number;
   displayAmount: number;
   isDecrease: boolean;
   previousTotal: number;
@@ -516,8 +517,16 @@ export const getQuoteAdditionalPaymentDetails = (
   const revisedTotalOverride = getQuoteNumber(options?.revisedTotalOverride);
   const previouslyPaidOverride = getQuoteNumber(options?.previouslyPaidOverride);
   const previousTotalOverride = getQuoteNumber(options?.previousTotalOverride);
+  const hasRevisionContext =
+    Boolean(additionalPayment) ||
+    Boolean(latestPaymentMetadata) ||
+    Boolean(latestAmountSummary) ||
+    revisedTotalOverride !== undefined ||
+    previouslyPaidOverride !== undefined ||
+    previousTotalOverride !== undefined ||
+    getQuoteNumber(quote?.previous_total) !== undefined;
 
-  if (!additionalPayment && !latestPaymentMetadata && !latestAmountSummary) {
+  if (!hasRevisionContext) {
     return null;
   }
 
@@ -535,10 +544,13 @@ export const getQuoteAdditionalPaymentDetails = (
     0,
     getQuoteNumber(
       previousTotalOverride,
-      revisedTotalOverride !== undefined ? additionalPayment?.revised_total : undefined,
       latestAmountSummary?.previous_total,
       latestPaymentMetadata?.previous_total,
-      additionalPayment?.previous_total
+      additionalPayment?.previous_total,
+      quote?.previous_total,
+      quote?.final_total,
+      quote?.total_amount,
+      quote?.total
     ) ?? 0
   );
   const revisedTotal = Math.max(
@@ -571,22 +583,24 @@ export const getQuoteAdditionalPaymentDetails = (
   }
 
   const totalDelta = revisedTotal - previousTotal;
-  const outstandingAmount = Math.max(0, revisedTotal - previouslyPaidAmount);
-  const displayAmount = Math.abs(totalDelta);
-  const isDecrease = totalDelta < -0.009;
+  const additionalAmount = derivedAdditionalAmount;
+  const outstandingAmount = Math.max(0, additionalAmount);
+  const displayAmount = Math.abs(additionalAmount);
+  const isDecrease = additionalAmount < -0.009;
 
   if (
     displayAmount <= 0.009 &&
     previousTotal <= 0 &&
     previouslyPaidAmount <= 0 &&
     revisedTotal <= 0 &&
-    outstandingAmount <= 0
+    outstandingAmount <= 0 &&
+    !hasRevisionContext
   ) {
     return null;
   }
 
   return {
-    additionalAmount: totalDelta,
+    additionalAmount,
     totalDelta,
     displayAmount,
     isDecrease,

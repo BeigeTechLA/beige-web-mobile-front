@@ -483,6 +483,7 @@ const getSelectedStatForStatus = (statusFilter: string) => {
     case "pending":
     case "sent":
     case "viewed":
+    case "partially_paid":
       return "Pending Quotes";
     case "draft":
       return "Draft Quotes";
@@ -504,6 +505,7 @@ const normalizeStatusForChart = (
     case "confirmed":
       return "accepted";
     case "pending":
+    case "partially_paid":
       return "pending";
     case "sent":
     case "viewed":
@@ -669,69 +671,11 @@ const toNumericOrNull = (value: unknown) => {
 };
 
 const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
-  const record = quote as Record<string, unknown>;
-  const defaultStatus = getText(quote.quote_status, quote.status, "draft").toLowerCase() || "draft";
-
-  const paymentStatus = getText(
-    record.payment_status,
-    record.additional_payment_status,
-    getRecord(record.additional_payment)?.payment_status
-  ).toLowerCase();
-  if (["paid", "success", "completed"].includes(paymentStatus)) {
-    return "paid";
-  }
-  if (paymentStatus.includes("partial")) {
+  if (String(quote.payment_status || "").toLowerCase() === "partially_paid") {
     return "partially_paid";
   }
 
-  const paidAmount = toNumericOrNull(
-    record.paid_amount ??
-      record.paidAmount ??
-      getRecord(record.additional_payment)?.previously_paid_amount
-  );
-  const outstandingAmount = toNumericOrNull(
-    record.pending_amount ??
-      record.pendingAmount ??
-      record.outstanding_amount ??
-      getRecord(record.additional_payment)?.outstanding_amount
-  );
-  if ((paidAmount ?? 0) > 0 && (outstandingAmount ?? 0) > 0) {
-    return "partially_paid";
-  }
-
-  const activities = Array.isArray(record.activities) ? record.activities : [];
-  const manualEntries = activities
-    .map((activity) => {
-      const activityRecord = getRecord(activity);
-      if (!activityRecord || String(activityRecord.activity_type || "").toLowerCase() !== "payment_completed") {
-        return null;
-      }
-      const rawData = activityRecord.activity_data;
-      const payload =
-        typeof rawData === "string"
-          ? (() => {
-              try {
-                return JSON.parse(rawData) as Record<string, unknown>;
-              } catch {
-                return null;
-              }
-            })()
-          : getRecord(rawData);
-      if (!payload || String(payload.payment_method || "").toLowerCase() !== "manual") return null;
-      return payload;
-    })
-    .filter(Boolean) as Array<Record<string, unknown>>;
-
-  const hasFullManual = manualEntries.some((entry) => String(entry.payment_type || "").toLowerCase() === "full");
-  if (hasFullManual) return "paid";
-  const partialManualTotal = manualEntries.reduce((sum, entry) => {
-    if (String(entry.payment_type || "").toLowerCase() !== "partial") return sum;
-    const amount = toNumericOrNull(entry.amount);
-    return sum + (amount ?? 0);
-  }, 0);
-  if (partialManualTotal > 0) return "partially_paid";
-
-  return defaultStatus;
+  return getText(quote.status, quote.quote_status, "draft").toLowerCase() || "draft";
 };
 
 const buildStatusSummary = (rows: SalesQuoteListItem[]) =>
@@ -812,11 +756,11 @@ const matchesStatusFilter = (quoteStatusKey: string, filterValue: string) => {
   }
 
   if (filterValue === "accepted") {
-    return quoteStatusKey === "accepted" || quoteStatusKey === "confirmed";
+    return quoteStatusKey === "accepted" || quoteStatusKey === "confirmed" || quoteStatusKey === "paid";
   }
 
   if (filterValue === "pending") {
-    return quoteStatusKey === "pending" || quoteStatusKey === "sent";
+    return quoteStatusKey === "pending" || quoteStatusKey === "sent" || quoteStatusKey === "viewed" || quoteStatusKey === "partially_paid";
   }
 
   if (filterValue === "rejected") {
@@ -976,7 +920,6 @@ export default function QuotesDashboardPage({
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [quoteStatusOverrides, setQuoteStatusOverrides] = useState<Record<string, string>>({});
   const debouncedSearch = useDebounce(searchTerm, 500);
 
   useEffect(() => {
@@ -1037,7 +980,7 @@ export default function QuotesDashboardPage({
             limit: QUOTES_PER_PAGE,
             ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
             ...(selectedStatusFilter !== "all"
-              ? { status: selectedStatusFilter }
+              ? { status: selectedStatusFilter === "partially_paid" ? "pending" : selectedStatusFilter }
               : {}),
             ...(selectedSalesperson !== "all"
               ? { assigned_sales_rep_id: selectedSalesperson }
@@ -1076,134 +1019,6 @@ export default function QuotesDashboardPage({
     selectedSalesperson,
     selectedStatusFilter,
   ]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const quoteIds = quotes
-      .map((quote) => String(quote.sales_quote_id ?? quote.quote_id ?? quote.id ?? ""))
-      .filter(Boolean);
-    if (!quoteIds.length) {
-      setQuoteStatusOverrides({});
-      return;
-    }
-
-    const hydrateStatuses = async () => {
-      const nextMap: Record<string, string> = {};
-      await Promise.all(
-        quoteIds.map(async (id) => {
-          try {
-            const detail = await salesApi.getQuoteDetail(id);
-            const rawDetail = getRecord(detail?.data);
-            const nestedRawDetail = getRecord(rawDetail?.data);
-            const detailData = unwrapSalesQuoteDetail(detail?.data ?? null) as Record<string, unknown> | null;
-            const status =
-              getText(detailData?.payment_status) ||
-              getText(getRecord(detailData?.additional_payment)?.payment_status) ||
-              getText(detailData?.quote_status, detailData?.status);
-            const normalized = status.toLowerCase();
-            if (["paid", "success", "completed"].includes(normalized)) {
-              nextMap[id] = "paid";
-              return;
-            }
-
-            const activities = (detailData?.activities as Array<Record<string, unknown>> | undefined) || [];
-            const manualEntries = activities
-              .filter((activity) => String(activity?.activity_type || "").toLowerCase() === "payment_completed")
-              .map((activity) => {
-                const rawData = activity?.activity_data;
-                if (typeof rawData === "string") {
-                  try {
-                    return JSON.parse(rawData) as Record<string, unknown>;
-                  } catch {
-                    return null;
-                  }
-                }
-                return getRecord(rawData);
-              })
-              .filter((entry) => entry && String(entry.payment_method || "").toLowerCase() === "manual") as Array<Record<string, unknown>>;
-
-            if (manualEntries.some((entry) => String(entry.payment_type || "").toLowerCase() === "full")) {
-              nextMap[id] = "paid";
-              return;
-            }
-            const partialTotal = manualEntries.reduce((sum, entry) => {
-              if (String(entry.payment_type || "").toLowerCase() !== "partial") return sum;
-              const amount = toNumericOrNull(entry.amount);
-              return sum + (amount ?? 0);
-            }, 0);
-            if (partialTotal > 0) {
-              nextMap[id] = "partially_paid";
-              return;
-            }
-
-            const leadId = toNumericOrNull(
-              detailData?.lead_id ??
-                rawDetail?.lead_id ??
-                nestedRawDetail?.lead_id
-            );
-            if (!leadId) {
-              return;
-            }
-
-            const leadMeta = await salesApi.getLeadPaymentMeta(leadId);
-            if (!leadMeta?.success || !leadMeta?.data) {
-              return;
-            }
-
-            const leadData = getRecord(leadMeta.data);
-            const leadPaymentStatus = getText(leadData?.payment_status).toLowerCase();
-            if (["paid", "success", "completed"].includes(leadPaymentStatus)) {
-              nextMap[id] = "paid";
-              return;
-            }
-
-            const leadActivities = Array.isArray(leadData?.activities)
-              ? (leadData.activities as Array<Record<string, unknown>>)
-              : [];
-            const leadManualEntries = leadActivities
-              .filter((activity) => String(activity?.activity_type || "").toLowerCase() === "payment_completed")
-              .map((activity) => {
-                const rawData = activity?.activity_data;
-                if (typeof rawData === "string") {
-                  try {
-                    return JSON.parse(rawData) as Record<string, unknown>;
-                  } catch {
-                    return null;
-                  }
-                }
-                return getRecord(rawData);
-              })
-              .filter((entry) => entry && String(entry.payment_method || "").toLowerCase() === "manual") as Array<Record<string, unknown>>;
-
-            if (leadManualEntries.some((entry) => String(entry.payment_type || "").toLowerCase() === "full")) {
-              nextMap[id] = "paid";
-              return;
-            }
-
-            const leadPartialTotal = leadManualEntries.reduce((sum, entry) => {
-              if (String(entry.payment_type || "").toLowerCase() !== "partial") return sum;
-              const amount = toNumericOrNull(entry.amount);
-              return sum + (amount ?? 0);
-            }, 0);
-            if (leadPartialTotal > 0) {
-              nextMap[id] = "partially_paid";
-            }
-          } catch {
-            // keep list status fallback when detail fetch fails
-          }
-        })
-      );
-
-      if (!cancelled) {
-        setQuoteStatusOverrides(nextMap);
-      }
-    };
-
-    void hydrateStatuses();
-    return () => {
-      cancelled = true;
-    };
-  }, [quotes]);
 
   const handleRejectQuote = async (quoteId: string, currentStatus?: string) => {
     setOpenActionMenuId(null);
@@ -1459,19 +1274,8 @@ export default function QuotesDashboardPage({
   ];
 
   const displayQuotesData = useMemo(
-    () =>
-      quotes.map((quote, index) => {
-        const row = normalizeQuoteRow(quote, index);
-        const overrideStatus = quoteStatusOverrides[row.id];
-        if (!overrideStatus) return row;
-        return {
-          ...row,
-          statusKey: overrideStatus,
-          status: formatLabel(overrideStatus),
-          statusColor: getStatusColor(overrideStatus),
-        };
-      }),
-    [quoteStatusOverrides, quotes]
+    () => quotes.map((quote, index) => normalizeQuoteRow(quote, index)),
+    [quotes]
   );
 
   const activeChartMetric = useMemo(
@@ -1522,20 +1326,17 @@ export default function QuotesDashboardPage({
   );
 
   const statusOptions = useMemo(
-    () =>
-      [
-        "accepted",
-        "draft",
-        "pending",
-        "rejected",
-        "sent",
-        ...displayQuotesData
-          .map((quote) => quote.statusKey)
-          .filter((status) =>
-            !["accepted", "draft", "pending", "rejected", "sent"].includes(status)
-          ),
-      ].filter((status, index, array) => Boolean(status) && array.indexOf(status) === index),
-    [displayQuotesData]
+    () => [
+      "accepted",
+      "draft",
+      "pending",
+      "rejected",
+      "sent",
+      "paid",
+      "partially_paid",
+      "expired",
+    ],
+    []
   );
 
   const filteredQuotesData = useMemo(() => {
@@ -1546,16 +1347,17 @@ export default function QuotesDashboardPage({
     return displayQuotesData.filter((quote) => {
       const statusKey = quote.statusKey;
       
+      // Strict filtering as requested by the user
       if (selectedStatusFilter === "accepted") {
-        return statusKey === "accepted" || statusKey === "confirmed" || statusKey === "paid";
+        return statusKey === "accepted";
       }
 
       if (selectedStatusFilter === "pending") {
-        return statusKey === "pending" || statusKey === "sent" || statusKey === "viewed";
+        return statusKey === "pending";
       }
 
       if (selectedStatusFilter === "rejected") {
-        return statusKey === "rejected" || statusKey === "cancelled";
+        return statusKey === "rejected";
       }
 
       return statusKey === selectedStatusFilter;
