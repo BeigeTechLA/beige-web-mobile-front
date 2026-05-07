@@ -380,7 +380,11 @@ export default function QuotePreviewDocument({
             isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
           }`}>
             <img
-              src={quoteData.signature_base64}
+              src={
+                /^(data:|https?:\/\/)/i.test(String(quoteData.signature_base64 || ""))
+                  ? String(quoteData.signature_base64)
+                  : `${String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "")}/${String(quoteData.signature_base64 || "").replace(/^\/+/, "")}`
+              }
               alt="Signature"
               className="w-full max-h-20 object-contain"
             />

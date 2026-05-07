@@ -405,6 +405,20 @@ const DetailRow = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+const resolveSignatureImageUrl = (value: string | null | undefined) => {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  if (/^(data:|https?:\/\/)/i.test(raw)) {
+    return raw;
+  }
+
+  const prefix = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
+  if (!prefix) return raw;
+
+  return `${prefix}/${raw.replace(/^\/+/, "")}`;
+};
+
 export default function QuoteDetailsPage({
   quoteId,
   baseHref,
@@ -1051,7 +1065,11 @@ export default function QuoteDetailsPage({
                         {signatureBase64 && (
                           <div className="mt-3 flex flex-col items-end gap-2">
                             <div className="border border-white/10 rounded-lg p-2 bg-white/5">
-                              <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
+                              <img
+                                src={resolveSignatureImageUrl(signatureBase64) || ""}
+                                alt="Signature"
+                                className="max-h-16 max-w-[180px] object-contain"
+                              />
                             </div>
                             <p className="text-xs text-[#8F8F95]">{signerName ?? "Client"}</p>
                             {signedAt && <p className="text-xs text-[#8F8F95]">{formatQuoteDate(signedAt)}</p>}

@@ -459,6 +459,14 @@ export default function QuotePreviewPageShell({
           onClose={() => setShowSignature(false)}
           onSuccess={() => {
             toast.success("Quote signed successfully!");
+            if (quoteDetailMode === "public" && queryQuoteKey) {
+              void fetchQuotePreviewByKey(queryQuoteKey).then((res) => {
+                const updated = unwrapSalesQuoteDetail(res?.data ?? null);
+                if (updated) setQuote(updated);
+              });
+              return;
+            }
+
             void salesApi.getQuoteDetail(resolvedQuoteId).then((res) => {
               const updated = unwrapSalesQuoteDetail(res?.data ?? null);
               if (updated) setQuote(updated);
