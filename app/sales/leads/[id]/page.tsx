@@ -386,7 +386,7 @@ export default function SalesLeadDetailsPage() {
     if (!rawAdditionalPayment) return null;
 
     const actuallyPaidAmount = Number(lead?.pricing_breakdown?.total_paid ?? 0);
-    const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
+    const revisedTotal = Number(lead?.custom_quote?.total ?? lead?.pricing_breakdown?.total ?? rawAdditionalPayment.revised_total ?? 0);
     const outstandingAmount = Number(
       rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - actuallyPaidAmount, 0)
     );
@@ -416,7 +416,7 @@ export default function SalesLeadDetailsPage() {
         : null,
       lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
     };
-  }, [rawAdditionalPayment, lead?.pricing_breakdown?.total_paid]);
+  }, [rawAdditionalPayment, lead?.pricing_breakdown?.total_paid, lead?.pricing_breakdown?.total, lead?.custom_quote?.total]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -2206,11 +2206,25 @@ export default function SalesLeadDetailsPage() {
                   </div>
                   <div className={`text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
                     <p>
-                      Total Paid:{" "}
+                      Total Paid Amount:{" "}
                       <span className={isDark ? "text-white" : "text-black"}>
-                        {formatCurrencyValue(total)}
+                        {formatCurrencyValue(lead?.collected_amount ?? lead?.pricing_breakdown?.total_paid ?? total)}
                       </span>
                     </p>
+                    <p className="mt-1">
+                      Pending Amount:{" "}
+                      <span className={additionalPaymentDetails?.isDecrease ? "text-red-500" : (isDark ? "text-white" : "text-black")}>
+                        {additionalPaymentDetails && additionalPaymentDetails.additionalAmount !== 0
+                          ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                          : ""}
+                        {formatCurrencyValue(Math.abs(additionalPaymentDetails?.additionalAmount ?? 0))}
+                      </span>
+                      {additionalPaymentDetails?.isDecrease && (
+                        <span className="ml-1 text-[10px] text-golden italic">
+                          (This reduced amount will be added as Beige Credits after approval)
+                        </span>
+                      )}
+                     </p>
                     {booking?.payment_completed_at ? (
                       <p className="mt-1">
                         Paid At:{" "}
