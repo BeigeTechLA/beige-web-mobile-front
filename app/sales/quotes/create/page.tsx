@@ -2901,14 +2901,20 @@ export default function CreateQuotePage() {
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
+  const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
+  const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
+  const safePreviouslyPaidOverride =
+    Number.isFinite(leadPricingPaid) && leadPricingPaid > 0 ? leadPricingPaid : undefined;
+  const safePreviousTotalOverride =
+    Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
     () =>
       getQuoteAdditionalPaymentDetails(previewQuote ?? quoteToEdit, {
         revisedTotalOverride: totalAfterTax,
-        previouslyPaidOverride: linkedLeadDetails?.pricing_breakdown?.total_paid,
-        previousTotalOverride: linkedLeadDetails?.pricing_breakdown?.total_amount,
+        previouslyPaidOverride: safePreviouslyPaidOverride,
+        previousTotalOverride: safePreviousTotalOverride,
       }),
-    [previewQuote, quoteToEdit, totalAfterTax, linkedLeadDetails?.pricing_breakdown?.total_paid, linkedLeadDetails?.pricing_breakdown?.total_amount],
+    [previewQuote, quoteToEdit, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -6835,7 +6841,7 @@ export default function CreateQuotePage() {
                               : "Additional Amount"}
                           </span>
                           <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.isDecrease ? "text-red-500" : "text-[#9F9FA9]"}`}>
-                            {additionalPaymentDetails.isDecrease ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.totalDelta))}
+                            {additionalPaymentDetails.isDecrease ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                           </span>
                         </div>
                         {additionalPaymentDetails.isDecrease ? (
@@ -7747,6 +7753,11 @@ export default function CreateQuotePage() {
         quote={previewQuote}
         quoteId={previewQuoteId}
         isLoading={isPreviewLoading}
+        paymentSummaryOverrides={{
+          previousTotal: additionalPaymentDetails?.previousTotal,
+          previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
+          revisedTotal: totalAfterTax,
+        }}
       />
     </div>
   );

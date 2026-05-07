@@ -22,6 +22,11 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 type QuotePreviewDocumentProps = {
   quote: SalesQuoteDetailData;
   quoteId?: string | null;
+  paymentSummaryOverrides?: {
+    previousTotal?: number;
+    previouslyPaid?: number;
+    revisedTotal?: number;
+  };
 };
 
 const COMPANY_PROFILE = {
@@ -186,6 +191,7 @@ const ServiceTable = ({
 export default function QuotePreviewDocument({
   quote,
   quoteId,
+  paymentSummaryOverrides,
 }: QuotePreviewDocumentProps) {
   const { isDark } = useResolvedTheme();
   const quoteData = unwrapSalesQuoteDetail(quote);
@@ -213,7 +219,11 @@ export default function QuotePreviewDocument({
   const taxAmount = discountedSubtotal * (taxRate / 100);
   const amountAfterTax = discountedSubtotal + taxAmount;
   const finalTotal = amountAfterTax;
-  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData);
+  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData, {
+    previousTotalOverride: paymentSummaryOverrides?.previousTotal,
+    previouslyPaidOverride: paymentSummaryOverrides?.previouslyPaid,
+    revisedTotalOverride: paymentSummaryOverrides?.revisedTotal,
+  });
 
   const resolvedQuoteId = String(
     quoteData.sales_quote_id ?? quoteData.quote_id ?? quoteData.id ?? quoteId ?? ""
