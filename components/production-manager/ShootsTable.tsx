@@ -76,7 +76,8 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
     const [searchQuery, setSearchQuery] = useState("");
-
+    const [fileFilter, setFileFilter] = useState("all");
+    
     // --- SORTING STATE ---
     const [sortConfig, setSortConfig] = useState<{ key: keyof ShootRecord; direction: 'asc' | 'desc' | null }>({
         key: 'rawDate',
@@ -113,6 +114,9 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                 }
                 if (categoryFilter !== "all") {
                     params.category = categoryFilter;
+                }
+                if (fileFilter !== "all") {
+                     params.file_filter = fileFilter;
                 }
 
                 if (externalSelectedDate && range === 'custom') {
@@ -159,7 +163,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
         };
 
         fetchData();
-    }, [range, statusFilter, categoryFilter, externalSelectedDate]);
+    }, [range, statusFilter, categoryFilter, externalSelectedDate,fileFilter]);
 
     // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
     const processedShoots = useMemo(() => {
@@ -501,8 +505,43 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                                 {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
                             </SelectContent>
                         </Select>
+                          {viewMode === "grid" && (
+                                      <Select
+                                          value={fileFilter}
+                                          onValueChange={(v) => {
+                                            setFileFilter(v);
+                                            setCurrentPage(1);
+                                          }}
+                                        >
+                                          <SelectTrigger
+                                          className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${
+                                            isDark
+                                              ? "bg-zinc-900 border-[#333333] text-white/70"
+                                              : "bg-white border-[#E5E5E5] text-[#666]"
+                                          }`}
+                                        >
+                                          <SelectValue placeholder="Range" />
+                                        </SelectTrigger>
+                        
+                                        <SelectContent
+                                          className={`${
+                                            isDark
+                                              ? "bg-[#111111] border-[#333333]"
+                                              : "bg-white border-[#E5E5E5] text-black"
+                                          }`}
+                                        >
+                                          <SelectItem value="all">All</SelectItem>
+                                          <SelectItem value="prewithoutfile">PreProduction File not uploaded</SelectItem>
+                                          <SelectItem value="prewithfile">PreProduction File uploaded</SelectItem>
+                                          <SelectItem value="postwithoutfile">PostProduction File not uploaded</SelectItem>
+                                          <SelectItem value="postwithfile">PostProduction File uploaded</SelectItem>
+                                        </SelectContent>  
+                                      </Select>
+                                    )}
+                                                
+                        
 
-                        {/* <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
+                        <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
                             <button
                                 type="button"
                                 onClick={() => setViewMode("list")}
@@ -518,7 +557,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                                 <Grid3X3 size={18} />
                             </button>
 
-                        </div> */}
+                        </div>
                     </div>
                 </div>
             </div>

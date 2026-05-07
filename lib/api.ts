@@ -1598,7 +1598,7 @@ export const adminApi = {
       };
     }
   },
-  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
+  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string ,  file_filter?: string;} = {}) => {
     try {
       const response = await api.get('admin/get-projects', {
         params,
