@@ -421,51 +421,52 @@ export default function QuotePreviewDocument({
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
-        <section className="space-y-4">
-          <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+       <section className="space-y-4">
+  <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
+  <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+    
+    {/* Left - Terms list */}
+    <ul
+      className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-base flex-1 ${
+        isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
+      }`}
+    >
+      {terms.map((term, index) => (
+        <li key={`${term}-${index}`}>{term}</li>
+      ))}
+    </ul>
 
-            {/* Left - Terms list */}
-            <ul
-              className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-base flex-1 ${isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
-                }`}
-            >
-              {terms.map((term, index) => (
-                <li key={`${term}-${index}`}>{term}</li>
-              ))}
-            </ul>
-
-
-
-            {/* Right - Signature */}
-            {!isRejected && (
-              <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
-                {signatureSource ? (
-                  <>
-                    <div className={`border rounded-lg p-3 w-full max-w-[220px] ${isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
-                      }`}>
-                      <img
-                        src={signatureSource}
-                        alt="Signature"
-                        className="w-full max-h-20 object-contain"
-                      />
-                    </div>
-                    <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${isDark ? "border-white/20 text-white/50" : "border-gray-300 text-gray-400"
-                      }`}>
-                      <p>{quoteData.client_name ?? "Client"}</p>
-                      <p>{formatQuoteDate(quoteData.signed_at ?? quoteData.updated_at)}</p>
-                    </div>
-                  </>
-                ) : (
-                  <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${isDark ? "border-white/20 text-white/30" : "border-gray-300 text-gray-400"
-                    }`}>
-                    <p>Authorized Signature</p>
-                  </div>
-                )}
-              </div>
-            )}
+    {/* Right - Signature */}
+    <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
+      {quoteData.signature_base64 ? (
+        <>
+          <div className={`border rounded-lg p-3 w-full max-w-[220px] ${
+            isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
+          }`}>
+            <img
+              src={quoteData.signature_base64}
+              alt="Signature"
+              className="w-full max-h-20 object-contain"
+            />
           </div>
-        </section>
+          <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${
+            isDark ? "border-white/20 text-white/50" : "border-gray-300 text-gray-400"
+          }`}>
+            <p>{quoteData.client_name ?? "Client"}</p>
+            <p>{formatQuoteDate(quoteData.signed_at ?? quoteData.updated_at)}</p>
+          </div>
+        </>
+      ) : (
+        <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${
+          isDark ? "border-white/20 text-white/30" : "border-gray-300 text-gray-400"
+        }`}>
+          <p>Authorized Signature</p>
+        </div>
+      )}
+    </div>
+
+  </div>
+</section>
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 

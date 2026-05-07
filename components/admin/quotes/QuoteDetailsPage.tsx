@@ -560,6 +560,20 @@ const DetailRow = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+const resolveSignatureImageUrl = (value: string | null | undefined) => {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  if (/^(data:|https?:\/\/)/i.test(raw)) {
+    return raw;
+  }
+
+  const prefix = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
+  if (!prefix) return raw;
+
+  return `${prefix}/${raw.replace(/^\/+/, "")}`;
+};
+
 export default function QuoteDetailsPage({
   quoteId,
   baseHref,
