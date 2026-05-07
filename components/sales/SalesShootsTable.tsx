@@ -58,7 +58,16 @@ const getCategoryFromContentType = (contentType: string | null | undefined): str
   return "N/A";
 };
 
-export default function SalesShootsTable({ externalSelectedDate }: { externalSelectedDate?: Date | null }) {
+export default function SalesShootsTable({ externalSelectedDate,
+  statusFilter,
+  setStatusFilter,
+  range,
+  setRange }: {
+    externalSelectedDate?: Date | null, statusFilter: string;
+    setStatusFilter: (v: string) => void,
+    range: string,
+    setRange: (v: string) => void
+  }) {
   const router = useRouter();
   const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
   const dragAutoScrollFrameRef = React.useRef<number | null>(null);
@@ -76,8 +85,8 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
   const itemsPerPage = 10;
 
   // New filtering states
-  const [range, setRange] = useState<string>("month");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  // const [range, setRange] = useState<string>("month");
+  // const [statusFilter, setStatusFilter] = useState<string>("all");
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -331,7 +340,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
   return (
     <div className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
-      <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+      {/* <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
         <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3>
         <div className="flex gap-3 flex-wrap">
           <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}>
@@ -358,7 +367,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
               <SelectItem value="year">Year</SelectItem>
               {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
             </SelectContent>
-          </Select>
+          </Select> */}
 
           {/* <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
             isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"
@@ -392,8 +401,8 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
            
           </div> */}
 
-        </div>
-      </div>
+        {/* </div>
+      </div> */}
 
       {loading ? (
         <div className="text-center py-20">
@@ -479,21 +488,18 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
                     {kanbanColumns.map((column) => (
                       <div
                         key={column.status}
-                        className={`w-[320px] shrink-0 rounded-[24px] ${
-                          isDark ? "bg-[#141414]" : "bg-[#FBF7EF]"
-                        }`}
+                        className={`w-[320px] shrink-0 rounded-[24px] ${isDark ? "bg-[#141414]" : "bg-[#FBF7EF]"
+                          }`}
                       >
-                        <div className={`flex items-center justify-between px-5 py-4 ${
-                          isDark ? "border-b border-white/5" : "border-b border-[#E8E0D2]"
-                        }`}>
+                        <div className={`flex items-center justify-between px-5 py-4 ${isDark ? "border-b border-white/5" : "border-b border-[#E8E0D2]"
+                          }`}>
                           <div className="flex items-center gap-3">
                             <h4 className={`text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
                               {column.status}
                             </h4>
-                            <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-medium ${
-                              isDark ? "bg-[#242424] text-white/70" : "bg-white text-[#666]"
-                            }`}>
-                            {column.totalItems}
+                            <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-medium ${isDark ? "bg-[#242424] text-white/70" : "bg-white text-[#666]"
+                              }`}>
+                              {column.totalItems}
                             </span>
                           </div>
                           {/* <StatusBadge status={column.status} /> */}
@@ -524,11 +530,10 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
                           }}
                         >
                           {column.items.length === 0 ? (
-                            <div className={`rounded-2xl border border-dashed px-4 py-10 text-center text-sm ${
-                              isDark
+                            <div className={`rounded-2xl border border-dashed px-4 py-10 text-center text-sm ${isDark
                                 ? "border-white/10 text-white/35"
                                 : "border-[#E3D9C8] text-[#9A8F7C]"
-                            }`}>
+                              }`}>
                               No shoots in this stage
                             </div>
                           ) : column.items.map((shoot, idx) => (
@@ -559,15 +564,13 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
                                 setDraggedShootId(null);
                                 setDraggedStatus(null);
                               }}
-                              className={`group cursor-pointer rounded-2xl border p-4 transition-all ${
-                                isDark
+                              className={`group cursor-pointer rounded-2xl border p-4 transition-all ${isDark
                                   ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
                                   : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
-                              } ${draggedShootId === shoot.id ? "opacity-55" : ""}`}
+                                } ${draggedShootId === shoot.id ? "opacity-55" : ""}`}
                             >
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${
-                                isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
-                              }`}>
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
+                                }`}>
                                 {shoot.initials}
                               </div>
 
@@ -576,9 +579,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
                                   <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
                                     {shoot.id}
                                   </p>
-                                  <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${
-                                    isDark ? "text-white" : "text-[#111111]"
-                                  }`}>
+                                  <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"}`}>
                                     {shoot.customerName}
                                   </h4>
                                   <p className={`mt-1 text-sm ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>

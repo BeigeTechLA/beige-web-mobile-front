@@ -242,7 +242,7 @@ const projectData: ProjectDetails | undefined =
             <div className="px-5 py-6 lg:py-9">
               {activeTab === "Overview" && (
                 <>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
                     <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
                   </div>
