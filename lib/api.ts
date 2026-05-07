@@ -1900,6 +1900,8 @@ export const adminApi = {
       };
     }
   },
+
+
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {
@@ -2672,6 +2674,437 @@ export const salesApi = {
   downloadSignedPdf: (quote_id: number | string) => {
     const baseUrl = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
     return `${baseUrl}signatures/download/${quote_id}`;
+  },
+};
+
+//stdios api 
+
+export const studioApi = {
+  // Step 1 - Create Studio
+  createStudio: async (user_id: number) => {
+    try {
+      const response = await api.post('/studios/create', { user_id });
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Studio Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to create studio' };
+    }
+  },
+
+  // Step 2 - Save Address
+  saveAddress: async (studio_id: number, payload: {
+    address_line1: string;
+    address?: string;
+    address_line2?: string;
+    apartment?: string;
+    city: string;
+    state: string;
+    country: string;
+    postal_code: string;
+    zip_code?: string;
+    latitude?: number;
+    longitude?: number;
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/address`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Address Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to save address' };
+    }
+  },
+
+  // Step 3 - Save Info
+  saveInfo: async (studio_id: number, payload: {
+    studio_name?: string;
+    space_title?: string;
+    brand_name?: string;
+    studio_type?: string;
+    suggest_type?: string;
+    description?: string;
+    capacity?: number;
+    size_sqft?: number;
+    property_size?: number;
+    height?: number;
+    width?: number;
+    length?: number;
+    max_floor?: number;
+    overnight_stays?: boolean;
+    security_camera?: boolean;
+    security_desc?: string;
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/info`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Info Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to save info' };
+    }
+  },
+
+  // Step 4 - Save Facilities
+  saveFacilities: async (studio_id: number, payload: {
+    facilities: { facility_name: string; is_available: boolean }[];
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/facilities`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Facilities Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to save facilities' };
+    }
+  },
+
+  // Step 5 - Save Media
+  saveMedia: async (studio_id: number, payload: {
+    media: { url: string; type: string; sort_order: number }[];
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/media`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Media Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to save media' };
+    }
+  },
+
+  // Step 6 - Save Details
+  saveDetails: async (studio_id: number, payload: {
+    parking_available?: boolean;
+    accessibility?: string;
+    floor_level?: number;
+    has_elevator?: boolean;
+    additional_info?: string;
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/details`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Details Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to save details' };
+    }
+  },
+
+  // Step 7 - Save Hours & Rules
+  saveHoursAndRules: async (studio_id: number, payload: {
+    hours: {
+      day: string;
+      is_open: boolean;
+      is_24hrs: boolean;
+      opening_time: string | null;
+      closing_time: string | null;
+    }[];
+    rules: {
+      smoking_allowed?: boolean;
+      alcohol_allowed?: boolean;
+      pets_allowed?: boolean;
+      loud_music_allowed?: boolean;
+      outside_food_allowed?: boolean;
+      custom_rule?: string;
+    };
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/hours`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Hours & Rules Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to save hours and rules' };
+    }
+  },
+
+  // Step 8 - Save Budget
+  saveBudget: async (studio_id: number, payload: {
+    hourly_rate: number;
+    overtime_rate?: number;
+    minimum_booking?: number;
+    buffer_time?: number;
+    categories?: {
+      name: string;
+      price_per_hour: number;
+      min_hours: number;
+      max_people?: number;
+      is_selected?: boolean;
+      includes?: string[];
+    }[];
+    equipment?: {
+      name: string;
+      cost: number;
+    }[];
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/budget`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Budget Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to save budget' };
+    }
+  },
+
+  // Step 9 - Save Policies (Final Publish)
+  savePolicies: async (studio_id: number, payload: {
+    selected_policies: string[];
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/policies`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Policies Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to save policies' };
+    }
+  },
+
+  // GET - Studio by ID
+  getStudioById: async (studio_id: number) => {
+    try {
+      const response = await api.get(`/studios/${studio_id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studio Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch studio' };
+    }
+  },
+
+  // GET - Studios by User
+  getStudiosByUser: async (user_id: number) => {
+    try {
+      const response = await api.get(`/studios/user/${user_id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studios Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch studios' };
+    }
+  },
+
+  // DELETE - Studio
+  deleteStudio: async (studio_id: number) => {
+    try {
+      const response = await api.delete(`/studios/${studio_id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Studio Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to delete studio' };
+    }
+  },
+
+  // UPDATE - Studio (Single API for all sections)
+  updateStudio: async (studio_id: number, payload: {
+    // Info
+    studio_name?: string;
+    space_title?: string;
+    brand_name?: string;
+    studio_type?: string;
+    suggest_type?: string;
+    description?: string;
+    capacity?: number;
+    size_sqft?: number;
+    property_size?: number;
+    height?: number;
+    width?: number;
+    length?: number;
+    max_floor?: number;
+    overnight_stays?: boolean;
+    security_camera?: boolean;
+    security_desc?: string;
+    // Address
+    address_line1?: string;
+    address?: string;
+    address_line2?: string;
+    apartment?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postal_code?: string;
+    zip_code?: string;
+    latitude?: number;
+    longitude?: number;
+    // Facilities
+    facilities?: { facility_name: string; is_available: boolean }[];
+    // Media
+    media?: { url: string; type: string; sort_order: number }[];
+    // Details
+    parking_available?: boolean;
+    accessibility?: string;
+    floor_level?: number;
+    has_elevator?: boolean;
+    additional_info?: string;
+    // Hours & Rules
+    hours?: {
+      day: string;
+      is_open: boolean;
+      is_24hrs: boolean;
+      opening_time: string | null;
+      closing_time: string | null;
+    }[];
+    rules?: {
+      smoking_allowed?: boolean;
+      alcohol_allowed?: boolean;
+      pets_allowed?: boolean;
+      loud_music_allowed?: boolean;
+      outside_food_allowed?: boolean;
+      custom_rule?: string;
+    };
+    // Budget
+    hourly_rate?: number;
+    overtime_rate?: number;
+    minimum_booking?: number;
+    buffer_time?: number;
+    categories?: {
+      name: string;
+      price_per_hour: number;
+      min_hours: number;
+      max_people?: number;
+      is_selected?: boolean;
+      includes?: string[];
+    }[];
+    equipment?: { name: string; cost: number }[];
+    // Policies
+    selected_policies?: string[];
+  }) => {
+    try {
+      const response = await api.put(`/studios/${studio_id}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Studio Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to update studio' };
+    }
+  },
+};
+
+// Studio Operations API
+type StudioOperationsParams = {
+  month?: string;
+  range?: 'all' | 'week' | 'month' | 'custom';
+  status?: string;
+};
+
+export const studioOperationsApi = {
+  getOverview: async (studio_id: number, filters?: string | StudioOperationsParams) => {
+    try {
+      const params = typeof filters === 'string' ? { month: filters } : (filters || {});
+      const response = await api.get(`/studios/${studio_id}/operations/overview`, { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Overview Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch overview' };
+    }
+  },
+
+  // GET Bookings
+  getBookings: async (studio_id: number, params?: StudioOperationsParams) => {
+    try {
+      const response = await api.get(`/studios/${studio_id}/operations/bookings`, { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Bookings Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch bookings' };
+    }
+  },
+
+  // GET Ledger
+  getLedger: async (studio_id: number, filters?: string | StudioOperationsParams) => {
+    try {
+      const params = typeof filters === 'string' ? { month: filters } : (filters || {});
+      const response = await api.get(`/studios/${studio_id}/operations/ledger`, { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Ledger Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch ledger' };
+    }
+  },
+
+  // POST Create Booking
+  createBooking: async (studio_id: number, payload: {
+    booking_date: string;
+    start_time: string;
+    end_time: string;
+    hours?: number;
+    project_name?: string;
+    contact_name?: string;
+    contact_email?: string;
+    crew_count?: number;
+    base_revenue?: number;
+    overtime_amount?: number;
+    platform_fee?: number;
+    net_earnings?: number;
+    media?: { url: string; type?: string; sort_order?: number }[];
+  }) => {
+    try {
+      const response = await api.post(`/studios/${studio_id}/operations/bookings`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Booking Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to create booking' };
+    }
+  },
+
+  // PUT Update Booking Status
+  updateBookingStatus: async (studio_id: number, booking_id: number, status: 'upcoming' | 'completed' | 'cancelled') => {
+    try {
+      const response = await api.put(`/studios/${studio_id}/operations/bookings/${booking_id}`, { status });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Booking Status Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to update booking status' };
+    }
+  },
+};
+
+
+
+// Studio Requests APi
+export const studioRequestsApi = {
+  // POST - Create Studio Request
+  createStudioRequest: async (payload: {
+    studio_id: number;
+    user_id: number;
+    [key: string]: unknown;
+  }) => {
+    try {
+      const response = await api.post('/studios/requests', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Studio Request Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to create studio request' };
+    }
+  },
+
+  // GET - Studio Requests (with optional filters)
+  getStudioRequests: async (params: {
+    status?: 'pending' | 'approved' | 'rejected';
+    month?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('/studios/requests', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studio Requests Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch studio requests' };
+    }
+  },
+
+  // PUT - Update Studio Request Status
+  updateStudioRequestStatus: async (
+    request_id: number | string,
+    status: 'pending' | 'approved' | 'rejected'
+  ) => {
+    try {
+      const response = await api.put(`/studios/requests/${request_id}`, { status });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Studio Request Status Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to update studio request status' };
+    }
+  },
+
+  // DELETE - Delete Studio Request
+  deleteStudioRequest: async (request_id: number | string) => {
+    try {
+      const response = await api.delete(`/studios/requests/${request_id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Studio Request Error:', error);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to delete studio request' };
+    }
   },
 };
 

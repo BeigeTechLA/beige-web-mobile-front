@@ -50,6 +50,10 @@ const nextConfig: NextConfig = {
         hostname: "ui-avatars.com",
         pathname: "/**",
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
     ],
   },
 };

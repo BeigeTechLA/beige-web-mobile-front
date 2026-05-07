@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, Building2, type LucideIcon, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -28,6 +28,16 @@ const menuItems = [
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
   { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings' },
+  {
+    name: 'Studios',
+    icon: Building2,
+    link: '/admin/studios',
+    children: [
+      { name: 'Operations', link: '/admin/studios/operations' },
+      { name: 'My Studios', link: '/admin/studios/my-studios' },
+      { name: 'Studio Requests', link: '/admin/studios/studio-requests' },
+    ]
+  },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
   {
