@@ -345,10 +345,10 @@ export default function ClientDetailsPage() {
                                             </td>
                                             <td className="py-6 px-6">
                                                 <span className={`text-base font-medium px-5 py-2 rounded-full capitalize tracking-tight ${activeTab === "Paid"
-                                                    ? "bg-[#FFF9E5] text-[#B18A00]"
+                                                    ? "bg-[#D4FFE4] text-[#16A34A]"
                                                     : (isDark ? "bg-[#1A1A1A] text-[#555]" : "bg-[#FFF4C9] text-[#BA6605]")
                                                     }`}>
-                                                    {activeTab === "Paid" ? "Pending" : "Draft"}
+                                                    {activeTab === "Paid" ? "Paid" : "Draft"}
                                                 </span>
                                             </td>
                                             <td className="py-6 px-6 text-right">
