@@ -3681,6 +3681,9 @@ export default function CreateQuotePage() {
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
+      const isManualInvoicePdf =
+        typeof invoicePdfUrl === "string" &&
+        /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
       const invoiceBookingId =
         response.data?.booking_id !== undefined &&
         response.data?.booking_id !== null &&
@@ -3690,10 +3693,10 @@ export default function CreateQuotePage() {
       const apiBase = (
         process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
       ).replace(/\/$/, "");
-      const proxiedPdfUrl = invoiceBookingId
+      const proxiedPdfUrl = !isManualInvoicePdf && invoiceBookingId
         ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
         : null;
-      const proxiedDownloadUrl = invoiceBookingId
+      const proxiedDownloadUrl = !isManualInvoicePdf && invoiceBookingId
         ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
         : null;
 
@@ -3701,7 +3704,7 @@ export default function CreateQuotePage() {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !isManualInvoicePdf) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 

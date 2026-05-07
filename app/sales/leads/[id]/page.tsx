@@ -680,6 +680,7 @@ export default function SalesLeadDetailsPage() {
   const email = lead?.guest_email || "No email";
   const phone = lead?.phone || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
+  const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
   const isAmountPaid =
     ["paid", "success", "completed"].includes(
@@ -1243,6 +1244,21 @@ export default function SalesLeadDetailsPage() {
                     </div>
                     <div className="flex flex-col gap-2 min-w-0">
                       <h1 className={`lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
+                      <div className="flex items-center">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                            clientRegistrationType === "Registered"
+                              ? isDark
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : isDark
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {clientRegistrationType}
+                        </span>
+                      </div>
                       <div className=" lg:hidden">
                         <LeadsStatusBadge status={effectiveStatusLabel as any} />
                       </div>

@@ -145,6 +145,8 @@ const projectData: ProjectDetails | undefined =
 
           setProject({
             ...projectData,
+            pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
+            manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
             assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
             assignedPostProductionMembers:

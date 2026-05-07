@@ -135,6 +135,7 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
   const email = lead?.guest_email || "No email";
   const phone = lead?.user?.phone_number || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
+  const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? mapLeadStatusToUI(lead.lead_status) : "Unknown" as any;
 
   const bookingDate = booking?.event_date
@@ -252,6 +253,17 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
                   </div>
                   <div className="flex flex-col gap-2">
                     <h1 className="lg:text-[22px] font-semibold">{clientName}</h1>
+                    <div className="flex items-center">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                          clientRegistrationType === "Registered"
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        }`}
+                      >
+                        {clientRegistrationType}
+                      </span>
+                    </div>
                     <div className=" lg:hidden">
                       <StatusBadge status={status} />
                     </div>

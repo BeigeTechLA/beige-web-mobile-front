@@ -128,7 +128,9 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
             initials,
             date: project.event_date ? (parseDate(project.event_date) || new Date(project.event_date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
             category: getCategoryFromContentType(project.content_type),
-            price: project.total_paid_amount ? `$${parseFloat(project.total_paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+            price: (project.total_value_amount ?? project.total_paid_amount)
+              ? `$${parseFloat(project.total_value_amount ?? project.total_paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : "$0.00",
             status: statusLabel,
           };
         });
