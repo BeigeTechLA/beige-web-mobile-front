@@ -145,6 +145,8 @@ const projectData: ProjectDetails | undefined =
 
           setProject({
             ...projectData,
+            pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
+            manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
             assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
             assignedPostProductionMembers:
@@ -240,7 +242,7 @@ const projectData: ProjectDetails | undefined =
             <div className="px-5 py-6 lg:py-9">
               {activeTab === "Overview" && (
                 <>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
                     <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
                   </div>

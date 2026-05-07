@@ -53,7 +53,7 @@ interface UserData {
   bookingStatus?: string;
   assignedSalesRepName?: string;
   assignedSalesRepEmail?: string;
-
+  registrationType?: "guest" | "registered";
 }
 
 interface LeadData {
@@ -119,6 +119,9 @@ const normalizeBookingStatusForList = (value: string): string => {
   }
   return value;
 };
+
+const isPaidBookingStatus = (value: unknown): boolean =>
+  ["paid", "booked"].includes(String(value || "").trim().toLowerCase());
 
 // Helper function to format relative time
 const formatRelativeTime = (dateString: string): string => {
@@ -612,6 +615,10 @@ export default function AdminSaleRepManagerPage() {
             bookingStatus: client.booking_status || mapLeadStatusToUI(client.payment_status),
             assignedSalesRepName: client.assigned_sales_rep?.name || "",
             assignedSalesRepEmail: client.assigned_sales_rep?.email || "",
+            registrationType:
+              client.registration_type === "guest" || client.client_type === "guest" || !client.user_id
+                ? "guest"
+                : "registered",
           }));
           allUsers = mappedClients;
           pagination = clientsPayload.pagination || clientsRes?.pagination;
@@ -671,21 +678,32 @@ export default function AdminSaleRepManagerPage() {
     }
 
     if (leadsApiData?.leads) {
-      const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => ({
-        lead_id: lead.lead_id,
-        bookingId: lead.booking_id ? String(lead.booking_id) : undefined,
-        clientName: lead.client_name || lead.guest_email || "Unknown User",
-        email: lead.guest_email || "No email",
-        leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
-        bookingStatus: normalizeBookingStatusForList(lead.booking_status || "Unknown"),
-        lastActivity: formatRelativeTime(lead.last_activity_at),
-        date: new Date(lead.created_at),
-        intent: lead.intent || "Hot",
-        assignedSalesRepName: lead.assigned_sales_rep?.name || "",
-        assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
-        hasManualPaymentHistory: Boolean(lead?.manual_payment_summary?.paidAmount > 0 || lead?.manual_payment_summary?.hasFullPayment),
-        isPaymentPending: !["paid", "booked"].includes(String(lead.booking_status || "").trim().toLowerCase()),
-      }));
+      const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => {
+        const manualPaymentSummary = lead?.manual_payment_summary || {};
+        const hasManualPaymentHistory = Boolean(
+          manualPaymentSummary?.paidAmount > 0 || manualPaymentSummary?.hasFullPayment
+        );
+        const hasFullManualPayment = Boolean(manualPaymentSummary?.hasFullPayment);
+        const isPaidByBookingStatus = isPaidBookingStatus(lead.booking_status);
+
+        return {
+          lead_id: lead.lead_id,
+          bookingId: lead.booking_id ? String(lead.booking_id) : undefined,
+          clientName: lead.client_name || lead.guest_email || "Unknown User",
+          email: lead.guest_email || "No email",
+          leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
+          bookingStatus: hasFullManualPayment
+            ? "Paid"
+            : normalizeBookingStatusForList(lead.booking_status || "Unknown"),
+          lastActivity: formatRelativeTime(lead.last_activity_at),
+          date: new Date(lead.created_at),
+          intent: lead.intent || "Hot",
+          assignedSalesRepName: lead.assigned_sales_rep?.name || "",
+          assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
+          hasManualPaymentHistory,
+          isPaymentPending: !(isPaidByBookingStatus || hasFullManualPayment),
+        };
+      });
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
       setDisplayLeads([]); // Clear if no leads found
@@ -989,7 +1007,14 @@ export default function AdminSaleRepManagerPage() {
                     </div>
                   </div>
                 </td>
-                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{user.type}</td>
+                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                  <div className="flex flex-col gap-1">
+                    <span>{user.type}</span>
+                    <span className={`text-xs ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
+                      {user.registrationType === "registered" ? "Registered" : "Guest"}
+                    </span>
+                  </div>
+                </td>
                 <td className="py-5 px-6">
                   <IntentBadge intent={(user.intent as any) || "Warm"} />
                 </td>
@@ -1075,6 +1100,9 @@ export default function AdminSaleRepManagerPage() {
                         <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Type</p>
                         <p className={`mt-1 text-sm font-medium ${isDark ? "text-[#F1F1F1]" : "text-[#222222]"}`}>
                           {user.type}
+                          <span className={`ml-2 text-xs font-normal ${isDark ? "text-[#B0B0B0]" : "text-[#666666]"}`}>
+                            ({user.registrationType === "registered" ? "Registered" : "Guest"})
+                          </span>
                         </p>
                       </div>
                       <div className="text-right shrink-0">

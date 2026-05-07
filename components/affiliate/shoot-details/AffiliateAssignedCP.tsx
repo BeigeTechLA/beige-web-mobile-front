@@ -14,6 +14,18 @@ import Cookies from "js-cookie";
 import { affiliateApi } from "@/lib/api";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 
+/**
+ * Custom CSS to force the "Top-Stacking" behavior.
+ * Swiper Cards effect usually translates slides down;
+ * we override the slide transformations to stack them upwards.
+ */
+const stackStyles = `
+  .top-stack-swiper .swiper-slide-shadow { display: none !important; }
+  .top-stack-swiper .swiper-slide {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+`;
+
 interface CrewMember {
   id: number;
   name: string;
@@ -105,64 +117,68 @@ export default function AffiliateAssignedCP({ projectId }: { projectId: string }
 
   return (
     <div
-      className={`rounded-2xl h-full flex flex-col items-center justify-center relative overflow-hidden py-6 transition-all duration-300 ${isDark ? "bg-[#111111] border border-[#222222]" : "bg-[#F4F5F7]"}`}
+      className={`rounded-2xl h-full flex flex-col items-center transition-all duration-300 ${isDark ? "bg-[#111111] border border-[#222222]" : "bg-[#F4F5F7] border border-[#E5E5E5]"}`}
       style={{ fontFamily: 'var(--font-instrument-sans)' }}
     >
-      <h3 className={`text-lg font-medium mb-4 absolute top-6 z-10 transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
-        Assigned CP
-      </h3>
+      <style>{stackStyles}</style>
+      {/* Title */}
+      <div className={`flex justify-center w-full p-6 border-b ${isDark ? "border-b-[#333333]" : "border-b-[#E5E5E5]"}`}>
+        <h3 className={`text-lg font-medium transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
+          Assigned CP
+        </h3>
+      </div>
 
-      <div className={`w-full h-px border-t absolute top-20 left-0 transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
-        }`} />
+      {/* Swiper or Placeholder */}
+      <div className="p-6 h-full">
+        {!hasCrew ? (
+          <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
+            <div className="w-20 h-20 bg-[#1A1A1A] rounded-full flex items-center justify-center mb-6">
+              <User size={40} className="text-[#333]" />
+            </div>
+            <h4 className="text-[#666] text-base font-medium leading-none">No Crew Assigned</h4>
+          </div>
+        ) : (
+          <>
+            {/* Cards Swiper - Vertical Direction */}
+            <div className=" relative z-10 py-10">
+              <Swiper
+                effect={"cards"}
+                direction={"vertical"}
+                grabCursor={true}
+                modules={[EffectCards]}
+                className="w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
+                cardsEffect={{
+                  perSlideOffset: 12,
+                  perSlideRotate: 0,
+                  slideShadows: false,
+                }}
+                onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
+              >
+                {crewMembers.map((member) => (
+                  <SwiperSlide key={member.id} className={`rounded-3xl overflow-hidden shadow-lg ${member.bgColor}`}>
+                    <Image
+                      src={member.image}
+                      alt={member.name}
+                      fill
+                      className="object-cover object-top"
+                    />
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
 
-      {!hasCrew ? (
-        <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
-          <div className="w-20 h-20 bg-[#1A1A1A] rounded-full flex items-center justify-center mb-6">
-            <User size={40} className="text-[#333]" />
-          </div>
-          <h4 className="text-[#666] text-base font-medium leading-none">No Crew Assigned</h4>
-        </div>
-      ) : (
-        <>
-          {/* Cards Swiper - Vertical Direction */}
-          <div className="w-[240px] h-[260px] mt-24 relative z-10">
-            <Swiper
-              effect={"cards"}
-              direction={"vertical"}
-              grabCursor={true}
-              modules={[EffectCards]}
-              className="w-full h-full"
-              cardsEffect={{
-                perSlideOffset: 12,
-                perSlideRotate: 0,
-                slideShadows: false,
-              }}
-              onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
-            >
-              {crewMembers.map((member) => (
-                <SwiperSlide key={member.id} className={`rounded-3xl overflow-hidden shadow-lg ${member.bgColor}`}>
-                  <Image
-                    src={member.image}
-                    alt={member.name}
-                    fill
-                    className="object-cover object-top"
-                  />
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          </div>
-
-          {/* Text Info */}
-          <div className="mt-auto lg:mb-2 text-center z-10 relative">
-            <h4 className={`lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300 ${isDark ? "text-white" : "text-black"}`}>
-              {crewMembers[activeIndex]?.name}
-            </h4>
-            <p className={`text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
-              {crewMembers[activeIndex]?.role}
-            </p>
-          </div>
-        </>
-      )}
+            {/* Text Info */}
+            <div className="mt-auto lg:mb-2 text-center z-10 relative">
+              <h4 className={`lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300 ${isDark ? "text-white" : "text-black"}`}>
+                {crewMembers[activeIndex]?.name}
+              </h4>
+              <p className={`text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
+                {crewMembers[activeIndex]?.role}
+              </p>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

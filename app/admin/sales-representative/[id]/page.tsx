@@ -388,7 +388,7 @@ export default function LeadDetailPage() {
     if (!rawAdditionalPayment) return null;
 
     const actuallyPaidAmount = Number(lead?.pricing_breakdown?.total_paid ?? 0);
-    const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
+    const revisedTotal = Number(lead?.custom_quote?.total ?? lead?.pricing_breakdown?.total ?? rawAdditionalPayment.revised_total ?? 0);
     const outstandingAmount = Number(
       rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - actuallyPaidAmount, 0)
     );
@@ -418,7 +418,7 @@ export default function LeadDetailPage() {
         : null,
       lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
     };
-  }, [rawAdditionalPayment, lead?.pricing_breakdown?.total_paid]);
+  }, [rawAdditionalPayment, lead?.pricing_breakdown?.total_paid, lead?.pricing_breakdown?.total, lead?.custom_quote?.total]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -682,6 +682,7 @@ export default function LeadDetailPage() {
   const email = lead?.guest_email || "No email";
   const phone = lead?.phone || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
+  const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
   const isAmountPaid =
     ["paid", "success", "completed"].includes(
@@ -1245,6 +1246,21 @@ export default function LeadDetailPage() {
                     </div>
                     <div className="flex flex-col gap-2 min-w-0">
                       <h1 className={`lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
+                      <div className="flex items-center">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                            clientRegistrationType === "Registered"
+                              ? isDark
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : isDark
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {clientRegistrationType}
+                        </span>
+                      </div>
                       <div className=" lg:hidden">
                         <LeadsStatusBadge status={effectiveStatusLabel as any} />
                       </div>
@@ -2264,10 +2280,24 @@ export default function LeadDetailPage() {
                   </div>
                   <div className={`text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
                     <p>
-                      Total Paid:{" "}
+                      Total Paid Amount:{" "}
                       <span className={isDark ? "text-white" : "text-black"}>
-                        {formatCurrencyValue(total)}
+                        {formatCurrencyValue(lead?.collected_amount ?? lead?.pricing_breakdown?.total_paid ?? total)}
                       </span>
+                    </p>
+                    <p className="mt-1">
+                      Pending Amount:{" "}
+                      <span className={additionalPaymentDetails?.isDecrease ? "text-red-500" : (isDark ? "text-white" : "text-black")}>
+                        {additionalPaymentDetails && additionalPaymentDetails.additionalAmount !== 0
+                          ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                          : ""}
+                        {formatCurrencyValue(Math.abs(additionalPaymentDetails?.additionalAmount ?? 0))}
+                      </span>
+                      {additionalPaymentDetails?.isDecrease && (
+                        <span className="ml-1 text-[10px] text-golden italic">
+                          (This reduced amount will be added as Beige Credits after approval)
+                        </span>
+                      )}
                     </p>
                     {booking?.payment_completed_at ? (
                       <p className="mt-1">

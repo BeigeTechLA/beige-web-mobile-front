@@ -37,12 +37,15 @@ interface InvoiceTableInvoiceRow {
   id: number;
   invoiceHistoryId: string;
   groupKey: string;
+  bookingIdValue: number | null;
   bookingId: string;
   detailHref: string | null;
   clientName: string;
   clientEmail: string;
   leadOrQuoteId: string;
   paymentStatus: string;
+  invoiceMethod: "manual" | "stripe" | "unknown";
+  invoiceSendStatus: "sent" | "not_sent";
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -51,12 +54,15 @@ interface InvoiceTableInvoiceRow {
 interface InvoiceTableGroupRow {
   id: number;
   groupKey: string;
+  bookingIdValue: number | null;
   bookingId: string;
   detailHref: string | null;
   clientName: string;
   clientEmail: string;
   leadOrQuoteId: string;
   paymentStatus: string;
+  invoiceMethod: "manual" | "stripe" | "unknown";
+  invoiceSendStatus: "sent" | "not_sent";
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -156,6 +162,36 @@ const matchesPaymentFilter = (paymentStatus: string, paymentFilter: string) => {
   return true;
 };
 
+const matchesInvoiceMethodFilter = (
+  method: "manual" | "stripe" | "unknown",
+  methodFilter: string
+) => {
+  if (methodFilter === "Manual") {
+    return method === "manual";
+  }
+
+  if (methodFilter === "Stripe") {
+    return method === "stripe";
+  }
+
+  return true;
+};
+
+const matchesInvoiceSendFilter = (
+  sendStatus: "sent" | "not_sent",
+  sendFilter: string
+) => {
+  if (sendFilter === "Sent") {
+    return sendStatus === "sent";
+  }
+
+  if (sendFilter === "Not Sent") {
+    return sendStatus === "not_sent";
+  }
+
+  return true;
+};
+
 const resolveLivePaymentStatus = async (item: InvoiceHistoryItem) => {
   const currentStatus = String(item.payment_status || "").trim().toLowerCase();
   if (currentStatus === "paid") {
@@ -225,16 +261,40 @@ const mapInvoiceHistoryItemsToRows = (
           : `/admin/sales-representative/${item.lead_id}`
         : null;
 
+    const invoiceUrl = item.invoice_url || "";
+    const invoicePdf = item.invoice_pdf || "";
+    const invoiceNumber = item.invoice_number || "";
+    const isManualInvoice =
+      /[?&]manual=(1|true)\b/i.test(invoiceUrl) ||
+      /[?&]manual=(1|true)\b/i.test(invoicePdf) ||
+      /^INVBEIGE-M-/i.test(invoiceNumber);
+    const invoiceMethod: "manual" | "stripe" | "unknown" = isManualInvoice
+      ? "manual"
+      : (invoiceUrl || invoicePdf || invoiceNumber)
+        ? "stripe"
+        : "unknown";
+    const hasInvoiceSendHistoryId =
+      Number.isInteger(item.invoice_send_history_id) && item.invoice_send_history_id > 0;
+    const invoiceSendStatus: "sent" | "not_sent" = hasInvoiceSendHistoryId ? "sent" : "not_sent";
+
     return {
       id: item.invoice_send_history_id,
-      invoiceHistoryId: item.invoice_send_history_id ? `#${item.invoice_send_history_id}` : "N/A",
+      invoiceHistoryId:
+        item.invoice_send_history_id && item.invoice_send_history_id > 0
+          ? `#${item.invoice_send_history_id}`
+          : item.booking_id
+            ? `BOOKING-${item.booking_id}`
+            : "N/A",
       groupKey: getInvoiceGroupKey(item),
+      bookingIdValue: item.booking_id ?? null,
       bookingId: item.booking_id ? `#${item.booking_id}` : "N/A",
       detailHref,
       clientName: item.client_name || "N/A",
       clientEmail: item.client_email || "N/A",
       leadOrQuoteId: getLeadOrQuoteValue(item),
       paymentStatus: normalizeStatus(livePaymentStatus),
+      invoiceMethod,
+      invoiceSendStatus,
       sendDateLabel: formatDateLabel(sendDate),
       sendDateRaw: getDateValue(sendDate),
       invoicePdf: item.invoice_pdf,
@@ -265,12 +325,15 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
       return {
         id: latestInvoice.id,
         groupKey,
+        bookingIdValue: latestInvoice.bookingIdValue,
         bookingId: latestInvoice.bookingId,
         detailHref: latestInvoice.detailHref,
         clientName: latestInvoice.clientName,
         clientEmail: latestInvoice.clientEmail,
         leadOrQuoteId: latestInvoice.leadOrQuoteId,
         paymentStatus: latestInvoice.paymentStatus,
+        invoiceMethod: latestInvoice.invoiceMethod,
+        invoiceSendStatus: latestInvoice.invoiceSendStatus,
         sendDateLabel: latestInvoice.sendDateLabel,
         sendDateRaw: latestInvoice.sendDateRaw,
         invoicePdf: latestInvoice.invoicePdf,
@@ -344,16 +407,18 @@ export const InvoiceTable = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("All Payments");
+  const [invoiceMethodFilter, setInvoiceMethodFilter] = useState("All Methods");
+  const [invoiceSendFilter, setInvoiceSendFilter] = useState("All");
   const itemsPerPage = 20;
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, paymentFilter]);
+  }, [debouncedSearch, paymentFilter, invoiceMethodFilter, invoiceSendFilter]);
 
   useEffect(() => {
     setExpandedGroups([]);
-  }, [debouncedSearch, paymentFilter, currentPage]);
+  }, [debouncedSearch, paymentFilter, invoiceMethodFilter, invoiceSendFilter, currentPage]);
 
   useEffect(() => {
     setMounted(true);
@@ -376,6 +441,8 @@ export const InvoiceTable = () => {
         );
         const filteredRows = groupedRows.filter((row) =>
           matchesPaymentFilter(row.paymentStatus, paymentFilter) &&
+          matchesInvoiceMethodFilter(row.invoiceMethod, invoiceMethodFilter) &&
+          matchesInvoiceSendFilter(row.invoiceSendStatus, invoiceSendFilter) &&
           matchesSearchQuery(row, debouncedSearch)
         );
         const nextTotalPages = Math.max(Math.ceil(filteredRows.length / itemsPerPage), 1);
@@ -412,15 +479,24 @@ export const InvoiceTable = () => {
     return () => {
       isCancelled = true;
     };
-  }, [currentPage, debouncedSearch, pathname, paymentFilter]);
+  }, [currentPage, debouncedSearch, pathname, paymentFilter, invoiceMethodFilter, invoiceSendFilter]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
-  const handleDownload = (invoicePdf: string | null) => {
-    if (!invoicePdf || typeof window === "undefined") return;
+  const handleDownload = (invoicePdf: string | null, bookingIdValue: number | null) => {
+    if (typeof window === "undefined") return;
+
+    const isManualInvoice = typeof invoicePdf === "string" && /[?&]manual=(1|true)\b/i.test(invoicePdf);
+    const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "").replace(/\/$/, "");
+    const dynamicManualDownloadUrl =
+      isManualInvoice && bookingIdValue
+        ? `${apiBase}/sales/invoice-pdf/${bookingIdValue}?manual=1&download=1&t=${Date.now()}`
+        : null;
+    const resolvedUrl = dynamicManualDownloadUrl || invoicePdf;
+    if (!resolvedUrl) return;
 
     const link = document.createElement("a");
-    link.href = invoicePdf;
+    link.href = resolvedUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.download = "";
@@ -505,6 +581,20 @@ export const InvoiceTable = () => {
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <BasicDropdown
+            label="Method"
+            value={invoiceMethodFilter}
+            options={["All Methods", "Manual", "Stripe"]}
+            onChange={setInvoiceMethodFilter}
+            openAlign={typeof window !== 'undefined' && window.innerWidth < 1024 ? "left" : "right"}
+          />
+          <BasicDropdown
+            label="Send"
+            value={invoiceSendFilter}
+            options={["All", "Sent", "Not Sent"]}
+            onChange={setInvoiceSendFilter}
+            openAlign={typeof window !== 'undefined' && window.innerWidth < 1024 ? "left" : "right"}
+          />
+          <BasicDropdown
             label="Payment"
             value={paymentFilter}
             options={["All Payments", "Paid", "Unpaid"]}
@@ -586,7 +676,7 @@ export const InvoiceTable = () => {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      handleDownload(row.invoicePdf);
+                      handleDownload(row.invoicePdf, row.bookingIdValue);
                     }}
                     disabled={!row.invoicePdf}
                     className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
@@ -619,7 +709,7 @@ export const InvoiceTable = () => {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              handleDownload(invoice.invoicePdf);
+                              handleDownload(invoice.invoicePdf, invoice.bookingIdValue);
                             }}
                             disabled={!invoice.invoicePdf}
                             className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
@@ -715,7 +805,7 @@ export const InvoiceTable = () => {
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                handleDownload(row.invoicePdf);
+                                handleDownload(row.invoicePdf, row.bookingIdValue);
                               }}
                               disabled={!row.invoicePdf}
                               className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
@@ -761,7 +851,7 @@ export const InvoiceTable = () => {
                                 type="button"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  handleDownload(invoice.invoicePdf);
+                                  handleDownload(invoice.invoicePdf, invoice.bookingIdValue);
                                 }}
                                 disabled={!invoice.invoicePdf}
                                 className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}

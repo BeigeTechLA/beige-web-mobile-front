@@ -47,7 +47,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
       }
     `}>
 
-            {/* ==========================================
+      {/* ==========================================
           MOBILE VIEW (Hidden on Desktop)
           ========================================== */}
       <div className="flex lg:hidden flex-col p-4 gap-4">
@@ -74,44 +74,54 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
             </Link>
           </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
-                            <Image width={32} height={32} src="/images/avatar.png" alt="User" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Bottom Row: Breadcrumbs & Counts */}
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-                    {isShootsPage ? (
-                        <h1 className="text-white font-semibold text-sm whitespace-nowrap">
-                            Shoots Management
-                        </h1>
-                    ) : (
-                        <nav className="flex items-center gap-2 text-xs text-white/40 whitespace-nowrap">
-                            {paths.map((path, index) => {
-                                const isLast = index === paths.length - 1;
-                                return (
-                                    <React.Fragment key={index}>
-                                        <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
-                                            {path.split("-").join(" ")}
-                                        </span>
-                                        {!isLast && <span className="mx-1">/</span>}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </nav>
-                    )}
-                </div>
+          <div className="flex items-center gap-3">
+            <ModeToggle />
+            <div className={`w-8 h-8 rounded-full overflow-hidden border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"
+              }`}>
+              <Image width={32} height={32} src="/images/avatar.png" alt="User" />
             </div>
+          </div>
+        </div>
 
-            {/* ==========================================
+        {/* Bottom Row: Breadcrumbs & Counts */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          {isShootsPage ? (
+            <h1 className={`font-semibold text-sm whitespace-nowrap ${isDark ? "text-white" : "text-[#101010]"}`}>
+              Shoots Management
+            </h1>
+          ) : (
+            <nav className={`flex items-center gap-2 text-xs whitespace-nowrap ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
+              {paths.map((path, index) => {
+                const isLast = index === paths.length - 1;
+                // CHANGED: Specific check for create-new-deal to show as "create new lead"
+                const displayText = breadcrumbOverrides?.[path] ||
+                  (path === "create-new-deal" ? "create new lead" : path.split("-").join(" "));
+
+                return (
+                  <React.Fragment key={index}>
+                    <span className={`capitalize ${isLast ? (isDark ? "text-white font-bold" : "text-[#101010] font-bold") : ""}`}>
+                      {displayText}
+                    </span>
+                    {!isLast && <span className="mx-1">/</span>}
+                  </React.Fragment>
+                );
+              })}
+            </nav>
+          )}
+        </div>
+
+        <div>
+          {actions}
+        </div>
+      </div>
+
+      {/* ==========================================
           DESKTOP VIEW (Hidden on Mobile)
           ========================================== */}
-            <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4">
-                {/* Left: Logo & Breadcrumbs/Title */}
-                <div className="flex items-center gap-6 shrink-0">
-                    {/* <a href="https://beige.app" target="_blank" rel="noopener noreferrer" className="relative flex items-center shrink-0">
+      <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4">
+        {/* Left: Logo & Breadcrumbs/Title */}
+        <div className="flex items-center gap-6 shrink-0">
+          {/* <a href="https://beige.app" target="_blank" rel="noopener noreferrer" className="relative flex items-center shrink-0">
                         <Image
                             src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
                             alt="BEIGE"
@@ -126,40 +136,47 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
                         </span>
                     </a> */}
 
-                    {isShootsPage ? (
-                        <h1 className="text-white font-semibold text-lg">Shoots Management</h1>
-                    ) : (
-                        <nav className="flex items-center gap-4 text-sm text-white/40">
-                            {paths.map((path, index) => {
-                                const isLast = index === paths.length - 1;
-                                return (
-                                    <React.Fragment key={index}>
-                                        <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
-                                            {path.split("-").join(" ")}
-                                        </span>
-                                        {!isLast && <span className="mx-2">/</span>}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </nav>
-                    )}
-                </div>
+          {isShootsPage ? (
+            <h1 className="text-white font-semibold text-lg">Shoots Management</h1>
+          ) : (
+            <nav className="flex items-center gap-4 text-sm text-white/40">
+              {paths.map((path, index) => {
+                const isLast = index === paths.length - 1;
+                // CHANGED: Specific check for create-new-deal to show as "create new lead"
+                const displayText = breadcrumbOverrides?.[path] ||
+                  (path === "create-new-deal" ? "create new lead" : path.split("-").join(" "));
 
-                {/* Center: Search Bar (Desktop only) */}
-                {isShootsPage && (
-                    <div className="flex-1 max-w-xl ml-auto mr-8">
-                        <div className="relative">
-                            {/* <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                return (
+                  <React.Fragment key={index}>
+                    <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
+                      {path.split("-").join(" ")}
+                    </span>
+                    {!isLast && <span className="mx-2">/</span>}
+                  </React.Fragment>
+                );
+              })}
+            </nav>
+          )}
+        </div>
+
+        {/* Center: Search Bar (Desktop only) */}
+        {isShootsPage && (
+          <div className="flex-1 max-w-xl ml-auto mr-8">
+            <div className="relative">
+              {/* <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
               <Input
                 placeholder="Search shoots, Clients, or IDs..."
                 className="bg-[#1A1A1A] border-zinc-800 pl-10 text-white placeholder:text-zinc-500 rounded-lg h-10 w-full focus-visible:ring-offset-0 focus-visible:ring-zinc-700"
               /> */}
-                        </div>
-                    </div>
-                )}
+            </div>
+          </div>
+        )}
 
-                {/* Right: Desktop Actions (Kept exactly as original) */}
-                {/* <div className="flex items-center gap-3 shrink-0">
+        {/* Right: Desktop Actions (Kept exactly as original) */}
+        < div className="flex items-center gap-3 shrink-0" >
+          {actions}
+        </div>
+        {/* <div className="flex items-center gap-3 shrink-0">
                     {isShootsPage && (
                         <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-10 px-5 font-semibold">
                             Book a Shoot
