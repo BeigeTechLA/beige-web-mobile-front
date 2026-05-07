@@ -44,6 +44,8 @@ interface InvoiceTableInvoiceRow {
   clientEmail: string;
   leadOrQuoteId: string;
   paymentStatus: string;
+  invoiceMethod: "manual" | "stripe" | "unknown";
+  invoiceSendStatus: "sent" | "not_sent";
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -59,6 +61,8 @@ interface InvoiceTableGroupRow {
   clientEmail: string;
   leadOrQuoteId: string;
   paymentStatus: string;
+  invoiceMethod: "manual" | "stripe" | "unknown";
+  invoiceSendStatus: "sent" | "not_sent";
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -158,6 +162,36 @@ const matchesPaymentFilter = (paymentStatus: string, paymentFilter: string) => {
   return true;
 };
 
+const matchesInvoiceMethodFilter = (
+  method: "manual" | "stripe" | "unknown",
+  methodFilter: string
+) => {
+  if (methodFilter === "Manual") {
+    return method === "manual";
+  }
+
+  if (methodFilter === "Stripe") {
+    return method === "stripe";
+  }
+
+  return true;
+};
+
+const matchesInvoiceSendFilter = (
+  sendStatus: "sent" | "not_sent",
+  sendFilter: string
+) => {
+  if (sendFilter === "Sent") {
+    return sendStatus === "sent";
+  }
+
+  if (sendFilter === "Not Sent") {
+    return sendStatus === "not_sent";
+  }
+
+  return true;
+};
+
 const resolveLivePaymentStatus = async (item: InvoiceHistoryItem) => {
   const currentStatus = String(item.payment_status || "").trim().toLowerCase();
   if (currentStatus === "paid") {
@@ -227,6 +261,22 @@ const mapInvoiceHistoryItemsToRows = (
           : `/admin/sales-representative/${item.lead_id}`
         : null;
 
+    const invoiceUrl = item.invoice_url || "";
+    const invoicePdf = item.invoice_pdf || "";
+    const invoiceNumber = item.invoice_number || "";
+    const isManualInvoice =
+      /[?&]manual=(1|true)\b/i.test(invoiceUrl) ||
+      /[?&]manual=(1|true)\b/i.test(invoicePdf) ||
+      /^INVBEIGE-M-/i.test(invoiceNumber);
+    const invoiceMethod: "manual" | "stripe" | "unknown" = isManualInvoice
+      ? "manual"
+      : (invoiceUrl || invoicePdf || invoiceNumber)
+        ? "stripe"
+        : "unknown";
+    const hasInvoiceSendHistoryId =
+      Number.isInteger(item.invoice_send_history_id) && item.invoice_send_history_id > 0;
+    const invoiceSendStatus: "sent" | "not_sent" = hasInvoiceSendHistoryId ? "sent" : "not_sent";
+
     return {
       id: item.invoice_send_history_id,
       invoiceHistoryId:
@@ -243,6 +293,8 @@ const mapInvoiceHistoryItemsToRows = (
       clientEmail: item.client_email || "N/A",
       leadOrQuoteId: getLeadOrQuoteValue(item),
       paymentStatus: normalizeStatus(livePaymentStatus),
+      invoiceMethod,
+      invoiceSendStatus,
       sendDateLabel: formatDateLabel(sendDate),
       sendDateRaw: getDateValue(sendDate),
       invoicePdf: item.invoice_pdf,
@@ -280,6 +332,8 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
         clientEmail: latestInvoice.clientEmail,
         leadOrQuoteId: latestInvoice.leadOrQuoteId,
         paymentStatus: latestInvoice.paymentStatus,
+        invoiceMethod: latestInvoice.invoiceMethod,
+        invoiceSendStatus: latestInvoice.invoiceSendStatus,
         sendDateLabel: latestInvoice.sendDateLabel,
         sendDateRaw: latestInvoice.sendDateRaw,
         invoicePdf: latestInvoice.invoicePdf,
@@ -353,16 +407,18 @@ export const InvoiceTable = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("All Payments");
+  const [invoiceMethodFilter, setInvoiceMethodFilter] = useState("All Methods");
+  const [invoiceSendFilter, setInvoiceSendFilter] = useState("All");
   const itemsPerPage = 20;
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, paymentFilter]);
+  }, [debouncedSearch, paymentFilter, invoiceMethodFilter, invoiceSendFilter]);
 
   useEffect(() => {
     setExpandedGroups([]);
-  }, [debouncedSearch, paymentFilter, currentPage]);
+  }, [debouncedSearch, paymentFilter, invoiceMethodFilter, invoiceSendFilter, currentPage]);
 
   useEffect(() => {
     setMounted(true);
@@ -385,6 +441,8 @@ export const InvoiceTable = () => {
         );
         const filteredRows = groupedRows.filter((row) =>
           matchesPaymentFilter(row.paymentStatus, paymentFilter) &&
+          matchesInvoiceMethodFilter(row.invoiceMethod, invoiceMethodFilter) &&
+          matchesInvoiceSendFilter(row.invoiceSendStatus, invoiceSendFilter) &&
           matchesSearchQuery(row, debouncedSearch)
         );
         const nextTotalPages = Math.max(Math.ceil(filteredRows.length / itemsPerPage), 1);
@@ -421,7 +479,7 @@ export const InvoiceTable = () => {
     return () => {
       isCancelled = true;
     };
-  }, [currentPage, debouncedSearch, pathname, paymentFilter]);
+  }, [currentPage, debouncedSearch, pathname, paymentFilter, invoiceMethodFilter, invoiceSendFilter]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
@@ -522,6 +580,20 @@ export const InvoiceTable = () => {
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
+          <BasicDropdown
+            label="Method"
+            value={invoiceMethodFilter}
+            options={["All Methods", "Manual", "Stripe"]}
+            onChange={setInvoiceMethodFilter}
+            openAlign={typeof window !== 'undefined' && window.innerWidth < 1024 ? "left" : "right"}
+          />
+          <BasicDropdown
+            label="Send"
+            value={invoiceSendFilter}
+            options={["All", "Sent", "Not Sent"]}
+            onChange={setInvoiceSendFilter}
+            openAlign={typeof window !== 'undefined' && window.innerWidth < 1024 ? "left" : "right"}
+          />
           <BasicDropdown
             label="Payment"
             value={paymentFilter}
