@@ -66,6 +66,8 @@ interface LeadData {
   intent: string;
   assignedSalesRepName?: string;
   assignedSalesRepEmail?: string;
+  hasManualPaymentHistory?: boolean;
+  isPaymentPending?: boolean;
 }
 
 type OverviewMetric = {
@@ -318,6 +320,18 @@ const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
   "Closed – Lost",
 ];
 
+const SHOOT_STAGE_OPTIONS = [
+  { label: "All Shoot Stages", value: "all" },
+  { label: "Initiated", value: "initiated" },
+  { label: "Pre Production", value: "preproduction" },
+  { label: "Shoot Day", value: "shootday" },
+  { label: "Post Production", value: "postproduction" },
+  { label: "Revision", value: "revision" },
+  { label: "Completed", value: "completed" },
+  { label: "Assets Delivered", value: "assetsdelivered" },
+  { label: "Cancelled", value: "cancelled" },
+] as const;
+
 export default function SalesLeadsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -331,19 +345,23 @@ export default function SalesLeadsPage() {
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
+  const [selectedBookingStatus, setSelectedBookingStatus] = useState<string | null>(null);
+  const [selectedAllowPaymentTransaction, setSelectedAllowPaymentTransaction] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [activeTab, setActiveTab] = useState<TabType>("Booking");
 
   // --- LEADS STATE (Booking Tab) ---
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
-  const leadsLimit = 10;
+  const [leadsViewMode, setLeadsViewMode] = useState<"list" | "grid">("list");
+  const leadsLimit = leadsViewMode === "grid" ? 50 : 10;
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
   // Filters state
   const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
   const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+  const [shootStageFilter, setShootStageFilter] = useState<string>("all");
   const [assignedRepIdFilter, setAssignedRepIdFilter] = useState<string>("all");
   const [clientAssignedRepIdFilter, setClientAssignedRepIdFilter] = useState<string>("all");
   const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([
@@ -434,6 +452,7 @@ export default function SalesLeadsPage() {
       if (parsedFilters.leadTypeFilter) setLeadTypeFilter(parsedFilters.leadTypeFilter);
       if (parsedFilters.statusFilter) setStatusFilter(parsedFilters.statusFilter);
       if (parsedFilters.intentFilter) setIntentFilter(parsedFilters.intentFilter);
+      if (parsedFilters.shootStageFilter) setShootStageFilter(parsedFilters.shootStageFilter);
 
       if (canManageFilters) {
         if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(parsedFilters.assignedRepIdFilter);
@@ -456,7 +475,7 @@ export default function SalesLeadsPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, assignedRepIdFilter, debouncedSearch]);
+  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, debouncedSearch, leadsViewMode]);
 
   useEffect(() => {
     setUsersCurrentPage(1);
@@ -505,6 +524,7 @@ export default function SalesLeadsPage() {
           leadTypeFilter,
           statusFilter,
           intentFilter,
+          shootStageFilter,
           assignedRepIdFilter,
           clientAssignedRepIdFilter,
           leadsCurrentPage,
@@ -521,6 +541,7 @@ export default function SalesLeadsPage() {
     leadTypeFilter,
     statusFilter,
     intentFilter,
+    shootStageFilter,
     assignedRepIdFilter,
     clientAssignedRepIdFilter,
     leadsCurrentPage,
@@ -535,7 +556,12 @@ export default function SalesLeadsPage() {
         search: debouncedSearch || undefined,
         // Mapping the filters to API keys
         lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
-        status: statusFilter === "All" ? undefined : statusFilter,
+        status:
+          leadsViewMode === "grid" && shootStageFilter !== "all"
+            ? shootStageFilter
+            : statusFilter === "All"
+              ? undefined
+              : statusFilter,
         assigned_to: canManageSalesDashboardFilters && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
         // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
         intent: intentFilter === "All" ? undefined : intentFilter,
@@ -680,6 +706,13 @@ export default function SalesLeadsPage() {
         intent: lead.intent || "Hot",
         assignedSalesRepName: lead.assigned_sales_rep?.name || "",
         assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
+        hasManualPaymentHistory: Boolean(
+          lead?.manual_payment_summary?.paidAmount > 0 ||
+            lead?.manual_payment_summary?.hasFullPayment
+        ),
+        isPaymentPending: !["paid", "booked"].includes(
+          String(lead.booking_status || "").trim().toLowerCase()
+        ),
       }));
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
@@ -709,10 +742,14 @@ export default function SalesLeadsPage() {
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
     id: number | string,
+    bookingStatus?: string | null,
+    allowPaymentTransaction?: boolean,
   ) => {
     e.stopPropagation();
     setSelectedClient(client);
     setSelectedLeadId(id);
+    setSelectedBookingStatus(bookingStatus || null);
+    setSelectedAllowPaymentTransaction(Boolean(allowPaymentTransaction));
 
     const rect = e.currentTarget.getBoundingClientRect();
     const menuWidth = 220;
@@ -1006,6 +1043,14 @@ export default function SalesLeadsPage() {
                     options={["All", "Hot", "Warm", "Cold"]}
                     onChange={(val) => setIntentFilter(val as any)}
                   />
+                  {leadsViewMode === "grid" && (
+                    <BasicDropdown
+                      label="Shoot Stage"
+                      value={shootStageFilter}
+                      options={SHOOT_STAGE_OPTIONS as any}
+                      onChange={(val) => setShootStageFilter(val)}
+                    />
+                  )}
                   <BasicDropdown
                     label="All Statuses"
                     value={statusFilter}
@@ -1065,6 +1110,8 @@ export default function SalesLeadsPage() {
                 totalPages={leadsTotalPages}
                 totalRecords={leadsTotalRecords}
                 limit={leadsLimit}
+                activeStatusFilter={statusFilter}
+                onViewModeChange={setLeadsViewMode}
                 onPageChange={(page) => setLeadsCurrentPage(page)}
                 onRowClick={handleRowClick}
                 onOpenMenu={handleOpenMenu}
@@ -1076,7 +1123,15 @@ export default function SalesLeadsPage() {
                 <MobileLeadRow
                   key={lead.lead_id}
                   lead={lead}
-                  onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+                  onOpenMenu={(e) =>
+                    handleOpenMenu(
+                      e,
+                      lead.clientName,
+                      lead.lead_id,
+                      lead.bookingStatus,
+                      Boolean(lead.isPaymentPending || lead.hasManualPaymentHistory)
+                    )
+                  }
                 />
               ))}
             </div>
@@ -1091,6 +1146,10 @@ export default function SalesLeadsPage() {
             limit={usersLimit}
             headers={["Lead ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
             onPageChange={(page) => setUsersCurrentPage(page)}
+            enableKanbanView
+            kanbanStatuses={[...BOOKING_STATUS_OPTIONS, "Approved", "Rejected", "Pending", "Unknown"]}
+            getItemId={(user) => user.id}
+            getItemStatus={(user) => user.bookingStatus || user.status}
             renderRow={(user) => (
               <tr
                 key={user.id}
@@ -1142,16 +1201,100 @@ export default function SalesLeadsPage() {
                 </td>
                 <td className="py-5 px-6 text-right">
                   <button
-                    className={`transition-colors p-1 ${isDark ? "text-[#666] hover:text-white" : "text-[#999] hover:text-black"}`}
-                    onClick={(e) => {
-                      const rawId = user.id.replace('#', '');
-                      handleOpenMenu(e, user.name, rawId as any);
-                    }}
-                  >
+                      className={`transition-colors p-1 ${isDark ? "text-[#666] hover:text-white" : "text-[#999] hover:text-black"}`}
+                      onClick={(e) => {
+                        const rawId = user.id.replace('#', '');
+                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
+                      }}
+                    >
                     <MoreVertical size={20} />
                   </button>
                 </td>
               </tr>
+            )}
+            renderKanbanCard={(user) => (
+              <div
+                onClick={() => handleUserRowClick(user)}
+                className={`group cursor-pointer rounded-2xl border p-4 transition-all ${
+                  isDark
+                    ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
+                    : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden ${
+                      isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
+                    }`}>
+                      {user.imageUrl ? (
+                        <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        user.initials
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
+                        {user.id}
+                      </p>
+                      <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${
+                        isDark ? "text-white" : "text-[#111111]"
+                      }`}>
+                        {user.name}
+                      </h4>
+                      <p className={`mt-1 text-sm truncate ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
+                      isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
+                    }`}
+                    onClick={(e) => {
+                      const rawId = user.id.replace('#', '');
+                      handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
+                    }}
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  <div className={`rounded-xl p-3 ${isDark ? "bg-[#101010]" : "bg-[#FAF6EE]"}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Type</p>
+                        <p className={`mt-1 text-sm font-medium ${isDark ? "text-[#F1F1F1]" : "text-[#222222]"}`}>
+                          {user.type}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Intent</p>
+                        <div className="mt-1">
+                          <IntentBadge intent={(user.intent as any) || "Warm"} size="sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <LeadsStatusBadge status={(user.bookingStatus as any) || user.status || "Unknown"} />
+                    <p className={`text-sm ${isDark ? "text-[#B9B9B9]" : "text-[#555555]"}`}>
+                      {user.phoneNumber || "N/A"}
+                    </p>
+                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                        {user.assignedSalesRepName || "Unassigned"}
+                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                    <p className={`text-xs ${isDark ? "text-[#5F5F5F]" : "text-[#9A9A9A]"}`}>
+                      {user.joinDate}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
             renderMobileDetails={(user) => (
               <div className="p-4 grid grid-cols-2 gap-4">
@@ -1189,11 +1332,20 @@ export default function SalesLeadsPage() {
           <ActionMenu
             client={selectedClient}
             leadId={selectedLeadId}
+            bookingStatus={selectedBookingStatus || undefined}
+            allowPaymentTransaction={selectedAllowPaymentTransaction}
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
             anchor={menuAnchor}
             hideDelete={!isUserTypeSeven}
             onDeleteSuccess={() => {
+              refetchLeads();
+              fetchDashboardOverview();
+              if (activeTab !== "Booking") {
+                fetchUsers();
+              }
+            }}
+            onManualPaymentSuccess={() => {
               refetchLeads();
               fetchDashboardOverview();
               if (activeTab !== "Booking") {

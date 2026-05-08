@@ -12,6 +12,29 @@ import "swiper/css/effect-cards";
 
 import { adminApi } from "@/lib/api";
 
+/**
+ * Custom CSS for Vertical Stacking
+ */
+const customSwiperStyles = `
+  .dashboard-stack-swiper {
+    width: 100%;
+    height: 420px !important; 
+    padding-top: 30px !important; /* Space for the stacked cards at the top */
+    padding-bottom: 30px !important; /* Space for the stacked cards at the bottom */
+    overflow: visible !important;
+  }
+
+  .dashboard-stack-swiper .swiper-slide {
+    border-radius: 16px;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Adjust the Cards effect for vertical peeking */
+  .swiper-slide-shadow {
+    display: none !important;
+  }
+`;
+
 const CardWrapper = ({ children, isDark }: { children: React.ReactNode; isDark: boolean }) => (
   <div className={`w-full max-w-[1100px] lg:h-[340px] rounded-2xl border p-5 overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-[#F4F5F7] border-[#D7D7D7] text-[#323232]"
     }`}>
@@ -38,7 +61,7 @@ const StatsLayout = ({
 }: any) => (
   <div className={`flex flex-col lg:flex-row gap-6 h-full items-stretch lg:items-center ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}`}>
     {/* Left */}
-    <div className="lg:w-1/4 flex flex-col justify-between shrink-0 h-full">
+    <div className="lg:w-1/4 flex flex-col justify-between shrink-0 h-full lg:py-5">
       <div className="flex items-center gap-2">
         <div className="w-[3px] h-6 bg-[#E5D5B8]" />
         <h3>{title}</h3>
@@ -94,14 +117,13 @@ const StatsLayout = ({
     {/* Right Info Card */}
     {hasInfoCard && (
       <div className="w-full lg:w-1/4">
-        <div className="bg-[#ECD7B4] rounded-[28px] p-4 lg:p-6 text-black h-[200px] flex flex-col justify-between">
+        <div className="bg-[#ECD7B4] rounded-[28px] p-6 lg:p-3 text-black h-[180px] flex flex-col justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-black p-3 rounded-full text-white shrink-0">
               <CircleDollarSign size={30} />
             </div>
             <span className="text-[#101010] text-base">{rightLabel}</span>
           </div>
-
           <div>
             <h4 className="text-[26px] font-semibold font-black">
               {isLoading ? (
@@ -239,17 +261,20 @@ export default function StackedDashboard() {
   };
 
   return (
-    <div className={`dashboard-stack-container w-full rounded-2xl border p-3 lg:p-5 transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#FFF] border-[#E3E3E3]"
-      }`}>
+    <div className={`dashboard-stack-container w-full rounded-2xl border p-3 lg:p-5 transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#FFF] border-[#E3E3E3]"}`}>
+      <style>{customSwiperStyles}</style>
       <div className="relative overflow-hidden px-3 lg:px-10">
         <Swiper
+          direction="vertical"
           effect="cards"
           grabCursor
           modules={[EffectCards]}
           className="dashboard-stack-swiper"
+          loop={true}
+          speed={800}
           cardsEffect={{
             slideShadows: false,
-            perSlideOffset: 8,
+            perSlideOffset: 10,
             perSlideRotate: 0,
           }}
         >

@@ -13,6 +13,10 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { DatePicker, datePickerColours } from "@/components/ui/Datepicker";
+import { TimePicker } from "@/components/ui/Timepicker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DeleteMeetingConfirmModal from "@/components/meetings/DeleteMeetingConfirmModal";
 import {
   meetingsApi,
@@ -25,6 +29,7 @@ import { formatMeetingStatusLabel, getEffectiveMeetingStatus } from "@/lib/meeti
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type AddRole = "cp" | "manager";
+type MeetingType = "pre_production" | "post_production";
 
 interface MeetingDetailsModalProps {
   open: boolean;
@@ -65,6 +70,14 @@ const resolveId = (value: unknown) => {
     return String(source._id || source.id || source.user_id || "");
   }
   return "";
+};
+
+const combineDateAndTime = (date: Date | null, time: Date | null) => {
+  if (!date || !time) return "";
+  const combined = new Date(date);
+  combined.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  if (Number.isNaN(combined.getTime())) return "";
+  return combined.toISOString();
 };
 
 const normalizeParticipant = (
@@ -160,9 +173,17 @@ export default function MeetingDetailsModal({
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [editMeetingTitle, setEditMeetingTitle] = useState("");
+  const [editMeetingType, setEditMeetingType] = useState<MeetingType>("post_production");
+  const [editDescription, setEditDescription] = useState("");
+  const [editMeetLink, setEditMeetLink] = useState("");
+  const [editMeetingDate, setEditMeetingDate] = useState<Date | null>(null);
+  const [editMeetingStartTime, setEditMeetingStartTime] = useState<Date | null>(null);
+  const [editMeetingEndTime, setEditMeetingEndTime] = useState<Date | null>(null);
 
   const effectiveStatus = getEffectiveMeetingStatus(meetingData);
   const isCompleted = effectiveStatus === "completed";
+  const isCancelled = String(effectiveStatus || "").toLowerCase() === "cancelled";
   const canManageParticipants = role === "admin";
   const createdById = resolveId(meetingData?.created_by?.id);
   const isClientCreatedBySelf =
@@ -181,6 +202,17 @@ export default function MeetingDetailsModal({
     id: currentUserId,
     email: currentUserEmail || "",
   });
+  const meetingStartMs = meetingData?.meeting_date_time ? new Date(meetingData.meeting_date_time).getTime() : NaN;
+  const meetingStartValid = Number.isFinite(meetingStartMs);
+  const editCutoffMs = meetingStartValid ? meetingStartMs - 60 * 60 * 1000 : NaN;
+  const canAdminEditOrReschedule =
+    role === "admin" &&
+    !!meetingData?.id &&
+    !isCompleted &&
+    !isCancelled &&
+    meetingStartValid &&
+    Date.now() < editCutoffMs;
+  const isPastEditCutoff = role === "admin" && meetingStartValid && Date.now() >= editCutoffMs;
 
   const participants = useMemo(() => getAllParticipants(meetingData), [meetingData]);
 
@@ -200,6 +232,18 @@ export default function MeetingDetailsModal({
   useEffect(() => {
     setMeetingData(meeting);
   }, [meeting]);
+
+  useEffect(() => {
+    const start = meetingData?.meeting_date_time ? new Date(meetingData.meeting_date_time) : null;
+    const end = meetingData?.meeting_end_time ? new Date(meetingData.meeting_end_time) : null;
+    setEditMeetingTitle(String(meetingData?.meeting_title || ""));
+    setEditMeetingType((meetingData?.meeting_type as MeetingType) || "post_production");
+    setEditDescription(String(meetingData?.description || ""));
+    setEditMeetLink(String(meetingData?.meetLink || ""));
+    setEditMeetingDate(start && !Number.isNaN(start.getTime()) ? start : null);
+    setEditMeetingStartTime(start && !Number.isNaN(start.getTime()) ? start : null);
+    setEditMeetingEndTime(end && !Number.isNaN(end.getTime()) ? end : null);
+  }, [meetingData]);
 
   const refreshMeeting = useCallback(async () => {
     if (!meeting?.id) return;
@@ -257,6 +301,8 @@ export default function MeetingDetailsModal({
   }, [open]);
 
   if (!open || !meetingData) return null;
+  const isEditDateToday =
+    !!editMeetingDate && new Date(editMeetingDate).toDateString() === new Date().toDateString();
 
   const handleRefresh = async () => {
     if (!meetingData.id) return;
@@ -348,11 +394,68 @@ export default function MeetingDetailsModal({
     }
   };
 
+  const handleAdminSaveMeeting = async () => {
+    if (!meetingData.id || !canAdminEditOrReschedule) return;
+    const startIso = combineDateAndTime(editMeetingDate, editMeetingStartTime);
+    const endIso = combineDateAndTime(editMeetingDate, editMeetingEndTime);
+
+    if (!startIso || !endIso) {
+      toast.error("Please select valid start and end date/time.");
+      return;
+    }
+
+    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
+      toast.error("Meeting end time must be after the start time.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await meetingsApi.updateMeeting(meetingData.id, {
+        meeting_title: editMeetingTitle.trim() || meetingData.meeting_title || "Meeting",
+        meeting_type: editMeetingType,
+        description: editDescription.trim() || undefined,
+        meeting_date_time: startIso,
+        meeting_end_time: endIso,
+        meeting_status: "rescheduled",
+      });
+      toast.success("Meeting updated successfully");
+      await refreshMeeting();
+      await onUpdated?.();
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update meeting");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAdminCancelMeeting = async () => {
+    if (!meetingData.id || !canAdminEditOrReschedule) return;
+    const confirmed = window.confirm("Are you sure you want to cancel this meeting?");
+    if (!confirmed) return;
+
+    setSubmitting(true);
+    try {
+      await meetingsApi.updateMeeting(meetingData.id, {
+        meeting_status: "cancelled",
+      });
+      toast.success("Meeting cancelled successfully");
+      await refreshMeeting();
+      await onUpdated?.();
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to cancel meeting");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#090909] shadow-2xl">
+      <div className="relative z-10 flex max-h-[88vh] w-full max-w-[860px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#090909] shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <div>
             <h2 className="text-2xl font-semibold text-white">
@@ -369,8 +472,8 @@ export default function MeetingDetailsModal({
           </button>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="min-h-0 overflow-y-auto border-b border-white/10 px-6 py-5 lg:border-b-0 lg:border-r">
+        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[1.35fr_0.65fr]">
+          <div className="min-h-0 overflow-y-auto border-b border-white/10 px-6 py-5 lg:border-b-0 lg:border-r [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <div className="space-y-4">
               <div className="rounded-2xl border border-white/10 bg-[#111111] p-4">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -409,15 +512,15 @@ export default function MeetingDetailsModal({
                     href={meetingData.meetLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-disabled={isCompleted}
+                    aria-disabled={isCompleted || isCancelled}
                     onClick={(event) => {
-                      if (isCompleted) {
+                      if (isCompleted || isCancelled) {
                         event.preventDefault();
                       }
                     }}
                     className={cn(
                       "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold",
-                      isCompleted
+                      isCompleted || isCancelled
                         ? "cursor-not-allowed border border-white/10 bg-[#111111] text-white/30"
                         : "bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
                     )}
@@ -455,6 +558,128 @@ export default function MeetingDetailsModal({
                   </Button>
                 ) : null}
               </div>
+
+              {role === "admin" ? (
+                <div className="rounded-[26px] border border-white/10 bg-[#101010] p-5">
+                  <div className="mb-5">
+                    <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/35">Meeting Basics</p>
+                    <h3 className="mt-2 text-lg font-semibold text-white">Schedule & context</h3>
+                    <p className="mt-1 text-sm text-white/45">
+                      You can edit title, type, description, and schedule until 1 hour before start time.
+                    </p>
+                    {isPastEditCutoff ? (
+                      <p className="mt-2 text-xs text-amber-300">
+                        Editing is locked because this meeting is within 1 hour of its start time.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-white/70">Meeting Title</label>
+                      <Input
+                        value={editMeetingTitle}
+                        onChange={(event) => setEditMeetingTitle(event.target.value)}
+                        placeholder="Project catch-up"
+                        disabled={!canAdminEditOrReschedule || submitting}
+                        className="h-12 border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-white/70">Meeting Type</label>
+                      <Select
+                        value={editMeetingType}
+                        onValueChange={(value) => setEditMeetingType(value as MeetingType)}
+                        disabled={!canAdminEditOrReschedule || submitting}
+                      >
+                        <SelectTrigger className="h-12 border-[#2C2C2C] bg-[#151515] text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-white/10 bg-[#111111] text-white">
+                          <SelectItem value="pre_production" className="focus:bg-[#1B1B1B] focus:text-white">
+                            Pre Production
+                          </SelectItem>
+                          <SelectItem value="post_production" className="focus:bg-[#1B1B1B] focus:text-white">
+                            Post Production
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-4 md:col-span-2 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <DatePicker
+                          label="Meeting Date"
+                          value={editMeetingDate}
+                          onChange={setEditMeetingDate}
+                          minDate={new Date()}
+                          colors={datePickerColours}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <TimePicker
+                          label="Start Time"
+                          value={editMeetingStartTime}
+                          onChange={setEditMeetingStartTime}
+                          minTime={isEditDateToday ? new Date() : null}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <TimePicker
+                          label="End Time"
+                          value={editMeetingEndTime}
+                          onChange={setEditMeetingEndTime}
+                          minTime={editMeetingStartTime || (isEditDateToday ? new Date() : null)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-medium text-white/70">Google Meet Link</label>
+                      <Input
+                        value={editMeetLink}
+                        readOnly
+                        disabled
+                        className="h-12 border-[#2C2C2C] bg-[#121212] text-white/70"
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-medium text-white/70">Description</label>
+                      <Textarea
+                        value={editDescription}
+                        onChange={(event) => setEditDescription(event.target.value)}
+                        rows={4}
+                        placeholder="Agenda, discussion points, or notes for the team."
+                        disabled={!canAdminEditOrReschedule || submitting}
+                        className="min-h-[120px] rounded-2xl border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Button
+                      type="button"
+                      onClick={handleAdminSaveMeeting}
+                      disabled={!canAdminEditOrReschedule || submitting}
+                      className="bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
+                    >
+                      {submitting ? <Loader2 size={15} className="animate-spin" /> : null}
+                      Save Changes
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAdminCancelMeeting}
+                      disabled={!canAdminEditOrReschedule || submitting}
+                      className="border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
+                    >
+                      Cancel Meeting
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
 
               {canRespond ? (
                 <div className="rounded-2xl border border-white/10 bg-[#111111] p-4">
@@ -494,7 +719,7 @@ export default function MeetingDetailsModal({
             </div>
           </div>
 
-          <div className="min-h-0 overflow-y-auto px-6 py-5">
+          <div className="min-h-0 overflow-y-auto px-6 py-5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-lg font-semibold text-white">Participants</p>

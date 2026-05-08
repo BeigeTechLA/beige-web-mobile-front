@@ -17,11 +17,22 @@ import {
   Copy,
   Plus,
   X,
+  Clock,
+  Circle,
+  Edit,
   Pencil,
   Edit2,
-  Clock
+  ArrowUpToLine,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   useGetLeadByIdQuery,
   useUpdateBookingCrewMutation,
@@ -30,18 +41,17 @@ import {
   useUpdateLeadIntentMutation
 } from "@/lib/redux/features/sales/salesApi";
 
-import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
-
 import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
+import { parseDate } from "@/src/components/landing/lib/utils";
 import GeneratePaymentLink from "@/components/sales/GeneratePaymentLink";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
-import { parseDate } from "@/src/components/landing/lib/utils";
+import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 import {
   Dialog,
   DialogContent,
@@ -52,10 +62,12 @@ import ConvertBookingModal, {
   type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
+import SalesQuoteEditAccessModal from "@/components/sales/quotes/SalesQuoteEditAccessModal";
 import {
-  salesApi as salesService,
+  salesApi,
   type LeadBookingSchedulePayload,
 } from "@/lib/api";
+import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 
@@ -69,6 +81,18 @@ import "swiper/css/effect-coverflow";
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 const ASSIGN_TO_ME_VALUE = "__assign_to_me__";
+
+const resolveS3ProofUrl = (value?: string | null) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+  if (/^https?:\/\//i.test(rawValue)) return rawValue;
+
+  const normalizedPrefix = String(S3_PREFIX || "").replace(/\/+$/, "");
+  const normalizedPath = rawValue.replace(/^\/+/, "");
+  return normalizedPrefix
+    ? `${normalizedPrefix}/${normalizedPath}`
+    : rawValue;
+};
 
 /** 
  * UPDATED ROLE MAPPING LOGIC
@@ -173,6 +197,18 @@ const QUOTE_LINE_ITEM_CATEGORY_LABELS: Record<string, string> = {
 type LeadActivityLike = {
   activity_type?: string;
   activity_data?: unknown;
+  created_at?: string;
+};
+
+type ManualPaymentActivityMeta = {
+  payment_method?: string;
+  payment_type?: string;
+  payment_mode?: string;
+  other_payment_mode?: string | null;
+  amount?: number | string | null;
+  total_amount?: number | string | null;
+  proof_url?: string | null;
+  notes?: string | null;
 };
 
 type QuoteLineItemLike = {
@@ -199,6 +235,33 @@ type BookingDayLike = {
   end_time?: string | null;
 };
 
+type HoverTooltipProps = {
+  message: string;
+  isDark?: boolean;
+  align?: "left" | "right";
+};
+
+function HoverTooltip({
+  message,
+  isDark = true,
+  align = "left",
+}: HoverTooltipProps) {
+  return (
+    <div
+      role="tooltip"
+      className={`pointer-events-none absolute top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border px-3 py-2 text-xs leading-5 shadow-xl opacity-0 translate-y-1 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 ${
+        align === "right" ? "right-0" : "left-0"
+      } ${
+        isDark
+          ? "border-[#3D3D3D] bg-[#111111] text-white/80"
+          : "border-[#E7D7BC] bg-white text-black/75"
+      }`}
+    >
+      {message}
+    </div>
+  );
+}
+
 export default function SalesLeadDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -220,7 +283,6 @@ export default function SalesLeadDetailsPage() {
   const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
   const [isCPModalOpen, setIsCPModalOpen] = useState(false);
   const [selectedCPId, setSelectedCPId] = useState<string | null>(null);
-  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
   const [isEditingSalesRep, setIsEditingSalesRep] = useState(false);
   const [isUpdatingSalesRep, setIsUpdatingSalesRep] = useState(false);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
@@ -229,6 +291,17 @@ export default function SalesLeadDetailsPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isConvertedBookingEditModalOpen, setIsConvertedBookingEditModalOpen] = useState(false);
   const [isUpdatingConvertedBooking, setIsUpdatingConvertedBooking] = useState(false);
+  const [pendingEditView, setPendingEditView] = useState<QuoteEditorView | null>(null);
+  const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
+  const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
+  const [manualPaymentAmount, setManualPaymentAmount] = useState("");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other">("cash");
+  const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
+  const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
+  const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
+  const [isUploadingManualProof, setIsUploadingManualProof] = useState(false);
+  const [manualPaymentNotes, setManualPaymentNotes] = useState("");
+  const [isSubmittingManualPayment, setIsSubmittingManualPayment] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -236,27 +309,19 @@ export default function SalesLeadDetailsPage() {
     try {
       const storedUser = localStorage.getItem("revure_user");
       const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const userTypeId = parsedUser?.user_type_id ?? parsedUser?.userTypeId;
-      setIsUserTypeSeven(userTypeId === 7);
       const resolvedUserId = parsedUser?.id ?? parsedUser?.user?.id;
       setCurrentUserId(resolvedUserId ? String(resolvedUserId) : "");
     } catch (error) {
       console.error("Failed to read logged in user from localStorage:", error);
-      setIsUserTypeSeven(false);
       setCurrentUserId("");
     }
   }, []);
 
   useEffect(() => {
-    if (!isUserTypeSeven) {
-      setSalesRepOptions([]);
-      return;
-    }
-
     const fetchSalesReps = async () => {
       setIsLoadingSalesReps(true);
       try {
-        const result = await salesService.getSalesReps();
+        const result = await salesApi.getSalesReps();
         if (result.success && Array.isArray(result.data)) {
           setSalesRepOptions(
             result.data.map((rep: any) => ({
@@ -276,7 +341,7 @@ export default function SalesLeadDetailsPage() {
     };
 
     fetchSalesReps();
-  }, [isUserTypeSeven]);
+  }, []);
 
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
@@ -296,6 +361,7 @@ export default function SalesLeadDetailsPage() {
     useGenerateDiscountCodeMutation();
 
   const [updateLeadIntent] = useUpdateLeadIntentMutation();
+  const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
 
   const lead = leadData;
   const booking = lead?.booking;
@@ -310,18 +376,25 @@ export default function SalesLeadDetailsPage() {
     !["paid", "success", "completed"].includes(
       String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase()
     );
+
+  useEffect(() => {
+    // Refetch lead data on mount to ensure fresh data after navigating back from quote editor
+    refetch();
+  }, [refetch]);
+
   const additionalPaymentDetails = useMemo(() => {
     if (!rawAdditionalPayment) return null;
 
-    const additionalAmount = Number(rawAdditionalPayment.additional_amount ?? 0);
-    const previouslyPaidAmount = Number(rawAdditionalPayment.previously_paid_amount ?? 0);
-    const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
+    const actuallyPaidAmount = Number(lead?.pricing_breakdown?.total_paid ?? 0);
+    const revisedTotal = Number(lead?.custom_quote?.total ?? lead?.pricing_breakdown?.total ?? rawAdditionalPayment.revised_total ?? 0);
     const outstandingAmount = Number(
-      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - previouslyPaidAmount, 0)
+      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - actuallyPaidAmount, 0)
     );
+    const additionalAmount = revisedTotal - actuallyPaidAmount;
+
     if (
-      additionalAmount <= 0 &&
-      previouslyPaidAmount <= 0 &&
+      Math.abs(additionalAmount) <= 0.009 &&
+      actuallyPaidAmount <= 0 &&
       revisedTotal <= 0 &&
       outstandingAmount <= 0 &&
       !String(rawAdditionalPayment.payment_status || "").trim() &&
@@ -333,7 +406,8 @@ export default function SalesLeadDetailsPage() {
 
     return {
       additionalAmount,
-      previouslyPaidAmount,
+      isDecrease: additionalAmount < -0.009,
+      previouslyPaidAmount: actuallyPaidAmount,
       revisedTotal,
       outstandingAmount,
       paymentStatusLabel: formatStatusLabel(rawAdditionalPayment.payment_status),
@@ -342,7 +416,7 @@ export default function SalesLeadDetailsPage() {
         : null,
       lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
     };
-  }, [rawAdditionalPayment]);
+  }, [rawAdditionalPayment, lead?.pricing_breakdown?.total_paid, lead?.pricing_breakdown?.total, lead?.custom_quote?.total]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -423,7 +497,12 @@ export default function SalesLeadDetailsPage() {
 
   const customQuoteId =
     lead?.custom_quote_id ?? (lead as any)?.customQuoteId ?? null;
-  const editableQuoteId = customQuoteId ?? quotePricingDetails?.quoteId;
+  const editableQuoteId =
+    customQuoteId ??
+    quotePricingDetails?.quoteId ??
+    primaryQuote?.quote_id ??
+    booking?.quote_id ??
+    null;
   const canEditQuote = Boolean(editableQuoteId);
   const hasQuoteLevelDiscount = Number(quotePricingDetails?.discountAmount ?? 0) > 0;
   const isDiscountLockedByQuote = isQuoteConvertedLead && hasQuoteLevelDiscount;
@@ -585,6 +664,10 @@ export default function SalesLeadDetailsPage() {
   const startTime = formatTime(booking?.start_time);
   const endTime = formatTime(booking?.end_time);
   const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "Not set";
+  const quoteEditAccessShootDateValue =
+    booking?.event_date && booking?.start_time
+      ? `${booking.event_date}T${String(booking.start_time).slice(0, 5)}:00`
+      : booking?.event_date || null;
 
   // Extract data with defaults
   const clientName = lead?.client_name || lead?.guest_email || "Unknown User";
@@ -597,8 +680,8 @@ export default function SalesLeadDetailsPage() {
   const email = lead?.guest_email || "No email";
   const phone = lead?.phone || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
+  const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
-  
   const isAmountPaid =
     ["paid", "success", "completed"].includes(
       String(lead?.payment_status || "").trim().toLowerCase()
@@ -621,15 +704,28 @@ export default function SalesLeadDetailsPage() {
   const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
-  const discountAmount = lead?.pricing_breakdown?.discount || 0;
-  const total = isQuoteConvertedLead
-    ? Number(
-        additionalPaymentDetails?.revisedTotal ??
-          primaryQuote?.total ??
-          lead?.pricing_breakdown?.total ??
-          0
-      )
-    : lead?.pricing_breakdown?.total || 0;
+  const discountAmount = isQuoteConvertedLead
+    ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
+    : Number(lead?.pricing_breakdown?.discount ?? 0);
+  const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
+  const totalBeforeCredit = Number(
+    lead?.pricing_breakdown?.total_before_credit ??
+      primaryQuote?.total ??
+      lead?.pricing_breakdown?.total ??
+      0
+  );
+  const totalAfterCredit = Number(
+    lead?.pricing_breakdown?.total_after_credit ??
+      primaryQuote?.total ??
+      lead?.pricing_breakdown?.total ??
+      0
+  );
+  const total = creditApplied > 0
+    ? totalAfterCredit
+    : (isQuoteConvertedLead
+      ? Number(primaryQuote?.total ?? totalAfterCredit)
+      : totalAfterCredit);
+
   const referralInfo = useMemo(() => {
     const notes = booking?.primary_quote?.notes || "";
     const match = String(notes).match(/Referral applied \(([^)]+)\): -\$(\d+(?:\.\d+)?)/i);
@@ -640,6 +736,201 @@ export default function SalesLeadDetailsPage() {
   const referralDiscountAmount = referralInfo.amount;
   const discountCodeDiscount = Math.max(0, discountAmount - referralDiscountAmount);
   const discountCodeValue = lead?.discount_codes?.[0]?.code || null;
+
+  const latestManualPaymentEntry = useMemo(() => {
+    const manualActivities = (lead?.activities || []).filter((activity: LeadActivityLike) => {
+      if (activity?.activity_type !== "payment_completed" || !activity?.activity_data) return false;
+      try {
+        const payload = typeof activity.activity_data === "string"
+          ? JSON.parse(activity.activity_data)
+          : activity.activity_data;
+        return typeof payload === "object" && payload !== null && (payload as ManualPaymentActivityMeta).payment_method === "manual";
+      } catch {
+        return false;
+      }
+    });
+
+    if (!manualActivities.length) return null;
+
+    const sortedEntries = [...manualActivities].sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+    const latestEntry = sortedEntries[0];
+    let latestData: unknown = latestEntry.activity_data;
+    if (typeof latestEntry.activity_data === "string") {
+      try {
+        latestData = JSON.parse(latestEntry.activity_data);
+      } catch {
+        latestData = {};
+      }
+    }
+
+    return {
+      createdAt: latestEntry.created_at,
+      data: (latestData || {}) as ManualPaymentActivityMeta,
+    };
+  }, [lead?.activities]);
+
+  const manualPaymentSummary = useMemo(() => {
+    const manualActivities = (lead?.activities || [])
+      .filter((activity: LeadActivityLike) => activity?.activity_type === "payment_completed" && activity?.activity_data)
+      .map((activity: LeadActivityLike) => {
+        try {
+          const payload = typeof activity.activity_data === "string"
+            ? JSON.parse(activity.activity_data)
+            : activity.activity_data;
+          if (!payload || (payload as ManualPaymentActivityMeta).payment_method !== "manual") return null;
+          return payload as ManualPaymentActivityMeta;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as ManualPaymentActivityMeta[];
+
+    const hasFullPayment = manualActivities.some((entry) => entry.payment_type === "full");
+    const partialPaid = manualActivities.reduce((sum, entry) => {
+      if (entry.payment_type !== "partial") return sum;
+      const numeric = Number(entry.amount || 0);
+      return sum + (Number.isFinite(numeric) ? numeric : 0);
+    }, 0);
+
+    const resolvedTotal = total > 0 ? total : Number(latestManualPaymentEntry?.data?.total_amount || 0);
+    const paidAmount = hasFullPayment ? resolvedTotal : partialPaid;
+    const pendingAmount = Math.max(resolvedTotal - paidAmount, 0);
+
+    return {
+      hasFullPayment,
+      paidAmount,
+      pendingAmount,
+      isPartiallyPaid: !hasFullPayment && paidAmount > 0 && pendingAmount > 0,
+      canTakePayment: !hasFullPayment && pendingAmount > 0,
+    };
+  }, [lead?.activities, latestManualPaymentEntry?.data?.total_amount, total]);
+
+  const manualPaymentEntries = useMemo(() => {
+    return (lead?.activities || [])
+      .filter((activity: LeadActivityLike) => activity?.activity_type === "payment_completed" && activity?.activity_data)
+      .map((activity: LeadActivityLike) => {
+        try {
+          const payload = typeof activity.activity_data === "string"
+            ? JSON.parse(activity.activity_data)
+            : activity.activity_data;
+          if (!payload || (payload as ManualPaymentActivityMeta).payment_method !== "manual") return null;
+          return {
+            createdAt: activity.created_at || null,
+            data: payload as ManualPaymentActivityMeta,
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(String(b?.createdAt || 0)).getTime() - new Date(String(a?.createdAt || 0)).getTime()) as Array<{
+        createdAt: string | null;
+        data: ManualPaymentActivityMeta;
+      }>;
+  }, [lead?.activities]);
+
+  const manualPaymentStatusLabel = latestManualPaymentEntry
+    ? latestManualPaymentEntry.data.payment_type === "partial"
+      ? "Partially Paid (Manual)"
+      : "Paid (Manual)"
+    : null;
+
+  const effectiveStatusLabel = hasPendingAdditionalPayment
+    ? "Pending"
+    : manualPaymentSummary.isPartiallyPaid
+      ? "Partially Paid"
+      : status;
+  const hasManualPaymentHistory = manualPaymentEntries.length > 0;
+  const paymentMethodLabel = hasManualPaymentHistory
+    ? "Manual"
+    : isAmountPaid
+      ? "Stripe"
+      : "Pending";
+  const showManualPaymentPanel = !isAmountPaid || hasManualPaymentHistory;
+
+  const handleManualPaymentSubmit = async () => {
+    const proofUrl = manualPaymentProofUrl.trim();
+    const otherMode = manualPaymentOtherMode.trim();
+    const parsedAmount = Number(manualPaymentAmount);
+
+    if (!proofUrl) {
+      toast.error("Proof URL is required");
+      return;
+    }
+
+    if (manualPaymentMode === "other" && !otherMode) {
+      toast.error("Please enter payment mode details");
+      return;
+    }
+
+    if (manualPaymentType === "partial") {
+      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        toast.error("Partial amount must be greater than 0");
+        return;
+      }
+      if (parsedAmount > manualPaymentSummary.pendingAmount) {
+        toast.error("Partial amount cannot exceed pending amount");
+        return;
+      }
+    }
+
+    setIsSubmittingManualPayment(true);
+    try {
+      const response = await salesApi.recordLeadManualPayment(leadId, {
+        payment_type: manualPaymentType,
+        amount: manualPaymentType === "partial" ? parsedAmount : undefined,
+        payment_mode: manualPaymentMode,
+        other_payment_mode: manualPaymentMode === "other" ? otherMode : undefined,
+        proof_url: proofUrl,
+        notes: manualPaymentNotes.trim() || undefined,
+      });
+
+      if (!response?.success) {
+        toast.error(response?.error || response?.message || "Failed to save manual payment");
+        return;
+      }
+
+      toast.success(
+        manualPaymentType === "partial"
+          ? "Partial payment saved successfully"
+          : "Manual full payment saved successfully"
+      );
+      setManualPaymentAmount("");
+      setManualPaymentProofUrl("");
+      setManualPaymentProofFileName("");
+      setManualPaymentNotes("");
+      setManualPaymentOtherMode("");
+      refetch();
+    } catch (error) {
+      console.error("Failed to save manual payment:", error);
+      toast.error("Failed to save manual payment");
+    } finally {
+      setIsSubmittingManualPayment(false);
+    }
+  };
+
+  const handleManualProofUpload = async (file: File | null) => {
+    if (!file) return;
+    setIsUploadingManualProof(true);
+    try {
+      const response = await salesApi.uploadManualPaymentProof(file);
+      if (!response?.success || !response?.data?.proof_url) {
+        toast.error(response?.error || response?.message || "Failed to upload proof");
+        return;
+      }
+
+      setManualPaymentProofUrl(response.data.proof_url);
+      setManualPaymentProofFileName(file.name);
+      toast.success("Proof uploaded successfully");
+    } catch (error) {
+      console.error("Failed to upload manual payment proof:", error);
+      toast.error("Failed to upload proof");
+    } finally {
+      setIsUploadingManualProof(false);
+    }
+  };
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
@@ -686,14 +977,57 @@ export default function SalesLeadDetailsPage() {
       return;
     }
 
+    setPendingEditView("details");
+  };
+
+  const proceedToEditQuote = (targetView: QuoteEditorView) => {
+    if (!editableQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
     const query = new URLSearchParams({
       quoteId: String(editableQuoteId),
-      view: "details",
+      view: targetView,
       editMode: "full",
       returnTo: pathname,
     });
 
-    router.push(`/sales/quotes/create?${query.toString()}`);
+    toast.success("Opening quote editor");
+    window.setTimeout(() => {
+      router.push(`/sales/quotes/create?${query.toString()}`);
+    }, 450);
+  };
+
+  const handleEditAccessProceed = async (payload: {
+    reason: string;
+    opsReviewConfirmed: boolean;
+  }) => {
+    if (!pendingEditView || !editableQuoteId) {
+      return;
+    }
+
+    setIsEditAccessSubmitting(true);
+
+    try {
+      const nextView = pendingEditView;
+      persistQuoteEditorEditReason(
+        String(editableQuoteId),
+        payload.reason,
+        payload.opsReviewConfirmed,
+      );
+      setPendingEditView(null);
+      proceedToEditQuote(nextView);
+    } catch (error) {
+      console.error("Failed to confirm restricted quote edit access", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm restricted quote edit access"
+      );
+    } finally {
+      setIsEditAccessSubmitting(false);
+    }
   };
 
   const handleUpdateIntent = async (intent: string, notes: string) => {
@@ -720,7 +1054,7 @@ export default function SalesLeadDetailsPage() {
     }
   };
 
-  const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
+  // const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
 
   const handleRemoveCP = async (cpId: number) => {
     try {
@@ -763,8 +1097,9 @@ export default function SalesLeadDetailsPage() {
     setIsUpdatingSalesRep(true);
     try {
       const result = isAssignToMe
-        ? await salesService.assignLeadToSelf(leadId)
-        : await salesService.changeLeadSalesRep(leadId, salesRepId);
+        ? await salesApi.assignLeadToSelf(leadId)
+        : await salesApi.changeLeadSalesRep(leadId, salesRepId);
+
       if (result.success) {
         toast.success(
           isAssignToMe
@@ -826,7 +1161,7 @@ export default function SalesLeadDetailsPage() {
         };
       }
 
-      const response = await salesService.updateLeadBookingSchedule(leadId, payload);
+      const response = await salesApi.updateLeadBookingSchedule(leadId, payload);
 
       if (!response?.success) {
         throw new Error(response?.error || response?.message || "Failed to update booking details");
@@ -911,15 +1246,30 @@ export default function SalesLeadDetailsPage() {
                     </div>
                     <div className="flex flex-col gap-2 min-w-0">
                       <h1 className={`lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
+                      <div className="flex items-center">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                            clientRegistrationType === "Registered"
+                              ? isDark
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : isDark
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {clientRegistrationType}
+                        </span>
+                      </div>
                       <div className=" lg:hidden">
-                        <LeadsStatusBadge status={status as any} />
+                        <LeadsStatusBadge status={effectiveStatusLabel as any} />
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2 items-center shrink-0">
                     <IntentBadge intent={(lead.intent || "Hot") as any} />
                     <div className="hidden lg:block">
-                      <LeadsStatusBadge status={status as any} />
+                      <LeadsStatusBadge status={effectiveStatusLabel as any} />
                     </div>
                   </div>
                 </div>
@@ -944,87 +1294,84 @@ export default function SalesLeadDetailsPage() {
                   <p>
                     Lead Source : <span className={isDark ? "text-white capitalize" : "text-black capitalize"}>{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
                   </p>
-                  {!isUserTypeSeven && (
-                    <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
-                  )}
-                  {isUserTypeSeven ? (
-                    <div className="relative flex w-full items-center gap-2 overflow-visible">
-                      <p>
-                        Assigned Sales Rep : <span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
-                      </p>
-                      <button
-                        type="button"
-                        aria-label={isEditingSalesRep ? "Close sales representative options" : "Edit assigned sales representative"}
-                        onClick={() => {
-                          if (isEditingSalesRep) {
-                            setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
-                            setIsEditingSalesRep(false);
-                            return;
-                          }
-                          setIsEditingSalesRep(true);
-                        }}
-                        className={`relative z-30 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
-                      >
-                        {isEditingSalesRep ? <X size={14} /> : <Pencil size={14} />}
-                      </button>
-                      {isEditingSalesRep && (
-                        <>
-                          <button
-                            type="button"
-                            aria-label="Close sales representative options"
-                            onClick={() => {
-                              setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
-                              setIsEditingSalesRep(false);
-                            }}
-                            className="fixed inset-0 z-20 cursor-default"
-                          />
-                          <div className={`absolute top-full left-0 mt-2 z-30 min-w-[260px] rounded-xl border overflow-hidden shadow-xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
-                            {isLoadingSalesReps ? (
-                              <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
-                                Loading...
-                              </div>
-                            ) : (
-                              <div className="py-1.5">
-                                  {salesRepDropdownOptions.map((option) => {
-                                    const isSelected =
-                                      option.value === ASSIGN_TO_ME_VALUE
-                                        ? Boolean(currentUserId) && currentUserId === String(lead?.assigned_sales_rep?.id || "")
-                                        : option.value === selectedSalesRepId;
-                                    return (
-                                      <button
-                                        key={option.value}
-                                        type="button"
-                                        onClick={() => {
-                                        if (isUpdatingSalesRep) return;
-                                        setSelectedSalesRepId(option.value);
-                                        handleUpdateSalesRep(option.value);
-                                      }}
-                                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                                        isSelected
-                                          ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-black font-medium")
-                                          : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
-                                      }`}
-                                    >
-                                      {option.label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <p>
+                  <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
+                  <div className="relative inline-flex items-center gap-2 flex-nowrap overflow-visible">
+                    <p className="whitespace-nowrap">
                       Assigned Sales Rep : <span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
                     </p>
-                  )}
+                    <button
+                      type="button"
+                      aria-label={isEditingSalesRep ? "Close sales representative options" : "Edit assigned sales representative"}
+                      onClick={() => {
+                        if (isEditingSalesRep) {
+                          setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
+                          setIsEditingSalesRep(false);
+                          return;
+                        }
+                        setIsEditingSalesRep(true);
+                      }}
+                      className={`relative z-30 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
+                    >
+                      {isEditingSalesRep ? <X size={14} /> : <Pencil size={14} />}
+                    </button>
+                    {isEditingSalesRep && (
+                      <>
+                        <button
+                          type="button"
+                          aria-label="Close sales representative options"
+                          onClick={() => {
+                            setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
+                            setIsEditingSalesRep(false);
+                          }}
+                          className="fixed inset-0 z-20 cursor-default"
+                        />
+                        <div className={`absolute top-full right-0 mt-2 z-30 min-w-[260px] rounded-xl border overflow-hidden shadow-xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                          {isLoadingSalesReps ? (
+                            <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                              Loading...
+                            </div>
+                          ) : (
+                            <div className="py-1.5">
+                                {salesRepDropdownOptions.map((option) => {
+                                  const isSelected =
+                                    option.value === ASSIGN_TO_ME_VALUE
+                                      ? Boolean(currentUserId) && currentUserId === String(lead?.assigned_sales_rep?.id || "")
+                                      : option.value === selectedSalesRepId;
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => {
+                                      if (isUpdatingSalesRep) return;
+                                      setSelectedSalesRepId(option.value);
+                                      handleUpdateSalesRep(option.value);
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${isSelected
+                                      ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-black font-medium")
+                                      : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
+                                      }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className={`text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
+                  Payment Via :{" "}
+                  <span className={isDark ? "text-white" : "text-black"}>
+                    {paymentMethodLabel}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Assigned CPs Section - Synchronized with Admin UI */}
+            {/* Assigned CPs Section - FLOATING UI & HOVER PILL & ACTIVE METADATA */}
             <div className={`border rounded-[32px] overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 lg:p-9 !pb-0 gap-4">
                 <h2 className={`text-xl lg:text-2xl font-medium ${isDark ? "text-white" : "text-black"}`}>
@@ -1098,7 +1445,7 @@ export default function SalesLeadDetailsPage() {
                       onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
                       className="w-full py-8"
                     >
-                      {filteredCPs.map((cp: any, index: number) => (
+                      {filteredCPs.map((cp, index) => (
                         <SwiperSlide key={cp.id}>
                           <div className="group relative transition-all duration-300">
                             {/* FLOATING IMAGE AREA */}
@@ -1174,21 +1521,25 @@ export default function SalesLeadDetailsPage() {
                   Booking Summary
                 </h2>
                 {!isQuoteConvertedLead && (
-                  <Button
-                    onClick={() => router.push(`/sales/leads/${params.id}/edit-booking`)}
-                    disabled={isAmountPaid}
-                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}                  >
-                    Edit Details
-                  </Button>
+                  <div className="group relative inline-flex">
+                    <Button
+                      onClick={() => router.push(`/sales/client/${params.id}/edit-booking`)}
+                      className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    >
+                      Edit Details
+                    </Button>
+                  </div>
                 )}
                 {isQuoteConvertedLead && (
-                  <Button
-                    onClick={() => setIsConvertedBookingEditModalOpen(true)}
-                    disabled={isAmountPaid || !convertedBookingInitialValues || isUpdatingConvertedBooking}
-                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                  >
-                    Edit Details
-                  </Button>
+                  <div className="group relative inline-flex">
+                    <Button
+                      onClick={() => setIsConvertedBookingEditModalOpen(true)}
+                      disabled={!convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    >
+                      Edit Details
+                    </Button>
+                  </div>
                 )}
               </div>
               <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
@@ -1243,7 +1594,6 @@ export default function SalesLeadDetailsPage() {
                   </div>
                 ) : (
                   <>
-                    {/* Date */}
                     <div className="flex items-start gap-4">
                       <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                         <Calendar size={20} />
@@ -1264,7 +1614,6 @@ export default function SalesLeadDetailsPage() {
                     </div>
                   </>
                 )}
-                {/* Location */}
                 <div className="flex items-start gap-4">
                   <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                     <MapPinned size={20} />
@@ -1274,7 +1623,6 @@ export default function SalesLeadDetailsPage() {
                     <p className={`text-xs lg:text-base font-medium max-w-md ${isDark ? "text-white" : "text-black"}`}>{location}</p>
                   </div>
                 </div>
-                {/* Type */}
                 <div className="flex items-start gap-4">
                   <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                     <Camera size={20} />
@@ -1296,15 +1644,14 @@ export default function SalesLeadDetailsPage() {
               <h2 className={`lg:text-xl font-medium p-4 lg:p-9 !pb-0 ${isDark ? "text-white" : "text-black"}`}>
                 Pricing Breakdown
               </h2>
-              <hr className={`mt-4 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
+              <hr className={`my-4 lg:my-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
                 {isQuoteConvertedLead && (
                   <div
-                    className={`rounded-2xl border px-4 py-3 ${
-                      isDark
-                        ? "border-[#4A3E28] bg-[#1E1912] text-[#F5E9D2]"
-                        : "border-[#E8D1AB] bg-[#FFF8E8] text-[#5C4717]"
-                    }`}
+                    className={`rounded-2xl border px-4 py-3 ${isDark
+                      ? "border-[#4A3E28] bg-[#1E1912] text-[#F5E9D2]"
+                      : "border-[#E8D1AB] bg-[#FFF8E8] text-[#5C4717]"
+                      }`}
                   >
                     <p className="text-sm font-medium">
                       This booking was created from a quote conversion, so pricing is locked from the approved quote and booking edits are disabled on this page.
@@ -1351,7 +1698,10 @@ export default function SalesLeadDetailsPage() {
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {[
                         ["Previously Paid", additionalPaymentDetails.previouslyPaidAmount],
-                        ["Additional Amount", additionalPaymentDetails.additionalAmount],
+                        [
+                          additionalPaymentDetails.isDecrease ? "Reduced Amount" : "Additional Amount",
+                          additionalPaymentDetails.additionalAmount
+                        ],
                         ["Revised Total", additionalPaymentDetails.revisedTotal],
                         ["Outstanding Amount", additionalPaymentDetails.outstandingAmount],
                       ].map(([label, value]) => (
@@ -1364,25 +1714,33 @@ export default function SalesLeadDetailsPage() {
                           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#71717B]">
                             {label}
                           </p>
-                          <p className={`mt-2 text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                            {formatCurrencyValue(value as number)}
+                          <p className={`mt-2 text-base font-semibold ${
+                            label === "Reduced Amount" || (typeof value === 'number' && value < 0)
+                              ? "text-red-500"
+                              : isDark ? "text-white" : "text-black"
+                          }`}>
+                            {label === "Reduced Amount" || label === "Additional Amount"
+                              ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                              : ""}
+                            {formatCurrencyValue(Math.abs(value as number))}
                           </p>
                         </div>
                       ))}
                     </div>
+                    {additionalPaymentDetails.isDecrease && (
+                      <p className={`mt-3 text-xs font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+                        This reduced amount will be added as Beige Credits after approval.
+                      </p>
+                    )}
                   </div>
                 )}
                 {/* <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Base Price</span>
-                  <span className="text-sm lg:text-base text-white">
-                    ${basePrice.toLocaleString()}
-                  </span>
+                  <span className="text-sm lg:text-base text-white">${basePrice.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Editing Fee</span>
-                  <span className="text-sm lg:text-base text-white">
-                    ${editingCost.toLocaleString()}
-                  </span>
+                  <span className="text-sm lg:text-base text-white">${editingCost.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Additional Creatives</span>
@@ -1429,6 +1787,20 @@ export default function SalesLeadDetailsPage() {
                     <span className="text-sm lg:text-base text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
                   </div>
                 )}
+                {creditApplied > 0 && (
+                  <>
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#71717B] text-xs">Total Before Credit</span>
+                      <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>
+                        ${totalBeforeCredit.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#71717B] text-xs">Account Credit Used</span>
+                      <span className="text-sm lg:text-base text-emerald-400">-${creditApplied.toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
               </div>
               <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
@@ -1438,7 +1810,7 @@ export default function SalesLeadDetailsPage() {
             </div>
           </div>
 
-          {/* Right Sidebar - Discount Generator */}
+          {/* Right Sidebar - Restored Discount Input Validation Logic */}
           <div className="lg:col-span-4 space-y-3 lg:space-y-6">
             <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
               <div className="flex items-center gap-2 p-4 lg:p-9 !pb-0">
@@ -1464,9 +1836,8 @@ export default function SalesLeadDetailsPage() {
                   </>
                 )}
               </div>
-              <hr className={`mt-4 lg:mt-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
+              <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="flex flex-col gap-6 p-5 pt-6 lg:p-9">
-                {/* Discount Type Dropdown */}
                 <div className="relative w-full">
                   <label className={`absolute -top-2.5 left-4 px-2 text-sm capitalize tracking-widest z-20 pointer-events-none ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-black/60"}`}>
                     Discount Type
@@ -1488,8 +1859,6 @@ export default function SalesLeadDetailsPage() {
                       {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
                       <ChevronDown size={18} className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""} ${isDark ? "text-white" : "text-black"}`} />
                     </button>
-
-                    {/* Dropdown Menu */}
                     {isDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setIsDropdownOpen(false)}></div>
@@ -1498,9 +1867,9 @@ export default function SalesLeadDetailsPage() {
                           : "bg-white border-[#D8D8D8]"
                           }`}>
                           <button
-                            onClick={() => { 
-                              setDiscountType("percentage"); 
-                              setIsDropdownOpen(false); 
+                            onClick={() => {
+                              setDiscountType("percentage");
+                              setIsDropdownOpen(false);
                             }}
                             className={`w-full text-left px-4 py-4 transition-colors border-b ${isDark
                               ? "text-white hover:bg-white/10 border-white/5"
@@ -1524,7 +1893,6 @@ export default function SalesLeadDetailsPage() {
                   </div>
                 </div>
 
-                {/* Discount Value Input */}
                 <div className="relative">
                   <label className={`absolute -top-2 lg:-top-2.5 left-4 px-2 text-xs lg:text-sm capitalize tracking-widest z-10 transition-colors duration-300 ${isDark
                     ? "bg-[#171717] text-white/60"
@@ -1548,15 +1916,12 @@ export default function SalesLeadDetailsPage() {
                           setDiscount(value);
                         }
                       }}
-                      min="0"
-                      max={discountType === "fixed_amount" ? "100" : ""}
-                      onWheel={(e) => e.preventDefault()} // Prevent mouse scroll change
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     />
                     {discountType === "percentage" && <Percent size={20} className={isDark ? "text-white" : "text-black"} />}
                   </div>
                 </div>
 
-                {/* Action Button */}
                 <Button
                   className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
@@ -1584,7 +1949,6 @@ export default function SalesLeadDetailsPage() {
                     </p>
                   </div>
                 )}
-
 
                 {showDiscountCode && generatedCode && (
                   <div className={`flex flex-col gap-2 border rounded-xl p-4 transition-colors duration-300 ${isDark
@@ -1634,6 +1998,274 @@ export default function SalesLeadDetailsPage() {
               additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
             />
 
+            {showManualPaymentPanel ? (
+            <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+              <div className="p-4 lg:p-7 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                    Manual Payment Update
+                  </h2>
+                  {manualPaymentStatusLabel && (
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-[#FFF3D6] text-[#7A5A00]"}`}>
+                      {manualPaymentStatusLabel}
+                    </span>
+                  )}
+                </div>
+
+                {latestManualPaymentEntry?.createdAt && (
+                  <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                    Last updated {formatDateTimeUI(latestManualPaymentEntry.createdAt)}
+                  </p>
+                )}
+                <div className={`rounded-lg border px-3 py-2 ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E8D1AB] bg-[#FFF3D6]"}`}>
+                  <p className={`text-xs ${isDark ? "text-white/70" : "text-black/70"}`}>
+                    Paid: <span className="font-semibold text-emerald-500">{formatCurrencyValue(manualPaymentSummary.paidAmount)}</span>
+                    {" · "}
+                    Pending: <span className="font-semibold text-amber-500">{formatCurrencyValue(manualPaymentSummary.pendingAmount)}</span>
+                  </p>
+                </div>
+                <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                  Payment flow: <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>Manual Payment</span>
+                </p>
+                {manualPaymentSummary.hasFullPayment && (
+                  <div className={`rounded-lg border px-3 py-2 text-xs ${isDark ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+                    Full payment already completed. New payment entry is locked.
+                  </div>
+                )}
+
+                {!manualPaymentSummary.hasFullPayment && (
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["full", "partial"] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setManualPaymentType(type)}
+                          disabled={manualPaymentSummary.hasFullPayment}
+                          className={`h-10 rounded-lg border text-sm font-medium transition-colors ${manualPaymentType === type
+                            ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF3D6] text-black")
+                            : (isDark ? "border-white/20 text-white/70 hover:border-white/40" : "border-[#D8D8D8] text-black/70 hover:border-[#BFA780]")
+                            } ${manualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          {type === "full" ? "Full Payment" : "Partial Payment"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {manualPaymentType === "partial" && (
+                      <input
+                        type="number"
+                        min="0"
+                        max={manualPaymentSummary.pendingAmount}
+                        step="0.01"
+                        value={manualPaymentAmount}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          if (!nextValue) {
+                            setManualPaymentAmount("");
+                            return;
+                          }
+                          const numeric = Number(nextValue);
+                          if (!Number.isFinite(numeric) || numeric < 0) return;
+                          if (numeric > manualPaymentSummary.pendingAmount) {
+                            setManualPaymentAmount(String(manualPaymentSummary.pendingAmount));
+                            toast.error("Amount cannot exceed pending amount");
+                            return;
+                          }
+                          setManualPaymentAmount(nextValue);
+                        }}
+                        placeholder={`Enter amount (max ${formatCurrencyValue(manualPaymentSummary.pendingAmount)})`}
+                        disabled={manualPaymentSummary.hasFullPayment}
+                        className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
+                      />
+                    )}
+
+                    <Select
+                      value={manualPaymentMode}
+                      onValueChange={(value) =>
+                        setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
+                      }
+                      disabled={manualPaymentSummary.hasFullPayment}
+                    >
+                      <SelectTrigger
+                        className={`h-11 rounded-lg border px-3 text-sm ${
+                          isDark
+                            ? "border-white/20 bg-transparent text-white"
+                            : "border-[#D8D8D8] bg-transparent text-black"
+                        }`}
+                      >
+                        <SelectValue placeholder="Select payment mode" />
+                      </SelectTrigger>
+                      <SelectContent
+                        className={
+                          isDark
+                            ? "border-[#333333] bg-[#111111] text-white"
+                            : "border-[#D8D8D8] bg-white text-black"
+                        }
+                      >
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="wire">Wire</SelectItem>
+                        <SelectItem value="ach">ACH</SelectItem>
+                        <SelectItem value="zelle">Zelle</SelectItem>
+                        <SelectItem value="venmo">Venmo</SelectItem>
+                        <SelectItem value="cashapp">CashApp</SelectItem>
+                        <SelectItem value="applepay">ApplePay</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {manualPaymentMode === "other" && (
+                      <input
+                        type="text"
+                        value={manualPaymentOtherMode}
+                        onChange={(event) => setManualPaymentOtherMode(event.target.value)}
+                        placeholder="Enter payment mode"
+                        disabled={manualPaymentSummary.hasFullPayment}
+                        className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
+                      />
+                    )}
+
+                    <div className={`rounded-lg border p-3 ${isDark ? "border-white/20" : "border-[#D8D8D8]"}`}>
+                      <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
+                        Proof Upload (Required)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${isDark ? "border-white/20 hover:bg-white/5" : "border-[#D8D8D8] hover:bg-black/[0.03]"}`}>
+                          <ArrowUpToLine size={14} />
+                          {isUploadingManualProof ? "Uploading..." : "Choose File"}
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            className="hidden"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0] || null;
+                              void handleManualProofUpload(file);
+                            }}
+                            disabled={isUploadingManualProof || manualPaymentSummary.hasFullPayment}
+                          />
+                        </label>
+                        {isUploadingManualProof ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : null}
+                        {manualPaymentProofFileName ? (
+                          <span className="truncate text-xs text-[#71717B]">{manualPaymentProofFileName}</span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <textarea
+                      value={manualPaymentNotes}
+                      onChange={(event) => setManualPaymentNotes(event.target.value)}
+                      placeholder="Notes (optional)"
+                      rows={3}
+                      disabled={manualPaymentSummary.hasFullPayment}
+                      className={`rounded-lg border p-3 text-sm bg-transparent outline-none resize-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
+                    />
+
+                    <Button
+                      onClick={handleManualPaymentSubmit}
+                      disabled={isSubmittingManualPayment || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
+                      className={`h-11 text-sm font-semibold ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
+                    >
+                      {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
+                    </Button>
+                  </div>
+                )}
+
+                {manualPaymentEntries.length > 0 && (
+                  <div className={`rounded-lg border p-3 ${isDark ? "border-white/15 bg-white/[0.02]" : "border-[#E4E4E7] bg-white"}`}>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
+                      Uploaded Payment Proofs
+                    </p>
+                    <div className="space-y-2">
+                      {manualPaymentEntries.map((entry, index) => {
+                        const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
+                        const paidMode = entry.data.payment_mode
+                          ? String(entry.data.payment_mode).replace(/_/g, " ")
+                          : "manual";
+                        return (
+                          <div
+                            key={`${entry.createdAt || "entry"}-${index}`}
+                            className={`rounded-md border px-3 py-2 text-xs ${isDark ? "border-white/10" : "border-[#ECECEC]"}`}
+                          >
+                            <p className={isDark ? "text-white/80" : "text-black/75"}>
+                              {entry.data.payment_type === "partial"
+                                ? `Partial paid ${formatCurrencyValue(entry.data.amount)}`
+                                : "Full payment marked"}{" "}
+                              via {paidMode}
+                            </p>
+                            <p className={isDark ? "text-white/45 mt-1" : "text-black/45 mt-1"}>
+                              {entry.createdAt ? formatDateTimeUI(entry.createdAt) : "Date unavailable"}
+                            </p>
+                            {proofUrl && (
+                              <a
+                                href={proofUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
+                              >
+                                Download Proof
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            ) : isAmountPaid ? (
+              <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                <div className="p-4 lg:p-7 space-y-3">
+                  <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                    Payment Details
+                  </h2>
+                  <div className={`rounded-lg border px-3 py-2 ${isDark ? "border-emerald-500/25 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50"}`}>
+                    <p className={`text-sm font-medium ${isDark ? "text-emerald-200" : "text-emerald-700"}`}>
+                      Payment completed via Stripe
+                    </p>
+                  </div>
+                  <div className={`text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    <p>
+                      Total Paid Amount:{" "}
+                      <span className={isDark ? "text-white" : "text-black"}>
+                        {formatCurrencyValue(lead?.collected_amount ?? lead?.pricing_breakdown?.total_paid ?? total)}
+                      </span>
+                    </p>
+                    <p className="mt-1">
+                      Pending Amount:{" "}
+                      <span className={additionalPaymentDetails?.isDecrease ? "text-red-500" : (isDark ? "text-white" : "text-black")}>
+                        {additionalPaymentDetails && additionalPaymentDetails.additionalAmount !== 0
+                          ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                          : ""}
+                        {formatCurrencyValue(Math.abs(additionalPaymentDetails?.additionalAmount ?? 0))}
+                      </span>
+                      {additionalPaymentDetails?.isDecrease && (
+                        <span className="ml-1 text-[10px] text-golden italic">
+                          (This reduced amount will be added as Beige Credits after approval)
+                        </span>
+                      )}
+                     </p>
+                    {booking?.payment_completed_at ? (
+                      <p className="mt-1">
+                        Paid At:{" "}
+                        <span className={isDark ? "text-white" : "text-black"}>
+                          {formatDateTimeUI(booking.payment_completed_at)}
+                        </span>
+                      </p>
+                    ) : null}
+                    {booking?.payment_id ? (
+                      <p className="mt-1">
+                        Payment ID:{" "}
+                        <span className={isDark ? "text-white" : "text-black"}>#{booking.payment_id}</span>
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {quotePricingDetails && (
               <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
                 <div className="p-4 lg:p-7">
@@ -1656,20 +2288,22 @@ export default function SalesLeadDetailsPage() {
                           {quotePricingDetails.status}
                         </span>
                       )}
-                      <Button
-                        type="button"
-                        onClick={handleEditQuoteRedirect}
-                        disabled={isAmountPaid || !canEditQuote}
-                        className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
-                          isDark
-                            ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
-                            : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
-                        } ${isAmountPaid || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
-                        aria-label="Edit Quote"
-                        title={isAmountPaid ? "Amount already paid" : "Edit Quote"}
-                      >
-                        <Edit2 size={14} />
-                      </Button>
+                      <div className="group relative inline-flex">
+                        <Button
+                          type="button"
+                          onClick={handleEditQuoteRedirect}
+                          disabled={!canEditQuote}
+                          className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
+                            isDark
+                              ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
+                              : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
+                          } ${!canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                          aria-label="Edit Quote"
+                          title="Edit Quote"
+                        >
+                          <Edit2 size={14} />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
@@ -1785,9 +2419,8 @@ export default function SalesLeadDetailsPage() {
               </div>
             )}
 
-            {/* CHANGED: Passing leadId dynamically */}
             <div className="lg:text-right lg:mt-[82px]">
-              <Button
+              {/* <Button
                 onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
                 className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-all ${isDark
                   ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
@@ -1795,7 +2428,7 @@ export default function SalesLeadDetailsPage() {
                   }`}
               >
                 Change CPs
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>
@@ -1818,6 +2451,22 @@ export default function SalesLeadDetailsPage() {
         title="Edit Booking Details"
         description="Update the booking type, shoot date and time, and location for this converted booking."
         submitLabel="Update Details"
+      />
+      <SalesQuoteEditAccessModal
+        open={pendingEditView !== null}
+        onClose={() => {
+          if (isEditAccessSubmitting) {
+            return;
+          }
+          setPendingEditView(null);
+        }}
+        onProceed={(payload) => {
+          void handleEditAccessProceed(payload);
+        }}
+        quoteNumber={quotePricingDetails?.quoteDisplayNumber || String(editableQuoteId || "Pending")}
+        clientName={clientName}
+        shootDateValue={quoteEditAccessShootDateValue}
+        isSubmitting={isEditAccessSubmitting}
       />
 
       <Dialog open={isCPModalOpen} onOpenChange={setIsCPModalOpen}>

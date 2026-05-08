@@ -14,6 +14,7 @@ import {
   subDays,
   subMonths,
 } from "date-fns";
+import { SquarePen } from "lucide-react";
 import QuotesEmptyState from "@/components/admin/quotes/QuotesEmptyState";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/components/ui/button";
@@ -42,18 +43,24 @@ import {
 } from "recharts";
 import {
   Copy,
+  DollarSign,
   Download,
   FileText,
   Loader2,
   MoreHorizontal,
   MoreVertical,
-  Pencil,
   Search,
   XCircle,
 } from "lucide-react";
+import QuoteEditAccessModal, {
+  type QuoteEditAccessModalProps,
+} from "@/components/admin/quotes/QuoteEditAccessModal";
 import { toast } from "react-hot-toast";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { persistQuoteEditorNavigationCache } from "@/lib/quoteEdit";
+import {
+  persistQuoteEditorEditReason,
+  persistQuoteEditorNavigationCache,
+} from "@/lib/quoteEdit";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 
 type TopbarComponentProps = {
@@ -64,6 +71,7 @@ type TopbarComponentProps = {
 type QuotesDashboardPageProps = {
   createHref: string;
   TopbarComponent: React.ComponentType<TopbarComponentProps>;
+  EditAccessModalComponent?: React.ComponentType<QuoteEditAccessModalProps>;
 };
 
 const CustomDollarIcon = ({ size = 20 }: { size?: number }) => (
@@ -109,6 +117,7 @@ type DisplayQuoteRow = {
   salespersonId: string;
   salespersonKey: string;
   createdAtRaw: string;
+  shootDateValue: string;
   searchValue: string;
 };
 
@@ -163,9 +172,11 @@ type QuoteActionMenuProps = {
   onViewDetails: () => void;
   onDuplicate: () => void;
   onEdit: () => void;
+  onPaymentTransaction: () => void;
   onReject: () => void;
   allowEdit?: boolean;
   mobile?: boolean;
+  disabled?: boolean; 
 };
 
 type QuoteActionMenuButtonProps = {
@@ -213,9 +224,11 @@ const QuoteActionMenu = ({
   onViewDetails,
   onDuplicate,
   onEdit,
+  onPaymentTransaction,
   onReject,
   allowEdit = true,
   mobile = false,
+  disabled = false,
 }: QuoteActionMenuProps) => {
   const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -233,11 +246,12 @@ const QuoteActionMenu = ({
         <button
           type="button"
           onClick={handleTriggerClick}
-          className={
+          disabled={disabled}
+          className={`${
             mobile
               ? "rounded-lg p-2 text-[#E8D1AB] transition-colors hover:bg-[#2a2a2a]"
               : "text-[#E8D1AB] transition-colors hover:text-white"
-          }
+          }${disabled ? "opacity-30 cursor-not-allowed " : ""}`}
           aria-label="Quote actions"
         >
           {mobile ? <MoreHorizontal size={18} /> : <MoreVertical size={18} />}
@@ -263,11 +277,16 @@ const QuoteActionMenu = ({
           />
           {allowEdit ? (
             <QuoteActionMenuButton
-              icon={<Pencil size={18} />}
-              label="Update Quote"
+              icon={<SquarePen  size={18} />}
+              label="Edit"
               onClick={handleMenuAction(onEdit)}
             />
           ) : null}
+          <QuoteActionMenuButton
+            icon={<DollarSign size={18} />}
+            label="Record Payment"
+            onClick={handleMenuAction(onPaymentTransaction)}
+          />
         </div>
 
         <div className="h-[1px] w-full bg-white/10" />
@@ -372,6 +391,40 @@ const formatDate = (value: string) => {
   });
 };
 
+const getQuoteShootDateValue = (quote: SalesQuoteListItem) => {
+  const quoteRecord = quote as Record<string, unknown>;
+  const convertedBookingDetails = getRecord(quoteRecord.converted_booking_details);
+  const quoteBookingDays = Array.isArray(quoteRecord.booking_days) ? quoteRecord.booking_days : [];
+  const convertedBookingDays = Array.isArray(convertedBookingDetails?.booking_days)
+    ? convertedBookingDetails.booking_days
+    : [];
+  const firstBookingDay =
+    getRecord(convertedBookingDays[0]) || getRecord(quoteBookingDays[0]);
+  const dateValue = getText(
+    firstBookingDay?.date,
+    firstBookingDay?.event_date,
+    quoteRecord.start_date,
+    quoteRecord.shoot_date,
+    convertedBookingDetails?.start_date
+  );
+  const startTimeValue = getText(
+    firstBookingDay?.start_time,
+    quoteRecord.start_time,
+    convertedBookingDetails?.start_time
+  );
+
+  if (!dateValue) {
+    return "";
+  }
+
+  if (!startTimeValue) {
+    return dateValue;
+  }
+
+  const normalizedTime = startTimeValue.length === 5 ? `${startTimeValue}:00` : startTimeValue;
+  return `${dateValue}T${normalizedTime}`;
+};
+
 const formatLabel = (value: string) =>
   value
     .replace(/_quotes$/i, "")
@@ -428,8 +481,12 @@ const getSelectedStatForStatus = (statusFilter: string) => {
   switch (statusFilter) {
     case "accepted":
     case "confirmed":
+    case "paid":
       return "Accepted Quotes";
     case "pending":
+    case "sent":
+    case "viewed":
+    case "partially_paid":
       return "Pending Quotes";
     case "draft":
       return "Draft Quotes";
@@ -451,6 +508,7 @@ const normalizeStatusForChart = (
     case "confirmed":
       return "accepted";
     case "pending":
+    case "partially_paid":
       return "pending";
     case "sent":
     case "viewed":
@@ -569,9 +627,7 @@ const buildQuoteChartData = (
     }
 
     point.total += 1;
-    const chartStatusKey = normalizeStatusForChart(
-      getText(quote.quote_status, quote.status, "draft").toLowerCase()
-    );
+    const chartStatusKey = normalizeStatusForChart(getPaymentAwareStatusKey(quote));
     if (chartStatusKey) {
       point[chartStatusKey] += 1;
     }
@@ -608,9 +664,97 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const toNumericOrNull = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
+  const quoteRecord = quote as Record<string, unknown>;
+  const paymentStatus = getText(quoteRecord.payment_status).toLowerCase();
+  const normalizedQuoteStatus = getText(quote.status, quote.quote_status, "draft").toLowerCase() || "draft";
+  if (normalizedQuoteStatus === "rejected" || normalizedQuoteStatus === "cancelled") {
+    return "rejected";
+  }
+  const manualPaymentSummary = getRecord(quoteRecord.manual_payment_summary);
+  const manualPaidAmount = Math.max(
+    0,
+    toNumericOrNull(manualPaymentSummary?.paidAmount) ??
+      toNumericOrNull(manualPaymentSummary?.paid_amount) ??
+      0,
+  );
+  const manualPendingAmount = Math.max(
+    0,
+    toNumericOrNull(manualPaymentSummary?.pendingAmount) ??
+      toNumericOrNull(manualPaymentSummary?.pending_amount) ??
+      0,
+  );
+  const hasManualFullPayment =
+    Boolean(manualPaymentSummary?.hasFullPayment) ||
+    (manualPaidAmount > 0 && manualPendingAmount <= 0);
+  const hasManualPartialPayment =
+    Boolean(manualPaymentSummary?.isPartiallyPaid) ||
+    (manualPaidAmount > 0 && manualPendingAmount > 0);
+  const collectedAmount = Math.max(
+    0,
+    toNumericOrNull(quoteRecord.collected_amount) ??
+      toNumericOrNull(quoteRecord.collectedAmount) ??
+      toNumericOrNull(getRecord(quoteRecord.partial_payment)?.previously_paid_amount) ??
+      manualPaidAmount ??
+      0,
+  );
+  const outstandingAmount = Math.max(
+    0,
+    toNumericOrNull(quoteRecord.outstanding_amount) ??
+      toNumericOrNull(quoteRecord.outstandingAmount) ??
+      toNumericOrNull(getRecord(quoteRecord.additional_payment)?.outstanding_amount) ??
+      toNumericOrNull(getRecord(quoteRecord.partial_payment)?.outstanding_amount) ??
+      manualPendingAmount ??
+      0,
+  );
+  const quoteTotal = Math.max(
+    0,
+    getOptionalNumber(quoteRecord.total, quoteRecord.total_amount, quoteRecord.amount) ?? 0,
+  );
+
+  if (paymentStatus === "paid" || paymentStatus === "completed" || paymentStatus === "success") {
+    return "paid";
+  }
+
+  if (paymentStatus === "partially_paid" || paymentStatus === "partial_paid") {
+    return "partially_paid";
+  }
+
+  if (hasManualFullPayment) {
+    return "paid";
+  }
+
+  if (hasManualPartialPayment) {
+    return "partially_paid";
+  }
+
+  if (collectedAmount > 0 && outstandingAmount > 0) {
+    return "partially_paid";
+  }
+
+  if (quoteTotal > 0 && collectedAmount > 0 && collectedAmount < quoteTotal) {
+    return "partially_paid";
+  }
+
+  if (collectedAmount > 0 && outstandingAmount <= 0) {
+    return "paid";
+  }
+
+  return normalizedQuoteStatus;
+};
+
 const buildStatusSummary = (rows: SalesQuoteListItem[]) =>
   rows.reduce<Record<string, number>>((summary, quote) => {
-    const statusKey = getText(quote.quote_status, quote.status, "draft").toLowerCase();
+    const statusKey = getPaymentAwareStatusKey(quote);
 
     if (!statusKey) {
       return summary;
@@ -686,11 +830,11 @@ const matchesStatusFilter = (quoteStatusKey: string, filterValue: string) => {
   }
 
   if (filterValue === "accepted") {
-    return quoteStatusKey === "accepted" || quoteStatusKey === "confirmed";
+    return quoteStatusKey === "accepted" || quoteStatusKey === "confirmed" || quoteStatusKey === "paid";
   }
 
   if (filterValue === "pending") {
-    return quoteStatusKey === "pending" || quoteStatusKey === "sent";
+    return quoteStatusKey === "pending" || quoteStatusKey === "sent" || quoteStatusKey === "viewed" || quoteStatusKey === "partially_paid";
   }
 
   if (filterValue === "rejected") {
@@ -760,7 +904,7 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     quote.created_by?.name,
     "N/A"
   );
-  const statusKey = getText(quote.quote_status, quote.status, "draft").toLowerCase() || "draft";
+  const statusKey = getPaymentAwareStatusKey(quote);
   const quoteNumber = getText(quote.quote_number);
   const location = getText(
     quote.location,
@@ -789,6 +933,7 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     ),
     salespersonKey: salesperson.toLowerCase(),
     createdAtRaw: getText(quote.created_at, quote.updated_at),
+    shootDateValue: getQuoteShootDateValue(quote),
     searchValue: [
       client,
       project,
@@ -815,6 +960,7 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function QuotesDashboardPage({
   createHref,
   TopbarComponent,
+  EditAccessModalComponent = QuoteEditAccessModal,
 }: QuotesDashboardPageProps) {
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
@@ -837,6 +983,14 @@ export default function QuotesDashboardPage({
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
   const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
+  const [editAccessState, setEditAccessState] = useState<{
+    quoteId: string;
+    quoteNumber: string;
+    clientName: string;
+    targetView: string;
+    shootDateValue?: string;
+  } | null>(null);
+  const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -900,7 +1054,7 @@ export default function QuotesDashboardPage({
             limit: QUOTES_PER_PAGE,
             ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
             ...(selectedStatusFilter !== "all"
-              ? { status: selectedStatusFilter }
+              ? { status: selectedStatusFilter === "partially_paid" ? "pending" : selectedStatusFilter }
               : {}),
             ...(selectedSalesperson !== "all"
               ? { assigned_sales_rep_id: selectedSalesperson }
@@ -1058,10 +1212,16 @@ export default function QuotesDashboardPage({
     router.push(`${detailBaseHref}/${quoteId}`);
   };
 
-  const handleEditQuote = (
-    quoteId: string,
-    targetView: string = "details"
-  ) => {
+  const handlePaymentTransaction = (quoteId: string) => {
+    if (!quoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+    setOpenActionMenuId(null);
+    router.push(`${detailBaseHref}/${quoteId}?action=payment`);
+  };
+
+  const proceedToEditQuote = (quoteId: string, targetView: string = "details") => {
     if (!quoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -1076,6 +1236,50 @@ export default function QuotesDashboardPage({
     });
 
     router.push(`${createHref}?${query.toString()}`);
+  };
+
+  const handleEditQuote = (quote: DisplayQuoteRow, targetView: string = "details") => {
+    if (!quote.id) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    setOpenActionMenuId(null);
+    setEditAccessState({
+      quoteId: quote.id,
+      quoteNumber: quote.quoteNumber || quote.id,
+      clientName: quote.client,
+      targetView,
+      shootDateValue: quote.shootDateValue,
+    });
+  };
+
+  const handleEditAccessProceed = async (payload: {
+    reason: string;
+    opsReviewConfirmed: boolean;
+  }) => {
+    if (!editAccessState?.quoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    setIsEditAccessSubmitting(true);
+
+    try {
+      const { quoteId, targetView } = editAccessState;
+      persistQuoteEditorEditReason(quoteId, payload.reason, payload.opsReviewConfirmed);
+      setEditAccessState(null);
+      proceedToEditQuote(quoteId, targetView);
+    } catch (error) {
+      console.error("Failed to confirm restricted quote edit access", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm restricted quote edit access"
+      );
+    } finally {
+      setIsEditAccessSubmitting(false);
+    }
   };
 
   const statsIcons: Record<string, React.ReactNode> = {
@@ -1196,23 +1400,43 @@ export default function QuotesDashboardPage({
   );
 
   const statusOptions = useMemo(
-    () =>
-      [
-        "accepted",
-        "draft",
-        "pending",
-        "rejected",
-        "sent",
-        ...displayQuotesData
-          .map((quote) => quote.statusKey)
-          .filter((status) =>
-            !["accepted", "draft", "pending", "rejected", "sent"].includes(status)
-          ),
-      ].filter((status, index, array) => Boolean(status) && array.indexOf(status) === index),
-    [displayQuotesData]
+    () => [
+      "accepted",
+      "draft",
+      "pending",
+      "rejected",
+      "sent",
+      "paid",
+      "partially_paid",
+      "expired",
+    ],
+    []
   );
 
-  const filteredQuotesData = useMemo(() => displayQuotesData, [displayQuotesData]);
+  const filteredQuotesData = useMemo(() => {
+    if (selectedStatusFilter === "all") {
+      return displayQuotesData;
+    }
+
+    return displayQuotesData.filter((quote) => {
+      const statusKey = quote.statusKey;
+      
+      // Strict filtering as requested by the user
+      if (selectedStatusFilter === "accepted") {
+        return statusKey === "accepted";
+      }
+
+      if (selectedStatusFilter === "pending") {
+        return statusKey === "pending";
+      }
+
+      if (selectedStatusFilter === "rejected") {
+        return statusKey === "rejected";
+      }
+
+      return statusKey === selectedStatusFilter;
+    });
+  }, [displayQuotesData, selectedStatusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1367,8 +1591,13 @@ export default function QuotesDashboardPage({
                   <div
                     key={stat.title}
                     onClick={() => {
-                      setSelectedStat(stat.title);
-                      setSelectedStatusFilter(getStatusFilterForStat(stat.title));
+                      if (selectedStat === stat.title) {
+                        setSelectedStat("Total Quotes");
+                        setSelectedStatusFilter("all");
+                      } else {
+                        setSelectedStat(stat.title);
+                        setSelectedStatusFilter(getStatusFilterForStat(stat.title));
+                      }
                     }}
                     className={`${bgColor} ${textColor} flex h-40 cursor-pointer flex-col justify-between rounded-2xl p-6 transition-all hover:scale-[1.02] active:scale-[0.98]`}
                   >
@@ -1658,6 +1887,7 @@ export default function QuotesDashboardPage({
                         </td>
                         <td className="hidden px-6 py-4 text-right md:table-cell">
                           <QuoteActionMenu
+                            disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
                             open={openActionMenuId === quote.id}
                             onOpenChange={(open) => setOpenActionMenuId(open ? quote.id : null)}
                             onViewDetails={() => {
@@ -1666,7 +1896,8 @@ export default function QuotesDashboardPage({
                             onDuplicate={() => {
                               void handleDuplicateQuote(quote.id);
                             }}
-                            onEdit={() => handleEditQuote(quote.id)}
+                            onEdit={() => handleEditQuote(quote)}
+                            onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
                             onReject={() => {
                               void handleRejectQuote(quote.id, quote.statusKey);
                             }}
@@ -1778,6 +2009,23 @@ export default function QuotesDashboardPage({
           </Button>
         </div>
       )}
+
+      <EditAccessModalComponent
+        open={Boolean(editAccessState)}
+        onClose={() => {
+          if (isEditAccessSubmitting) {
+            return;
+          }
+          setEditAccessState(null);
+        }}
+        onProceed={(payload) => {
+          void handleEditAccessProceed(payload);
+        }}
+        quoteNumber={editAccessState?.quoteNumber || "Pending"}
+        clientName={editAccessState?.clientName || "Client"}
+        shootDateValue={editAccessState?.shootDateValue}
+        isSubmitting={isEditAccessSubmitting}
+      />
 
     </div>
   );

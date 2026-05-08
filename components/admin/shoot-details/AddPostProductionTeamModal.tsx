@@ -38,25 +38,27 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
       const fetchMembers = async () => {
         try {
           setLoading(true);
+          // Use same API as sales representative dashboard.
           const response = await salesApi.getSalesReps();
-          const membersList = Array.isArray(response?.data) ? response.data : [];
+          const membersList = response?.data || [];
 
-          if (Array.isArray(membersList)) {
+          if (response?.success && Array.isArray(membersList)) {
             setMembers(
               membersList.map((m: any) => ({
                 id: Number(m.id),
                 name:
-                  m.name ||
-                  `${m.first_name || ""} ${m.last_name || ""}`.trim() ||
-                  m.full_name ||
-                  "Unknown",
-                role: m.role || "Sales Representative",
+                  String(m.name || `${m.first_name || ""} ${m.last_name || ""}`)
+                    .trim() || "Unknown",
+                role: m.role || "Post Production",
                 email: m.email,
-              })),
+              }))
             );
+          } else {
+            setMembers([]);
           }
         } catch (error) {
           console.error("Error fetching post production members:", error);
+          setMembers([]);
         } finally {
           setLoading(false);
         }

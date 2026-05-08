@@ -150,8 +150,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const reelRef = useRef<HTMLDivElement>(null);
+  const selectedDateCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dateChipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const isDraggingReel = useRef(false);
+  const didDragReel = useRef(false);
+  const suppressChipClickUntil = useRef(0);
   const dragStartX = useRef(0);
+  const dragStartY = useRef(0);
   const dragStartScrollLeft = useRef(0);
   const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
   const hasHydratedMultiDayState = useRef(false);
@@ -514,6 +519,33 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     return timeOptions.filter((opt) => opt.key > startTimeKey);
   }, [data.startDate, timeOptions]);
 
+  const getDateFromDateKey = useCallback((dateKey: string) => {
+    const parsed = new Date(`${dateKey}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, []);
+
+  const isTodayDate = useCallback((date: Date) => {
+    const now = new Date();
+    return (
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    );
+  }, []);
+
+  const getDateSpecificStartOptions = useCallback((dateKey: string) => {
+    const date = getDateFromDateKey(dateKey);
+    if (!date || !isTodayDate(date)) return timeOptions;
+    const minKey = format(new Date(Date.now() + 4 * 60 * 60 * 1000), "HH:mm");
+    return timeOptions.filter((opt) => opt.key >= minKey);
+  }, [getDateFromDateKey, isTodayDate, timeOptions]);
+
+  const getDateSpecificEndOptions = useCallback((dateKey: string) => {
+    const dayStartKey = multiDayTimes[dateKey]?.startKey;
+    if (!dayStartKey) return getDateSpecificStartOptions(dateKey);
+    return getDateSpecificStartOptions(dateKey).filter((opt) => opt.key > dayStartKey);
+  }, [getDateSpecificStartOptions, multiDayTimes]);
+
   const handleDateChange = (date: Date | null) => {
     if (!date) {
       setSelectedShootDate(null);
@@ -654,6 +686,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   };
 
   const toggleDateSelection = (date: Date) => {
+    const clickedDateKey = getDateKey(date);
     setSelectedDates((prev) => {
       const exists = prev.some((d) => isSameDay(d, date));
       if (exists) {
@@ -664,6 +697,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     if (bookingType === "multi_day") {
       setSelectedShootDate(date);
     }
+    requestAnimationFrame(() => {
+      dateChipRefs.current[clickedDateKey]?.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    });
   };
 
   const getTimeLabel = (key: string) => {
@@ -1048,6 +1088,27 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         const hasMissingTimes = data.bookingDays.some((d) => !d.startTime || !d.endTime);
         if (hasMissingTimes) {
           toast.error("Please select start and end time for all selected days");
+          setErrors((prev) => [...prev, "timeError"]);
+          return false;
+        }
+        const hasInvalidOrder = data.bookingDays.some((d) => d.startTime >= d.endTime);
+        if (hasInvalidOrder) {
+          toast.error("For each selected day, end time must be after start time.");
+          setErrors((prev) => [...prev, "timeError"]);
+          return false;
+        }
+        const now = new Date();
+        const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        const hasInvalidSameDayLeadTime = data.bookingDays.some((d) => {
+          const dayDate = getDateFromDateKey(d.date);
+          if (!dayDate || !isTodayDate(dayDate) || !d.startTime) return false;
+          const [hours, minutes] = d.startTime.split(":").map(Number);
+          if ([hours, minutes].some((n) => Number.isNaN(n))) return false;
+          const dayStart = set(dayDate, { hours, minutes, seconds: 0, milliseconds: 0 });
+          return dayStart < minimumTime;
+        });
+        if (hasInvalidSameDayLeadTime) {
+          toast.error("Today's selected start time must be at least 4 hours from now.");
           setErrors((prev) => [...prev, "timeError"]);
           return false;
         }
@@ -1483,20 +1544,31 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     }}
                     onPointerDown={(e) => {
                       if (!reelRef.current) return;
-                      if ((e.target as HTMLElement).closest("button")) return;
                       isDraggingReel.current = true;
+                      didDragReel.current = false;
                       dragStartX.current = e.clientX;
+                      dragStartY.current = e.clientY;
                       dragStartScrollLeft.current = reelRef.current.scrollLeft;
-                      reelRef.current.setPointerCapture?.(e.pointerId);
                     }}
                     onPointerMove={(e) => {
                       if (!reelRef.current || !isDraggingReel.current) return;
                       const dx = e.clientX - dragStartX.current;
-                      reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
+                      const dy = e.clientY - dragStartY.current;
+                      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+                        didDragReel.current = true;
+                      }
+                      if (didDragReel.current) {
+                        reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
+                      }
                     }}
-                    onPointerUp={(e) => {
+                    onPointerUp={() => {
                       isDraggingReel.current = false;
-                      reelRef.current?.releasePointerCapture?.(e.pointerId);
+                      if (didDragReel.current) {
+                        suppressChipClickUntil.current = Date.now() + 150;
+                      }
+                      setTimeout(() => {
+                        didDragReel.current = false;
+                      }, 0);
                     }}
                     onPointerLeave={() => {
                       isDraggingReel.current = false;
@@ -1509,8 +1581,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         <button
                           type="button"
                           key={date.toISOString()}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => toggleDateSelection(date)}
+                          ref={(el) => {
+                            dateChipRefs.current[getDateKey(date)] = el;
+                          }}
+                          onClick={() => {
+                            if (Date.now() < suppressChipClickUntil.current) return;
+                            toggleDateSelection(date);
+                          }}
                           className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
                         >
                           <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
@@ -1665,8 +1742,30 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                             const dateKey = getDateKey(date);
                             const isExpanded = expandedDateKey === dateKey;
                             return (
-                              <div key={date.toISOString()} className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
-                                <button type="button" onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
+                              <div
+                                key={date.toISOString()}
+                                ref={(el) => {
+                                  selectedDateCardRefs.current[dateKey] = el;
+                                }}
+                                className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextExpanded = isExpanded ? null : dateKey;
+                                    setExpandedDateKey(nextExpanded);
+                                    if (nextExpanded) {
+                                      requestAnimationFrame(() => {
+                                        selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
+                                          behavior: "smooth",
+                                          block: "nearest",
+                                          inline: "nearest",
+                                        });
+                                      });
+                                    }
+                                  }}
+                                  className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}
+                                >
                                   <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
                                   <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                                 </button>
@@ -1677,7 +1776,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                         <div className="flex-1">
                                           <DropdownSelect
                                             title="Start Time"
-                                            options={filteredStartTimeOptions}
+                                            options={getDateSpecificStartOptions(dateKey)}
                                             value={multiDayTimes[dateKey]?.startKey || ""}
                                             onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
                                             bgColour="bg-[#101010]"
@@ -1686,7 +1785,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                         <div className="flex-1">
                                           <DropdownSelect
                                             title="End Time"
-                                            options={filteredEndTimeOptions}
+                                            options={getDateSpecificEndOptions(dateKey)}
                                             value={multiDayTimes[dateKey]?.endKey || ""}
                                             onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
                                             bgColour="bg-[#101010]"

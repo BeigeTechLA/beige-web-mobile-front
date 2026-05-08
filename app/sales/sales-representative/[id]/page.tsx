@@ -12,6 +12,8 @@ import {
   DollarSign,
   MapPinned,
   Copy,
+  Plus,
+  Minus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +46,67 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
     "one_time",
   );
   const [generatedCode, setGeneratedCode] = useState<string>("");
+  const manualPaymentSummary = React.useMemo(() => {
+    const manualActivities = (lead?.activities || [])
+      .filter((activity: any) => activity?.activity_type === "payment_completed" && activity?.activity_data)
+      .map((activity: any) => {
+        try {
+          const payload = typeof activity.activity_data === "string"
+            ? JSON.parse(activity.activity_data)
+            : activity.activity_data;
+          if (!payload || (payload as any).payment_method !== "manual") return null;
+          return payload as any;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as any[];
+
+    const hasFullPayment = manualActivities.some((entry) => entry.payment_type === "full");
+    const partialPaid = manualActivities.reduce((sum, entry) => {
+      if (entry.payment_type !== "partial") return sum;
+      const numeric = Number(entry.amount || 0);
+      return sum + (Number.isFinite(numeric) ? numeric : 0);
+    }, 0);
+
+    const resolvedTotal = total > 0 ? total : 0;
+    const paidAmount = hasFullPayment ? resolvedTotal : partialPaid;
+    const pendingAmount = Math.max(resolvedTotal - paidAmount, 0);
+
+    return {
+      hasFullPayment,
+      paidAmount,
+      pendingAmount,
+    };
+  }, [lead?.activities, total]);
+
+  const additionalPaymentDetails = React.useMemo(() => {
+    const rawAdditionalPayment = lead?.booking?.primary_quote?.additional_payment;
+    if (!rawAdditionalPayment) return null;
+
+    const additionalAmount = Number(rawAdditionalPayment.additional_amount ?? 0);
+    const previouslyPaidAmount = Number(rawAdditionalPayment.previously_paid_amount ?? 0);
+    const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
+    const outstandingAmount = Number(
+      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - previouslyPaidAmount, 0)
+    );
+    
+    if (
+      additionalAmount <= 0 &&
+      previouslyPaidAmount <= 0 &&
+      revisedTotal <= 0 &&
+      outstandingAmount <= 0
+    ) {
+      return null;
+    }
+
+    return {
+      additionalAmount,
+      previouslyPaidAmount,
+      revisedTotal,
+      outstandingAmount,
+    };
+  }, [lead?.booking?.primary_quote?.additional_payment]);
 
   // Fetch real lead data
   const {
@@ -72,6 +135,7 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
   const email = lead?.guest_email || "No email";
   const phone = lead?.user?.phone_number || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
+  const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? mapLeadStatusToUI(lead.lead_status) : "Unknown" as any;
 
   const bookingDate = booking?.event_date
@@ -189,6 +253,17 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
                   </div>
                   <div className="flex flex-col gap-2">
                     <h1 className="lg:text-[22px] font-semibold">{clientName}</h1>
+                    <div className="flex items-center">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                          clientRegistrationType === "Registered"
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        }`}
+                      >
+                        {clientRegistrationType}
+                      </span>
+                    </div>
                     <div className=" lg:hidden">
                       <StatusBadge status={status} />
                     </div>
@@ -294,6 +369,34 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
                 <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}</span>
               </div>
             </div>
+            {additionalPaymentDetails && (
+              <div className="flex flex-col gap-3 p-4 lg:p-9 lg:py-6 border-t border-dashed border-white/10">
+                <div className="flex justify-between font-medium">
+                  <span className="text-[#71717B] text-xs">Old Total</span>
+                  <span className="text-sm lg:text-base text-white">
+                    ${(additionalPaymentDetails.revisedTotal - additionalPaymentDetails.additionalAmount).toLocaleString()}
+                  </span>
+                </div>
+                {additionalPaymentDetails.previouslyPaidAmount > 0 && (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Previously Paid</span>
+                    <span className="text-sm lg:text-base text-white">
+                      ${additionalPaymentDetails.previouslyPaidAmount.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between font-medium">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[#71717B] text-xs">
+                      {additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}
+                    </span>
+                  </div>
+                  <span className={`text-sm lg:text-base font-semibold ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : "text-white"}`}>
+                    {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}${Math.abs(additionalPaymentDetails.additionalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="h-[1px] w-full bg-[#3D3D3D]" />
             <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
               <span className="text-sm font-medium">Total Amount</span>
@@ -301,6 +404,22 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
                 ${total.toFixed(2)}
               </span>
             </div>
+            {manualPaymentSummary.paidAmount > 0 && (
+              <div className="p-4 lg:px-9 lg:py-4 flex justify-between items-center border-t border-dashed border-white/10">
+                <span className="text-sm font-medium text-white/70">Paid Amount</span>
+                <span className="text-sm lg:text-base font-semibold text-white">
+                  ${manualPaymentSummary.paidAmount.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {manualPaymentSummary.pendingAmount > 0 && (
+              <div className="p-4 lg:px-9 lg:py-4 flex justify-between items-center border-t border-dashed border-white/10">
+                <span className="text-sm font-medium text-white/70">Remaining Amount</span>
+                <span className="text-sm lg:text-base font-semibold text-[#E8D1AB]">
+                  ${manualPaymentSummary.pendingAmount.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

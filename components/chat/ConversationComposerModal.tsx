@@ -61,6 +61,12 @@ const getProjectName = (project: any) => {
   return picked || `Shoot #${bookingId || "New"}`;
 };
 
+const getProjectOptionLabel = (project: any) => {
+  const bookingId = getProjectId(project);
+  const baseName = getProjectName(project);
+  return bookingId ? `${baseName} (Booking #${bookingId})` : baseName;
+};
+
 const getCrewId = (member: any) => String(member?.crew_member_id || member?.crew_member?.crew_member_id || member?.id || "");
 
 const getCrewName = (member: any) =>
@@ -210,11 +216,15 @@ export default function ConversationComposerModal({
     () =>
       projects.map((project) => ({
         id: getProjectId(project),
-        label: getProjectName(project),
+        label: getProjectOptionLabel(project),
         description:
-          project?.client_name ||
-          toReadableLabel(Array.isArray(project?.event_type) ? project.event_type[0] : project?.event_type) ||
-          (getProjectId(project) ? `Booking #${getProjectId(project)}` : null),
+          [
+            getProjectId(project) ? `Booking #${getProjectId(project)}` : "",
+            project?.client_name || "",
+            toReadableLabel(Array.isArray(project?.event_type) ? project.event_type[0] : project?.event_type) || "",
+          ]
+            .filter(Boolean)
+            .join(" • "),
         disabled: Boolean(existingProjectRooms[getProjectId(project)]),
         disabledLabel: existingProjectRooms[getProjectId(project)]
           ? "Chat room already exists for this shoot"
@@ -242,9 +252,10 @@ export default function ConversationComposerModal({
     const load = async () => {
       setLoading(true);
       try {
-        const [projectsResponse, clientsResponse, directoryResponse, roomsResponse] = await Promise.all([
+        const [projectsResponse, adminClientsResponse, salesClientsResponse, directoryResponse, roomsResponse] = await Promise.all([
           adminApi.getProjects({}),
-          adminApi.getClients({ page: 1, limit: 200 }),
+          adminApi.getAdminClients({ page: 1, limit: 300 }),
+          adminApi.getClients({ page: 1, limit: 300 }),
           externalChatApi.getDirectory(),
           externalChatApi.listRooms({ page: 1, limit: 200, sortBy: "updatedAt:desc" }),
         ]);
@@ -255,15 +266,35 @@ export default function ConversationComposerModal({
           projectsResponse?.data ||
           projectsResponse?.results ||
           [];
-        const rawClientResults = Array.isArray(clientsResponse?.data)
-          ? clientsResponse.data
-          : clientsResponse?.data?.items || [];
+        const rawAdminClientResults = Array.isArray(adminClientsResponse?.data)
+          ? adminClientsResponse.data
+          : adminClientsResponse?.data?.items ||
+            adminClientsResponse?.data?.rows ||
+            adminClientsResponse?.items ||
+            [];
+        const rawSalesClientResults = Array.isArray(salesClientsResponse?.data)
+          ? salesClientsResponse.data
+          : salesClientsResponse?.data?.items ||
+            salesClientsResponse?.data?.rows ||
+            salesClientsResponse?.items ||
+            [];
+        const mergedClientResults = [
+          ...(Array.isArray(rawAdminClientResults) ? rawAdminClientResults : []),
+          ...(Array.isArray(rawSalesClientResults) ? rawSalesClientResults : []),
+        ];
 
         const normalizedProjects = (Array.isArray(rawProjectResults) ? rawProjectResults : [])
           .map((item: any) => item?.project || item)
           .filter((item: any) => getProjectId(item));
-        const normalizedClients = (Array.isArray(rawClientResults) ? rawClientResults : [])
-          .filter((item: any) => getClientId(item));
+        const seenClientIds = new Set<string>();
+        const normalizedClients = mergedClientResults
+          .filter((item: any) => getClientId(item))
+          .filter((item: any) => {
+            const clientId = getClientId(item);
+            if (!clientId || seenClientIds.has(clientId)) return false;
+            seenClientIds.add(clientId);
+            return true;
+          });
         const existingRoomMap = (Array.isArray(roomsResponse) ? roomsResponse : []).reduce(
           (acc: Record<string, ExternalChatRoom>, room: ExternalChatRoom) => {
             const bookingId = String(room?.external_order_ref || room?.order_id?.id || room?.order_id || "").trim();
@@ -466,7 +497,7 @@ export default function ConversationComposerModal({
                   {/* <label className="mb-2 block text-sm text-white/70">Select Shoot</label> */}
                   <SearchAutocomplete
                     label="Select Shoot"
-                    placeholder="Search shoot / client"
+                    placeholder="Search by project name, client, or booking ID"
                     options={projectOptions}
                     value={selectedProjectId}
                     onChange={setSelectedProjectId}

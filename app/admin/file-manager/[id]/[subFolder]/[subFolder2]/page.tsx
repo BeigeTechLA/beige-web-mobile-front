@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
+
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -15,7 +17,18 @@ import {
   Search,
   Trash2,
   Upload,
+  FileArchive,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Presentation,
+  CheckSquare,
+  Square,
+  X as CloseIcon,
+  Download as DownloadIcon,
+  Trash2 as TrashIcon
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
@@ -61,6 +74,39 @@ const normalizeRelativeFolderPath = (value: string, phaseSlug: string) => {
   return normalized;
 };
 
+  const getFileExtension = (title?: string) => {
+  const parts = (title || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() || "" : "";
+};
+
+const getFileMeta = (file: any) => {
+  const extension = getFileExtension(file?.title);
+  const contentType = file?.contentType || "";
+
+  if (contentType.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(extension)) {
+    return { icon: FileImage, label: "image", accentClass: "text-[#22C55E]", badgeClass: "bg-[#22C55E]/15" };
+  }
+  if (contentType.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm"].includes(extension)) {
+    return { icon: FileVideo, label: "video", accentClass: "text-[#E8D1AB]", badgeClass: "bg-[#E8D1AB]/15" };
+  }
+  if (contentType === "application/pdf" || extension === "pdf") {
+    return { icon: FileText, label: "pdf", accentClass: "text-[#F04438]", badgeClass: "bg-[#F04438]/15" };
+  }
+  if (["doc", "docx", "txt", "rtf"].includes(extension)) {
+    return { icon: FileText, label: extension || "doc", accentClass: "text-[#3B82F6]", badgeClass: "bg-[#3B82F6]/15" };
+  }
+  if (["ppt", "pptx", "key"].includes(extension)) {
+    return { icon: Presentation, label: extension || "ppt", accentClass: "text-[#F97316]", badgeClass: "bg-[#F97316]/15" };
+  }
+  if (["xls", "xlsx", "csv"].includes(extension)) {
+    return { icon: FileSpreadsheet, label: extension || "sheet", accentClass: "text-[#10B981]", badgeClass: "bg-[#10B981]/15" };
+  }
+  if (["zip", "rar", "7z", "tar", "gz"].includes(extension)) {
+    return { icon: FileArchive, label: extension || "zip", accentClass: "text-[#A855F7]", badgeClass: "bg-[#A855F7]/15" };
+  }
+  return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
+};
+
 export default function SubFolderDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -69,7 +115,8 @@ export default function SubFolderDetailsPage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
-  const canUpload = phaseSlug !== "post-production";
+  const canUpload = true;
+  const canDelete = phaseSlug !== "post-production";
   const folderPath = useMemo(() => {
     const queryPath = searchParams.get("path");
     const rawPath = queryPath ? tryDecodeURIComponent(queryPath).trim() : slugToWorkspaceName(nestedSlug);
@@ -88,7 +135,8 @@ export default function SubFolderDetailsPage() {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
+
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -101,6 +149,8 @@ export default function SubFolderDetailsPage() {
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<any | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
+  const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const loadFiles = async () => {
     try {
@@ -146,7 +196,7 @@ export default function SubFolderDetailsPage() {
   const folderFiles = useMemo(() => {
     return mapExternalFilesToUi(files).map((file) => ({
       ...file,
-      type: file.title.toLowerCase().match(/\.(mp4|mov|avi|mkv|webm)$/) ? "video" : "image",
+     ...getFileMeta(file),
       src: defaultImgSrc,
     }));
   }, [files]);
@@ -222,15 +272,31 @@ export default function SubFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        const link = document.createElement("a");
+        link.href = result.url;
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download file");
     }
   };
 
+  const triggerBatchFileDownload = (url: string) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 5000);
+  };
+
   const handleDeleteFile = async (file: any) => {
-    if (!canUpload) return;
+    if (!canDelete) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -243,6 +309,55 @@ export default function SubFolderDetailsPage() {
       await loadFiles();
     } catch (err: any) {
       toast.error(err?.message || "Failed to delete file");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const toggleFileSelection = (filepath: string) => {
+    setSelectedFilePaths(prev => 
+      prev.includes(filepath) 
+        ? prev.filter(p => p !== filepath) 
+        : [...prev, filepath]
+    );
+  };
+
+  const handleBatchDownload = async () => {
+    if (selectedFilePaths.length === 0) return;
+    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
+    for (const path of selectedFilePaths) {
+      try {
+        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
+        if (result?.url) {
+          triggerBatchFileDownload(result.url);
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to download file");
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedFilePaths.length === 0) return;
+    if (!canDelete) return;
+
+    try {
+      setIsDeleting(true);
+      let count = 0;
+      for (const path of selectedFilePaths) {
+        await fileManagerApi.deleteExternalEntry(path);
+        count++;
+      }
+      toast.success(`Deleted ${count} file(s)`);
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+      setIsDeleteModalOpen(false);
+      await loadFiles();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete files");
     } finally {
       setIsDeleting(false);
     }
@@ -283,7 +398,7 @@ export default function SubFolderDetailsPage() {
             <div className="bg-[#101010] flex flex-col gap-5 p-5 border-b border-b-[#3D3D3D] rounded-2xl">
               <div className="flex flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 lg:gap-4">
-                  <div className="bg-[#1A1A1A] p-3 rounded-full">
+                  <div className="bg-[#1A1A1A] flex h-12 w-12 items-center justify-center rounded-full shrink-0">
                     <span className="text-white text-xl font-semibold">{getDisplayInitials(workspaceName)}</span>
                   </div>
                   <h1 className="text-base text-[#E8D1AB] font-semibold">
@@ -330,6 +445,24 @@ export default function SubFolderDetailsPage() {
                   />
                 </div>
                 <div className="flex gap-2 ">
+                   {filteredData.length > 0 && (
+                     <Button
+                        variant="ghost"
+                      onClick={() => {
+                          const next = !isSelectionMode;
+                          setIsSelectionMode(next);
+                          if (!next) setSelectedFilePaths([]);
+                      }}
+                        className={`gap-2 h-10 px-4 rounded-lg border transition-all ${
+                          isSelectionMode 
+                            ? 'bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90' 
+                            : 'bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20'
+                        }`}
+                      >
+                        <CheckSquare size={18} />
+                        <span className="hidden sm:inline">{isSelectionMode ? 'Cancel' : 'Select'}</span>
+                      </Button>
+                   )}
                   {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
                   <div className="md:hidden relative">
                     <Button
@@ -395,23 +528,30 @@ export default function SubFolderDetailsPage() {
 
               {viewMode === "grid" ? (
                 filteredData.length === 0 ? (
-                  <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                       {visibleFiles.map((file) => (
                         <div
                           key={file.id}
-                          className="bg-[#111111] border border-white/10 rounded-xl p-4 lg:p-[19px] hover:border-white/20 transition-all group relative cursor-pointer"
+                          className={`bg-[#111111] border rounded-xl p-4 lg:p-[19px] hover:border-white/20 transition-all group relative cursor-pointer ${
+                            (isSelectionMode && selectedFilePaths.includes(file.filepath || "")) ? 'border-[#E8D1AB] ring-1 ring-[#E8D1AB]/50' : 'border-white/10'
+                          }`}
                           onClick={() => handleOpenFile(file)}
                         >
-                          <div className="flex items-center justify-between mb-3">
+                          {isSelectionMode && (
+                            <div className="absolute top-3 left-3 z-10" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox 
+                                checked={selectedFilePaths.includes(file.filepath || "")}
+                                onCheckedChange={() => toggleFileSelection(file.filepath || "")}
+                                className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                                />
+                            </div>
+                          )}
+                          <div className={`flex items-center justify-between mb-3 ${isSelectionMode ? 'ml-7' : ''}`}>
                             <div className="flex items-center gap-2 min-w-0">
-                              {file.type === "video" ? (
-                                <FileVideo size={16} className="text-[#E8D1AB] shrink-0" />
-                              ) : (
-                                <ImageIcon size={16} className="text-[#E8D1AB] shrink-0" />
-                              )}
+                              <file.icon size={16} className={`${file.accentClass} shrink-0`} />
                               <span className="truncate text-sm lg:text-base text-white">{file.title}</span>
                             </div>
                             <div className="flex items-center gap-1">
@@ -423,7 +563,7 @@ export default function SubFolderDetailsPage() {
                               </button>
                               <button className="text-white/70 hover:text-[#F04438]" onClick={(e) => {
                                 e.stopPropagation();
-                                if (!canUpload) return;
+                                if (!canDelete) return;
                                 setSelectedFile(file);
                                 setIsDeleteModalOpen(true);
                               }}>
@@ -433,14 +573,14 @@ export default function SubFolderDetailsPage() {
                           </div>
 
                           <div className="aspect-square bg-[#1A1A1A] rounded-xl border border-white/5 flex items-center justify-center overflow-hidden relative">
-                            {file.contentType?.startsWith("image/") && previewUrls[file.id] ? (
-                              // eslint-disable-next-line @next/next/no-img-element
+                            {file.label === "image" && previewUrls[file.id] ? (
                               <img
                                 src={previewUrls[file.id]}
                                 alt={file.title || "Preview"}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                               />
-                            ) : file.contentType?.startsWith("video/") && previewUrls[file.id] ? (
+                            ) : 
+                            file.label === "video" && previewUrls[file.id] ? (
                               <div className="relative h-full w-full">
                                 <video
                                   src={previewUrls[file.id]}
@@ -456,13 +596,12 @@ export default function SubFolderDetailsPage() {
                                 </div>
                               </div>
                             ) : (
-                              <Image
-                                src={file.src || defaultImgSrc}
-                                alt={file.title || "Default file icon"}
-                                width={158}
-                                height={150}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
+                              <div className={`w-full h-full flex items-center justify-center ${file.badgeClass}`}>
+                                <file.icon 
+                                  className={`${file.accentClass} opacity-80 group-hover:scale-110 transition-transform`} 
+                                  size={48} 
+                                />
+                              </div>
                             )}
                           </div>
                         </div>
@@ -483,14 +622,33 @@ export default function SubFolderDetailsPage() {
                 )
               ) : (
                 filteredData.length === 0 ? (
-                  <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
                   <div className="space-y-4">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm">
                       <thead className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
                         <tr>
-                          <th className="rounded-l-xl py-5 px-6 font-medium">File title</th>
+                          {isSelectionMode && (
+                            <th className="rounded-l-xl py-5 px-6 font-medium w-10">
+                                <div onClick={(e) => e.stopPropagation()}>
+                                <Checkbox 
+                                    checked={visibleFiles.length > 0 && visibleFiles.every(f => selectedFilePaths.includes(f.filepath || ""))}
+                                    onCheckedChange={(checked: boolean | "indeterminate") => {
+                                    if (checked === true) {
+                                        const allVisible = visibleFiles.map(f => f.filepath || "").filter(Boolean);
+                                        setSelectedFilePaths(prev => Array.from(new Set([...prev, ...allVisible])));
+                                    } else {
+                                        const allVisible = visibleFiles.map(f => f.filepath || "");
+                                        setSelectedFilePaths(prev => prev.filter(p => !allVisible.includes(p)));
+                                    }
+                                    }}
+                                    className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                                />
+                                </div>
+                            </th>
+                          )}
+                          <th className={`${!isSelectionMode ? 'rounded-l-xl' : ''} py-5 px-6 font-medium`}>File title</th>
                           <th className="py-5 px-6 font-medium">Type</th>
                           <th className="py-5 px-6 font-medium">Last Opened</th>
                           <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
@@ -500,34 +658,30 @@ export default function SubFolderDetailsPage() {
                         {visibleFiles.map((file) => (
                           <tr
                             key={file.id}
-                            className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
+                            className={`hover:bg-white/[0.02] transition-colors group cursor-pointer ${(isSelectionMode && selectedFilePaths.includes(file.filepath || "")) ? 'bg-white/[0.04]' : ''}`}
                             onClick={() => handleOpenFile(file)}
                           >
+                            {isSelectionMode && (
+                                <td className="py-5 px-6 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox 
+                                    checked={selectedFilePaths.includes(file.filepath || "")}
+                                    onCheckedChange={() => toggleFileSelection(file.filepath || "")}
+                                    className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                                />
+                                </td>
+                            )}
                             <td className="py-5 px-6 whitespace-nowrap">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded bg-[#1A1A1A] overflow-hidden flex-shrink-0 relative border border-white/5">
-                                  {file.contentType?.startsWith("image/") && previewUrls[file.id] ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
+                                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 relative border border-white/5 bg-[#1A1A1A] flex items-center justify-center">
+                                  {file.label === "image" && previewUrls[file.id] ? (
                                     <img
                                       src={previewUrls[file.id]}
-                                      alt={file.title || "Preview"}
+                                      alt=""
                                       className="h-full w-full object-cover"
-                                    />
-                                  ) : file.contentType?.startsWith("video/") && previewUrls[file.id] ? (
-                                    <video
-                                      src={previewUrls[file.id]}
-                                      className="h-full w-full object-cover"
-                                      muted
-                                      playsInline
-                                      preload="metadata"
                                     />
                                   ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-white/5">
-                                      {file.type === "video" ? (
-                                        <FileVideo size={14} className="text-[#E8D1AB]" />
-                                      ) : (
-                                        <ImageIcon size={14} className="text-[#E8D1AB]" />
-                                      )}
+                                    <div className={`flex h-full w-full items-center justify-center ${file.badgeClass}`}>
+                                      <file.icon className={file.accentClass} size={20} />
                                     </div>
                                   )}
                                 </div>
@@ -536,8 +690,7 @@ export default function SubFolderDetailsPage() {
                             </td>
                             <td className="py-5 px-6 whitespace-nowrap">
                               <div className="flex items-center gap-2 text-white/60 capitalize">
-                                {file.type === "video" ? <FileVideo size={14} className="text-[#E8D1AB]" /> : <ImageIcon size={14} className="text-[#E8D1AB]" />}
-                                {file.type}
+                               {file.label}
                               </div>
                             </td>
                             <td className="py-5 px-6 whitespace-nowrap text-white/40 italic text-xs">{file.lastOpened}</td>
@@ -551,7 +704,7 @@ export default function SubFolderDetailsPage() {
                                 </button>
                                 <button className="p-2 hover:bg-white/10 rounded-lg text-white/40 hover:text-[#F04438] transition-colors" onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!canUpload) return;
+                                  if (!canDelete) return;
                                   setSelectedFile(file);
                                   setIsDeleteModalOpen(true);
                                 }}>
@@ -587,7 +740,7 @@ export default function SubFolderDetailsPage() {
           onClose={() => setIsUploadModalOpen(false)}
           folderName={folderTitle}
           uploadPath={
-            canUpload && workspaceName
+            workspaceName
               ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${folderPath}`
               : undefined
           }
@@ -597,8 +750,14 @@ export default function SubFolderDetailsPage() {
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={() => handleDeleteFile(selectedFile)}
-          itemName={selectedFile?.title || "this file"}
+          onConfirm={() => {
+            if (selectedFilePaths.length > 0) {
+              handleBatchDelete();
+            } else {
+              handleDeleteFile(selectedFile);
+            }
+          }}
+          itemName={selectedFilePaths.length > 0 ? `${selectedFilePaths.length} selected files` : selectedFile?.title || "this file"}
           itemType="file"
           isDeleting={isDeleting}
         />
@@ -614,6 +773,57 @@ export default function SubFolderDetailsPage() {
           contentType={viewerFile?.contentType}
           fileMetaId={viewerFile?.filepath || null}
         />
+
+        {/* Batch Action Toolbar */}
+        {selectedFilePaths.length > 0 && (
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-xl px-4">
+            <div className="bg-[#171717] border border-[#E8D1AB]/50 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#E8D1AB] text-black h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm">
+                  {selectedFilePaths.length}
+                </div>
+                <span className="text-white font-medium">Files selected</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  className="text-white/70 hover:text-white gap-2"
+                  onClick={() => setSelectedFilePaths([])}
+                >
+                  Clear
+                </Button>
+                
+                <div className="h-6 w-[1px] bg-white/10 mx-1" />
+                
+                <Button 
+                  className="bg-white/10 text-white hover:bg-white/20 gap-2 border border-white/10"
+                  onClick={handleBatchDownload}
+                >
+                  <DownloadIcon size={18} />
+                  Download
+                </Button>
+                
+                {canDelete && (
+                  <Button 
+                    className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    <TrashIcon size={18} />
+                    Delete
+                  </Button>
+                )}
+              </div>
+
+              <button 
+                onClick={() => setSelectedFilePaths([])}
+                className="text-white/40 hover:text-white"
+              >
+                <CloseIcon size={20} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Grid3X3, History, Link, List, Loader2, Search, Share2, Trash2 } from "lucide-react";
+import { useViewMode } from "@/hooks/useViewMode";
+
 import { FolderCard } from "@/components/production-manager/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/production-manager/BasicDropdown";
@@ -21,8 +23,9 @@ export default function ProductionManagerFileManagerPage() {
   const pathname = usePathname();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);

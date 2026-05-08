@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Plus, Minus } from "lucide-react";
 
 import type { SalesQuoteDetailData } from "@/lib/api";
 import {
@@ -21,6 +22,11 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 type QuotePreviewDocumentProps = {
   quote: SalesQuoteDetailData;
   quoteId?: string | null;
+  paymentSummaryOverrides?: {
+    previousTotal?: number;
+    previouslyPaid?: number;
+    revisedTotal?: number;
+  };
 };
 
 const COMPANY_PROFILE = {
@@ -29,6 +35,31 @@ const COMPANY_PROFILE = {
   addressLines: ["9200 Sunset Blvd. #215", "West Hollywood, CA 90069"],
   email: "sales@beigecorporation.io",
   phone: "323-826-7230",
+};
+
+const S3_PREFIX =
+  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+
+const resolveSignatureSource = (...sources: Array<unknown>) => {
+  const baseUrl = S3_PREFIX.replace(/\/+$/, "");
+
+  for (const source of sources) {
+    if (typeof source !== "string") {
+      continue;
+    }
+
+    const value = source.trim();
+    if (!value) continue;
+    if (value.startsWith("data:")) return value;
+    if (/^https?:\/\//i.test(value) && !/localhost|127\.0\.0\.1|::1/i.test(value)) {
+      return value;
+    }
+
+    const path = (value.match(/(?:^|\/)(signatures\/.+)$/i)?.[1] ?? value).replace(/^\/+/, "");
+    return `${baseUrl}/${path}`;
+  }
+
+  return null;
 };
 
 const formatCount = (value: number) => String(Math.max(0, value)).padStart(2, "0");
@@ -117,7 +148,7 @@ const ServiceTable = ({
         // className={`hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b pb-3 text-sm font-medium md:grid ${
         //   isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
         // }`}
-        className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[8px] lg:text-sm font-medium grid ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
+        className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[9px] lg:text-sm font-medium grid gap-2 ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
           }`}
       >
         <p>Description</p>
@@ -127,31 +158,59 @@ const ServiceTable = ({
         <p className="text-right">Amount</p>
       </div>
       <div className="space-y-4">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            // className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-lg ${
-            //   isDark ? "text-white/90" : "text-black/80"
-            // }`}
-            className={`grid gap-2 text-[10px] grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-base ${isDark ? "text-white/90" : "text-black/80"}`}
-          >
-            <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-              {item.subtitle || shootTypeLabel ? (
-                <>
-                  {item.name} - <span className="text-[#E8D1AB]">{item.subtitle || `(${shootTypeLabel})`}</span>
-                </>
-              ) : (
-                item.name
-              )}
-            </p>
-            <p className="md:text-center">{formatCount(item.quantity)}</p>
-            <p className="md:text-center">{formatDuration(item.duration)}</p>
-            <p className="md:text-center">{item.crew > 0 ? formatCount(item.crew) : "-"}</p>
-            <p className={`font-medium md:text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
-              {formatQuoteCurrency(item.amount)}
-            </p>
-          </div>
-        ))}
+        {items.map((item) => {
+          const splitName = item.name.split("-")
+          const hasCustom = splitName.length > 1 && splitName.some(part => part.toLowerCase().includes("custom"));
+
+          return (
+            <div
+              key={item.id}
+              // className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-lg ${
+              //   isDark ? "text-white/90" : "text-black/80"
+              // }`}
+              className={`grid gap-2 text-[11px] grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-base ${isDark ? "text-white/90" : "text-black/80"}`}
+            >
+              <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                {item.subtitle || shootTypeLabel ? (
+                  <>
+                    {hasCustom ? (
+                      splitName.map((part, index) => {
+                        const isCustomPart = part.toLowerCase().includes("custom");
+                        return (
+                          <React.Fragment key={index}>
+                            <span className={`${isCustomPart ? "text-[#E8D1AB] text-[9px] block lg:inline lg:text-base" : "text-white"}`}>
+                              {part}
+                            </span>
+                            {/* Hide the hyphen on mobile when it breaks to a new line */}
+                            {index < splitName.length - 1 && (
+                              <span className="hidden lg:inline">{" - "}</span>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    ) : (
+                      <span className="block lg:inline">{item.name}</span>
+                    )}
+
+                    {/* The trailing subtitle/label section */}
+                    <span className="hidden lg:inline">{" - "}</span>
+                    <span className="text-[#E8D1AB] text-[9px] block lg:inline lg:text-base">
+                      {item.subtitle || `(${shootTypeLabel})`}
+                    </span>
+                  </>
+                ) : (
+                  item.name
+                )}
+              </p>
+              <p className="text-center">{formatCount(item.quantity)}</p>
+              <p className="text-center">{formatDuration(item.duration)}</p>
+              <p className="text-center">{item.crew > 0 ? formatCount(item.crew) : "-"}</p>
+              <p className={`font-medium text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
+                {formatQuoteCurrency(item.amount)}
+              </p>
+            </div>
+          )
+        })}
       </div>
     </section>
   );
@@ -160,6 +219,7 @@ const ServiceTable = ({
 export default function QuotePreviewDocument({
   quote,
   quoteId,
+  paymentSummaryOverrides,
 }: QuotePreviewDocumentProps) {
   const { isDark } = useResolvedTheme();
   const quoteData = unwrapSalesQuoteDetail(quote);
@@ -167,7 +227,7 @@ export default function QuotePreviewDocument({
   if (!quoteData) {
     return null;
   }
-
+  const isRejected = getQuoteText(quoteData.status)?.toLowerCase() === "rejected";
   const lineItems = normalizeQuoteLineItems(quoteData);
   const serviceItems = lineItems.filter((item) => item.section === "service");
   const addonItems = lineItems.filter((item) => item.section === "addon");
@@ -187,7 +247,11 @@ export default function QuotePreviewDocument({
   const taxAmount = discountedSubtotal * (taxRate / 100);
   const amountAfterTax = discountedSubtotal + taxAmount;
   const finalTotal = amountAfterTax;
-  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData);
+  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData, {
+    previousTotalOverride: paymentSummaryOverrides?.previousTotal,
+    previouslyPaidOverride: paymentSummaryOverrides?.previouslyPaid,
+    revisedTotalOverride: paymentSummaryOverrides?.revisedTotal,
+  });
 
   const resolvedQuoteId = String(
     quoteData.sales_quote_id ?? quoteData.quote_id ?? quoteData.id ?? quoteId ?? ""
@@ -219,6 +283,12 @@ export default function QuotePreviewDocument({
     fallbackTerms
   );
   const terms = isLegacyDefaultQuoteTerms(normalizedTerms) ? fallbackTerms : normalizedTerms;
+  const signatureSource = resolveSignatureSource(
+    quoteData.signature_base64,
+    quoteData.signature_path,
+    (quote as Record<string, unknown>)?.signature_base64,
+    (quote as Record<string, unknown>)?.signature_path,
+  );
   return (
     <div
       className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
@@ -231,25 +301,25 @@ export default function QuotePreviewDocument({
               <div className="flex h-[58px] w-[58px] items-center justify-center rounded-2xl bg-[#E8D1AB]">
                 <BeigeMark />
               </div>
-                <div>
-                  <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
-                    {COMPANY_PROFILE.name}
+              <div>
+                <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
+                  {COMPANY_PROFILE.name}
+                </p>
+                {COMPANY_PROFILE.subtitle ? (
+                  <p className={`text-sm lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
+                    {COMPANY_PROFILE.subtitle}
                   </p>
-                  {COMPANY_PROFILE.subtitle ? (
-                    <p className={`text-sm lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
-                      {COMPANY_PROFILE.subtitle}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className={`space-y-1 text-sm leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
-                {COMPANY_PROFILE.addressLines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-                <p>{COMPANY_PROFILE.email} {COMPANY_PROFILE.phone}</p>
+                ) : null}
               </div>
             </div>
+
+            <div className={`space-y-1 text-sm leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
+              {COMPANY_PROFILE.addressLines.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+              <p>{COMPANY_PROFILE.email} {COMPANY_PROFILE.phone}</p>
+            </div>
+          </div>
 
           <div className="text-left lg:text-right">
             <h3 className={`text-[38px] font-bold tracking-tight lg:text-[64px] ${isDark ? "text-white" : "text-[#101010]"}`}>
@@ -321,21 +391,25 @@ export default function QuotePreviewDocument({
                 <div className="mt-2 border-t border-black/10 pt-3" />
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-6">
-                    <span>Previously Paid</span>
+                    <span>Old Quote Total</span>
                     <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                      {formatQuoteCurrency(additionalPaymentDetails.previousTotal)}
                     </span>
                   </div>
+                  {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
+                    <div className="flex items-center justify-between gap-6">
+                      <span>Previously Paid</span>
+                      <span className="font-semibold">
+                        {formatQuoteCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                      </span>
+                    </div>
+                  ) : null}
                   <div className="flex items-center justify-between gap-6">
-                    <span>Additional Amount</span>
-                    <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.additionalAmount)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-6">
-                    <span>Outstanding Amount</span>
-                    <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.outstandingAmount)}
+                    <div className="flex items-center gap-1.5">
+                      <span>{additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}</span>
+                    </div>
+                    <span className={`font-semibold ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-600" : ""}`}>
+                      {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
                 </div>
@@ -380,11 +454,7 @@ export default function QuotePreviewDocument({
             isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
           }`}>
             <img
-              src={
-                /^(data:|https?:\/\/)/i.test(String(quoteData.signature_base64 || ""))
-                  ? String(quoteData.signature_base64)
-                  : `${String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "")}/${String(quoteData.signature_base64 || "").replace(/^\/+/, "")}`
-              }
+              src={quoteData.signature_base64}
               alt="Signature"
               className="w-full max-h-20 object-contain"
             />

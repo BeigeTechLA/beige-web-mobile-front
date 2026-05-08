@@ -12,6 +12,8 @@ import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
+import { useViewMode } from "@/hooks/useViewMode";
+
 import {
   fileManagerApi,
   getDisplayInitials,
@@ -35,7 +37,7 @@ export default function SalesFolderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);

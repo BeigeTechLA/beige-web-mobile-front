@@ -15,11 +15,17 @@ import { adminApi } from "@/lib/api";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
 
-const CP_MEMBERS = [
-  { id: 1, name: "Ryan Smith", role: "Photographer", image: "/images/crew/CREW(3).png", bgColor: "bg-[#FFD6D6]" }, // Pink
-  { id: 2, name: "Marcus Wright", role: "Videographer", image: "/images/crew/CREW(4).png", bgColor: "bg-[#C4B5FD]" }, // Purple
-  { id: 3, name: "Sara Kim", role: "Editor", image: "/images/crew/CREW(5).png", bgColor: "bg-white" }, // White
-];
+/**
+ * Custom CSS to force the "Top-Stacking" behavior.
+ * Swiper Cards effect usually translates slides down;
+ * we override the slide transformations to stack them upwards.
+ */
+const stackStyles = `
+  .top-stack-swiper .swiper-slide-shadow { display: none !important; }
+  .top-stack-swiper .swiper-slide {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+`;
 
 export default function AssignedCP({ projectId, leadId, assignedCrew }: { projectId: string; leadId?: string | number, assignedCrew?: any[] }) {
   const router = useRouter()
@@ -59,10 +65,7 @@ export default function AssignedCP({ projectId, leadId, assignedCrew }: { projec
 
       setCrewMembers((prev) => {
         const updated = prev.filter((member) => Number(member.crew_member_id) !== Number(crewMemberId));
-        setActiveIndex((current) => {
-          if (updated.length === 0) return 0;
-          return Math.min(current, updated.length - 1);
-        });
+        setActiveIndex((current) => (updated.length === 0 ? 0 : Math.min(current, updated.length - 1)));
         return updated;
       });
       toast.success("Assigned CP removed successfully");
@@ -94,107 +97,112 @@ export default function AssignedCP({ projectId, leadId, assignedCrew }: { projec
 
   return (
     <div
-      className={`rounded-2xl h-full flex flex-col items-center justify-center relative overflow-hidden py-6 transition-all duration-300 ${isDark ? "bg-[#111111] border border-[#222222]" : "bg-[#F4F5F7] border border-[#E5E5E5]"}`}
+      className={`rounded-2xl h-full flex flex-col items-center transition-all duration-300 ${isDark ? "bg-[#111111] border border-[#222222]" : "bg-[#F4F5F7] border border-[#E5E5E5]"}`}
       style={{ fontFamily: 'var(--font-instrument-sans)' }}
     >
-      <h3 className={`text-lg font-medium mb-4 absolute top-6 z-10 transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
-        Assigned CP
-      </h3>
+      <style>{stackStyles}</style>
+      {/* Title */}
+      <div className={`flex justify-center w-full p-6 border-b ${isDark ? "border-b-[#333333]" : "border-b-[#E5E5E5]"}`}>
+        <h3 className={`text-lg font-medium transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
+          Assigned CP
+        </h3>
+      </div>
 
-      <div className={`w-full h-px bg-dashed border-t border-dashed absolute top-20 left-0 transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
-        }`} />
-      {
-        hasCPs ? (
-          <>
-            {/* Cards Swiper - Vertical Direction to match 'down' interaction feel */}
-            <div className="w-[240px] h-[260px] mt-24 relative z-10">
-              <Swiper
-                effect={"cards"}
-                direction={"vertical"} // Vertical swipe to "pull down" or "push up"
-                grabCursor={true}
-                modules={[EffectCards]}
-                className="w-full h-full"
-                cardsEffect={{
-                  perSlideOffset: 12, // Reduced offset to keep in box
-                  perSlideRotate: 0, // No rotation
-                  slideShadows: false,
-                }}
-                onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
-              >
-                {crewMembers.map((member, index) => {
-                  const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
-                  return (
-                    <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveCP(Number(member.crew_member_id || member.id));
-                        }}
-                        disabled={removingCrewId === Number(member.crew_member_id || member.id)}
-                        className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
-                        aria-label="Remove CP"
-                      >
-                        {removingCrewId === Number(member.crew_member_id || member.id) ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <X size={18} />
-                        )}
-                      </button>
-                      <Image
-                        src={getProfileImage(member)}
-                        alt={`${member.crew_member?.first_name} ${member.crew_member?.last_name}`}
-                        fill
-                        className="object-cover object-top"
-                      />
-                    </SwiperSlide>
-                  );
-                })}
-              </Swiper>
-            </div>
+      {/* Swiper or Placeholder */}
+      <div className="p-6 h-full">
+        {
+          hasCPs ? (
+            <div className=" flex flex-col items-center gap-4">
+              {/* Cards Swiper - Vertical Direction to match 'down' interaction feel */}
+              <div className=" relative z-10 py-10">
+                <Swiper
+                  effect={"cards"}
+                  direction={"vertical"} // Vertical swipe to "pull down" or "push up"
+                  grabCursor={true}
+                  modules={[EffectCards]}
+                  className="w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
+                  cardsEffect={{
+                    perSlideOffset: 12, // Reduced offset to keep in box
+                    perSlideRotate: 0, // No rotation
+                    slideShadows: false,
+                  }}
+                  onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
+                >
+                  {crewMembers.map((member, index) => {
+                    const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+                    return (
+                      <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveCP(Number(member.crew_member_id || member.id));
+                          }}
+                          disabled={removingCrewId === Number(member.crew_member_id || member.id)}
+                          className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
+                          aria-label="Remove CP"
+                        >
+                          {removingCrewId === Number(member.crew_member_id || member.id) ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <X size={18} />
+                          )}
+                        </button>
+                        <Image
+                          src={getProfileImage(member)}
+                          alt={`${member.crew_member?.first_name} ${member.crew_member?.last_name}`}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </SwiperSlide>
+                    );
+                  })}
+                </Swiper>
+              </div>
 
-            {/* Text Info - Added to match ProjectTeam symmetry */}
-            <div className="mt-auto lg:mb-4 text-center z-10 relative">
-              <h4 className={`lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300 ${isDark ? "text-white" : "text-black"}`}>
-                {crewMembers[activeIndex]?.crew_member ? `${crewMembers[activeIndex].crew_member.first_name} ${crewMembers[activeIndex].crew_member.last_name}` : "Unknown"}
-              </h4>
-              <p className={`text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
-                {getPrimaryRoleLabel(
-                  crewMembers[activeIndex]?.crew_member?.primary_role,
-                  crewMembers[activeIndex]?.crew_member?.role_name
-                )}
-              </p>
-            </div>
+              {/* Text Info - Added to match ProjectTeam symmetry */}
+              <div className="mt-auto lg:mb-2 text-center z-10 relative">
+                <h4 className={`lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300 ${isDark ? "text-white" : "text-black"}`}>
+                  {crewMembers[activeIndex]?.crew_member ? `${crewMembers[activeIndex].crew_member.first_name} ${crewMembers[activeIndex].crew_member.last_name}` : "Unknown"}
+                </h4>
+                <p className={`text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
+                  {getPrimaryRoleLabel(
+                    crewMembers[activeIndex]?.crew_member?.primary_role,
+                    crewMembers[activeIndex]?.crew_member?.role_name
+                  )}
+                </p>
+              </div>
 
-            <div className="flex flex-col lg:flex-row gap-4">
-              <Button
-                onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
-                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
-              >
-                <Plus /> Add More CPs
-              </Button>
-              {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              <div className="flex flex-col lg:flex-row gap-4">
+                <Button
+                  onClick={() => router.push(`/production-manager/shoots/${projectId}/add-creatives`)}
+                  className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
+                >
+                  <Plus /> Add More CPs
+                </Button>
+                {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
                                 Change CPs
                             </Button> */}
+              </div>
             </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
-            <button
-              onClick={() => router.push("/admin/select-creatives")}
-              className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg ${isDark
-                ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10"
-                : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
-                }`}
-            >
-              <Plus size={40} className="text-black" />
-            </button>
-            <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-black"}`}>
-              Assign Creative Partner
-            </h4>
-          </div>
-        )
-      }
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full py-10 relative z-30">
+              <button
+                onClick={() => router.push(`/production-manager/shoots/${projectId}/add-creatives`)}
+                className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg ${isDark
+                  ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10"
+                  : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
+                  }`}
+              >
+                <Plus size={40} className="text-black" />
+              </button>
+              <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-text-black"}`}>
+                Assign Creative Partner
+              </h4>
+            </div>
+          )
+        }
+      </div>
     </div >
   );
 }

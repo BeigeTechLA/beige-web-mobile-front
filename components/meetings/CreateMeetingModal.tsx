@@ -25,7 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi } from "@/lib/meetingsApi";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
+import { getBrowserTimeZone } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
+import SearchAutocomplete from "@/components/chat/SearchAutocomplete";
 type MeetingType = "pre_production" | "post_production";
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -47,6 +49,7 @@ interface ParticipantOption {
 interface ProjectOption {
   id: string;
   label: string;
+  description?: string;
 }
 
 type MemberTab = "cp" | "staff";
@@ -152,6 +155,12 @@ const getProjectName = (project: ProjectSource | null | undefined) => {
   );
 };
 
+const getProjectOptionLabel = (project: ProjectSource | null | undefined) => {
+  const bookingId = getProjectId(project);
+  const name = getProjectName(project);
+  return bookingId ? `${name} (Booking #${bookingId})` : name;
+};
+
 const formatRoleLabel = (value?: string) =>
   String(value || "")
     .replace(/_/g, " ")
@@ -219,21 +228,26 @@ export default function CreateMeetingModal({
   const { user } = useAuth();
   const currentUserId = getCurrentUserId(user);
   const currentUserName = getCurrentUserName(user);
-  const defaultStart = useMemo(() => {
-    const now = new Date();
-    now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
-    return now;
-  }, []);
+ 
+const getNextValidTime = () => {
+  const now = new Date();
+  const next = new Date(now);
+  next.setSeconds(0, 0);
+  next.setHours(now.getHours() + 1, 0, 0, 0);
+  return next;
+};
 
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState(orderId ? String(orderId) : "");
   const [selectedOrder, setSelectedOrder] = useState<ProjectSource | null>(null);
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingType, setMeetingType] = useState<MeetingType>("post_production");
-  const [meetingDate, setMeetingDate] = useState<Date | null>(defaultStart);
-  const [meetingStartTime, setMeetingStartTime] = useState<Date | null>(defaultStart);
+  const initialTime = getNextValidTime();
+
+  const [meetingDate, setMeetingDate] = useState<Date | null>(initialTime);
+  const [meetingStartTime, setMeetingStartTime] = useState<Date | null>(initialTime);
   const [meetingEndTime, setMeetingEndTime] = useState<Date | null>(
-    new Date(defaultStart.getTime() + 60 * 60 * 1000)
+    new Date(initialTime.getTime() + 60 * 60 * 1000)
   );
   const [description, setDescription] = useState("");
   const [meetLink, setMeetLink] = useState("");
@@ -314,9 +328,10 @@ export default function CreateMeetingModal({
 
     setMeetingTitle("");
     setMeetingType("post_production");
-    setMeetingDate(defaultStart);
-    setMeetingStartTime(defaultStart);
-    setMeetingEndTime(new Date(defaultStart.getTime() + 60 * 60 * 1000));
+    const next = getNextValidTime();
+    setMeetingDate(next);
+    setMeetingStartTime(next);
+    setMeetingEndTime(new Date(next.getTime() + 60 * 60 * 1000));
     setDescription("");
     setMeetLink("");
     setSendNotification(true);
@@ -331,7 +346,7 @@ export default function CreateMeetingModal({
     setMemberTab("staff");
     setIsSubmitting(false);
     setIsGeneratingLink(false);
-  }, [defaultStart, isOpen, orderId]);
+  }, [ isOpen, orderId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -366,7 +381,11 @@ export default function CreateMeetingModal({
           .filter((item) => getProjectId(item))
           .map((item) => ({
             id: getProjectId(item),
-            label: getProjectName(item),
+            label: getProjectOptionLabel(item),
+            description:
+              resolveClientName(item) ||
+              resolveClientEmail(item) ||
+              (getProjectId(item) ? `Booking #${getProjectId(item)}` : "Project"),
           }));
 
         setProjects(normalizedProjects);
@@ -461,6 +480,13 @@ export default function CreateMeetingModal({
     };
   }, [isOpen, meetingTitle, selectedOrderId]);
 
+  useEffect(() => {
+    if (meetingStartTime) {
+      const newEnd = new Date(meetingStartTime.getTime() + 60 * 60 * 1000);
+      setMeetingEndTime(newEnd);
+    }
+  }, [meetingStartTime]);
+
   if (!isOpen) return null;
 
   const activeOrderId = selectedOrderId || (orderId ? String(orderId) : "");
@@ -490,6 +516,7 @@ export default function CreateMeetingModal({
         description: description.trim(),
         startDateTime: startIso,
         endDateTime: endIso,
+        timeZone: getBrowserTimeZone(),
         orderId: activeOrderId,
       });
 
@@ -548,6 +575,11 @@ export default function CreateMeetingModal({
 
     const startIso = combineDateAndTime(meetingDate, meetingStartTime);
     const endIso = combineDateAndTime(meetingDate, meetingEndTime);
+
+    if (startIso && new Date(startIso) < new Date()) {
+      toast.error("Start time cannot be in the past.");
+      return;
+    }
 
     if (!startIso || !endIso) {
       toast.error("Please provide a valid meeting start and end time.");
@@ -627,6 +659,10 @@ export default function CreateMeetingModal({
   const managerOption = projectParticipants.find((participant) => participant.role === "manager") || null;
   const cpOptions = projectParticipants.filter((participant) => participant.role === "cp");
 
+  const isToday = meetingDate
+   ? new Date(meetingDate).toDateString() === new Date().toDateString()
+   : false;
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto px-4 pb-8 pt-8">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
@@ -663,18 +699,23 @@ export default function CreateMeetingModal({
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-white/70">Project / Shoot</label>
-                  <Select value={activeOrderId} onValueChange={setSelectedOrderId} disabled={fixedOrder || isLoadingProjects}>
-                    <SelectTrigger className="h-12 border-[#2C2C2C] bg-[#151515] text-white">
-                      <SelectValue placeholder={isLoadingProjects ? "Loading projects..." : "Select a project"} />
-                    </SelectTrigger>
-                    <SelectContent className="border-white/10 bg-[#111111] text-white">
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id} className="focus:bg-[#1B1B1B] focus:text-white">
-                          {project.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {fixedOrder ? (
+                    <div className="h-12 rounded-2xl border border-[#2C2C2C] bg-[#151515] px-4 text-sm text-white flex items-center">
+                      {projects.find((project) => project.id === activeOrderId)?.label || `Booking #${activeOrderId}`}
+                    </div>
+                  ) : (
+                    <SearchAutocomplete
+                      placeholder={isLoadingProjects ? "Loading projects..." : "Search by project name or booking ID"}
+                      options={projects.map((project) => ({
+                        id: project.id,
+                        label: project.label,
+                        description: project.description,
+                      }))}
+                      value={activeOrderId}
+                      onChange={setSelectedOrderId}
+                      emptyMessage="No project matches your search"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -712,11 +753,21 @@ export default function CreateMeetingModal({
                   </div>
 
                   <div className="space-y-2">
-                    <TimePicker label="Start Time" value={meetingStartTime} onChange={setMeetingStartTime} />
+                   <TimePicker
+                      label="Start Time"
+                      value={meetingStartTime}
+                      onChange={setMeetingStartTime}
+                      minTime={isToday ? getNextValidTime() : null}
+                    />   
                   </div>
 
                   <div className="space-y-2">
-                    <TimePicker label="End Time" value={meetingEndTime} onChange={setMeetingEndTime} />
+                   <TimePicker
+                      label="End Time"
+                      value={meetingEndTime}
+                      onChange={setMeetingEndTime}
+                      minTime={meetingStartTime || (isToday ? getNextValidTime() : null)}
+                    />
                   </div>
                 </div>
 
@@ -837,6 +888,8 @@ export default function CreateMeetingModal({
 
                   {cpOptions.map((cp) => {
                     const selected = selectedCpIds.includes(cp.id);
+
+                    
                     return (
                       <button
                         key={cp.id}
