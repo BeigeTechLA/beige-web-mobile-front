@@ -15,10 +15,11 @@ import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOvervi
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye } from "lucide-react"; // Added X icon for closing
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 
 type SkillOption = {
   id?: number | string;
@@ -63,6 +64,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [previewInvoice, { isLoading: isViewingInvoice }] = usePreviewInvoiceMutation();
 
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
@@ -188,6 +190,59 @@ const projectData: ProjectDetails | undefined =
     }
   };
 
+  const handleViewInvoice = async () => {
+    const numericBookingId = Number(bookingId);
+
+    if (!Number.isFinite(numericBookingId) || numericBookingId <= 0) {
+      toast.error("Booking ID is not available for invoice preview");
+      return;
+    }
+
+    try {
+      const response = await previewInvoice({ booking_id: numericBookingId }).unwrap();
+
+      if (!response?.success) {
+        toast.error(typeof response?.message === "string" ? response.message : "Failed to preview invoice");
+        return;
+      }
+
+      const hostedInvoiceUrl = response.data?.invoiceUrl || null;
+      const invoicePdfUrl = response.data?.invoicePdf || null;
+      const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
+      const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${numericBookingId}?t=${Date.now()}`;
+      const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${numericBookingId}?download=1&t=${Date.now()}`;
+      const isManualInvoice =
+        String(invoicePdfUrl || "").includes("manual=1") ||
+        String(hostedInvoiceUrl || "").includes("manual=1");
+
+      if (!hostedInvoiceUrl && !invoicePdfUrl) {
+        toast.error("Preview URL not available");
+        return;
+      }
+
+      if (hostedInvoiceUrl) {
+        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      }
+
+      if (invoicePdfUrl) {
+        if (isManualInvoice) {
+          window.open(invoicePdfUrl || proxiedPdfUrl, "_blank", "noopener,noreferrer");
+        } else {
+          const link = document.createElement("a");
+          link.href = proxiedDownloadUrl || proxiedPdfUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.click();
+        }
+      }
+
+      toast.success(isManualInvoice ? "Invoice opened" : "Invoice opened and download started");
+    } catch (error) {
+      console.error("Failed to preview invoice", error);
+      toast.error(error instanceof Error ? error.message : "Failed to preview invoice");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[500px]">
@@ -201,6 +256,16 @@ const projectData: ProjectDetails | undefined =
       <Topbar pathname={pathname}
         actions={
           <>
+            <Button
+              onClick={handleViewInvoice}
+              disabled={isViewingInvoice}
+              className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-colors ${isDark
+                ? "bg-[#1A1A1A] border-[#E8D1AB]/20 text-[#E8D1AB] hover:bg-[#2C2417]"
+                : "bg-black border-black text-white hover:bg-black/80"
+                }`}
+            ><FileText size={14} />
+              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+            </Button>
             <Button
               className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
               onClick={handleDelete}
@@ -306,6 +371,13 @@ const projectData: ProjectDetails | undefined =
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
         <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+          <Button
+            onClick={handleViewInvoice}
+            disabled={isViewingInvoice}
+            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-black text-white hover:bg-black/80 border border-black'}`}
+          >
+            {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+          </Button>
           <div className="flex gap-2">
             <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
               Cancel Shoot

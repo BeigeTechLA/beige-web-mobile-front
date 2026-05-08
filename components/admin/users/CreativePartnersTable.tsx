@@ -27,6 +27,14 @@ import { useTheme } from 'next-themes';
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
+const CREATIVE_PARTNERS_FILTERS_STORAGE_KEY = "admin-users-creative-partners-filters";
+
+type PersistedCreativePartnersFilters = {
+  currentPage: number;
+  searchQuery: string;
+  statusFilter: string;
+};
+
 interface CreativePartner {
   id: string;
   name: string;
@@ -70,6 +78,7 @@ const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 export const CreativePartnersTable = () => {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [users, setUsers] = useState<CreativePartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,6 +103,43 @@ export const CreativePartnersTable = () => {
 
   useEffect(() => setMounted(true), []);
   const isDark = !mounted || theme === "dark";
+
+  useEffect(() => {
+    try {
+      const savedFilters = localStorage.getItem(CREATIVE_PARTNERS_FILTERS_STORAGE_KEY);
+      if (savedFilters) {
+        const parsedFilters = JSON.parse(savedFilters) as Partial<PersistedCreativePartnersFilters>;
+
+        if (typeof parsedFilters.searchQuery === "string") {
+          setSearchQuery(parsedFilters.searchQuery);
+        }
+
+        if (typeof parsedFilters.statusFilter === "string") {
+          setStatusFilter(parsedFilters.statusFilter);
+        }
+
+        if (typeof parsedFilters.currentPage === "number" && parsedFilters.currentPage > 0) {
+          setCurrentPage(parsedFilters.currentPage);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to restore creative partner filters:", error);
+    } finally {
+      setFiltersInitialized(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!filtersInitialized) return;
+
+    const filtersToPersist: PersistedCreativePartnersFilters = {
+      currentPage,
+      searchQuery,
+      statusFilter,
+    };
+
+    localStorage.setItem(CREATIVE_PARTNERS_FILTERS_STORAGE_KEY, JSON.stringify(filtersToPersist));
+  }, [currentPage, searchQuery, statusFilter, filtersInitialized]);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -202,8 +248,9 @@ export const CreativePartnersTable = () => {
         setLoading(false);
       }
     };
+    if (!filtersInitialized) return;
     fetchCreativePartners();
-  }, [currentPage, limit, debouncedSearch, statusFilter]);
+  }, [currentPage, limit, debouncedSearch, statusFilter, filtersInitialized]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     // Prevent navigation if clicking on action buttons

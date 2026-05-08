@@ -170,6 +170,17 @@ const formatStatusLabel = (value?: string | null) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
+const normalizeStatusValue = (value?: string | null) =>
+  String(value || "")
+    .replace(/\u2013|\u2014/g, "-")
+    .trim()
+    .toLowerCase();
+
+const isClosedLostStatus = (value?: string | null) => {
+  const normalized = normalizeStatusValue(value);
+  return normalized.includes("closed - lost") || normalized === "cancelled";
+};
+
 const formatCurrencyValue = (value?: number | string | null) => {
   const numericValue =
     typeof value === "number" ? value : Number.parseFloat(String(value ?? 0));
@@ -691,6 +702,7 @@ export default function LeadDetailPage() {
     Boolean(booking?.payment_id || booking?.payment_completed_at);
   const showCompletedPaymentMessage =
     isAmountPaid && !hasPendingAdditionalPayment;
+  const isClosedLostLead = isClosedLostStatus(lead?.booking_status || status);
 
   const bookingDate = booking?.event_date
     ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
@@ -851,6 +863,11 @@ export default function LeadDetailPage() {
   const showManualPaymentPanel = !isAmountPaid || hasManualPaymentHistory;
 
   const handleManualPaymentSubmit = async () => {
+    if (isClosedLostLead) {
+      toast.error("Manual payment is disabled for Closed - Lost leads");
+      return;
+    }
+
     const proofUrl = manualPaymentProofUrl.trim();
     const otherMode = manualPaymentOtherMode.trim();
     const parsedAmount = Number(manualPaymentAmount);
@@ -934,6 +951,11 @@ export default function LeadDetailPage() {
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
+    if (isClosedLostLead) {
+      toast.error("Discount generation is disabled for Closed - Lost leads");
+      return;
+    }
+
     if (isDiscountLockedByQuote) {
       toast.error(quoteDiscountLockMessage);
       return;
@@ -972,6 +994,11 @@ export default function LeadDetailPage() {
   };
 
   const handleEditQuoteRedirect = () => {
+    if (isClosedLostLead) {
+      toast.error("Quote editing is disabled for Closed - Lost leads");
+      return;
+    }
+
     if (!editableQuoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -1031,6 +1058,11 @@ export default function LeadDetailPage() {
   };
 
   const handleUpdateIntent = async (intent: string, notes: string) => {
+    if (isClosedLostLead) {
+      toast.error("Intent updates are disabled for Closed - Lost leads");
+      return;
+    }
+
     try {
       await updateLeadIntent({
         lead_id: parseInt(leadId),
@@ -1057,6 +1089,11 @@ export default function LeadDetailPage() {
   // const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
 
   const handleRemoveCP = async (cpId: number) => {
+    if (isClosedLostLead) {
+      toast.error("Creative partner changes are disabled for Closed - Lost leads");
+      return;
+    }
+
     try {
       await removeAssignedCrew({
         client_lead_id: Number(params.id),
@@ -1076,6 +1113,11 @@ export default function LeadDetailPage() {
   };
 
   const handleUpdateSalesRep = async (salesRepId: string) => {
+    if (isClosedLostLead) {
+      toast.error("Sales representative updates are disabled for Closed - Lost leads");
+      return;
+    }
+
     if (!salesRepId) {
       toast.error("Please choose a representative");
       return;
@@ -1125,6 +1167,11 @@ export default function LeadDetailPage() {
   const handleUpdateConvertedBooking = async (
     bookingData: ConvertBookingModalSubmitData
   ) => {
+    if (isClosedLostLead) {
+      toast.error("Booking edits are disabled for Closed - Lost leads");
+      return;
+    }
+
     setIsUpdatingConvertedBooking(true);
 
     try {
@@ -1227,10 +1274,12 @@ export default function LeadDetailPage() {
                 </h2>
                 <Button
                   onClick={() => setIsIntentModalOpen(true)}
+                  disabled={isClosedLostLead}
                   className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
                     ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
                     : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
                     }`}
+                  title={isClosedLostLead ? "Intent updates are disabled for Closed - Lost leads" : undefined}
                 >
                   Update Intent
                 </Button>
@@ -1302,6 +1351,7 @@ export default function LeadDetailPage() {
                     <button
                       type="button"
                       aria-label={isEditingSalesRep ? "Close sales representative options" : "Edit assigned sales representative"}
+                      disabled={isClosedLostLead}
                       onClick={() => {
                         if (isEditingSalesRep) {
                           setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
@@ -1310,7 +1360,8 @@ export default function LeadDetailPage() {
                         }
                         setIsEditingSalesRep(true);
                       }}
-                      className={`relative z-30 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
+                      className={`relative z-30 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
+                      title={isClosedLostLead ? "Sales representative updates are disabled for Closed - Lost leads" : undefined}
                     >
                       {isEditingSalesRep ? <X size={14} /> : <Pencil size={14} />}
                     </button>
@@ -1420,6 +1471,8 @@ export default function LeadDetailPage() {
                   <Button
                     className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                     onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
+                    disabled={isClosedLostLead}
+                    title={isClosedLostLead ? "Creative partner changes are disabled for Closed - Lost leads" : undefined}
                   >
                     <Plus size={18} /> Add More CPs
                   </Button>
@@ -1474,11 +1527,14 @@ export default function LeadDetailPage() {
                               </div>
 
                               <button
+                                type="button"
+                                disabled={isClosedLostLead}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleRemoveCP(cp.id);
                                 }}
-                                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all z-20"
+                                className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/80 text-white transition-all hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                                title={isClosedLostLead ? "Creative partner changes are disabled for Closed - Lost leads" : "Remove creative partner"}
                               >
                                 <X size={18} />
                               </button>
@@ -1531,7 +1587,9 @@ export default function LeadDetailPage() {
                   <div className="group relative inline-flex">
                     <Button
                       onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
+                      disabled={isClosedLostLead}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                      title={isClosedLostLead ? "Booking edits are disabled for Closed - Lost leads" : undefined}
                     >
                       Edit Details
                     </Button>
@@ -1541,8 +1599,9 @@ export default function LeadDetailPage() {
                   <div className="group relative inline-flex">
                     <Button
                       onClick={() => setIsConvertedBookingEditModalOpen(true)}
-                      disabled={!convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      disabled={isClosedLostLead || !convertedBookingInitialValues || isUpdatingConvertedBooking}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                      title={isClosedLostLead ? "Booking edits are disabled for Closed - Lost leads" : undefined}
                     >
                       Edit Details
                     </Button>
@@ -1902,15 +1961,15 @@ export default function LeadDetailPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (isDiscountLockedByQuote || isAmountPaid) return;
+                        if (isClosedLostLead || isDiscountLockedByQuote || isAmountPaid) return;
                         setIsDropdownOpen(!isDropdownOpen);
                       }}
-                      disabled={isDiscountLockedByQuote || isAmountPaid}
+                      disabled={isClosedLostLead || isDiscountLockedByQuote || isAmountPaid}
                       className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base transition-all duration-300 ${isDark
                         ? `text-white ${isDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"} hover:border-white/80`
                         : `text-black ${isDropdownOpen ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20" : "border-[#D8D8D8]"} hover:border-[#E8D1AB]`
-                        } ${isDiscountLockedByQuote || isAmountPaid ? "cursor-not-allowed opacity-60" : ""}`}
-                      title={isDiscountLockedByQuote ? quoteDiscountLockMessage : undefined}
+                        } ${isClosedLostLead || isDiscountLockedByQuote || isAmountPaid ? "cursor-not-allowed opacity-60" : ""}`}
+                      title={isClosedLostLead ? "Discount actions are disabled for Closed - Lost leads" : isDiscountLockedByQuote ? quoteDiscountLockMessage : undefined}
                     >
                       {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
                       <ChevronDown size={18} className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""} ${isDark ? "text-white" : "text-black"}`} />
@@ -1961,7 +2020,7 @@ export default function LeadDetailPage() {
                     <input
                       type="number"
                       placeholder="0"
-                      disabled={isDiscountLockedByQuote || isAmountPaid}
+                      disabled={isClosedLostLead || isDiscountLockedByQuote || isAmountPaid}
                       className={`bg-transparent w-full outline-none text-base transition-colors ${isDark ? "text-white placeholder:text-white/40" : "text-black placeholder:text-black/40"}`}
                       value={discount}
                       onChange={(e) => {
@@ -1981,8 +2040,8 @@ export default function LeadDetailPage() {
                 <Button
                   className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
-                  disabled={isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
-                  title={isDiscountLockedByQuote ? quoteDiscountLockMessage : discountAmount > 0 ? "Discount already applied" : undefined}
+                  disabled={isClosedLostLead || isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
+                  title={isClosedLostLead ? "Discount actions are disabled for Closed - Lost leads" : isDiscountLockedByQuote ? quoteDiscountLockMessage : discountAmount > 0 ? "Discount already applied" : undefined}
                 >
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
@@ -2052,6 +2111,8 @@ export default function LeadDetailPage() {
               activeLink={lead?.active_payment_link}
               additionalPaymentStatus={rawAdditionalPayment?.payment_status}
               additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
+              isReadOnly={isClosedLostLead}
+              readOnlyMessage="Payment actions are disabled for Closed - Lost leads."
             />
 
             {showManualPaymentPanel ? (
@@ -2097,11 +2158,11 @@ export default function LeadDetailPage() {
                           key={type}
                           type="button"
                           onClick={() => setManualPaymentType(type)}
-                          disabled={manualPaymentSummary.hasFullPayment}
+                          disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                           className={`h-10 rounded-lg border text-sm font-medium transition-colors ${manualPaymentType === type
                             ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF3D6] text-black")
                             : (isDark ? "border-white/20 text-white/70 hover:border-white/40" : "border-[#D8D8D8] text-black/70 hover:border-[#BFA780]")
-                            } ${manualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
+                            } ${isClosedLostLead || manualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           {type === "full" ? "Full Payment" : "Partial Payment"}
                         </button>
@@ -2131,7 +2192,7 @@ export default function LeadDetailPage() {
                           setManualPaymentAmount(nextValue);
                         }}
                         placeholder={`Enter amount (max ${formatCurrencyValue(manualPaymentSummary.pendingAmount)})`}
-                        disabled={manualPaymentSummary.hasFullPayment}
+                        disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                         className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                       />
                     )}
@@ -2141,7 +2202,7 @@ export default function LeadDetailPage() {
                       onValueChange={(value) =>
                         setManualPaymentMode(value as "cash" | "bank_transfer" | "credit_card" | "other")
                       }
-                      disabled={manualPaymentSummary.hasFullPayment}
+                      disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                     >
                       <SelectTrigger
                         className={`h-11 rounded-lg border px-3 text-sm ${
@@ -2172,7 +2233,7 @@ export default function LeadDetailPage() {
                         value={manualPaymentOtherMode}
                         onChange={(event) => setManualPaymentOtherMode(event.target.value)}
                         placeholder="Enter payment mode"
-                        disabled={manualPaymentSummary.hasFullPayment}
+                        disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                         className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                       />
                     )}
@@ -2193,7 +2254,7 @@ export default function LeadDetailPage() {
                               const file = event.target.files?.[0] || null;
                               void handleManualProofUpload(file);
                             }}
-                            disabled={isUploadingManualProof || manualPaymentSummary.hasFullPayment}
+                            disabled={isClosedLostLead || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
                           />
                         </label>
                         {isUploadingManualProof ? (
@@ -2210,13 +2271,13 @@ export default function LeadDetailPage() {
                       onChange={(event) => setManualPaymentNotes(event.target.value)}
                       placeholder="Notes (optional)"
                       rows={3}
-                      disabled={manualPaymentSummary.hasFullPayment}
+                      disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                       className={`rounded-lg border p-3 text-sm bg-transparent outline-none resize-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                     />
 
                     <Button
                       onClick={handleManualPaymentSubmit}
-                      disabled={isSubmittingManualPayment || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
+                      disabled={isClosedLostLead || isSubmittingManualPayment || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
                       className={`h-11 text-sm font-semibold ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
                     >
                       {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
@@ -2344,14 +2405,14 @@ export default function LeadDetailPage() {
                         <Button
                           type="button"
                           onClick={handleEditQuoteRedirect}
-                          disabled={!canEditQuote}
+                          disabled={isClosedLostLead || !canEditQuote}
                           className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
                             isDark
                               ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
                               : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
-                          } ${!canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                          } ${isClosedLostLead || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
                           aria-label="Edit Quote"
-                          title="Edit Quote"
+                          title={isClosedLostLead ? "Quote editing is disabled for Closed - Lost leads" : "Edit Quote"}
                         >
                           <Edit2 size={14} />
                         </Button>
@@ -2474,10 +2535,12 @@ export default function LeadDetailPage() {
             <div className="lg:text-right lg:mt-[82px]">
               <Button
                 onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
+                disabled={isClosedLostLead}
                 className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-all ${isDark
                   ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
                   : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
                   }`}
+                title={isClosedLostLead ? "Creative partner changes are disabled for Closed - Lost leads" : undefined}
               >
                 Change CPs
               </Button>

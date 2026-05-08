@@ -259,7 +259,7 @@ const visibleStatuses = useMemo(() => {
   return (
     <div className="space-y-6">
       <div className={`hidden lg:block w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#171717] border-[#333]" : "bg-white border-[#E5E5E5]"}`}>
-        {canShowGrid && (
+        {/* {canShowGrid && (
           <div className={`flex items-center justify-end gap-2 px-6 py-4 border-b ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
             <button
               type="button"
@@ -294,7 +294,7 @@ const visibleStatuses = useMemo(() => {
               
             </button>
           </div>
-        )}
+        )} */}
 
         {viewMode === "grid" && canShowGrid ? (
           <div className="p-6">
