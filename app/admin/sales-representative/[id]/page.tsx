@@ -706,7 +706,9 @@ export default function LeadDetailPage() {
   const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
-  const discountAmount = lead?.pricing_breakdown?.discount || 0;
+  const discountAmount = isQuoteConvertedLead
+    ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
+    : Number(lead?.pricing_breakdown?.discount ?? 0);
   const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
   const totalBeforeCredit = Number(
     lead?.pricing_breakdown?.total_before_credit ??
@@ -2472,7 +2474,7 @@ export default function LeadDetailPage() {
             )}
 
             <div className="lg:text-right lg:mt-[82px]">
-              <Button
+              {/* <Button
                 onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
                 className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-all ${isDark
                   ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
@@ -2480,7 +2482,7 @@ export default function LeadDetailPage() {
                   }`}
               >
                 Change CPs
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>

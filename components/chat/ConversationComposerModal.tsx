@@ -61,6 +61,12 @@ const getProjectName = (project: any) => {
   return picked || `Shoot #${bookingId || "New"}`;
 };
 
+const getProjectOptionLabel = (project: any) => {
+  const bookingId = getProjectId(project);
+  const baseName = getProjectName(project);
+  return bookingId ? `${baseName} (Booking #${bookingId})` : baseName;
+};
+
 const getCrewId = (member: any) => String(member?.crew_member_id || member?.crew_member?.crew_member_id || member?.id || "");
 
 const getCrewName = (member: any) =>
@@ -210,11 +216,15 @@ export default function ConversationComposerModal({
     () =>
       projects.map((project) => ({
         id: getProjectId(project),
-        label: getProjectName(project),
+        label: getProjectOptionLabel(project),
         description:
-          project?.client_name ||
-          toReadableLabel(Array.isArray(project?.event_type) ? project.event_type[0] : project?.event_type) ||
-          (getProjectId(project) ? `Booking #${getProjectId(project)}` : null),
+          [
+            getProjectId(project) ? `Booking #${getProjectId(project)}` : "",
+            project?.client_name || "",
+            toReadableLabel(Array.isArray(project?.event_type) ? project.event_type[0] : project?.event_type) || "",
+          ]
+            .filter(Boolean)
+            .join(" • "),
         disabled: Boolean(existingProjectRooms[getProjectId(project)]),
         disabledLabel: existingProjectRooms[getProjectId(project)]
           ? "Chat room already exists for this shoot"
@@ -466,7 +476,7 @@ export default function ConversationComposerModal({
                   {/* <label className="mb-2 block text-sm text-white/70">Select Shoot</label> */}
                   <SearchAutocomplete
                     label="Select Shoot"
-                    placeholder="Search shoot / client"
+                    placeholder="Search by project name, client, or booking ID"
                     options={projectOptions}
                     value={selectedProjectId}
                     onChange={setSelectedProjectId}

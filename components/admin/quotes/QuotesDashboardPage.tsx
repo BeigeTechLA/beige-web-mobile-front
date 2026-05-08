@@ -671,11 +671,50 @@ const toNumericOrNull = (value: unknown) => {
 };
 
 const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
-  if (String(quote.payment_status || "").toLowerCase() === "partially_paid") {
+  const quoteRecord = quote as Record<string, unknown>;
+  const paymentStatus = getText(quoteRecord.payment_status).toLowerCase();
+  const normalizedQuoteStatus = getText(quote.status, quote.quote_status, "draft").toLowerCase() || "draft";
+  const collectedAmount = Math.max(
+    0,
+    toNumericOrNull(quoteRecord.collected_amount) ??
+      toNumericOrNull(quoteRecord.collectedAmount) ??
+      toNumericOrNull(getRecord(quoteRecord.partial_payment)?.previously_paid_amount) ??
+      0,
+  );
+  const outstandingAmount = Math.max(
+    0,
+    toNumericOrNull(quoteRecord.outstanding_amount) ??
+      toNumericOrNull(quoteRecord.outstandingAmount) ??
+      toNumericOrNull(getRecord(quoteRecord.additional_payment)?.outstanding_amount) ??
+      toNumericOrNull(getRecord(quoteRecord.partial_payment)?.outstanding_amount) ??
+      0,
+  );
+  const quoteTotal = Math.max(
+    0,
+    getOptionalNumber(quoteRecord.total, quoteRecord.total_amount, quoteRecord.amount) ?? 0,
+  );
+
+  if (paymentStatus === "paid" || paymentStatus === "completed" || paymentStatus === "success") {
+    return "paid";
+  }
+
+  if (paymentStatus === "partially_paid" || paymentStatus === "partial_paid") {
     return "partially_paid";
   }
 
-  return getText(quote.status, quote.quote_status, "draft").toLowerCase() || "draft";
+  if (collectedAmount > 0 && outstandingAmount > 0) {
+    return "partially_paid";
+  }
+
+  if (quoteTotal > 0 && collectedAmount > 0 && collectedAmount < quoteTotal) {
+    return "partially_paid";
+  }
+
+  if (collectedAmount > 0 && outstandingAmount <= 0) {
+    return "paid";
+  }
+
+  return normalizedQuoteStatus;
 };
 
 const buildStatusSummary = (rows: SalesQuoteListItem[]) =>
