@@ -674,11 +674,34 @@ const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
   const quoteRecord = quote as Record<string, unknown>;
   const paymentStatus = getText(quoteRecord.payment_status).toLowerCase();
   const normalizedQuoteStatus = getText(quote.status, quote.quote_status, "draft").toLowerCase() || "draft";
+  if (normalizedQuoteStatus === "rejected" || normalizedQuoteStatus === "cancelled") {
+    return "rejected";
+  }
+  const manualPaymentSummary = getRecord(quoteRecord.manual_payment_summary);
+  const manualPaidAmount = Math.max(
+    0,
+    toNumericOrNull(manualPaymentSummary?.paidAmount) ??
+      toNumericOrNull(manualPaymentSummary?.paid_amount) ??
+      0,
+  );
+  const manualPendingAmount = Math.max(
+    0,
+    toNumericOrNull(manualPaymentSummary?.pendingAmount) ??
+      toNumericOrNull(manualPaymentSummary?.pending_amount) ??
+      0,
+  );
+  const hasManualFullPayment =
+    Boolean(manualPaymentSummary?.hasFullPayment) ||
+    (manualPaidAmount > 0 && manualPendingAmount <= 0);
+  const hasManualPartialPayment =
+    Boolean(manualPaymentSummary?.isPartiallyPaid) ||
+    (manualPaidAmount > 0 && manualPendingAmount > 0);
   const collectedAmount = Math.max(
     0,
     toNumericOrNull(quoteRecord.collected_amount) ??
       toNumericOrNull(quoteRecord.collectedAmount) ??
       toNumericOrNull(getRecord(quoteRecord.partial_payment)?.previously_paid_amount) ??
+      manualPaidAmount ??
       0,
   );
   const outstandingAmount = Math.max(
@@ -687,6 +710,7 @@ const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
       toNumericOrNull(quoteRecord.outstandingAmount) ??
       toNumericOrNull(getRecord(quoteRecord.additional_payment)?.outstanding_amount) ??
       toNumericOrNull(getRecord(quoteRecord.partial_payment)?.outstanding_amount) ??
+      manualPendingAmount ??
       0,
   );
   const quoteTotal = Math.max(
@@ -699,6 +723,14 @@ const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
   }
 
   if (paymentStatus === "partially_paid" || paymentStatus === "partial_paid") {
+    return "partially_paid";
+  }
+
+  if (hasManualFullPayment) {
+    return "paid";
+  }
+
+  if (hasManualPartialPayment) {
     return "partially_paid";
   }
 

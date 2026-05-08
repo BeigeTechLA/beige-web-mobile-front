@@ -12,6 +12,7 @@ interface LeadData {
   bookingId?: string;
   clientName: string;
   email: string;
+  registrationType?: "guest" | "registered";
   leadType: "Self-Serve" | "Sales Assisted";
   bookingStatus: "Paid" | "In-Progress" | BookingStatus;
   lastActivity: string;
@@ -381,6 +382,21 @@ const visibleStatuses = useMemo(() => {
           <h4 className={`text-[16px] font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
             {lead.clientName}
           </h4>
+          <div className="mt-1">
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                lead.registrationType === "registered"
+                  ? isDark
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                    : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                  : isDark
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    : "bg-amber-100 text-amber-700 border border-amber-200"
+              }`}
+            >
+              {lead.registrationType === "registered" ? "Registered" : "Guest"}
+            </span>
+          </div>
           <p className={`text-sm mt-1 font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
             {format(lead.date, "MMM dd, yyyy")}
           </p>
@@ -497,6 +513,21 @@ const visibleStatuses = useMemo(() => {
                         </div>
                         <div>
                           <p className={`font-medium text-sm lg:text-base ${isDark ? "text-white" : "text-[#171717]"}`}>{lead.clientName}</p>
+                          <div className="mt-1">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                lead.registrationType === "registered"
+                                  ? isDark
+                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                    : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                  : isDark
+                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                    : "bg-amber-100 text-amber-700 border border-amber-200"
+                              }`}
+                            >
+                              {lead.registrationType === "registered" ? "Registered" : "Guest"}
+                            </span>
+                          </div>
                           <p className={`text-xs lg:text-sm mt-1 ${isDark ? "text-white/40" : "text-[#999]"}`}>
                             {format(lead.date, "MMM dd, yyyy")}
                           </p>

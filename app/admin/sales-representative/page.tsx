@@ -61,6 +61,7 @@ interface LeadData {
   bookingId?: string;
   clientName: string;
   email: string;
+  registrationType?: "guest" | "registered";
   leadType: "Self-Serve" | "Sales Assisted";
   bookingStatus: "Paid" | "In-Progress" | BookingStatus;
   lastActivity: string;
@@ -691,6 +692,7 @@ export default function AdminSaleRepManagerPage() {
           bookingId: lead.booking_id ? String(lead.booking_id) : undefined,
           clientName: lead.client_name || lead.guest_email || "Unknown User",
           email: lead.guest_email || "No email",
+          registrationType: lead.user_id ? "registered" : "guest",
           leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
           bookingStatus: hasFullManualPayment
             ? "Paid"
@@ -995,7 +997,22 @@ export default function AdminSaleRepManagerPage() {
                       )}
                     </div>
                     <div>
-                      <p className={`font-medium text-[15px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className={`font-medium text-[15px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            user.registrationType === "registered"
+                              ? isDark
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : isDark
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {user.registrationType === "registered" ? "Registered" : "Guest"}
+                        </span>
+                      </div>
                       <p className={`text-xs mt-0.5 transition-colors ${isDark ? "text-[#666666]" : "text-[#999999]"}`}>
                         {user.joinDate}
                       </p>
@@ -1069,11 +1086,26 @@ export default function AdminSaleRepManagerPage() {
                       <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
                         {user.id}
                       </p>
-                      <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${
-                        isDark ? "text-white" : "text-[#111111]"
-                      }`}>
-                        {user.name}
-                      </h4>
+                      <div className="mt-2 flex items-center gap-2">
+                        <h4 className={`text-lg font-semibold leading-snug line-clamp-2 ${
+                          isDark ? "text-white" : "text-[#111111]"
+                        }`}>
+                          {user.name}
+                        </h4>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            user.registrationType === "registered"
+                              ? isDark
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : isDark
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {user.registrationType === "registered" ? "Registered" : "Guest"}
+                        </span>
+                      </div>
                       <p className={`mt-1 text-sm truncate ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
                         {user.email}
                       </p>
