@@ -295,7 +295,7 @@ export default function SalesLeadDetailsPage() {
   const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
-  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "bank_transfer" | "credit_card" | "other">("cash");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
@@ -2083,7 +2083,7 @@ export default function SalesLeadDetailsPage() {
                     <Select
                       value={manualPaymentMode}
                       onValueChange={(value) =>
-                        setManualPaymentMode(value as "cash" | "bank_transfer" | "credit_card" | "other")
+                        setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
                       }
                       disabled={manualPaymentSummary.hasFullPayment}
                     >
@@ -2104,8 +2104,12 @@ export default function SalesLeadDetailsPage() {
                         }
                       >
                         <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="credit_card">Credit Card</SelectItem>
+                        <SelectItem value="wire">Wire</SelectItem>
+                        <SelectItem value="ach">ACH</SelectItem>
+                        <SelectItem value="zelle">Zelle</SelectItem>
+                        <SelectItem value="venmo">Venmo</SelectItem>
+                        <SelectItem value="cashapp">CashApp</SelectItem>
+                        <SelectItem value="applepay">ApplePay</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>

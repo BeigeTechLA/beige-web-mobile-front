@@ -1689,8 +1689,12 @@ export default function QuoteDetailsPage({
                           </SelectTrigger>
                           <SelectContent className="border-[#333333] bg-[#111111] text-white">
                             <SelectItem value="cash">Cash</SelectItem>
-                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                            <SelectItem value="credit_card">Credit Card</SelectItem>
+                            <SelectItem value="wire">Wire</SelectItem>
+                            <SelectItem value="ach">ACH</SelectItem>
+                            <SelectItem value="zelle">Zelle</SelectItem>
+                            <SelectItem value="venmo">Venmo</SelectItem>
+                            <SelectItem value="cashapp">CashApp</SelectItem>
+                            <SelectItem value="applepay">ApplePay</SelectItem>
                             <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
