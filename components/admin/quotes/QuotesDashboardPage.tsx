@@ -176,6 +176,7 @@ type QuoteActionMenuProps = {
   onReject: () => void;
   allowEdit?: boolean;
   mobile?: boolean;
+  disabled?: boolean; 
 };
 
 type QuoteActionMenuButtonProps = {
@@ -227,6 +228,7 @@ const QuoteActionMenu = ({
   onReject,
   allowEdit = true,
   mobile = false,
+  disabled = false,
 }: QuoteActionMenuProps) => {
   const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -244,11 +246,12 @@ const QuoteActionMenu = ({
         <button
           type="button"
           onClick={handleTriggerClick}
-          className={
+          disabled={disabled}
+          className={`${
             mobile
               ? "rounded-lg p-2 text-[#E8D1AB] transition-colors hover:bg-[#2a2a2a]"
               : "text-[#E8D1AB] transition-colors hover:text-white"
-          }
+          }${disabled ? "opacity-30 cursor-not-allowed " : ""}`}
           aria-label="Quote actions"
         >
           {mobile ? <MoreHorizontal size={18} /> : <MoreVertical size={18} />}
@@ -1884,6 +1887,7 @@ export default function QuotesDashboardPage({
                         </td>
                         <td className="hidden px-6 py-4 text-right md:table-cell">
                           <QuoteActionMenu
+                            disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
                             open={openActionMenuId === quote.id}
                             onOpenChange={(open) => setOpenActionMenuId(open ? quote.id : null)}
                             onViewDetails={() => {

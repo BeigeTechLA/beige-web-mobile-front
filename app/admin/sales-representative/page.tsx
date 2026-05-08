@@ -124,6 +124,17 @@ const normalizeBookingStatusForList = (value: string): string => {
 const isPaidBookingStatus = (value: unknown): boolean =>
   ["paid", "booked"].includes(String(value || "").trim().toLowerCase());
 
+const normalizeStatusValue = (value: unknown): string =>
+  String(value || "")
+    .replace(/\u2013|\u2014/g, "-")
+    .trim()
+    .toLowerCase();
+
+const isClosedLostStatus = (value: unknown): boolean => {
+  const normalized = normalizeStatusValue(value);
+  return normalized.includes("closed - lost") || normalized === "cancelled";
+};
+
 // Helper function to format relative time
 const formatRelativeTime = (dateString: string): string => {
   if (!dateString) return "N/A";
@@ -736,6 +747,10 @@ export default function AdminSaleRepManagerPage() {
     allowPaymentTransaction?: boolean,
   ) => {
     e.stopPropagation();
+    if (isClosedLostStatus(bookingStatus)) {
+      return;
+    }
+
     setSelectedClient(client);
     setSelectedLeadId(id);
     setSelectedBookingStatus(bookingStatus || null);

@@ -87,6 +87,9 @@ const normalizeBookingStatus = (value?: string) => {
   return value.trim() || "Unknown";
 };
 
+const isClosedLostStatus = (value?: string) =>
+  normalizeBookingStatus(value) === "Closed - Lost";
+
 
 export default function LeadsTable({
   data,
@@ -241,7 +244,7 @@ const visibleStatuses = useMemo(() => {
         isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E5E5E5] bg-white"
       }`}
     >
-      <div
+      {/* <div
         className={`hidden lg:flex items-center justify-end gap-2 px-6 py-4 border-b ${
           isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-[#FFFCF6]"
         }`}
@@ -278,7 +281,7 @@ const visibleStatuses = useMemo(() => {
           <Grid3X3 size={16} />
           
         </button>
-      </div>
+      </div> */}
 
       <div className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
         {viewMode === "grid" ? (
@@ -335,7 +338,10 @@ const visibleStatuses = useMemo(() => {
                           No leads in this stage
                         </div>
                       ) : (
-                       column.items.map((lead) => (
+                       column.items.map((lead) => {
+  const isActionDisabled = isClosedLostStatus(String(lead.bookingStatus || ""));
+
+  return (
   <div
     key={lead.lead_id}
     onClick={() => onRowClick(lead.lead_id)}
@@ -404,7 +410,9 @@ const visibleStatuses = useMemo(() => {
       </div>
 
       <button
-        className={`p-1 transition-colors ${isDark ? "text-white/60 hover:text-white" : "text-black/40 hover:text-black"}`}
+        type="button"
+        disabled={isActionDisabled}
+        className={`p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white/60 hover:text-white" : "text-black/40 hover:text-black"}`}
         onClick={(e) => {
           e.stopPropagation();
           onOpenMenu(
@@ -415,6 +423,7 @@ const visibleStatuses = useMemo(() => {
             Boolean(lead.isPaymentPending || lead.hasManualPaymentHistory)
           );
         }}
+        title={isActionDisabled ? "Actions are disabled for Closed - Lost leads" : "Open actions"}
       >
         <MoreVertical size={20} />
       </button>
@@ -459,7 +468,8 @@ const visibleStatuses = useMemo(() => {
       <LeadsStatusBadge status={lead.bookingStatus || "Unknown"} />
     </div>
   </div>
-))
+);
+})
                       )}
                     </div>
                   </div>
@@ -500,7 +510,10 @@ const visibleStatuses = useMemo(() => {
                 </tr>
               </thead>
               <tbody className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
-                {data.map((lead) => (
+                {data.map((lead) => {
+                  const isActionDisabled = isClosedLostStatus(String(lead.bookingStatus || ""));
+
+                  return (
                   <tr
                     key={lead.lead_id}
                     onClick={() => onRowClick(lead.lead_id)}
@@ -580,7 +593,9 @@ const visibleStatuses = useMemo(() => {
                     </td>
                     <td className={`p-3 lg:py-5 text-right border-b group-last:border-0 ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
                       <button
-                        className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#999] hover:text-[#171717]"}`}
+                        type="button"
+                        disabled={isActionDisabled}
+                        className={`p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white/40 hover:text-white" : "text-[#999] hover:text-[#171717]"}`}
                         onClick={(e) =>
                           onOpenMenu(
                             e,
@@ -590,12 +605,14 @@ const visibleStatuses = useMemo(() => {
                             Boolean(lead.isPaymentPending || lead.hasManualPaymentHistory)
                           )
                         }
+                        title={isActionDisabled ? "Actions are disabled for Closed - Lost leads" : "Open actions"}
                       >
                         <MoreVertical size={18} />
                       </button>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>
