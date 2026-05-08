@@ -245,6 +245,8 @@ const mergeVersionQuoteWithPrimaryContext = (
 
   return {
     ...incoming,
+    quote_status: current.quote_status ?? incoming.quote_status,
+    status: current.status ?? incoming.status,
     lead_id:
       incomingLeadId !== undefined && incomingLeadId !== null && String(incomingLeadId).trim()
         ? incomingLeadId
@@ -477,6 +479,7 @@ const QuoteTopActions = ({
   convertDisabled,
   paymentDisabled,
   isRejecting,
+  isRejected, 
   isConverting,
   versions,
   selectedVersionId,
@@ -491,6 +494,7 @@ const QuoteTopActions = ({
   convertDisabled: boolean;
   paymentDisabled: boolean;
   isRejecting: boolean;
+  isRejected: boolean;
   isConverting: boolean;
   versions: any[];
   selectedVersionId: string | null;
@@ -529,14 +533,14 @@ const QuoteTopActions = ({
       className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90"
     >
       {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
-      {isRejecting ? "Rejecting..." : "Reject Quote"}
+      {isRejecting ? "Rejecting..." : isRejected ? "Rejected" : "Reject Quote"}
     </Button>
     <Button
       type="button"
       onClick={onPaymentTransaction}
-      disabled={paymentDisabled}
+      disabled={paymentDisabled || isRejected}
       variant="outline"
-      className="h-11 rounded-xl border-[#E8D1AB]/30 bg-[#201A10] px-4 text-[#E8D1AB] hover:bg-[#2A2114]"
+      className="h-11 rounded-xl border-[#E8D1AB]/30 bg-[#201A10] px-4 text-[#E8D1AB] hover:bg-[#2A2114] disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed"
     >
       <DollarSign size={18} />
       Record Payment
@@ -544,8 +548,8 @@ const QuoteTopActions = ({
     <Button
       type="button"
       onClick={onPreview}
-      disabled={previewDisabled}
-      className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
+      disabled={previewDisabled || isRejected}
+      className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed"
     >
       <Eye size={18} />
       Preview Quote
@@ -1431,12 +1435,13 @@ export default function QuoteDetailsPage({
         void handlePaymentTransactionAction();
       }}
       onPreview={() => setIsPreviewOpen(true)}
-      previewDisabled={!quote || loading}
+      previewDisabled={!quote || loading || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      convertDisabled={!quote || loading || isRejecting || isConverting}
-      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment}
+      convertDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
       isConverting={isConverting}
+      isRejected={["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       versions={versions}
       selectedVersionId={selectedVersionId}
       onVersionChange={(val) => setSelectedVersionId(val)}
@@ -1532,8 +1537,8 @@ export default function QuoteDetailsPage({
           <div className="space-y-6">
             <SectionShell
               title="Client Information"
-              actionLabel="Edit Details"
-              onAction={() => setPendingEditView("details")}
+              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Details" : undefined}
+              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("details") : undefined}
             >
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -1617,7 +1622,7 @@ export default function QuoteDetailsPage({
                 </div>
               </div>
             </SectionShell>
-
+            {!["rejected", "cancelled"].includes(normalizedQuoteStatus) && (
             <SectionShell title="Payment">
               <div className="space-y-4" ref={paymentSectionRef}>
                 {quoteLeadId ? (
@@ -1684,8 +1689,12 @@ export default function QuoteDetailsPage({
                           </SelectTrigger>
                           <SelectContent className="border-[#333333] bg-[#111111] text-white">
                             <SelectItem value="cash">Cash</SelectItem>
-                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                            <SelectItem value="credit_card">Credit Card</SelectItem>
+                            <SelectItem value="wire">Wire</SelectItem>
+                            <SelectItem value="ach">ACH</SelectItem>
+                            <SelectItem value="zelle">Zelle</SelectItem>
+                            <SelectItem value="venmo">Venmo</SelectItem>
+                            <SelectItem value="cashapp">CashApp</SelectItem>
+                            <SelectItem value="applepay">ApplePay</SelectItem>
                             <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1801,11 +1810,12 @@ export default function QuoteDetailsPage({
                 )}
               </div>
             </SectionShell>
+            )}
 
             <SectionShell
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
-              actionLabel="Edit Services"
-              onAction={() => setPendingEditView("services")}
+              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Services" : undefined}
+              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("services") : undefined}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -1824,8 +1834,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Add-On Includes"
-              actionLabel="Edit Add ons"
-              onAction={() => setPendingEditView("addons")}
+              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Add ons" : undefined}
+              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("addons") : undefined}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1847,8 +1857,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Logistics"
-              actionLabel="Edit Logistics"
-              onAction={() => setPendingEditView("logistics")}
+              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Logistics" : undefined}
+              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("logistics") : undefined}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1869,8 +1879,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Custom Line Item"
-              actionLabel="Edit Items"
-              onAction={() => setPendingEditView("customlineitems")}
+              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Items" : undefined}
+              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("customlineitems") : undefined}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
@@ -1898,8 +1908,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Other Details"
-              actionLabel="Edit Tax & Discounts"
-              onAction={() => setPendingEditView("discounts")}
+              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Tax & Discounts" : undefined}
+              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("discounts") : undefined}
             >
               <div className="space-y-6">
                 <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">

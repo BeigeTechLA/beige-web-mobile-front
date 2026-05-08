@@ -80,6 +80,7 @@ import {
 } from "@/lib/quoteDraft";
 import {
   buildQuoteSummarySnapshot,
+  buildPreviewQuoteFromSummary,
   hasQuoteSummaryContent,
   getQuoteValidationMessage,
   validateQuoteForReview,
@@ -3519,6 +3520,14 @@ export default function CreateQuotePage() {
   const handlePreviewQuote = async () => {
     if (!quoteReviewValidation.isValid) {
       toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    if (isEditMode) {
+      const previewSnapshot = getQuoteSummarySnapshot();
+      setPreviewQuote(buildPreviewQuoteFromSummary(previewSnapshot));
+      setPreviewQuoteId(effectiveQuoteId);
+      setIsPreviewModalOpen(true);
       return;
     }
 

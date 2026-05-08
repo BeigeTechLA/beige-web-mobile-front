@@ -295,7 +295,7 @@ export default function SalesLeadDetailsPage() {
   const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
-  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "bank_transfer" | "credit_card" | "other">("cash");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
@@ -704,7 +704,9 @@ export default function SalesLeadDetailsPage() {
   const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
-  const discountAmount = lead?.pricing_breakdown?.discount || 0;
+  const discountAmount = isQuoteConvertedLead
+    ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
+    : Number(lead?.pricing_breakdown?.discount ?? 0);
   const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
   const totalBeforeCredit = Number(
     lead?.pricing_breakdown?.total_before_credit ??
@@ -2081,7 +2083,7 @@ export default function SalesLeadDetailsPage() {
                     <Select
                       value={manualPaymentMode}
                       onValueChange={(value) =>
-                        setManualPaymentMode(value as "cash" | "bank_transfer" | "credit_card" | "other")
+                        setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
                       }
                       disabled={manualPaymentSummary.hasFullPayment}
                     >
@@ -2102,8 +2104,12 @@ export default function SalesLeadDetailsPage() {
                         }
                       >
                         <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="credit_card">Credit Card</SelectItem>
+                        <SelectItem value="wire">Wire</SelectItem>
+                        <SelectItem value="ach">ACH</SelectItem>
+                        <SelectItem value="zelle">Zelle</SelectItem>
+                        <SelectItem value="venmo">Venmo</SelectItem>
+                        <SelectItem value="cashapp">CashApp</SelectItem>
+                        <SelectItem value="applepay">ApplePay</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -2414,7 +2420,7 @@ export default function SalesLeadDetailsPage() {
             )}
 
             <div className="lg:text-right lg:mt-[82px]">
-              <Button
+              {/* <Button
                 onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
                 className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-all ${isDark
                   ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
@@ -2422,7 +2428,7 @@ export default function SalesLeadDetailsPage() {
                   }`}
               >
                 Change CPs
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>

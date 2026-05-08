@@ -153,6 +153,21 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
     };
   }, [quote]);
 
+  const subtotalAmount = Number(quote?.subtotal ?? 0);
+  const discountType = String(quote?.discount_type ?? "").toLowerCase();
+  const discountValue = Number(quote?.discount_value ?? 0);
+  const resolvedDiscountAmount = Math.max(
+    0,
+    Number(
+      quote?.discount_amount ??
+        (discountType.includes("percent") ? subtotalAmount * (discountValue / 100) : discountValue)
+    )
+  );
+  const discountAmount = Math.min(resolvedDiscountAmount, subtotalAmount);
+  const taxRate = Number(quote?.tax_rate ?? 0);
+  const taxAmount = Number(quote?.tax_amount ?? 0);
+  const hasDiscount = discountAmount > 0;
+
   if (isLoading && !quote) {
     return (
       <div className="flex h-[400px] items-center justify-center">
@@ -318,11 +333,19 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
             <div className="rounded-[20px] bg-[#171717] border border-white/5 p-8 space-y-5">
               <div className="flex items-center justify-between text-[18px]">
                 <span className="text-[#8F8F95] font-medium">Subtotal</span>
-                <span className="text-white font-medium">{formatQuoteCurrency(quote?.subtotal)}</span>
+                <span className="text-white font-medium">{formatQuoteCurrency(subtotalAmount)}</span>
               </div>
+              {hasDiscount && (
+                <div className="flex items-center justify-between text-[18px]">
+                  <span className="text-[#8F8F95] font-medium">
+                    Discount{discountType.includes("percent") ? ` (${discountValue}%)` : ""}
+                  </span>
+                  <span className="font-medium text-[#FF8A8A]">- {formatQuoteCurrency(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-[18px]">
-                <span className="text-[#8F8F95] font-medium">Sales Tax ({quote?.tax_rate || 0}%)</span>
-                <span className="text-white font-medium">{formatQuoteCurrency(quote?.tax_amount)}</span>
+                <span className="text-[#8F8F95] font-medium">Sales Tax ({taxRate}%)</span>
+                <span className="text-white font-medium">{formatQuoteCurrency(taxAmount)}</span>
               </div>
               <div className="mt-4 rounded-[16px] bg-[#E8D1AB] p-6 flex items-center justify-between">
                 <span className="text-[20px] font-bold text-black">Final Total</span>

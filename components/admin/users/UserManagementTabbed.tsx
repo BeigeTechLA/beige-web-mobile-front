@@ -18,6 +18,15 @@ import { useDebounce } from "@/hooks/use-debounce";
 type UserType = "All" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
+const USER_FILTERS_STORAGE_KEY = "admin-users-tabbed-filters";
+
+type PersistedUserFilters = {
+    activeTab: UserType;
+    currentPage: number;
+    searchQuery: string;
+    statusFilter: string;
+};
+
 interface UserData {
     id: string;
     name: string;
@@ -57,6 +66,7 @@ const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 export const UserManagementTabbed = () => {
     const { theme } = useTheme();
     const [mounted, setMounted] = useState(false);
+    const [filtersInitialized, setFiltersInitialized] = useState(false);
 
     const [activeTab, setActiveTab] = useState<UserType>("All");
     const [users, setUsers] = useState<UserData[]>([]);
@@ -73,6 +83,48 @@ export const UserManagementTabbed = () => {
 
     useEffect(() => setMounted(true), []);
     const isDark = !mounted || theme === "dark";
+
+    useEffect(() => {
+        try {
+            const savedFilters = localStorage.getItem(USER_FILTERS_STORAGE_KEY);
+            if (savedFilters) {
+                const parsedFilters = JSON.parse(savedFilters) as Partial<PersistedUserFilters>;
+
+                if (parsedFilters.activeTab && ["All", "Client", "Creative Partner"].includes(parsedFilters.activeTab)) {
+                    setActiveTab(parsedFilters.activeTab as UserType);
+                }
+
+                if (typeof parsedFilters.searchQuery === "string") {
+                    setSearchQuery(parsedFilters.searchQuery);
+                }
+
+                if (typeof parsedFilters.statusFilter === "string") {
+                    setStatusFilter(parsedFilters.statusFilter);
+                }
+
+                if (typeof parsedFilters.currentPage === "number" && parsedFilters.currentPage > 0) {
+                    setCurrentPage(parsedFilters.currentPage);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to restore user filters:", error);
+        } finally {
+            setFiltersInitialized(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!filtersInitialized) return;
+
+        const filtersToPersist: PersistedUserFilters = {
+            activeTab,
+            currentPage,
+            searchQuery,
+            statusFilter,
+        };
+
+        localStorage.setItem(USER_FILTERS_STORAGE_KEY, JSON.stringify(filtersToPersist));
+    }, [activeTab, currentPage, searchQuery, statusFilter, filtersInitialized]);
 
     const sortedUsers = useMemo(() => {
         if (!sortConfig) return users;
@@ -231,8 +283,9 @@ export const UserManagementTabbed = () => {
     };
 
     useEffect(() => {
+        if (!filtersInitialized) return;
         fetchUsers();
-    }, [activeTab, currentPage, debouncedSearch, statusFilter]);
+    }, [activeTab, currentPage, debouncedSearch, statusFilter, filtersInitialized]);
 
     const handleRowClick = (user: UserData) => {
         const cleanId = user.id.replace('#', '');

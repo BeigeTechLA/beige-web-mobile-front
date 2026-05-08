@@ -19,6 +19,16 @@ import { useTheme } from 'next-themes';
 
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
+const CLIENTS_FILTERS_STORAGE_KEY = "admin-users-clients-filters";
+
+type PersistedClientsFilters = {
+    currentPage: number;
+    range: string;
+    selectedDate: string | null;
+    searchQuery: string;
+    statusFilter: string;
+};
+
 interface Client {
     id: string;
     name: string;
@@ -65,6 +75,7 @@ const ClientTypeBadge = ({ type }: { type?: "guest" | "registered" }) => {
 export const ClientsTable = () => {
     const { theme } = useTheme();
     const [mounted, setMounted] = useState(false);
+    const [filtersInitialized, setFiltersInitialized] = useState(false);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -83,6 +94,56 @@ export const ClientsTable = () => {
 
     useEffect(() => setMounted(true), []);
     const isDark = !mounted || theme === "dark";
+
+    useEffect(() => {
+        try {
+            const savedFilters = localStorage.getItem(CLIENTS_FILTERS_STORAGE_KEY);
+            if (savedFilters) {
+                const parsedFilters = JSON.parse(savedFilters) as Partial<PersistedClientsFilters>;
+
+                if (typeof parsedFilters.searchQuery === "string") {
+                    setSearchQuery(parsedFilters.searchQuery);
+                }
+
+                if (typeof parsedFilters.statusFilter === "string") {
+                    setStatusFilter(parsedFilters.statusFilter);
+                }
+
+                if (typeof parsedFilters.range === "string") {
+                    setRange(parsedFilters.range);
+                }
+
+                if (typeof parsedFilters.selectedDate === "string") {
+                    const restoredDate = new Date(parsedFilters.selectedDate);
+                    if (!Number.isNaN(restoredDate.getTime())) {
+                        setSelectedDate(restoredDate);
+                    }
+                }
+
+                if (typeof parsedFilters.currentPage === "number" && parsedFilters.currentPage > 0) {
+                    setCurrentPage(parsedFilters.currentPage);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to restore client filters:", error);
+        } finally {
+            setFiltersInitialized(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!filtersInitialized) return;
+
+        const filtersToPersist: PersistedClientsFilters = {
+            currentPage,
+            range,
+            selectedDate: selectedDate ? selectedDate.toISOString() : null,
+            searchQuery,
+            statusFilter,
+        };
+
+        localStorage.setItem(CLIENTS_FILTERS_STORAGE_KEY, JSON.stringify(filtersToPersist));
+    }, [currentPage, range, selectedDate, searchQuery, statusFilter, filtersInitialized]);
 
     // Handle single date selection from theme datepicker
     const handleDateSort = (date: Date | null) => {
@@ -153,8 +214,9 @@ export const ClientsTable = () => {
                 setLoading(false);
             }
         };
+        if (!filtersInitialized) return;
         fetchClients();
-    }, [currentPage, limit, debouncedSearch, statusFilter, range, selectedDate]);
+    }, [currentPage, limit, debouncedSearch, statusFilter, range, selectedDate, filtersInitialized]);
 
     // const handleRowClick = (id: string) => {
     //     // const cleanId = id.replace('#', '');

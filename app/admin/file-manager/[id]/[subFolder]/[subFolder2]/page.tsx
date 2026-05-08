@@ -115,7 +115,8 @@ export default function SubFolderDetailsPage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
-  const canUpload = phaseSlug !== "post-production";
+  const canUpload = true;
+  const canDelete = phaseSlug !== "post-production";
   const folderPath = useMemo(() => {
     const queryPath = searchParams.get("path");
     const rawPath = queryPath ? tryDecodeURIComponent(queryPath).trim() : slugToWorkspaceName(nestedSlug);
@@ -295,7 +296,7 @@ export default function SubFolderDetailsPage() {
   };
 
   const handleDeleteFile = async (file: any) => {
-    if (!canUpload) return;
+    if (!canDelete) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -341,7 +342,7 @@ export default function SubFolderDetailsPage() {
 
   const handleBatchDelete = async () => {
     if (selectedFilePaths.length === 0) return;
-    if (!canUpload) return;
+    if (!canDelete) return;
 
     try {
       setIsDeleting(true);
@@ -527,7 +528,7 @@ export default function SubFolderDetailsPage() {
 
               {viewMode === "grid" ? (
                 filteredData.length === 0 ? (
-                  <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -562,7 +563,7 @@ export default function SubFolderDetailsPage() {
                               </button>
                               <button className="text-white/70 hover:text-[#F04438]" onClick={(e) => {
                                 e.stopPropagation();
-                                if (!canUpload) return;
+                                if (!canDelete) return;
                                 setSelectedFile(file);
                                 setIsDeleteModalOpen(true);
                               }}>
@@ -621,7 +622,7 @@ export default function SubFolderDetailsPage() {
                 )
               ) : (
                 filteredData.length === 0 ? (
-                  <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
                   <div className="space-y-4">
                     <div className="overflow-x-auto">
@@ -703,7 +704,7 @@ export default function SubFolderDetailsPage() {
                                 </button>
                                 <button className="p-2 hover:bg-white/10 rounded-lg text-white/40 hover:text-[#F04438] transition-colors" onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!canUpload) return;
+                                  if (!canDelete) return;
                                   setSelectedFile(file);
                                   setIsDeleteModalOpen(true);
                                 }}>
@@ -739,7 +740,7 @@ export default function SubFolderDetailsPage() {
           onClose={() => setIsUploadModalOpen(false)}
           folderName={folderTitle}
           uploadPath={
-            canUpload && workspaceName
+            workspaceName
               ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${folderPath}`
               : undefined
           }
@@ -803,7 +804,7 @@ export default function SubFolderDetailsPage() {
                   Download
                 </Button>
                 
-                {canUpload && (
+                {canDelete && (
                   <Button 
                     className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2"
                     onClick={() => setIsDeleteModalOpen(true)}

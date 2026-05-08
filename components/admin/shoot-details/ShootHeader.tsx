@@ -99,6 +99,21 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const effectivePaymentStatus = isFullyPaidByManualSummary
     ? getPaymentStatusMeta("paid", project?.payment_id)
     : paymentStatus;
+  const manualPaidAmount = parseAmount(manualPaymentSummary.paidAmount);
+  const manualPendingAmount = parseAmount(manualPaymentSummary.pendingAmount);
+  const hasMeaningfulManualProgress =
+    Boolean(manualPaymentSummary.hasFullPayment) ||
+    Boolean(manualPaymentSummary.isPartiallyPaid) ||
+    manualPaidAmount > 0;
+  const isPaidStatus = String(effectivePaymentStatus.label || "").toLowerCase() === "paid";
+  const paidAmountValue = hasMeaningfulManualProgress
+    ? manualPaidAmount
+    : isPaidStatus
+      ? finalValue
+      : 0;
+  const pendingAmountValue = hasMeaningfulManualProgress
+    ? manualPendingAmount
+    : Math.max(finalValue - paidAmountValue, 0);
   const folderLink = workspaceFolderLink || getProjectFolderLink(project);
   const shootFilesText =
     workspaceFileCount != null
@@ -111,6 +126,8 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const totalValueText = `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const totalReductionText = `$${totalReductionValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const finalValueText = `$${finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const paidAmountText = `$${paidAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const pendingAmountText = `$${pendingAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   React.useEffect(() => {
     let isMounted = true;
@@ -290,6 +307,18 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
                 <span className="whitespace-nowrap">Payment Status :</span>
                 <span title={effectivePaymentStatus.label} className={cn("font-medium whitespace-nowrap truncate text-right", effectivePaymentStatus.className)}>
                   {effectivePaymentStatus.label}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Paid Amount :</span>
+                <span title={paidAmountText} className="font-medium whitespace-nowrap truncate text-right text-emerald-500">
+                  {paidAmountText}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Pending Amount :</span>
+                <span title={pendingAmountText} className="font-medium whitespace-nowrap truncate text-right text-amber-500">
+                  {pendingAmountText}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3 min-w-0">

@@ -24,10 +24,22 @@ interface MobileLeadRowProps {
   onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
+const normalizeBookingStatus = (value?: string) =>
+  String(value || "")
+    .replace(/\u2013|\u2014/g, "-")
+    .trim()
+    .toLowerCase();
+
+const isClosedLostStatus = (value?: string) => {
+  const normalized = normalizeBookingStatus(value);
+  return normalized.includes("closed - lost") || normalized === "cancelled";
+};
+
 export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { theme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark" || theme === "dark";
+  const isActionDisabled = isClosedLostStatus(String(lead.bookingStatus || ""));
 
   return (
     <div className={`overflow-hidden mb-3 transition-colors duration-300 rounded-xl ${isDark ? "bg-[#171717]" : "bg-white"
@@ -115,12 +127,15 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
                     Action
                   </p>
                   <button
+                    type="button"
+                    disabled={isActionDisabled}
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent closing when clicking action
                       onOpenMenu(e);
                     }}
-                    className={`p-1 rounded-md transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"
+                    className={`p-1 rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"
                       }`}
+                    title={isActionDisabled ? "Actions are disabled for Closed - Lost leads" : "Open actions"}
                   >
                     <MoreHorizontal size={24} className={isDark ? "text-white" : "text-[#171717]"} />
                   </button>

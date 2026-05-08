@@ -31,6 +31,8 @@ interface GeneratePaymentLinkProps {
   additionalPaymentOutstandingAmount?: number | string | null;
   isClientLead?: boolean;
   isDark?: boolean;
+  isReadOnly?: boolean;
+  readOnlyMessage?: string;
   onBeforeGenerate?: () => Promise<{ bookingId: number; leadId?: number } | null>;
 }
 
@@ -75,6 +77,8 @@ const GeneratePaymentLink = ({
   additionalPaymentOutstandingAmount,
   isClientLead,
   isDark = true,
+  isReadOnly = false,
+  readOnlyMessage = "Payment actions are disabled for Closed - Lost leads.",
   onBeforeGenerate,
 }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No");
@@ -128,6 +132,8 @@ const GeneratePaymentLink = ({
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
   const handleGenerate = async () => {
+    if (isReadOnly) return;
+
     let nextBookingId = effectiveBookingId;
     let nextLeadId = effectiveLeadId;
 
@@ -187,6 +193,7 @@ const GeneratePaymentLink = ({
   };
 
   const handleNotify = async () => {
+    if (isReadOnly) return;
     if (!paymentData?.id || paymentData.isExpired) return;
 
     try {
@@ -198,6 +205,7 @@ const GeneratePaymentLink = ({
   };
 
   const handlePreviewInvoice = async () => {
+    if (isReadOnly) return;
     if (!effectiveBookingId) return;
 
     try {
@@ -244,6 +252,7 @@ const GeneratePaymentLink = ({
   };
 
   const handleSendInvoice = async () => {
+    if (isReadOnly) return;
     if (!effectiveBookingId) return;
 
     try {
@@ -257,6 +266,7 @@ const GeneratePaymentLink = ({
   };
 
   const handleCopy = () => {
+    if (isReadOnly) return;
     if (paymentData?.url) {
       navigator.clipboard.writeText(paymentData.url);
       toast.success("Link copied to clipboard");
@@ -264,6 +274,7 @@ const GeneratePaymentLink = ({
   };
 
   const handleOpenLink = () => {
+    if (isReadOnly) return;
     if (!paymentData?.url) return;
     window.open(paymentData.url, "_blank", "noopener,noreferrer");
   };
@@ -276,11 +287,16 @@ const GeneratePaymentLink = ({
         <h2 className={`lg:text-xl font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
           Payment Link
         </h2>
+        {isReadOnly ? (
+          <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+            {readOnlyMessage}
+          </p>
+        ) : null}
         {showInvoiceActions && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full">
             <Button
               onClick={handlePreviewInvoice}
-              disabled={isPreviewingInvoice}
+              disabled={isReadOnly || isPreviewingInvoice}
               className={`h-10 text-xs lg:text-sm border px-3 lg:px-4 py-1.5 rounded-lg transition-all flex items-center justify-center gap-2 ${isDark
                 ? "text-[#E8D1AB] border-[#E8D1AB]/20 bg-[#0A0808] hover:bg-[#E8D1AB]/10"
                 : "text-white border-black bg-black hover:bg-gblack/70"
@@ -295,7 +311,7 @@ const GeneratePaymentLink = ({
             </Button>
             <Button
               onClick={handleSendInvoice}
-              disabled={isSendingInvoice}
+              disabled={isReadOnly || isSendingInvoice}
               className={`h-10 text-xs lg:text-sm px-3 lg:px-4 py-1.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${isDark
                 ? "text-[#101010] bg-[#E8D1AB] hover:bg-[#D4C3A3]"
                 : "text-black bg-[#E8D1AB] hover:bg-[#D9C19A]"
@@ -350,11 +366,11 @@ const GeneratePaymentLink = ({
                     key={opt}
                     type="button"
                     onClick={() => {
-                      if (discountLocked) return;
+                      if (discountLocked || isReadOnly) return;
                       setAttachDiscount(opt as "Yes" | "No");
                     }}
-                    disabled={discountLocked}
-                    title={discountLocked ? effectiveDiscountLockMessage : undefined}
+                    disabled={discountLocked || isReadOnly}
+                    title={discountLocked ? effectiveDiscountLockMessage : isReadOnly ? readOnlyMessage : undefined}
                     className={`flex-1 h-12 rounded-xl border flex items-center justify-between px-4 transition-all duration-300 ${attachDiscount === opt
                       ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/5 text-white" : "border-[#E8D1AB] bg-[#E8D1AB]/50 text-black")
                       : (isDark ? "border-[#3D3D3D] bg-transparent text-[#9F9FA9]" : "border-[#D8D8D8] bg-transparent text-black/40")
@@ -376,7 +392,7 @@ const GeneratePaymentLink = ({
 
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || isPreparingBooking}
+              disabled={isReadOnly || isGenerating || isPreparingBooking}
               className={`h-12 w-full font-semibold rounded-xl transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"
                 }`}
             >
@@ -402,11 +418,11 @@ const GeneratePaymentLink = ({
                     }`}>
                     {paymentData.url}
                   </div>
-                  <button onClick={handleCopy} title="Copy payment link" className={`border p-3 rounded-lg transition-colors ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
+                  <button onClick={handleCopy} disabled={isReadOnly} title={isReadOnly ? readOnlyMessage : "Copy payment link"} className={`border p-3 rounded-lg transition-colors disabled:opacity-50 ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
                     }`}>
                     <Copy size={18} />
                   </button>
-                  <button onClick={handleOpenLink} title="Open payment link in new tab" className={`border p-3 rounded-lg transition-colors ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
+                  <button onClick={handleOpenLink} disabled={isReadOnly} title={isReadOnly ? readOnlyMessage : "Open payment link in new tab"} className={`border p-3 rounded-lg transition-colors disabled:opacity-50 ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
                     }`}>
                     <ExternalLink size={18} />
                   </button>
@@ -417,7 +433,7 @@ const GeneratePaymentLink = ({
             {!paymentData.isExpired ? (
               <Button
                 onClick={handleNotify}
-                disabled={isNotifying} className={`h-12 w-full font-semibold rounded-xl flex items-center justify-center gap-2 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"
+                disabled={isReadOnly || isNotifying} className={`h-12 w-full font-semibold rounded-xl flex items-center justify-center gap-2 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"
                   }`}>
                 <Mail size={18} />
                 {isNotifying ? "Sending..." : "Send via Email Or SMS"}
@@ -425,7 +441,7 @@ const GeneratePaymentLink = ({
             ) : (
               <div className="flex flex-col gap-3">
                 <p className={`text-xs text-center ${isDark ? "text-[#9F9FA9]" : "text-black/50"}`}>This link has expired. Please generate a new one.</p>
-                <Button onClick={() => setPaymentData(null)} className={`h-12 w-full border font-medium rounded-xl transition-all ${isDark ? "bg-white/5 border-white/10 text-white hover:bg-white/10" : "bg-gray-50 border-[#D8D8D8] text-black hover:bg-gray-100"
+                <Button onClick={() => setPaymentData(null)} disabled={isReadOnly} className={`h-12 w-full border font-medium rounded-xl transition-all ${isDark ? "bg-white/5 border-white/10 text-white hover:bg-white/10" : "bg-gray-50 border-[#D8D8D8] text-black hover:bg-gray-100"
                   }`}>
                   Create New Link
                 </Button>
@@ -436,6 +452,7 @@ const GeneratePaymentLink = ({
               <div className="pt-2 text-center">
                 <button
                   onClick={() => setPaymentData(null)}
+                  disabled={isReadOnly}
                   className={`text-sm transition-colors underline underline-offset-4 ${isDark
                     ? "text-[#9F9FA9] hover:text-white"
                     : "text-black/50 hover:text-black"

@@ -176,6 +176,7 @@ type QuoteActionMenuProps = {
   onReject: () => void;
   allowEdit?: boolean;
   mobile?: boolean;
+  disabled?: boolean; 
 };
 
 type QuoteActionMenuButtonProps = {
@@ -227,6 +228,7 @@ const QuoteActionMenu = ({
   onReject,
   allowEdit = true,
   mobile = false,
+  disabled = false,
 }: QuoteActionMenuProps) => {
   const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -244,11 +246,12 @@ const QuoteActionMenu = ({
         <button
           type="button"
           onClick={handleTriggerClick}
-          className={
+          disabled={disabled}
+          className={`${
             mobile
               ? "rounded-lg p-2 text-[#E8D1AB] transition-colors hover:bg-[#2a2a2a]"
               : "text-[#E8D1AB] transition-colors hover:text-white"
-          }
+          }${disabled ? "opacity-30 cursor-not-allowed " : ""}`}
           aria-label="Quote actions"
         >
           {mobile ? <MoreHorizontal size={18} /> : <MoreVertical size={18} />}
@@ -671,11 +674,82 @@ const toNumericOrNull = (value: unknown) => {
 };
 
 const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
-  if (String(quote.payment_status || "").toLowerCase() === "partially_paid") {
+  const quoteRecord = quote as Record<string, unknown>;
+  const paymentStatus = getText(quoteRecord.payment_status).toLowerCase();
+  const normalizedQuoteStatus = getText(quote.status, quote.quote_status, "draft").toLowerCase() || "draft";
+  if (normalizedQuoteStatus === "rejected" || normalizedQuoteStatus === "cancelled") {
+    return "rejected";
+  }
+  const manualPaymentSummary = getRecord(quoteRecord.manual_payment_summary);
+  const manualPaidAmount = Math.max(
+    0,
+    toNumericOrNull(manualPaymentSummary?.paidAmount) ??
+      toNumericOrNull(manualPaymentSummary?.paid_amount) ??
+      0,
+  );
+  const manualPendingAmount = Math.max(
+    0,
+    toNumericOrNull(manualPaymentSummary?.pendingAmount) ??
+      toNumericOrNull(manualPaymentSummary?.pending_amount) ??
+      0,
+  );
+  const hasManualFullPayment =
+    Boolean(manualPaymentSummary?.hasFullPayment) ||
+    (manualPaidAmount > 0 && manualPendingAmount <= 0);
+  const hasManualPartialPayment =
+    Boolean(manualPaymentSummary?.isPartiallyPaid) ||
+    (manualPaidAmount > 0 && manualPendingAmount > 0);
+  const collectedAmount = Math.max(
+    0,
+    toNumericOrNull(quoteRecord.collected_amount) ??
+      toNumericOrNull(quoteRecord.collectedAmount) ??
+      toNumericOrNull(getRecord(quoteRecord.partial_payment)?.previously_paid_amount) ??
+      manualPaidAmount ??
+      0,
+  );
+  const outstandingAmount = Math.max(
+    0,
+    toNumericOrNull(quoteRecord.outstanding_amount) ??
+      toNumericOrNull(quoteRecord.outstandingAmount) ??
+      toNumericOrNull(getRecord(quoteRecord.additional_payment)?.outstanding_amount) ??
+      toNumericOrNull(getRecord(quoteRecord.partial_payment)?.outstanding_amount) ??
+      manualPendingAmount ??
+      0,
+  );
+  const quoteTotal = Math.max(
+    0,
+    getOptionalNumber(quoteRecord.total, quoteRecord.total_amount, quoteRecord.amount) ?? 0,
+  );
+
+  if (paymentStatus === "paid" || paymentStatus === "completed" || paymentStatus === "success") {
+    return "paid";
+  }
+
+  if (paymentStatus === "partially_paid" || paymentStatus === "partial_paid") {
     return "partially_paid";
   }
 
-  return getText(quote.status, quote.quote_status, "draft").toLowerCase() || "draft";
+  if (hasManualFullPayment) {
+    return "paid";
+  }
+
+  if (hasManualPartialPayment) {
+    return "partially_paid";
+  }
+
+  if (collectedAmount > 0 && outstandingAmount > 0) {
+    return "partially_paid";
+  }
+
+  if (quoteTotal > 0 && collectedAmount > 0 && collectedAmount < quoteTotal) {
+    return "partially_paid";
+  }
+
+  if (collectedAmount > 0 && outstandingAmount <= 0) {
+    return "paid";
+  }
+
+  return normalizedQuoteStatus;
 };
 
 const buildStatusSummary = (rows: SalesQuoteListItem[]) =>
@@ -1813,6 +1887,7 @@ export default function QuotesDashboardPage({
                         </td>
                         <td className="hidden px-6 py-4 text-right md:table-cell">
                           <QuoteActionMenu
+                            disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
                             open={openActionMenuId === quote.id}
                             onOpenChange={(open) => setOpenActionMenuId(open ? quote.id : null)}
                             onViewDetails={() => {
