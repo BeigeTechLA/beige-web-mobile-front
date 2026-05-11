@@ -52,6 +52,7 @@ interface ShootRecord {
   price: string;
   rawPrice: number; // Added for correct numerical sorting
   status: ShootStatus;
+  hasAssignedCp: boolean;
 }
 
 const KANBAN_STATUS_ORDER: ShootStatus[] = [
@@ -196,6 +197,7 @@ export const ShootsTable = ({
   range,
   setRange,
 }: ShootsTableProps) => {
+  const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
   const router = useRouter();
   const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
   const dragAutoScrollFrameRef = React.useRef<number | null>(null);
@@ -207,16 +209,14 @@ export const ShootsTable = ({
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
   const [kanbanOrder, setKanbanOrder] = useState<Record<ShootStatus, string[]>>({} as Record<ShootStatus, string[]>);
   const [draggedShootId, setDraggedShootId] = useState<string | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<ShootStatus | null>(null);
   const itemsPerPage = 10;
 
   // Filtering states
-  // const [range, setRange] = useState<string>("all");
-  // const [statusFilter, setStatusFilter] = useState<string>("all");
-  // const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  // const [searchQuery, setSearchQuery] = useState("");
+  const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
 
   // --- SORTING STATE ---
   const [sortConfig, setSortConfig] = useState<{ key: keyof ShootRecord; direction: 'asc' | 'desc' | null }>({
@@ -225,6 +225,28 @@ export const ShootsTable = ({
   });
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    try {
+      const savedViewMode = window.localStorage.getItem(SHOOTS_VIEW_MODE_KEY);
+      if (savedViewMode === "grid" || savedViewMode === "list") {
+        setViewMode(savedViewMode);
+      }
+    } catch (error) {
+      console.error("Failed to restore shoots view mode:", error);
+    } finally {
+      setHasRestoredViewMode(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasRestoredViewMode) return;
+    try {
+      window.localStorage.setItem(SHOOTS_VIEW_MODE_KEY, viewMode);
+    } catch (error) {
+      console.error("Failed to persist shoots view mode:", error);
+    }
+  }, [hasRestoredViewMode, viewMode]);
 
   useEffect(() => {
     return () => {
@@ -266,6 +288,10 @@ export const ShootsTable = ({
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
+        if (cpAssignmentFilter !== "all") {
+          params.cp_assignment = cpAssignmentFilter;
+        }
+
         const projectsResponse = await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
 
@@ -282,6 +308,15 @@ export const ShootsTable = ({
           const priceValue = resolvedPriceSource
             ? parseFloat(resolvedPriceSource)
             : project.budget ? parseFloat(project.budget) : 0;
+          const selectedCrewIds = Array.isArray(project.selected_crew_ids)
+            ? project.selected_crew_ids
+            : [];
+          const assignedCrews = Array.isArray(item?.assignedCrew)
+            ? item.assignedCrew
+            : Array.isArray(project.assigned_crews)
+              ? project.assigned_crews
+              : [];
+          const hasAssignedCp = assignedCrews.length > 0 || selectedCrewIds.length > 0;
 
           return {
             id: `#${project.stream_project_booking_id}`,
@@ -297,6 +332,7 @@ export const ShootsTable = ({
                 : "$0.00",
             rawPrice: priceValue,
             status: statusLabel,
+            hasAssignedCp,
           };
         });
         setShoots(mappedShoots);
@@ -308,7 +344,7 @@ export const ShootsTable = ({
     };
 
     fetchData();
-  }, [range, statusFilter, categoryFilter, externalSelectedDate]);
+  }, [range, statusFilter, categoryFilter, cpAssignmentFilter, externalSelectedDate]);
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
@@ -322,6 +358,12 @@ export const ShootsTable = ({
       if (statusFilter === "all") return true;
       return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
     });
+
+    if (cpAssignmentFilter !== "all") {
+      result = result.filter((shoot) =>
+        cpAssignmentFilter === "assigned" ? shoot.hasAssignedCp : !shoot.hasAssignedCp
+      );
+    }
 
     // 2. Sort
     if (sortConfig.direction !== null) {
@@ -351,7 +393,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig, statusFilter]);
+  }, [shoots, searchQuery, sortConfig, statusFilter, cpAssignmentFilter]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -416,7 +458,6 @@ export const ShootsTable = ({
 
   const kanbanColumns = useMemo(() => {
     const grouped = new Map<ShootStatus, ShootRecord[]>();
-    const gridStartIndex = (currentPage - 1) * itemsPerPage;
 
     visibleKanbanStatuses.forEach((status) => {
       grouped.set(status, []);
@@ -440,23 +481,12 @@ export const ShootsTable = ({
       return {
         status,
         totalItems: orderedItems.length,
-        items: orderedItems.slice(gridStartIndex, gridStartIndex + itemsPerPage),
+        items: orderedItems,
       };
     });
-  }, [processedShoots, visibleKanbanStatuses, kanbanOrder, currentPage]);
+  }, [processedShoots, visibleKanbanStatuses, kanbanOrder]);
 
-  const gridTotalPages = useMemo(() => {
-    const maxColumnCount = Math.max(
-      0,
-      ...visibleKanbanStatuses.map(
-        (status) => processedShoots.filter((shoot) => shoot.status === status).length
-      )
-    );
-
-    return Math.max(1, Math.ceil(maxColumnCount / itemsPerPage));
-  }, [processedShoots, visibleKanbanStatuses]);
-
-  const totalPages = viewMode === "grid" ? gridTotalPages : listTotalPages;
+  const totalPages = listTotalPages;
 
   useEffect(() => {
     const nextPage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
@@ -596,28 +626,24 @@ export const ShootsTable = ({
   return (
     <div className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
-      {/* <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+      <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
         <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3>
-
-        <div className="flex flex-col md:flex-row gap-3"> */}
-          {/* <div className="flex flex-col sm:flex-row gap-3"> */}
-            {/* <div className="relative">
-              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
-              <input
-                type="text"
-                placeholder="Search project name..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className={`w-full md:w-[280px] border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-                  }`}
-              />
-            </div> */}
-          {/* </div> */}
-
-          {/* <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
+            <input
+              type="text"
+              placeholder="Search project name..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className={`w-full md:w-[280px] border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+                }`}
+            />
+          </div>
+          <div className="flex flex-wrap gap-3">
             <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
               <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                 <SelectValue placeholder="Category" />
@@ -634,7 +660,6 @@ export const ShootsTable = ({
                 <SelectItem value="narrative">Narrative</SelectItem>
               </SelectContent>
             </Select>
-
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
               <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                 <SelectValue placeholder="Status" />
@@ -647,7 +672,6 @@ export const ShootsTable = ({
                 ))}
               </SelectContent>
             </Select>
-
             <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
               <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                 <SelectValue placeholder="Range" />
@@ -659,11 +683,18 @@ export const ShootsTable = ({
                 <SelectItem value="year">Year</SelectItem>
                 {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
               </SelectContent>
-            </Select> */}
-
-            {/* <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
-              isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"
-            }`}>
+            </Select>
+            <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => { setCpAssignmentFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                <SelectValue placeholder="CP Assignment" />
+              </SelectTrigger>
+              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                <SelectItem value="all">All CP Assignment</SelectItem>
+                <SelectItem value="assigned">CP Assigned</SelectItem>
+                <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
@@ -690,10 +721,10 @@ export const ShootsTable = ({
               >
                 <Grid3X3 size={18} />
               </button>
-            </div> */}
-          {/* </div>
+            </div>
+          </div>
         </div>
-      </div> */}
+      </div>
 
       {loading ? (
         <div className="text-center py-20">
@@ -1030,12 +1061,10 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && processedShoots.length > 0 && (
+        !loading && processedShoots.length > 0 && viewMode !== "grid" && (
           <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-              {viewMode === "grid"
-                ? `Showing up to ${itemsPerPage} cards per status column`
-                : `Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
+              {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
             </div>
             <div className="flex gap-2 items-center">
               <button
