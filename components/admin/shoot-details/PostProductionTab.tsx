@@ -314,15 +314,15 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                       <button
                         key={file.id}
                         onClick={() => router.push(`/admin/file-manager/${projectId}/post-production`)}
-                        className="text-left border border-[#222222] bg-[#0A0A0A] rounded-2xl overflow-hidden group relative hover:border-[#444] transition-colors w-full sm:w-[260px]"
+                        className="text-left border border-[#222222] bg-[#0A0A0A] rounded-xl p-3 lg:p-4 flex items-center gap-4 w-full lg:w-[360px] group relative hover:border-[#444] transition-colors"
                       >
-                        <div className="aspect-[4/3] bg-[#161616] border-b border-[#222222] flex items-center justify-center overflow-hidden">
+                        <div className="w-14 h-14 rounded-lg bg-[#161616] shrink-0 flex items-center justify-center overflow-hidden border border-[#222222]">
                           {previewUrls[file.id] && isImageFile(file.contentType, file.title) ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={previewUrls[file.id]}
                               alt={file.title}
-                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                              className="h-full w-full object-cover"
                             />
                           ) : previewUrls[file.id] && isVideoFile(file.contentType, file.title) ? (
                             <div className="relative h-full w-full">
@@ -333,26 +333,26 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                                 playsInline
                                 preload="metadata"
                               />
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white">
-                                  <Play size={20} className="ml-0.5" fill="currentColor" />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white">
+                                  <Play size={12} className="ml-0.5" fill="currentColor" />
                                 </div>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex flex-col items-center gap-3">
-                              <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${meta.badgeClass}`}>
-                                <FileIcon size={34} className={meta.accentClass} />
+                            <div className="flex flex-col items-center gap-1">
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${meta.badgeClass}`}>
+                                <FileIcon size={20} className={meta.accentClass} />
                               </div>
-                              <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-wide text-white/70">
+                              <span className="text-[10px] uppercase tracking-wide text-white/70">
                                 {meta.label}
                               </span>
                             </div>
                           )}
                         </div>
 
-                        <div className="p-4">
-                          <h4 className="text-white text-sm lg:text-base font-medium leading-tight mb-2 truncate" title={file.title}>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-white text-sm lg:text-base font-medium leading-tight mb-1 truncate" title={file.title}>
                             {file.title}
                           </h4>
                           <span className="text-[#E5D5B8] text-sm underline underline-offset-4">
