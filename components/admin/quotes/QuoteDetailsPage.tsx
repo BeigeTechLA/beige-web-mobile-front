@@ -819,12 +819,6 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
-  const canSendInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
-    normalizedQuoteStatus
-  );
-  const canViewInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
-    normalizedQuoteStatus
-  );
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -982,6 +976,19 @@ export default function QuoteDetailsPage({
     : isPartiallyPaid
       ? "Partially Paid"
       : quoteStatus;
+  const normalizedDisplayStatus = displayStatus.trim().toLowerCase();
+  const invoiceEligibleStatuses = [
+    "accepted",
+    "approved",
+    "confirmed",
+    "pending",
+    "paid",
+    "partially paid",
+  ];
+  const canSendInvoiceFromDetails =
+    invoiceEligibleStatuses.includes(normalizedQuoteStatus) ||
+    invoiceEligibleStatuses.includes(normalizedDisplayStatus);
+  const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
 
   const ensureBookingForPayment = useCallback(async () => {
     if (resolvedBookingId) {
