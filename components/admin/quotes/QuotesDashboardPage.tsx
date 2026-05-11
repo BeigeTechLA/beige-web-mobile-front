@@ -1715,7 +1715,7 @@ export default function QuotesDashboardPage({
         ) : showEmptyState ? (
           <QuotesEmptyState createHref={createHref} />
         ) : (
-          <>
+          <div className="mb-20 lg:mb-2">
             <div className="mb-6 mt-8 flex flex-col gap-4 md:flex-row">
               <div className="relative flex-1">
                 <Search
@@ -1733,7 +1733,7 @@ export default function QuotesDashboardPage({
               />
 	              {isRefreshing && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[#E5D5B8]" size={18} />}
               </div>
-              <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="flex gap-4 flex-row">
                 <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
                   <SelectTrigger
                     className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${
@@ -1802,7 +1802,7 @@ export default function QuotesDashboardPage({
             </div>
 
             <div
-              className={`mb-20 overflow-hidden rounded-2xl md:mb-0 ${
+              className={`mb-5 lg:mb-20 overflow-hidden rounded-2xl md:mb-0 ${
                 isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
               }`}
             >
@@ -1922,7 +1922,7 @@ export default function QuotesDashboardPage({
 
             {filteredQuotesData.length > 0 && totalListPages > 1 && (
               <div
-                className={`flex flex-col gap-4 rounded-2xl border px-5 py-4 md:flex-row md:items-center md:justify-between ${
+                className={`flex flex-col gap-4 rounded-2xl border p-4 lg:px-5 lg:py-4 md:flex-row md:items-center md:justify-between ${
                   isDark
                     ? "border-[#3D3D3D] bg-[#161616]"
                     : "border-[#E5E5E5] bg-[#FFFCF6]"
@@ -1939,7 +1939,7 @@ export default function QuotesDashboardPage({
                     type="button"
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                     disabled={safeCurrentPage === 1}
-                    className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
+                    className={`rounded-lg border px-3 lg:px-4 py-2 text-xs lg:text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
                       isDark
                         ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
                         : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
@@ -1962,7 +1962,7 @@ export default function QuotesDashboardPage({
                           key={item}
                           type="button"
                           onClick={() => setCurrentPage(item)}
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-all ${
+                          className={`flex w-8 h-8 lg:h-9 lg:w-9 items-center justify-center rounded-lg text-xs lg:text-sm font-medium transition-all ${
                             safeCurrentPage === item
                               ? "bg-[#E5D5B8] text-black"
                               : isDark
@@ -1980,7 +1980,7 @@ export default function QuotesDashboardPage({
                     type="button"
                     onClick={() => setCurrentPage((prev) => Math.min(totalListPages, prev + 1))}
                     disabled={safeCurrentPage === totalListPages}
-                    className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
+                    className={`rounded-lg border px-3 lg:px-4 py-2 text-xs lg:text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
                       isDark
                         ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
                         : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
@@ -1991,7 +1991,7 @@ export default function QuotesDashboardPage({
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

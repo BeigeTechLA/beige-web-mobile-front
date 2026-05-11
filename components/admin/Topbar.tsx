@@ -107,9 +107,9 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
           )}
         </div>
 
-        <div>
+        {/* <div>
           {actions}
-        </div>
+        </div> */}
       </div>
 
       {/* ==========================================
