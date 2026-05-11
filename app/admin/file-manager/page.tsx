@@ -37,6 +37,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 
 const STATUSES = ["Linked", "Unlinked"];
 const PAGE_SIZE = 24;
@@ -83,6 +84,7 @@ export default function AdminFolderManagerPage() {
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
@@ -582,6 +584,7 @@ export default function AdminFolderManagerPage() {
             anchor={menuAnchor}
             href={selectedFolder?.href}
             onDownload={handleDownloadSelectedFolder}
+            onShare={() => setIsShareModalOpen(true)}
             onDelete={() => setIsDeleteModalOpen(true)}
             onRename={() => toast.info("Workspace rename will be the next safe step.")}
           />
@@ -610,6 +613,20 @@ export default function AdminFolderManagerPage() {
           onCreate={handleCreateCommonEventFolder}
           title="Create Common Event"
           description="Create a common folder for admin uploads and file sharing"
+        />
+
+        <ShareResourceModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          resource={
+            selectedFolder
+              ? {
+                  resourceType: "workspace",
+                  externalId: String(selectedFolder.id || ""),
+                  label: selectedFolder.title || "Workspace",
+                }
+              : null
+          }
         />
       </div>
     </>

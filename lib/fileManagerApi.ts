@@ -99,6 +99,13 @@ interface ExternalWorkspaceFile {
   createdAt?: string;
   updatedAt?: string;
 }
+interface ExternalShareCreateResponse {
+  success: boolean;
+  data: {
+    shareToken: string;
+    shareUrl: string;
+  };
+}
 
 interface ExternalWorkspacesResponse {
   success: boolean;
@@ -784,6 +791,53 @@ export const fileManagerApi = {
       phase: options?.phase,
       path: options?.path,
     });
+    return response.data;
+  },
+
+  async createExternalShare(payload: {
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    email: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+  }) {
+    const response = await apiClient.post<ExternalShareCreateResponse>(
+      "external-file-manager/share",
+      payload
+    );
+    return response.data;
+  },
+
+  async requestExternalShareOtp(shareToken: string, email: string) {
+    const response = await apiClient.post<{ success: boolean; message?: string }>(
+      "external-file-manager/share/request-otp",
+      { shareToken, email }
+    );
+    return response;
+  },
+
+  async verifyExternalShareOtp(shareToken: string, email: string, otp: string) {
+    const response = await apiClient.post<{ success: boolean; data?: { accessToken: string } }>(
+      "external-file-manager/share/verify-otp",
+      { shareToken, email, otp }
+    );
+    return response;
+  },
+
+  async getSharedContent(shareToken: string, accessToken: string) {
+    const response = await apiClient.getInstance().get(`external-file-manager/share/${shareToken}/content`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return response.data;
+  },
+
+  async getSharedFileDownloadUrl(shareToken: string, accessToken: string, filepath?: string) {
+    const query = filepath ? `?filepath=${encodeURIComponent(filepath)}` : "";
+    const response = await apiClient.getInstance().get(
+      `external-file-manager/share/${shareToken}/download-url${query}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
     return response.data;
   },
 
