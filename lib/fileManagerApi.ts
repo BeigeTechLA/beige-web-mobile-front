@@ -106,6 +106,16 @@ interface ExternalShareCreateResponse {
     shareUrl: string;
   };
 }
+interface ExternalShareListItem {
+  shareId: number;
+  shareToken: string;
+  email: string;
+  resourceType: "workspace" | "folder" | "file";
+  phase?: string;
+  path?: string;
+  filepath?: string;
+  createdAt?: string;
+}
 
 interface ExternalWorkspacesResponse {
   success: boolean;
@@ -825,15 +835,54 @@ export const fileManagerApi = {
     return response;
   },
 
-  async getSharedContent(shareToken: string, accessToken: string) {
-    const response = await apiClient.getInstance().get(`external-file-manager/share/${shareToken}/content`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+  async getSharedContent(
+    shareToken: string,
+    accessToken: string,
+    options?: { phase?: string; path?: string }
+  ) {
+    const params: Record<string, string> = {};
+    if (options?.phase) params.phase = options.phase;
+    if (options?.path) params.path = options.path;
+    const response = await apiClient.getInstance().get(
+      `external-file-manager/share/${shareToken}/content`,
+      {
+        params,
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
     return response.data;
   },
 
-  async getSharedFileDownloadUrl(shareToken: string, accessToken: string, filepath?: string) {
-    const query = filepath ? `?filepath=${encodeURIComponent(filepath)}` : "";
+  async listExternalShares(params: {
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+  }) {
+    const response = await apiClient.get<{ success: boolean; data?: { shares?: ExternalShareListItem[] } }>(
+      "external-file-manager/share",
+      params as unknown as Record<string, unknown>
+    );
+    return response?.data?.shares || [];
+  },
+
+  async revokeExternalShare(payload: { shareId?: number; shareToken?: string }) {
+    const response = await apiClient.getInstance().delete("external-file-manager/share", { data: payload });
+    return response.data;
+  },
+
+  async getSharedFileDownloadUrl(
+    shareToken: string,
+    accessToken: string,
+    filepath?: string,
+    options?: { phase?: string; path?: string }
+  ) {
+    const params = new URLSearchParams();
+    if (filepath) params.set("filepath", filepath);
+    if (options?.phase) params.set("phase", options.phase);
+    if (options?.path) params.set("path", options.path);
+    const query = params.toString() ? `?${params.toString()}` : "";
     const response = await apiClient.getInstance().get(
       `external-file-manager/share/${shareToken}/download-url${query}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }

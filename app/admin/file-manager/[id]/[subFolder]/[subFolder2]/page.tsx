@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import Topbar from "@/components/admin/Topbar";
@@ -151,6 +152,15 @@ export default function SubFolderDetailsPage() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareResource, setShareResource] = useState<{
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+    label?: string;
+  } | null>(null);
 
   const loadFiles = async () => {
     try {
@@ -561,6 +571,20 @@ export default function SubFolderDetailsPage() {
                               }}>
                                 <Download size={16} />
                               </button>
+                              <button className="text-white/70 hover:text-[#E8D1AB]" onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedFile(file);
+                                setShareResource({
+                                  resourceType: "file",
+                                  externalId: String(projectId || ""),
+                                  phase: phaseSlug === "post-production" ? "post" : "pre",
+                                  filepath: file.filepath,
+                                  label: file.title,
+                                });
+                                setIsShareModalOpen(true);
+                              }}>
+                                Share
+                              </button>
                               <button className="text-white/70 hover:text-[#F04438]" onClick={(e) => {
                                 e.stopPropagation();
                                 if (!canDelete) return;
@@ -702,6 +726,20 @@ export default function SubFolderDetailsPage() {
                                 }}>
                                   <Download size={16} />
                                 </button>
+                                <button className="p-2 hover:bg-white/10 rounded-lg text-white/40 hover:text-[#E8D1AB] transition-colors" onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedFile(file);
+                                  setShareResource({
+                                    resourceType: "file",
+                                    externalId: String(projectId || ""),
+                                    phase: phaseSlug === "post-production" ? "post" : "pre",
+                                    filepath: file.filepath,
+                                    label: file.title,
+                                  });
+                                  setIsShareModalOpen(true);
+                                }}>
+                                  Share
+                                </button>
                                 <button className="p-2 hover:bg-white/10 rounded-lg text-white/40 hover:text-[#F04438] transition-colors" onClick={(e) => {
                                   e.stopPropagation();
                                   if (!canDelete) return;
@@ -772,6 +810,15 @@ export default function SubFolderDetailsPage() {
           fileUrl={viewerUrl}
           contentType={viewerFile?.contentType}
           fileMetaId={viewerFile?.filepath || null}
+        />
+
+        <ShareResourceModal
+          isOpen={isShareModalOpen}
+          onClose={() => {
+            setIsShareModalOpen(false);
+            setShareResource(null);
+          }}
+          resource={shareResource}
         />
 
         {/* Batch Action Toolbar */}

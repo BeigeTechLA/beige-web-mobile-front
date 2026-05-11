@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   FileText,
   FileVideo,
+  Share2,
   MoreVertical,
   Play,
   Presentation,
@@ -77,6 +78,7 @@ export const FileCard = ({
   onOpen,
   onDownload,
   onDelete,
+  onShare,
   isSelected,
   onSelect,
 }: {
@@ -85,6 +87,7 @@ export const FileCard = ({
   onOpen?: () => void
   onDownload?: () => void,
   onDelete?: () => void,
+  onShare?: () => void,
   isSelected?: boolean,
   onSelect?: (selected: boolean) => void,
 }) => {
@@ -143,6 +146,18 @@ export const FileCard = ({
                 }}
               >
                 <Trash2 size={18} />
+              </Button>
+            ) : null}
+            {onShare ? (
+              <Button
+                variant="ghost"
+                className="text-white/60 hover:text-white p-0 h-auto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare();
+                }}
+              >
+                <Share2 size={18} />
               </Button>
             ) : null}
             {onMenuTrigger ? (

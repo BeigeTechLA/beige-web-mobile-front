@@ -447,6 +447,10 @@ export default function AdminFolderManagerPage() {
                     setSelectedFolder(folder);
                     setIsDeleteModalOpen(true);
                   }}
+                  onShare={() => {
+                    setSelectedFolder(folder);
+                    setIsShareModalOpen(true);
+                  }}
                   onRename={() => toast.info("Workspace rename will be the next safe step.")}
                 />
               ))}

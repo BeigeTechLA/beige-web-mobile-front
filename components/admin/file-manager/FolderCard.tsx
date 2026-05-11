@@ -18,6 +18,7 @@ interface FolderCardProps {
   onDownload?: () => void;
   onDelete?: () => void;
   onRename?: () => void;
+  onShare?: () => void;
 }
 
 export const FolderCard: React.FC<FolderCardProps> = ({
@@ -33,7 +34,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   showMenu = true,
   onDownload,
   onDelete,
-  onRename
+  onRename,
+  onShare
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -145,6 +147,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
           href={href}
           onOpen={onOpen}
           onDownload={onDownload}
+          onShare={onShare}
           onDelete={onDelete}
           onRename={onRename}
         />
