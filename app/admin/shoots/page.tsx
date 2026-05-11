@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 
 import { ShootsTable } from '@/components/admin/ShootsTable';
-import { ArrowUpToLine, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
@@ -43,6 +43,7 @@ export default function ShootsPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [range, setRange] = useState("all");
+  const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -112,11 +113,21 @@ export default function ShootsPage() {
                   {selectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
                 </SelectContent>
               </Select>
+              <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
+                <SelectTrigger className={`w-[170px] rounded-lg h-12 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                  <SelectValue placeholder="CP Assignment" />
+                </SelectTrigger>
+                <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                  <SelectItem value="all">All CP Assignment</SelectItem>
+                  <SelectItem value="assigned">CP Assigned</SelectItem>
+                  <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+            {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
-            </Button>
+            </Button> */}
             <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
               Book a Shoot
             </Button>
@@ -151,6 +162,10 @@ export default function ShootsPage() {
           setStatusFilter={setStatusFilter}
           range={range}
           setRange={setRange}
+          cpAssignmentFilter={cpAssignmentFilter}
+          setCpAssignmentFilter={setCpAssignmentFilter}
+          showHeaderControls={true}
+          showHeaderFilters={false}
         />
 
         {/* --- FLOATING MOBILE BUTTON --- */}

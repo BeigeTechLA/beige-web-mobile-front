@@ -182,6 +182,12 @@ interface ShootsTableProps {
   setStatusFilter: (v: string) => void;
   range: string;
   setRange: (v: string) => void;
+  cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
+  setCpAssignmentFilter?: (v: "all" | "assigned" | "not_assigned") => void;
+  viewMode?: "grid" | "list";
+  setViewMode?: (v: "grid" | "list") => void;
+  showHeaderControls?: boolean;
+  showHeaderFilters?: boolean;
 }
 
 export const ShootsTable = ({
@@ -196,6 +202,12 @@ export const ShootsTable = ({
   setStatusFilter,
   range,
   setRange,
+  cpAssignmentFilter,
+  setCpAssignmentFilter,
+  viewMode,
+  setViewMode,
+  showHeaderControls = true,
+  showHeaderFilters = true,
 }: ShootsTableProps) => {
   const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
   const router = useRouter();
@@ -208,7 +220,7 @@ export const ShootsTable = ({
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [internalViewMode, setInternalViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
   const [kanbanOrder, setKanbanOrder] = useState<Record<ShootStatus, string[]>>({} as Record<ShootStatus, string[]>);
   const [draggedShootId, setDraggedShootId] = useState<string | null>(null);
@@ -216,7 +228,11 @@ export const ShootsTable = ({
   const itemsPerPage = 10;
 
   // Filtering states
-  const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const activeViewMode = viewMode ?? internalViewMode;
+  const setActiveViewMode = setViewMode ?? setInternalViewMode;
+  const activeCpAssignmentFilter = cpAssignmentFilter ?? internalCpAssignmentFilter;
+  const setActiveCpAssignmentFilter = setCpAssignmentFilter ?? setInternalCpAssignmentFilter;
 
   // --- SORTING STATE ---
   const [sortConfig, setSortConfig] = useState<{ key: keyof ShootRecord; direction: 'asc' | 'desc' | null }>({
@@ -230,23 +246,23 @@ export const ShootsTable = ({
     try {
       const savedViewMode = window.localStorage.getItem(SHOOTS_VIEW_MODE_KEY);
       if (savedViewMode === "grid" || savedViewMode === "list") {
-        setViewMode(savedViewMode);
+        setActiveViewMode(savedViewMode);
       }
     } catch (error) {
       console.error("Failed to restore shoots view mode:", error);
     } finally {
       setHasRestoredViewMode(true);
     }
-  }, []);
+  }, [setActiveViewMode]);
 
   useEffect(() => {
     if (!hasRestoredViewMode) return;
     try {
-      window.localStorage.setItem(SHOOTS_VIEW_MODE_KEY, viewMode);
+      window.localStorage.setItem(SHOOTS_VIEW_MODE_KEY, activeViewMode);
     } catch (error) {
       console.error("Failed to persist shoots view mode:", error);
     }
-  }, [hasRestoredViewMode, viewMode]);
+  }, [hasRestoredViewMode, activeViewMode]);
 
   useEffect(() => {
     return () => {
@@ -288,8 +304,8 @@ export const ShootsTable = ({
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
-        if (cpAssignmentFilter !== "all") {
-          params.cp_assignment = cpAssignmentFilter;
+        if (activeCpAssignmentFilter !== "all") {
+          params.cp_assignment = activeCpAssignmentFilter;
         }
 
         const projectsResponse = await adminApi.getProjects(params);
@@ -344,7 +360,7 @@ export const ShootsTable = ({
     };
 
     fetchData();
-  }, [range, statusFilter, categoryFilter, cpAssignmentFilter, externalSelectedDate]);
+  }, [range, statusFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
@@ -359,9 +375,9 @@ export const ShootsTable = ({
       return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
     });
 
-    if (cpAssignmentFilter !== "all") {
+    if (activeCpAssignmentFilter !== "all") {
       result = result.filter((shoot) =>
-        cpAssignmentFilter === "assigned" ? shoot.hasAssignedCp : !shoot.hasAssignedCp
+        activeCpAssignmentFilter === "assigned" ? shoot.hasAssignedCp : !shoot.hasAssignedCp
       );
     }
 
@@ -393,7 +409,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig, statusFilter, cpAssignmentFilter]);
+  }, [shoots, searchQuery, sortConfig, statusFilter, activeCpAssignmentFilter]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -626,9 +642,12 @@ export const ShootsTable = ({
   return (
     <div className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
+      {showHeaderControls && (
       <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
         <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3>
         <div className="flex flex-col md:flex-row gap-3">
+          {showHeaderFilters && (
+          <>
           <div className="relative">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
             <input
@@ -641,7 +660,7 @@ export const ShootsTable = ({
               }}
               className={`w-full md:w-[280px] border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
                 }`}
-            />
+              />
           </div>
           <div className="flex flex-wrap gap-3">
             <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
@@ -684,7 +703,7 @@ export const ShootsTable = ({
                 {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
               </SelectContent>
             </Select>
-            <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => { setCpAssignmentFilter(v); setCurrentPage(1); }}>
+            <Select value={activeCpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => { setActiveCpAssignmentFilter(v); setCurrentPage(1); }}>
               <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                 <SelectValue placeholder="CP Assignment" />
               </SelectTrigger>
@@ -694,12 +713,16 @@ export const ShootsTable = ({
                 <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          </>
+          )}
+          <div className="flex flex-wrap gap-3">
             <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
               <button
                 type="button"
-                onClick={() => setViewMode("list")}
+                onClick={() => setActiveViewMode("list")}
                 className={`px-4 py-2.5 transition-colors ${
-                  viewMode === "list"
+                  activeViewMode === "list"
                     ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                     : isDark
                       ? "bg-transparent text-white/40 hover:text-white"
@@ -710,9 +733,9 @@ export const ShootsTable = ({
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode("grid")}
+                onClick={() => setActiveViewMode("grid")}
                 className={`px-4 py-2.5 transition-colors ${
-                  viewMode === "grid"
+                  activeViewMode === "grid"
                     ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                     : isDark
                       ? "bg-transparent text-white/40 hover:text-white"
@@ -725,6 +748,7 @@ export const ShootsTable = ({
           </div>
         </div>
       </div>
+      )}
 
       {loading ? (
         <div className="text-center py-20">
@@ -832,7 +856,7 @@ export const ShootsTable = ({
             </div>
           )}
 
-          {viewMode === "grid" ? (
+          {activeViewMode === "grid" ? (
             <div className="hidden lg:block p-6 pt-5">
               <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-2">
                 <div className="flex items-start gap-5 min-w-max">
@@ -1061,7 +1085,7 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && processedShoots.length > 0 && viewMode !== "grid" && (
+        !loading && processedShoots.length > 0 && activeViewMode !== "grid" && (
           <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
               {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}

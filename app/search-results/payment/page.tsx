@@ -1152,7 +1152,7 @@ function StripePaymentFormMulti({
         </div>
 
         {/* Account Credit */}
-        {/* <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
+        <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
           <label
             className={`flex items-start justify-between gap-4 rounded-xl transition ${
               canUseAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
@@ -1199,7 +1199,7 @@ function StripePaymentFormMulti({
           {!canUseAccountCredit && (
             <p className="text-white/50 text-sm mt-3">No account credit available for this booking.</p>
           )}
-        </div> */}
+        </div>
 
         {/* Submit Button */}
         <Button

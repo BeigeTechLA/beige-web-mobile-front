@@ -1103,12 +1103,12 @@ export default function AdminSaleRepManagerPage() {
                   options={CP_ASSIGNMENT_OPTIONS as any}
                   onChange={(val) => setCpAssignmentFilter(val as "all" | "assigned" | "not_assigned")}
                 />
-                <BasicDropdown
+                {/* <BasicDropdown
                   label="Production"
                   value={productionFilter}
                   options={PRODUCTION_FILTER_OPTIONS as any}
                   onChange={(val) => setProductionFilter(normalizeProductionFilterValue(val))}
-                />
+                /> */}
                 <BasicDropdown
                   label="All Statuses"
                   value={statusFilter}
