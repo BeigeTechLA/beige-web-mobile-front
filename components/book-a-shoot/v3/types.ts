@@ -32,7 +32,7 @@ export type BookingDataV3 = {
   location: string;
   locationDetails: any; // Mapbox object
   specialInstructions: string;
-  referenceLinks: string;
+  referenceLinks: string | string[];
   
   // Step 3 & 4
   matchingMethod: 'ai_matchmaker' | 'manual';

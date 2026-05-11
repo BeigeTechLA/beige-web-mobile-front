@@ -6,7 +6,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { Video, Camera, Scissors, MapPin } from "lucide-react";
+import { Video, Camera, Scissors, MapPin, Plus, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
@@ -41,7 +41,7 @@ interface FormFields {
   additional_creative: boolean,
   shoot_location: string,
   additional_details: string,
-  supporting_url: string,
+  supporting_url: string | string[],
   videographyCount?: string
   photographyCount?: string
 }
@@ -66,6 +66,63 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
   const isCoachella = data.shootType === "coachella";
+
+   const links = Array.isArray(data.referenceLinks) 
+    ? data.referenceLinks 
+    : data.referenceLinks ? [data.referenceLinks] : [""];
+
+  const handleLinkChange = (index: number, value: string) => {
+    const newLinks = [...links];
+    newLinks[index] = value;
+    updateData({ referenceLinks: newLinks });
+  };
+
+  const addLinkField = () => {
+    updateData({ referenceLinks: [...links, ""] });
+  };
+
+  const removeLinkField = (index: number) => {
+    const newLinks = links.filter((_, i) => i !== index);
+    updateData({ referenceLinks: newLinks.length > 0 ? newLinks : [""] });
+  };
+  const shouldShowPreview = (url: string) => {
+    return Boolean(getPreviewUrl(url));
+  };
+
+  const normalizeUrl = (url: string) => {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return "";
+    if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+      return trimmedUrl;
+    }
+    return `https://${trimmedUrl}`;
+  };
+
+  const getPreviewUrl = (url: string) => {
+    const normalizedUrl = normalizeUrl(url);
+    if (!normalizedUrl || !isValidUrl(normalizedUrl)) return null;
+
+    const youtubeMatch = normalizedUrl.match(
+      /(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/shorts\/|\/live\/))([\w-]{11})/
+    );
+    if (youtubeMatch) {
+      return `https://www.youtube.com/embed/${youtubeMatch[1]}?rel=0`;
+    }
+
+    const vimeoMatch = normalizedUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+
+    const driveMatch =
+      normalizedUrl.match(/\/d\/([^/]+)/) ||
+      normalizedUrl.match(/[?&]id=([^&]+)/);
+    if (driveMatch) {
+      return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    }
+
+    return null;
+  };
 
   const includedRoles = data.contentType.map((type) => {
     if (type === "editing") {
@@ -267,8 +324,10 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       } = {
         booking_id: data.bookingId,
         crew_roles: crewRoles,
-        description: data.specialInstructions,  // NEW: From Textarea
-        reference_links: data.referenceLinks,   // NEW: From Input
+        description: data.specialInstructions, 
+         reference_links: Array.isArray(data.referenceLinks) 
+          ? data.referenceLinks.filter(l => l.trim() !== "").join(", ") 
+          : data.referenceLinks,   
       };
 
       if (!isEditingOnly && data.location) {
@@ -513,23 +572,62 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           />
         </div>
 
-        <div className="relative">
-          <label
-            htmlFor="referenceLinks"
-            className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60 z-10"
+         <div className="flex flex-col gap-3 pt-6">
+          <div className="relative flex flex-col gap-3">
+            <label
+              htmlFor="referenceLinks-0"
+              className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60 z-10"
+            >
+              Supporting Links
+            </label>
+            {links.map((link, index) => (
+                <div key={index} className="flex flex-col gap-3">
+                <div className="flex gap-2 items-center">
+              <input
+              id={`referenceLinks-${index}`}
+              value={link}
+              onChange={(e) => handleLinkChange(index, e.target.value)}
+              onBlur={() => scrollToRef(navigationRef)}
+              placeholder="Share any links to inspo or reference content."
+              className="w-full rounded-[12px] border border-white/30 px-4 py-4 text-white outline-none focus:border-white/60 transition-all bg-[#101010] text-sm lg:text-base"
+            />
+             {links.length > 1 && (
+                <button 
+                  onClick={() => removeLinkField(index)}
+                  className="p-2 text-white/40 hover:text-red-400"
+                >
+                  <Trash2 size={20} />
+                </button>
+              )}
+          </div>
+           {shouldShowPreview(link) ? (
+                  <div className="relative w-full overflow-hidden rounded-lg border border-white/10 bg-black/40 group">
+                    <div className="absolute top-2 left-2 z-10 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white/60 uppercase tracking-widest border border-white/10">
+                      Live Preview
+                    </div>
+                    
+                
+                    <iframe
+                      src={getPreviewUrl(link) || ""}
+                      className="w-full h-[200px] lg:h-[300px] border-0"
+                      title={`Preview ${index}`}
+                      allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                      allowFullScreen
+                      sandbox="allow-scripts allow-same-origin allow-presentation"
+                      loading="lazy"
+                    />
+                 </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <button 
+            onClick={addLinkField}
+            className="w-fit flex items-center gap-1 pl-1 text-xs text-[#E8D1AB] hover:underline cursor-pointer"
           >
-            Supporting Links
-          </label>
-          <input
-            id="referenceLinks"
-            value={data.referenceLinks}
-            onChange={(e) => updateData({ referenceLinks: e.target.value })}
-            onBlur={() => scrollToRef(navigationRef)}
-            placeholder="Share any links to inspo or reference content."
-            className="w-full rounded-[12px] border border-white/30 p-4 pt-6 text-white outline-none focus:border-white/60 transition-all resize-none bg-[#101010] text-sm lg:text-base"
-          />
-        </div>
-
+            <Plus size={14} /> Add another link
+          </button>
+      </div>
       </div>
 
       {/* Navigation */}

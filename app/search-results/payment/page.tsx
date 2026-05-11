@@ -1041,7 +1041,7 @@ function StripePaymentFormMulti({
                   ? "border-red-500 focus:border-red-400"
                   : "border-white/30 focus:border-white/50"
                 }`}
-              placeholder={isReferralLocked ? "Disabled for $0 total" : "Enter code"}
+              placeholder={isReferralLocked ? "Referral Code" : "Enter code"}
               maxLength={10}
               disabled={isReferralLocked}
             />
