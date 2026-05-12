@@ -394,7 +394,7 @@ export const salesApi = createApi({
         location_latitude?: number;
         location_longitude?: number;
         description?: string;        // Added
-        reference_links?: string;    // Added
+        reference_links?: string | string[];    // Changed to accept array
       }
     >({
       query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id
