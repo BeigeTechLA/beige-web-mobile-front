@@ -64,6 +64,7 @@ import {
   getQuoteAdditionalPaymentDetails,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
+  getQuoteNumber,
 } from "@/lib/quoteDetail";
 import {
   clearQuoteEditorEditReason,
@@ -2963,8 +2964,17 @@ export default function CreateQuotePage() {
   const totalAfterDiscount = totalAfterTax;
   const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
   const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
+  const quoteContextPaidAmount =
+    getQuoteNumber(
+      previewQuote?.additional_payment?.previously_paid_amount,
+      quoteToEdit?.additional_payment?.previously_paid_amount
+    ) ?? 0;
   const safePreviouslyPaidOverride =
-    Number.isFinite(leadPricingPaid) && leadPricingPaid > 0 ? leadPricingPaid : undefined;
+    (Number.isFinite(leadPricingPaid) && leadPricingPaid > 0
+      ? leadPricingPaid
+      : quoteContextPaidAmount > 0
+        ? quoteContextPaidAmount
+        : 0) || undefined;
   const safePreviousTotalOverride =
     Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
@@ -4305,6 +4315,13 @@ export default function CreateQuotePage() {
 
   const confirmDelete = async () => {
     if (!itemToDelete) return;
+    const numericCatalogId = Number(itemToDelete.id);
+    const hasValidCatalogId = Number.isFinite(numericCatalogId) && numericCatalogId > 0;
+    const isCatalogBackedItem =
+      itemToDelete.type === "service" ||
+      itemToDelete.type === "addon" ||
+      itemToDelete.type === "logistics" ||
+      itemToDelete.type === "line_item";
 
     if (
       itemToDelete.type === "line_item" &&
@@ -4338,6 +4355,25 @@ export default function CreateQuotePage() {
 
     setIsDeleting(true);
     try {
+      if (isCatalogBackedItem && !hasValidCatalogId) {
+        if (itemToDelete.type === "service") {
+          setSelectedServices((prev) => prev.filter((sid) => sid !== itemToDelete.id));
+        } else if (itemToDelete.type === "addon") {
+          removeSelectedAddon(itemToDelete.id);
+        } else if (itemToDelete.type === "logistics") {
+          removeLogisticsItem(itemToDelete.id);
+        } else {
+          removeLineItem(itemToDelete.id);
+        }
+
+        toast.success(
+          `${itemToDelete.type === "service" ? "Service" : itemToDelete.type === "addon" ? "Add-on" : itemToDelete.type === "logistics" ? "Logistics item" : "Line item"} removed from this quote`,
+        );
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+        return;
+      }
+
       const res =
         itemToDelete.type === "editing_type"
           ? await salesApi.deleteAiEditingType(itemToDelete.id)

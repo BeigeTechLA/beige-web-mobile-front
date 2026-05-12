@@ -142,11 +142,18 @@ const getHistoricalConfirmedPaidAmount = (
 
     const candidates: number[] = [];
 
-    if (collectedAmount !== undefined) {
+    const isExplicitPaymentEvent =
+      activityType === "payment_completed" ||
+      (activityType === "status_changed" && PAID_PAYMENT_STATUSES.has(paymentStatus));
+
+    // Prefer explicit paid/collected amounts from concrete payment events.
+    if (collectedAmount !== undefined && isExplicitPaymentEvent) {
       candidates.push(collectedAmount);
     }
 
+    // When extra amount is tracked separately, include it for paid payment events.
     if (
+      isExplicitPaymentEvent &&
       PAID_PAYMENT_STATUSES.has(paymentStatus) &&
       collectedAmount !== undefined &&
       extraAmount > 0
