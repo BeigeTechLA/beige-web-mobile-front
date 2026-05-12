@@ -21,6 +21,7 @@ import {
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import SignatureModal from "@/components/signature/SignatureModal";
+import { ServiceAgreementModal } from "../common/ServiceAgreementModal";
 
 export type QuotePreviewTopbarProps = {
   pathname: string;
@@ -84,6 +85,10 @@ export default function QuotePreviewPageShell({
   const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState<string | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
   const [showSignature, setShowSignature] = useState(false);
+  const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
+  const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
+  
+  
 
   useEffect(() => {
     return () => {
@@ -305,7 +310,13 @@ export default function QuotePreviewPageShell({
       )}
       {quoteDetailMode === "public" && (
         <ActionButton
-          onClick={() => setShowSignature(true)}
+          onClick={() => {
+            if (!acceptServiceAgreement) {
+              toast.error("Please agree to the Service Agreement before signing.");
+              return;
+            }
+            setShowSignature(true);
+          }}
           disabled={!resolvedQuoteId || loading}
           className={`h-11 rounded-xl px-4 ${isDark
             ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
@@ -315,6 +326,15 @@ export default function QuotePreviewPageShell({
           Sign Quote
         </ActionButton>
       )}
+      <ServiceAgreementModal
+        isOpen={isServiceAgreementOpen}
+        initialChecked={acceptServiceAgreement}
+        onClose={() => setIsServiceAgreementOpen(false)}
+        onAccept={() => {
+          setAcceptServiceAgreement(true);
+          setIsServiceAgreementOpen(false);
+        }}
+      />
       {quoteDetailMode !== "public" && (
       <ActionButton
         onClick={() => {
@@ -362,15 +382,21 @@ export default function QuotePreviewPageShell({
             )}
             {quoteDetailMode === "public" && (
               <ActionButton
-                onClick={() => setShowSignature(true)}
+                onClick={() => {
+                  if (!acceptServiceAgreement) {
+                    toast.error("Please agree to the Service Agreement before signing.");
+                    return;
+                  }
+                  setShowSignature(true);
+                }}
                 disabled={!resolvedQuoteId || loading}
                 className={`h-11 rounded-xl ${isDark
                   ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
                   : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
                   }`}
-              >
-                Sign Quote
-              </ActionButton>
+                >
+                  Sign Quote
+                </ActionButton>
             )}
             {quoteDetailMode !== "public" && (
               <ActionButton
@@ -417,7 +443,14 @@ export default function QuotePreviewPageShell({
             Loading quote preview...
           </div>
         ) : quote ? (
-          <QuotePreviewDocument quote={quote} quoteId={queryQuoteId ?? queryQuoteKey} />
+          <QuotePreviewDocument
+            quote={quote}
+            quoteId={queryQuoteId ?? queryQuoteKey}
+            showServiceAgreementAcceptance={quoteDetailMode === "public"}
+            acceptServiceAgreement={acceptServiceAgreement}
+            onAcceptServiceAgreementChange={setAcceptServiceAgreement}
+            onOpenServiceAgreement={() => setIsServiceAgreementOpen(true)}
+          />
         ) : (
           <div
             className={`flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] px-6 text-center ${isDark

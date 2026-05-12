@@ -20,10 +20,20 @@ export type QuoteAdditionalPaymentDetails = {
   totalDelta: number;
   displayAmount: number;
   isDecrease: boolean;
+  paymentStatus: string;
   previousTotal: number;
   previouslyPaidAmount: number;
   revisedTotal: number;
   outstandingAmount: number;
+};
+
+export type QuotePaymentProgressDetails = {
+  totalAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  hasFullPayment: boolean;
+  isPartiallyPaid: boolean;
+  canTakePayment: boolean;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
@@ -103,6 +113,74 @@ const getLatestQuotePaymentSummaryMetadata = (
   });
 
   return latestMetadata;
+};
+
+const PAID_PAYMENT_STATUSES = new Set(["paid", "success", "completed"]);
+
+const getHistoricalConfirmedPaidAmount = (
+  quote: SalesQuoteDetailData | null | undefined
+) => {
+  if (!Array.isArray(quote?.activities) || quote.activities.length === 0) {
+    return undefined;
+  }
+
+  let maxConfirmedPaidAmount: number | undefined;
+
+  quote.activities.forEach((activity) => {
+    const activityRecord = asRecord(activity);
+    const metadata = getActivityMetadataRecord(activity);
+
+    if (!activityRecord || !metadata) {
+      return;
+    }
+
+    const paymentStatus = getQuoteText(metadata.payment_status, metadata.status).toLowerCase();
+    const collectedAmount = getQuoteNumber(metadata.collected_amount, metadata.amount_paid);
+    const extraAmount = getQuoteNumber(metadata.extra_amount) ?? 0;
+    const newTotal = getQuoteNumber(metadata.new_total);
+    const activityType = getQuoteText(activityRecord.activity_type).toLowerCase();
+
+    const candidates: number[] = [];
+
+    if (collectedAmount !== undefined) {
+      candidates.push(collectedAmount);
+    }
+
+    if (
+      PAID_PAYMENT_STATUSES.has(paymentStatus) &&
+      collectedAmount !== undefined &&
+      extraAmount > 0
+    ) {
+      candidates.push(collectedAmount + extraAmount);
+    }
+
+    if (PAID_PAYMENT_STATUSES.has(paymentStatus) && newTotal !== undefined) {
+      candidates.push(newTotal);
+    }
+
+    if (activityType === "status_changed" && paymentStatus === "paid") {
+      if (collectedAmount !== undefined) {
+        candidates.push(collectedAmount);
+      }
+
+      if (newTotal !== undefined) {
+        candidates.push(newTotal);
+      }
+    }
+
+    candidates.forEach((candidate) => {
+      if (!Number.isFinite(candidate)) {
+        return;
+      }
+
+      maxConfirmedPaidAmount =
+        maxConfirmedPaidAmount === undefined
+          ? candidate
+          : Math.max(maxConfirmedPaidAmount, candidate);
+    });
+  });
+
+  return maxConfirmedPaidAmount;
 };
 
 export const getQuoteText = (...values: unknown[]) => {
@@ -517,6 +595,7 @@ export const getQuoteAdditionalPaymentDetails = (
   const revisedTotalOverride = getQuoteNumber(options?.revisedTotalOverride);
   const previouslyPaidOverride = getQuoteNumber(options?.previouslyPaidOverride);
   const previousTotalOverride = getQuoteNumber(options?.previousTotalOverride);
+  const historicalConfirmedPaidAmount = getHistoricalConfirmedPaidAmount(quote);
   const hasRevisionContext =
     Boolean(additionalPayment) ||
     Boolean(latestPaymentMetadata) ||
@@ -565,13 +644,22 @@ export const getQuoteAdditionalPaymentDetails = (
       quote?.total
     ) ?? 0
   );
+  const totalDelta = revisedTotal - previousTotal;
+  const effectivePaidAmount =
+    totalDelta < -0.009
+      ? Math.max(previouslyPaidAmount, historicalConfirmedPaidAmount ?? 0)
+      : previouslyPaidAmount;
   const derivedAdditionalAmount =
-    revisedTotal > 0 || previouslyPaidAmount > 0
-      ? revisedTotal - previouslyPaidAmount
+    revisedTotal > 0 || effectivePaidAmount > 0
+      ? revisedTotal - effectivePaidAmount
       : 0;
 
   const metadataExtraAmount = getQuoteNumber(latestPaymentMetadata?.extra_amount);
   const metadataReducedAmount = getQuoteNumber(latestPaymentMetadata?.reduced_amount);
+  const paymentStatus = getQuoteText(
+    latestPaymentMetadata?.payment_status,
+    additionalPayment?.payment_status
+  ).toLowerCase();
 
   let effectiveMetadataAmount = metadataExtraAmount;
   if (
@@ -582,7 +670,6 @@ export const getQuoteAdditionalPaymentDetails = (
     effectiveMetadataAmount = -metadataReducedAmount;
   }
 
-  const totalDelta = revisedTotal - previousTotal;
   const additionalAmount = derivedAdditionalAmount;
   const outstandingAmount = Math.max(0, additionalAmount);
   const displayAmount = Math.abs(additionalAmount);
@@ -604,10 +691,60 @@ export const getQuoteAdditionalPaymentDetails = (
     totalDelta,
     displayAmount,
     isDecrease,
+    paymentStatus,
     previousTotal,
-    previouslyPaidAmount,
+    previouslyPaidAmount: effectivePaidAmount,
     revisedTotal,
     outstandingAmount,
+  };
+};
+
+export const getQuotePaymentProgressDetails = (
+  quote: SalesQuoteDetailData | null | undefined,
+  options?: {
+    totalAmountOverride?: number | null;
+    previouslyPaidOverride?: number | null;
+    previousTotalOverride?: number | null;
+    collectedAmountOverride?: number | null;
+    manualPaidOverride?: number | null;
+  }
+): QuotePaymentProgressDetails => {
+  const totalAmount = Math.max(
+    0,
+    getQuoteNumber(
+      options?.totalAmountOverride,
+      quote?.final_total,
+      quote?.total_amount,
+      quote?.total
+    ) ?? 0
+  );
+
+  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quote, {
+    revisedTotalOverride: totalAmount,
+    previouslyPaidOverride: getQuoteNumber(options?.previouslyPaidOverride),
+    previousTotalOverride: getQuoteNumber(options?.previousTotalOverride),
+  });
+
+  const paidAmount = Math.max(
+    additionalPaymentDetails?.previouslyPaidAmount ?? 0,
+    getQuoteNumber(options?.collectedAmountOverride) ?? 0,
+    getQuoteNumber(options?.manualPaidOverride) ?? 0,
+    0
+  );
+  const pendingAmount = totalAmount - paidAmount;
+  const normalizedPaymentStatus = additionalPaymentDetails?.paymentStatus ?? "";
+  const isRevisionPending =
+    normalizedPaymentStatus === "pending" || normalizedPaymentStatus === "partially_paid";
+  const hasFullPayment = pendingAmount <= 0.009 && paidAmount > 0 && !isRevisionPending;
+
+  return {
+    totalAmount,
+    paidAmount,
+    pendingAmount,
+    hasFullPayment,
+    isPartiallyPaid:
+      isRevisionPending || (!hasFullPayment && paidAmount > 0 && pendingAmount > 0.009),
+    canTakePayment: pendingAmount > 0.009,
   };
 };
 
