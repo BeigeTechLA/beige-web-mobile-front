@@ -64,6 +64,7 @@ import {
   getQuoteAdditionalPaymentDetails,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
+  getQuoteNumber,
 } from "@/lib/quoteDetail";
 import {
   clearQuoteEditorEditReason,
@@ -2963,8 +2964,15 @@ export default function CreateQuotePage() {
   const totalAfterDiscount = totalAfterTax;
   const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
   const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
-  const safePreviouslyPaidOverride =
-    Number.isFinite(leadPricingPaid) && leadPricingPaid > 0 ? leadPricingPaid : undefined;
+  const quoteContextPaidAmount =
+    getQuoteNumber(
+      previewQuote?.additional_payment?.previously_paid_amount,
+      quoteToEdit?.additional_payment?.previously_paid_amount
+    ) ?? 0;
+  const safePreviouslyPaidOverride = Math.max(
+    Number.isFinite(leadPricingPaid) && leadPricingPaid > 0 ? leadPricingPaid : 0,
+    quoteContextPaidAmount
+  ) || undefined;
   const safePreviousTotalOverride =
     Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
