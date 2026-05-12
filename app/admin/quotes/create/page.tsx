@@ -4788,8 +4788,6 @@ export default function CreateQuotePage() {
     );
   }
 
-  // console.log(showInvoiceActions, showReviewChangesAction)
-
   return (
     <div
       className={`quote-editor-theme min-h-screen ${isDark
@@ -7597,7 +7595,7 @@ export default function CreateQuotePage() {
                   void handleViewInvoice();
                 }}
                 disabled={isViewingInvoice || isSendingInvoice || isConverting}
-                className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
               </Button>
@@ -7607,7 +7605,7 @@ export default function CreateQuotePage() {
                   void handleSendInvoice();
                 }}
                 disabled={isViewingInvoice || isSendingInvoice || isConverting}
-                className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+                className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
               </Button>
@@ -7616,21 +7614,21 @@ export default function CreateQuotePage() {
           </div>
         ) : showPreviewAction ? (
           <div className="flex flex-col lg:flex-row gap-2">
-            {showReviewChangesAction ? (
+            {(showReviewChangesAction && showInvoiceActions) ? (
               <Button
-                type="button"
+                variant="default"
                 onClick={handleOpenReviewChangesModal}
                 disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-                className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 Review Changes
               </Button>
             ) : null}
             <Button
-              type="button"
+              variant="beige"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."
@@ -7640,7 +7638,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handleSaveAsDraft}
               disabled={isCreatingQuoteDraft}
-              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               <div className="flex items-center justify-center">
                 <Save
@@ -7684,7 +7682,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."

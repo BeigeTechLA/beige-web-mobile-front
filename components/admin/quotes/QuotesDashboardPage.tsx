@@ -14,7 +14,7 @@ import {
   subDays,
   subMonths,
 } from "date-fns";
-import { SquarePen } from "lucide-react";
+import { ChevronDown, ChevronUp, SquarePen, ChevronLeft, ChevronRight } from "lucide-react";
 import QuotesEmptyState from "@/components/admin/quotes/QuotesEmptyState";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/components/ui/button";
@@ -176,7 +176,7 @@ type QuoteActionMenuProps = {
   onReject: () => void;
   allowEdit?: boolean;
   mobile?: boolean;
-  disabled?: boolean; 
+  disabled?: boolean;
 };
 
 type QuoteActionMenuButtonProps = {
@@ -207,11 +207,10 @@ const QuoteActionMenuButton = ({
   <button
     type="button"
     onClick={onClick}
-    className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-[14px] font-medium transition-colors lg:text-[15px] ${
-      variant === "danger"
-        ? "text-[#F04438] hover:bg-[#F04438]/10"
-        : "text-white hover:bg-white/5"
-    }`}
+    className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-[14px] font-medium transition-colors lg:text-[15px] ${variant === "danger"
+      ? "text-[#F04438] hover:bg-[#F04438]/10"
+      : "text-white hover:bg-white/5"
+      }`}
   >
     <span className={variant === "danger" ? "text-[#F04438]" : "text-white/70"}>{icon}</span>
     {label}
@@ -247,11 +246,10 @@ const QuoteActionMenu = ({
           type="button"
           onClick={handleTriggerClick}
           disabled={disabled}
-          className={`${
-            mobile
-              ? "rounded-lg p-2 text-[#E8D1AB] transition-colors hover:bg-[#2a2a2a]"
-              : "text-[#E8D1AB] transition-colors hover:text-white"
-          }${disabled ? "opacity-30 cursor-not-allowed " : ""}`}
+          className={`${mobile
+            ? "rounded-lg p-2 text-[#E8D1AB] transition-colors hover:bg-[#2a2a2a]"
+            : "text-[#E8D1AB] transition-colors hover:text-white"
+            }${disabled ? "opacity-30 cursor-not-allowed " : ""}`}
           aria-label="Quote actions"
         >
           {mobile ? <MoreHorizontal size={18} /> : <MoreVertical size={18} />}
@@ -277,7 +275,7 @@ const QuoteActionMenu = ({
           />
           {allowEdit ? (
             <QuoteActionMenuButton
-              icon={<SquarePen  size={18} />}
+              icon={<SquarePen size={18} />}
               label="Edit"
               onClick={handleMenuAction(onEdit)}
             />
@@ -684,14 +682,14 @@ const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
   const manualPaidAmount = Math.max(
     0,
     toNumericOrNull(manualPaymentSummary?.paidAmount) ??
-      toNumericOrNull(manualPaymentSummary?.paid_amount) ??
-      0,
+    toNumericOrNull(manualPaymentSummary?.paid_amount) ??
+    0,
   );
   const manualPendingAmount = Math.max(
     0,
     toNumericOrNull(manualPaymentSummary?.pendingAmount) ??
-      toNumericOrNull(manualPaymentSummary?.pending_amount) ??
-      0,
+    toNumericOrNull(manualPaymentSummary?.pending_amount) ??
+    0,
   );
   const hasManualFullPayment =
     Boolean(manualPaymentSummary?.hasFullPayment) ||
@@ -702,19 +700,19 @@ const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
   const collectedAmount = Math.max(
     0,
     toNumericOrNull(quoteRecord.collected_amount) ??
-      toNumericOrNull(quoteRecord.collectedAmount) ??
-      toNumericOrNull(getRecord(quoteRecord.partial_payment)?.previously_paid_amount) ??
-      manualPaidAmount ??
-      0,
+    toNumericOrNull(quoteRecord.collectedAmount) ??
+    toNumericOrNull(getRecord(quoteRecord.partial_payment)?.previously_paid_amount) ??
+    manualPaidAmount ??
+    0,
   );
   const outstandingAmount = Math.max(
     0,
     toNumericOrNull(quoteRecord.outstanding_amount) ??
-      toNumericOrNull(quoteRecord.outstandingAmount) ??
-      toNumericOrNull(getRecord(quoteRecord.additional_payment)?.outstanding_amount) ??
-      toNumericOrNull(getRecord(quoteRecord.partial_payment)?.outstanding_amount) ??
-      manualPendingAmount ??
-      0,
+    toNumericOrNull(quoteRecord.outstandingAmount) ??
+    toNumericOrNull(getRecord(quoteRecord.additional_payment)?.outstanding_amount) ??
+    toNumericOrNull(getRecord(quoteRecord.partial_payment)?.outstanding_amount) ??
+    manualPendingAmount ??
+    0,
   );
   const quoteTotal = Math.max(
     0,
@@ -809,12 +807,12 @@ const extractQuoteListState = (data: QuotesListResponse["data"]): QuoteListState
   const paginationRecord = getRecord(record?.pagination);
   const pagination = paginationRecord
     ? {
-        page: getOptionalNumber(paginationRecord.page) ?? 1,
-        limit: getOptionalNumber(paginationRecord.limit) ?? rows.length,
-        total: getOptionalNumber(paginationRecord.total) ?? rows.length,
-        totalPages:
-          getOptionalNumber(paginationRecord.total_pages, paginationRecord.totalPages) ?? 1,
-      }
+      page: getOptionalNumber(paginationRecord.page) ?? 1,
+      limit: getOptionalNumber(paginationRecord.limit) ?? rows.length,
+      total: getOptionalNumber(paginationRecord.total) ?? rows.length,
+      totalPages:
+        getOptionalNumber(paginationRecord.total_pages, paginationRecord.totalPages) ?? 1,
+    }
     : null;
 
   return {
@@ -994,6 +992,8 @@ export default function QuotesDashboardPage({
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
   const debouncedSearch = useDebounce(searchTerm, 500);
 
   useEffect(() => {
@@ -1420,7 +1420,7 @@ export default function QuotesDashboardPage({
 
     return displayQuotesData.filter((quote) => {
       const statusKey = quote.statusKey;
-      
+
       // Strict filtering as requested by the user
       if (selectedStatusFilter === "accepted") {
         return statusKey === "accepted";
@@ -1460,13 +1460,13 @@ export default function QuotesDashboardPage({
 
   const hasOverviewData = Boolean(
     Number(overviewData.total_quotes ?? 0) > 0 ||
-      Number(overviewData.accepted_quotes ?? 0) > 0 ||
-      Number(overviewData.pending_quotes ?? 0) > 0 ||
-      Number(overviewData.draft_quotes ?? 0) > 0 ||
-      Number(overviewData.rejected_quotes ?? 0) > 0 ||
-      Number(overviewData.expired_quotes ?? 0) > 0 ||
-      Number(overviewData.total_amount ?? 0) > 0 ||
-      hasChartData
+    Number(overviewData.accepted_quotes ?? 0) > 0 ||
+    Number(overviewData.pending_quotes ?? 0) > 0 ||
+    Number(overviewData.draft_quotes ?? 0) > 0 ||
+    Number(overviewData.rejected_quotes ?? 0) > 0 ||
+    Number(overviewData.expired_quotes ?? 0) > 0 ||
+    Number(overviewData.total_amount ?? 0) > 0 ||
+    hasChartData
   );
 
   const hasActiveFilters =
@@ -1523,9 +1523,8 @@ export default function QuotesDashboardPage({
 
         {hasOverviewData && (
           <div
-            className={`rounded-3xl p-6 ${
-              isDark ? "border border-[#3D3D3D] bg-[#171717]" : "border border-[#E5E5E5] bg-white"
-            }`}
+            className={`rounded-3xl p-6 ${isDark ? "border border-[#3D3D3D] bg-[#171717]" : "border border-[#E5E5E5] bg-white"
+              }`}
           >
             <div className="mb-6 flex items-center gap-2">
               <div className="h-4 w-1 rounded-full bg-[#E5D5B8]" />
@@ -1536,11 +1535,10 @@ export default function QuotesDashboardPage({
                   onValueChange={(value) => setChartRange(value as QuoteChartRange)}
                 >
                   <SelectTrigger
-                    className={`h-9 w-[130px] rounded-full text-[10px] focus:ring-0 lg:text-xs ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-zinc-900 text-zinc-400"
-                        : "border-[#E3E3E3] bg-[#F9F9F9] text-[#444444]"
-                    }`}
+                    className={`h-9 w-[130px] rounded-full text-[10px] focus:ring-0 lg:text-xs ${isDark
+                      ? "border-[#3D3D3D] bg-zinc-900 text-zinc-400"
+                      : "border-[#E3E3E3] bg-[#F9F9F9] text-[#444444]"
+                      }`}
                   >
                     <SelectValue placeholder="Range" />
                   </SelectTrigger>
@@ -1561,9 +1559,8 @@ export default function QuotesDashboardPage({
             </div>
 
             <div
-              className={`mb-8 grid grid-cols-1 gap-4 rounded-xl p-4 md:grid-cols-2 lg:grid-cols-4 ${
-                isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
-              }`}
+              className={`mb-8 grid grid-cols-1 gap-4 rounded-xl p-4 md:grid-cols-2 lg:grid-cols-4 ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
+                }`}
             >
               {displayStats.map((stat) => {
                 const isSelected = selectedStat === stat.title;
@@ -1599,7 +1596,7 @@ export default function QuotesDashboardPage({
                         setSelectedStatusFilter(getStatusFilterForStat(stat.title));
                       }
                     }}
-                    className={`${bgColor} ${textColor} flex h-40 cursor-pointer flex-col justify-between rounded-2xl p-6 transition-all hover:scale-[1.02] active:scale-[0.98]`}
+                    className={`${bgColor} ${textColor} flex gap-6 cursor-pointer flex-col justify-between rounded-2xl p-6 transition-all hover:scale-[1.02] active:scale-[0.98]`}
                   >
                     <div className="flex items-start justify-between">
                       <span className="text-sm font-medium opacity-80">{stat.title}</span>
@@ -1688,11 +1685,10 @@ export default function QuotesDashboardPage({
                 </ResponsiveContainer>
               ) : (
                 <div
-                  className={`flex h-full items-center justify-center rounded-2xl border border-dashed text-sm ${
-                    isDark
-                      ? "border-[#3D3D3D] bg-[#101010] text-white/45"
-                      : "border-[#E3E3E3] bg-[#FAFAFA] text-black/45"
-                  }`}
+                  className={`flex h-full items-center justify-center rounded-2xl border border-dashed text-sm ${isDark
+                    ? "border-[#3D3D3D] bg-[#101010] text-white/45"
+                    : "border-[#E3E3E3] bg-[#FAFAFA] text-black/45"
+                    }`}
                 >
                   No chart data available yet.
                 </div>
@@ -1703,9 +1699,8 @@ export default function QuotesDashboardPage({
 
         {loading ? (
           <div
-            className={`mt-8 flex min-h-[320px] items-center justify-center rounded-[32px] ${
-              isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
-            }`}
+            className={`mt-8 flex min-h-[320px] items-center justify-center rounded-[32px] ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
+              }`}
           >
             <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>
               <Loader2 size={18} className="animate-spin text-[#E5D5B8]" />
@@ -1716,6 +1711,7 @@ export default function QuotesDashboardPage({
           <QuotesEmptyState createHref={createHref} />
         ) : (
           <div className="mb-20 lg:mb-2">
+            {/* Filter Section */}
             <div className="mb-6 mt-8 flex flex-col gap-4 md:flex-row">
               <div className="relative flex-1">
                 <Search
@@ -1723,24 +1719,22 @@ export default function QuotesDashboardPage({
                   size={18}
                 />
                 <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by client name, quote number..."
-                className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${
-                  isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E3E3E3] bg-white"
-                }`}
-              />
-	              {isRefreshing && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[#E5D5B8]" size={18} />}
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by client name, quote number..."
+                  className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E3E3E3] bg-white"
+                    }`}
+                />
+                {isRefreshing && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[#E5D5B8]" size={18} />}
               </div>
               <div className="flex gap-4 flex-row">
                 <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
                   <SelectTrigger
-                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-[#161616] text-white/70"
-                        : "border-[#E3E3E3] bg-white text-black/70"
-                    }`}
+                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${isDark
+                      ? "border-[#3D3D3D] bg-[#161616] text-white/70"
+                      : "border-[#E3E3E3] bg-white text-black/70"
+                      }`}
                   >
                     <SelectValue placeholder="All Salesperson" />
                   </SelectTrigger>
@@ -1775,11 +1769,10 @@ export default function QuotesDashboardPage({
                   }}
                 >
                   <SelectTrigger
-                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-[#161616] text-white/70"
-                        : "border-[#E3E3E3] bg-white text-black/70"
-                    }`}
+                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${isDark
+                      ? "border-[#3D3D3D] bg-[#161616] text-white/70"
+                      : "border-[#E3E3E3] bg-white text-black/70"
+                      }`}
                   >
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
@@ -1801,205 +1794,216 @@ export default function QuotesDashboardPage({
               </div>
             </div>
 
-            <div
-              className={`mb-5 lg:mb-20 overflow-hidden rounded-2xl md:mb-0 ${
-                isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
-              }`}
-            >
-              <table className="w-full text-left">
+            {/* Table Section */}
+            <div className={`mb-5 lg:mb-20 overflow-hidden rounded-2xl md:mb-0 ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"}`}>
+              <table className="w-full text-left border-collapse">
                 <thead>
+                  {/* Desktop Headers */}
                   <tr
-                    className={`hidden rounded-b-lg border-b text-sm capitalize md:table-row ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
-                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
-                    }`}
+                    className={`hidden rounded-b-lg border-b text-sm capitalize md:table-row ${isDark
+                      ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                      }`}
                   >
                     <th className="px-6 py-4 font-medium w-[25%]">Client Name</th>
                     <th className="px-6 py-4 font-medium w-[10%]">Project</th>
                     <th className="px-6 py-4 font-medium w-[10%]">Amount</th>
                     <th className="px-6 py-4 font-medium w-[17%]">Quote Status</th>
                     <th className="px-6 py-4 font-medium w-[16%]">Valid Until</th>
-                    <th className="px-6 py-4 font-mediumw-[13%]">Salesperson</th>
-                    <th className="px-6 py-4 text-right font-mediumw-[10%]">Action</th>
+                    <th className="px-6 py-4 font-medium w-[13%]">Salesperson</th>
+                    <th className="px-6 py-4 text-right font-medium w-[10%]">Action</th>
                   </tr>
-                  <tr
-                    className={`border-b text-sm md:hidden ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
-                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
-                    }`}
-                  >
+                  {/* Mobile Headers */}
+                  <tr className={`border-b text-sm md:hidden ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E5E5E5] bg-[#FFFCF6] text-black"}`}>
                     <th className="px-4 py-4 font-medium">Client Name</th>
                     <th className="px-4 py-4 text-right font-medium">Quote Status</th>
                   </tr>
                 </thead>
+
                 <tbody className="text-sm">
                   {paginatedQuotesData.length > 0 ? (
-                    paginatedQuotesData.map((quote) => (
-                      <tr
-                        key={quote.id}
-                        onClick={() => handleViewQuoteDetails(quote.id)}
-                        className={`group cursor-pointer border-b transition-colors ${
-                          isDark
-                            ? "border-[#3D3D3D]/50 hover:bg-white/5"
-                            : "border-[#E3E3E3] hover:bg-black/5"
-                        }`}
-                      >
-                        <td className="px-4 py-4 md:px-6">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${quote.color} font-bold text-xs`}
-                            >
-                              {quote.initials}
-                            </div>
-                            <div>
-                              <div className="font-medium">{quote.client}</div>
-                              <div className={`text-sm md:block ${isDark ? "text-white/40" : "text-black/45"}`}>
-                                {quote.location}
-                              </div>
-                              {quote.quoteNumber && (
-                                <div className={`text-xs md:block ${isDark ? "text-white/25" : "text-black/30"}`}>
-                                  {quote.quoteNumber}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className={`hidden px-6 py-4 md:table-cell max-w-0 w-full ${isDark ? "text-white" : "text-black"}`}>
-                          <p className="truncate">{quote.project}</p>
-                        </td>
-                        <td className="hidden px-6 py-4 font-medium md:table-cell">
-                          {formatCurrency(quote.amountValue)}
-                        </td>
-                        <td className="px-4 py-4 text-right md:px-6 md:text-left">
-                          <span
-                            className={`inline-flex w-fit items-center justify-center whitespace-nowrap rounded-full border px-3 py-1 text-[12px] font-medium leading-none md:text-sm ${quote.statusColor}`}
+                    paginatedQuotesData.map((quote) => {
+                      const isExpanded = expandedRowId === quote.id;
+
+                      return (
+                        <React.Fragment key={quote.id}>
+                          {/* Main Row */}
+                          <tr
+                            onClick={() => {
+                              // On mobile: toggle expand. On desktop: navigate.
+                              if (window.innerWidth < 768) {
+                                setExpandedRowId(isExpanded ? null : quote.id);
+                              } else {
+                                handleViewQuoteDetails(quote.id);
+                              }
+                            }}
+                            className={`group cursor-pointer rounded-b-lg border-b transition-colors ${isDark ? "border-[#3D3D3D]/50 hover:bg-white/5" : "border-[#E3E3E3] hover:bg-black/5"} ${isExpanded ? (isDark ? "bg-[#202020] border-none" : "bg-[#F9F9F9] border-none") : ""}`}
                           >
-                            {quote.status}
-                          </span>
-                        </td>
-                        <td className={`hidden px-6 py-4 md:table-cell ${isDark ? "text-white" : "text-black"}`}>
-                          {quote.validUntil}
-                        </td>
-                        <td className={`hidden px-6 py-4 md:table-cell ${isDark ? "text-white" : "text-black"}`}>
-                          {quote.salesperson}
-                        </td>
-                        <td className="hidden px-6 py-4 text-right md:table-cell">
-                          <QuoteActionMenu
-                            disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
-                            open={openActionMenuId === quote.id}
-                            onOpenChange={(open) => setOpenActionMenuId(open ? quote.id : null)}
-                            onViewDetails={() => {
-                              handleViewQuoteDetails(quote.id);
-                            }}
-                            onDuplicate={() => {
-                              void handleDuplicateQuote(quote.id);
-                            }}
-                            onEdit={() => handleEditQuote(quote)}
-                            onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
-                            onReject={() => {
-                              void handleRejectQuote(quote.id, quote.statusKey);
-                            }}
-                            allowEdit
-                          />
-                        </td>
-                      </tr>
-                    ))
+                            <td className="px-4 py-4 md:px-6">
+                              <div className="flex items-center gap-3">
+                                {/* Mobile Chevron */}
+                                <div
+                                  className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors ${isExpanded
+                                    ? isDark
+                                      ? "border-[#E8D1AB] text-[#E8D1AB]"
+                                      : "border-black text-black"
+                                    : isDark
+                                      ? "border-[#4B4B4B] text-[#777674]"
+                                      : "border-[#E3E3E3] text-black"
+                                    }`}
+                                >
+                                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </div>
+                                <div className={`flex h-5 w-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-sm lg:rounded-xl ${quote.color} font-medium lg:font-semibold text-[10px] lg:text-sm`}>
+                                  {quote.initials}
+                                </div>
+                                <div>
+                                  <div className="lg:font-medium">{quote.client}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Desktop Specific Cells */}
+                            <td className="hidden px-6 py-4 md:table-cell max-w-0 w-full"><p className="truncate">{quote.project}</p></td>
+                            <td className="hidden px-6 py-4 font-medium md:table-cell">{formatCurrency(quote.amountValue)}</td>
+
+                            {/* Status Cell (Responsive alignment) */}
+                            <td className="px-4 py-4 text-right md:px-6 md:text-left">
+                              <span className={`inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 ${quote.statusColor}`}>
+                                {quote.status}
+                              </span>
+                            </td>
+
+                            <td className="hidden px-6 py-4 md:table-cell">{quote.validUntil}</td>
+                            <td className="hidden px-6 py-4 md:table-cell">{quote.salesperson}</td>
+                            <td className="hidden px-6 py-4 text-right md:table-cell">
+                              <QuoteActionMenu
+                                disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
+                                open={openActionMenuId === quote.id}
+                                onOpenChange={(open) => setOpenActionMenuId(open ? quote.id : null)}
+                                onViewDetails={() => {
+                                  handleViewQuoteDetails(quote.id);
+                                }}
+                                onDuplicate={() => {
+                                  void handleDuplicateQuote(quote.id);
+                                }}
+                                onEdit={() => handleEditQuote(quote)}
+                                onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
+                                onReject={() => {
+                                  void handleRejectQuote(quote.id, quote.statusKey);
+                                }}
+                                allowEdit
+                              />
+                            </td>
+                          </tr>
+
+                          {/* Mobile Expanded Detail Row */}
+                          {isExpanded && (
+                            <tr className={`md:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
+                              <td colSpan={2} className="pl-14 pr-4 pb-4 pt-0 space-y-4">
+                                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                                  <div>
+                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Project</p>
+                                    <p className={`font-medium truncate ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.project}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Amount</p>
+                                    <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{formatCurrency(quote.amountValue)}</p>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-y-6 gap-x-4">
+                                  <div>
+                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Valid Until</p>
+                                    <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.validUntil}</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Salesperson</p>
+                                    <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.salesperson}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Action</p>
+                                    <QuoteActionMenu
+                                      disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
+                                      open={openActionMenuId === quote.id}
+                                      onOpenChange={(open) => setOpenActionMenuId(open ? quote.id : null)}
+                                      onViewDetails={() => {
+                                        handleViewQuoteDetails(quote.id);
+                                      }}
+                                      onDuplicate={() => {
+                                        void handleDuplicateQuote(quote.id);
+                                      }}
+                                      onEdit={() => handleEditQuote(quote)}
+                                      onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
+                                      onReject={() => {
+                                        void handleRejectQuote(quote.id, quote.statusKey);
+                                      }}
+                                      allowEdit
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
                   ) : (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className={`px-6 py-16 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}
-                      >
-                        No quotes matched the current search or filters.
-                      </td>
-                    </tr>
+                    <tr><td colSpan={7} className="px-6 py-16 text-center">No results found.</td></tr>
                   )}
                 </tbody>
+
+                {/* 1. Integrated Pagination Row */}
+                {filteredQuotesData.length > 0 && totalListPages > 1 && (
+                  <tfoot>
+                    <tr className={isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}>
+                      <td colSpan={7} className="px-4 py-4 md:px-6">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+                            Showing {listStartIndex + 1} to {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of {totalFilteredQuotes}
+                          </div>
+
+                          <div className="flex items-center justify-between md:justify-end gap-2">
+                            <button
+                              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                              disabled={safeCurrentPage === 1}
+                              className={`px-3 py-2 disabled:opacity-30 text-[#6D6D6D]`}
+                            >
+                              <ChevronLeft size={20} />
+                            </button>
+                            <div className="flex items-center gap-1">
+                              {paginationItems.map((item, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => typeof item === 'number' && setCurrentPage(item)}
+                                  className={`w-8 h-8 rounded-lg text-sm ${safeCurrentPage === item ? (isDark ? "bg-[#202020] text-[#E8D1AB] border border-[#E8D1AB]" : "bg-[#EFEFEF] text-black border border-[#6D6D6D]") : "text-[#6D6D6D]"}`}
+                                >
+                                  {item}
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => setCurrentPage(p => Math.min(totalListPages, p + 1))}
+                              disabled={safeCurrentPage === totalListPages}
+                              className={`px-3 py-2 disabled:opacity-30 text-[#6D6D6D]`}
+                            >
+                              <ChevronRight size={20} />
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
-
-            {filteredQuotesData.length > 0 && totalListPages > 1 && (
-              <div
-                className={`flex flex-col gap-4 rounded-2xl border p-4 lg:px-5 lg:py-4 md:flex-row md:items-center md:justify-between ${
-                  isDark
-                    ? "border-[#3D3D3D] bg-[#161616]"
-                    : "border-[#E5E5E5] bg-[#FFFCF6]"
-                }`}
-              >
-                <div className={`text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
-                  Showing {listStartIndex + 1} to{" "}
-                  {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of{" "}
-                  {totalFilteredQuotes} results
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    disabled={safeCurrentPage === 1}
-                    className={`rounded-lg border px-3 lg:px-4 py-2 text-xs lg:text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
-                      isDark
-                        ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
-                        : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
-                    }`}
-                  >
-                    Previous
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    {paginationItems.map((item, index) =>
-                      item === "..." ? (
-                        <span
-                          key={`pagination-gap-${index}`}
-                          className={`px-2 text-xs ${isDark ? "text-white/30" : "text-black/30"}`}
-                        >
-                          ...
-                        </span>
-                      ) : (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => setCurrentPage(item)}
-                          className={`flex w-8 h-8 lg:h-9 lg:w-9 items-center justify-center rounded-lg text-xs lg:text-sm font-medium transition-all ${
-                            safeCurrentPage === item
-                              ? "bg-[#E5D5B8] text-black"
-                              : isDark
-                                ? "text-white/60 hover:bg-white/5 hover:text-white"
-                                : "text-[#666666] hover:bg-black/5"
-                          }`}
-                        >
-                          {item}
-                        </button>
-                      )
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((prev) => Math.min(totalListPages, prev + 1))}
-                    disabled={safeCurrentPage === totalListPages}
-                    className={`rounded-lg border px-3 lg:px-4 py-2 text-xs lg:text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
-                      isDark
-                        ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
-                        : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
-                    }`}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
 
       {!loading && !showEmptyState && (
         <div
-          className={`fixed bottom-0 left-0 right-0 z-[40] flex gap-2 px-6 pb-6 lg:hidden ${
-            isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
-          }`}
+          className={`fixed bottom-0 left-0 right-0 z-[40] flex gap-2 px-6 pb-6 lg:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
+            }`}
         >
           <Button
             onClick={() => router.push(createHref)}

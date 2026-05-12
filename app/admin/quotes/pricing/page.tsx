@@ -178,50 +178,108 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
 
   return (
     <div
-      className={`group flex items-center gap-3 rounded-2xl border px-4 py-3 transition-all duration-200 ${
-        editing
-          ? "border-[#8E826A]/50 bg-[#1D1A15]"
-          : "border-white/10 bg-[#111111] hover:border-white/20"
-      }`}
-    >
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-all ${
-          editing
-            ? "border-[#8E826A]/30 bg-[#2A251E] text-[#E8D1AB]"
-            : "border-white/10 bg-[#1B1B1B] text-white/55"
+      className={`group rounded-lg lg:rounded-2xl border px-4 py-3 transition-all duration-200 ${editing
+        ? "border-[#8E826A]/50 bg-[#000000]/80"
+        : "border-white/10 bg-[#000000] hover:border-white/20"
         }`}
-      >
-        <ServiceIcon size={16} />
-      </div>
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg lg:rounded-2xl transition-all text-[#E8D1AB] ${editing
+            ? "border border-[#8E826A]/30 bg-[#2A251E]"
+            : "bg-[#302E2E]"
+            }`}
+        >
+          <ServiceIcon size={16} />
+        </div>
 
-      <div className="min-w-0 flex-1">
-        {editing ? (
-          <Input
-            ref={nameRef}
-            value={name}
-            onChange={(e) => setName(e.target.value.slice(0, 80))}
-            onKeyDown={handleKeyDown}
-            maxLength={80}
-            className="h-10 rounded-xl border-white/10 bg-[#0F0F0F] text-sm text-white placeholder:text-white/30 focus:border-[#8E826A]"
-          />
-        ) : (
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="min-w-0 truncate text-sm font-medium text-white">
-              {item.label}
-            </span>
-            {isProtected ? (
-              <span className="hidden shrink-0 items-center justify-center self-center rounded-full border border-[#8E826A]/25 bg-[#2A251E] px-2.5 py-1 leading-none text-[10px] font-semibold uppercase tracking-wider text-[#E8D1AB] sm:inline-flex">
-                Default
+        <div className="min-w-0 flex-1">
+          {editing ? (
+            <Input
+              ref={nameRef}
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, 80))}
+              onKeyDown={handleKeyDown}
+              maxLength={80}
+              className="h-10 rounded-xl border-white/10 bg-[#0F0F0F] text-sm text-white placeholder:text-white/30 focus:border-[#8E826A]"
+            />
+          ) : (
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="min-w-0 truncate text-sm lg:text-base font-medium text-white">
+                {item.label}
               </span>
-            ) : null}
-          </div>
-        )}
-        <p className={`text-xs text-white/40 ${editing ? "hidden" : "mt-0.5"}`}>
-          {SECTION_META[section].rateLabel}
-        </p>
+              {isProtected ? (
+                <span className="hidden shrink-0 items-center justify-center self-center rounded-full border border-[#8E826A]/25 bg-[#2A251E] px-2.5 py-1 leading-none text-[10px] font-semibold capitalize tracking-wider text-[#E8D1AB] sm:inline-flex">
+                  Default
+                </span>
+              ) : null}
+            </div>
+          )}
+          <p className={`text-xs text-white/40 ${editing ? "hidden" : "mt-0.5"}`}>
+            {SECTION_META[section].rateLabel}
+          </p>
+        </div>
+
+        <div className={`hidden lg:block shrink-0 ${editing ? "w-24 sm:w-28" : "w-24 text-right sm:w-32"}`}>
+          {editing ? (
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">$</span>
+              <Input
+                value={price}
+                onChange={(e) => setPrice(sanitizeCurrencyInput(e.target.value))}
+                onKeyDown={handleKeyDown}
+                inputMode="decimal"
+                className="h-10 rounded-xl border-white/10 bg-[#0F0F0F] pl-6 text-sm font-semibold text-[#E8D1AB] focus:border-[#8E826A]"
+              />
+            </div>
+          ) : (
+            <span className="lg:text-lg font-bold tabular-nums text-[#E8D1AB]">
+              {formatCurrency(item.price)}
+            </span>
+          )}
+        </div>
+
+        <div className={`flex shrink-0 items-center justify-end gap-2 ${editing ? "w-20" : "w-[4.5rem] sm:w-16"}`}>
+          {editing ? (
+            <>
+              <button
+                onClick={handleCancel}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:rounded-xl bg-[#161616] text-white/50 transition-colors hover:text-white"
+              >
+                <X size={14} />
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !name.trim()}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:rounded-xl border border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] transition-all hover:bg-[#1E381E] disabled:opacity-50"
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setEditing(true)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:rounded-xl bg-[#161616] text-white/55 transition-all hover:text-[#E8D1AB] sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
+              >
+                <Pencil size={14} />
+              </button>
+              {!isProtected ? (
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:rounded-xl bg-[#161616] text-white/55 transition-all hover:text-[#EF4444] disabled:opacity-50 sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
+                >
+                  {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
 
-      <div className={`shrink-0 ${editing ? "w-24 sm:w-28" : "w-24 text-right sm:w-32"}`}>
+      {/* Mobile only */}
+      <div className={`lg:hidden shrink-0 mt-5 ${editing ? "w-24 sm:w-28" : "w-24 sm:w-32"}`}>
         {editing ? (
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">$</span>
@@ -234,47 +292,9 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
             />
           </div>
         ) : (
-          <span className="text-sm font-semibold tabular-nums text-[#E8D1AB]">
+          <span className="font-bold tabular-nums text-[#E8D1AB]">
             {formatCurrency(item.price)}
           </span>
-        )}
-      </div>
-
-      <div className={`flex shrink-0 items-center justify-end gap-2 ${editing ? "w-20" : "w-[4.5rem] sm:w-16"}`}>
-        {editing ? (
-          <>
-            <button
-              onClick={handleCancel}
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-[#1B1B1B] text-white/50 transition-colors hover:text-white"
-            >
-              <X size={14} />
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !name.trim()}
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] transition-all hover:bg-[#1E381E] disabled:opacity-50"
-            >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => setEditing(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-[#1B1B1B] text-white/55 transition-all hover:text-[#E8D1AB] sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
-            >
-              <Pencil size={14} />
-            </button>
-            {!isProtected ? (
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-[#1B1B1B] text-white/55 transition-all hover:text-[#EF4444] disabled:opacity-50 sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
-              >
-                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-              </button>
-            ) : null}
-          </>
         )}
       </div>
     </div>
@@ -369,6 +389,7 @@ interface PricingSectionProps {
   onAdd: (section: SectionKey, name: string, rate: number) => Promise<void>;
   searchQuery: string;
   defaultExpanded?: boolean;
+  isDark?: boolean;
 }
 
 function PricingSection({
@@ -379,6 +400,7 @@ function PricingSection({
   onAdd,
   searchQuery,
   defaultExpanded = true,
+  isDark = true
 }: PricingSectionProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -390,35 +412,36 @@ function PricingSection({
   const avgPrice = items.length ? items.reduce((sum, item) => sum + item.price, 0) / items.length : 0;
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#171717] shadow-[0_8px_30px_rgba(0,0,0,0.18)]">
-      <div className="flex flex-col gap-3 border-b border-white/10 bg-[#1C1C1C] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <div className="overflow-hidden rounded-lg lg:rounded-2xl border border-white/10 bg-[#171717] shadow-[0_8px_30px_rgba(0,0,0,0.18)] p-4 lg:p-6">
+      {/* <div className="flex flex-col gap-3 border-b border-white/10 bg-[#1C1C1C] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"> */}
+      <div className="flex flex-col gap-3 bg-[#1C1C1C] sm:flex-row sm:items-center sm:justify-between sm:px-6">
+
         <button
           onClick={() => setExpanded((prev) => !prev)}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#232323] text-[#E8D1AB]">
-            <Icon size={18} />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#302E2E] text-[#E8D1AB]">
+            <Icon size={24} />
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold tracking-tight text-white">{meta.label}</h2>
-              <span className="rounded-full border border-white/10 bg-[#252525] px-2 py-0.5 text-[11px] font-semibold text-white/60">
+              <h2 className={`text-sm lg:text-base font-semibold tracking-tight text-white`}>{meta.label}</h2>
+              <span className={`rounded-full bg-[#302E2E] w-5 h-5 flex items-center justify-center text-[10px] font-semibold text-white/60`}>
                 {items.length}
               </span>
             </div>
-            <p className="mt-0.5 text-xs text-white/55">{meta.sub}</p>
+            <p className={`mt-0.5 text-xs lg:text-sm text-white/60`}>{meta.sub}</p>
           </div>
 
           <ChevronDown
-            size={16}
-            className={`ml-auto shrink-0 text-white/40 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
+            className={`w-5 h-5 lg:w-7 lg:h-7 ml-auto shrink-0 text-white/40 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
           />
         </button>
 
-        <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+        <div className="flex w-full items-center justify-between gap-4 sm:w-auto sm:justify-end">
           {items.length > 0 ? (
-            <span className="text-xs text-white/50">
+            <span className="text-lg text-white/50">
               avg <span className="font-semibold text-[#E8D1AB]">{formatCurrency(avgPrice)}</span>
             </span>
           ) : null}
@@ -428,11 +451,10 @@ function PricingSection({
               setExpanded(true);
               setShowAddForm((prev) => !prev);
             }}
-            className={`h-8 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${
-              showAddForm
-                ? "border border-white/10 bg-[#24201A] text-[#E8D1AB] hover:bg-[#2B261F]"
-                : "border border-[#E5D5B8] bg-[#E5D5B8] text-black hover:bg-[#d9c8a6]"
-            }`}
+            className={`h-10 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-sm font-semibold transition-all ${showAddForm
+              ? "border border-white/10 bg-[#24201A] text-[#E8D1AB] hover:bg-[#2B261F]"
+              : "border border-[#E5D5B8] bg-[#E5D5B8] text-black hover:bg-[#d9c8a6]"
+              }`}
           >
             {showAddForm ? (
               <>
@@ -448,42 +470,45 @@ function PricingSection({
       </div>
 
       {expanded ? (
-        <div className="flex flex-col gap-3 p-4 animate-in fade-in duration-200">
-          {showAddForm ? (
-            <AddItemForm
-              section={section}
-              onAdd={async (name, rate) => {
-                await onAdd(section, name, rate);
-                setShowAddForm(false);
-              }}
-              onClose={() => setShowAddForm(false)}
-            />
-          ) : null}
-
-          {filtered.length === 0 && !showAddForm ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[#202020] text-white/30">
-                <Icon size={20} />
-              </div>
-              <p className="text-sm text-white/50">
-                {searchQuery
-                  ? `No results for "${searchQuery}"`
-                  : "No items yet. Click Add New to get started."}
-              </p>
-            </div>
-          ) : (
-            filtered.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
+        <>
+          <hr className={` my-4 lg:my-6 ${isDark ? "border-white/10" : "border-black/10"}`} />
+          <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+            {showAddForm ? (
+              <AddItemForm
                 section={section}
-                onSave={onSave}
-                onDelete={onDelete}
-                isProtected={section === "service" && isProtectedService(item.label)}
+                onAdd={async (name, rate) => {
+                  await onAdd(section, name, rate);
+                  setShowAddForm(false);
+                }}
+                onClose={() => setShowAddForm(false)}
               />
-            ))
-          )}
-        </div>
+            ) : null}
+
+            {filtered.length === 0 && !showAddForm ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[#202020] text-white/30">
+                  <Icon size={20} />
+                </div>
+                <p className="text-sm text-white/50">
+                  {searchQuery
+                    ? `No results for "${searchQuery}"`
+                    : "No items yet. Click Add New to get started."}
+                </p>
+              </div>
+            ) : (
+              filtered.map((item) => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  section={section}
+                  onSave={onSave}
+                  onDelete={onDelete}
+                  isProtected={section === "service" && isProtectedService(item.label)}
+                />
+              ))
+            )}
+          </div>
+        </>
       ) : null}
     </div>
   );
@@ -516,11 +541,11 @@ export default function QuotePricingPage() {
         const mapSection = (
           arr:
             | Array<{
-                catalog_item_id?: string | number | null;
-                name?: string;
-                effective_rate?: string | number | null;
-                created_at?: string | null;
-              }>
+              catalog_item_id?: string | number | null;
+              name?: string;
+              effective_rate?: string | number | null;
+              created_at?: string | null;
+            }>
             | null
             | undefined
         ): PricingItem[] =>
@@ -662,11 +687,10 @@ export default function QuotePricingPage() {
           <Button
             onClick={fetchCatalog}
             disabled={loading}
-            className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors ${
-              isDark
-                ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10"
-                : "border border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E3E3E3]"
-            }`}
+            className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors ${isDark
+              ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10"
+              : "border border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E3E3E3]"
+              }`}
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             Refresh
@@ -681,28 +705,26 @@ export default function QuotePricingPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1
-              className={`mb-1 text-lg font-semibold transition-colors duration-100 lg:text-2xl lg:leading-[32px] ${
-                isDark ? "text-white" : "text-[#000]"
-              }`}
+              className={`mb-1 text-lg font-semibold transition-colors duration-100 lg:text-2xl lg:leading-[32px] ${isDark ? "text-white" : "text-[#000]"
+                }`}
             >
               Master Pricing
             </h1>
             <p
-              className={`text-xs transition-colors duration-100 lg:text-sm ${
-                isDark ? "text-white/70" : "text-[#000000B2]"
-              }`}
+              className={`text-xs transition-colors duration-100 lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"
+                }`}
             >
               Manage default quote pricing for services, add-ons, and logistics in one place.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#171717] px-4 py-3 text-center shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
-            <p className="text-lg font-semibold text-[#E8D1AB]">{totalItems}</p>
-            <p className="text-xs text-white/55">Total Items</p>
+          <div className={`rounded-lg lg:rounded-2xl border px-4 py-3 text-center shadow-[0_8px_30px_rgba(0,0,0,0.12)] lg:min-w-32 ${isDark ? "border-[#807E7E] bg-[#171717]" : "border-[#DFDDDD] bg-white"}`}>
+            <p className={`text-lg font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{totalItems}</p>
+            <p className={`text-xs ${isDark ? "text-[#FFFFFF99]" : "text-[#000000B2]"}`}>Total Items</p>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-[#171717] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+        <div>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full max-w-md">
               <Search
@@ -713,7 +735,7 @@ export default function QuotePricingPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search pricing items..."
-                className="h-11 rounded-2xl border-white/10 bg-[#111111] pl-9 text-sm text-white placeholder:text-white/30 focus:border-[#8E826A]"
+                className="h-11 rounded-lg lg:rounded-2xl border-white/10 bg-[#111111] pl-9 text-sm text-white placeholder:text-white/30 focus:border-[#8E826A]"
               />
               {search ? (
                 <button
@@ -730,19 +752,17 @@ export default function QuotePricingPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
-                    activeTab === tab.key
-                      ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
-                      : "border-white/10 bg-[#111111] text-white/70 hover:border-white/20 hover:text-white"
-                  }`}
+                  className={`flex items-center gap-2 rounded-lg lg:rounded-2xl border px-4 py-2 text-sm font-medium transition-all ${activeTab === tab.key
+                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
+                    : "border-white/10 bg-[#111111] text-white/70 hover:border-white/20 hover:text-white"
+                    }`}
                 >
                   {tab.label}
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      activeTab === tab.key
-                        ? "bg-black/10 text-black"
-                        : "bg-white/5 text-white/50"
-                    }`}
+                    className={`rounded-sm lg:rounded-lg px-2 py-0.5 text-[11px] font-semibold ${activeTab === tab.key
+                      ? "bg-black/10 text-black"
+                      : "bg-white/5 text-white/50"
+                      }`}
                   >
                     {tab.count}
                   </span>
@@ -774,19 +794,34 @@ export default function QuotePricingPage() {
               />
             ))}
 
-            <div className="flex items-start gap-3 rounded-3xl border border-white/10 bg-[#171717] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#232323] text-[#E8D1AB]">
-                <AlertCircle size={16} />
+            <div className="flex items-start gap-3 rounded-lg lg:rounded-3xl border border-white/10 bg-[#171717] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg lg:rounded-2xl bg-[#302E2E] text-[#E8D1AB]">
+                <AlertCircle size={24} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">Prices sync automatically</p>
-                <p className="mt-1 text-sm text-white/55">
+                <p className="text-sm lg:text-base font-semibold text-white">Prices sync automatically</p>
+                <p className="mt-1 text-xs lg:text-sm text-white/60">
                   Any rate you update here becomes the default for new quotes. Existing saved quotes stay unchanged.
                 </p>
               </div>
             </div>
           </div>
         )}
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
+          <Button
+            onClick={fetchCatalog}
+            disabled={loading}
+            className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors ${isDark
+              ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10"
+              : "border border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E3E3E3]"
+              }`}
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </Button>
+        </div>
       </div>
     </>
   );
