@@ -193,8 +193,13 @@ export const getQuoteText = (...values: unknown[]) => {
   return "";
 };
 
-export const formatQuoteItemDisplayName = (value: string) => {
-  const normalizedValue = value.trim().toLowerCase().replace(/[_\s]+/g, " ");
+export const formatQuoteItemDisplayName = (value: unknown) => {
+  const safeValue = typeof value === "string" ? value.trim() : "";
+  if (!safeValue) {
+    return "Line Item";
+  }
+
+  const normalizedValue = safeValue.toLowerCase().replace(/[_\s]+/g, " ");
 
   if (normalizedValue === "ai editing") {
     return "Editing";
@@ -206,7 +211,7 @@ export const formatQuoteItemDisplayName = (value: string) => {
     return "Studio";
   }
 
-  return value.trim();
+  return safeValue;
 };
 
 export const getQuoteNumber = (...values: unknown[]): number | undefined => {
