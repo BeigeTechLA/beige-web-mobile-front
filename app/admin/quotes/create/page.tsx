@@ -2995,10 +2995,12 @@ export default function CreateQuotePage() {
       previewQuote?.additional_payment?.previously_paid_amount,
       quoteToEdit?.additional_payment?.previously_paid_amount
     ) ?? 0;
-  const safePreviouslyPaidOverride = Math.max(
-    Number.isFinite(leadPricingPaid) && leadPricingPaid > 0 ? leadPricingPaid : 0,
-    quoteContextPaidAmount
-  ) || undefined;
+  const safePreviouslyPaidOverride =
+    (Number.isFinite(leadPricingPaid) && leadPricingPaid > 0
+      ? leadPricingPaid
+      : quoteContextPaidAmount > 0
+        ? quoteContextPaidAmount
+        : 0) || undefined;
   const safePreviousTotalOverride =
     Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(

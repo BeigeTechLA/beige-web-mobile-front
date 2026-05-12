@@ -136,35 +136,24 @@ const getHistoricalConfirmedPaidAmount = (
 
     const paymentStatus = getQuoteText(metadata.payment_status, metadata.status).toLowerCase();
     const collectedAmount = getQuoteNumber(metadata.collected_amount, metadata.amount_paid);
-    const extraAmount = getQuoteNumber(metadata.extra_amount) ?? 0;
-    const newTotal = getQuoteNumber(metadata.new_total);
     const activityType = getQuoteText(activityRecord.activity_type).toLowerCase();
 
     const candidates: number[] = [];
 
-    if (collectedAmount !== undefined) {
-      candidates.push(collectedAmount);
-    }
-
+    // Use only explicit collected/paid values from payment-related activity metadata.
+    // Do not infer paid amount from quote totals or "extra/reduced" deltas, because those
+    // fields represent quote changes, not guaranteed money collected.
     if (
-      PAID_PAYMENT_STATUSES.has(paymentStatus) &&
       collectedAmount !== undefined &&
-      extraAmount > 0
+      (activityType === "payment_completed" ||
+        (activityType === "status_changed" && PAID_PAYMENT_STATUSES.has(paymentStatus)))
     ) {
-      candidates.push(collectedAmount + extraAmount);
-    }
-
-    if (PAID_PAYMENT_STATUSES.has(paymentStatus) && newTotal !== undefined) {
-      candidates.push(newTotal);
+      candidates.push(collectedAmount);
     }
 
     if (activityType === "status_changed" && paymentStatus === "paid") {
       if (collectedAmount !== undefined) {
         candidates.push(collectedAmount);
-      }
-
-      if (newTotal !== undefined) {
-        candidates.push(newTotal);
       }
     }
 
