@@ -110,10 +110,21 @@ interface ExternalShareListItem {
   shareId: number;
   shareToken: string;
   email: string;
+  accessMode?: "email_only" | "anyone_with_link";
   resourceType: "workspace" | "folder" | "file";
   phase?: string;
   path?: string;
   filepath?: string;
+  createdAt?: string;
+}
+interface ExternalShareAccessLogItem {
+  id: number;
+  shareId: number;
+  shareToken: string;
+  email: string;
+  action: string;
+  ipAddress?: string;
+  userAgent?: string;
   createdAt?: string;
 }
 
@@ -807,7 +818,8 @@ export const fileManagerApi = {
   async createExternalShare(payload: {
     resourceType: "workspace" | "folder" | "file";
     externalId: string;
-    email: string;
+    email?: string;
+    accessMode?: "email_only" | "anyone_with_link";
     phase?: string;
     path?: string;
     filepath?: string;
@@ -865,6 +877,20 @@ export const fileManagerApi = {
       params as unknown as Record<string, unknown>
     );
     return response?.data?.shares || [];
+  },
+
+  async listExternalShareAccessLogs(params: {
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+  }) {
+    const response = await apiClient.get<{ success: boolean; data?: { logs?: ExternalShareAccessLogItem[] } }>(
+      "external-file-manager/share/access-logs",
+      params as unknown as Record<string, unknown>
+    );
+    return response?.data?.logs || [];
   },
 
   async revokeExternalShare(payload: { shareId?: number; shareToken?: string }) {
