@@ -25,6 +25,7 @@ type ShareItem = {
   shareToken: string;
   email: string;
   accessMode?: "email_only" | "anyone_with_link";
+  message?: string | null;
 };
 
 type AccessLogItem = {
@@ -41,6 +42,7 @@ const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 export default function ShareResourceModal({ isOpen, onClose, resource }: ShareResourceModalProps) {
   const [activeTab, setActiveTab] = useState<"people" | "activity">("people");
   const [emailInput, setEmailInput] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
   const [pendingEmails, setPendingEmails] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [sharingAnyone, setSharingAnyone] = useState(false);
@@ -54,6 +56,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
   const reset = () => {
     setActiveTab("people");
     setEmailInput("");
+    setShareMessage("");
     setPendingEmails([]);
     setLoading(false);
     setSharingAnyone(false);
@@ -82,6 +85,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           shareToken: row.shareToken,
           email: row.email,
           accessMode: row.accessMode || "email_only",
+          message: row.message || null,
         }))
       );
     } catch (error: any) {
@@ -174,6 +178,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           filepath: resource.filepath,
           email,
           accessMode: "email_only",
+          message: shareMessage.trim(),
         })
       )
     );
@@ -235,6 +240,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
         path: resource.path,
         filepath: resource.filepath,
         accessMode: "anyone_with_link",
+        message: shareMessage.trim(),
       });
       toast.success("Anyone with link enabled");
       await loadSharedItems();
@@ -417,6 +423,19 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                     )}
                   </div>
 
+                  <div className="mt-3">
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-white/40">
+                      Add Message (Optional)
+                    </label>
+                    <textarea
+                      value={shareMessage}
+                      onChange={(e) => setShareMessage(e.target.value.slice(0, 2000))}
+                      placeholder="Add a note for recipients..."
+                      className="min-h-[78px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white outline-none transition-all placeholder:text-white/25 focus:border-[#E5D5B8]/50 focus:bg-white/[0.05] focus:ring-2 focus:ring-[#E5D5B8]/15"
+                    />
+                    <p className="mt-1 text-right text-[11px] text-white/35">{shareMessage.length}/2000</p>
+                  </div>
+
                   <Button
                     onClick={handleCreateShare}
                     disabled={loading || (pendingEmails.length === 0 && !emailInput.trim())}
@@ -485,7 +504,10 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E5D5B8]/30 to-[#E5D5B8]/10 text-xs font-semibold text-[#E5D5B8]">
                                   {item.accessMode === "anyone_with_link" ? "GL" : getInitials(item.email)}
                                 </div>
-                                <p className="min-w-0 flex-1 truncate text-sm text-white/80">{label}</p>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm text-white/80">{label}</p>
+                                  {/* {item.message ? <p className="truncate text-xs text-white/45">{item.message}</p> : null} */}
+                                </div>
                                 <div className="flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
                                   <button
                                     type="button"

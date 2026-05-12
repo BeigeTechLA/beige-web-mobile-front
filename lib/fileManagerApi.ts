@@ -104,6 +104,7 @@ interface ExternalShareCreateResponse {
   data: {
     shareToken: string;
     shareUrl: string;
+    message?: string | null;
   };
 }
 interface ExternalShareListItem {
@@ -111,6 +112,7 @@ interface ExternalShareListItem {
   shareToken: string;
   email: string;
   accessMode?: "email_only" | "anyone_with_link";
+  message?: string | null;
   resourceType: "workspace" | "folder" | "file";
   phase?: string;
   path?: string;
@@ -820,6 +822,7 @@ export const fileManagerApi = {
     externalId: string;
     email?: string;
     accessMode?: "email_only" | "anyone_with_link";
+    message?: string;
     phase?: string;
     path?: string;
     filepath?: string;
