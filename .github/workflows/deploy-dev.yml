@@ -3,7 +3,7 @@ name: Deploy Frontend Dev
 on:
   push:
     branches:
-      - development
+      - feature/file-manager-share
   workflow_dispatch:
 
 concurrency:
