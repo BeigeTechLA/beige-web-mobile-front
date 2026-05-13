@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 
 import { ShootsTable } from '@/components/admin/ShootsTable';
-import { Search } from 'lucide-react';
+import { Grid3X3, List, Search } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
@@ -45,6 +45,7 @@ export default function ShootsPage() {
   const [productionFilter, setProductionFilter] = useState("all");
   const [range, setRange] = useState("all");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -63,17 +64,74 @@ export default function ShootsPage() {
       <Topbar pathname={pathname}
         actions={
           <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
-            {/* Search Bar */}
-            <div className="relative w-full lg:w-[280px] flex items-center">
-              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
-              <input
-                type="text"
-                placeholder="Search project name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full border rounded-lg h-12 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+            
+
+            {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              <ArrowUpToLine /> Export
+            </Button> */}
+            <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
+              Book a Shoot
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+        {/* Header */}
+        <div className="flex justify-between items-start lg:items-end">
+          <div>
+            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
+              }`}>Shoots Management</h1>
+            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"
+              }`}>Track and manage your photography and videography project</p>
+          </div>
+          <SortDateButton
+            selectedDate={selectedDate}
+            onDateChange={handleDateSort}
+          />
+        </div>
+        {/* Search Bar */}
+         <div className="flex flex-col gap-3">
+             <div className="flex items-center gap-3">
+              <div className="relative w-full flex items-center">
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
+                <input
+                  type="text"
+                  placeholder="Search project name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-full border rounded-lg h-12 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+                    }`}
+                />
+              </div>
+              <div className={`hidden md:flex items-center rounded-lg border overflow-hidden shrink-0 ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  className={`px-4 py-2.5 transition-colors ${
+                    viewMode === "list"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : isDark
+                        ? "bg-transparent text-white/40 hover:text-white"
+                        : "bg-transparent text-[#666] hover:text-black"
                   }`}
-              />
+                >
+                  <List size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  className={`px-4 py-2.5 transition-colors ${
+                    viewMode === "grid"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : isDark
+                        ? "bg-transparent text-white/40 hover:text-white"
+                        : "bg-transparent text-[#666] hover:text-black"
+                  }`}
+                >
+                  <Grid3X3 size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Filters Group */}
@@ -144,32 +202,8 @@ export default function ShootsPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
-              <ArrowUpToLine /> Export
-            </Button> */}
-            <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
-              Book a Shoot
-            </Button>
           </div>
-        }
-      />
-
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
-        {/* Header */}
-        <div className="flex justify-between items-start lg:items-end">
-          <div>
-            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
-              }`}>Shoots Management</h1>
-            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"
-              }`}>Track and manage your photography and videography project</p>
-          </div>
-          <SortDateButton
-            selectedDate={selectedDate}
-            onDateChange={handleDateSort}
-          />
-        </div>
-
+ 
         {/* <DottedDivider className="my-0" />  */}
 
         <ShootsTable
@@ -186,8 +220,11 @@ export default function ShootsPage() {
           setRange={setRange}
           cpAssignmentFilter={cpAssignmentFilter}
           setCpAssignmentFilter={setCpAssignmentFilter}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
           showHeaderControls={true}
           showHeaderFilters={false}
+          showViewToggle={false}
         />
 
         {/* --- FLOATING MOBILE BUTTON --- */}

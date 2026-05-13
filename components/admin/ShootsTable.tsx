@@ -209,6 +209,7 @@ interface ShootsTableProps {
   setViewMode?: (v: "grid" | "list") => void;
   showHeaderControls?: boolean;
   showHeaderFilters?: boolean;
+  showViewToggle?: boolean;
 }
 
 export const ShootsTable = ({
@@ -231,6 +232,7 @@ export const ShootsTable = ({
   setViewMode,
   showHeaderControls = true,
   showHeaderFilters = true,
+  showViewToggle = true,
 }: ShootsTableProps) => {
   const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
   const router = useRouter();
@@ -819,6 +821,7 @@ export const ShootsTable = ({
           </>
           )}
           <div className="flex flex-wrap gap-3">
+            {showViewToggle && (
             <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
               <button
                 type="button"
@@ -847,6 +850,7 @@ export const ShootsTable = ({
                 <Grid3X3 size={18} />
               </button>
             </div>
+            )}
           </div>
         </div>
       </div>

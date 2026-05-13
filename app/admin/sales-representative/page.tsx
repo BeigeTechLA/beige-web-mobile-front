@@ -944,66 +944,6 @@ export default function AdminSaleRepManagerPage() {
                 }}
               />
 
-              {activeTab === "Booking" && leadsViewMode !== "grid" && (
-                <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
-
-                  <BasicDropdown
-                    label="Lead Type"
-                    value={leadTypeFilter}
-                    options={["All Leads", "Self-Serve", "Sales Assisted"]}
-                    onChange={(val) => setLeadTypeFilter(val)}
-                  />
-                  <BasicDropdown
-                    label="Client Representative"
-                    value={assignedRepIdFilter}
-                    options={salesRepOptions}
-                    searchable
-                    searchPlaceholder="Search representative..."
-                    onChange={(val) => {
-                      setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
-                    }}
-                    openAlign={"right"}
-                  />
-                  <BasicDropdown
-                    label="Intent Type"
-                    value={intentFilter}
-                    options={["All", "Hot", "Warm", "Cold"]}
-                    onChange={(val) => setIntentFilter(val as any)}
-                  />
-                  {leadsViewMode === "grid" && (
-                    <BasicDropdown
-                      label="Shoot Stage"
-                      value={shootStageFilter}
-                      options={SHOOT_STAGE_OPTIONS as any}
-                      onChange={(val) => setShootStageFilter(val)}
-                    />
-                  )}
-
-                  <BasicDropdown
-                    label="All Statuses"
-                    value={statusFilter}
-                    options={["All", ...BOOKING_STATUS_OPTIONS]}
-                    onChange={(val) => setStatusFilter(val as any)}
-                    openAlign={"right"}
-                  />
-                </div>
-              )}
-
-              {activeTab === "Client" && (
-                <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
-                  <BasicDropdown
-                    label="Client Representative"
-                    value={clientAssignedRepIdFilter}
-                    options={salesRepOptions}
-                    searchable
-                    searchPlaceholder="Search representative..."
-                    onChange={(val) => {
-                      setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
-                    }}
-                    openAlign={"right"}
-                  />
-                </div>
-              )}
             </div>
 
             <div className="flex w-full items-center gap-2">
@@ -1065,6 +1005,57 @@ export default function AdminSaleRepManagerPage() {
                 </div>
               )}
             </div>
+
+            {activeTab === "Booking" && leadsViewMode !== "grid" && (
+              <div className="flex flex-wrap gap-2">
+                <BasicDropdown
+                  label="Lead Type"
+                  value={leadTypeFilter}
+                  options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                  onChange={(val) => setLeadTypeFilter(val)}
+                />
+                <BasicDropdown
+                  label="Client Representative"
+                  value={assignedRepIdFilter}
+                  options={salesRepOptions}
+                  searchable
+                  searchPlaceholder="Search representative..."
+                  onChange={(val) => {
+                    setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
+                  }}
+                  openAlign={"right"}
+                />
+                <BasicDropdown
+                  label="Intent Type"
+                  value={intentFilter}
+                  options={["All", "Hot", "Warm", "Cold"]}
+                  onChange={(val) => setIntentFilter(val as any)}
+                />
+                <BasicDropdown
+                  label="All Statuses"
+                  value={statusFilter}
+                  options={["All", ...BOOKING_STATUS_OPTIONS]}
+                  onChange={(val) => setStatusFilter(val as any)}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
+
+            {activeTab === "Client" && (
+              <div className="flex flex-wrap gap-2">
+                <BasicDropdown
+                  label="Client Representative"
+                  value={clientAssignedRepIdFilter}
+                  options={salesRepOptions}
+                  searchable
+                  searchPlaceholder="Search representative..."
+                  onChange={(val) => {
+                    setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
+                  }}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
 
             {activeTab === "Booking" && leadsViewMode === "grid" && (
               <div className="flex flex-wrap gap-2">
