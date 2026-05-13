@@ -142,33 +142,40 @@ export const BasicDropdown = ({
               </div>
             </div>
           )}
-          {(searchable ? filteredOptions : normalizedOptions).map((normalized) => {
-            const isSelected = normalized.value === value;
-            return (
-              <div
-                key={normalized.value}
-                onClick={() => handleSelect(normalized.value)}
-                className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isSelected
-                    ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-[#000] font-medium")
-                    : (isDark ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-black/70 hover:bg-black/5 hover:text-black")
-                  }`}
-              >
-                <div className="flex flex-col leading-tight">
-                  <span>{normalized.label}</span>
-                  {normalized.subLabel ? (
-                    <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                      {normalized.subLabel}
-                    </span>
-                  ) : null}
+          <div className="max-h-72 overflow-y-auto overscroll-contain">
+            {(searchable ? filteredOptions : normalizedOptions).map((normalized) => {
+              const isSelected = normalized.value === value;
+              return (
+                <div
+                  key={normalized.value}
+                  onClick={() => handleSelect(normalized.value)}
+                  className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isSelected
+                      ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-[#000] font-medium")
+                      : (isDark ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-black/70 hover:bg-black/5 hover:text-black")
+                    }`}
+                >
+                  <div className="flex flex-col leading-tight">
+                    <span>{normalized.label}</span>
+                    {normalized.subLabel ? (
+                      <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                        {normalized.subLabel}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
+              );
+            })}
+            {searchable && filteredOptions.length === 0 && (
+              <div className={`px-4 py-3 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                No results found.
               </div>
-            );
-          })}
-          {searchable && filteredOptions.length === 0 && (
-            <div className={`px-4 py-3 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
-              No results found.
-            </div>
-          )}
+            )}
+            {!searchable && normalizedOptions.length === 0 && (
+              <div className={`px-4 py-3 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                No options available.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
