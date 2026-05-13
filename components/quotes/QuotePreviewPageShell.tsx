@@ -344,11 +344,34 @@ export default function QuotePreviewPageShell({
       throw new Error("Quote id is missing");
     }
 
+    if (quoteDetailMode === "public") {
+      const response = await fetch("/api/quotes/public-convert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteKey: queryQuoteKey,
+          payload: resolveBookingTimingFromQuote(quote) || {},
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.success === false || !data?.data?.booking_id) {
+        throw new Error(
+          typeof data?.error === "string"
+            ? data.error
+            : typeof data?.message === "string"
+              ? data.message
+              : "Failed to convert quote to booking"
+        );
+      }
+      const bookingId = String(data.data.booking_id).trim();
+      setPaymentBookingId(bookingId);
+      return bookingId;
+    }
+
     const payload = resolveBookingTimingFromQuote(quote);
     if (!payload) {
       throw new Error("Booking schedule is missing on this quote. Please ask support/admin to set booking date/time.");
     }
-
     const response = await salesApi.convertQuoteToBooking(resolvedQuoteId, payload);
     if (response?.error || response?.success === false || !response?.data?.booking_id) {
       throw new Error(typeof response?.error === "string" ? response.error : "Failed to convert quote to booking");
