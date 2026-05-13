@@ -347,7 +347,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-white">Share {resource?.label || "Resource"}</h2>
-                  <p className="mt-0.5 text-xs text-white/40">Anyone with access link still verifies via email OTP</p>
+                  <p className="mt-0.5 text-xs text-white/40">Note: Accessing the link requires email OTP verification, even if the user has the shared access link.</p>
                 </div>
               </div>
               <button
