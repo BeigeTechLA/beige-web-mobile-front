@@ -178,12 +178,12 @@ const buildConvertModalInitialData = (
 
   const bookingDays = Array.isArray(booking.booking_days)
     ? booking.booking_days
-        .map((day) => ({
-          date: String(day?.date || day?.event_date || ""),
-          startTime: normalizeConvertModalTime(day?.start_time),
-          endTime: normalizeConvertModalTime(day?.end_time),
-        }))
-        .filter((day) => day.date)
+      .map((day) => ({
+        date: String(day?.date || day?.event_date || ""),
+        startTime: normalizeConvertModalTime(day?.start_time),
+        endTime: normalizeConvertModalTime(day?.end_time),
+      }))
+      .filter((day) => day.date)
     : [];
 
   if (
@@ -194,10 +194,10 @@ const buildConvertModalInitialData = (
     const sameTimings =
       bookingDays.length > 0
         ? bookingDays.every(
-            (day) =>
-              day.startTime === (firstDay?.startTime || "") &&
-              day.endTime === (firstDay?.endTime || "")
-          )
+          (day) =>
+            day.startTime === (firstDay?.startTime || "") &&
+            day.endTime === (firstDay?.endTime || "")
+        )
         : true;
 
     return {
@@ -394,7 +394,7 @@ const SectionActionButton = ({
   <Button
     type="button"
     onClick={onClick}
-    className="h-10 rounded-xl bg-[#E8D1AB] px-4 text-sm font-semibold text-black hover:bg-[#E8D1AB]/90"
+    className="h-10 rounded-lg lg:rounded-xl bg-[#E8D1AB] px-4 text-sm font-semibold text-black hover:bg-[#E8D1AB]/90"
   >
     {label}
   </Button>
@@ -411,9 +411,9 @@ const SectionShell = ({
   onAction?: () => void;
   children: React.ReactNode;
 }) => (
-  <section className="rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
+  <section className="rounded-lg lg:rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
     <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-7">
-      <h2 className="text-[18px] font-semibold text-white lg:text-[20px]">{title}</h2>
+      <h2 className="lg:text-lg font-semibold text-white lg:text-[20px]">{title}</h2>
       {actionLabel && onAction ? <SectionActionButton label={actionLabel} onClick={onAction} /> : null}
     </div>
     <div className="border-t border-dashed border-[#343434]" />
@@ -431,41 +431,41 @@ const ServiceLineCard = ({
   const detailLabel = item.subtitle || (shootType ? `(${shootType})` : "");
 
   return (
-    <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-5">
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-      <div className="flex min-w-0 items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
-          {getServiceIcon(item.name)}
+    <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4 lg:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="flex h-11 w-11 lg:h-14 lg:w-14 shrink-0 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
+            {getServiceIcon(item.name)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p
+              className="break-words lg:text-lg font-semibold leading-1 lg:leading-7 text-white"
+              title={detailLabel ? `${item.name} - ${detailLabel}` : item.name}
+            >
+              {item.name}
+              {detailLabel ? <span className="text-[#E8D1AB]"> - {detailLabel}</span> : null}
+            </p>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p
-            className="break-words text-[17px] font-semibold leading-7 text-white"
-            title={detailLabel ? `${item.name} - ${detailLabel}` : item.name}
-          >
-            {item.name}
-            {detailLabel ? <span className="text-[#E8D1AB]"> - {detailLabel}</span> : null}
-          </p>
+      </div>
+
+      <div className="mt-5 border-t border-[#2B2B2B]" />
+
+      <div className="mt-5 grid gap-2 lg:gap-4 grid-cols-2">
+        <div className="space-y-2 lg:space-y-3 text-[#8F8F95]">
+          <p className="text-sm lg:text-base">Quantity</p>
+          <p className="text-sm lg:text-base">Duration</p>
+          <p className="text-sm lg:text-base">Crew Size</p>
+          <p className="text-sm lg:text-base">Estimate Pricing</p>
+        </div>
+        <div className="space-y-2 lg:space-y-3 text-left text-sm lg:lg:text-lg font-semibold text-white lg:text-right">
+          <p>{String(item.quantity).padStart(2, "0")}</p>
+          <p>{item.duration > 0 ? `${String(item.duration).padStart(2, "0")} Hours` : "-"}</p>
+          <p>{item.crew > 0 ? String(item.crew).padStart(2, "0") : "-"}</p>
+          <p>{formatQuoteCurrency(item.unitRate)}</p>
         </div>
       </div>
     </div>
-
-    <div className="mt-5 border-t border-[#2B2B2B]" />
-
-    <div className="mt-5 grid gap-4 lg:grid-cols-2">
-      <div className="space-y-3 text-[#8F8F95]">
-        <p className="text-base">Quantity</p>
-        <p className="text-base">Duration</p>
-        <p className="text-base">Crew Size</p>
-        <p className="text-base">Estimate Pricing</p>
-      </div>
-      <div className="space-y-3 text-left text-[18px] font-semibold text-white lg:text-right">
-        <p>{String(item.quantity).padStart(2, "0")}</p>
-        <p>{item.duration > 0 ? `${String(item.duration).padStart(2, "0")} Hours` : "-"}</p>
-        <p>{item.crew > 0 ? String(item.crew).padStart(2, "0") : "-"}</p>
-        <p>{formatQuoteCurrency(item.unitRate)}</p>
-      </div>
-    </div>
-  </div>
   );
 };
 
@@ -479,7 +479,7 @@ const QuoteTopActions = ({
   convertDisabled,
   paymentDisabled,
   isRejecting,
-  isRejected, 
+  isRejected,
   isConverting,
   versions,
   selectedVersionId,
@@ -530,7 +530,7 @@ const QuoteTopActions = ({
       type="button"
       onClick={onReject}
       disabled={rejectDisabled}
-      className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90"
+      className="hidden lg:flex h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90"
     >
       {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
       {isRejecting ? "Rejecting..." : isRejected ? "Rejected" : "Reject Quote"}
@@ -549,7 +549,7 @@ const QuoteTopActions = ({
       type="button"
       onClick={onPreview}
       disabled={previewDisabled || isRejected}
-      className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed"
+      className="hidden lg:flex h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed"
     >
       <Eye size={18} />
       Preview Quote
@@ -558,9 +558,9 @@ const QuoteTopActions = ({
 );
 
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-start justify-between gap-4 py-4">
-    <p className="shrink-0 text-base text-[#8F8F95]">{label}</p>
-    <p className="max-w-[65%] break-words text-right text-base font-semibold text-white">{value}</p>
+  <div className="flex items-start justify-between gap-4 py-2.5 lg:py-4">
+    <p className="shrink-0 text-sm lg:text-base text-[#8F8F95]">{label}</p>
+    <p className="max-w-[65%] break-words text-right text-sm lg:text-base font-semibold text-white">{value}</p>
   </div>
 );
 
@@ -718,10 +718,10 @@ export default function QuoteDetailsPage({
 
   useEffect(() => {
     if (!selectedVersionId) return;
-    
+
     // Skip if this is already the currently displayed quote's version
     if (quote && quote.version_number?.toString() === selectedVersionId) {
-       return;
+      return;
     }
 
     let isMounted = true;
@@ -745,7 +745,7 @@ export default function QuoteDetailsPage({
     };
 
     void fetchVersionDetail();
-    
+
     return () => {
       isMounted = false;
     };
@@ -784,9 +784,9 @@ export default function QuoteDetailsPage({
   const isFixedDiscount = ["fixed", "fixed_amount"].includes(discountType);
   const rawDiscountAmount = quote
     ? getQuoteNumber(quote.discount_amount) ??
-      (discountType.includes("percent")
-        ? subtotal * (discountValue / 100)
-        : discountValue)
+    (discountType.includes("percent")
+      ? subtotal * (discountValue / 100)
+      : discountValue)
     : 0;
   const discountAmount = Math.min(rawDiscountAmount, subtotal);
   const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
@@ -800,10 +800,10 @@ export default function QuoteDetailsPage({
     : 0;
   const finalTotal = quote
     ? getQuoteNumber(
-        quote.final_total,
-        quote.total_amount,
-        quote.amount_after_discount
-      ) ?? amountAfterTax
+      quote.final_total,
+      quote.total_amount,
+      quote.amount_after_discount
+    ) ?? amountAfterTax
     : 0;
 
   const clientName = getQuoteText(quote?.client_name, "Client");
@@ -953,7 +953,7 @@ export default function QuoteDetailsPage({
   }, [linkedLeadDetails?.activities, quote?.activities]);
   const leadPaymentStatus = String(linkedLeadDetails?.payment_status || "").toLowerCase();
   const totalPaymentAmount = Number(finalTotal || linkedLeadDetails?.pricing_breakdown?.total || 0);
-  
+
   // Account for previous payments from lead or quote context
   const leadCollectedAmount = Number(linkedLeadDetails?.collected_amount) || 0;
   const quotePreviouslyPaid = Number(quote?.additional_payment?.previously_paid_amount) || 0;
@@ -1186,8 +1186,8 @@ export default function QuoteDetailsPage({
       const invoicePdfUrl = response.data?.invoicePdf || null;
       const invoiceBookingId =
         response.data?.booking_id !== undefined &&
-        response.data?.booking_id !== null &&
-        String(response.data.booking_id).trim()
+          response.data?.booking_id !== null &&
+          String(response.data.booking_id).trim()
           ? String(response.data.booking_id)
           : convertedBookingId;
       const apiBase = (
@@ -1330,39 +1330,39 @@ export default function QuoteDetailsPage({
       setQuote((current) =>
         current
           ? {
-              ...current,
-              ...(nextBookingId ? { booking_id: nextBookingId } : {}),
-              converted_booking_details: {
-                booking_type: bookingData.bookingType,
-                location:
-                  bookingData.location ??
-                  ((current.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined)
-                    ?.location || ""),
-                ...(bookingData.bookingType === "single_day" && bookingData.singleDay
-                  ? {
-                      start_date: bookingData.singleDay.date,
+            ...current,
+            ...(nextBookingId ? { booking_id: nextBookingId } : {}),
+            converted_booking_details: {
+              booking_type: bookingData.bookingType,
+              location:
+                bookingData.location ??
+                ((current.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined)
+                  ?.location || ""),
+              ...(bookingData.bookingType === "single_day" && bookingData.singleDay
+                ? {
+                  start_date: bookingData.singleDay.date,
+                  start_time: `${bookingData.singleDay.startTime}:00`,
+                  end_time: `${bookingData.singleDay.endTime}:00`,
+                  booking_days: [
+                    {
+                      date: bookingData.singleDay.date,
                       start_time: `${bookingData.singleDay.startTime}:00`,
                       end_time: `${bookingData.singleDay.endTime}:00`,
-                      booking_days: [
-                        {
-                          date: bookingData.singleDay.date,
-                          start_time: `${bookingData.singleDay.startTime}:00`,
-                          end_time: `${bookingData.singleDay.endTime}:00`,
-                        },
-                      ],
-                    }
-                  : {}),
-                ...(bookingData.bookingType === "multi_day" && bookingData.multiDay
-                  ? {
-                      booking_days: bookingData.multiDay.days.map((day) => ({
-                        date: day.date,
-                        start_time: `${day.startTime}:00`,
-                        end_time: `${day.endTime}:00`,
-                      })),
-                    }
-                  : {}),
-              },
-            }
+                    },
+                  ],
+                }
+                : {}),
+              ...(bookingData.bookingType === "multi_day" && bookingData.multiDay
+                ? {
+                  booking_days: bookingData.multiDay.days.map((day) => ({
+                    date: day.date,
+                    start_time: `${day.startTime}:00`,
+                    end_time: `${day.endTime}:00`,
+                  })),
+                }
+                : {}),
+            },
+          }
           : current
       );
 
@@ -1449,18 +1449,17 @@ export default function QuoteDetailsPage({
   );
 
   const selectedVersionNumber = useMemo(() => {
-     if (!selectedVersionId || versions.length === 0) return null;
-     const v = versions.find((version) => version?.version_number != null && String(version.version_number) === selectedVersionId);
-     return v ? v.version_number : null;
+    if (!selectedVersionId || versions.length === 0) return null;
+    const v = versions.find((version) => version?.version_number != null && String(version.version_number) === selectedVersionId);
+    return v ? v.version_number : null;
   }, [selectedVersionId, versions]);
 
   return (
     <div
-      className={`quote-editor-theme min-h-screen ${
-        isDark
-          ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
-          : "quote-editor-theme-light bg-[#F4F5F7] text-black"
-      }`}
+      className={`quote-editor-theme min-h-screen ${isDark
+        ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+        : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+        }`}
     >
       <TopbarComponent pathname={pathname} actions={topbarActions} breadcrumbOverrides={breadcrumbOverrides} />
 
@@ -1480,7 +1479,7 @@ export default function QuoteDetailsPage({
           </button>
 
           {!loading && quote && (
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex lg:flex-wrap items-center gap-3">
               {canViewInvoiceFromDetails && (
                 <Button
                   type="button"
@@ -1489,7 +1488,7 @@ export default function QuoteDetailsPage({
                   }}
                   disabled={isViewingInvoice || isSendingInvoice || isConverting}
                   variant="outline"
-                  className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-5 text-white hover:bg-[#232323]"
+                  className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-5 text-white hover:bg-[#232323] w-full lg:w-auto"
                 >
                   {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
                   {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
@@ -1502,7 +1501,7 @@ export default function QuoteDetailsPage({
                     void handleSendInvoice();
                   }}
                   disabled={isViewingInvoice || isSendingInvoice || isConverting}
-                  className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
+                  className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 w-full lg:w-auto"
                 >
                   {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
                   {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
@@ -1534,66 +1533,65 @@ export default function QuoteDetailsPage({
             </Button>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-3 lg:space-y-6 pb-12 lg:pb-0">
             <SectionShell
               title="Client Information"
               actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Details" : undefined}
               onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("details") : undefined}
             >
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-3 lg:gap-6">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 items-start gap-4">
-                    <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[22px] bg-[#F3D9A7] text-[24px] font-semibold text-black">
+                    <div className="flex h-12 w-12 lg:h-[74px] lg:w-[74px] shrink-0 items-center justify-center rounded-xl lg:rounded-[22px] bg-[#F3D9A7] text-lg lg:text-[24px] font-semibold text-black">
                       {getInitials(clientName)}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-3">
-                        <p className="break-words text-[26px] font-semibold leading-tight text-white">
+                      <div className="flex items-center justify-between lg:justify-start gap-3">
+                        <p className="break-words text-lg lg:text-[26px] font-semibold leading-tight text-white">
                           {clientName}
                         </p>
                         {selectedVersionNumber && (
-                           <div className="flex flex-col items-start gap-1">
-                             <span className="rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
-                               Quote Version {selectedVersionNumber}
-                             </span>
-                             {quote?.edit_reason && (
-                               <p className="max-w-[300px] text-[13px] italic text-[#8F8F95] line-clamp-2" title={quote.edit_reason}>
-                                 "{quote.edit_reason}"
-                               </p>
-                             )}
-                           </div>
-                        )}
-                      </div>
-                      <p className="mt-1 text-[24px] font-medium text-[#D8BC87]">
-                        Amount: {formatQuoteCurrency(finalTotal)}
-                      </p>
-                      <p className="mt-2 text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
-                    </div>
-                  </div>
-                      <div className="flex flex-col items-end gap-2">
-                  <span
-                    className={`inline-flex h-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
-                      displayStatus
-                    )}`}
-                  >
-                    {formatStatusLabel(displayStatus)}
-                  </span>
-                        {signatureBase64 && (
-                          <div className="mt-3 flex flex-col items-end gap-2">
-                            <div className="border border-white/10 rounded-lg p-2 bg-white">
-                              <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
-                            </div>
-                            <p className="text-xs text-[#8F8F95]">{signerName ?? "Client"}</p>
-                            {signedAt && <p className="text-xs text-[#8F8F95]">{formatQuoteDate(signedAt)}</p>}
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
+                              Quote Version {selectedVersionNumber}
+                            </span>
+                            {quote?.edit_reason && (
+                              <p className="max-w-[300px] text-[13px] italic text-[#8F8F95] line-clamp-2" title={quote.edit_reason}>
+                                "{quote.edit_reason}"
+                              </p>
+                            )}
                           </div>
                         )}
-                </div>
+                      </div>
+                      <p className="mt-1 lg:text-[24px] font-medium text-[#D8BC87]">
+                        Amount: {formatQuoteCurrency(finalTotal)}
+                      </p>
+                      <p className="mt-2 text-xs lg:text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
                     </div>
-                    
+                  </div>
+                  <div className="flex flex-col lg:items-end gap-2">
+                    <span
+                      className={`inline-flex h-fit w-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
+                        displayStatus
+                      )}`}
+                    >
+                      {formatStatusLabel(displayStatus)}
+                    </span>
+                    {signatureBase64 && (
+                      <div className="mt-3 flex flex-col items-end gap-2">
+                        <div className="border border-white/10 rounded-lg p-2 bg-white">
+                          <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
+                        </div>
+                        <p className="text-xs text-[#8F8F95]">{signerName ?? "Client"}</p>
+                        {signedAt && <p className="text-xs text-[#8F8F95]">{formatQuoteDate(signedAt)}</p>}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {isConvertedToBooking ? (
-                  <div className="rounded-[20px] border border-[#86EFAC]/20 bg-[#DCFCE7] px-5 py-4">
-                    <p className="text-sm font-semibold text-[#166534]">
+                  <div className="rounded-lg lg:rounded-[20px] border border-[#86EFAC]/20 bg-[#DCFCE7] p-3 lg:px-5 lg:py-4">
+                    <p className="text-xs lg:text-sm font-semibold text-[#166534]">
                       {conversionMessage}
                     </p>
                     {conversionMetaLabel ? (
@@ -1602,7 +1600,7 @@ export default function QuoteDetailsPage({
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#9B9BA1]">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm text-[#9B9BA1]">
                   <span className="break-all">{`Email ID : ${clientEmail}`}</span>
                   <span className="hidden text-[#4B4B4F] lg:inline">|</span>
                   <span className="break-all">{`Phone Number : ${clientPhone}`}</span>
@@ -1612,204 +1610,204 @@ export default function QuoteDetailsPage({
                   <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className="break-words text-sm leading-7 text-[#B3B3B8]">
+                <p className="break-words text-xs lg:text-sm leading-7 text-[#B3B3B8]">
                   <span className="text-[#8F8F95]">Project Description :</span> {projectDescription}
                 </p>
 
-                <div className="flex items-start gap-2 text-sm text-[#9B9BA1]">
+                <div className="flex items-start gap-2 text-xs lg:text-sm text-[#9B9BA1]">
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
                   <span className="break-words">{clientAddress}</span>
                 </div>
               </div>
             </SectionShell>
-            {!["rejected", "cancelled"].includes(normalizedQuoteStatus) && (
-            <SectionShell title="Payment">
-              <div className="space-y-4" ref={paymentSectionRef}>
-                {quoteLeadId ? (
-                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4">
-                    <h3 className="text-base font-semibold text-white">Manual Payment Update</h3>
-                    {latestManualPaymentEntry?.createdAt ? (
-                      <p className="mt-1 text-xs text-white/55">
-                        Last updated {formatQuoteDate(latestManualPaymentEntry.createdAt)}
-                      </p>
-                    ) : null}
-                    <p className="mt-2 text-xs text-white/70">
-                      Paid: <span className="text-emerald-400">{formatQuoteCurrency(paidAmount)}</span>
-                      {" · "}
-                      Pending:{" "}
-                      <span className={pendingAmount < 0 ? "text-red-400" : "text-amber-400"}>
-                        {pendingAmount < 0 ? "-" : ""}
-                        {formatQuoteCurrency(Math.abs(pendingAmount))}
-                      </span>
-                      {pendingAmount < 0 && (
-                        <span className="ml-1 text-[10px] text-golden italic">
-                          (This reduced amount will be added as Beige Credits after approval)
-                        </span>
-                      )}
-                    </p>
-                    {hasFullPayment ? (
-                      <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-                        Full payment already completed. New payment entry is locked.
-                      </div>
-                    ) : null}
 
-                    {canTakeManualPayment ? (
-                      <>
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          {(["full", "partial"] as const).map((type) => (
-                            <button
-                              key={type}
-                              type="button"
-                              onClick={() => setManualPaymentType(type)}
-                              disabled={hasFullPayment}
-                              className={`h-10 rounded-lg border text-sm font-medium ${
-                                manualPaymentType === type
+            {!["rejected", "cancelled"].includes(normalizedQuoteStatus) && (
+              <SectionShell title="Payment">
+                <div className="space-y-4" ref={paymentSectionRef}>
+                  {quoteLeadId ? (
+                    <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4">
+                      <h3 className="text-base font-semibold text-white">Manual Payment Update</h3>
+                      {latestManualPaymentEntry?.createdAt ? (
+                        <p className="mt-1 text-xs text-white/55">
+                          Last updated {formatQuoteDate(latestManualPaymentEntry.createdAt)}
+                        </p>
+                      ) : null}
+                      <p className="mt-2 text-xs text-white/70">
+                        Paid: <span className="text-emerald-400">{formatQuoteCurrency(paidAmount)}</span>
+                        {" · "}
+                        Pending:{" "}
+                        <span className={pendingAmount < 0 ? "text-red-400" : "text-amber-400"}>
+                          {pendingAmount < 0 ? "-" : ""}
+                          {formatQuoteCurrency(Math.abs(pendingAmount))}
+                        </span>
+                        {pendingAmount < 0 && (
+                          <span className="ml-1 text-[10px] text-golden italic">
+                            (This reduced amount will be added as Beige Credits after approval)
+                          </span>
+                        )}
+                      </p>
+                      {hasFullPayment ? (
+                        <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                          Full payment already completed. New payment entry is locked.
+                        </div>
+                      ) : null}
+
+                      {canTakeManualPayment ? (
+                        <>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            {(["full", "partial"] as const).map((type) => (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => setManualPaymentType(type)}
+                                disabled={hasFullPayment}
+                                className={`h-10 rounded-lg border text-sm font-medium ${manualPaymentType === type
                                   ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]"
                                   : "border-white/20 text-white/70"
-                              }`}
-                            >
-                              {type === "full" ? "Full Payment" : "Partial Payment"}
-                            </button>
-                          ))}
-                        </div>
-
-                        {manualPaymentType === "partial" ? (
-                          <input
-                            type="number"
-                            value={manualPaymentAmount}
-                            onChange={(event) => setManualPaymentAmount(event.target.value)}
-                            placeholder="Enter partial amount"
-                            className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
-                          />
-                        ) : null}
-
-                        <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
-                          <SelectTrigger className="mt-3 h-11 rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white">
-                            <SelectValue placeholder="Select payment mode" />
-                          </SelectTrigger>
-                          <SelectContent className="border-[#333333] bg-[#111111] text-white">
-                            <SelectItem value="cash">Cash</SelectItem>
-                            <SelectItem value="wire">Wire</SelectItem>
-                            <SelectItem value="ach">ACH</SelectItem>
-                            <SelectItem value="zelle">Zelle</SelectItem>
-                            <SelectItem value="venmo">Venmo</SelectItem>
-                            <SelectItem value="cashapp">CashApp</SelectItem>
-                            <SelectItem value="applepay">ApplePay</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        {manualPaymentMode === "other" ? (
-                          <input
-                            type="text"
-                            value={manualPaymentOtherMode}
-                            onChange={(event) => setManualPaymentOtherMode(event.target.value)}
-                            placeholder="Enter payment mode"
-                            className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
-                          />
-                        ) : null}
-
-                        <div className="mt-3 rounded-lg border border-white/20 p-3">
-                          <label className="mb-2 block text-xs text-[#71717B]">Proof Upload (Required)</label>
-                          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 text-sm text-white">
-                            <ArrowUpToLine size={14} />
-                            {isUploadingManualProof ? "Uploading..." : "Choose File"}
-                            <input
-                              type="file"
-                              accept="image/*,application/pdf"
-                              className="hidden"
-                              onChange={(event) => {
-                                const file = event.target.files?.[0] || null;
-                                void handleManualProofUpload(file);
-                              }}
-                            />
-                          </label>
-                          {manualPaymentProofFileName ? (
-                            <p className="mt-2 text-xs text-[#71717B]">{manualPaymentProofFileName}</p>
-                          ) : null}
-                        </div>
-
-                        <textarea
-                          value={manualPaymentNotes}
-                          onChange={(event) => setManualPaymentNotes(event.target.value)}
-                          placeholder="Add notes"
-                          className="mt-3 min-h-[84px] w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm text-white outline-none"
-                        />
-
-                        <div className="mt-3 flex justify-end">
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              void handleManualPaymentSubmit();
-                            }}
-                            disabled={isSubmittingManualPayment || isUploadingManualProof || hasFullPayment}
-                            className="h-11 rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90"
-                          >
-                            {isSubmittingManualPayment ? <Loader2 size={16} className="animate-spin" /> : null}
-                            {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
-                          </Button>
-                        </div>
-                      </>
-                    ) : null}
-
-                    {manualPaymentEntries.length > 0 ? (
-                      <div className="mt-3 rounded-lg border border-white/15 bg-white/[0.02] p-3">
-                        <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
-                          Uploaded Payment Proofs
-                        </p>
-                        <div className="space-y-2">
-                          {manualPaymentEntries.map((entry, index) => {
-                            const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
-                            const paidMode = entry.data.payment_mode
-                              ? String(entry.data.payment_mode).replace(/_/g, " ")
-                              : "manual";
-
-                            return (
-                              <div
-                                key={`${entry.createdAt || "entry"}-${index}`}
-                                className="rounded-md border border-white/10 px-3 py-2 text-xs"
+                                  }`}
                               >
-                                <p className="text-white/80">
-                                  {entry.data.payment_type === "partial"
-                                    ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
-                                    : "Full payment marked"}{" "}
-                                  via {paidMode}
-                                </p>
-                                <p className="mt-1 text-white/45">
-                                  {entry.createdAt ? formatQuoteDate(entry.createdAt) : "Date unavailable"}
-                                </p>
-                                {proofUrl ? (
-                                  <a
-                                    href={proofUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
-                                  >
-                                    Download Proof
-                                  </a>
-                                ) : null}
-                              </div>
-                            );
-                          })}
+                                {type === "full" ? "Full Payment" : "Partial Payment"}
+                              </button>
+                            ))}
+                          </div>
+
+                          {manualPaymentType === "partial" ? (
+                            <input
+                              type="number"
+                              value={manualPaymentAmount}
+                              onChange={(event) => setManualPaymentAmount(event.target.value)}
+                              placeholder="Enter partial amount"
+                              className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                            />
+                          ) : null}
+
+                          <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
+                            <SelectTrigger className="mt-3 h-11 rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white">
+                              <SelectValue placeholder="Select payment mode" />
+                            </SelectTrigger>
+                            <SelectContent className="border-[#333333] bg-[#111111] text-white">
+                              <SelectItem value="cash">Cash</SelectItem>
+                              <SelectItem value="wire">Wire</SelectItem>
+                              <SelectItem value="ach">ACH</SelectItem>
+                              <SelectItem value="zelle">Zelle</SelectItem>
+                              <SelectItem value="venmo">Venmo</SelectItem>
+                              <SelectItem value="cashapp">CashApp</SelectItem>
+                              <SelectItem value="applepay">ApplePay</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {manualPaymentMode === "other" ? (
+                            <input
+                              type="text"
+                              value={manualPaymentOtherMode}
+                              onChange={(event) => setManualPaymentOtherMode(event.target.value)}
+                              placeholder="Enter payment mode"
+                              className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                            />
+                          ) : null}
+
+                          <div className="mt-3 rounded-lg border border-white/20 p-3">
+                            <label className="mb-2 block text-xs text-[#71717B]">Proof Upload (Required)</label>
+                            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 text-sm text-white">
+                              <ArrowUpToLine size={14} />
+                              {isUploadingManualProof ? "Uploading..." : "Choose File"}
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                className="hidden"
+                                onChange={(event) => {
+                                  const file = event.target.files?.[0] || null;
+                                  void handleManualProofUpload(file);
+                                }}
+                              />
+                            </label>
+                            {manualPaymentProofFileName ? (
+                              <p className="mt-2 text-xs text-[#71717B]">{manualPaymentProofFileName}</p>
+                            ) : null}
+                          </div>
+
+                          <textarea
+                            value={manualPaymentNotes}
+                            onChange={(event) => setManualPaymentNotes(event.target.value)}
+                            placeholder="Add notes"
+                            className="mt-3 min-h-[84px] w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm text-white outline-none"
+                          />
+
+                          <div className="mt-3 flex justify-end">
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                void handleManualPaymentSubmit();
+                              }}
+                              disabled={isSubmittingManualPayment || isUploadingManualProof || hasFullPayment}
+                              className="h-11 rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90"
+                            >
+                              {isSubmittingManualPayment ? <Loader2 size={16} className="animate-spin" /> : null}
+                              {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
+                            </Button>
+                          </div>
+                        </>
+                      ) : null}
+
+                      {manualPaymentEntries.length > 0 ? (
+                        <div className="mt-3 rounded-lg border border-white/15 bg-white/[0.02] p-3">
+                          <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
+                            Uploaded Payment Proofs
+                          </p>
+                          <div className="space-y-2">
+                            {manualPaymentEntries.map((entry, index) => {
+                              const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
+                              const paidMode = entry.data.payment_mode
+                                ? String(entry.data.payment_mode).replace(/_/g, " ")
+                                : "manual";
+
+                              return (
+                                <div
+                                  key={`${entry.createdAt || "entry"}-${index}`}
+                                  className="rounded-md border border-white/10 px-3 py-2 text-xs"
+                                >
+                                  <p className="text-white/80">
+                                    {entry.data.payment_type === "partial"
+                                      ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
+                                      : "Full payment marked"}{" "}
+                                    via {paidMode}
+                                  </p>
+                                  <p className="mt-1 text-white/45">
+                                    {entry.createdAt ? formatQuoteDate(entry.createdAt) : "Date unavailable"}
+                                  </p>
+                                  {proofUrl ? (
+                                    <a
+                                      href={proofUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
+                                    >
+                                      Download Proof
+                                    </a>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : isConvertedToBooking ? (
-                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
-                    <p className="text-sm text-emerald-200">
-                      This quote is already converted to booking
-                      {convertedBookingId ? ` #${convertedBookingId}` : ""}.
-                    </p>
-                    <p className="mt-1 text-xs text-emerald-300/90">
-                      Lead linkage is unavailable in this response, so manual payment updates from this panel are hidden.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[#8F8F95]">Lead is not linked with this quote yet.</p>
-                )}
-              </div>
-            </SectionShell>
+                      ) : null}
+                    </div>
+                  ) : isConvertedToBooking ? (
+                    <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
+                      <p className="text-sm text-emerald-200">
+                        This quote is already converted to booking
+                        {convertedBookingId ? ` #${convertedBookingId}` : ""}.
+                      </p>
+                      <p className="mt-1 text-xs text-emerald-300/90">
+                        Lead linkage is unavailable in this response, so manual payment updates from this panel are hidden.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#8F8F95]">Lead is not linked with this quote yet.</p>
+                  )}
+                </div>
+              </SectionShell>
             )}
 
             <SectionShell
@@ -1843,10 +1841,10 @@ export default function QuoteDetailsPage({
                     <div
                       key={item.id}
                       title={`${item.name} x ${item.quantity}`}
-                      className="min-w-0 max-w-full rounded-[14px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 sm:max-w-[360px]"
+                      className="min-w-0 max-w-full rounded-lg lg:rounded-[14px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 sm:max-w-[360px]"
                     >
-                      <p className="truncate text-[18px] font-medium text-[#D8BC87]">{item.name}</p>
-                      <p className="mt-1 text-sm text-[#8F8F95]">Qty: {item.quantity}</p>
+                      <p className="truncate text-sm lg:text-lg font-medium text-[#D8BC87]">{item.name}</p>
+                      <p className="mt-1 text-xs lg:text-sm text-[#8F8F95]">Qty: {item.quantity}</p>
                     </div>
                   ))}
                 </div>
@@ -1866,7 +1864,7 @@ export default function QuoteDetailsPage({
                     <div
                       key={item.id}
                       title={item.name}
-                      className="min-w-0 max-w-full rounded-[14px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 text-[18px] text-[#9B9BA1] sm:max-w-[360px]"
+                      className="min-w-0 max-w-full rounded-lg lg:rounded-[14px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 text-sm lg:text-lg text-[#9B9BA1] sm:max-w-[360px]"
                     >
                       <p className="truncate">{item.name}</p>
                     </div>
@@ -1887,15 +1885,15 @@ export default function QuoteDetailsPage({
                   {customItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex flex-col gap-3 rounded-[18px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
+                      className="flex flex-col gap-1.5 lg:gap-3 rounded-lg lg:rounded-[18px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 lg:flex-row lg:items-center lg:justify-between"
                     >
                       <span
-                        className="min-w-0 flex-1 break-words pr-0 text-[20px] font-medium text-white lg:pr-6"
+                        className="min-w-0 flex-1 break-words pr-0 text-sm lg:text-[20px] font-medium text-white lg:pr-6"
                         title={item.name}
                       >
                         {item.name}
                       </span>
-                      <span className="shrink-0 text-[22px] font-semibold text-[#D8BC87]">
+                      <span className="shrink-0 text-sm lg:text-[22px] font-semibold text-[#D8BC87]">
                         {formatQuoteCurrency(item.amount)}
                       </span>
                     </div>
@@ -1911,50 +1909,48 @@ export default function QuoteDetailsPage({
               actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Tax & Discounts" : undefined}
               onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("discounts") : undefined}
             >
-              <div className="space-y-6">
-                <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
+              <div className="space-y-3 lg:space-y-6">
+                <div className="inline-flex rounded-lg lg:rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("discounts")}
-                    className={`rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${
-                      otherDetailsTab === "discounts"
-                        ? "bg-[#E8D1AB] text-black"
-                        : "text-[#8F8F95]"
-                    }`}
+                    className={`rounded-xl lg:rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
+                      ? "bg-[#E8D1AB] text-black"
+                      : "text-[#8F8F95]"
+                      }`}
                   >
                     Discounts
                   </button>
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
-                    className={`rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${
-                      otherDetailsTab === "tax"
-                        ? "bg-[#E8D1AB] text-black"
-                        : "text-[#8F8F95]"
-                    }`}
+                    className={`rounded-xl lg:rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
+                      ? "bg-[#E8D1AB] text-black"
+                      : "text-[#8F8F95]"
+                      }`}
                   >
                     Tax
                   </button>
                 </div>
 
                 {otherDetailsTab === "discounts" ? (
-                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
+                  <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
                     <div className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                          <p className="text-[24px] font-semibold text-white">Discount Type</p>
-                          <p className="mt-1 text-sm text-[#8F8F95]">
-                            {isFixedDiscount ? "$ off subtotal" : "% off subtotal"}
-                          </p>
-                        </div>
-                      <div className="inline-flex items-center gap-3 rounded-[16px] bg-[#1A1A1A] px-4 py-3">
+                      <div>
+                        <p className="lg:text-[24px] font-semibold text-white">Discount Type</p>
+                        <p className="mt-1 text-xs lg:text-sm text-[#8F8F95]">
+                          {isFixedDiscount ? "$ off subtotal" : "% off subtotal"}
+                        </p>
+                      </div>
+                      <div className="inline-flex items-center gap-3 rounded-lg lg:rounded-[16px] bg-[#1A1A1A] px-4 py-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#E8D1AB] text-black">
                           {isFixedDiscount ? <DollarSign size={20} /> : <Percent size={20} />}
                         </div>
                         <div>
-                          <p className="text-[18px] font-semibold text-white">
+                          <p className="lg:text-lg font-semibold text-white">
                             {isFixedDiscount ? "Fixed Amount" : "Percentage"}
                           </p>
-                          <p className="text-sm text-[#8F8F95]">
+                          <p className="text-xs lg:text-sm text-[#8F8F95]">
                             {isFixedDiscount ? formatQuoteCurrency(discountValue) : `${discountValue}%`}
                           </p>
                         </div>
@@ -1966,13 +1962,13 @@ export default function QuoteDetailsPage({
                       value={formatQuoteCurrency(discountAmount)}
                     />
                     <div className="border-t border-[#2B2B2B]" />
-                      <DetailRow
-                        label="Total After Discount"
-                        value={formatQuoteCurrency(discountedSubtotal)}
-                      />
-                    </div>
-                  ) : (
-                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
+                    <DetailRow
+                      label="Total After Discount"
+                      value={formatQuoteCurrency(discountedSubtotal)}
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
                     <DetailRow label="Tax Type" value={taxType} />
                     <div className="border-t border-[#2B2B2B]" />
                     <DetailRow label="Tax Rate" value={`${taxRate}%`} />
@@ -1981,22 +1977,22 @@ export default function QuoteDetailsPage({
                   </div>
                 )}
 
-                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
-                    <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} />
-                    {discountAmount > 0 ? (
-                      <>
-                        <div className="border-t border-[#2B2B2B]" />
-                        <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
-                      </>
-                    ) : null}
-                    <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} />
-                  </div>
+                <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
+                  <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} />
+                  {discountAmount > 0 ? (
+                    <>
+                      <div className="border-t border-[#2B2B2B]" />
+                      <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
+                    </>
+                  ) : null}
+                  <div className="border-t border-[#2B2B2B]" />
+                  <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} />
+                </div>
 
                 {terms.length > 0 ? (
-                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-5">
-                    <p className="text-[18px] font-semibold text-white">Terms & Conditions</p>
-                    <div className="mt-4 space-y-2 text-sm leading-7 text-[#B3B3B8]">
+                  <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4 lg:p-5">
+                    <p className="lg:text-lg font-semibold text-white">Terms & Conditions</p>
+                    <div className="mt-4 space-y-1 lg:space-y-2 text-xs lg:text-sm leading-none lg:leading-7 text-[#B3B3B8]">
                       {terms.map((term, index) => (
                         <p key={`${term}-${index}`}>{term}</p>
                       ))}
@@ -2005,6 +2001,29 @@ export default function QuoteDetailsPage({
                 ) : null}
               </div>
             </SectionShell>
+
+            {/* --- FLOATING MOBILE BUTTON --- */}
+            <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
+
+              <Button
+                type="button"
+                onClick={handleRejectQuote}
+                disabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
+              >
+                {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
+                {isRejecting ? "Rejecting..." : ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setIsPreviewOpen(true) }
+                disabled={(!quote || loading || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+              >
+                <Eye size={18} />
+                Preview Quote
+              </Button>
+            </div>
           </div>
         )}
       </div>

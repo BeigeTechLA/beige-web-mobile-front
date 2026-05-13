@@ -65,7 +65,7 @@ export default function QuoteSummaryModal({
             type="button"
             onClick={onPreview}
             disabled={!snapshot || previewDisabled}
-            className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90 disabled:opacity-60"
+            className="hidden lg:blockh-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90 disabled:opacity-60"
           >
             Preview Quote
           </Button>
@@ -80,6 +80,21 @@ export default function QuoteSummaryModal({
             emptyStateLabel="Back"
             showMobilePreviewBar={false}
           />
+        </div>
+
+         <div
+          className={`flex items-center justify-between lg:hidden gap-3 px-4 py-4 sm:px-6 lg:px-8 ${
+            isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD] bg-white"
+          }`}
+        >
+          <Button
+            type="button"
+            onClick={onPreview}
+            disabled={!snapshot || previewDisabled}
+            className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90 disabled:opacity-60"
+          >
+            Preview Quote
+          </Button>
         </div>
       </div>
     </div>
