@@ -140,10 +140,19 @@ const getHistoricalConfirmedPaidAmount = (
 
     const candidates: number[] = [];
 
-    // Use only explicit collected/paid values from payment-related activity metadata.
-    // Do not infer paid amount from quote totals or "extra/reduced" deltas, because those
-    // fields represent quote changes, not guaranteed money collected.
+    const isExplicitPaymentEvent =
+      activityType === "payment_completed" ||
+      (activityType === "status_changed" && PAID_PAYMENT_STATUSES.has(paymentStatus));
+
+    // Prefer explicit paid/collected amounts from concrete payment events.
+    if (collectedAmount !== undefined && isExplicitPaymentEvent) {
+      candidates.push(collectedAmount);
+    }
+
+    // When extra amount is tracked separately, include it for paid payment events.
     if (
+      isExplicitPaymentEvent &&
+      PAID_PAYMENT_STATUSES.has(paymentStatus) &&
       collectedAmount !== undefined &&
       (activityType === "payment_completed" ||
         (activityType === "status_changed" && PAID_PAYMENT_STATUSES.has(paymentStatus)))
@@ -182,8 +191,13 @@ export const getQuoteText = (...values: unknown[]) => {
   return "";
 };
 
-export const formatQuoteItemDisplayName = (value: string) => {
-  const normalizedValue = value.trim().toLowerCase().replace(/[_\s]+/g, " ");
+export const formatQuoteItemDisplayName = (value: unknown) => {
+  const safeValue = typeof value === "string" ? value.trim() : "";
+  if (!safeValue) {
+    return "Line Item";
+  }
+
+  const normalizedValue = safeValue.toLowerCase().replace(/[_\s]+/g, " ");
 
   if (normalizedValue === "ai editing") {
     return "Editing";
@@ -195,7 +209,7 @@ export const formatQuoteItemDisplayName = (value: string) => {
     return "Studio";
   }
 
-  return value.trim();
+  return safeValue;
 };
 
 export const getQuoteNumber = (...values: unknown[]): number | undefined => {

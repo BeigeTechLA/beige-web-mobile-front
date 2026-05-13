@@ -28,6 +28,7 @@ import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import { meetingsApi } from "@/lib/meetingsApi";
 
 type ShootStatus =
   | "Booked"
@@ -89,6 +90,19 @@ const FILTER_STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ] as const;
 
+const PRODUCTION_GAP_FILTER_SET = new Set([
+  "pre_production_file_not_provided",
+  "pre_production_meeting_not_done",
+  "post_production_file_not_uploaded",
+  "post_production_meeting_not_done",
+]);
+
+const isProductionGapStatusFilter = (value: string) => PRODUCTION_GAP_FILTER_SET.has(String(value || "").toLowerCase());
+const isMeetingGapStatusFilter = (value: string) =>
+  value === "pre_production_meeting_not_done" || value === "post_production_meeting_not_done";
+const isFileGapStatusFilter = (value: string) =>
+  value === "pre_production_file_not_provided" || value === "post_production_file_not_uploaded";
+
 const normalizeStatusKey = (value: string) =>
   String(value || "")
     .toLowerCase()
@@ -98,6 +112,11 @@ const timelineStatusKeyFromLabel = (status: ShootStatus) => {
   const normalized = normalizeStatusKey(status);
   if (normalized === "assetsdelivered") return "assetsdelivered";
   return normalized;
+};
+
+const isPostProductionEligibleStatus = (status: ShootStatus) => {
+  const key = timelineStatusKeyFromLabel(status);
+  return ["postproduction", "revision", "completed", "assetsdelivered"].includes(key);
 };
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -180,6 +199,8 @@ interface ShootsTableProps {
   setCategoryFilter: (v: string) => void;
   statusFilter: string;
   setStatusFilter: (v: string) => void;
+  productionFilter?: string;
+  setProductionFilter?: (v: string) => void;
   range: string;
   setRange: (v: string) => void;
   cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
@@ -200,6 +221,8 @@ export const ShootsTable = ({
   setCategoryFilter,
   statusFilter,
   setStatusFilter,
+  productionFilter = "all",
+  setProductionFilter,
   range,
   setRange,
   cpAssignmentFilter,
@@ -219,6 +242,8 @@ export const ShootsTable = ({
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [meetingGapLoading, setMeetingGapLoading] = useState(false);
+  const [meetingGapBookingIds, setMeetingGapBookingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [internalViewMode, setInternalViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
@@ -296,6 +321,9 @@ export const ShootsTable = ({
         if (statusFilter !== "all") {
           params.status = statusFilter;
         }
+        if (productionFilter !== "all" && isFileGapStatusFilter(productionFilter)) {
+          params.production_filter = productionFilter;
+        }
         if (categoryFilter !== "all") {
           params.category = categoryFilter;
         }
@@ -360,7 +388,66 @@ export const ShootsTable = ({
     };
 
     fetchData();
-  }, [range, statusFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+  }, [range, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+
+  useEffect(() => {
+    if (!isMeetingGapStatusFilter(productionFilter)) {
+      setMeetingGapBookingIds(new Set());
+      return;
+    }
+
+    let cancelled = false;
+    const loadMeetingGap = async () => {
+      try {
+        setMeetingGapLoading(true);
+        const meetingsResponse = await meetingsApi.listAll({
+          limit: 5000,
+          page: 1,
+          sortBy: "meeting_date_time:desc",
+        });
+        if (cancelled) return;
+
+        const meetings = Array.isArray(meetingsResponse?.results) ? meetingsResponse.results : [];
+        const scheduledOrderIds = new Set<string>();
+
+        meetings.forEach((meeting: any) => {
+          const type = String(meeting?.meeting_type || "").toLowerCase();
+          const status = String(meeting?.meeting_status || "").toLowerCase();
+          const orderId = String(meeting?.order?.id || "").trim();
+          if (!orderId) return;
+          if (status === "cancelled") return;
+
+          if (productionFilter === "pre_production_meeting_not_done" && type === "pre_production") {
+            scheduledOrderIds.add(orderId);
+          }
+          if (productionFilter === "post_production_meeting_not_done" && type === "post_production") {
+            scheduledOrderIds.add(orderId);
+          }
+        });
+
+        const missingMeetingIds = new Set<string>();
+        shoots.forEach((shoot) => {
+          const bookingId = String(shoot.id || "").replace("#", "").trim();
+          if (!bookingId) return;
+          if (!scheduledOrderIds.has(bookingId)) {
+            missingMeetingIds.add(bookingId);
+          }
+        });
+
+        setMeetingGapBookingIds(missingMeetingIds);
+      } catch (error) {
+        console.error("Failed to load meetings for meeting-gap filter:", error);
+        setMeetingGapBookingIds(new Set());
+      } finally {
+        if (!cancelled) setMeetingGapLoading(false);
+      }
+    };
+
+    loadMeetingGap();
+    return () => {
+      cancelled = true;
+    };
+  }, [productionFilter, shoots]);
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
@@ -372,6 +459,21 @@ export const ShootsTable = ({
       if (!matchesSearch) return false;
 
       if (statusFilter === "all") return true;
+
+      if (isMeetingGapStatusFilter(productionFilter)) {
+        const bookingId = String(shoot.id || "").replace("#", "").trim();
+        if (!bookingId) return false;
+        if (productionFilter === "post_production_meeting_not_done" && !isPostProductionEligibleStatus(shoot.status)) {
+          return false;
+        }
+        return meetingGapBookingIds.has(bookingId);
+      }
+
+      if (isProductionGapStatusFilter(productionFilter)) {
+        // Production gap filters are resolved by backend via `production_filter`.
+        return true;
+      }
+
       return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
     });
 
@@ -409,7 +511,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig, statusFilter, activeCpAssignmentFilter]);
+  }, [shoots, searchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -434,7 +536,7 @@ export const ShootsTable = ({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentShoots = processedShoots.slice(startIndex, startIndex + itemsPerPage);
   const visibleKanbanStatuses = useMemo(() => {
-    if (statusFilter !== "all") {
+    if (statusFilter !== "all" && !isProductionGapStatusFilter(statusFilter)) {
       const selectedStatus = FILTER_STATUS_COLUMN_MAP[statusFilter];
       return selectedStatus ? [selectedStatus] : [];
     }
@@ -750,7 +852,7 @@ export const ShootsTable = ({
       </div>
       )}
 
-      {loading ? (
+      {loading || meetingGapLoading ? (
         <div className="text-center py-20">
           <div className="flex justify-center items-center">
             <Loader2 className="animate-spin text-[#666]" size={32} />
@@ -1097,7 +1199,7 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && processedShoots.length > 0 && activeViewMode !== "grid" && (
+        !loading && !meetingGapLoading && processedShoots.length > 0 && activeViewMode !== "grid" && (
           <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
               {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
