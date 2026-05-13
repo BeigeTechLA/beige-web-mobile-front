@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { format, isValid, parseISO } from "date-fns";
 import {
@@ -18,6 +18,8 @@ import {
   UserRound,
   UsersRound,
   X,
+  ChevronUp,
+  TrendingDown
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -170,7 +172,7 @@ const getRequestTypeMeta = (requestType: string) => {
     return {
       label: "Increase",
       amountClass: "text-[#22c55e]",
-      Icon: ArrowUpRight,
+      Icon: TrendingUp,
       iconWrapClass: "bg-[#232323] text-[#22c55e]",
     };
   }
@@ -178,7 +180,7 @@ const getRequestTypeMeta = (requestType: string) => {
   return {
     label: "Decrease",
     amountClass: "text-[#ef4444]",
-    Icon: ArrowDownRight,
+    Icon: TrendingDown,
     iconWrapClass: "bg-[#232323] text-[#ef4444]",
   };
 };
@@ -217,9 +219,15 @@ const toNumber = (value: number | string | null | undefined) => {
 const TableRow = ({
   request,
   onView,
+  isExpanded,
+  onToggle,
+  isDark = true,
 }: {
   request: QuoteChangeRequestItem;
   onView: () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isDark: boolean;
 }) => {
   const quoteLabel = request.quote_number || `Beige - ${request.quote_id ?? "-"}`;
   const clientName = request.client_name || "Client not available";
@@ -231,72 +239,205 @@ const TableRow = ({
   const status = normalizeStatus(request.approval_status);
 
   return (
-    <tr className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.02]">
-      <td className="px-4 py-4">
-        <div className="text-[15px] font-medium text-white">{quoteLabel}</div>
-        <div className="mt-1 text-xs text-white/28">{`Activity #${request.activity_id ?? "-"}`}</div>
-      </td>
-      <td className="px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] text-sm font-semibold ${getAvatarClass(
-              clientName
+    <React.Fragment>
+      <tr
+        onClick={() => {
+          if (window.innerWidth < 1024) onToggle();
+        }}
+        className={`border-t transition-colors lg:cursor-default ${window.innerWidth < 1024 ? "cursor-pointer" : ""} ${isDark
+          ? (isExpanded ? "bg-[#202020]" : "border-white/[0.05] hover:bg-white/[0.02]")
+          : "border-[#E3E3E3] hover:bg-black/[0.02]"
+          }`}
+      >
+        <td className="px-4 py-4">
+          <div className="flex items-center gap-3">
+            {/* Mobile Chevron Indicator */}
+            <div
+              className={`lg:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors shrink-0 ${isExpanded
+                ? isDark
+                  ? "border-[#E8D1AB] text-[#E8D1AB]"
+                  : "border-black text-black"
+                : isDark
+                  ? "border-[#4B4B4B] text-[#777674]"
+                  : "border-[#E3E3E3] text-black/40"
+                }`}
+            >
+              {isExpanded ? (
+                <ChevronUp size={14} strokeWidth={2.5} />
+              ) : (
+                <ChevronDown size={14} strokeWidth={2.5} />
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* <div className={`flex w-5 h-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center overflow-hidden rounded-md lg:rounded-lg text-[9px] lg:text-sm font-semibold ${getAvatarClass(clientName)}`}>
+                {getInitials(clientName)}
+              </div> */}
+              {window.innerWidth < 1024 ? (
+                <div className="flex items-center gap-2">
+                  <div className={`flex w-5 h-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center overflow-hidden rounded-md lg:rounded-lg text-[9px] lg:text-sm font-semibold ${getAvatarClass(clientName)}`}>
+                    {getInitials(clientName)}
+                  </div>
+                  <div>
+                    <div className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                      {clientName}
+                    </div>
+                    <div className={`mt-0.5 text-xs lg:hidden ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      {`Booking ID #${request.booking_id ?? "1234"}`}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                    {quoteLabel}
+                  </div>
+                  <div className={`mt-1 text-sm hidden lg:block ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    {`Activity #${request.activity_id ?? "-"}`}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+
+        {/* Desktop Columns */}
+        <td className={`px-4 py-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"}`}>
+          <div className="flex items-center gap-3">
+            <div className={`flex w-5 h-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center overflow-hidden rounded-md lg:rounded-lg text-[9px] lg:text-sm font-semibold ${getAvatarClass(clientName)}`}>
+              {getInitials(clientName)}
+            </div>
+            <div>
+              <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                {clientName}
+              </div>
+              <div className={`mt-1 text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
+                {`Booking ID #${request.booking_id ?? "1234"}`}
+              </div>
+            </div>
+          </div>
+        </td>
+
+        <td className="px-4 py-4 hidden lg:table-cell">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-full ${requestTypeMeta.iconWrapClass}`}>
+              <requestTypeMeta.Icon size={20} strokeWidth={2.5} />
+            </div>
+            <div>
+              <div
+                className={`text-base font-semibold ${requestTypeMeta.amountClass}`}
+              >
+                {formatCurrency(changeAmount)}
+              </div>
+              <div
+                className={`text-xs ${isDark ? "text-white/38" : "text-black/45"}`}
+              >
+                {requestTypeMeta.label}
+              </div>
+            </div>
+          </div>
+        </td>
+
+        <td
+          className={`px-4 py-4 hidden lg:table-cell text-sm ${isDark ? "text-white/80" : "text-black/70"
+            }`}
+        >
+          <div>{`Before: ${formatCurrency(request.previous_total)}`}</div>
+          <div>{`After : ${formatCurrency(request.new_total)}`}</div>
+        </td>
+
+        <td className="px-4 py-4 text-right lg:text-left">
+          <span
+            className={`inline-flex min-w-[84px] items-center justify-center rounded-full px-3 py-1 text-xs font-medium capitalize whitespace-nowrap ${getStatusBadgeClass(
+              status
             )}`}
           >
-            {getInitials(clientName)}
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-[15px] font-medium text-white">{clientName}</div>
-            <div className="mt-1 truncate text-xs text-white/28">
-              {`Booking ID #${request.booking_id ?? "1234"}`}
-            </div>
-          </div>
-        </div>
-      </td>
-      <td className="px-4 py-4">
-        <div className="flex items-center gap-4">
-          <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${requestTypeMeta.iconWrapClass}`}
-          >
-            <requestTypeMeta.Icon size={20} strokeWidth={2.5} />
-          </div>
-          <div>
-            <div className={`text-[16px] font-semibold ${requestTypeMeta.amountClass}`}>
-              {formatCurrency(changeAmount)}
-            </div>
-            <div className="mt-1 text-[13px] text-white/38">{requestTypeMeta.label}</div>
-          </div>
-        </div>
-      </td>
-      <td className="px-4 py-4 text-[14px] leading-6 text-white/84">
-        <div>{`Before: ${formatCurrency(request.previous_total)}`}</div>
-        <div>{`After : ${formatCurrency(request.new_total)}`}</div>
-      </td>
-      <td className="px-4 py-4">
-        <span
-          className={`inline-flex min-w-[84px] items-center justify-center rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadgeClass(
-            status
-          )}`}
+            {status}
+          </span>
+        </td>
+
+        <td
+          className={`px-4 py-4 hidden lg:table-cell ${isDark ? "text-white/60" : "text-black/60"
+            }`}
         >
-          {status}
-        </span>
-      </td>
-      <td className="px-4 py-4">
-        <div className="text-[14px] leading-5 text-white whitespace-pre-line">
           {formatDateTime(request.created_at)}
-        </div>
-      </td>
-      <td className="px-4 py-4 text-center">
-        <button
-          type="button"
-          onClick={onView}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-transparent text-white/90 transition-colors hover:bg-white/[0.06]"
-          aria-label="View details"
-        >
-          <Eye size={17} />
-        </button>
-      </td>
-    </tr>
+        </td>
+
+        <td className="px-4 py-4 text-center hidden lg:table-cell">
+          <button
+            onClick={onView}
+            className={`h-9 w-9 flex items-center justify-center rounded-full border transition-colors ${isDark
+              ? "border-white/12 text-white hover:bg-white/[0.06]"
+              : "border-black/10 text-black hover:bg-black/5"
+              }`}
+          >
+            <Eye size={17} />
+          </button>
+        </td>
+      </tr>
+
+      {/* Mobile Expanded Details Section */}
+      {isExpanded && (
+        <tr className={`lg:hidden transition-colors ${isDark ? "bg-[#202020]" : "bg-black/[0.02]"}`}>
+          <td
+            colSpan={2}
+            className={`px-4 py-6 border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"
+              }`}
+          >
+            <div className="pl-14 space-y-4">
+              <div className="flex flex-col gap-y-4">
+                <div>
+                  <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                    Quote
+                  </p>
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
+                    {quoteLabel}
+                  </p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                    Changes
+                  </p>
+                  <p className={`text-sm ${requestTypeMeta.amountClass}`}>
+                    <TrendingUp size={16} className="inline mr-1" /> {formatCurrency(changeAmount)} / <span className={isDark ? "text-white/40" : "text-black/50"}>{requestTypeMeta.label}</span>
+                  </p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                    Total Amount
+                  </p>
+                  <div className={`text-xs leading-relaxed ${isDark ? "text-[#A1A1A1]" : "text-black/70"}`}>
+                    Before: {formatCurrency(request.previous_total)} / After: {formatCurrency(request.new_total)}
+                  </div>
+                </div>
+                <div>
+                  <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                    Requested At
+                  </p>
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
+                    {formatDateTime(request.created_at)}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                  Action
+                </p>
+                <button
+                  onClick={onView}
+                  className={`w-full rounded-xl font-medium text-sm transition-all text-left p-0 ${isDark
+                    ? "text-[#E8D1AB] hover:bg-[#E8D1AB] hover:text-black"
+                    : " text-black hover:bg-black hover:text-white"
+                    }`}
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
   );
 };
 
@@ -327,63 +468,62 @@ const RequestDetailsModal = ({
   const requestTypeMeta = getRequestTypeMeta(request.request_type || "");
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-      <div className="relative max-h-[90vh] w-full max-w-[1120px] overflow-y-auto rounded-[24px] border border-[rgba(255,255,255,0.18)] bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_120px_rgba(0,0,0,0.72)]">
-        <div className="flex items-start justify-between gap-6 border-b border-white/20 px-6 py-6 lg:px-9 lg:py-7">
-          <h2 className="text-[28px] font-semibold leading-none lg:text-[38px]">View Details</h2>
+    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/80 px-0 pt-7 pb-0 lg:p-4 backdrop-blur-md no-scrollbar ">
+      <div className="relative flex flex-col lg:block max-h-[95vh] lg:max-h-[90vh] w-full max-w-[1120px] overflow-hidden lg:overflow-y-auto rounded-t-3xl lg:rounded-3xl border border-[#FFFFFF66] bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_120px_rgba(0,0,0,0.72)]">
+
+        {/* Header: Fixed at the top */}
+        <div className="flex items-center justify-between gap-6 border-b border-b-[CACACA] px-4 py-7 lg:px-9 shrink-0">
+          <h2 className="lg:text-xl lg:text-[30px] font-bold leading-none">View Details</h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[#2D2725] text-white transition-colors hover:bg-[#39312E]"
+            className="flex w-11 h-11 lg:h-15 lg:w-15 items-center justify-center rounded-full bg-[#2D2725] text-white transition-colors hover:bg-[#39312E]"
             aria-label="Close modal"
           >
             <X size={24} />
           </button>
         </div>
 
-        <div className="space-y-5 px-6 py-6 lg:px-9 lg:py-7">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        {/* Content: Scrollable on mobile (flex-1), static on desktop (lg:overflow-visible) */}
+        <div className="flex-1 overflow-y-auto lg:overflow-visible space-y-5 px-6 py-6 lg:px-9 lg:py-7">
+          <div className="flex gap-5 flex-row items-center justify-between">
             <div>
-              <h3 className="text-[26px] font-semibold text-white">
+              <h3 className="text-lg lg:text-[26px] font-semibold text-white">
                 {request.quote_number || `BEIGE-${request.quote_id ?? "117"}`}
               </h3>
-              <p className="mt-2 text-[14px] text-white/58 lg:text-[16px]">
+              <p className="lg:mt-2 text-xs lg:text-sm text-[#FFFFFFB2]">
                 Review the quote change request details and approve or reject from this popup.
               </p>
             </div>
-            <span
-              className={`inline-flex h-fit min-w-[110px] items-center justify-center rounded-full px-5 py-2.5 text-[14px] font-medium capitalize ${getStatusBadgeClass(
-                status
-              )}`}
-            >
+            <span className={`inline-flex h-fit min-w-[110px] items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium capitalize ${getStatusBadgeClass(status)}`}>
               {status}
             </span>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="flex items-center gap-4 rounded-[16px] border border-white/10 bg-[#1A1A1A] px-4 py-4">
-              <div className="flex h-[54px] w-[54px] items-center justify-center rounded-[12px] bg-[#1B2840] text-[#58A6FF]">
+            <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#1A1A1A] px-4 py-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#1B2840] text-[#58A6FF]">
                 <CalendarDays size={24} />
               </div>
-              <div className="min-w-0 text-[15px] leading-7 text-white/62 lg:text-[16px]">
+              <div className="min-w-0 text-sm leading-7 text-white/62 lg:text-base">
                 <span className="text-white/62">Requested At : </span>
                 <span className="font-semibold text-white">{formatShortDateTime(request.created_at)}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 rounded-[16px] border border-white/10 bg-[#1A1A1A] px-4 py-4">
-              <div className="flex h-[54px] w-[54px] items-center justify-center rounded-[12px] bg-[#17331E] text-[#1ED760]">
+            <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#1A1A1A] px-4 py-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#17331E] text-[#1ED760]">
                 <TrendingUp size={24} />
               </div>
-              <div className="min-w-0 text-[15px] leading-7 text-white/62 lg:text-[16px]">
+              <div className="min-w-0 text-sm leading-7 text-white/62 lg:text-base">
                 <span className="text-white/62">Request Type : </span>
                 <span className={requestTypeMeta.amountClass}>{requestTypeMeta.label}</span>
               </div>
             </div>
           </div>
 
-          <section className="rounded-[16px] border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
-            <h4 className="text-[21px] font-medium text-white">Request Info</h4>
+          <section className="rounded-2xl border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
+            <h4 className="lg:text-xl font-medium text-white">Request Info</h4>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-4">
               {[
@@ -414,33 +554,31 @@ const RequestDetailsModal = ({
               ].map(({ label, value, icon: Icon, valueClass }, index) => (
                 <div
                   key={label}
-                  className={`flex flex-col items-start ${
-                    index < 3 ? "lg:border-r lg:border-white/12 lg:pr-6" : ""
-                  }`}
+                  className={`flex lg:flex-col items-center gap-2.5 lg:items-start ${index < 3 ? "lg:border-r lg:border-white/12 lg:pr-6" : ""}`}
                 >
-                  <div className="flex h-[46px] w-[46px] items-center justify-center rounded-[10px] bg-[#EFD6A9] text-black">
+                  <div className="flex h-9 w-9 lg:h-11 lg:w-11 items-center justify-center rounded-lg bg-[#EFD6A9] text-black">
                     <Icon size={22} />
                   </div>
-                  <div className="mt-3 text-[15px] text-white/58 lg:text-[16px]">{label}</div>
-                  <div className={`mt-1 text-[17px] font-medium lg:text-[18px] ${valueClass}`}>
+                  <div className="lg:mt-3 text-sm lg:text-base text-white/70 lg:text-base">{label}</div>
+                  <div className={`lg:mt-1 text-sm lg:text-base font-medium lg:text-lg ${valueClass}`}>
                     {value}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-[12px] border border-white/12 bg-[#0B0B0B]">
-              <div className="border-b border-white/10 px-5 py-5 text-[21px] font-medium text-[#E7D2AB]">
+            <div className="mt-6 overflow-hidden rounded-xl border border-white/12 bg-[#0B0B0B]">
+              <div className="border-b border-white/10 px-5 py-5 lg:text-xl font-medium text-[#E7D2AB]">
                 Total Amount
               </div>
-              <div className="grid gap-4 px-5 py-5 lg:grid-cols-[1fr_auto]">
-                <div className="space-y-2 text-[16px] leading-8 text-white/62">
+              <div className="grid gap-4 px-5 py-5 grid-cols-[1fr_auto]">
+                <div className="space-y-2 text-sm lg:text-base leading-8 text-white/62">
                   <div>Previous Total</div>
                   <div>Increase Amount</div>
                   <div>Reduced Amount</div>
                   <div>New Total</div>
                 </div>
-                <div className="space-y-2 text-right text-[16px] leading-8">
+                <div className="space-y-2 text-right text-sm lg:text-base leading-8">
                   <div className="font-semibold text-white">{formatCurrency(previousTotal)}</div>
                   <div className="font-semibold text-[#1ED760]">{formatCurrency(extraAmount)}</div>
                   <div className="font-semibold text-white">{formatCurrency(reducedAmount)}</div>
@@ -450,11 +588,10 @@ const RequestDetailsModal = ({
             </div>
           </section>
 
-          <section className="rounded-[16px] border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
-            <h4 className="text-[21px] font-medium text-white">Change Summary</h4>
-
-            <div className="mt-5 overflow-hidden rounded-[12px] border border-white/12 bg-[#0B0B0B]">
-              <div className="border-b border-white/10 px-5 py-6 text-[18px] font-semibold leading-8 text-[#E7D2AB]">
+          <section className="rounded-2xl border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
+            <h4 className="lg:text-xl font-medium text-white">Change Summary</h4>
+            <div className="mt-5 overflow-hidden rounded-xl border border-white/12 bg-[#0B0B0B]">
+              <div className="border-b border-white/10 px-5 py-6 lg:text-lg font-semibold leading-8 text-[#E7D2AB]">
                 {changeSummary ||
                   `Quote total changed from ${formatCurrency(previousTotal)} to ${formatCurrency(
                     newTotal
@@ -462,7 +599,7 @@ const RequestDetailsModal = ({
                     requestType === "increase" ? extraAmount : reducedAmount
                   )}) across 1 update.`}
               </div>
-              <div className="space-y-4 px-5 py-5 text-[15px] leading-8 text-white/58 lg:text-[16px]">
+              <div className="space-y-4 px-5 py-5 text-xs lg:text-sm leading-5 lg:leading-7 text-white/70 lg:text-base">
                 {summaryLines.length > 0 ? (
                   summaryLines.map((line, index) => (
                     <p key={`${request.activity_id}-line-${index}`}>{line}</p>
@@ -475,7 +612,7 @@ const RequestDetailsModal = ({
                   <Link href={`${detailsHrefBase}/${request.quote_id}`}>
                     <Button
                       type="button"
-                      className="mt-2 h-[54px] rounded-[14px] bg-[#EED4A7] px-5 text-[15px] font-semibold text-black hover:bg-[#EED4A7]/92"
+                      className="mt-2 h-14 rounded-lg lg:rounded-2xl bg-[#EED4A7] px-5 text-sm lg:text-base font-semibold text-black hover:bg-[#EED4A7]/92"
                     >
                       View Full Quote Details
                     </Button>
@@ -485,12 +622,13 @@ const RequestDetailsModal = ({
             </div>
           </section>
 
-          <div className="flex flex-col gap-4 pt-1 lg:flex-row lg:items-center lg:justify-between">
+          {/* On desktop, the footer div is rendered here to scroll with content */}
+          <div className="hidden lg:flex flex-col gap-4 pt-1 lg:flex-row lg:items-center lg:justify-between mt-10">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="h-[58px] rounded-[14px] border-white/12 bg-[#111111] px-7 text-[16px] text-white hover:bg-[#181818]"
+              className="h-15 rounded-2xl border-white/12 bg-[#111111] px-7 text-base text-white hover:bg-[#181818]"
             >
               Close
             </Button>
@@ -501,7 +639,7 @@ const RequestDetailsModal = ({
                 onClick={onReject}
                 disabled={!canReview}
                 isLoading={processingAction === "reject"}
-                className="h-[58px] min-w-[180px] rounded-[14px] border border-[#A31D1D] bg-[#2A0E0E] px-7 text-[16px] text-[#FF7B7B] hover:bg-[#341111]"
+                className="h-15 min-w-[180px] rounded-2xl border border-[#A31D1D] bg-[#2A0E0E] px-7 text-base text-[#FF7B7B] hover:bg-[#341111]"
               >
                 <X size={20} />
                 Reject
@@ -511,7 +649,43 @@ const RequestDetailsModal = ({
                 onClick={onApprove}
                 disabled={!canReview}
                 isLoading={processingAction === "approve"}
-                className="h-[58px] min-w-[180px] rounded-[14px] bg-[#22C55E] px-7 text-[16px] font-semibold text-black hover:bg-[#28d165]"
+                className="h-15 min-w-[180px] rounded-2xl bg-[#22C55E] px-7 text-base font-semibold text-black hover:bg-[#28d165]"
+              >
+                <Check size={20} />
+                Accept
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed Footer: Visible only on mobile */}
+        <div className="relative lg:hidden shrink-0 bg-[#0B0B0B] p-6 pt-4">
+          <div className="flex flex-col gap-4">
+            <Button
+              type="button"
+              // variant="link"
+              onClick={onClose}
+              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent py-5 min-w-[166px] text-sm font-medium transition-all disabled:opacity-70"
+            >
+              Close
+            </Button>
+            <div className="flex gap-4 sm:flex-row">
+              <Button
+                type="button"
+                onClick={onReject}
+                disabled={!canReview}
+                isLoading={processingAction === "reject"}
+                className="h-14 w-full rounded-lg border border-[#A31D1D] bg-[#2A0E0E] text-sm font-semibold text-[#FF7B7B]"
+              >
+                <X size={20} />
+                Reject
+              </Button>
+              <Button
+                type="button"
+                onClick={onApprove}
+                disabled={!canReview}
+                isLoading={processingAction === "approve"}
+                className="h-14 w-full rounded-lg bg-[#22C55E] text-sm font-semibold text-black"
               >
                 <Check size={20} />
                 Accept
@@ -533,29 +707,30 @@ export default function QuoteChangeRequestsWorkspace({
   const pathname = usePathname();
   const { theme } = useTheme();
 
-  const [mounted, setMounted] = React.useState(false);
-  const [requests, setRequests] = React.useState<QuoteChangeRequestItem[]>([]);
-  const [pagination, setPagination] = React.useState<QuotesListPagination | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [page, setPage] = React.useState(1);
-  const [searchInput, setSearchInput] = React.useState("");
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [approvalStatusFilter, setApprovalStatusFilter] = React.useState("all");
-  const [requestTypeFilter, setRequestTypeFilter] = React.useState("all");
-  const [selectedRequest, setSelectedRequest] = React.useState<QuoteChangeRequestItem | null>(null);
-  const [processingAction, setProcessingAction] = React.useState<"approve" | "reject" | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [requests, setRequests] = useState<QuoteChangeRequestItem[]>([]);
+  const [pagination, setPagination] = useState<QuotesListPagination | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState("all");
+  const [requestTypeFilter, setRequestTypeFilter] = useState("all");
+  const [selectedRequest, setSelectedRequest] = useState<QuoteChangeRequestItem | null>(null);
+  const [processingAction, setProcessingAction] = useState<"approve" | "reject" | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<string | number | null>(null);
 
   const isDark = !mounted || theme === "dark";
 
-  React.useEffect(() => {
+  useEffect(() => {
     setMounted(true);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setPage(1);
   }, [approvalStatusFilter, requestTypeFilter, searchQuery]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setSearchQuery(searchInput.trim());
     }, 300);
@@ -565,7 +740,7 @@ export default function QuoteChangeRequestsWorkspace({
     };
   }, [searchInput]);
 
-  const loadRequests = React.useCallback(async () => {
+  const loadRequests = useCallback(async () => {
     setLoading(true);
 
     const response = await salesApi.getQuoteChangeRequests({
@@ -589,7 +764,7 @@ export default function QuoteChangeRequestsWorkspace({
     setLoading(false);
   }, [approvalStatusFilter, page, requestTypeFilter, searchQuery]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     void loadRequests();
   }, [loadRequests]);
 
@@ -597,15 +772,15 @@ export default function QuoteChangeRequestsWorkspace({
   const totalPages = Math.max(
     Number(
       pagination?.total_pages ??
-        pagination?.totalPages ??
-        (totalItems > 0 ? Math.ceil(totalItems / REQUESTS_PER_PAGE) : 1)
+      pagination?.totalPages ??
+      (totalItems > 0 ? Math.ceil(totalItems / REQUESTS_PER_PAGE) : 1)
     ),
     1
   );
   const safeCurrentPage = pagination?.page ?? Math.min(page, totalPages);
   const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (page > totalPages) {
       setPage(totalPages);
     }
@@ -637,9 +812,9 @@ export default function QuoteChangeRequestsWorkspace({
 
     toast.success(
       response.message ||
-        (decision === "approve"
-          ? "Quote change request approved successfully"
-          : "Quote change request rejected successfully")
+      (decision === "approve"
+        ? "Quote change request approved successfully"
+        : "Quote change request rejected successfully")
     );
   };
 
@@ -648,35 +823,32 @@ export default function QuoteChangeRequestsWorkspace({
       <TopbarComponent pathname={pathname} />
 
       <div
-        className={`min-h-screen px-4 pb-12 pt-6 lg:px-5 lg:pb-16 lg:pt-8 ${
-          isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#101010]"
-        }`}
+        className={`min-h-screen px-4 pb-12 pt-6 lg:px-10 lg:pt-10 lg:pb-16 lg:pt-8 ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#101010]"
+          }`}
       >
-        <div className="mx-auto w-full max-w-[1480px]">
+        <div className="w-full">
           <div className="mb-6">
-            <h1 className="text-[22px] font-semibold text-white">{title}</h1>
-            <p className="mt-1 text-sm text-white/45">{description}</p>
+            <h1 className="lg:text-[22px] font-semibold text-white">{title}</h1>
+            <p className="mt-1 text-xs lg:text-sm text-white/70">{description}</p>
           </div>
 
-          <div className="mb-4 border-t border-dashed border-white/10" />
-
           <div className="mb-4 flex flex-col gap-3 lg:flex-row">
-            <div className="flex min-w-0 flex-1 items-center rounded-[14px] border border-white/10 bg-[#242424] px-4 py-3">
+            <div className="flex min-w-0 flex-1 items-center rounded-lg lg:rounded-2xl border border-white/10 bg-[#242424] px-4 py-3">
               <Search size={17} className="mr-3 text-white/35" />
               <input
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search quotes, booking, Client , rep"
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/28"
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
               />
             </div>
 
-            <div className="flex gap-3">
-              <div className="relative">
+            <div className="flex w-full lg:w-auto gap-3">
+              <div className="relative flex-1 lg:w-auto">
                 <select
                   value={requestTypeFilter}
                   onChange={(event) => setRequestTypeFilter(event.target.value)}
-                  className="h-[46px] appearance-none rounded-[14px] border border-white/10 bg-[#242424] pl-4 pr-10 text-sm text-white outline-none"
+                  className="h-11 appearance-none rounded-lg lg:rounded-2xl border border-white/10 bg-[#242424] pl-4 pr-10 text-sm text-white outline-none w-full lg:w-auto"
                 >
                   <option value="all">All Types</option>
                   <option value="increase">Increase</option>
@@ -688,11 +860,11 @@ export default function QuoteChangeRequestsWorkspace({
                 />
               </div>
 
-              <div className="relative">
+              <div className="relative flex-1 lg:w-auto">
                 <select
                   value={approvalStatusFilter}
                   onChange={(event) => setApprovalStatusFilter(event.target.value)}
-                  className="h-[46px] appearance-none rounded-[14px] border border-white/10 bg-[#242424] pl-4 pr-10 text-sm text-white outline-none"
+                  className="h-11 appearance-none rounded-lg lg:rounded-2xl border border-white/10 bg-[#242424] pl-4 pr-10 text-sm text-white outline-none w-full lg:w-auto"
                 >
                   <option value="all">All Statuses</option>
                   <option value="pending">Pending</option>
@@ -707,61 +879,177 @@ export default function QuoteChangeRequestsWorkspace({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#171717]">
-            <div className="hidden lg:block">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-white/[0.04] bg-[#141414] text-left text-[11px] text-[#E7D2AB]">
-                    {["Quote", "Client", "Changes", "Total Amount", "Status", "Requested At", "Action"].map(
-                      (label) => (
-                        <th key={label} className="px-4 py-4 font-medium">
-                          {label}
-                        </th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    Array.from({ length: 10 }).map((_, index) => (
-                      <tr key={index} className="border-t border-white/[0.05]">
-                        {Array.from({ length: 7 }).map((__, cellIndex) => (
-                          <td key={cellIndex} className="px-4 py-4">
-                            <div className="h-5 animate-pulse rounded bg-white/8" />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : requests.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-20 text-center text-white/58">
-                        No change requests found
+          <div className={`overflow-hidden rounded-lg lg:rounded-2xl border transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                {/* Desktop Headers */}
+                <tr
+                  className={`hidden lg:table-row border-b text-left text-sm transition-colors ${isDark
+                    ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
+                    : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                    }`}
+                >
+                  {[
+                    "Quote",
+                    "Client",
+                    "Changes",
+                    "Total Amount",
+                    "Status",
+                    "Requested At",
+                    "Action",
+                  ].map((label) => (
+                    <th key={label} className="px-4 py-4 font-medium">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+                {/* Mobile Headers */}
+                <tr
+                  className={`lg:hidden border-b text-sm transition-colors ${isDark
+                    ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
+                    : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                    }`}
+                >
+                  <th className="px-4 py-4 font-medium">Client</th>
+                  <th className="px-4 py-4 text-right font-medium">Status</th>
+                </tr>
+              </thead>
+
+              <tbody className="text-sm">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <tr
+                      key={index}
+                      className={`border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"
+                        }`}
+                    >
+                      <td colSpan={7} className="px-4 py-4">
+                        <div
+                          className={`h-5 animate-pulse rounded ${isDark ? "bg-white/5" : "bg-black/5"
+                            }`}
+                        />
                       </td>
                     </tr>
-                  ) : (
-                    requests.map((request) => (
-                      <TableRow
-                        key={String(request.activity_id)}
-                        request={request}
-                        onView={() => setSelectedRequest(request)}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                ) : requests.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className={`px-6 py-20 text-center ${isDark ? "text-white/50" : "text-black/45"
+                        }`}
+                    >
+                      No change requests found
+                    </td>
+                  </tr>
+                ) : (
+                  requests.map((request) => (
+                    <TableRow
+                      key={String(request.activity_id)}
+                      request={request}
+                      isDark={isDark}
+                      isExpanded={expandedRowId === request.activity_id}
+                      onToggle={() => {
+                        const currentId = request.activity_id ?? null; // Fallback to null if undefined
+                        setExpandedRowId(expandedRowId === currentId ? null : currentId);
+                      }}
+                      onView={() => setSelectedRequest(request)}
+                    />
+                  ))
+                )}
+              </tbody>
 
-            <div className="space-y-3 p-4 lg:hidden">
+              {/* Integrated Pagination Footer */}
+              {!loading && requests.length > 0 && (
+                <tfoot>
+                  <tr
+                    className={`border-t transition-colors ${isDark
+                      ? "border-white/[0.05] bg-[#141414]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6]"
+                      }`}
+                  >
+                    <td colSpan={7} className="px-4 py-4">
+                      <div className="flex gap-4 items-center justify-center lg:justify-between">
+                        <div className={`hidden lg:block text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>
+                          {`Page ${safeCurrentPage} to ${totalPages}`}
+                        </div>
+                        <div className="flex items-center gap-2 self-auto">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPage((currentValue) => Math.max(1, currentValue - 1))
+                            }
+                            disabled={safeCurrentPage === 1}
+                            className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-colors disabled:opacity-35 ${isDark
+                              ? "text-[#6D6D6D] hover:bg-white/[0.04]"
+                              : "text-black/60 hover:bg-black/5"
+                              }`}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+
+                          {paginationItems.map((item, index) =>
+                            item === "..." ? (
+                              <span
+                                key={`ellipsis-${index}`}
+                                className={`px-2 text-sm ${isDark ? "text-white/40" : "text-black/30"
+                                  }`}
+                              >
+                                ...
+                              </span>
+                            ) : (
+                              <button
+                                key={item}
+                                type="button"
+                                onClick={() => setPage(item)}
+                                className={`flex h-9 min-w-9 items-center justify-center rounded-[10px] px-3 text-sm transition-colors ${safeCurrentPage === item
+                                  ? isDark
+                                    ? "border border-[#E8D1AB] bg-[#202020] text-[#E7D2AB]"
+                                    : "border border-black bg-black text-white"
+                                  : isDark
+                                    ? "text-[#6D6D6D] hover:bg-white/[0.04]"
+                                    : "text-black/60 hover:bg-black/5"
+                                  }`}
+                              >
+                                {item}
+                              </button>
+                            )
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPage((currentValue) =>
+                                Math.min(totalPages, currentValue + 1)
+                              )
+                            }
+                            disabled={safeCurrentPage === totalPages}
+                            className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-colors disabled:opacity-35 ${isDark
+                              ? "text-[#6D6D6D] hover:bg-white/[0.04]"
+                              : "text-black/60 hover:bg-black/5"
+                              }`}
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          {/* <div className="space-y-3 p-4 lg:hidden">
               {loading ? (
                 Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="rounded-[16px] border border-white/10 bg-[#141414] p-4">
+                  <div key={index} className="rounded-2xl border border-white/10 bg-[#141414] p-4">
                     <div className="h-4 animate-pulse rounded bg-white/8" />
                     <div className="mt-3 h-4 animate-pulse rounded bg-white/8" />
                     <div className="mt-3 h-10 animate-pulse rounded bg-white/8" />
                   </div>
                 ))
               ) : requests.length === 0 ? (
-                <div className="py-12 text-center text-white/58">No change requests found</div>
+                <div className="py-12 text-center text-white/70">No change requests found</div>
               ) : (
                 requests.map((request) => {
                   const clientName = request.client_name || "Client not available";
@@ -777,14 +1065,14 @@ export default function QuoteChangeRequestsWorkspace({
                       key={String(request.activity_id)}
                       type="button"
                       onClick={() => setSelectedRequest(request)}
-                      className="w-full rounded-[16px] border border-white/10 bg-[#141414] p-4 text-left"
+                      className="w-full rounded-2xl border border-white/10 bg-[#141414] p-4 text-left"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-[15px] font-medium text-white">
+                          <div className="text-base font-medium text-white">
                             {request.quote_number || `Beige - ${request.quote_id ?? "-"}`}
                           </div>
-                          <div className="mt-1 text-xs text-white/28">{clientName}</div>
+                          <div className="mt-1 text-xs text-white/40">{clientName}</div>
                         </div>
                         <span
                           className={`inline-flex min-w-[84px] items-center justify-center rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadgeClass(
@@ -803,10 +1091,10 @@ export default function QuoteChangeRequestsWorkspace({
                             <requestTypeMeta.Icon size={20} strokeWidth={2.5} />
                           </div>
                           <div>
-                            <div className={`text-[15px] font-semibold ${requestTypeMeta.amountClass}`}>
+                            <div className={`text-base font-semibold ${requestTypeMeta.amountClass}`}>
                               {formatCurrency(changeAmount)}
                             </div>
-                            <div className="mt-0.5 text-xs text-white/28">
+                            <div className="mt-0.5 text-xs text-white/40">
                               {requestTypeMeta.label}
                             </div>
                           </div>
@@ -823,21 +1111,21 @@ export default function QuoteChangeRequestsWorkspace({
 
             {!loading && requests.length > 0 ? (
               <div className="flex flex-col gap-4 border-t border-white/[0.05] px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="text-sm text-white/58">{`Page ${safeCurrentPage} to ${totalPages}`}</div>
+                <div className="text-sm text-white/70">{`Page ${safeCurrentPage} to ${totalPages}`}</div>
 
                 <div className="flex items-center gap-2 self-end">
                   <button
                     type="button"
                     onClick={() => setPage((currentValue) => Math.max(1, currentValue - 1))}
                     disabled={safeCurrentPage === 1}
-                    className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white/48 transition-colors hover:bg-white/[0.04] disabled:opacity-35"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-white/48 transition-colors hover:bg-white/[0.04] disabled:opacity-35"
                   >
                     <ChevronLeft size={16} />
                   </button>
 
                   {paginationItems.map((item, index) =>
                     item === "..." ? (
-                      <span key={`ellipsis-${index}`} className="px-2 text-sm text-white/28">
+                      <span key={`ellipsis-${index}`} className="px-2 text-sm text-white/40">
                         ...
                       </span>
                     ) : (
@@ -845,11 +1133,10 @@ export default function QuoteChangeRequestsWorkspace({
                         key={item}
                         type="button"
                         onClick={() => setPage(item)}
-                        className={`flex h-9 min-w-9 items-center justify-center rounded-[10px] px-3 text-sm transition-colors ${
-                          safeCurrentPage === item
-                            ? "border border-[#5A4A32] bg-[#221B13] text-[#E7D2AB]"
-                            : "text-white/58 hover:bg-white/[0.04]"
-                        }`}
+                        className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm transition-colors ${safeCurrentPage === item
+                          ? "border border-[#5A4A32] bg-[#221B13] text-[#E7D2AB]"
+                          : "text-white/70 hover:bg-white/[0.04]"
+                          }`}
                       >
                         {item}
                       </button>
@@ -860,14 +1147,13 @@ export default function QuoteChangeRequestsWorkspace({
                     type="button"
                     onClick={() => setPage((currentValue) => Math.min(totalPages, currentValue + 1))}
                     disabled={safeCurrentPage === totalPages}
-                    className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white/48 transition-colors hover:bg-white/[0.04] disabled:opacity-35"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-white/48 transition-colors hover:bg-white/[0.04] disabled:opacity-35"
                   >
                     <ChevronRight size={16} />
                   </button>
                 </div>
               </div>
-            ) : null}
-          </div>
+            ) : null} */}
         </div>
       </div>
 

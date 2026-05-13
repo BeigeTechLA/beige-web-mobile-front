@@ -33,6 +33,8 @@ interface LeadsTableProps {
   totalRecords: number;
   limit: number;
   activeStatusFilter?: BookingStatus | "All";
+  viewMode?: "list" | "grid";
+  showViewSwitcher?: boolean;
   onViewModeChange?: (mode: "list" | "grid") => void;
   onPageChange: (page: number) => void;
   onRowClick: (id: number) => void;
@@ -100,6 +102,8 @@ export default function LeadsTable({
   totalRecords,
   limit,
   activeStatusFilter = "All",
+  viewMode,
+  showViewSwitcher = true,
   onViewModeChange,
   onPageChange,
   onRowClick,
@@ -107,14 +111,15 @@ export default function LeadsTable({
 }: LeadsTableProps) {
   const { theme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark" || theme === "dark";
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [internalViewMode, setInternalViewMode] = useState<"list" | "grid">("list");
   const [kanbanOrder, setKanbanOrder] = useState<Record<string, number[]>>({});
   const [draggedLeadId, setDraggedLeadId] = useState<number | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<string | null>(null);
+  const currentViewMode = viewMode ?? internalViewMode;
 
   useEffect(() => {
-    onViewModeChange?.(viewMode);
-  }, [onViewModeChange, viewMode]);
+    onViewModeChange?.(currentViewMode);
+  }, [onViewModeChange, currentViewMode]);
 
 const visibleStatuses = useMemo(() => {
   if (activeStatusFilter !== "All") {
@@ -244,16 +249,17 @@ const visibleStatuses = useMemo(() => {
         isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E5E5E5] bg-white"
       }`}
     >
-      {/* <div
-        className={`hidden lg:flex items-center justify-end gap-2 px-6 py-4 border-b ${
-          isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-[#FFFCF6]"
-        }`}
-      >
+      {showViewSwitcher && (
+        <div
+          className={`hidden lg:flex items-center justify-end gap-2 px-6 py-4 border-b ${
+            isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-[#FFFCF6]"
+          }`}
+        >
         <button
           type="button"
-          onClick={() => setViewMode("list")}
+          onClick={() => setInternalViewMode("list")}
           className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-            viewMode === "list"
+            currentViewMode === "list"
               ? isDark
                 ? "bg-[#E5D5B8] text-black"
                 : "bg-[#E8D1AB] text-black"
@@ -267,9 +273,9 @@ const visibleStatuses = useMemo(() => {
         </button>
         <button
           type="button"
-          onClick={() => setViewMode("grid")}
+          onClick={() => setInternalViewMode("grid")}
           className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-            viewMode === "grid"
+            currentViewMode === "grid"
               ? isDark
                 ? "bg-[#E5D5B8] text-black"
                 : "bg-[#E8D1AB] text-black"
@@ -281,10 +287,27 @@ const visibleStatuses = useMemo(() => {
           <Grid3X3 size={16} />
           
         </button>
-      </div> */}
+        </div>
+      )}
 
-      <div className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
-        {viewMode === "grid" ? (
+      <div className="relative">
+        {isFetching && (
+          <div className="absolute inset-0 z-10 flex items-start justify-center pt-6 pointer-events-none">
+            <div
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs shadow-sm ${
+                isDark
+                  ? "bg-[#111] text-white/80 border border-[#2A2A2A]"
+                  : "bg-white text-[#555] border border-[#E5E5E5]"
+              }`}
+            >
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Loading latest leads...</span>
+            </div>
+          </div>
+        )}
+
+        <div className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
+        {currentViewMode === "grid" ? (
           <div className="hidden lg:block p-6">
             <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-2">
               <div className="flex items-start gap-5 min-w-max">
@@ -374,8 +397,8 @@ const visibleStatuses = useMemo(() => {
     } ${draggedLeadId === lead.lead_id ? "opacity-50 scale-95" : "opacity-100"}`}
   >
     {/* 1. HEADER: Avatar, Name, Date, Menu */}
-    <div className="flex items-start justify-between">
-      <div className="flex items-center gap-3">
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className="w-12 h-12 rounded-xl bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-sm shrink-0">
           {lead.clientName
             .split(" ")
@@ -384,8 +407,11 @@ const visibleStatuses = useMemo(() => {
             .toUpperCase()
             .substring(0, 2)}
         </div>
-        <div>
-          <h4 className={`text-[16px] font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
+        <div className="min-w-0 flex-1">
+          <h4
+            title={lead.clientName}
+            className={`text-[16px] font-semibold leading-tight truncate ${isDark ? "text-white" : "text-[#111111]"}`}
+          >
             {lead.clientName}
           </h4>
           <div className="mt-1">
@@ -445,7 +471,10 @@ const visibleStatuses = useMemo(() => {
         <span className={`text-sm font-medium ${isDark ? "text-[#C5A47E]" : "text-[#8C6A00]"}`}>
           Email ID
         </span>
-        <span className={`text-sm truncate max-w-[160px] text-right font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
+        <span
+          title={lead.email}
+          className={`text-sm truncate min-w-0 max-w-[160px] flex-1 text-right font-medium ${isDark ? "text-white/90" : "text-black/80"}`}
+        >
           {lead.email}
         </span>
       </div>
@@ -583,12 +612,11 @@ const visibleStatuses = useMemo(() => {
                     >
                       <div className="space-y-1 min-w-0">
                         <p>{lead.lastActivity}</p>
-                        {(lead.assignedSalesRepName || lead.assignedSalesRepEmail) && (
-                          <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
-                            {lead.assignedSalesRepName || "Unassigned"}
-                            {lead.assignedSalesRepEmail ? ` - ${lead.assignedSalesRepEmail}` : ""}
-                          </p>
-                        )}
+                        <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                          {lead.assignedSalesRepName || "Unassigned"}
+                          {" - "}
+                          {lead.assignedSalesRepEmail || "N/A"}
+                        </p>
                       </div>
                     </td>
                     <td className={`p-3 lg:py-5 text-right border-b group-last:border-0 ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
@@ -617,6 +645,7 @@ const visibleStatuses = useMemo(() => {
             </table>
           </div>
         )}
+        </div>
       </div>
 
       {!loading && totalPages > 1 && (
@@ -626,7 +655,7 @@ const visibleStatuses = useMemo(() => {
           }`}
         >
           <div className={`text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-            {viewMode === "grid"
+            {currentViewMode === "grid"
               ? `Showing ${((currentPage - 1) * limit) + 1} to ${Math.min(currentPage * limit, totalRecords)} of ${totalRecords} leads across status columns`
               : `Showing ${((currentPage - 1) * limit) + 1} to ${Math.min(currentPage * limit, totalRecords)} of ${totalRecords} leads`}
           </div>

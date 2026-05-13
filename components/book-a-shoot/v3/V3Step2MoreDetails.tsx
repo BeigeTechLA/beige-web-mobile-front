@@ -6,7 +6,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { Video, Camera, Scissors, MapPin } from "lucide-react";
+import { Video, Camera, Scissors, MapPin, Plus, Trash2, ExternalLink, Globe, Image as ImageIcon, Eye } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
@@ -41,7 +41,7 @@ interface FormFields {
   additional_creative: boolean,
   shoot_location: string,
   additional_details: string,
-  supporting_url: string,
+  supporting_url: string[],
   videographyCount?: string
   photographyCount?: string
 }
@@ -66,6 +66,89 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
   const isCoachella = data.shootType === "coachella";
+
+   const links = data.referenceLinks || [];
+
+  const [newLink, setNewLink] = useState("");
+  const [showAllPreviews, setShowAllPreviews] = useState(true);
+
+  const handleLinkChange = (index: number, value: string) => {
+    const newLinks = [...links];
+    newLinks[index] = value;
+    updateData({ referenceLinks: newLinks });
+  };
+
+  const handleAddLink = () => {
+    if (!newLink.trim()) return;
+    
+    // Normalize if needed but standard is to keep what user put and validate
+    const normalized = normalizeUrl(newLink);
+    if (!isValidUrl(normalized)) {
+      toast.error("Please enter a valid URL");
+      return;
+    }
+
+    if (links.includes(normalized)) {
+       toast.error("This link is already added");
+       return;
+    }
+
+    updateData({ referenceLinks: [...links, normalized] });
+    setNewLink("");
+  };
+
+  const removeLinkField = (index: number) => {
+    const newLinks = links.filter((_, i) => i !== index);
+    updateData({ referenceLinks: newLinks });
+  };
+  const isImageUrl = (url: string) => {
+    return /\.(jpeg|jpg|gif|png|webp|svg|avif)(\?.*)?$/i.test(url);
+  };
+
+  const shouldShowPreview = (url: string) => {
+    return Boolean(getPreviewUrl(url)) || isImageUrl(normalizeUrl(url)) || isValidUrl(normalizeUrl(url));
+  };
+
+  const normalizeUrl = (url: string) => {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return "";
+    if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+      return trimmedUrl;
+    }
+    return `https://${trimmedUrl}`;
+  };
+
+  const getPreviewUrl = (url: string) => {
+    const normalizedUrl = normalizeUrl(url);
+    if (!normalizedUrl || !isValidUrl(normalizedUrl)) return null;
+
+    // Pinterest
+    if (normalizedUrl.includes("pinterest.com") || normalizedUrl.includes("pin.it")) {
+        // Pinterest doesn't embed well in iframes due to CSP, but we can try the widget or just show a nice placeholder
+        return null; 
+    }
+
+    const youtubeMatch = normalizedUrl.match(
+      /(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/shorts\/|\/live\/))([\w-]{11})/
+    );
+    if (youtubeMatch) {
+      return `https://www.youtube.com/embed/${youtubeMatch[1]}?rel=0`;
+    }
+
+    const vimeoMatch = normalizedUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+
+    const driveMatch =
+      normalizedUrl.match(/\/d\/([^/]+)/) ||
+      normalizedUrl.match(/[?&]id=([^&]+)/);
+    if (driveMatch) {
+      return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    }
+
+    return null;
+  };
 
   const includedRoles = data.contentType.map((type) => {
     if (type === "editing") {
@@ -263,12 +346,12 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         location_latitude?: number;
         location_longitude?: number;
         description?: string;
-        reference_links?: string;
+        reference_links?: string[];
       } = {
         booking_id: data.bookingId,
         crew_roles: crewRoles,
-        description: data.specialInstructions,  // NEW: From Textarea
-        reference_links: data.referenceLinks,   // NEW: From Input
+        description: data.specialInstructions, 
+        reference_links: data.referenceLinks.filter(l => l.trim() !== ""),
       };
 
       if (!isEditingOnly && data.location) {
@@ -513,23 +596,150 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           />
         </div>
 
-        <div className="relative">
-          <label
-            htmlFor="referenceLinks"
-            className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60 z-10"
-          >
-            Supporting Links
-          </label>
-          <input
-            id="referenceLinks"
-            value={data.referenceLinks}
-            onChange={(e) => updateData({ referenceLinks: e.target.value })}
-            onBlur={() => scrollToRef(navigationRef)}
-            placeholder="Share any links to inspo or reference content."
-            className="w-full rounded-[12px] border border-white/30 p-4 pt-6 text-white outline-none focus:border-white/60 transition-all resize-none bg-[#101010] text-sm lg:text-base"
-          />
-        </div>
+         <div className="flex flex-col gap-6 pt-6">
+          <div className="relative flex flex-col gap-4">
+            <label
+              htmlFor="referenceLinks-input"
+              className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60 z-10"
+            >
+              Supporting Links
+            </label>
+            
+            <div className="flex gap-2 items-center">
+              <input
+                id="referenceLinks-input"
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
+                placeholder="Share any links to inspo or reference content."
+                className="w-full rounded-[12px] border border-white/30 px-4 py-4 text-white outline-none focus:border-white/60 transition-all bg-[#101010] text-sm lg:text-base"
+              />
+              <button 
+                onClick={handleAddLink}
+                className="h-[56px] lg:h-[60px] px-6 bg-[#E8D1AB] text-black rounded-[12px] font-medium hover:bg-[#dcb98a] transition-colors whitespace-nowrap flex items-center justify-center gap-2"
+              >
+                <Plus size={20} />
+                <span>Add</span>
+              </button>
+            </div>
 
+            {links.length > 0 && (
+              <div className="flex items-center justify-between mt-2 px-1">
+                 <div className="flex flex-col">
+                    <h4 className="text-xs font-semibold text-white/90 uppercase tracking-widest">Added References</h4>
+                    <p className="text-[10px] text-white/40">{links.length} link{links.length > 1 ? 's' : ''} total</p>
+                 </div>
+                 <div className="flex items-center gap-3">
+                    {links.length > 1 && (
+                        <button 
+                            onClick={() => updateData({ referenceLinks: [] })}
+                            className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors uppercase tracking-wider font-medium"
+                        >
+                            Clear All
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => setShowAllPreviews(!showAllPreviews)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-medium ${showAllPreviews ? "bg-white/10 border-white/20 text-white" : "bg-[#E8D1AB] border-transparent text-black"}`}
+                    >
+                        {showAllPreviews ? <Eye size={14} /> : <Eye size={14} />}
+                        {showAllPreviews ? "Hide Previews" : "Show All Previews"}
+                    </button>
+                 </div>
+              </div>
+            )}
+
+            {showAllPreviews && links.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+                {links.map((link, index) => {
+                  const normalized = normalizeUrl(link);
+                  const previewUrl = getPreviewUrl(link);
+                  const isImage = isImageUrl(normalized);
+
+                  return (
+                    <div key={index} className="relative group rounded-xl overflow-hidden border border-white/10 bg-[#171717] h-[220px] flex flex-col">
+                      <div className="absolute top-2 right-2 z-20 flex gap-1 transform translate-y-1 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+                        <a 
+                          href={normalized} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="p-1.5 bg-black/60 backdrop-blur-md rounded-lg text-white/70 hover:text-white border border-white/10"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                        <button 
+                          onClick={() => removeLinkField(index)}
+                          className="p-1.5 bg-black/60 backdrop-blur-md rounded-lg text-white/70 hover:text-red-400 border border-white/10"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
+                      <div className="flex-1 w-full relative overflow-hidden bg-black/20">
+                        {previewUrl ? (
+                          <iframe
+                            src={previewUrl}
+                            className="w-full h-full border-0"
+                            title={`Preview ${index}`}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                            loading="lazy"
+                          />
+                        ) : isImage ? (
+                          <img 
+                            src={normalized} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            onError={(e) => {
+                                // Fallback if image fails to load
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20 group-hover:text-white/40 transition-colors">
+                            <div className="relative">
+                                <Globe size={48} strokeWidth={1} />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                     <img 
+                                        src={`https://www.google.com/s2/favicons?domain=${new URL(normalized).hostname}&sz=32`} 
+                                        alt=""
+                                        className="w-6 h-6 rounded-sm opacity-80"
+                                        onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+                                    />
+                                </div>
+                            </div>
+                           
+                          </div>
+                        )}
+                        
+                        {/* Fallback for broken images */}
+                        {isImage && (
+                             <div className="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/20">
+                                <ImageIcon size={48} strokeWidth={1} />
+                                <span className="text-[9px] uppercase tracking-[0.2em] font-medium">Image Reference</span>
+                            </div>
+                        )}
+                      </div>
+
+                      <div className="p-3 bg-[#101010] border-t border-white/5 group-hover:bg-[#141414] transition-colors">
+                        <div className="flex items-center gap-2 mb-1">
+                          {previewUrl ? <Video size={12} className="text-[#E8D1AB]" /> : isImage ? <ImageIcon size={12} className="text-[#E8D1AB]" /> : <Globe size={12} className="text-[#E8D1AB]" />}
+                          <span className="text-[10px] text-white/40 font-medium uppercase tracking-wider truncate">
+                            {previewUrl ? "Video" : isImage ? "Image" : "Website"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-white/60 truncate max-w-full font-light">
+                          {normalized.replace(/^https?:\/\/(www\.)?/, '')}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+      </div>
       </div>
 
       {/* Navigation */}
