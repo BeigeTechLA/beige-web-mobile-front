@@ -32,7 +32,7 @@ export type BookingDataV3 = {
   location: string;
   locationDetails: any; // Mapbox object
   specialInstructions: string;
-  referenceLinks: string | string[];
+  referenceLinks: string[];
   
   // Step 3 & 4
   matchingMethod: 'ai_matchmaker' | 'manual';
@@ -76,7 +76,7 @@ export const initialDataV3: BookingDataV3 = {
   location: "",
   locationDetails: null,
   specialInstructions: "",
-  referenceLinks: "",
+  referenceLinks: [],
   matchingMethod: 'ai_matchmaker',
   selectedCrewIds: [],
   selectedStudioIds: [],
