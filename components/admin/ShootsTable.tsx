@@ -209,6 +209,7 @@ interface ShootsTableProps {
   setViewMode?: (v: "grid" | "list") => void;
   showHeaderControls?: boolean;
   showHeaderFilters?: boolean;
+  showViewToggle?: boolean;
 }
 
 export const ShootsTable = ({
@@ -231,6 +232,7 @@ export const ShootsTable = ({
   setViewMode,
   showHeaderControls = true,
   showHeaderFilters = true,
+  showViewToggle = true,
 }: ShootsTableProps) => {
   const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
   const router = useRouter();
@@ -819,6 +821,7 @@ export const ShootsTable = ({
           </>
           )}
           <div className="flex flex-wrap gap-3">
+            {showViewToggle && (
             <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
               <button
                 type="button"
@@ -847,6 +850,7 @@ export const ShootsTable = ({
                 <Grid3X3 size={18} />
               </button>
             </div>
+            )}
           </div>
         </div>
       </div>
@@ -906,7 +910,7 @@ export const ShootsTable = ({
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
                                 }`}>
                                 {shoot.initials}
                               </div>
@@ -1042,47 +1046,59 @@ export const ShootsTable = ({
                               setDraggedStatus(null);
                             }}
                             className={`group cursor-pointer rounded-2xl border p-4 transition-all ${isDark
-                                ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
-                                : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
+                                ? "border-[#2F2F2F] bg-[#1A1A1A] hover:border-[#4A4A4A]"
+                                : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
                               } ${draggedShootId === shoot.id ? "opacity-55" : ""}`}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
+                          <div className="flex items-start justify-between gap-3 -mt-2 -mr-2">
+                            <p className={`pt-2 text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
+                              {shoot.id}
+                            </p>
+                            <div className="flex items-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteClick(e, shoot.id);
+                                }}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
+                                  isDark 
+                                    ? "text-[#666] hover:bg-white/10 hover:text-red-500" 
+                                    : "text-[#999] hover:bg-red-50 hover:text-red-500"
+                                }`}
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRowClick(shoot.id);
+                                }}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
+                                  isDark 
+                                    ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" 
+                                    : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
+                                }`}
+                              >
+                                <ChevronRight size={18} />
+                              </button>
+                            </div>
+                          </div>
+
+                            <div className="flex items-center gap-3 mt-1">
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
                                 }`}>
                                 {shoot.initials}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDeleteClick(e, shoot.id)}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"
-                                    }`}
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRowClick(shoot.id);
-                                  }}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
-                                    }`}
-                                >
-                                  <ChevronRight size={18} />
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="mt-4 space-y-4">
-                              <div>
-                                <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
-                                  {shoot.id}
-                                </p>
-                                <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"
+                               <h4 className={`mt-2 text-sm font- leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"
                                   }`}>
                                   {shoot.customerName}
                                 </h4>
+                              </div>
+
+                            <div className="mt-4 space-y-4">
+                              <div>                                                            
                                 <p className={`mt-1 text-sm ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
                                   {shoot.date}
                                 </p>
@@ -1151,7 +1167,7 @@ export const ShootsTable = ({
                       <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
                       <td className="py-5 px-6">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                             {shoot.initials}
                           </div>
                           <div>
