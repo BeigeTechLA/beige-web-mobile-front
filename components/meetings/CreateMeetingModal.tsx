@@ -801,7 +801,7 @@ const getNextValidTime = () => {
                   <div>
                     <p className="text-base font-semibold text-white">Google Meet</p>
                     <p className="mt-1 text-sm leading-6 text-white/45">
-                      Auto-generate the meeting room from your live Google Meet integration.
+                      The meeting will take place via Google Meet.
                     </p>
                   </div>
                 </div>

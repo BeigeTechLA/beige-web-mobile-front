@@ -71,6 +71,10 @@ import {
 import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import {
+  getQuoteAdditionalPaymentDetails,
+  getQuotePaymentProgressDetails,
+} from "@/lib/quoteDetail";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -399,17 +403,35 @@ export default function LeadDetailPage() {
     if (!rawAdditionalPayment) return null;
 
     const actuallyPaidAmount = Number(lead?.pricing_breakdown?.total_paid ?? 0);
-    const revisedTotal = Number(lead?.custom_quote?.total ?? lead?.pricing_breakdown?.total ?? rawAdditionalPayment.revised_total ?? 0);
-    const outstandingAmount = Number(
-      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - actuallyPaidAmount, 0)
+    const revisedTotal = Number(
+      lead?.custom_quote?.total ??
+        lead?.pricing_breakdown?.total ??
+        rawAdditionalPayment.revised_total ??
+        0
     );
-    const additionalAmount = revisedTotal - actuallyPaidAmount;
+    const paymentDetails = getQuoteAdditionalPaymentDetails(
+      (lead?.custom_quote ?? null) as any,
+      {
+        revisedTotalOverride: revisedTotal,
+        previouslyPaidOverride:
+          Number.isFinite(actuallyPaidAmount) && actuallyPaidAmount > 0
+            ? actuallyPaidAmount
+            : undefined,
+        previousTotalOverride:
+          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
+          undefined,
+      }
+    );
+
+    if (!paymentDetails) {
+      return null;
+    }
 
     if (
-      Math.abs(additionalAmount) <= 0.009 &&
-      actuallyPaidAmount <= 0 &&
-      revisedTotal <= 0 &&
-      outstandingAmount <= 0 &&
+      Math.abs(paymentDetails.additionalAmount) <= 0.009 &&
+      paymentDetails.previouslyPaidAmount <= 0 &&
+      paymentDetails.revisedTotal <= 0 &&
+      paymentDetails.outstandingAmount <= 0 &&
       !String(rawAdditionalPayment.payment_status || "").trim() &&
       !rawAdditionalPayment.invoice_number &&
       !rawAdditionalPayment.last_sent_at
@@ -418,18 +440,27 @@ export default function LeadDetailPage() {
     }
 
     return {
-      additionalAmount,
-      isDecrease: additionalAmount < -0.009,
-      previouslyPaidAmount: actuallyPaidAmount,
-      revisedTotal,
-      outstandingAmount,
-      paymentStatusLabel: formatStatusLabel(rawAdditionalPayment.payment_status),
+      additionalAmount: paymentDetails.additionalAmount,
+      isDecrease: paymentDetails.isDecrease,
+      paymentStatus: paymentDetails.paymentStatus,
+      paymentStatusLabel: formatStatusLabel(paymentDetails.paymentStatus || rawAdditionalPayment.payment_status),
+      previousTotal: paymentDetails.previousTotal,
+      previouslyPaidAmount: paymentDetails.previouslyPaidAmount,
+      revisedTotal: paymentDetails.revisedTotal,
+      outstandingAmount: paymentDetails.outstandingAmount,
       invoiceNumber: rawAdditionalPayment.invoice_number
         ? String(rawAdditionalPayment.invoice_number).trim()
         : null,
       lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
     };
-  }, [rawAdditionalPayment, lead?.pricing_breakdown?.total_paid, lead?.pricing_breakdown?.total, lead?.custom_quote?.total]);
+  }, [
+    rawAdditionalPayment,
+    lead?.activities,
+    lead?.custom_quote,
+    lead?.pricing_breakdown?.total,
+    lead?.pricing_breakdown?.total_amount,
+    lead?.pricing_breakdown?.total_paid,
+  ]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -695,11 +726,20 @@ export default function LeadDetailPage() {
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
   const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
+  const normalizedRevisionPaymentStatus = String(
+    additionalPaymentDetails?.paymentStatus || ""
+  )
+    .trim()
+    .toLowerCase();
+  const isRevisionPaymentPending =
+    normalizedRevisionPaymentStatus === "pending" ||
+    normalizedRevisionPaymentStatus === "partially_paid";
   const isAmountPaid =
-    ["paid", "success", "completed"].includes(
+    !isRevisionPaymentPending &&
+    (["paid", "success", "completed"].includes(
       String(lead?.payment_status || "").trim().toLowerCase()
     ) ||
-    Boolean(booking?.payment_id || booking?.payment_completed_at);
+      Boolean(booking?.payment_id || booking?.payment_completed_at));
   const showCompletedPaymentMessage =
     isAmountPaid && !hasPendingAdditionalPayment;
   const isClosedLostLead = isClosedLostStatus(lead?.booking_status || status);
@@ -809,17 +849,36 @@ export default function LeadDetailPage() {
     }, 0);
 
     const resolvedTotal = total > 0 ? total : Number(latestManualPaymentEntry?.data?.total_amount || 0);
-    const paidAmount = hasFullPayment ? resolvedTotal : partialPaid;
-    const pendingAmount = Math.max(resolvedTotal - paidAmount, 0);
+    const paymentProgress = getQuotePaymentProgressDetails(
+      (lead?.custom_quote ?? null) as any,
+      {
+        totalAmountOverride: resolvedTotal,
+        previouslyPaidOverride: Number(lead?.pricing_breakdown?.total_paid ?? 0) || undefined,
+        previousTotalOverride:
+          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
+          undefined,
+        collectedAmountOverride: Number(lead?.collected_amount ?? 0) || undefined,
+        manualPaidOverride: hasFullPayment ? resolvedTotal : partialPaid,
+      }
+    );
 
     return {
-      hasFullPayment,
-      paidAmount,
-      pendingAmount,
-      isPartiallyPaid: !hasFullPayment && paidAmount > 0 && pendingAmount > 0,
-      canTakePayment: !hasFullPayment && pendingAmount > 0,
+      hasFullPayment: paymentProgress.hasFullPayment || hasFullPayment,
+      paidAmount: paymentProgress.paidAmount,
+      pendingAmount: paymentProgress.pendingAmount,
+      isPartiallyPaid: paymentProgress.isPartiallyPaid,
+      canTakePayment: paymentProgress.canTakePayment,
     };
-  }, [lead?.activities, latestManualPaymentEntry?.data?.total_amount, total]);
+  }, [
+    lead?.activities,
+    lead?.collected_amount,
+    lead?.custom_quote,
+    lead?.pricing_breakdown?.total,
+    lead?.pricing_breakdown?.total_amount,
+    lead?.pricing_breakdown?.total_paid,
+    latestManualPaymentEntry?.data?.total_amount,
+    total,
+  ]);
 
   const manualPaymentEntries = useMemo(() => {
     return (lead?.activities || [])
@@ -851,7 +910,9 @@ export default function LeadDetailPage() {
       : "Paid (Manual)"
     : null;
 
-  const effectiveStatusLabel = hasPendingAdditionalPayment
+  const effectiveStatusLabel = isRevisionPaymentPending
+    ? "Partially Paid"
+    : hasPendingAdditionalPayment
     ? "Pending"
     : manualPaymentSummary.isPartiallyPaid
       ? "Partially Paid"
@@ -862,7 +923,7 @@ export default function LeadDetailPage() {
     : isAmountPaid
       ? "Stripe"
       : "Pending";
-  const showManualPaymentPanel = !isAmountPaid || hasManualPaymentHistory;
+  const showManualPaymentPanel = !isAmountPaid || isRevisionPaymentPending || hasManualPaymentHistory;
 
   const handleManualPaymentSubmit = async () => {
     if (isClosedLostLead) {
