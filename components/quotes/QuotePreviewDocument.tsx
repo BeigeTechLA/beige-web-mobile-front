@@ -446,12 +446,12 @@ export default function QuotePreviewDocument({
 
             {/* Right - Signature */}
             <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
-              {quoteData.signature_base64 ? (
+              {signatureSource ? (
                 <>
                   <div className={`border rounded-lg p-3 w-full max-w-[220px] ${isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
                     }`}>
                     <img
-                      src={quoteData.signature_base64}
+                      src={signatureSource}
                       alt="Signature"
                       className="w-full max-h-20 object-contain"
                     />

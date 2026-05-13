@@ -87,6 +87,8 @@ export default function QuotePreviewPageShell({
   const [showSignature, setShowSignature] = useState(false);
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
+  const [isConvertingToBooking, setIsConvertingToBooking] = useState(false);
+  const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
   
   
 
@@ -188,6 +190,7 @@ export default function QuotePreviewPageShell({
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? queryQuoteId ?? ""
   ).trim();
+  const existingBookingId = String((quote as Record<string, unknown> | null)?.booking_id ?? "").trim();
   const quoteSent = isQuoteAlreadySent(quote);
   const canSendQuote =
     showActionButtons && !loading && Boolean(resolvedQuoteId);
@@ -283,6 +286,88 @@ export default function QuotePreviewPageShell({
     }
   };
 
+  const resolveBookingTimingFromQuote = (quoteData: SalesQuoteDetailData | null) => {
+    const record = (quoteData as Record<string, any> | null) || null;
+    const converted = (record?.converted_booking_details || {}) as Record<string, any>;
+    const convertedDays = Array.isArray(converted?.booking_days) ? converted.booking_days : [];
+    const rootDays = Array.isArray(record?.booking_days) ? record.booking_days : [];
+    const firstDay = convertedDays[0] || rootDays[0] || null;
+    const startDate = String(
+      converted?.start_date ||
+      firstDay?.date ||
+      firstDay?.event_date ||
+      record?.event_date ||
+      record?.shoot_date ||
+      ""
+    ).trim();
+    const startTime = String(
+      converted?.start_time ||
+      firstDay?.start_time ||
+      record?.start_time ||
+      record?.event_start_time ||
+      ""
+    ).trim().slice(0, 5);
+    const endTime = String(
+      converted?.end_time ||
+      firstDay?.end_time ||
+      record?.end_time ||
+      record?.event_end_time ||
+      ""
+    ).trim().slice(0, 5);
+    const location = String(
+      converted?.location ||
+      record?.location ||
+      record?.event_location ||
+      ""
+    ).trim();
+
+    if (!startDate || !startTime || !endTime) {
+      return null;
+    }
+
+    return {
+      booking_type: "single_day" as const,
+      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago",
+      start_date: startDate,
+      start_time: `${startTime}:00`,
+      end_time: `${endTime}:00`,
+      location,
+    };
+  };
+
+  const convertSignedQuoteToBooking = async () => {
+    if (existingBookingId) {
+      setPaymentBookingId(existingBookingId);
+      return existingBookingId;
+    }
+    if (!resolvedQuoteId) {
+      throw new Error("Quote id is missing");
+    }
+
+    const payload = resolveBookingTimingFromQuote(quote);
+    if (!payload) {
+      throw new Error("Booking schedule is missing on this quote. Please ask support/admin to set booking date/time.");
+    }
+
+    const response = await salesApi.convertQuoteToBooking(resolvedQuoteId, payload);
+    if (response?.error || response?.success === false || !response?.data?.booking_id) {
+      throw new Error(typeof response?.error === "string" ? response.error : "Failed to convert quote to booking");
+    }
+
+    const bookingId = String(response.data.booking_id).trim();
+    setPaymentBookingId(bookingId);
+    return bookingId;
+  };
+
+  const handleContinueToPayment = () => {
+    const bookingId = String(paymentBookingId || "").trim();
+    if (!bookingId) {
+      toast.error("Booking id missing for payment.");
+      return;
+    }
+    router.push(`/search-results/payment?shootId=${encodeURIComponent(bookingId)}`);
+  };
+
   const breadcrumbOverrides = React.useMemo(
     () => ({
       quotes: "Quote",
@@ -326,6 +411,14 @@ export default function QuotePreviewPageShell({
           Sign Quote
         </ActionButton>
       )}
+      {quoteDetailMode === "public" && paymentBookingId && (
+        <ActionButton
+          onClick={handleContinueToPayment}
+          className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
+        >
+          Continue to Payment
+        </ActionButton>
+      )}
       <ServiceAgreementModal
         isOpen={isServiceAgreementOpen}
         initialChecked={acceptServiceAgreement}
@@ -333,6 +426,7 @@ export default function QuotePreviewPageShell({
         onAccept={() => {
           setAcceptServiceAgreement(true);
           setIsServiceAgreementOpen(false);
+          setShowSignature(true);
         }}
       />
       {quoteDetailMode !== "public" && (
@@ -397,6 +491,14 @@ export default function QuotePreviewPageShell({
                 >
                   Sign Quote
                 </ActionButton>
+            )}
+            {quoteDetailMode === "public" && paymentBookingId && (
+              <ActionButton
+                onClick={handleContinueToPayment}
+                className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
+              >
+                Continue to Payment
+              </ActionButton>
             )}
             {quoteDetailMode !== "public" && (
               <ActionButton
@@ -490,23 +592,44 @@ export default function QuotePreviewPageShell({
           signerName={quote?.client_name ?? "Client"}
           signerEmail={quote?.client_email ?? quote?.guest_email ?? ""}
           onClose={() => setShowSignature(false)}
-          onSuccess={() => {
+          onSuccess={async () => {
             toast.success("Quote signed successfully!");
-            if (quoteDetailMode === "public" && queryQuoteKey) {
-              void fetchQuotePreviewByKey(queryQuoteKey).then((res) => {
-                const updated = unwrapSalesQuoteDetail(res?.data ?? null);
+            try {
+              if (quoteDetailMode === "public" && queryQuoteKey) {
+                const refreshed = await fetchQuotePreviewByKey(queryQuoteKey);
+                const updated = unwrapSalesQuoteDetail(refreshed?.data ?? null);
                 if (updated) setQuote(updated);
-              });
-              return;
-            }
+              } else {
+                const refreshed = await salesApi.getQuoteDetail(resolvedQuoteId);
+                const updated = unwrapSalesQuoteDetail(refreshed?.data ?? null);
+                if (updated) setQuote(updated);
+              }
 
-            void salesApi.getQuoteDetail(resolvedQuoteId).then((res) => {
-              const updated = unwrapSalesQuoteDetail(res?.data ?? null);
-              if (updated) setQuote(updated);
-            });
+              if (quoteDetailMode === "public") {
+                setIsConvertingToBooking(true);
+                const bookingId = await convertSignedQuoteToBooking();
+                if (bookingId) {
+                  toast.success(`Booking #${bookingId} is ready. Continue to payment.`);
+                }
+              }
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Failed to prepare payment flow");
+            } finally {
+              setIsConvertingToBooking(false);
+            }
           }}
         />
       )}
+      {quoteDetailMode === "public" && isConvertingToBooking ? (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50">
+          <div className="rounded-xl bg-[#111] px-6 py-4 text-white shadow-xl">
+            <div className="flex items-center gap-2 text-sm">
+              <Loader2 size={16} className="animate-spin" />
+              Preparing booking and payment...
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
