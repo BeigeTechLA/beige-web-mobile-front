@@ -919,6 +919,24 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async getSharedFileViewUrl(
+    shareToken: string,
+    accessToken: string,
+    filepath?: string,
+    options?: { phase?: string; path?: string }
+  ) {
+    const params = new URLSearchParams();
+    if (filepath) params.set("filepath", filepath);
+    if (options?.phase) params.set("phase", options.phase);
+    if (options?.path) params.set("path", options.path);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const response = await apiClient.getInstance().get(
+      `external-file-manager/share/${shareToken}/view-url${query}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
   async getComments(fileMetaId: string) {
     return apiClient.get<FileCommentItem[]>("comments", { metaId: fileMetaId });
   },

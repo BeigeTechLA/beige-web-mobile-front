@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Copy, X, Share2, Mail, Users, CheckCircle2, Globe2 } from "lucide-react";
+import { Trash2, Copy, X, Share2, Mail, Users, CheckCircle2, Globe2, Eye, Download, ChevronDown, History } from "lucide-react";
 
 interface ShareResourceModalProps {
   isOpen: boolean;
@@ -52,6 +52,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
   const [logsLoading, setLogsLoading] = useState(false);
   const [revokingShareId, setRevokingShareId] = useState<number | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [expandedEmails, setExpandedEmails] = useState<Record<string, boolean>>({});
 
   const reset = () => {
     setActiveTab("people");
@@ -61,6 +62,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
     setLoading(false);
     setSharingAnyone(false);
     setCopiedToken(null);
+    setExpandedEmails({});
   };
 
   const handleClose = () => {
@@ -282,6 +284,41 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
     return name.slice(0, 2).toUpperCase();
   };
 
+  const normalizeActionLabel = (action?: string) => {
+    const value = String(action || "").trim().toLowerCase();
+    if (value === "view_download") return "View + Download";
+    if (value === "content_view") return "View";
+    if (value === "download") return "Download";
+    return value.replace(/_/g, " ") || "View";
+  };
+
+  const groupedAccessLogs = useMemo(() => {
+    const grouped = new Map<string, AccessLogItem[]>();
+    for (const log of accessLogs) {
+      const key = String(log.email || "").trim().toLowerCase();
+      if (!key) continue;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(log);
+    }
+
+    return Array.from(grouped.entries())
+      .map(([email, logs]) => {
+        const sortedLogs = [...logs].sort(
+          (a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
+        );
+        const hasView = sortedLogs.some((item) => ["content_view", "view_download"].includes(String(item.action || "").toLowerCase()));
+        const hasDownload = sortedLogs.some((item) => ["download", "view_download"].includes(String(item.action || "").toLowerCase()));
+        const summaryAction = hasView && hasDownload ? "View + Download" : hasDownload ? "Download" : "View";
+        return {
+          email,
+          logs: sortedLogs,
+          latestAt: sortedLogs[0]?.createdAt,
+          summaryAction,
+        };
+      })
+      .sort((a, b) => new Date(b.latestAt || "").getTime() - new Date(a.latestAt || "").getTime());
+  }, [accessLogs]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -481,41 +518,48 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                   <div className="h-[220px] overflow-auto no-scrollbar rounded-xl border border-white/[0.06] bg-white/[0.02]">
                     {activeTab === "people" ? (
                       listLoading ? (
-                        <div className="flex items-center justify-center gap-2 px-4 py-8">
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-                          <span className="text-sm text-white/50">Loading...</span>
+                        <div className="flex flex-col items-center justify-center gap-2 px-4 py-12">
+                          <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#E5D5B8]/20 border-t-[#E5D5B8]" />
+                          <span className="text-xs font-medium text-white/40">Loading access list...</span>
                         </div>
                       ) : sharedItems.length === 0 ? (
-                        <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5">
-                            <Users size={18} className="text-white/25" />
+                        <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.03] border border-white/[0.05]">
+                            <Users size={20} className="text-white/20" />
                           </div>
-                          <p className="text-sm text-white/35">No one has access yet</p>
+                          <p className="text-sm font-medium text-white/30">No one has access yet</p>
                         </div>
                       ) : (
-                        <div className="divide-y divide-white/[0.05]">
+                        <div className="divide-y divide-white/[0.04]">
                           {sharedItems.map((item) => {
-                            const label = item.accessMode === "anyone_with_link" ? "Anyone with link" : item.email;
+                            const isAnyone = item.accessMode === "anyone_with_link";
+                            const label = isAnyone ? "Anyone with link" : item.email;
                             return (
                               <div
                                 key={item.shareId}
-                                className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.02]"
+                                className="group flex items-center gap-3 px-4 py-3.5 transition-all hover:bg-white/[0.03]"
                               >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E5D5B8]/30 to-[#E5D5B8]/10 text-xs font-semibold text-[#E5D5B8]">
-                                  {item.accessMode === "anyone_with_link" ? "GL" : getInitials(item.email)}
+                                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br border text-xs font-semibold transition-colors ${
+                                  isAnyone 
+                                    ? "from-emerald-500/20 to-emerald-500/5 border-emerald-500/10 text-emerald-400" 
+                                    : "from-[#E5D5B8]/20 to-[#E5D5B8]/5 border-[#E5D5B8]/10 text-[#E5D5B8]"
+                                }`}>
+                                  {isAnyone ? <Globe2 size={16} /> : getInitials(item.email)}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm text-white/80">{label}</p>
-                                  {/* {item.message ? <p className="truncate text-xs text-white/45">{item.message}</p> : null} */}
+                                  <p className="truncate text-[13px] font-medium text-white/90">{label}</p>
+                                  <p className="mt-0.5 text-[10px] text-white/30 font-medium uppercase tracking-wider">
+                                    {isAnyone ? "Public access" : "Private access"}
+                                  </p>
                                 </div>
-                                <div className="flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
+                                <div className="flex items-center gap-1.5 opacity-0 transition-all group-hover:opacity-100">
                                   <button
                                     type="button"
                                     onClick={() => handleCopyByToken(item.shareToken)}
-                                    className={`rounded-lg p-1.5 transition-colors ${
+                                    className={`rounded-lg p-2 transition-all ${
                                       copiedToken === item.shareToken
-                                        ? "bg-emerald-500/20 text-emerald-400"
-                                        : "text-white/50 hover:bg-white/10 hover:text-white"
+                                        ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
+                                        : "text-white/40 hover:bg-white/10 hover:text-white"
                                     }`}
                                     title="Copy link"
                                   >
@@ -525,7 +569,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                                     type="button"
                                     onClick={() => handleRevoke(item.shareId)}
                                     disabled={revokingShareId === item.shareId}
-                                    className="rounded-lg p-1.5 text-white/50 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30"
+                                    className="rounded-lg p-2 text-white/30 transition-all hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30"
                                     title="Remove access"
                                   >
                                     {revokingShareId === item.shareId ? (
@@ -541,28 +585,113 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                         </div>
                       )
                     ) : logsLoading ? (
-                      <div className="px-4 py-6 text-sm text-white/50">Loading...</div>
-                    ) : accessLogs.length === 0 ? (
-                      <div className="px-4 py-6 text-sm text-white/40">No access activity yet</div>
+                      <div className="flex flex-col items-center justify-center gap-2 px-4 py-12">
+                        <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#E5D5B8]/20 border-t-[#E5D5B8]" />
+                        <span className="text-xs font-medium text-white/40">Fetching activity logs...</span>
+                      </div>
+                    ) : groupedAccessLogs.length === 0 ? (
+                      <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.03] border border-white/[0.05]">
+                          <History size={20} className="text-white/20" />
+                        </div>
+                        <p className="text-sm font-medium text-white/30">No access activity yet</p>
+                      </div>
                     ) : (
-                      <div className="divide-y divide-white/[0.05]">
-                        {accessLogs.map((log) => (
-                          <div
-                            key={log.id}
-                            className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.02]"
-                          >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E5D5B8]/30 to-[#E5D5B8]/10 text-xs font-semibold text-[#E5D5B8]">
-                              {getInitials(log.email)}
+                      <div className="divide-y divide-white/[0.04]">
+                        {groupedAccessLogs.map((group) => {
+                          const isExpanded = !!expandedEmails[group.email];
+                          return (
+                            <div key={group.email} className="overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedEmails((prev) => ({ ...prev, [group.email]: !prev[group.email] }))
+                                }
+                                className={`group flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all hover:bg-white/[0.03] ${
+                                  isExpanded ? "bg-white/[0.02]" : ""
+                                }`}
+                              >
+                                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E5D5B8]/20 to-[#E5D5B8]/5 border border-[#E5D5B8]/10 text-xs font-semibold text-[#E5D5B8]">
+                                  {getInitials(group.email)}
+                                  {isExpanded && (
+                                    <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#E5D5B8] border-2 border-[#0A0A0A]" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="truncate text-[13px] font-medium text-white/90">{group.email}</p>
+                                    <span className="shrink-0 rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-white/40">
+                                      {group.logs.length} events
+                                    </span>
+                                  </div>
+                                  <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#E5D5B8]/60">
+                                    <span className="h-1 w-1 rounded-full bg-[#E5D5B8]/40" />
+                                    {group.summaryAction}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-[10px] text-white/30 font-medium">
+                                    {new Date(group.latestAt || "").toLocaleDateString([], { month: "short", day: "numeric" })}
+                                  </span>
+                                  <motion.div
+                                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="text-white/20 group-hover:text-white/40"
+                                  >
+                                    <ChevronDown size={14} />
+                                  </motion.div>
+                                </div>
+                              </button>
+
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    className="bg-black/40"
+                                  >
+                                    <div className="relative ml-8 mr-4 space-y-0.5 border-l border-white/[0.08] py-2 pl-6">
+                                      {group.logs.map((log, idx) => {
+                                        const action = String(log.action || "").toLowerCase();
+                                        const isDownload = action.includes("download");
+                                        const isView = action.includes("view");
+
+                                        return (
+                                          <div key={log.id} className="group/item relative flex items-center justify-between py-2.5">
+                                            <div className="absolute -left-[25px] flex h-2 w-2 rounded-full bg-white/10 group-hover/item:bg-[#E5D5B8]/40 transition-colors" />
+                                            
+                                            <div className="flex items-center gap-2.5">
+                                              <div className={`flex h-6 w-6 items-center justify-center rounded-lg ${
+                                                isDownload ? "bg-blue-500/10 text-blue-400" : 
+                                                isView ? "bg-emerald-500/10 text-emerald-400" : 
+                                                "bg-white/5 text-white/40"
+                                              }`}>
+                                                {isDownload ? <Download size={12} /> : 
+                                                 isView ? <Eye size={12} /> : 
+                                                 <History size={12} />}
+                                              </div>
+                                              <span className="text-[12px] font-medium text-white/60">
+                                                {normalizeActionLabel(log.action)}
+                                              </span>
+                                            </div>
+                                            
+                                            <div className="flex flex-col items-end">
+                                              <span className="text-[10px] text-white/30 tabular-nums">
+                                                {new Date(log.createdAt || "").toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm text-white/80">{log.email}</p>
-                              <p className="mt-0.5 text-xs text-white/45">{log.action.replace(/_/g, " ")}</p>
-                            </div>
-                            <span className="shrink-0 text-xs text-white/35">
-                              {new Date(log.createdAt || "").toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

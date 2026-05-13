@@ -287,7 +287,7 @@ export default function SharedFileManagerPage() {
     if (!file?.path) return;
     try {
       setPreviewLoading(true);
-      const result = await fileManagerApi.getSharedFileDownloadUrl(
+      const result = await fileManagerApi.getSharedFileViewUrl(
         shareToken,
         accessToken,
         file.path,
@@ -328,7 +328,7 @@ export default function SharedFileManagerPage() {
   const getFileThumbnail = async (file: SharedFile) => {
     if (!file?.path) return "";
     try {
-      const response = await fileManagerApi.getSharedFileDownloadUrl(
+      const response = await fileManagerApi.getSharedFileViewUrl(
         shareToken,
         accessToken,
         file.path,
