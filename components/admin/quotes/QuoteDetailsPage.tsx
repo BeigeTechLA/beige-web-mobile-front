@@ -854,6 +854,50 @@ export default function QuoteDetailsPage({
   const { data: linkedLeadDetails, refetch: refetchLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
     skip: !quoteLeadId,
   });
+  const refreshQuotePrimaryContext = useCallback(async () => {
+    try {
+      const response = await salesApi.getQuoteDetail(quoteId);
+
+      if (response?.error || response?.success === false) {
+        return;
+      }
+
+      const latestQuoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+      if (!latestQuoteDetail) {
+        return;
+      }
+
+      setQuote((current) => mergeVersionQuoteWithPrimaryContext(current, latestQuoteDetail));
+    } catch (error) {
+      console.error("Failed to refresh quote details", error);
+    }
+  }, [quoteId]);
+  const syncConvertedQuoteState = useCallback(async (bookingId?: number | string | null) => {
+    const normalizedBookingId =
+      bookingId !== undefined && bookingId !== null && String(bookingId).trim()
+        ? String(bookingId)
+        : null;
+
+    if (normalizedBookingId) {
+      setConvertedBookingIdOverride(normalizedBookingId);
+    }
+
+    setIsConvertedOverride(true);
+    setQuote((current) =>
+      current
+        ? {
+          ...current,
+          ...(normalizedBookingId ? { booking_id: normalizedBookingId } : {}),
+        }
+        : current
+    );
+
+    await refreshQuotePrimaryContext();
+    if (quoteLeadId) {
+      void refetchLeadDetails();
+    }
+    dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
+  }, [dispatch, quoteLeadId, refetchLeadDetails, refreshQuotePrimaryContext]);
   const conversionActivity = useMemo(() => {
     const activities = (quote?.activities as QuoteActivityLike[] | undefined) || [];
 
@@ -1190,6 +1234,11 @@ export default function QuoteDetailsPage({
           String(response.data.booking_id).trim()
           ? String(response.data.booking_id)
           : convertedBookingId;
+      if (invoiceBookingId) {
+        await syncConvertedQuoteState(invoiceBookingId);
+      } else {
+        await refreshQuotePrimaryContext();
+      }
       const apiBase = (
         process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
       ).replace(/\/$/, "");
@@ -1245,8 +1294,9 @@ export default function QuoteDetailsPage({
       }
 
       if (response?.data?.booking_id) {
-        setConvertedBookingIdOverride(String(response.data.booking_id));
-        setIsConvertedOverride(true);
+        await syncConvertedQuoteState(response.data.booking_id);
+      } else {
+        await refreshQuotePrimaryContext();
       }
 
       toast.success(response?.message || "Invoice sent successfully");
@@ -1800,6 +1850,7 @@ export default function QuoteDetailsPage({
                         {convertedBookingId ? ` #${convertedBookingId}` : ""}.
                       </p>
                       <p className="mt-1 text-xs text-emerald-300/90">
+                      <Loader2/>
                         Lead linkage is unavailable in this response, so manual payment updates from this panel are hidden.
                       </p>
                     </div>
