@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, ArrowUpRight, User, Camera, Users, Check, X, ArrowUpToLine } from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, List, Grid3X3, SlidersHorizontal, Users, Check, X, ArrowUpToLine, Grid2x2, Filter } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
@@ -263,8 +263,8 @@ const buildOverviewMetrics = (payload: DashboardOverviewPayload): OverviewMetric
       value: formatMetricValue(
         payload.total_active ??
         payload.total_active_leads ??
-          payload.active_leads ??
-          payload.total_leads
+        payload.active_leads ??
+        payload.total_leads
       ),
       growth: getGrowthValue(growth, [
         "total_active",
@@ -399,6 +399,8 @@ export default function AdminSaleRepManagerPage() {
   const [usersTotalRecords, setUsersTotalRecords] = useState(0);
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [showFilters, setShowFilters] = useState(true);
 
   const [metrics, setMetrics] = useState<OverviewMetric[]>(() => getDefaultOverviewMetrics());
   const [activeMetric, setActiveMetric] = useState('total_active');
@@ -551,21 +553,21 @@ export default function AdminSaleRepManagerPage() {
   // --- LEADS API CALL WITH FILTERS ---
   const leadsQueryArgs = token
     ? {
-        page: leadsCurrentPage,
-        limit: leadsLimit,
-        search: debouncedSearch || undefined,
-        // Mapping the filters to API keys
-        lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
-        status:
-          leadsViewMode === "grid" && shootStageFilter !== "all"
-            ? shootStageFilter
-            : statusFilter === "All"
-              ? undefined
-              : statusFilter,
-        assigned_to: assignedRepIdFilter === "all" ? undefined : assignedRepIdFilter,
-        // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
-        intent: intentFilter === "All" ? undefined : intentFilter,
-      }
+      page: leadsCurrentPage,
+      limit: leadsLimit,
+      search: debouncedSearch || undefined,
+      // Mapping the filters to API keys
+      lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
+      status:
+        leadsViewMode === "grid" && shootStageFilter !== "all"
+          ? shootStageFilter
+          : statusFilter === "All"
+            ? undefined
+            : statusFilter,
+      assigned_to: assignedRepIdFilter === "all" ? undefined : assignedRepIdFilter,
+      // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
+      intent: intentFilter === "All" ? undefined : intentFilter,
+    }
     : skipToken;
 
   const {
@@ -832,7 +834,6 @@ export default function AdminSaleRepManagerPage() {
             </p>
           </div>
         </div>
-        {/* <DottedDivider /> */}
 
         <OverviewMetricCards
           metrics={metrics}
@@ -848,105 +849,159 @@ export default function AdminSaleRepManagerPage() {
 
         <div className="flex flex-col gap-6 my-6">
           <div className="flex flex-col gap-4">
+            <TabsSwitcher
+              tabs={tabs}
+              activeTab={activeTab}
+              onChange={(tab) => {
+                setActiveTab(tab);
+                setUsersCurrentPage(1);
+                setLeadsCurrentPage(1);
+              }}
+            />
+
+            {/* New Section  */}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <TabsSwitcher
-                tabs={tabs}
-                activeTab={activeTab}
-                onChange={(tab) => {
-                  setActiveTab(tab);
-                  setUsersCurrentPage(1);
-                  setLeadsCurrentPage(1);
-                }}
-              />
+              {/* Search field */}
+              <div className={`relative flex w-full items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"}`}>
+                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+                <input
+                  type="text"
+                  placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                    ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                    : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
+                    }`}
+                />
+              </div>
 
-              {activeTab === "Booking" && (
-                <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
+              <div className={`flex items-center gap-2 ${activeTab === "Creative Partner" ? "justify-end" : "justify-between"}`}>
+                <Button
+                  className={`h-12 px-3 lg:px-5 transition-colors text-sm font-medium border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]" : "bg-[#E5E5E5] text-black hover:bg-[#D9D9D9]"}`}
+                  onClick={() => setShowFilters((prev) => !prev)}
+                >
+                  <SlidersHorizontal size={24} className={`mr-1 transition-colors ${isDark ? "text-white" : "text-black"}`} />
+                  Filter
+                </Button>
 
-                  <BasicDropdown
-                    label="Lead Type"
-                    value={leadTypeFilter}
-                    options={["All Leads", "Self-Serve", "Sales Assisted"]}
-                    onChange={(val) => setLeadTypeFilter(val)}
-                  />
-                  <BasicDropdown
-                    label="Client Representative"
-                    value={assignedRepIdFilter}
-                    options={salesRepOptions}
-                    searchable
-                    searchPlaceholder="Search representative..."
-                    onChange={(val) => {
-                      setAssignedRepIdFilter(val);
-                    }}
-                    openAlign={"right"}
-                  />
-                  <BasicDropdown
-                    label="Intent Type"
-                    value={intentFilter}
-                    options={["All", "Hot", "Warm", "Cold"]}
-                    onChange={(val) => setIntentFilter(val as any)}
-                  />
-                  {leadsViewMode === "grid" && (
-                    <BasicDropdown
-                      label="Shoot Stage"
-                      value={shootStageFilter}
-                      options={SHOOT_STAGE_OPTIONS as any}
-                      onChange={(val) => setShootStageFilter(val)}
+                <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+                  {/* Sliding Toggle Container */}
+                  <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
+                    {/* Animated Slider Background */}
+                    <div
+                      className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
+                        }`}
+                      style={{
+                        transform: viewMode === "grid" ? "translateX(100%)" : "translateX(0%)",
+                      }}
                     />
+
+                    {/* List Button */}
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("list")}
+                      className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "list"
+                        ? "text-black"
+                        : isDark
+                          ? "text-white/60 hover:text-white"
+                          : "text-[#666666] hover:text-black"
+                        }`}
+                    >
+                      <List size={16} />
+                    </button>
+
+                    {/* Grid Button */}
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("grid")}
+                      className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "grid"
+                        ? "text-black"
+                        : isDark
+                          ? "text-white/60 hover:text-white"
+                          : "text-[#666666] hover:text-black"
+                        }`}
+                    >
+                      <Grid2x2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {
+              (showFilters && (activeTab !== "Creative Partner")) && (
+                <div className={`${isDark ? "bg-[#171717]" : "bg-white"} rounded-lg lg:rounded-xl p-3.5 transition-colors duration-300`}>
+                  {activeTab === "Booking" && (
+                    <div className="flex flex-wrap gap-2 lg:justify-start lg:gap-4">
+
+                      <BasicDropdown
+                        label="Lead Type"
+                        value={leadTypeFilter}
+                        options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                        onChange={(val) => setLeadTypeFilter(val)}
+                      />
+                      <BasicDropdown
+                        label="Client Representative"
+                        value={assignedRepIdFilter}
+                        options={salesRepOptions}
+                        searchable
+                        searchPlaceholder="Search representative..."
+                        onChange={(val) => {
+                          setAssignedRepIdFilter(val);
+                        }}
+                        openAlign={"right"}
+                      />
+                      <BasicDropdown
+                        label="Intent Type"
+                        value={intentFilter}
+                        options={["All", "Hot", "Warm", "Cold"]}
+                        onChange={(val) => setIntentFilter(val as any)}
+                      />
+                      {leadsViewMode === "grid" && (
+                        <BasicDropdown
+                          label="Shoot Stage"
+                          value={shootStageFilter}
+                          options={SHOOT_STAGE_OPTIONS as any}
+                          onChange={(val) => setShootStageFilter(val)}
+                        />
+                      )}
+
+                      <BasicDropdown
+                        label="All Statuses"
+                        value={statusFilter}
+                        options={["All", ...BOOKING_STATUS_OPTIONS]}
+                        onChange={(val) => setStatusFilter(val as any)}
+                        openAlign={"right"}
+                      />
+                    </div>
                   )}
 
-                  <BasicDropdown
-                    label="All Statuses"
-                    value={statusFilter}
-                    options={["All", ...BOOKING_STATUS_OPTIONS]}
-                    onChange={(val) => setStatusFilter(val as any)}
-                    openAlign={"right"}
-                  />
+                  {activeTab === "Client" && (
+                    <div className="flex flex-wrap gap-2 lg:justify-start lg:gap-4">
+                      <BasicDropdown
+                        label="Client Representative"
+                        value={clientAssignedRepIdFilter}
+                        options={salesRepOptions}
+                        searchable
+                        searchPlaceholder="Search representative..."
+                        onChange={(val) => {
+                          setClientAssignedRepIdFilter(val);
+                        }}
+                        openAlign={"right"}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
-
-              {activeTab === "Client" && (
-                <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
-                  <BasicDropdown
-                    label="Client Representative"
-                    value={clientAssignedRepIdFilter}
-                    options={salesRepOptions}
-                    searchable
-                    searchPlaceholder="Search representative..."
-                    onChange={(val) => {
-                      setClientAssignedRepIdFilter(val);
-                    }}
-                    openAlign={"right"}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div
-              className={`relative flex w-full items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${isDark
-                ? "bg-[#111] border-[#333]"
-                : "bg-[#fff] border-[#E5E5E5]"
-                }`}
-            >
-              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
-              <input
-                type="text"
-                placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
-                  ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
-                  : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
-                  }`}
-              />
-            </div>
           </div>
         </div>
 
-        <DottedDivider className="lg:hidden" />
+        {/* <DottedDivider className="lg:hidden" /> */}
 
         {activeTab === "Booking" ? (
           <div className="flex flex-col gap-4">
-            <div className="hidden lg:block">
+            <div>
               <LeadsTable
                 data={displayLeads}
                 loading={leadsIsLoading}
@@ -960,10 +1015,11 @@ export default function AdminSaleRepManagerPage() {
                 onPageChange={(page) => setLeadsCurrentPage(page)}
                 onRowClick={handleRowClick}
                 onOpenMenu={handleOpenMenu}
+                viewMode={viewMode}
               />
             </div>
 
-            <div className="lg:hidden flex flex-col gap-2">
+            {/* <div className="lg:hidden flex flex-col gap-2">
               {displayLeads.map((lead) => (
                 <MobileLeadRow
                   key={lead.lead_id}
@@ -977,7 +1033,7 @@ export default function AdminSaleRepManagerPage() {
                   )}
                 />
               ))}
-            </div>
+            </div> */}
           </div>
         ) : (
           <UsersTable<UserData>
@@ -1015,15 +1071,14 @@ export default function AdminSaleRepManagerPage() {
                       <div className="flex items-center gap-2">
                         <p className={`font-medium text-[15px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
                         <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            user.registrationType === "registered"
-                              ? isDark
-                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                              : isDark
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                : "bg-amber-100 text-amber-700 border border-amber-200"
-                          }`}
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${user.registrationType === "registered"
+                            ? isDark
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                            : isDark
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                              : "bg-amber-100 text-amber-700 border border-amber-200"
+                            }`}
                         >
                           {user.registrationType === "registered" ? "Registered" : "Guest"}
                         </span>
@@ -1080,17 +1135,15 @@ export default function AdminSaleRepManagerPage() {
             renderKanbanCard={(user) => (
               <div
                 onClick={() => handleUserRowClick(user)}
-                className={`group cursor-pointer rounded-2xl border p-4 transition-all ${
-                  isDark
-                    ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
-                    : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
-                }`}
+                className={`group cursor-pointer rounded-2xl border p-4 transition-all ${isDark
+                  ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
+                  : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
+                  }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden ${
-                      isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
-                    }`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden ${isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
+                      }`}>
                       {user.imageUrl ? (
                         <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
                       ) : (
@@ -1102,21 +1155,19 @@ export default function AdminSaleRepManagerPage() {
                         {user.id}
                       </p>
                       <div className="mt-2 flex items-center gap-2">
-                        <h4 className={`text-lg font-semibold leading-snug line-clamp-2 ${
-                          isDark ? "text-white" : "text-[#111111]"
-                        }`}>
+                        <h4 className={`text-lg font-semibold leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"
+                          }`}>
                           {user.name}
                         </h4>
                         <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            user.registrationType === "registered"
-                              ? isDark
-                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                              : isDark
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                : "bg-amber-100 text-amber-700 border border-amber-200"
-                          }`}
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${user.registrationType === "registered"
+                            ? isDark
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                            : isDark
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                              : "bg-amber-100 text-amber-700 border border-amber-200"
+                            }`}
                         >
                           {user.registrationType === "registered" ? "Registered" : "Guest"}
                         </span>
@@ -1128,9 +1179,8 @@ export default function AdminSaleRepManagerPage() {
                   </div>
 
                   <button
-                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
-                      isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
-                    }`}
+                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
+                      }`}
                     onClick={(e) => {
                       const rawId = user.id.replace('#', '');
                       handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
@@ -1238,10 +1288,10 @@ export default function AdminSaleRepManagerPage() {
               activeTab === "Booking"
                 ? "/admin/sales-representative"
                 : activeTab === "Client"
-                ? "/admin/sales-representative/client"
-                : activeTab === "Creative Partner"
-                  ? "/admin/users/creative-partners"
-                  : undefined
+                  ? "/admin/sales-representative/client"
+                  : activeTab === "Creative Partner"
+                    ? "/admin/users/creative-partners"
+                    : undefined
             }
           />
         )}
