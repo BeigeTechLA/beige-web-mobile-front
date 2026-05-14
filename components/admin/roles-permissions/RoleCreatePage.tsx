@@ -2,78 +2,201 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { basePermissions } from "@/components/admin/roles-permissions/data";
+import { useEffect, useState } from "react";
 import { PermissionMatrixTable } from "@/components/admin/roles-permissions/PermissionMatrixTable";
-import { PermissionMatrixRow } from "@/components/admin/roles-permissions/types";
+import {
+  PermissionColumnKey,
+  PermissionMatrixRow,
+} from "@/components/admin/roles-permissions/types";
+import { adminApi } from "@/lib/api";
+import { buildPermissionRows, extractPermissionsFromRows } from "@/components/admin/roles-permissions/utils";
+import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 
 export function RoleCreatePage() {
   const router = useRouter();
-  const [rows, setRows] = useState<PermissionMatrixRow[]>(basePermissions);
+  const [rows, setRows] = useState<PermissionMatrixRow[]>([]);
   const [roleName, setRoleName] = useState("");
   const [description, setDescription] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    tone: "default" | "danger" | "success";
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    tone: "default",
+  });
+
+  const openModal = (
+    title: string,
+    description: string,
+    tone: "default" | "danger" | "success" = "default",
+  ) => {
+    setModalState({
+      isOpen: true,
+      title,
+      description,
+      tone,
+    });
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPermissionModules = async () => {
+      setIsLoadingPermissions(true);
+      const response = await adminApi.getPermissionModules();
+
+      if (!mounted) return;
+
+      if (response?.success && Array.isArray(response.data)) {
+        setRows(buildPermissionRows(response.data));
+      } else {
+        setRows(buildPermissionRows());
+      }
+
+      setIsLoadingPermissions(false);
+    };
+
+    void loadPermissionModules();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    if (!roleName.trim()) {
+      openModal("Role Name Required", "Please enter a role name before saving.", "default");
+      return;
+    }
+
+    setIsSaving(true);
+
+    const payload = {
+      name: roleName,
+      description: description,
+      permissions: extractPermissionsFromRows(rows),
+    };
+
+    try {
+      const response = await adminApi.createRole(payload);
+      if (response.success !== false) {
+        router.push("/admin/roles-permissions");
+      } else {
+        openModal("Failed To Create Role", response.error || "Failed to create role.", "danger");
+      }
+    } catch (error) {
+      console.error(error);
+      openModal(
+        "Create Role Error",
+        "An error occurred while creating the role.",
+        "danger",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInvalidAccessAttempt = (
+    row: PermissionMatrixRow,
+    key: PermissionColumnKey,
+  ) => {
+    openModal(
+      "View Access Required",
+      `Please enable View Access for ${row.label} before turning on ${key.charAt(0).toUpperCase() + key.slice(1)} Access.`,
+      "default",
+    );
+  };
 
   return (
     <div className="overflow-hidden px-4 pb-16 pt-5 lg:px-10 lg:pb-24 lg:pt-8">
       <div className="mx-auto max-w-[1500px]">
-        <Button
+        <button
           onClick={() => router.back()}
-          className="mb-4 flex items-center gap-2 bg-transparent p-0 text-white/80 hover:bg-transparent hover:text-white"
+          className="mb-8 flex items-center gap-2 bg-transparent p-0 text-white/50 transition hover:text-white"
         >
-          <ArrowLeft size={24} />
-          <span className="text-sm font-medium">Back</span>
-        </Button>
+          <ArrowLeft size={20} />
+          <span className="text-[15px] font-medium">Back</span>
+        </button>
 
-        <h1 className="text-[30px] font-semibold text-white">Add Roles</h1>
-        <p className="mt-2 text-[15px] text-white/60">
+        <h1 className="text-[32px] font-bold text-white lg:text-[36px]">Add Roles</h1>
+        <p className="mt-3 text-[15px] leading-relaxed text-white/50 max-w-[700px]">
           Create roles to manage permissions and control what users can access on
           the platform.
         </p>
 
-        <div className="mt-8 space-y-6">
-          <label className="block">
-            <span className="mb-3 block text-[18px] text-white/70">Enter Role Name</span>
+        <div className="mt-10 space-y-8">
+          <div className="flex flex-col gap-3">
+            <span className="text-[16px] font-semibold text-white/70">Enter Role Name</span>
             <input
               value={roleName}
               onChange={(event) => setRoleName(event.target.value)}
-              className="h-[92px] w-full rounded-[22px] border border-white/16 bg-[#101010] px-8 text-xl text-white outline-none transition focus:border-[#E5D5B8]"
+              placeholder="e.g. Content Manager"
+              className="h-20 w-full rounded-[24px] border border-white/10 bg-[#111111] px-8 text-xl text-white outline-none transition focus:border-[#E5D5B8]/50 focus:bg-[#171717] placeholder:text-white/20"
             />
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="mb-3 block text-[18px] text-white/70">Description</span>
+          <div className="flex flex-col gap-3">
+            <span className="text-[16px] font-semibold text-white/70">Description</span>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              className="min-h-[220px] w-full rounded-[22px] border border-white/16 bg-[#101010] px-8 py-7 text-lg text-white outline-none transition focus:border-[#E5D5B8]"
+              placeholder="Describe the role's responsibilities..."
+              className="min-h-[200px] w-full rounded-[24px] border border-white/10 bg-[#111111] px-8 py-7 text-lg text-white outline-none transition focus:border-[#E5D5B8]/50 focus:bg-[#171717] placeholder:text-white/20"
             />
-          </label>
+          </div>
         </div>
 
         <PermissionMatrixTable
           rows={rows}
           onChange={setRows}
           showSelectionColumn
-          className="mt-6"
+          onInvalidAccessAttempt={handleInvalidAccessAttempt}
+          className="mt-12"
         />
 
-        <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+        {isLoadingPermissions ? (
+          <p className="mt-4 text-sm text-white/40">Loading permission modules...</p>
+        ) : null}
+
+        <div className="mt-12 flex flex-col gap-4 sm:flex-row">
           <button
             type="button"
             onClick={() => router.back()}
-            className="h-[78px] w-full rounded-[20px] border border-white/20 bg-transparent text-[24px] font-medium text-white transition hover:border-white/35 sm:max-w-[240px]"
+            className="h-[72px] w-full rounded-[24px] border border-white/10 bg-transparent text-[20px] font-bold text-white transition-all hover:bg-white/5 sm:max-w-[240px]"
           >
             Back
           </button>
           <button
             type="button"
-            className="h-[78px] w-full rounded-[20px] bg-[#E5D5B8] text-[24px] font-medium text-black transition hover:bg-[#d6c29b] sm:max-w-[240px]"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="h-[72px] w-full rounded-[24px] bg-[#E5D5B8] text-[20px] font-bold text-black transition-all hover:bg-[#d6c29b] hover:scale-[1.02] active:scale-[0.98] sm:max-w-[240px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save
+            {isSaving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
+
+      <ActionModal
+        isOpen={modalState.isOpen}
+        onClose={() =>
+          setModalState((current) => ({
+            ...current,
+            isOpen: false,
+          }))
+        }
+        title={modalState.title}
+        description={modalState.description}
+        tone={modalState.tone}
+        confirmLabel="Close"
+        hideCancel
+      />
     </div>
   );
 }

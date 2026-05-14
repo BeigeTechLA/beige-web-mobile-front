@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpToLine, Plus, Search } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
@@ -9,6 +10,7 @@ import { RolesPermissionsPage } from "@/components/admin/RolesPermissionsPage";
 export default function AdminRolesPermissionsRoute() {
   const pathname = usePathname();
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
     <>
@@ -23,6 +25,8 @@ export default function AdminRolesPermissionsRoute() {
               <Search size={18} className="mr-3 text-white/40" />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search"
                 className="w-full bg-transparent text-sm text-white placeholder:text-white/35 focus:outline-none"
               />
@@ -44,7 +48,7 @@ export default function AdminRolesPermissionsRoute() {
         }
       />
 
-      <RolesPermissionsPage />
+      <RolesPermissionsPage searchQuery={searchQuery} />
     </>
   );
 }

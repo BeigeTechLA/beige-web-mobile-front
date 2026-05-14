@@ -35,6 +35,77 @@ api.interceptors.request.use(
   }
 );
 
+export type GetRolesParams = {
+  search?: string;
+  sort_by?: string;
+  order?: 'asc' | 'desc' | 'ASC' | 'DESC';
+};
+
+export type AdminRoleRecord = {
+  role_id: number;
+  name: string;
+  description: string | null;
+  is_system: number;
+  is_active: number;
+  created_by: number | null;
+  updated_by: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  total_users: number;
+};
+
+export type GetUsersWithRolesParams = {
+  search?: string;
+  status?: string | number;
+  role_id?: string | number;
+  sort_by?: string;
+  order?: 'asc' | 'desc' | 'ASC' | 'DESC';
+};
+
+export type AdminUserRoleRecord = {
+  user_id: number;
+  name: string;
+  email: string;
+  role_id: number | null;
+  role_name: string | null;
+  created_at: string | null;
+  is_active: number;
+  status_label: 'Active' | 'In-Active';
+};
+
+export type PermissionModuleRecord = {
+  module_key: string;
+  actions: string[];
+};
+
+export type RoleDetailsResponse = {
+  role: AdminRoleRecord;
+  permissions: Record<string, Record<string, boolean>>;
+};
+
+export type UserRoleDetailsResponse = {
+  user: {
+    user_id: number;
+    name: string;
+    email: string;
+    user_type: number | null;
+    user_type_name: string | null;
+    is_active: number;
+    status_label: 'Active' | 'In-Active';
+    created_at: string | null;
+  };
+  role: {
+    role_id: number | null;
+    name: string | null;
+    description?: string | null;
+    is_active?: number;
+    created_at?: string | null;
+    updated_at?: string | null;
+  };
+  display_role: string | null;
+  permissions: Record<string, Record<string, boolean>>;
+};
+
 
 // Role mapping
 export const ROLE_MAP: Record<number, string> = {
@@ -1383,6 +1454,25 @@ export const DeleteProfileFile = async (crewFilesId: string | number, payload: a
   }
 };
 
+export interface RolePermissions {
+  [module: string]: string[];
+}
+
+export interface AdminRole {
+  id: number;
+  name: string;
+  description: string;
+  permissions: RolePermissions;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRolePayload {
+  name: string;
+  description: string;
+  permissions: RolePermissions;
+}
+
 export const adminApi = {
   createInternalCredential: async (payload: {
     name: string;
@@ -1982,6 +2072,149 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || error.message || 'Failed to fetch project form details',
+      };
+    }
+  },
+
+  getRoles: async (params: GetRolesParams = {}) => {
+    try {
+      const response = await api.get('admin/roles', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Roles Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch roles',
+      };
+    }
+  },
+
+  getUsersWithRoles: async (params: GetUsersWithRolesParams = {}) => {
+    try {
+      const response = await api.get('admin/users/roles', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Users With Roles Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch users with roles',
+      };
+    }
+  },
+
+  getRoleById: async (id: number | string) => {
+    try {
+      const response = await api.get(`admin/roles/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Role By ID Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch role details',
+      };
+    }
+  },
+
+  getUserRoleDetails: async (userId: number | string) => {
+    try {
+      const response = await api.get(`admin/users/${userId}/role-details`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get User Role Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch user role details',
+      };
+    }
+  },
+
+  getPermissionModules: async () => {
+    try {
+      const response = await api.get('admin/permissions/modules');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Permission Modules Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch permission modules',
+      };
+    }
+  },
+
+  assignRoleToUser: async (payload: { user_id: number | string; role_id: number | string }) => {
+    try {
+      const response = await api.post('admin/users/assign-role', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign Role To User Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign role',
+      };
+    }
+  },
+
+  deleteUser: async (userId: number | string) => {
+    try {
+      const response = await api.delete(`admin/delete-user/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete User Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete user',
+      };
+    }
+  },
+
+  createRole: async (payload: CreateRolePayload) => {
+    try {
+      const response = await api.post('admin/roles/create', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Role Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create role',
+      };
+    }
+  },
+
+  updateRole: async (id: number | string, payload: Partial<CreateRolePayload>) => {
+    try {
+      const response = await api.put('admin/roles/update', {
+        role_id: id,
+        ...payload,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Role Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update role',
+      };
+    }
+  },
+
+  deleteRole: async (id: number | string) => {
+    try {
+      const response = await api.delete(`admin/roles/delete/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Role Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete role',
       };
     }
   },

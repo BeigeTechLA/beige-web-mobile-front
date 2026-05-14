@@ -8,6 +8,7 @@ export type RoleMember = {
 
 export type RoleCardData = {
   id: string;
+  roleId?: number;
   name: string;
   usersLabel: string;
   description: string;

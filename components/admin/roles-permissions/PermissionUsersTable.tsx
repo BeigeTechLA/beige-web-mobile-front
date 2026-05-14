@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
+import { ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -17,7 +17,11 @@ import {
 
 type PermissionUsersTableProps = {
   users: PermissionUser[];
+  isLoading?: boolean;
+  error?: string;
   onEdit?: (user: PermissionUser) => void;
+  onDelete?: (user: PermissionUser) => void;
+  onRowClick?: (user: PermissionUser) => void;
 };
 
 function StatusPill({ status }: { status: PermissionStatus }) {
@@ -25,11 +29,10 @@ function StatusPill({ status }: { status: PermissionStatus }) {
 
   return (
     <span
-      className={`inline-flex min-w-[102px] justify-center rounded-full px-4 py-2 text-sm font-medium ${
-        active
-          ? "bg-[#D4F9DB] text-[#1EAD52]"
-          : "bg-[#FBEFEF] text-[#D4472D]"
-      }`}
+      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[13px] font-semibold ${active
+          ? "bg-[#28C76F1A] text-[#28C76F]" // Light green background with dark green text (Vuexy Style)
+          : "bg-[#EA54551A] text-[#EA5455]" // Light red background with dark red text (Vuexy Style)
+        }`}
     >
       {status}
     </span>
@@ -38,7 +41,11 @@ function StatusPill({ status }: { status: PermissionStatus }) {
 
 export function PermissionUsersTable({
   users,
+  isLoading = false,
+  error = "",
   onEdit,
+  onDelete,
+  onRowClick,
 }: PermissionUsersTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -68,6 +75,10 @@ export function PermissionUsersTable({
     });
   }, [monthFilter, roleFilter, searchQuery, statusFilter, users]);
 
+  const roleOptions = useMemo(() => {
+    return Array.from(new Set(users.map((user) => user.role).filter(Boolean))).sort();
+  }, [users]);
+
   const allSelected =
     filteredUsers.length > 0 &&
     filteredUsers.every((user) => selectedRows.includes(user.id));
@@ -83,20 +94,22 @@ export function PermissionUsersTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[#111111]">
-      <div className="border-b border-white/10 px-5 py-5 lg:px-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#111111]">
+      <div className="px-6 py-6">
+        {/* Table Header Section: Title and Right-aligned Filters */}
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-[3px] rounded-full bg-[#E5D5B8]" />
-            <h2 className="text-[18px] font-medium text-white">All Users</h2>
+            <div className="h-7 w-[3px] rounded-full bg-[#E5D5B8]" />
+            <h2 className="text-[20px] font-semibold text-white">All Users</h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Horizontal row of pill-shaped filters as per Vuexy/Figma */}
+          <div className="flex flex-row items-center gap-2 sm:gap-3 ml-auto md:ml-0">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 w-[78px] rounded-full border-white/10 bg-[#171717] px-3 text-xs text-white/80">
+              <SelectTrigger className="h-10 min-w-[90px] rounded-full border-white/10 bg-[#1c1c1c] px-4 text-[13px] font-medium text-white/50 transition hover:bg-[#252525] focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-white/10 bg-[#171717] text-white">
                 <SelectItem value="all">Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="in-active">In-Active</SelectItem>
@@ -104,10 +117,10 @@ export function PermissionUsersTable({
             </Select>
 
             <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="h-9 w-[78px] rounded-full border-white/10 bg-[#171717] px-3 text-xs text-white/80">
+              <SelectTrigger className="h-10 min-w-[90px] rounded-full border-white/10 bg-[#1c1c1c] px-4 text-[13px] font-medium text-white/50 transition hover:bg-[#252525] focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="Month" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-white/10 bg-[#171717] text-white">
                 <SelectItem value="all">Month</SelectItem>
                 <SelectItem value="jan">Jan</SelectItem>
                 <SelectItem value="feb">Feb</SelectItem>
@@ -116,122 +129,164 @@ export function PermissionUsersTable({
             </Select>
 
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="h-9 w-[62px] rounded-full border-white/10 bg-[#171717] px-3 text-xs text-white/80">
+              <SelectTrigger className="h-10 min-w-[70px] rounded-full border-white/10 bg-[#1c1c1c] px-4 text-[13px] font-medium text-white/50 transition hover:bg-[#252525] focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="All" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-white/10 bg-[#171717] text-white">
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="production">Production</SelectItem>
+                {roleOptions.map((role) => (
+                  <SelectItem key={role} value={role.toLowerCase()}>
+                    {role}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="relative mt-5">
+        {/* Search Bar Section */}
+        <div className="relative mt-6">
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-white/35"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
             size={18}
           />
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search"
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#222222] pl-11 pr-4 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-[#E5D5B8]"
+            className="h-12 w-full rounded-2xl border border-white/10 bg-[#171717] pl-11 pr-4 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#E5D5B8]/50"
           />
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-[1140px] w-full">
+        <table className="w-full min-w-[1100px]">
           <thead>
-            <tr className="border-b border-white/10 text-left text-[15px] text-[#D9C8A3]">
-              <th className="px-5 py-5 lg:px-6">
+            <tr className="border-b border-white/5 bg-white/[0.02] text-left text-[14px] font-semibold text-[#D9C8A3]">
+              <th className="px-6 py-5">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(value) => toggleAll(value === true)}
-                  className="h-6 w-6 rounded-md border-white/30 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                  className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
                 />
               </th>
-              <th className="px-5 py-5 font-medium lg:px-6">Names</th>
-              <th className="px-5 py-5 font-medium lg:px-6">Roles</th>
-              <th className="px-5 py-5 font-medium lg:px-6">Created</th>
-              <th className="px-5 py-5 font-medium lg:px-6">Updated</th>
-              <th className="px-5 py-5 font-medium lg:px-6">Status</th>
-              <th className="px-5 py-5 font-medium lg:px-6 text-right">Action</th>
+              <th className="px-6 py-5">Names</th>
+              <th className="px-6 py-5">Roles</th>
+              <th className="px-6 py-5">Created</th>
+              <th className="px-6 py-5">Updated</th>
+              <th className="px-6 py-5">Status</th>
+              <th className="px-6 py-5 text-right">Action</th>
             </tr>
           </thead>
 
-          <tbody>
-            {filteredUsers.map((user) => (
+          <tbody className="divide-y divide-white/5">
+            {isLoading && (
+              <tr>
+                <td colSpan={7} className="px-6 py-10 text-center text-white/50">
+                  Loading users...
+                </td>
+              </tr>
+            )}
+
+            {!isLoading && !!error && (
+              <tr>
+                <td colSpan={7} className="px-6 py-10 text-center text-red-300/80">
+                  {error}
+                </td>
+              </tr>
+            )}
+
+            {!isLoading && !error && filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-6 py-10 text-center text-white/50">
+                  No users found.
+                </td>
+              </tr>
+            )}
+
+            {!isLoading &&
+              !error &&
+              filteredUsers.map((user) => (
               <tr
                 key={user.id}
-                className="border-b border-white/6 text-white transition hover:bg-white/[0.02]"
+                className="group cursor-pointer text-white transition-colors hover:bg-white/[0.02]"
+                onClick={() => onRowClick?.(user)}
               >
-                <td className="px-5 py-5 align-middle lg:px-6">
+                <td className="px-6 py-6">
                   <Checkbox
                     checked={selectedRows.includes(user.id)}
                     onCheckedChange={(value) => toggleOne(user.id, value === true)}
-                    className="h-6 w-6 rounded-md border-white/30 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                    onClick={(event) => event.stopPropagation()}
+                    className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
                   />
                 </td>
 
-                <td className="px-5 py-5 lg:px-6">
+                <td className="px-6 py-6">
                   <div className="flex items-center gap-4">
                     <div
-                      className={`flex h-14 w-14 items-center justify-center rounded-xl text-[18px] font-medium ${user.badgeTone}`}
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[16px] font-bold ${user.badgeTone}`}
                     >
                       {user.badge}
                     </div>
                     <div>
-                      <p className="text-[18px] font-medium">{user.name}</p>
-                      <p className="mt-1 text-sm text-white/38">{user.subtitle}</p>
+                      <p className="text-[16px] font-bold text-white group-hover:text-[#E5D5B8] transition-colors">
+                        {user.name}
+                      </p>
+                      <p className="mt-1 text-[13px] text-white/40">{user.subtitle}</p>
                     </div>
                   </div>
                 </td>
 
-                <td className="px-5 py-5 lg:px-6">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 text-[18px] text-white"
-                  >
+                {/* Roles column: Plain text with chevron as per Figma design (No background pill) */}
+                <td className="px-6 py-6">
+                  <div className="flex items-center gap-2 text-[15px] font-medium text-white/90">
                     <span>{user.role}</span>
-                    <ChevronDown size={16} className="text-white/55" />
-                  </button>
+                  </div>
                 </td>
 
-                <td className="px-5 py-5 text-[16px] text-white/80 lg:px-6">
+                <td className="px-6 py-6 text-[15px] text-white/60">
                   {user.created}
                 </td>
 
-                <td className="px-5 py-5 text-[16px] text-white/80 lg:px-6">
+                <td className="px-6 py-6 text-[15px] text-white/60">
                   {user.updated}
                 </td>
 
-                <td className="px-5 py-5 lg:px-6">
+                <td className="px-6 py-6">
                   <StatusPill status={user.status} />
                 </td>
 
-                <td className="px-5 py-5 lg:px-6">
-                  <div className="flex items-center justify-end gap-5 text-white/80">
+                <td className="px-6 py-6">
+                  <div className="flex items-center justify-end gap-4">
                     <button
                       type="button"
-                      className="transition hover:text-white"
-                      onClick={() => onEdit?.(user)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onEdit?.(user);
+                      }}
                     >
-                      <Pencil size={22} />
-                    </button>
-                    <button type="button" className="transition hover:text-white">
-                      <Trash2 size={22} />
+                      <Pencil size={18} />
                     </button>
                     <button
                       type="button"
-                      className="transition hover:text-white"
-                      onClick={() => onEdit?.(user)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDelete?.(user);
+                      }}
                     >
-                      <ChevronRight size={22} />
+                      <Trash2 size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onEdit?.(user);
+                      }}
+                    >
+                      <ChevronRight size={20} />
                     </button>
                   </div>
                 </td>
