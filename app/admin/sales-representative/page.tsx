@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, List, Grid3X3, SlidersHorizontal, Users, Check, X, ArrowUpToLine, Grid2x2, Filter } from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, List, Grid3X3, SlidersHorizontal, Users, Check, X, ArrowUpToLine, Grid2x2, Filter, ChevronDown, MoreHorizontal } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
@@ -371,11 +371,13 @@ export default function AdminSaleRepManagerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [activeTab, setActiveTab] = useState<TabType>("Booking");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   // --- LEADS STATE (Booking Tab) ---
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
   const [leadsViewMode, setLeadsViewMode] = useState<"list" | "grid">("list");
-  const leadsLimit = leadsViewMode === "grid" ? 50 : 10;
+  const leadsLimit = viewMode === "grid" ? 50 : 10;
+
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
   // Filters state
@@ -397,9 +399,9 @@ export default function AdminSaleRepManagerPage() {
   const [usersCurrentPage, setUsersCurrentPage] = useState(1);
   const [usersTotalPages, setUsersTotalPages] = useState(0);
   const [usersTotalRecords, setUsersTotalRecords] = useState(0);
-  const [usersLimit] = useState(50);
+  const usersLimit = viewMode === "grid" ? 50 : 10;
+
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [showFilters, setShowFilters] = useState(true);
 
   const [metrics, setMetrics] = useState<OverviewMetric[]>(() => getDefaultOverviewMetrics());
@@ -586,8 +588,10 @@ export default function AdminSaleRepManagerPage() {
     setUsersLoading(true);
     try {
       const params: any = {
-        page: usersCurrentPage,
-        limit: usersLimit,
+        // limit: viewMode === "grid" ? 200 : usersLimit,
+        // page: viewMode === "grid" ? 1 : usersCurrentPage,
+        limit: 200, // Try setting both to 200 to test
+        page: 1,
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (usersStatusFilter !== "all") params.status = usersStatusFilter;
@@ -600,75 +604,109 @@ export default function AdminSaleRepManagerPage() {
 
       if (activeTab === "Client") {
         const clientsRes = await adminApi.getClients(params);
+
+        console.log("Fetched Clients Count:", clientsRes?.data?.length);
+
         const clientsPayload = clientsRes?.data?.data || clientsRes?.data || {};
         const clientsList = Array.isArray(clientsPayload)
           ? clientsPayload
           : (clientsPayload.leads || clientsPayload.items || []);
 
-        if (clientsList.length || clientsPayload.pagination) {
-          const mappedClients = clientsList.map((client: any) => ({
-            id: `#${client.lead_id || client.user_id || client.id}`,
-            bookingId: client.booking_id ? String(client.booking_id) : undefined,
-            name: client.client_name || client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
-            email: client.guest_email || client.email || "No Email",
-            type: "Client" as const,
-            status: (
-              client.lead_status === "signed_up" || client.booking_status === "Signed Up"
+        // if (clientsList.length || clientsPayload.pagination) {
+        allUsers = clientsList.map((client: any) => ({
+          id: `#${client.lead_id || client.user_id || client.id}`,
+          bookingId: client.booking_id ? String(client.booking_id) : undefined,
+          name: client.client_name || client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
+          email: client.guest_email || client.email || "No Email",
+          type: "Client" as const,
+          status: (
+            client.lead_status === "signed_up" || client.booking_status === "Signed Up"
+              ? "Active"
+              : client.status === 1 || client.status === "Active" || client.status === "approved"
                 ? "Active"
-                : client.status === 1 || client.status === "Active" || client.status === "approved"
-                  ? "Active"
-                  : client.status === 0 || client.status === "Inactive" || client.status === "rejected"
-                    ? "Inactive"
-                    : "Pending"
-            ) as UserStatus,
-            joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
-            initials: (client.client_name || client.name || "Unknown").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
-            phoneNumber: client.phone || client.phone_number || "N/A",
-            imageUrl: client.profile_image || client.image || null,
-            intent: client.intent || "N/A",
-            bookingStatus: client.booking_status || mapLeadStatusToUI(client.payment_status),
-            assignedSalesRepName: client.assigned_sales_rep?.name || "",
-            assignedSalesRepEmail: client.assigned_sales_rep?.email || "",
-            registrationType:
-              client.registration_type === "guest" || client.client_type === "guest" || !client.user_id
-                ? "guest"
-                : "registered",
-          }));
-          allUsers = mappedClients;
-          pagination = clientsPayload.pagination || clientsRes?.pagination;
+                : client.status === 0 || client.status === "Inactive" || client.status === "rejected"
+                  ? "Inactive"
+                  : "Pending"
+          ) as UserStatus,
+          joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
+          initials: (client.client_name || client.name || "Unknown").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
+          phoneNumber: client.phone || client.phone_number || "N/A",
+          imageUrl: client.profile_image || client.image || null,
+          intent: client.intent || "N/A",
+          bookingStatus: client.booking_status || mapLeadStatusToUI(client.payment_status),
+          assignedSalesRepName: client.assigned_sales_rep?.name || "",
+          assignedSalesRepEmail: client.assigned_sales_rep?.email || "",
+          registrationType:
+            client.registration_type === "guest" || client.client_type === "guest" || !client.user_id
+              ? "guest"
+              : "registered",
+        }));
+        // Handle Client Pagination
+        const pag = clientsPayload.pagination || clientsRes?.pagination || clientsRes?.data?.pagination;
+        setUsers(allUsers);
+
+        if (pag) {
+          // Use Number() to force a numeric value and || 0 as a safety net
+          // const total = Number(pag.total_records || pag.total || allUsers.length);
+          // const pages = Number(pag.total_pages || pag.totalPages || 1);
+          const total = allUsers.length;
+          setUsersTotalRecords(total);
+
+          const calculatedPages = Math.ceil(total / usersLimit);
+          setUsersTotalPages(calculatedPages || 1);
+          // setUsersTotalPages(Math.ceil(allUsers.length / usersLimit) || 1);
+        } else {
+          // If no pagination info, use the length of the current array
+          const currentCount = allUsers.length || 0;
+          setUsersTotalRecords(currentCount);
+          setUsersTotalPages(Math.ceil(currentCount / usersLimit) || 1);
         }
       } else if (activeTab === "Creative Partner") {
         const creativeRes = await adminApi.getPendingCP(params);
-        if (creativeRes?.data) {
-          const mappedCreatives = (Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || [])).map((member: any) => {
-            const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
-            const profilePhoto = member.crew_member_files?.find((file: any) => file.file_type === 'profile_photo');
-            return {
-              id: `#${member.crew_member_id || member.id}`,
-              name: fullName,
-              email: member.email || "No Email",
-              type: "Creative Partner" as const,
-              status: (member.status?.toLowerCase() === "approved" ? "Approved" :
-                member.status?.toLowerCase() === "rejected" ? "Rejected" : "Pending") as UserStatus,
-              joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
-              initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
-              role: member.role?.role_name || member.category_name || "N/A",
-              phoneNumber: member.phone_number || "N/A",
-              imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
-            };
-          });
-          allUsers = mappedCreatives;
-          pagination = creativeRes.pagination;
-        }
-      }
+        const creativePayload = creativeRes?.data?.data || creativeRes?.data || {};
+        const creativeList = Array.isArray(creativePayload) ? creativePayload : (creativePayload.items || []);
 
-      setUsers(allUsers);
-      if (pagination) {
-        setUsersTotalRecords(pagination.total_records || allUsers.length);
-        setUsersTotalPages(pagination.total_pages || 1);
-      } else {
-        setUsersTotalRecords(allUsers.length);
-        setUsersTotalPages(1);
+
+        console.log("Fetched CP Count:", creativeRes?.data?.length);
+
+        allUsers = creativeList.map((member: any) => {
+          const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
+          const profilePhoto = member.crew_member_files?.find((file: any) => file.file_type === 'profile_photo');
+          return {
+            id: `#${member.crew_member_id || member.id}`,
+            name: fullName,
+            email: member.email || "No Email",
+            type: "Creative Partner" as const,
+            status: (member.status?.toLowerCase() === "approved" ? "Approved" :
+              member.status?.toLowerCase() === "rejected" ? "Rejected" : "Pending") as UserStatus,
+            joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
+            initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
+            role: member.role?.role_name || member.category_name || "N/A",
+            phoneNumber: member.phone_number || "N/A",
+            imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
+          };
+        });
+
+        // Handle Creative Pagination
+        const pag = creativeRes?.pagination || creativeRes?.data?.pagination || creativePayload.pagination;
+        setUsers(allUsers);
+        if (pag) {
+          // const total = Number(pag.total_records || pag.total || allUsers.length);
+          // // const pages = Number(pag.total_pages || pag.totalPages || 1);
+
+          // setUsersTotalRecords(total);
+          // setUsersTotalPages(Math.ceil(allUsers.length / usersLimit) || 1);
+          const total = allUsers.length;
+          setUsersTotalRecords(total);
+
+          const calculatedPages = Math.ceil(total / usersLimit);
+          setUsersTotalPages(calculatedPages || 1);
+        } else {
+          const currentCount = allUsers.length || 0;
+
+          setUsersTotalRecords(currentCount);
+          setUsersTotalPages(Math.ceil(currentCount / usersLimit) || 1);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -682,7 +720,8 @@ export default function AdminSaleRepManagerPage() {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
-  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter]);
+  }, [activeTab, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter]);
+  // }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter]);
 
   // Smooth transition effect for Leads mapping
   useEffect(() => {
@@ -854,6 +893,9 @@ export default function AdminSaleRepManagerPage() {
               activeTab={activeTab}
               onChange={(tab) => {
                 setActiveTab(tab);
+                if (tab === "Creative Partner") {
+                  setViewMode("list");
+                }
                 setUsersCurrentPage(1);
                 setLeadsCurrentPage(1);
               }}
@@ -885,47 +927,51 @@ export default function AdminSaleRepManagerPage() {
                   Filter
                 </Button>
 
-                <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
-                  {/* Sliding Toggle Container */}
-                  <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
-                    {/* Animated Slider Background */}
-                    <div
-                      className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
-                        }`}
-                      style={{
-                        transform: viewMode === "grid" ? "translateX(100%)" : "translateX(0%)",
-                      }}
-                    />
+                {
+                  activeTab !== "Creative Partner" && (
+                    <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+                      {/* Sliding Toggle Container */}
+                      <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
+                        {/* Animated Slider Background */}
+                        <div
+                          className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
+                            }`}
+                          style={{
+                            transform: viewMode === "grid" ? "translateX(100%)" : "translateX(0%)",
+                          }}
+                        />
 
-                    {/* List Button */}
-                    <button
-                      type="button"
-                      onClick={() => setViewMode("list")}
-                      className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "list"
-                        ? "text-black"
-                        : isDark
-                          ? "text-white/60 hover:text-white"
-                          : "text-[#666666] hover:text-black"
-                        }`}
-                    >
-                      <List size={16} />
-                    </button>
+                        {/* List Button */}
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("list")}
+                          className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "list"
+                            ? "text-black"
+                            : isDark
+                              ? "text-white/60 hover:text-white"
+                              : "text-[#666666] hover:text-black"
+                            }`}
+                        >
+                          <List size={16} />
+                        </button>
 
-                    {/* Grid Button */}
-                    <button
-                      type="button"
-                      onClick={() => setViewMode("grid")}
-                      className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "grid"
-                        ? "text-black"
-                        : isDark
-                          ? "text-white/60 hover:text-white"
-                          : "text-[#666666] hover:text-black"
-                        }`}
-                    >
-                      <Grid2x2 size={16} />
-                    </button>
-                  </div>
-                </div>
+                        {/* Grid Button */}
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("grid")}
+                          className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "grid"
+                            ? "text-black"
+                            : isDark
+                              ? "text-white/60 hover:text-white"
+                              : "text-[#666666] hover:text-black"
+                            }`}
+                        >
+                          <Grid2x2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                }
               </div>
             </div>
 
@@ -1049,43 +1095,44 @@ export default function AdminSaleRepManagerPage() {
             kanbanStatuses={[...BOOKING_STATUS_OPTIONS, "Approved", "Rejected", "Pending", "Unknown"]}
             getItemId={(user) => user.id}
             getItemStatus={(user) => user.bookingStatus || user.status}
-            renderRow={(user) => (
-              <tr
-                key={user.id}
-                className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222] hover:bg-white/[0.02]" : "border-[#E5E5E5] hover:bg-black/[0.01]"
-                  }`}
-                onClick={() => handleUserRowClick(user)}
-              >
-                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#888]" : "text-[#666]"}`}>{user.id}</td>
-                <td className="py-5 px-6">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm transition-colors ${isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
+            viewMode={viewMode}
+            renderRow={(user, isExpanded) => (
+              <>
+                {/* 1. USER ID (Desktop Only) */}
+                <td className={`hidden md:table-cell py-5 px-6 text-sm transition-colors ${isDark ? "text-[#888]" : "text-[#666]"}`}>{
+                  user.id}</td>
+                {/* 2. USER INFO (Visible on Mobile & Desktop) */}
+                <td className={`p-5 border-b lg:w-auto w-1/2 transition-colors ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                  <div className="flex items-start gap-3 min-w-0">
+                    {/* Mobile Chevron Toggle */}
+                    <div className={`shrink-0 md:hidden h-6 w-6 rounded-full flex items-center justify-center border transition-transform ${isExpanded ? "rotate-180 border-[#E8D1AB] bg-[#E8D1AB]/10" : "border-[#4B4B4B]"
                       }`}>
-                      {user.imageUrl ? (
-                        <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
-                      ) : (
-                        <span>{user.initials}</span>
-                      )}
+                      <ChevronDown size={14} className={isExpanded ? "text-[#E8D1AB]" : "text-[#777]"} />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className={`font-medium text-[15px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${user.registrationType === "registered"
-                            ? isDark
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                              : "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                            : isDark
-                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                              : "bg-amber-100 text-amber-700 border border-amber-200"
-                            }`}
-                        >
-                          {user.registrationType === "registered" ? "Registered" : "Guest"}
-                        </span>
+
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
+                        }`}>
+                        {user.imageUrl ? (
+                          <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
+                        ) : (
+                          <span>{user.initials}</span>
+                        )}
                       </div>
-                      <p className={`text-xs mt-0.5 transition-colors ${isDark ? "text-[#666666]" : "text-[#999999]"}`}>
-                        {user.joinDate}
-                      </p>
+                      <div className="truncate">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium text-[15px] truncate ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>
+                            {user.name}
+                          </p>
+                          <span className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${user.registrationType === "registered"
+                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                            : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                            }`}>
+                            {user.registrationType === "registered" ? "Reg" : "Guest"}
+                          </span>
+                        </div>
+                        <p className={`text-xs mt-0.5 ${isDark ? "text-[#666]" : "text-[#999]"}`}>{user.joinDate}</p>
+                      </div>
                       {user.bookingId ? (
                         <p className={`text-xs transition-colors ${isDark ? "text-white" : "text-black"}`}>
                           #{user.bookingId}
@@ -1094,21 +1141,31 @@ export default function AdminSaleRepManagerPage() {
                     </div>
                   </div>
                 </td>
-                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+
+                {/* 3. TYPE (Desktop Only) */}
+                <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
                   <div className="flex flex-col gap-1">
-                    <span>{user.type}</span>
-                    <span className={`text-xs ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
+                    <span className="text-sm">{user.type}</span>
+                    <span className={`text-xs ${isDark ? "text-[#666]" : "text-[#999]"}`}>
                       {user.registrationType === "registered" ? "Registered" : "Guest"}
                     </span>
                   </div>
                 </td>
-                <td className="py-5 px-6">
+
+                {/* 4. INTENT (Desktop Only) */}
+                <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
                   <IntentBadge intent={(user.intent as any) || "Warm"} />
                 </td>
-                <td className="py-5 px-6">
-                  <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
+
+                {/* 5. STATUS (Mobile & Desktop) */}
+                <td className={`p-5 border-b text-right md:text-left ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                  <div className="flex justify-end md:justify-start">
+                    <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
+                  </div>
                 </td>
-                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+
+                {/* 6. CONTACT (Desktop Only) */}
+                <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
                   <div className="space-y-1 min-w-0">
                     <p>{user.phoneNumber}</p>
                     {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
@@ -1119,10 +1176,13 @@ export default function AdminSaleRepManagerPage() {
                     )}
                   </div>
                 </td>
-                <td className="py-5 px-6 text-right">
+
+                {/* 7. ACTION (Desktop Only) */}
+                <td className={`hidden md:table-cell p-5 border-b text-right ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
                   <button
-                    className={`transition-colors p-1 ${isDark ? "text-[#666] hover:text-white" : "text-[#999] hover:text-black"}`}
+                    className={`transition-colors p-2 rounded-lg ${isDark ? "text-[#666] hover:text-white hover:bg-white/5" : "text-[#999] hover:text-black hover:bg-black/5"}`}
                     onClick={(e) => {
+                      e.stopPropagation();
                       const rawId = user.id.replace('#', '');
                       handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
                     }}
@@ -1130,132 +1190,93 @@ export default function AdminSaleRepManagerPage() {
                     <MoreVertical size={20} />
                   </button>
                 </td>
-              </tr>
+              </>
             )}
+
+            /* GRID VIEW CARD */
             renderKanbanCard={(user) => (
-              <div
-                onClick={() => handleUserRowClick(user)}
-                className={`group cursor-pointer rounded-2xl border p-4 transition-all ${isDark
-                  ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
-                  : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
-                  }`}
-              >
-                <div className="flex items-start justify-between gap-3">
+              <div onClick={() => handleUserRowClick(user)} className="w-full">
+                {/* 1. HEADER: Avatar, Name, Date, Menu */}
+                <div className="flex items-start justify-between p-5">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden ${isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
-                      }`}>
-                      {user.imageUrl ? (
-                        <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
-                      ) : (
-                        user.initials
-                      )}
+                    <div className="w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl shrink-0">
+                      {user.imageUrl ? <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" /> : user.initials}
                     </div>
                     <div className="min-w-0">
-                      <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
-                        {user.id}
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <h4 className={`text-lg font-semibold leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"
-                          }`}>
-                          {user.name}
-                        </h4>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${user.registrationType === "registered"
-                            ? isDark
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                              : "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                            : isDark
-                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                              : "bg-amber-100 text-amber-700 border border-amber-200"
-                            }`}
-                        >
-                          {user.registrationType === "registered" ? "Registered" : "Guest"}
-                        </span>
-                      </div>
-                      <p className={`mt-1 text-sm truncate ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
-                        {user.email}
-                      </p>
+                      <p className={`text-xs uppercase tracking-widest ${isDark ? "text-[#666]" : "text-[#A3A3A3]"}`}>{user.id}</p>
+                      <h4 className={`mt-1 text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>{user.name}</h4>
                     </div>
                   </div>
-
                   <button
-                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
-                      }`}
-                    onClick={(e) => {
-                      const rawId = user.id.replace('#', '');
-                      handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
-                    }}
+                    className={`p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                    onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}
                   >
-                    <MoreVertical size={18} />
+                    <MoreVertical size={24} />
                   </button>
                 </div>
+                {/* DIVIDER */}
+                <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
-                <div className="mt-4 space-y-4">
-                  <div className={`rounded-xl p-3 ${isDark ? "bg-[#101010]" : "bg-[#FAF6EE]"}`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Type</p>
-                        <p className={`mt-1 text-sm font-medium ${isDark ? "text-[#F1F1F1]" : "text-[#222222]"}`}>
-                          {user.type}
-                          <span className={`ml-2 text-xs font-normal ${isDark ? "text-[#B0B0B0]" : "text-[#666666]"}`}>
-                            ({user.registrationType === "registered" ? "Registered" : "Guest"})
-                          </span>
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Intent</p>
-                        <div className="mt-1">
-                          <IntentBadge intent={(user.intent as any) || "Warm"} size="sm" />
-                        </div>
-                      </div>
-                    </div>
+                {/* 2. BODY: Row-based content */}
+                <div className="space-y-4 p-5">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                      Intent
+                    </span>
+                    <IntentBadge intent={(user.intent || "Hot") as any} size="sm" />
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                      Type
+                    </span>
+                    <span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
+                      {user.type}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                      Contact Info
+                    </span>
+                    <span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
+                      {user.phoneNumber}
+                    </span>
+                  </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <LeadsStatusBadge status={(user.bookingStatus as any) || user.status || "Unknown"} />
-                    <p className={`text-sm ${isDark ? "text-[#B9B9B9]" : "text-[#555555]"}`}>
-                      {user.phoneNumber || "N/A"}
-                    </p>
-                    {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
-                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
-                        {user.assignedSalesRepName || "Unassigned"}
-                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
-                      </p>
-                    )}
-                    <p className={`text-xs ${isDark ? "text-[#5F5F5F]" : "text-[#9A9A9A]"}`}>
-                      {user.joinDate}
-                    </p>
-                  </div>
+                {/* DIVIDER */}
+                <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                {/* 3. FOOTER: Status Badge */}
+                <div className="flex items-center p-5">
+                  <LeadsStatusBadge status={user.bookingStatus || "Unknown"} />
                 </div>
               </div>
             )}
+
+            /* MOBILE EXPANDABLE DETAILS */
             renderMobileDetails={(user) => (
-              <div className="p-4 grid grid-cols-2 gap-4">
-                <div>
-                  <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Email</p>
-                  <p className={`text-sm truncate ${isDark ? "text-white" : "text-black"}`}>{user.email}</p>
+              <div className="grid grid-cols-2 gap-y-5">
+                <div className="space-y-1 min-w-0">
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Email</p>
+                  <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{user.email}</p>
                 </div>
-                <div className="text-right">
-                  <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Type</p>
-                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.type}</p>
+                <div className="space-y-1 text-right">
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Type</p>
+                  <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{user.type}</p>
                 </div>
-                <div className="">
-                  <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Intent</p>
-                  <div className="">
-                    <IntentBadge intent={(user.intent as any) || "Hot"} size="sm" />
-                  </div>
+                <div className="space-y-1 min-w-0">
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Intent</p>
+                  <IntentBadge intent={(user.intent || "Hot") as "Hot" | "Warm" | "Cold"} />
                 </div>
-                <div className="text-right">
-                  <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Contact Info</p>
-                  <div className="space-y-1">
-                    <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
-                    {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
-                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-black/50"}`}>
-                        {user.assignedSalesRepName || "Unassigned"}
-                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
-                      </p>
-                    )}
-                  </div>
+                <div className="space-y-1 text-right">
+                  <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>Contact Info</p>
+                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Action</p>
+                  <button className={`inline-flex items-center justify-center p-1 ${isDark ? "text-white" : "text-black"}`} onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}>
+                    <MoreHorizontal size={28} />
+                  </button>
                 </div>
               </div>
             )}

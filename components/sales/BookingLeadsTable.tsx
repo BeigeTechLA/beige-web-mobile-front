@@ -248,8 +248,7 @@ export default function LeadsTable({
                 {kanbanColumns.map((column) => (
                   <div
                     key={column.status}
-                    className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
-                      }`}
+                    className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"}`}
                   >
                     <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 ${isDark ? "border-b border-white/5 bg-[#202020]" : "border-b border-[#E8E0D2] bg-[#FBF7EF]"}`}>
                       <h4 className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
@@ -659,63 +658,6 @@ export default function LeadsTable({
           </div>
         )}
       </div>
-
-      {/* {!loading && totalPages > 1 && (
-        <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-t-[#3D3D3D] bg-[#171717]" : "border-t-[#E5E5E5] bg-[#FFFCF6]"}`}>
-          <div className={`text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-            {viewMode === "grid"
-              ? `Showing ${((currentPage - 1) * limit) + 1} to ${Math.min(currentPage * limit, totalRecords)} of ${totalRecords} leads across status columns`
-              : `Showing ${((currentPage - 1) * limit) + 1} to ${Math.min(currentPage * limit, totalRecords)} of ${totalRecords} leads`}
-          </div>
-          <div className="flex gap-2 items-center">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onPageChange(Math.max(1, currentPage - 1));
-              }}
-              disabled={currentPage === 1}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
-                ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
-                }`}
-            >
-              Previous
-            </button>
-            <div className="flex gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => (
-                <button
-                  key={i + 1}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPageChange(i + 1);
-                  }}
-                  className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === i + 1
-                    ? "bg-[#E5D5B8] text-black"
-                    : isDark
-                      ? "text-white/60 hover:bg-white/5"
-                      : "text-[#666] hover:bg-black/5"
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onPageChange(Math.min(totalPages, currentPage + 1));
-              }}
-              disabled={currentPage === totalPages}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
-                ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
-                }`}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )} */}
     </div>
   );
 }
