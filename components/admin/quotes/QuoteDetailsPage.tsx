@@ -362,6 +362,19 @@ const formatStatusLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+const INVOICE_ACTION_VISIBLE_STATUSES = new Set([
+  "accepted",
+  "approved",
+  "confirmed",
+  "pending",
+  "sent",
+  "viewed",
+  "paid",
+  "partially paid",
+  "partial_paid",
+  "partially_paid",
+]);
+
 const getServiceIcon = (name: string) => {
   const normalizedName = name.toLowerCase();
 
@@ -819,12 +832,6 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
-  const canSendInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
-    normalizedQuoteStatus
-  );
-  const canViewInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
-    normalizedQuoteStatus
-  );
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -982,6 +989,19 @@ export default function QuoteDetailsPage({
     : isPartiallyPaid
       ? "Partially Paid"
       : quoteStatus;
+  const normalizedDisplayStatus = displayStatus.trim().toLowerCase();
+  const hasInvoiceablePaymentContext =
+    effectivePreviouslyPaid > 0 ||
+    partialPaidFromActivity > 0 ||
+    quoteOutstandingAmount > 0 ||
+    Boolean(quote?.additional_payment?.last_sent_at) ||
+    Boolean(quote?.additional_payment?.invoice_url) ||
+    Boolean(signedAt);
+  const canSendInvoiceFromDetails =
+    INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedQuoteStatus) ||
+    INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedDisplayStatus) ||
+    hasInvoiceablePaymentContext;
+  const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
 
   const ensureBookingForPayment = useCallback(async () => {
     if (resolvedBookingId) {
