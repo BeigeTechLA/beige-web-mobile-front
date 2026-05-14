@@ -42,6 +42,14 @@ type QuotePreviewPageShellProps = {
   quoteDetailMode?: "private" | "public";
 };
 
+type QuoteActivityLike = {
+  metadata?: {
+    booking_id?: number | string;
+    [key: string]: unknown;
+  } | null;
+  metadata_json?: string | null;
+};
+
 const ActionButton = ({
   onClick,
   className,
@@ -57,6 +65,45 @@ const ActionButton = ({
     {children}
   </Button>
 );
+
+const getActivityBookingId = (activity: QuoteActivityLike | null | undefined) => {
+  if (!activity) {
+    return null;
+  }
+
+  const directBookingId = activity.metadata?.booking_id;
+  if (
+    directBookingId !== undefined &&
+    directBookingId !== null &&
+    String(directBookingId).trim()
+  ) {
+    return String(directBookingId);
+  }
+
+  if (activity.metadata_json) {
+    try {
+      const parsed =
+        typeof activity.metadata_json === "string"
+          ? JSON.parse(activity.metadata_json)
+          : activity.metadata_json;
+
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "booking_id" in parsed &&
+        parsed.booking_id !== undefined &&
+        parsed.booking_id !== null &&
+        String(parsed.booking_id).trim()
+      ) {
+        return String(parsed.booking_id);
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
 
 export default function QuotePreviewPageShell({
   TopbarComponent,
@@ -89,8 +136,10 @@ export default function QuotePreviewPageShell({
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const [isConvertingToBooking, setIsConvertingToBooking] = useState(false);
   const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
-  
-  
+  const paymentStorageKey =
+    quoteDetailMode === "public"
+      ? `public-quote-booking:${queryQuoteKey || queryQuoteId || "unknown"}`
+      : null;
 
   useEffect(() => {
     return () => {
@@ -190,7 +239,33 @@ export default function QuotePreviewPageShell({
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? queryQuoteId ?? ""
   ).trim();
-  const existingBookingId = String((quote as Record<string, unknown> | null)?.booking_id ?? "").trim();
+  const isQuoteSigned = Boolean(
+    quote?.signed_at ||
+    quote?.signature_base64 ||
+    quote?.signature_path ||
+    (quote as Record<string, unknown> | null)?.["signer_name"]
+  );
+  const quoteActivities = Array.isArray(quote?.activities) ? quote.activities : [];
+  const existingBookingId = React.useMemo(() => {
+    const directBookingId = String(
+      (quote as Record<string, unknown> | null)?.booking_id ??
+        (quote?.converted_booking_details as Record<string, unknown> | null)?.booking_id ??
+        ""
+    ).trim();
+
+    if (directBookingId) {
+      return directBookingId;
+    }
+
+    for (const activity of quoteActivities) {
+      const activityBookingId = getActivityBookingId(activity as QuoteActivityLike);
+      if (activityBookingId) {
+        return activityBookingId;
+      }
+    }
+
+    return "";
+  }, [quote, quoteActivities]);
   const quoteSent = isQuoteAlreadySent(quote);
   const canSendQuote =
     showActionButtons && !loading && Boolean(resolvedQuoteId);
@@ -199,6 +274,28 @@ export default function QuotePreviewPageShell({
     (typeof window !== "undefined" && queryQuoteKey
       ? `${window.location.origin}/quotes/preview?quoteKey=${encodeURIComponent(queryQuoteKey)}`
       : null);
+  const effectivePaymentBookingId = String(paymentBookingId || existingBookingId || "").trim();
+
+  useEffect(() => {
+    if (!paymentStorageKey || typeof window === "undefined") {
+      return;
+    }
+
+    const savedBookingId = window.localStorage.getItem(paymentStorageKey);
+    if (savedBookingId && String(savedBookingId).trim()) {
+      setPaymentBookingId(String(savedBookingId).trim());
+    }
+  }, [paymentStorageKey]);
+
+  useEffect(() => {
+    if (!paymentStorageKey || typeof window === "undefined") {
+      return;
+    }
+
+    if (effectivePaymentBookingId) {
+      window.localStorage.setItem(paymentStorageKey, effectivePaymentBookingId);
+    }
+  }, [effectivePaymentBookingId, paymentStorageKey]);
 
   const handleBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -365,6 +462,18 @@ export default function QuotePreviewPageShell({
       }
       const bookingId = String(data.data.booking_id).trim();
       setPaymentBookingId(bookingId);
+      setQuote((current) =>
+        current
+          ? ({
+              ...current,
+              booking_id: bookingId,
+              converted_booking_details: {
+                ...(current.converted_booking_details || {}),
+                booking_id: bookingId,
+              },
+            } as SalesQuoteDetailData)
+          : current
+      );
       return bookingId;
     }
 
@@ -383,7 +492,7 @@ export default function QuotePreviewPageShell({
   };
 
   const handleContinueToPayment = () => {
-    const bookingId = String(paymentBookingId || "").trim();
+    const bookingId = effectivePaymentBookingId;
     if (!bookingId) {
       toast.error("Booking id missing for payment.");
       return;
@@ -416,7 +525,7 @@ export default function QuotePreviewPageShell({
         {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
       </ActionButton>
       )}
-      {quoteDetailMode === "public" && (
+      {quoteDetailMode === "public" && !isQuoteSigned && (
         <ActionButton
           onClick={() => {
             if (!acceptServiceAgreement) {
@@ -434,7 +543,7 @@ export default function QuotePreviewPageShell({
           Sign Quote
         </ActionButton>
       )}
-      {quoteDetailMode === "public" && paymentBookingId && (
+      {quoteDetailMode === "public" && effectivePaymentBookingId && (
         <ActionButton
           onClick={handleContinueToPayment}
           className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -445,6 +554,7 @@ export default function QuotePreviewPageShell({
       <ServiceAgreementModal
         isOpen={isServiceAgreementOpen}
         initialChecked={acceptServiceAgreement}
+        isAcceptedLocked={isQuoteSigned}
         onClose={() => setIsServiceAgreementOpen(false)}
         onAccept={() => {
           setAcceptServiceAgreement(true);
@@ -498,24 +608,26 @@ export default function QuotePreviewPageShell({
             </ActionButton>
             )}
             {quoteDetailMode === "public" && (
-              <ActionButton
-                onClick={() => {
-                  if (!acceptServiceAgreement) {
-                    toast.error("Please agree to the Service Agreement before signing.");
-                    return;
-                  }
-                  setShowSignature(true);
-                }}
-                disabled={!resolvedQuoteId || loading}
-                className={`h-11 rounded-xl ${isDark
-                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-                  }`}
-                >
-                  Sign Quote
-                </ActionButton>
+              !isQuoteSigned ? (
+                <ActionButton
+                  onClick={() => {
+                    if (!acceptServiceAgreement) {
+                      toast.error("Please agree to the Service Agreement before signing.");
+                      return;
+                    }
+                    setShowSignature(true);
+                  }}
+                  disabled={!resolvedQuoteId || loading}
+                  className={`h-11 rounded-xl ${isDark
+                    ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                    : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                    }`}
+                  >
+                    Sign Quote
+                  </ActionButton>
+              ) : null
             )}
-            {quoteDetailMode === "public" && paymentBookingId && (
+            {quoteDetailMode === "public" && effectivePaymentBookingId && (
               <ActionButton
                 onClick={handleContinueToPayment}
                 className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -572,7 +684,7 @@ export default function QuotePreviewPageShell({
             quote={quote}
             quoteId={queryQuoteId ?? queryQuoteKey}
             showServiceAgreementAcceptance={quoteDetailMode === "public"}
-            acceptServiceAgreement={acceptServiceAgreement}
+            acceptServiceAgreement={isQuoteSigned ? true : acceptServiceAgreement}
             onAcceptServiceAgreementChange={setAcceptServiceAgreement}
             onOpenServiceAgreement={() => setIsServiceAgreementOpen(true)}
           />
@@ -615,8 +727,26 @@ export default function QuotePreviewPageShell({
           signerName={quote?.client_name ?? "Client"}
           signerEmail={quote?.client_email ?? quote?.guest_email ?? ""}
           onClose={() => setShowSignature(false)}
-          onSuccess={async () => {
+          onSuccess={async (signatureData) => {
             toast.success("Quote signed successfully!");
+            setAcceptServiceAgreement(true);
+            setQuote((current) =>
+              current
+                ? {
+                    ...current,
+                    signed_at:
+                      (signatureData as Record<string, unknown> | null)?.["signed_at"] as string ??
+                      current.signed_at ??
+                      new Date().toISOString(),
+                    signature_base64:
+                      ((signatureData as Record<string, unknown> | null)?.["signature_base64"] as string | undefined) ??
+                      current.signature_base64,
+                    signature_path:
+                      ((signatureData as Record<string, unknown> | null)?.["signature_path"] as string | undefined) ??
+                      current.signature_path,
+                  }
+                : current
+            );
             try {
               if (quoteDetailMode === "public" && queryQuoteKey) {
                 const refreshed = await fetchQuotePreviewByKey(queryQuoteKey);
