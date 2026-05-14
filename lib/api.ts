@@ -78,6 +78,15 @@ export type PermissionModuleRecord = {
   actions: string[];
 };
 
+export type UserPermissionActions = {
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+};
+
+export type UserPermissionsMap = Record<string, UserPermissionActions>;
+
 export type RoleDetailsResponse = {
   role: AdminRoleRecord;
   permissions: Record<string, Record<string, boolean>>;
@@ -2146,6 +2155,20 @@ export const adminApi = {
     }
   },
 
+  getUserPermissions: async (userId: number | string) => {
+    try {
+      const response = await api.get(`admin/users/${userId}/permissions`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get User Permissions Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch user permissions',
+      };
+    }
+  },
+
   assignRoleToUser: async (payload: { user_id: number | string; role_id: number | string }) => {
     try {
       const response = await api.post('admin/users/assign-role', payload);
@@ -2156,6 +2179,54 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to assign role',
+      };
+    }
+  },
+
+  assignUserPermissions: async (payload: { user_id: number | string; permissions: UserPermissionsMap }) => {
+    try {
+      const response = await api.post('admin/users/permissions/assign', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign User Permissions Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign user permissions',
+      };
+    }
+  },
+
+  updateUserPermissions: async (payload: { user_id: number | string; permissions: UserPermissionsMap }) => {
+    try {
+      const response = await api.put('admin/users/permissions/update', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update User Permissions Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update user permissions',
+      };
+    }
+  },
+
+  deleteUserPermission: async (
+    userId: number | string,
+    moduleKey: string,
+    actionKey: string,
+  ) => {
+    try {
+      const response = await api.delete(
+        `admin/users/${userId}/permissions/${moduleKey}/${actionKey}`,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete User Permission Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete user permission',
       };
     }
   },

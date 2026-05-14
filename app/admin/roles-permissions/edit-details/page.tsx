@@ -11,6 +11,7 @@ import {
   adminApi,
   type AdminRoleRecord,
   type PermissionModuleRecord,
+  type UserPermissionsMap,
   type UserRoleDetailsResponse,
 } from "@/lib/api";
 import {
@@ -20,6 +21,7 @@ import {
 import {
   applyPermissionsToRows,
   buildPermissionRows,
+  extractPermissionStateFromRows,
   extractPermissionsFromRows,
 } from "@/components/admin/roles-permissions/utils";
 
@@ -40,6 +42,56 @@ const formatDateTime = (value: string | null | undefined) => {
 type RoleOption = {
   value: string;
   label: string;
+};
+
+const normalizeUserPermissionsPayload = (
+  value: unknown,
+): UserPermissionsMap => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const source =
+    "permissions" in value &&
+    value.permissions &&
+    typeof value.permissions === "object" &&
+    !Array.isArray(value.permissions)
+      ? value.permissions
+      : value;
+
+  const permissions: UserPermissionsMap = {};
+
+  Object.entries(source as Record<string, unknown>).forEach(([moduleKey, actionsValue]) => {
+    if (!actionsValue || typeof actionsValue !== "object" || Array.isArray(actionsValue)) {
+      return;
+    }
+
+    permissions[moduleKey] = {
+      view: Boolean((actionsValue as Record<string, unknown>).view),
+      create: Boolean((actionsValue as Record<string, unknown>).create),
+      edit: Boolean((actionsValue as Record<string, unknown>).edit),
+      delete: Boolean((actionsValue as Record<string, unknown>).delete),
+    };
+  });
+
+  return permissions;
+};
+
+const getDeletedUserPermissionEntries = (
+  previousPermissions: UserPermissionsMap,
+  nextPermissions: UserPermissionsMap,
+) => {
+  const deletedEntries: Array<{ moduleKey: string; actionKey: PermissionColumnKey }> = [];
+
+  Object.entries(previousPermissions).forEach(([moduleKey, actions]) => {
+    (Object.keys(actions) as PermissionColumnKey[]).forEach((actionKey) => {
+      if (actions[actionKey] && !nextPermissions[moduleKey]?.[actionKey]) {
+        deletedEntries.push({ moduleKey, actionKey });
+      }
+    });
+  });
+
+  return deletedEntries;
 };
 
 export default function AdminRoleEditDetailsRoute() {
@@ -73,9 +125,35 @@ export default function AdminRoleEditDetailsRoute() {
   const [currentRoleId, setCurrentRoleId] = useState("");
   const [currentRoleLabel, setCurrentRoleLabel] = useState("Role");
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
+  const [userCustomPermissions, setUserCustomPermissions] = useState<UserPermissionsMap>({});
+  const [hasUserCustomPermissions, setHasUserCustomPermissions] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+
+    const loadUserPermissions = async ({
+      nextUserId,
+      baseRows,
+      fallbackPermissions,
+    }: {
+      nextUserId: string;
+      baseRows: PermissionMatrixRow[];
+      fallbackPermissions: UserPermissionsMap;
+    }) => {
+      const response = await adminApi.getUserPermissions(nextUserId);
+
+      if (!mounted) {
+        return;
+      }
+
+      const normalizedPermissions = normalizeUserPermissionsPayload(response?.data);
+      const hasCustomPermissions = Object.keys(normalizedPermissions).length > 0;
+      const permissionsToApply = hasCustomPermissions ? normalizedPermissions : fallbackPermissions;
+
+      setRows(applyPermissionsToRows(baseRows, permissionsToApply));
+      setUserCustomPermissions(normalizedPermissions);
+      setHasUserCustomPermissions(hasCustomPermissions);
+    };
 
     const loadPage = async () => {
       setIsLoading(true);
@@ -134,7 +212,11 @@ export default function AdminRoleEditDetailsRoute() {
           setCreatedAt(formatDateTime(data.user.created_at));
           setUpdatedAt(formatDateTime(data.role?.updated_at || data.user.created_at));
           setRoleDescription(data.role?.description || "");
-          setRows(applyPermissionsToRows(baseRows, data.permissions || {}));
+          await loadUserPermissions({
+            nextUserId: String(userId),
+            baseRows,
+            fallbackPermissions: normalizeUserPermissionsPayload(data.permissions || {}),
+          });
         } else {
           setRows(baseRows);
           setError(response?.error || response?.message || "Failed to load user role details");
@@ -174,14 +256,12 @@ export default function AdminRoleEditDetailsRoute() {
     setCurrentRoleId(selectedRoleId || "");
     setCurrentRoleLabel(nextRoleName);
     setIsUpdateModalOpen(false);
+    if (selectedRoleId) {
+      void handleAssignRole(selectedRoleId, nextRoleName);
+    }
   };
 
   const handlePrimaryAction = async () => {
-    if (mode === "user") {
-      setIsUpdateModalOpen(true);
-      return;
-    }
-
     if (!roleId) return;
 
     setIsSaving(true);
@@ -204,8 +284,67 @@ export default function AdminRoleEditDetailsRoute() {
     setIsSuccessModalOpen(true);
   };
 
-  const handleAssignRole = async () => {
-    if (!userId || !currentRoleId) {
+  const handleUpdateUserPermissions = async () => {
+    if (!userId) return;
+
+    setIsSaving(true);
+    setError("");
+
+    const nextPermissions = extractPermissionStateFromRows(rows);
+    const deletedEntries = getDeletedUserPermissionEntries(userCustomPermissions, nextPermissions);
+
+    if (hasUserCustomPermissions && deletedEntries.length > 0) {
+      await Promise.all(
+        deletedEntries.map(({ moduleKey, actionKey }) =>
+          adminApi.deleteUserPermission(userId, moduleKey, actionKey),
+        ),
+      );
+    }
+
+    const response = hasUserCustomPermissions
+      ? await adminApi.updateUserPermissions({
+          user_id: userId,
+          permissions: nextPermissions,
+        })
+      : await adminApi.assignUserPermissions({
+          user_id: userId,
+          permissions: nextPermissions,
+        });
+
+    setIsSaving(false);
+
+    if (response?.success === false) {
+      setError(response?.error || response?.message || "Failed to update user permissions");
+      return;
+    }
+
+    const modulesResponse = await adminApi.getPermissionModules();
+    const modules: PermissionModuleRecord[] = Array.isArray(modulesResponse?.data)
+      ? modulesResponse.data
+      : [];
+    const baseRows = buildPermissionRows(modules);
+    const permissionResponse = await adminApi.getUserPermissions(userId);
+    const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
+    const permissionsToApply =
+      Object.keys(normalizedPermissions).length > 0 ? normalizedPermissions : nextPermissions;
+
+    setRows(applyPermissionsToRows(baseRows, permissionsToApply));
+    setUserCustomPermissions(normalizedPermissions);
+    setHasUserCustomPermissions(true);
+    setSuccessTitle("User Permissions Updated Successfully");
+    setSuccessDescription(
+      "The user's custom permissions have been updated successfully. Changes will reflect immediately across the platform.",
+    );
+    setIsSuccessModalOpen(true);
+  };
+
+  const handleAssignRole = async (
+    selectedRoleId?: string,
+    selectedRoleLabel?: string,
+  ) => {
+    const nextRoleId = selectedRoleId || currentRoleId;
+
+    if (!userId || !nextRoleId) {
       setError("Please select a role to assign.");
       return;
     }
@@ -213,7 +352,7 @@ export default function AdminRoleEditDetailsRoute() {
     setIsSaving(true);
     const response = await adminApi.assignRoleToUser({
       user_id: userId,
-      role_id: currentRoleId,
+      role_id: nextRoleId,
     });
     setIsSaving(false);
 
@@ -229,10 +368,22 @@ export default function AdminRoleEditDetailsRoute() {
         ? modulesResponse.data
         : [];
       const baseRows = buildPermissionRows(modules);
+      const permissionResponse = await adminApi.getUserPermissions(userId);
+      const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
+      const fallbackPermissions = normalizeUserPermissionsPayload(
+        detailsResponse.data.permissions || {},
+      );
+      const permissionsToApply =
+        Object.keys(normalizedPermissions).length > 0 ? normalizedPermissions : fallbackPermissions;
 
-      setRows(applyPermissionsToRows(baseRows, detailsResponse.data.permissions || {}));
+      setRows(applyPermissionsToRows(baseRows, permissionsToApply));
+      setUserCustomPermissions(normalizedPermissions);
+      setHasUserCustomPermissions(Object.keys(normalizedPermissions).length > 0);
       setCurrentRoleLabel(
-        detailsResponse.data.display_role || detailsResponse.data.role?.name || currentRoleLabel,
+        detailsResponse.data.display_role ||
+          detailsResponse.data.role?.name ||
+          selectedRoleLabel ||
+          currentRoleLabel,
       );
       setRoleDescription(detailsResponse.data.role?.description || "");
     }
@@ -306,7 +457,7 @@ export default function AdminRoleEditDetailsRoute() {
       : `Are you sure you want to delete ${userName}? This action cannot be undone.`;
   const deleteLabel = mode === "role" ? "Delete Role" : "Delete User";
   const primaryActionLabel = useMemo(() => {
-    if (isSaving) return mode === "role" ? "Updating..." : "Assigning...";
+    if (isSaving) return "Updating...";
     return mode === "role" ? "Update" : "Update";
   }, [isSaving, mode]);
 
@@ -351,13 +502,13 @@ export default function AdminRoleEditDetailsRoute() {
         created={createdAt}
         updated={updatedAt}
         rows={rows}
-        readOnly={mode === "user"}
+        readOnly={false}
         isLoading={isLoading}
         description={mode === "role" ? roleDescription : undefined}
         primaryActionLabel={primaryActionLabel}
         onRowsChange={setRows}
         onOpenModal={() => setIsUpdateModalOpen(true)}
-        onPrimaryAction={mode === "role" ? handlePrimaryAction : handleAssignRole}
+        onPrimaryAction={mode === "role" ? handlePrimaryAction : handleUpdateUserPermissions}
         onInvalidAccessAttempt={handleInvalidAccessAttempt}
       />
 

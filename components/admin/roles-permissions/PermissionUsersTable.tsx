@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -22,6 +22,37 @@ type PermissionUsersTableProps = {
   onEdit?: (user: PermissionUser) => void;
   onDelete?: (user: PermissionUser) => void;
   onRowClick?: (user: PermissionUser) => void;
+};
+
+const ITEMS_PER_PAGE = 5;
+
+const buildPaginationItems = (currentPage: number, totalPages: number) => {
+  if (totalPages <= 1) return [1];
+
+  const pages: Array<number | "..."> = [];
+  const delta = 1;
+  const left = Math.max(2, currentPage - delta);
+  const right = Math.min(totalPages - 1, currentPage + delta);
+
+  pages.push(1);
+
+  if (left > 2) {
+    pages.push("...");
+  }
+
+  for (let page = left; page <= right; page += 1) {
+    pages.push(page);
+  }
+
+  if (right < totalPages - 1) {
+    pages.push("...");
+  }
+
+  if (totalPages > 1) {
+    pages.push(totalPages);
+  }
+
+  return pages;
 };
 
 function StatusPill({ status }: { status: PermissionStatus }) {
@@ -52,6 +83,7 @@ export function PermissionUsersTable({
   const [monthFilter, setMonthFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -79,12 +111,36 @@ export function PermissionUsersTable({
     return Array.from(new Set(users.map((user) => user.role).filter(Boolean))).sort();
   }, [users]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, monthFilter, roleFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const allSelected =
-    filteredUsers.length > 0 &&
-    filteredUsers.every((user) => selectedRows.includes(user.id));
+    paginatedUsers.length > 0 &&
+    paginatedUsers.every((user) => selectedRows.includes(user.id));
 
   const toggleAll = (checked: boolean) => {
-    setSelectedRows(checked ? filteredUsers.map((user) => user.id) : []);
+    setSelectedRows((current) => {
+      const visibleIds = paginatedUsers.map((user) => user.id);
+
+      if (checked) {
+        return Array.from(new Set([...current, ...visibleIds]));
+      }
+
+      return current.filter((id) => !visibleIds.includes(id));
+    });
   };
 
   const toggleOne = (id: number, checked: boolean) => {
@@ -206,7 +262,7 @@ export function PermissionUsersTable({
 
             {!isLoading &&
               !error &&
-              filteredUsers.map((user) => (
+              paginatedUsers.map((user) => (
               <tr
                 key={user.id}
                 className="group cursor-pointer text-white transition-colors hover:bg-white/[0.02]"
@@ -295,6 +351,61 @@ export function PermissionUsersTable({
           </tbody>
         </table>
       </div>
+
+      {!isLoading && !error && filteredUsers.length > 0 ? (
+        <div className="flex flex-col gap-4 border-t border-white/5 px-6 py-5 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-white/40">
+            Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
+            {filteredUsers.length} users
+          </p>
+
+          {totalPages > 1 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={safeCurrentPage === 1}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#171717] px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                Previous
+              </button>
+
+              {paginationItems.map((item, index) =>
+                item === "..." ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className="flex h-10 w-10 items-center justify-center text-sm text-white/30"
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setCurrentPage(item)}
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold transition ${
+                      safeCurrentPage === item
+                        ? "bg-[#E5D5B8] text-[#111111]"
+                        : "border border-white/10 bg-[#171717] text-white/60 hover:bg-white/[0.06] hover:text-white"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#171717] px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

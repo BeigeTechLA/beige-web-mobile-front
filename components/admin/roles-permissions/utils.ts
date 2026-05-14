@@ -95,3 +95,18 @@ export const extractPermissionsFromRows = (rows: PermissionMatrixRow[]) => {
 
   return permissions;
 };
+
+export const extractPermissionStateFromRows = (rows: PermissionMatrixRow[]) => {
+  const permissions: Record<string, Record<PermissionColumnKey, boolean>> = {};
+
+  rows.forEach((row) => {
+    permissions[normalizeRowIdToModuleKey(row.id)] = {
+      view: Boolean(row.access.view),
+      create: Boolean(row.access.create),
+      edit: Boolean(row.access.edit),
+      delete: Boolean(row.access.delete),
+    };
+  });
+
+  return permissions;
+};
