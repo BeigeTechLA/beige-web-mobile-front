@@ -174,8 +174,15 @@ export const getQuoteText = (...values: unknown[]) => {
   return "";
 };
 
-export const formatQuoteItemDisplayName = (value: string) => {
-  const normalizedValue = value.trim().toLowerCase().replace(/[_\s]+/g, " ");
+export const formatQuoteItemDisplayName = (value: unknown) => {
+  const normalizedRawValue = typeof value === "string" ? value : "";
+  const trimmedValue = normalizedRawValue.trim();
+
+  if (!trimmedValue) {
+    return "Line Item";
+  }
+
+  const normalizedValue = trimmedValue.toLowerCase().replace(/[_\s]+/g, " ");
 
   if (normalizedValue === "ai editing") {
     return "Editing";
@@ -187,7 +194,7 @@ export const formatQuoteItemDisplayName = (value: string) => {
     return "Studio";
   }
 
-  return value.trim();
+  return trimmedValue;
 };
 
 export const getQuoteNumber = (...values: unknown[]): number | undefined => {
@@ -630,7 +637,8 @@ export const getQuoteAdditionalPaymentDetails = (
     totalDelta < -0.009
       ? Math.max(previouslyPaidAmount, historicalConfirmedPaidAmount ?? 0)
       : previouslyPaidAmount;
-  const derivedAdditionalAmount =
+  const derivedAdditionalAmount = totalDelta;
+  const derivedOutstandingAmount =
     revisedTotal > 0 || effectivePaidAmount > 0
       ? revisedTotal - effectivePaidAmount
       : 0;
@@ -652,7 +660,7 @@ export const getQuoteAdditionalPaymentDetails = (
     additionalPayment?.payment_status
   ).toLowerCase();
   const additionalAmount = derivedAdditionalAmount;
-  const outstandingAmount = Math.max(0, additionalAmount);
+  const outstandingAmount = Math.max(0, derivedOutstandingAmount);
   const displayAmount = Math.abs(additionalAmount);
   const isDecrease = additionalAmount < -0.009;
 
