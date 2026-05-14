@@ -1041,7 +1041,7 @@ function StripePaymentFormMulti({
                   ? "border-red-500 focus:border-red-400"
                   : "border-white/30 focus:border-white/50"
                 }`}
-              placeholder={isReferralLocked ? "Disabled for $0 total" : "Enter code"}
+              placeholder={isReferralLocked ? "Referral Code" : "Enter code"}
               maxLength={10}
               disabled={isReferralLocked}
             />
@@ -1794,7 +1794,7 @@ function MultiCreatorPaymentContent() {
               </div>
               {/* <div className="bg-white rounded-[20px] text-black py-3 lg:py-5"> */}
               <div className="rounded-b-[20px] text-black">
-                <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-start">
+                <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-center">
                   <div className="w-10 h-10 lg:h-[82px] lg:w-[82px] rounded-full bg-[#333333] flex items-center justify-center text-[#FFFFFF85] font-semibold lg:text-2xl">
                     {getInitials(customerName)}
                   </div>
@@ -1805,15 +1805,21 @@ function MultiCreatorPaymentContent() {
                 </div>
                 <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
                   <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 gap-2">
+                  {summaryData?.shoot_type && summaryData.shoot_type.trim() !== "" && (
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Shoot Category:</span>
                       <span className="font-medium">{toTitleCase((summaryData.shoot_type || "").trim())}</span>
                     </div>
+                  )}
+                  {dateTimeInfo.summaryDateText && !dateTimeInfo.summaryDateText.toLowerCase().includes("not set") && (
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Shoot Date:</span>
                       {/* <span className="font-medium">{formatShortDate(booking.event_date)} </span> */}
                       <span className="font-medium whitespace-pre-line">{dateTimeInfo.summaryDateText} </span>
                     </div>
+                  )}
+                    {parseFloat(booking.duration_hours) > 0 && !dateTimeInfo.displayTimeText?.toLowerCase().includes("not set") && (
+
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
                       <span className="font-medium">
@@ -1824,6 +1830,7 @@ function MultiCreatorPaymentContent() {
                         <span className="block">{dateTimeInfo.displayTimeText}</span>
                       </span>
                     </div>
+                    )}
                   </div>
                   <div className="flex flex-col justify-between mb-4">
                     <span className="text-[#626467]">Shoot Type:</span>

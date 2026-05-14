@@ -98,6 +98,12 @@ export default function ClientDetailsPage() {
     const accountCredit = clientData?.account_credit;
     const creditHistory = clientData?.credit_history || [];
 
+    const clientType = client?.client_type === "registered" ? "registered" : "guest";
+    const clientTypeLabel = clientType === "registered" ? "Registered" : "Guest";
+    const clientTypeBadgeClass = clientType === "registered"
+        ? "bg-[#E8F2FF] text-[#246BCE] border border-[#246BCE]/20"
+        : "bg-[#FFF4E5] text-[#B66A00] border border-[#B66A00]/20";
+
     return (
         <>
             <Topbar pathname={pathname} />
@@ -114,7 +120,12 @@ export default function ClientDetailsPage() {
                     </button>
                     <div>
                         <h1 className="text-2xl font-bold">{client?.name || "User Details"}</h1>
-                        <p className={`${isDark ? "text-[#888]" : "text-gray-500"} text-sm font-medium`}>User ID: #{client?.client_id}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                            <p className={`${isDark ? "text-[#888]" : "text-gray-500"} text-sm font-medium`}>User ID: #{client?.client_id}</p>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${clientTypeBadgeClass}`}>
+                                {clientTypeLabel}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -141,7 +152,7 @@ export default function ClientDetailsPage() {
                         </div>
                     </div>
 
-                    <div className={`grid grid-cols-1 md:grid-cols-3 gap-8 pt-6 border-t ${isDark ? "border-white/5" : "border-gray-200"}`}>
+                    <div className={`grid grid-cols-1 md:grid-cols-4 gap-8 pt-6 border-t ${isDark ? "border-white/5" : "border-gray-200"}`}>
                         <div className="flex items-start gap-4">
                             <div className={`p-2.5 rounded-xl border ${isDark ? "bg-white/5 border-white/10 text-[#E5D5B8]" : "bg-black/5 border-black/5 text-black"}`}>
                                 <Phone size={20} />
@@ -183,6 +194,20 @@ export default function ClientDetailsPage() {
                                 <div className="pt-1">
                                     <span className={`px-5 py-1.5 rounded-full text-xs font-bold ${isDark ? "bg-[#E6FFFA] text-[#38A169]" : "bg-[#D4FFE4] text-[#16A34A]"}`}>
                                         {client?.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start gap-4">
+                            <div className={`p-2.5 rounded-xl border ${isDark ? "bg-white/5 border-white/10 text-[#E5D5B8]" : "bg-black/5 border-black/5 text-black"}`}>
+                                <ShieldCheck size={20} />
+                            </div>
+                            <div className="space-y-1">
+                                <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Client Type</p>
+                                <div className="pt-1">
+                                    <span className={`px-5 py-1.5 rounded-full text-xs font-bold ${clientTypeBadgeClass}`}>
+                                        {clientTypeLabel}
                                     </span>
                                 </div>
                             </div>
@@ -341,14 +366,14 @@ export default function ClientDetailsPage() {
                                                 {item.project.event_type_labels || "N/A"}
                                             </td>
                                             <td className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                                                {formatCurrency(item.project.total_paid_amount || 0)}
+                                                {formatCurrency(item.project.total_value_amount ?? item.project.total_paid_amount ?? 0)}
                                             </td>
                                             <td className="py-6 px-6">
                                                 <span className={`text-base font-medium px-5 py-2 rounded-full capitalize tracking-tight ${activeTab === "Paid"
-                                                    ? "bg-[#FFF9E5] text-[#B18A00]"
+                                                    ? "bg-[#D4FFE4] text-[#16A34A]"
                                                     : (isDark ? "bg-[#1A1A1A] text-[#555]" : "bg-[#FFF4C9] text-[#BA6605]")
                                                     }`}>
-                                                    {activeTab === "Paid" ? "Pending" : "Draft"}
+                                                    {activeTab === "Paid" ? "Paid" : "Draft"}
                                                 </span>
                                             </td>
                                             <td className="py-6 px-6 text-right">

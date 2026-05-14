@@ -126,7 +126,7 @@ export default function QuoteEditAccessModal({
           </button>
         </div>
 
-        <div className="space-y-4 px-5 py-4 lg:px-7 lg:py-5">
+        <div className="space-y-4 lg:space-y-6 px-5 py-4 lg:px-7 lg:py-5">
           <div className="flex items-start gap-4 rounded-[12px] border border-[#E24D4D] bg-[#261010] px-4 py-3.5 lg:px-5 lg:py-4">
             <div className="mt-1 shrink-0 text-[#FF6B6B]">
               <AlertTriangle size={22} strokeWidth={1.9} className="lg:h-8 lg:w-8" />
@@ -156,14 +156,14 @@ export default function QuoteEditAccessModal({
             ].map(({ icon: Icon, label, value, accent }, index) => (
               <div
                 key={label}
-                className={`flex flex-col items-start px-4 py-4 lg:min-h-[116px] lg:px-5 lg:py-4 ${
+                className={`flex lg:flex-col items-start gap-3 p-4 lg:min-h-[116px] lg:px-5 lg:py-4 ${
                   index < 3 ? "border-b border-[#373737] lg:border-b-0 lg:border-r" : ""
                 }`}
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#EED4A7] text-black lg:h-[40px] lg:w-[40px]">
                   <Icon size={16} strokeWidth={1.85} className="lg:h-5 lg:w-5" />
                 </div>
-                <div className="mt-3 min-w-0">
+                <div className="lg:mt-3 min-w-0">
                   <p className="text-[12px] leading-5 text-[#9E9EA4] lg:text-[13px]">{label}</p>
                   <p
                     className={`mt-1 break-words text-[16px] font-medium leading-[1.18] lg:text-[16px] ${

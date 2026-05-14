@@ -3073,7 +3073,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "bank_transfer" | "credit_card" | "other";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
@@ -3096,7 +3096,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "bank_transfer" | "credit_card" | "other";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;

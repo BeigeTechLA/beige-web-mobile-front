@@ -71,6 +71,10 @@ import {
 import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import {
+  getQuoteAdditionalPaymentDetails,
+  getQuotePaymentProgressDetails,
+} from "@/lib/quoteDetail";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -168,6 +172,17 @@ const formatStatusLabel = (value?: string | null) => {
   return value
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const normalizeStatusValue = (value?: string | null) =>
+  String(value || "")
+    .replace(/\u2013|\u2014/g, "-")
+    .trim()
+    .toLowerCase();
+
+const isClosedLostStatus = (value?: string | null) => {
+  const normalized = normalizeStatusValue(value);
+  return normalized.includes("closed - lost") || normalized === "cancelled";
 };
 
 const formatCurrencyValue = (value?: number | string | null) => {
@@ -296,7 +311,7 @@ export default function LeadDetailPage() {
   const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
-  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "bank_transfer" | "credit_card" | "other">("cash");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
@@ -378,20 +393,45 @@ export default function LeadDetailPage() {
     !["paid", "success", "completed"].includes(
       String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase()
     );
+
+  useEffect(() => {
+    // Refetch lead data on mount to ensure fresh data after navigating back from quote editor
+    refetch();
+  }, [refetch]);
+
   const additionalPaymentDetails = useMemo(() => {
     if (!rawAdditionalPayment) return null;
 
-    const additionalAmount = Number(rawAdditionalPayment.additional_amount ?? 0);
-    const previouslyPaidAmount = Number(rawAdditionalPayment.previously_paid_amount ?? 0);
-    const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
-    const outstandingAmount = Number(
-      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - previouslyPaidAmount, 0)
+    const actuallyPaidAmount = Number(lead?.pricing_breakdown?.total_paid ?? 0);
+    const revisedTotal = Number(
+      lead?.custom_quote?.total ??
+        lead?.pricing_breakdown?.total ??
+        rawAdditionalPayment.revised_total ??
+        0
     );
+    const paymentDetails = getQuoteAdditionalPaymentDetails(
+      (lead?.custom_quote ?? null) as any,
+      {
+        revisedTotalOverride: revisedTotal,
+        previouslyPaidOverride:
+          Number.isFinite(actuallyPaidAmount) && actuallyPaidAmount > 0
+            ? actuallyPaidAmount
+            : undefined,
+        previousTotalOverride:
+          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
+          undefined,
+      }
+    );
+
+    if (!paymentDetails) {
+      return null;
+    }
+
     if (
-      additionalAmount <= 0 &&
-      previouslyPaidAmount <= 0 &&
-      revisedTotal <= 0 &&
-      outstandingAmount <= 0 &&
+      Math.abs(paymentDetails.additionalAmount) <= 0.009 &&
+      paymentDetails.previouslyPaidAmount <= 0 &&
+      paymentDetails.revisedTotal <= 0 &&
+      paymentDetails.outstandingAmount <= 0 &&
       !String(rawAdditionalPayment.payment_status || "").trim() &&
       !rawAdditionalPayment.invoice_number &&
       !rawAdditionalPayment.last_sent_at
@@ -400,17 +440,27 @@ export default function LeadDetailPage() {
     }
 
     return {
-      additionalAmount,
-      previouslyPaidAmount,
-      revisedTotal,
-      outstandingAmount,
-      paymentStatusLabel: formatStatusLabel(rawAdditionalPayment.payment_status),
+      additionalAmount: paymentDetails.additionalAmount,
+      isDecrease: paymentDetails.isDecrease,
+      paymentStatus: paymentDetails.paymentStatus,
+      paymentStatusLabel: formatStatusLabel(paymentDetails.paymentStatus || rawAdditionalPayment.payment_status),
+      previousTotal: paymentDetails.previousTotal,
+      previouslyPaidAmount: paymentDetails.previouslyPaidAmount,
+      revisedTotal: paymentDetails.revisedTotal,
+      outstandingAmount: paymentDetails.outstandingAmount,
       invoiceNumber: rawAdditionalPayment.invoice_number
         ? String(rawAdditionalPayment.invoice_number).trim()
         : null,
       lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
     };
-  }, [rawAdditionalPayment]);
+  }, [
+    rawAdditionalPayment,
+    lead?.activities,
+    lead?.custom_quote,
+    lead?.pricing_breakdown?.total,
+    lead?.pricing_breakdown?.total_amount,
+    lead?.pricing_breakdown?.total_paid,
+  ]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -674,14 +724,25 @@ export default function LeadDetailPage() {
   const email = lead?.guest_email || "No email";
   const phone = lead?.phone || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
+  const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
+  const normalizedRevisionPaymentStatus = String(
+    additionalPaymentDetails?.paymentStatus || ""
+  )
+    .trim()
+    .toLowerCase();
+  const isRevisionPaymentPending =
+    normalizedRevisionPaymentStatus === "pending" ||
+    normalizedRevisionPaymentStatus === "partially_paid";
   const isAmountPaid =
-    ["paid", "success", "completed"].includes(
+    !isRevisionPaymentPending &&
+    (["paid", "success", "completed"].includes(
       String(lead?.payment_status || "").trim().toLowerCase()
     ) ||
-    Boolean(booking?.payment_id || booking?.payment_completed_at);
+      Boolean(booking?.payment_id || booking?.payment_completed_at));
   const showCompletedPaymentMessage =
     isAmountPaid && !hasPendingAdditionalPayment;
+  const isClosedLostLead = isClosedLostStatus(lead?.booking_status || status);
 
   const bookingDate = booking?.event_date
     ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
@@ -697,7 +758,9 @@ export default function LeadDetailPage() {
   const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
-  const discountAmount = lead?.pricing_breakdown?.discount || 0;
+  const discountAmount = isQuoteConvertedLead
+    ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
+    : Number(lead?.pricing_breakdown?.discount ?? 0);
   const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
   const totalBeforeCredit = Number(
     lead?.pricing_breakdown?.total_before_credit ??
@@ -786,17 +849,36 @@ export default function LeadDetailPage() {
     }, 0);
 
     const resolvedTotal = total > 0 ? total : Number(latestManualPaymentEntry?.data?.total_amount || 0);
-    const paidAmount = hasFullPayment ? resolvedTotal : partialPaid;
-    const pendingAmount = Math.max(resolvedTotal - paidAmount, 0);
+    const paymentProgress = getQuotePaymentProgressDetails(
+      (lead?.custom_quote ?? null) as any,
+      {
+        totalAmountOverride: resolvedTotal,
+        previouslyPaidOverride: Number(lead?.pricing_breakdown?.total_paid ?? 0) || undefined,
+        previousTotalOverride:
+          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
+          undefined,
+        collectedAmountOverride: Number(lead?.collected_amount ?? 0) || undefined,
+        manualPaidOverride: hasFullPayment ? resolvedTotal : partialPaid,
+      }
+    );
 
     return {
-      hasFullPayment,
-      paidAmount,
-      pendingAmount,
-      isPartiallyPaid: !hasFullPayment && paidAmount > 0 && pendingAmount > 0,
-      canTakePayment: !hasFullPayment && pendingAmount > 0,
+      hasFullPayment: paymentProgress.hasFullPayment || hasFullPayment,
+      paidAmount: paymentProgress.paidAmount,
+      pendingAmount: paymentProgress.pendingAmount,
+      isPartiallyPaid: paymentProgress.isPartiallyPaid,
+      canTakePayment: paymentProgress.canTakePayment,
     };
-  }, [lead?.activities, latestManualPaymentEntry?.data?.total_amount, total]);
+  }, [
+    lead?.activities,
+    lead?.collected_amount,
+    lead?.custom_quote,
+    lead?.pricing_breakdown?.total,
+    lead?.pricing_breakdown?.total_amount,
+    lead?.pricing_breakdown?.total_paid,
+    latestManualPaymentEntry?.data?.total_amount,
+    total,
+  ]);
 
   const manualPaymentEntries = useMemo(() => {
     return (lead?.activities || [])
@@ -828,18 +910,27 @@ export default function LeadDetailPage() {
       : "Paid (Manual)"
     : null;
 
-  const effectiveStatusLabel = manualPaymentSummary.isPartiallyPaid
+  const effectiveStatusLabel = isRevisionPaymentPending
     ? "Partially Paid"
-    : status;
+    : hasPendingAdditionalPayment
+    ? "Pending"
+    : manualPaymentSummary.isPartiallyPaid
+      ? "Partially Paid"
+      : status;
   const hasManualPaymentHistory = manualPaymentEntries.length > 0;
   const paymentMethodLabel = hasManualPaymentHistory
     ? "Manual"
     : isAmountPaid
       ? "Stripe"
       : "Pending";
-  const showManualPaymentPanel = !isAmountPaid || hasManualPaymentHistory;
+  const showManualPaymentPanel = !isAmountPaid || isRevisionPaymentPending || hasManualPaymentHistory;
 
   const handleManualPaymentSubmit = async () => {
+    if (isClosedLostLead) {
+      toast.error("Manual payment is disabled for Closed - Lost leads");
+      return;
+    }
+
     const proofUrl = manualPaymentProofUrl.trim();
     const otherMode = manualPaymentOtherMode.trim();
     const parsedAmount = Number(manualPaymentAmount);
@@ -923,6 +1014,11 @@ export default function LeadDetailPage() {
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
+    if (isClosedLostLead) {
+      toast.error("Discount generation is disabled for Closed - Lost leads");
+      return;
+    }
+
     if (isDiscountLockedByQuote) {
       toast.error(quoteDiscountLockMessage);
       return;
@@ -961,6 +1057,11 @@ export default function LeadDetailPage() {
   };
 
   const handleEditQuoteRedirect = () => {
+    if (isClosedLostLead) {
+      toast.error("Quote editing is disabled for Closed - Lost leads");
+      return;
+    }
+
     if (!editableQuoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -1020,6 +1121,11 @@ export default function LeadDetailPage() {
   };
 
   const handleUpdateIntent = async (intent: string, notes: string) => {
+    if (isClosedLostLead) {
+      toast.error("Intent updates are disabled for Closed - Lost leads");
+      return;
+    }
+
     try {
       await updateLeadIntent({
         lead_id: parseInt(leadId),
@@ -1046,6 +1152,11 @@ export default function LeadDetailPage() {
   // const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
 
   const handleRemoveCP = async (cpId: number) => {
+    if (isClosedLostLead) {
+      toast.error("Creative partner changes are disabled for Closed - Lost leads");
+      return;
+    }
+
     try {
       await removeAssignedCrew({
         client_lead_id: Number(params.id),
@@ -1065,6 +1176,11 @@ export default function LeadDetailPage() {
   };
 
   const handleUpdateSalesRep = async (salesRepId: string) => {
+    if (isClosedLostLead) {
+      toast.error("Sales representative updates are disabled for Closed - Lost leads");
+      return;
+    }
+
     if (!salesRepId) {
       toast.error("Please choose a representative");
       return;
@@ -1114,6 +1230,11 @@ export default function LeadDetailPage() {
   const handleUpdateConvertedBooking = async (
     bookingData: ConvertBookingModalSubmitData
   ) => {
+    if (isClosedLostLead) {
+      toast.error("Booking edits are disabled for Closed - Lost leads");
+      return;
+    }
+
     setIsUpdatingConvertedBooking(true);
 
     try {
@@ -1216,10 +1337,12 @@ export default function LeadDetailPage() {
                 </h2>
                 <Button
                   onClick={() => setIsIntentModalOpen(true)}
+                  disabled={isClosedLostLead}
                   className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
                     ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
                     : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
                     }`}
+                  title={isClosedLostLead ? "Intent updates are disabled for Closed - Lost leads" : undefined}
                 >
                   Update Intent
                 </Button>
@@ -1235,6 +1358,21 @@ export default function LeadDetailPage() {
                     </div>
                     <div className="flex flex-col gap-2 min-w-0">
                       <h1 className={`lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
+                      <div className="flex items-center">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                            clientRegistrationType === "Registered"
+                              ? isDark
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : isDark
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {clientRegistrationType}
+                        </span>
+                      </div>
                       <div className=" lg:hidden">
                         <LeadsStatusBadge status={effectiveStatusLabel as any} />
                       </div>
@@ -1276,6 +1414,7 @@ export default function LeadDetailPage() {
                     <button
                       type="button"
                       aria-label={isEditingSalesRep ? "Close sales representative options" : "Edit assigned sales representative"}
+                      disabled={isClosedLostLead}
                       onClick={() => {
                         if (isEditingSalesRep) {
                           setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
@@ -1284,7 +1423,8 @@ export default function LeadDetailPage() {
                         }
                         setIsEditingSalesRep(true);
                       }}
-                      className={`relative z-30 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
+                      className={`relative z-30 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
+                      title={isClosedLostLead ? "Sales representative updates are disabled for Closed - Lost leads" : undefined}
                     >
                       {isEditingSalesRep ? <X size={14} /> : <Pencil size={14} />}
                     </button>
@@ -1394,6 +1534,8 @@ export default function LeadDetailPage() {
                   <Button
                     className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                     onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
+                    disabled={isClosedLostLead}
+                    title={isClosedLostLead ? "Creative partner changes are disabled for Closed - Lost leads" : undefined}
                   >
                     <Plus size={18} /> Add More CPs
                   </Button>
@@ -1448,11 +1590,14 @@ export default function LeadDetailPage() {
                               </div>
 
                               <button
+                                type="button"
+                                disabled={isClosedLostLead}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleRemoveCP(cp.id);
                                 }}
-                                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all z-20"
+                                className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/80 text-white transition-all hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                                title={isClosedLostLead ? "Creative partner changes are disabled for Closed - Lost leads" : "Remove creative partner"}
                               >
                                 <X size={18} />
                               </button>
@@ -1460,7 +1605,7 @@ export default function LeadDetailPage() {
 
                             {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
                             <div className={`px-2 transition-all duration-500 transform ${index === activeCPIndex ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"}`}>
-                              <div className="flex justify-between items-start mb-4">
+                              <div className="flex gap-2 justify-between items-start mb-4">
                                 <div className="min-w-0">
                                   <h3 className={`text-xl font-bold truncate leading-tight ${isDark ? "text-white" : "text-black"}`}>{cp.name}</h3>
                                   <p className={`${isDark ? "text-[#8E8E8E]" : "text-[#666666]"} text-sm mt-0.5`}>{cp.role}</p>
@@ -1505,7 +1650,9 @@ export default function LeadDetailPage() {
                   <div className="group relative inline-flex">
                     <Button
                       onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
+                      disabled={isClosedLostLead}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                      title={isClosedLostLead ? "Booking edits are disabled for Closed - Lost leads" : undefined}
                     >
                       Edit Details
                     </Button>
@@ -1515,8 +1662,9 @@ export default function LeadDetailPage() {
                   <div className="group relative inline-flex">
                     <Button
                       onClick={() => setIsConvertedBookingEditModalOpen(true)}
-                      disabled={!convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      disabled={isClosedLostLead || !convertedBookingInitialValues || isUpdatingConvertedBooking}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                      title={isClosedLostLead ? "Booking edits are disabled for Closed - Lost leads" : undefined}
                     >
                       Edit Details
                     </Button>
@@ -1679,7 +1827,10 @@ export default function LeadDetailPage() {
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {[
                         ["Previously Paid", additionalPaymentDetails.previouslyPaidAmount],
-                        ["Additional Amount", additionalPaymentDetails.additionalAmount],
+                        [
+                          additionalPaymentDetails.isDecrease ? "Reduced Amount" : "Additional Amount",
+                          additionalPaymentDetails.additionalAmount
+                        ],
                         ["Revised Total", additionalPaymentDetails.revisedTotal],
                         ["Outstanding Amount", additionalPaymentDetails.outstandingAmount],
                       ].map(([label, value]) => (
@@ -1692,12 +1843,24 @@ export default function LeadDetailPage() {
                           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#71717B]">
                             {label}
                           </p>
-                          <p className={`mt-2 text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                            {formatCurrencyValue(value as number)}
+                          <p className={`mt-2 text-base font-semibold ${
+                            label === "Reduced Amount" || (typeof value === 'number' && value < 0)
+                              ? "text-red-500"
+                              : isDark ? "text-white" : "text-black"
+                          }`}>
+                            {label === "Reduced Amount" || label === "Additional Amount"
+                              ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                              : ""}
+                            {formatCurrencyValue(Math.abs(value as number))}
                           </p>
                         </div>
                       ))}
                     </div>
+                    {additionalPaymentDetails.isDecrease && (
+                      <p className={`mt-3 text-xs font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+                        This reduced amount will be added as Beige Credits after approval.
+                      </p>
+                    )}
                   </div>
                 )}
                 {/* <div className="flex justify-between font-medium">
@@ -1787,13 +1950,18 @@ export default function LeadDetailPage() {
                   <div className="flex justify-between font-medium">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[#71717B] text-xs">
-                        {additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}
+                        {additionalPaymentDetails.isDecrease ? "Reduced Amount" : "Additional Amount"}
                       </span>
                     </div>
-                    <span className={`text-sm font-mono ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : (isDark ? "text-white" : "text-black")}`}>
+                    <span className={`text-sm font-mono ${additionalPaymentDetails.isDecrease ? "text-red-500" : (isDark ? "text-white" : "text-black")}`}>
                       {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatCurrencyValue(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
+                  {additionalPaymentDetails.isDecrease && (
+                    <p className={`text-[10px] font-medium text-right ${isDark ? "text-[#E8D1AB]/80" : "text-[#7A5A00]/80"}`}>
+                      Added as Beige Credits after approval
+                    </p>
+                  )}
                 </div>
               )}
               <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />
@@ -1856,15 +2024,15 @@ export default function LeadDetailPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (isDiscountLockedByQuote || isAmountPaid) return;
+                        if (isClosedLostLead || isDiscountLockedByQuote || isAmountPaid) return;
                         setIsDropdownOpen(!isDropdownOpen);
                       }}
-                      disabled={isDiscountLockedByQuote || isAmountPaid}
+                      disabled={isClosedLostLead || isDiscountLockedByQuote || isAmountPaid}
                       className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base transition-all duration-300 ${isDark
                         ? `text-white ${isDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"} hover:border-white/80`
                         : `text-black ${isDropdownOpen ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20" : "border-[#D8D8D8]"} hover:border-[#E8D1AB]`
-                        } ${isDiscountLockedByQuote || isAmountPaid ? "cursor-not-allowed opacity-60" : ""}`}
-                      title={isDiscountLockedByQuote ? quoteDiscountLockMessage : undefined}
+                        } ${isClosedLostLead || isDiscountLockedByQuote || isAmountPaid ? "cursor-not-allowed opacity-60" : ""}`}
+                      title={isClosedLostLead ? "Discount actions are disabled for Closed - Lost leads" : isDiscountLockedByQuote ? quoteDiscountLockMessage : undefined}
                     >
                       {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
                       <ChevronDown size={18} className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""} ${isDark ? "text-white" : "text-black"}`} />
@@ -1915,7 +2083,7 @@ export default function LeadDetailPage() {
                     <input
                       type="number"
                       placeholder="0"
-                      disabled={isDiscountLockedByQuote || isAmountPaid}
+                      disabled={isClosedLostLead || isDiscountLockedByQuote || isAmountPaid}
                       className={`bg-transparent w-full outline-none text-base transition-colors ${isDark ? "text-white placeholder:text-white/40" : "text-black placeholder:text-black/40"}`}
                       value={discount}
                       onChange={(e) => {
@@ -1935,8 +2103,8 @@ export default function LeadDetailPage() {
                 <Button
                   className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
-                  disabled={isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
-                  title={isDiscountLockedByQuote ? quoteDiscountLockMessage : discountAmount > 0 ? "Discount already applied" : undefined}
+                  disabled={isClosedLostLead || isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
+                  title={isClosedLostLead ? "Discount actions are disabled for Closed - Lost leads" : isDiscountLockedByQuote ? quoteDiscountLockMessage : discountAmount > 0 ? "Discount already applied" : undefined}
                 >
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
@@ -2006,6 +2174,8 @@ export default function LeadDetailPage() {
               activeLink={lead?.active_payment_link}
               additionalPaymentStatus={rawAdditionalPayment?.payment_status}
               additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
+              isReadOnly={isClosedLostLead}
+              readOnlyMessage="Payment actions are disabled for Closed - Lost leads."
             />
 
             {showManualPaymentPanel ? (
@@ -2051,11 +2221,11 @@ export default function LeadDetailPage() {
                           key={type}
                           type="button"
                           onClick={() => setManualPaymentType(type)}
-                          disabled={manualPaymentSummary.hasFullPayment}
+                          disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                           className={`h-10 rounded-lg border text-sm font-medium transition-colors ${manualPaymentType === type
                             ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF3D6] text-black")
                             : (isDark ? "border-white/20 text-white/70 hover:border-white/40" : "border-[#D8D8D8] text-black/70 hover:border-[#BFA780]")
-                            } ${manualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
+                            } ${isClosedLostLead || manualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           {type === "full" ? "Full Payment" : "Partial Payment"}
                         </button>
@@ -2085,7 +2255,7 @@ export default function LeadDetailPage() {
                           setManualPaymentAmount(nextValue);
                         }}
                         placeholder={`Enter amount (max ${formatCurrencyValue(manualPaymentSummary.pendingAmount)})`}
-                        disabled={manualPaymentSummary.hasFullPayment}
+                        disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                         className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                       />
                     )}
@@ -2093,9 +2263,9 @@ export default function LeadDetailPage() {
                     <Select
                       value={manualPaymentMode}
                       onValueChange={(value) =>
-                        setManualPaymentMode(value as "cash" | "bank_transfer" | "credit_card" | "other")
+                        setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
                       }
-                      disabled={manualPaymentSummary.hasFullPayment}
+                      disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                     >
                       <SelectTrigger
                         className={`h-11 rounded-lg border px-3 text-sm ${
@@ -2114,8 +2284,12 @@ export default function LeadDetailPage() {
                         }
                       >
                         <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="credit_card">Credit Card</SelectItem>
+                        <SelectItem value="wire">Wire</SelectItem>
+                        <SelectItem value="ach">ACH</SelectItem>
+                        <SelectItem value="zelle">Zelle</SelectItem>
+                        <SelectItem value="venmo">Venmo</SelectItem>
+                        <SelectItem value="cashapp">CashApp</SelectItem>
+                        <SelectItem value="applepay">ApplePay</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -2126,7 +2300,7 @@ export default function LeadDetailPage() {
                         value={manualPaymentOtherMode}
                         onChange={(event) => setManualPaymentOtherMode(event.target.value)}
                         placeholder="Enter payment mode"
-                        disabled={manualPaymentSummary.hasFullPayment}
+                        disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                         className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                       />
                     )}
@@ -2147,7 +2321,7 @@ export default function LeadDetailPage() {
                               const file = event.target.files?.[0] || null;
                               void handleManualProofUpload(file);
                             }}
-                            disabled={isUploadingManualProof || manualPaymentSummary.hasFullPayment}
+                            disabled={isClosedLostLead || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
                           />
                         </label>
                         {isUploadingManualProof ? (
@@ -2164,13 +2338,13 @@ export default function LeadDetailPage() {
                       onChange={(event) => setManualPaymentNotes(event.target.value)}
                       placeholder="Notes (optional)"
                       rows={3}
-                      disabled={manualPaymentSummary.hasFullPayment}
+                      disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
                       className={`rounded-lg border p-3 text-sm bg-transparent outline-none resize-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                     />
 
                     <Button
                       onClick={handleManualPaymentSubmit}
-                      disabled={isSubmittingManualPayment || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
+                      disabled={isClosedLostLead || isSubmittingManualPayment || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
                       className={`h-11 text-sm font-semibold ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
                     >
                       {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
@@ -2234,10 +2408,24 @@ export default function LeadDetailPage() {
                   </div>
                   <div className={`text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
                     <p>
-                      Total Paid:{" "}
+                      Total Paid Amount:{" "}
                       <span className={isDark ? "text-white" : "text-black"}>
-                        {formatCurrencyValue(total)}
+                        {formatCurrencyValue(lead?.collected_amount ?? lead?.pricing_breakdown?.total_paid ?? total)}
                       </span>
+                    </p>
+                    <p className="mt-1">
+                      Pending Amount:{" "}
+                      <span className={additionalPaymentDetails?.isDecrease ? "text-red-500" : (isDark ? "text-white" : "text-black")}>
+                        {additionalPaymentDetails && additionalPaymentDetails.additionalAmount !== 0
+                          ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                          : ""}
+                        {formatCurrencyValue(Math.abs(additionalPaymentDetails?.additionalAmount ?? 0))}
+                      </span>
+                      {additionalPaymentDetails?.isDecrease && (
+                        <span className="ml-1 text-[10px] text-golden italic">
+                          (This reduced amount will be added as Beige Credits after approval)
+                        </span>
+                      )}
                     </p>
                     {booking?.payment_completed_at ? (
                       <p className="mt-1">
@@ -2284,14 +2472,14 @@ export default function LeadDetailPage() {
                         <Button
                           type="button"
                           onClick={handleEditQuoteRedirect}
-                          disabled={!canEditQuote}
+                          disabled={isClosedLostLead || !canEditQuote}
                           className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
                             isDark
                               ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
                               : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
-                          } ${!canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                          } ${isClosedLostLead || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
                           aria-label="Edit Quote"
-                          title="Edit Quote"
+                          title={isClosedLostLead ? "Quote editing is disabled for Closed - Lost leads" : "Edit Quote"}
                         >
                           <Edit2 size={14} />
                         </Button>
@@ -2412,15 +2600,17 @@ export default function LeadDetailPage() {
             )}
 
             <div className="lg:text-right lg:mt-[82px]">
-              <Button
+              {/* <Button
                 onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
+                disabled={isClosedLostLead}
                 className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-all ${isDark
                   ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
                   : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
                   }`}
+                title={isClosedLostLead ? "Creative partner changes are disabled for Closed - Lost leads" : undefined}
               >
                 Change CPs
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>

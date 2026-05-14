@@ -340,6 +340,13 @@ useEffect(() => {
           } catch (error: any) {
             if (isRouteNotFoundError(error)) {
               batchPolicySupportedRef.current = false;
+            } else {
+              // Keep single API flow: if batch endpoint exists but fails (permission/validation),
+              // do not fan out into per-file policy calls.
+              chunk.forEach((item) => {
+                policyFailedPaths.add(item.filepath);
+              });
+              continue;
             }
           }
         }
@@ -466,6 +473,20 @@ useEffect(() => {
             } catch (error: any) {
               if (isRouteNotFoundError(error)) {
                 batchMetadataSupportedRef.current = false;
+              } else {
+                metadataFailed += chunk.length;
+                setSelectedFiles((prev) =>
+                  prev.map((queued) => {
+                    const match = chunk.find((entry) => entry.id === queued.id);
+                    if (!match) return queued;
+                    return {
+                      ...queued,
+                      status: "failed",
+                      error: error?.message || "Metadata save failed. Retry failed files.",
+                    };
+                  })
+                );
+                continue;
               }
             }
           }

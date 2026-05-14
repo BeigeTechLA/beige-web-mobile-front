@@ -22,6 +22,15 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 type QuotePreviewDocumentProps = {
   quote: SalesQuoteDetailData;
   quoteId?: string | null;
+  showServiceAgreementAcceptance?: boolean;
+  acceptServiceAgreement?: boolean;
+  onAcceptServiceAgreementChange?: (checked: boolean) => void;
+  onOpenServiceAgreement?: () => void;
+  paymentSummaryOverrides?: {
+    previousTotal?: number;
+    previouslyPaid?: number;
+    revisedTotal?: number;
+  };
 };
 
 const COMPANY_PROFILE = {
@@ -68,7 +77,7 @@ const formatDuration = (value: number) => {
 };
 
 const BeigeMark = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="24" viewBox="0 0 20 22" fill="none">
+  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="24" viewBox="0 0 20 22" fill="none" className="w-4 h-4 lg:w-[22px] lg:h-6">
     <path
       fillRule="evenodd"
       clipRule="evenodd"
@@ -85,7 +94,7 @@ const SectionTitle = ({
   children: React.ReactNode;
   isDark: boolean;
 }) => (
-  <p className={`text-xs font-semibold uppercase tracking-[0.16em] lg:text-sm ${isDark ? "text-[#707078]" : "text-[#71717B]"}`}>
+  <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] lg:text-sm ${isDark ? "text-[#707078]" : "text-[#71717B]"}`}>
     {children}
   </p>
 );
@@ -106,11 +115,11 @@ const PreviewAmountList = ({
   return (
     <section className="space-y-4">
       <SectionTitle isDark={isDark}>{title}</SectionTitle>
-      <div className="space-y-4">
+      <div className="space-y-2.5 lg:space-y-4">
         {items.map((item) => (
           <div
             key={item.id}
-            className={`flex items-center justify-between gap-6 text-sm lg:text-lg ${isDark ? "text-white/90" : "text-black/85"}`}
+            className={`flex items-center justify-between gap-6 text-[11px] lg:text-lg ${isDark ? "text-white/90" : "text-black/85"}`}
           >
             <p className="min-w-0 truncate">{item.name}</p>
             <p className={`shrink-0 text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
@@ -139,45 +148,64 @@ const ServiceTable = ({
   return (
     <section className="space-y-4">
       <SectionTitle isDark={isDark}>Services</SectionTitle>
-      <div
-        // className={`hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b pb-3 text-sm font-medium md:grid ${
-        //   isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
-        // }`}
-        className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[8px] lg:text-sm font-medium grid gap-2 ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
-          }`}
-      >
+      <div className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[9px] lg:text-sm font-medium grid gap-2 ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"}`}>
         <p>Description</p>
         <p className="text-center">Qty</p>
         <p className="text-center">Duration</p>
         <p className="text-center">Crew</p>
         <p className="text-right">Amount</p>
       </div>
-      <div className="space-y-4">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            // className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-lg ${
-            //   isDark ? "text-white/90" : "text-black/80"
-            // }`}
-            className={`grid gap-2 text-[10px] grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-base ${isDark ? "text-white/90" : "text-black/80"}`}
-          >
-            <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-              {item.subtitle || shootTypeLabel ? (
-                <>
-                  {item.name} - <span className="text-[#E8D1AB]">{item.subtitle || `(${shootTypeLabel})`}</span>
-                </>
-              ) : (
-                item.name
-              )}
-            </p>
-            <p className="md:text-center">{formatCount(item.quantity)}</p>
-            <p className="md:text-center">{formatDuration(item.duration)}</p>
-            <p className="md:text-center">{item.crew > 0 ? formatCount(item.crew) : "-"}</p>
-            <p className={`font-medium md:text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
-              {formatQuoteCurrency(item.amount)}
-            </p>
-          </div>
-        ))}
+      <div className="space-y-2.5 lg:space-y-4">
+        {items.map((item) => {
+          const splitName = item.name.split("-")
+          const hasCustom = splitName.length > 1 && splitName.some(part => part.toLowerCase().includes("custom"));
+
+          return (
+            <div
+              key={item.id}
+              className={`grid gap-2 text-[11px] grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-base ${isDark ? "text-white/90" : "text-black/80"}`}
+            >
+              <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                {item.subtitle || shootTypeLabel ? (
+                  <>
+                    {hasCustom ? (
+                      splitName.map((part, index) => {
+                        const isCustomPart = part.toLowerCase().includes("custom");
+                        return (
+                          <React.Fragment key={index}>
+                            <span className={`${isCustomPart ? "text-[#E8D1AB] text-[9px] block lg:inline lg:text-base" : "text-white"}`}>
+                              {part}
+                            </span>
+                            {/* Hide the hyphen on mobile when it breaks to a new line */}
+                            {index < splitName.length - 1 && (
+                              <span className="hidden lg:inline">{" - "}</span>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    ) : (
+                      <span className="block lg:inline">{item.name}</span>
+                    )}
+
+                    {/* The trailing subtitle/label section */}
+                    <span className="hidden lg:inline">{" - "}</span>
+                    <span className="text-[#E8D1AB] text-[9px] block lg:inline lg:text-base">
+                      {item.subtitle || `(${shootTypeLabel})`}
+                    </span>
+                  </>
+                ) : (
+                  item.name
+                )}
+              </p>
+              <p className="text-center">{formatCount(item.quantity)}</p>
+              <p className="text-center">{formatDuration(item.duration)}</p>
+              <p className="text-center">{item.crew > 0 ? formatCount(item.crew) : "-"}</p>
+              <p className={`font-medium text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
+                {formatQuoteCurrency(item.amount)}
+              </p>
+            </div>
+          )
+        })}
       </div>
     </section>
   );
@@ -186,6 +214,11 @@ const ServiceTable = ({
 export default function QuotePreviewDocument({
   quote,
   quoteId,
+  showServiceAgreementAcceptance = false,
+  acceptServiceAgreement = true,
+  onAcceptServiceAgreementChange,
+  onOpenServiceAgreement,
+  paymentSummaryOverrides,
 }: QuotePreviewDocumentProps) {
   const { isDark } = useResolvedTheme();
   const quoteData = unwrapSalesQuoteDetail(quote);
@@ -213,7 +246,11 @@ export default function QuotePreviewDocument({
   const taxAmount = discountedSubtotal * (taxRate / 100);
   const amountAfterTax = discountedSubtotal + taxAmount;
   const finalTotal = amountAfterTax;
-  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData);
+  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData, {
+    previousTotalOverride: paymentSummaryOverrides?.previousTotal,
+    previouslyPaidOverride: paymentSummaryOverrides?.previouslyPaid,
+    revisedTotalOverride: paymentSummaryOverrides?.revisedTotal,
+  });
 
   const resolvedQuoteId = String(
     quoteData.sales_quote_id ?? quoteData.quote_id ?? quoteData.id ?? quoteId ?? ""
@@ -257,37 +294,37 @@ export default function QuotePreviewDocument({
         }`}
     >
       <div className="flex flex-col gap-5 lg:gap-9">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-5">
-            <div className="flex items-center gap-4">
-              <div className="flex h-[58px] w-[58px] items-center justify-center rounded-2xl bg-[#E8D1AB]">
+        <div className="flex gap-8 flex-row items-start justify-between">
+          <div className="space-y-2.5 lg:space-y-5">
+            <div className="flex items-center gap-2 lg:gap-4">
+              <div className="flex h-8 w-8 lg:h-[58px] lg:w-[58px] items-center justify-center rounded-lg lg:rounded-2xl bg-[#E8D1AB]">
                 <BeigeMark />
               </div>
-                <div>
-                  <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
-                    {COMPANY_PROFILE.name}
+              <div>
+                <p className="text-sm font-semibold text-[#E8D1AB] lg:text-[28px]">
+                  {COMPANY_PROFILE.name}
+                </p>
+                {COMPANY_PROFILE.subtitle ? (
+                  <p className={`text-[10px] lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
+                    {COMPANY_PROFILE.subtitle}
                   </p>
-                  {COMPANY_PROFILE.subtitle ? (
-                    <p className={`text-sm lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
-                      {COMPANY_PROFILE.subtitle}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className={`space-y-1 text-sm leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
-                {COMPANY_PROFILE.addressLines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-                <p>{COMPANY_PROFILE.email} {COMPANY_PROFILE.phone}</p>
+                ) : null}
               </div>
             </div>
 
-          <div className="text-left lg:text-right">
-            <h3 className={`text-[38px] font-bold tracking-tight lg:text-[64px] ${isDark ? "text-white" : "text-[#101010]"}`}>
+            <div className={`space-y-1 text-[10px] leading-none lg:leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
+              {COMPANY_PROFILE.addressLines.map((line) => (
+                <p key={line} className="leading-none">{line}</p>
+              ))}
+              <p>{COMPANY_PROFILE.email} {COMPANY_PROFILE.phone}</p>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <h3 className={`text-lg lg:text-[38px] font-bold tracking-tight lg:text-[64px] ${isDark ? "text-white" : "text-[#101010]"}`}>
               PROPOSAL
             </h3>
-            <div className={`mt-4 space-y-1 text-sm lg:text-base ${isDark ? "text-white/65" : "text-[#00000080]"}`}>
+            <div className={`mt-1.5 lg:mt-4 space-y-1 text-[10px] leading-none lg:leading-7 lg:text-base ${isDark ? "text-white/65" : "text-[#00000080]"}`}>
               <p>Quote #: {quoteNumber}</p>
               <p>Date: {formatQuoteDate(quoteData.created_at)}</p>
               <p>Valid Until: {formatQuoteDate(quoteData.valid_until ?? quoteData.expires_at)}</p>
@@ -299,8 +336,8 @@ export default function QuotePreviewDocument({
 
         <section className="space-y-4">
           <SectionTitle isDark={isDark}>Bill To</SectionTitle>
-          <div className={`space-y-1 text-xs lg:text-base ${isDark ? "text-white/75" : "text-black/75"}`}>
-            <p className={`text-[24px] font-semibold leading-tight ${isDark ? "text-white" : "text-black"}`}>{clientName}</p>
+          <div className={`space-y-1 text-[10px] lg:text-base ${isDark ? "text-white/75" : "text-black/75"}`}>
+            <p className={`text-sm lg:text-[24px] font-semibold leading-tight ${isDark ? "text-white" : "text-black"}`}>{clientName}</p>
             <p>{clientAddress}</p>
             <p>{clientEmail}</p>
             <p>{clientPhone}</p>
@@ -308,7 +345,7 @@ export default function QuotePreviewDocument({
         </section>
 
         <div className={`rounded-lg lg:rounded-xl p-3 text-[#18181B] lg:p-4 ${isDark ? "bg-[#F5F5F5]" : "border border-[#D7D7D7] bg-[#F4F5F7]"}`}>
-          <p className="text-xs font-semibold uppercase text-[#71717B] lg:text-sm">
+          <p className="text-[10px] font-semibold uppercase text-[#71717B] lg:text-sm">
             Project Description
           </p>
           <p className="mt-1 lg:mt-2 text-xs lg:text-base">{projectDescription}</p>
@@ -319,15 +356,15 @@ export default function QuotePreviewDocument({
         <ServiceTable items={serviceItems} shootTypeLabel={shootTypeLabel} isDark={isDark} />
 
         {addonItems.length > 0 || logisticsItems.length > 0 || customItems.length > 0 ? (
-          <div className={`space-y-8 border-t pt-8 ${isDark ? "border-white/10" : "border-[#00000014]"}`}>
+          <div className={`space-y-4 lg:space-y-8 border-t pt-4 lg:pt-8 ${isDark ? "border-white/10" : "border-[#00000014]"}`}>
             <PreviewAmountList title="Add-ons" items={addonItems} isDark={isDark} />
             <PreviewAmountList title="Logistics" items={logisticsItems} isDark={isDark} />
             <PreviewAmountList title="Custom Items" items={customItems} isDark={isDark} />
           </div>
         ) : null}
 
-        <div className="rounded-[20px] bg-[#E8D1AB] p-4 lg:p-6">
-          <div className="space-y-3 text-sm text-black lg:text-base">
+        <div className="rounded-lg lg:rounded-[20px] bg-[#E8D1AB] px-2 py-3 lg:p-6">
+          <div className="space-y-2 lg:space-y-3 text-xs text-black lg:text-base">
             <div className="flex items-center justify-between gap-6">
               <span>Subtotal</span>
               <span className="font-semibold">{formatQuoteCurrency(subtotal)}</span>
@@ -374,23 +411,17 @@ export default function QuotePreviewDocument({
                       {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-6">
-                    <span>Remaining Amount</span>
-                    <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.outstandingAmount)}
-                    </span>
-                  </div>
                 </div>
               </>
             ) : null}
           </div>
 
-          <div className={`mt-5 rounded-[16px] px-4 py-4 lg:px-5 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+          <div className={`mt-2.5 lg:mt-5 rounded-lg lg:rounded-[16px] px-4 py-4 lg:px-5 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
             <div className="flex items-center justify-between gap-6">
-              <span className={`text-[28px] font-semibold lg:text-[36px] ${isDark ? "text-white" : "text-black"}`}>
+              <span className={`text-sm font-semibold lg:text-[36px] ${isDark ? "text-white" : "text-black"}`}>
                 Total
               </span>
-              <span className={`text-[28px] font-semibold lg:text-[36px] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+              <span className={`text-sm font-semibold lg:text-[36px] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                 {formatQuoteCurrency(finalTotal)}
               </span>
             </div>
@@ -399,59 +430,78 @@ export default function QuotePreviewDocument({
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
-       <section className="space-y-4">
-  <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
-  <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-    
-    {/* Left - Terms list */}
-    <ul
-      className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-base flex-1 ${
-        isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
-      }`}
-    >
-      {terms.map((term, index) => (
-        <li key={`${term}-${index}`}>{term}</li>
-      ))}
-    </ul>
+        <section className="space-y-2.5 lg:space-y-4">
+          <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 
+            {/* Left - Terms list */}
+            <ul
+              className={`list-disc space-y-1.5 lg:space-y-3 pl-5 text-[11px] leading-none lg:leading-7 lg:text-base flex-1 ${isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
+                }`}
+            >
+              {terms.map((term, index) => (
+                <li key={`${term}-${index}`}>{term}</li>
+              ))}
+            </ul>
 
+            {/* Right - Signature */}
+            <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
+              {quoteData.signature_base64 ? (
+                <>
+                  <div className={`border rounded-lg p-3 w-full max-w-[220px] ${isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
+                    }`}>
+                    <img
+                      src={quoteData.signature_base64}
+                      alt="Signature"
+                      className="w-full max-h-20 object-contain"
+                    />
+                  </div>
+                  <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${isDark ? "border-white/20 text-white/50" : "border-gray-300 text-gray-400"
+                    }`}>
+                    <p>{quoteData.client_name ?? "Client"}</p>
+                    <p>{formatQuoteDate(quoteData.signed_at ?? quoteData.updated_at)}</p>
+                  </div>
+                </>
+              ) : (
+                <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${isDark ? "border-white/20 text-white/30" : "border-gray-300 text-gray-400"
+                  }`}>
+                  <p>Authorized Signature</p>
+                </div>
+              )}
+            </div>
 
-    {/* Right - Signature */}
-  {!isRejected && (
-    <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
-      {signatureSource ? (
-        <>
-          <div className={`border rounded-lg p-3 w-full max-w-[220px] ${
-            isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
-          }`}>
-            <img
-              src={signatureSource}
-              alt="Signature"
-              className="w-full max-h-20 object-contain"
+          </div>
+        </section>
+
+        {showServiceAgreementAcceptance ? (
+          <div
+            className={`flex items-start gap-3 rounded-[10px] p-3 lg:p-4 ${
+              isDark ? "bg-[#2A2A2A]" : "border border-[#E3E3E3] bg-[#F4F5F7]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={acceptServiceAgreement}
+              onChange={(e) => onAcceptServiceAgreementChange?.(e.target.checked)}
+              className="mt-1 cursor-pointer"
             />
+            <p className={`text-sm ${isDark ? "text-[#999]" : "text-[#52525B]"}`}>
+              I have read and agree to the{" "}
+              <button
+                type="button"
+                onClick={onOpenServiceAgreement}
+                className="text-[#E8D5B5] underline hover:text-[#f3e4cd] cursor-pointer"
+              >
+                Service Agreement & Terms of Engagement
+              </button>
+              .
+            </p>
           </div>
-          <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${
-            isDark ? "border-white/20 text-white/50" : "border-gray-300 text-gray-400"
-          }`}>
-            <p>{quoteData.client_name ?? "Client"}</p>
-            <p>{formatQuoteDate(quoteData.signed_at ?? quoteData.updated_at)}</p>
-          </div>
-        </>
-      ) : (
-        <div className={`w-full max-w-[220px] border-t pt-2 text-xs text-center ${
-          isDark ? "border-white/20 text-white/30" : "border-gray-300 text-gray-400"
-        }`}>
-          <p>Authorized Signature</p>
-        </div>
-      )}
-    </div>
-    )}
-  </div>
-</section>
+        ) : null}
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
-        <p className={`pt-2 text-center text-sm lg:text-[16px] ${isDark ? "text-white/70" : "text-black/70"}`}>
+        <p className={`pt-2 text-center text-xs lg:text-[16px] ${isDark ? "text-white/70" : "text-black/70"}`}>
           Thank you for your business! For questions, contact Beige AI at sales@beigecorporation.io or 323-826-7230
         </p>
       </div>

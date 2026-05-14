@@ -67,6 +67,10 @@ import {
   salesApi,
   type LeadBookingSchedulePayload,
 } from "@/lib/api";
+import {
+  getQuoteAdditionalPaymentDetails,
+  getQuotePaymentProgressDetails,
+} from "@/lib/quoteDetail";
 import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
@@ -295,7 +299,7 @@ export default function SalesLeadDetailsPage() {
   const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
-  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "bank_transfer" | "credit_card" | "other">("cash");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
@@ -376,20 +380,45 @@ export default function SalesLeadDetailsPage() {
     !["paid", "success", "completed"].includes(
       String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase()
     );
+
+  useEffect(() => {
+    // Refetch lead data on mount to ensure fresh data after navigating back from quote editor
+    refetch();
+  }, [refetch]);
+
   const additionalPaymentDetails = useMemo(() => {
     if (!rawAdditionalPayment) return null;
 
-    const additionalAmount = Number(rawAdditionalPayment.additional_amount ?? 0);
-    const previouslyPaidAmount = Number(rawAdditionalPayment.previously_paid_amount ?? 0);
-    const revisedTotal = Number(rawAdditionalPayment.revised_total ?? 0);
-    const outstandingAmount = Number(
-      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - previouslyPaidAmount, 0)
+    const actuallyPaidAmount = Number(lead?.pricing_breakdown?.total_paid ?? 0);
+    const revisedTotal = Number(
+      lead?.custom_quote?.total ??
+      lead?.pricing_breakdown?.total ??
+      rawAdditionalPayment.revised_total ??
+      0
     );
+    const paymentDetails = getQuoteAdditionalPaymentDetails(
+      (lead?.custom_quote ?? null) as any,
+      {
+        revisedTotalOverride: revisedTotal,
+        previouslyPaidOverride:
+          Number.isFinite(actuallyPaidAmount) && actuallyPaidAmount > 0
+            ? actuallyPaidAmount
+            : undefined,
+        previousTotalOverride:
+          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
+          undefined,
+      }
+    );
+
+    if (!paymentDetails) {
+      return null;
+    }
+
     if (
-      additionalAmount <= 0 &&
-      previouslyPaidAmount <= 0 &&
-      revisedTotal <= 0 &&
-      outstandingAmount <= 0 &&
+      Math.abs(paymentDetails.additionalAmount) <= 0.009 &&
+      paymentDetails.previouslyPaidAmount <= 0 &&
+      paymentDetails.revisedTotal <= 0 &&
+      paymentDetails.outstandingAmount <= 0 &&
       !String(rawAdditionalPayment.payment_status || "").trim() &&
       !rawAdditionalPayment.invoice_number &&
       !rawAdditionalPayment.last_sent_at
@@ -398,17 +427,27 @@ export default function SalesLeadDetailsPage() {
     }
 
     return {
-      additionalAmount,
-      previouslyPaidAmount,
-      revisedTotal,
-      outstandingAmount,
-      paymentStatusLabel: formatStatusLabel(rawAdditionalPayment.payment_status),
+      additionalAmount: paymentDetails.additionalAmount,
+      isDecrease: paymentDetails.isDecrease,
+      paymentStatus: paymentDetails.paymentStatus,
+      paymentStatusLabel: formatStatusLabel(paymentDetails.paymentStatus || rawAdditionalPayment.payment_status),
+      previousTotal: paymentDetails.previousTotal,
+      previouslyPaidAmount: paymentDetails.previouslyPaidAmount,
+      revisedTotal: paymentDetails.revisedTotal,
+      outstandingAmount: paymentDetails.outstandingAmount,
       invoiceNumber: rawAdditionalPayment.invoice_number
         ? String(rawAdditionalPayment.invoice_number).trim()
         : null,
       lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
     };
-  }, [rawAdditionalPayment]);
+  }, [
+    rawAdditionalPayment,
+    lead?.activities,
+    lead?.custom_quote,
+    lead?.pricing_breakdown?.total,
+    lead?.pricing_breakdown?.total_amount,
+    lead?.pricing_breakdown?.total_paid,
+  ]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -672,12 +711,22 @@ export default function SalesLeadDetailsPage() {
   const email = lead?.guest_email || "No email";
   const phone = lead?.phone || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
+  const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
+  const normalizedRevisionPaymentStatus = String(
+    additionalPaymentDetails?.paymentStatus || ""
+  )
+    .trim()
+    .toLowerCase();
+  const isRevisionPaymentPending =
+    normalizedRevisionPaymentStatus === "pending" ||
+    normalizedRevisionPaymentStatus === "partially_paid";
   const isAmountPaid =
-    ["paid", "success", "completed"].includes(
+    !isRevisionPaymentPending &&
+    (["paid", "success", "completed"].includes(
       String(lead?.payment_status || "").trim().toLowerCase()
     ) ||
-    Boolean(booking?.payment_id || booking?.payment_completed_at);
+      Boolean(booking?.payment_id || booking?.payment_completed_at));
   const showCompletedPaymentMessage =
     isAmountPaid && !hasPendingAdditionalPayment;
 
@@ -695,7 +744,9 @@ export default function SalesLeadDetailsPage() {
   const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
-  const discountAmount = lead?.pricing_breakdown?.discount || 0;
+  const discountAmount = isQuoteConvertedLead
+    ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
+    : Number(lead?.pricing_breakdown?.discount ?? 0);
   const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
   const totalBeforeCredit = Number(
     lead?.pricing_breakdown?.total_before_credit ??
@@ -784,17 +835,36 @@ export default function SalesLeadDetailsPage() {
     }, 0);
 
     const resolvedTotal = total > 0 ? total : Number(latestManualPaymentEntry?.data?.total_amount || 0);
-    const paidAmount = hasFullPayment ? resolvedTotal : partialPaid;
-    const pendingAmount = Math.max(resolvedTotal - paidAmount, 0);
+    const paymentProgress = getQuotePaymentProgressDetails(
+      (lead?.custom_quote ?? null) as any,
+      {
+        totalAmountOverride: resolvedTotal,
+        previouslyPaidOverride: Number(lead?.pricing_breakdown?.total_paid ?? 0) || undefined,
+        previousTotalOverride:
+          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
+          undefined,
+        collectedAmountOverride: Number(lead?.collected_amount ?? 0) || undefined,
+        manualPaidOverride: hasFullPayment ? resolvedTotal : partialPaid,
+      }
+    );
 
     return {
-      hasFullPayment,
-      paidAmount,
-      pendingAmount,
-      isPartiallyPaid: !hasFullPayment && paidAmount > 0 && pendingAmount > 0,
-      canTakePayment: !hasFullPayment && pendingAmount > 0,
+      hasFullPayment: paymentProgress.hasFullPayment || hasFullPayment,
+      paidAmount: paymentProgress.paidAmount,
+      pendingAmount: paymentProgress.pendingAmount,
+      isPartiallyPaid: paymentProgress.isPartiallyPaid,
+      canTakePayment: paymentProgress.canTakePayment,
     };
-  }, [lead?.activities, latestManualPaymentEntry?.data?.total_amount, total]);
+  }, [
+    lead?.activities,
+    lead?.collected_amount,
+    lead?.custom_quote,
+    lead?.pricing_breakdown?.total,
+    lead?.pricing_breakdown?.total_amount,
+    lead?.pricing_breakdown?.total_paid,
+    latestManualPaymentEntry?.data?.total_amount,
+    total,
+  ]);
 
   const manualPaymentEntries = useMemo(() => {
     return (lead?.activities || [])
@@ -826,9 +896,11 @@ export default function SalesLeadDetailsPage() {
       : "Paid (Manual)"
     : null;
 
-  const effectiveStatusLabel = manualPaymentSummary.isPartiallyPaid
-    ? "Partially Paid"
-    : status;
+  const effectiveStatusLabel = hasPendingAdditionalPayment
+    ? "Pending"
+    : manualPaymentSummary.isPartiallyPaid
+      ? "Partially Paid"
+      : status;
   const hasManualPaymentHistory = manualPaymentEntries.length > 0;
   const paymentMethodLabel = hasManualPaymentHistory
     ? "Manual"
@@ -1233,6 +1305,21 @@ export default function SalesLeadDetailsPage() {
                     </div>
                     <div className="flex flex-col gap-2 min-w-0">
                       <h1 className={`lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
+                      <div className="flex items-center">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                            clientRegistrationType === "Registered"
+                              ? isDark
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : isDark
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {clientRegistrationType}
+                        </span>
+                      </div>
                       <div className=" lg:hidden">
                         <LeadsStatusBadge status={effectiveStatusLabel as any} />
                       </div>
@@ -1670,7 +1757,10 @@ export default function SalesLeadDetailsPage() {
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {[
                         ["Previously Paid", additionalPaymentDetails.previouslyPaidAmount],
-                        ["Additional Amount", additionalPaymentDetails.additionalAmount],
+                        [
+                          additionalPaymentDetails.isDecrease ? "Reduced Amount" : "Additional Amount",
+                          additionalPaymentDetails.additionalAmount
+                        ],
                         ["Revised Total", additionalPaymentDetails.revisedTotal],
                         ["Outstanding Amount", additionalPaymentDetails.outstandingAmount],
                       ].map(([label, value]) => (
@@ -1683,12 +1773,24 @@ export default function SalesLeadDetailsPage() {
                           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#71717B]">
                             {label}
                           </p>
-                          <p className={`mt-2 text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                            {formatCurrencyValue(value as number)}
+                          <p className={`mt-2 text-base font-semibold ${
+                            label === "Reduced Amount" || (typeof value === 'number' && value < 0)
+                              ? "text-red-500"
+                              : isDark ? "text-white" : "text-black"
+                          }`}>
+                            {label === "Reduced Amount" || label === "Additional Amount"
+                              ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                              : ""}
+                            {formatCurrencyValue(Math.abs(value as number))}
                           </p>
                         </div>
                       ))}
                     </div>
+                    {additionalPaymentDetails.isDecrease && (
+                      <p className={`mt-3 text-xs font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+                        This reduced amount will be added as Beige Credits after approval.
+                      </p>
+                    )}
                   </div>
                 )}
                 {/* <div className="flex justify-between font-medium">
@@ -2040,7 +2142,7 @@ export default function SalesLeadDetailsPage() {
                     <Select
                       value={manualPaymentMode}
                       onValueChange={(value) =>
-                        setManualPaymentMode(value as "cash" | "bank_transfer" | "credit_card" | "other")
+                        setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
                       }
                       disabled={manualPaymentSummary.hasFullPayment}
                     >
@@ -2061,8 +2163,12 @@ export default function SalesLeadDetailsPage() {
                         }
                       >
                         <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="credit_card">Credit Card</SelectItem>
+                        <SelectItem value="wire">Wire</SelectItem>
+                        <SelectItem value="ach">ACH</SelectItem>
+                        <SelectItem value="zelle">Zelle</SelectItem>
+                        <SelectItem value="venmo">Venmo</SelectItem>
+                        <SelectItem value="cashapp">CashApp</SelectItem>
+                        <SelectItem value="applepay">ApplePay</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -2181,11 +2287,25 @@ export default function SalesLeadDetailsPage() {
                   </div>
                   <div className={`text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
                     <p>
-                      Total Paid:{" "}
+                      Total Paid Amount:{" "}
                       <span className={isDark ? "text-white" : "text-black"}>
-                        {formatCurrencyValue(total)}
+                        {formatCurrencyValue(lead?.collected_amount ?? lead?.pricing_breakdown?.total_paid ?? total)}
                       </span>
                     </p>
+                    <p className="mt-1">
+                      Pending Amount:{" "}
+                      <span className={additionalPaymentDetails?.isDecrease ? "text-red-500" : (isDark ? "text-white" : "text-black")}>
+                        {additionalPaymentDetails && additionalPaymentDetails.additionalAmount !== 0
+                          ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
+                          : ""}
+                        {formatCurrencyValue(Math.abs(additionalPaymentDetails?.additionalAmount ?? 0))}
+                      </span>
+                      {additionalPaymentDetails?.isDecrease && (
+                        <span className="ml-1 text-[10px] text-golden italic">
+                          (This reduced amount will be added as Beige Credits after approval)
+                        </span>
+                      )}
+                     </p>
                     {booking?.payment_completed_at ? (
                       <p className="mt-1">
                         Paid At:{" "}
@@ -2359,7 +2479,7 @@ export default function SalesLeadDetailsPage() {
             )}
 
             <div className="lg:text-right lg:mt-[82px]">
-              <Button
+              {/* <Button
                 onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
                 className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-all ${isDark
                   ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
@@ -2367,7 +2487,7 @@ export default function SalesLeadDetailsPage() {
                   }`}
               >
                 Change CPs
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>

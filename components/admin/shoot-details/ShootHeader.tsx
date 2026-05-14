@@ -43,6 +43,11 @@ type ShootHeaderProject = {
   [key: string]: unknown;
 };
 
+const parseAmount = (value: unknown): number => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
 interface ShootHeaderProps {
   activeTab?: string;
   project?: ShootHeaderProject;
@@ -66,11 +71,63 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
+  const pricingBreakdown =
+    (project?.pricing_breakdown as Record<string, unknown> | undefined) ||
+    ((project?.lead_details as Record<string, unknown> | undefined)?.pricing_breakdown as Record<string, unknown> | undefined) ||
+    {};
+  const manualPaymentSummary =
+    (project?.manual_payment_summary as Record<string, unknown> | undefined) ||
+    ((project?.lead_details as Record<string, unknown> | undefined)?.manual_payment_summary as Record<string, unknown> | undefined) ||
+    {};
+
+  const subtotalValue = parseAmount(pricingBreakdown.subtotal);
+  const totalBeforeCredit = parseAmount(pricingBreakdown.total_before_credit);
+  const discountValue = parseAmount(pricingBreakdown.discount);
+  const creditAppliedValue = parseAmount(pricingBreakdown.credit_applied);
+  const totalAfterCredit = parseAmount(pricingBreakdown.total_after_credit);
+  const totalValue =
+    totalBeforeCredit ||
+    subtotalValue ||
+    Math.max(parseAmount(pricingBreakdown.total) + discountValue + creditAppliedValue, 0) ||
+    parseAmount(project?.total_paid_amount);
+  const totalReductionValue = Math.max(discountValue + creditAppliedValue, 0);
+  const finalValue =
+    totalAfterCredit ||
+    parseAmount(pricingBreakdown.total) ||
+    Math.max(totalValue - totalReductionValue, 0);
+  const isFullyPaidByManualSummary = Boolean(manualPaymentSummary.hasFullPayment);
+  const effectivePaymentStatus = isFullyPaidByManualSummary
+    ? getPaymentStatusMeta("paid", project?.payment_id)
+    : paymentStatus;
+  const manualPaidAmount = parseAmount(manualPaymentSummary.paidAmount);
+  const manualPendingAmount = parseAmount(manualPaymentSummary.pendingAmount);
+  const hasMeaningfulManualProgress =
+    Boolean(manualPaymentSummary.hasFullPayment) ||
+    Boolean(manualPaymentSummary.isPartiallyPaid) ||
+    manualPaidAmount > 0;
+  const isPaidStatus = String(effectivePaymentStatus.label || "").toLowerCase() === "paid";
+  const paidAmountValue = hasMeaningfulManualProgress
+    ? manualPaidAmount
+    : isPaidStatus
+      ? finalValue
+      : 0;
+  const pendingAmountValue = hasMeaningfulManualProgress
+    ? manualPendingAmount
+    : Math.max(finalValue - paidAmountValue, 0);
   const folderLink = workspaceFolderLink || getProjectFolderLink(project);
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
       : getShootFilesText(project);
+  const locationText =
+    project?.event_location ||
+    [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") ||
+    "No location specified";
+  const totalValueText = `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const totalReductionText = `$${totalReductionValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const finalValueText = `$${finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const paidAmountText = `$${paidAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const pendingAmountText = `$${pendingAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   React.useEffect(() => {
     let isMounted = true;
@@ -203,47 +260,72 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
 
         <div>
           <div className={`hidden lg:block w-full h-px my-6 transition-colors ${isDark ? "bg-[#222222]" : "bg-[#E5E5E5]"}`} />
-          <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-4 lg:mt-0 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
-            }`}>
-            <div className="flex gap-2">
-              <span>Shoot Date :</span>
-              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {projectDateText}
-              </span>
+          <div className={`mt-4 lg:mt-0 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10 text-sm lg:text-base ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
+            <div className="space-y-3 min-w-0">
+              <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Schedule & Location</p>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Shoot Date :</span>
+                <span title={projectDateText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectDateText}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Time :</span>
+                <span title={projectTimeText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectTimeText}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Location :</span>
+                <span title={locationText} className={`${isDark ? "text-white" : "text-black"} font-medium whitespace-nowrap truncate text-right`}>
+                  {locationText}
+                </span>
+              </div>
             </div>
-            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-            <div className="flex gap-2">
-              <span>Time :</span>
-              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {projectTimeText}
-              </span>
-            </div>
-            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-            <div className="flex gap-2">
-              <span>Total Value :</span>
-              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {project?.total_paid_amount ? `$${parseFloat(project.total_paid_amount).toLocaleString()}` : "$0.00"}
-              </span>
-            </div>
-            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-            <div className="flex gap-2">
-              <span>Payment Status :</span>
-              <span className={cn("font-medium", paymentStatus.className)}>
-                {paymentStatus.label}
-              </span>
-            </div>
-            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-            <div className="flex gap-2">
-              <span>Shoot Files :</span>
-              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
-            </div>
-          </div>
 
-          <div className={`mt-2 lg:mt-4 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
-            <span>Location :</span>
-            <span className={`${isDark ? "text-white" : "text-black"} font-medium whitespace-pre-wrap`}>
-              {project?.event_location || [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") || "No location specified"}
-            </span>
+            <div className="space-y-3 min-w-0">
+              <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Pricing Breakdown</p>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Total Value :</span>
+                <span title={totalValueText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
+                  {totalValueText}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Discount/Referral/Credit :</span>
+                <span title={totalReductionText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
+                  {totalReductionText}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Final Value :</span>
+                <span title={finalValueText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
+                  {finalValueText}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3 min-w-0">
+              <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Other Details</p>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Payment Status :</span>
+                <span title={effectivePaymentStatus.label} className={cn("font-medium whitespace-nowrap truncate text-right", effectivePaymentStatus.className)}>
+                  {effectivePaymentStatus.label}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Paid Amount :</span>
+                <span title={paidAmountText} className="font-medium whitespace-nowrap truncate text-right text-emerald-500">
+                  {paidAmountText}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Pending Amount :</span>
+                <span title={pendingAmountText} className="font-medium whitespace-nowrap truncate text-right text-amber-500">
+                  {pendingAmountText}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Shoot Files :</span>
+                <span title={shootFilesText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

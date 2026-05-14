@@ -24,6 +24,11 @@ type QuotePreviewModalProps = {
   quote: SalesQuoteDetailData | null;
   quoteId?: string | null;
   isLoading?: boolean;
+  paymentSummaryOverrides?: {
+    previousTotal?: number;
+    previouslyPaid?: number;
+    revisedTotal?: number;
+  };
 };
 
 const PreviewActionButton = ({
@@ -48,6 +53,7 @@ export default function QuotePreviewModal({
   quote,
   quoteId,
   isLoading = false,
+  paymentSummaryOverrides,
 }: QuotePreviewModalProps) {
   const { isDark } = useResolvedTheme();
   const [copied, setCopied] = React.useState(false);
@@ -172,47 +178,39 @@ export default function QuotePreviewModal({
 
   return (
     <div
-      className={`fixed inset-0 z-[110] p-3 backdrop-blur-md sm:p-4 lg:p-6 ${
-        isDark ? "bg-black/85" : "bg-black/50"
-      }`}
+      className={`fixed inset-0 z-[110] p-3 backdrop-blur-md sm:p-4 lg:p-6 ${isDark ? "bg-black/85" : "bg-black/50"
+        }`}
       onClick={onClose}
     >
       <div
-        className={`mx-auto flex h-full w-full max-w-[1520px] flex-col overflow-hidden rounded-[28px] shadow-[0_35px_120px_rgba(0,0,0,0.18)] ${
-          isDark ? "border border-white/10 bg-[#111111]" : "border border-[#DFDDDD] bg-[#F4F5F7]"
-        }`}
+        className={`relative mx-auto flex h-full w-full max-w-[1520px] flex-col overflow-hidden rounded-[28px] shadow-[0_35px_120px_rgba(0,0,0,0.18)] ${isDark ? "border border-white/10 bg-[#111111]" : "border border-[#DFDDDD] bg-[#F4F5F7]"
+          }`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div
-          className={`flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8 ${
-            isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD] bg-white"
-          }`}
-        >
+        <div className={`flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8 ${isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD] bg-white"}`}>
           <Button
             type="button"
             variant="ghost"
             onClick={onClose}
-            className={`h-11 rounded-xl px-4 ${
-              isDark
-                ? "border border-white/10 bg-[#171717] text-white hover:bg-[#1F1F1F]"
-                : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-            }`}
+            className={`h-11 rounded-xl px-4 ${isDark
+              ? "border border-white/10 bg-[#171717] text-white hover:bg-[#1F1F1F]"
+              : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+              }`}
           >
             <ArrowLeft size={18} className="mr-2" />
             Back
           </Button>
 
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="hidden items-center gap-3 lg:flex">
             <PreviewActionButton
               onClick={() => {
                 void handleCopy();
               }}
               disabled={isPreparingLink}
-              className={`h-11 rounded-xl px-4 ${
-                isDark
-                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-              }`}
+              className={`h-11 rounded-xl px-4 ${isDark
+                ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                }`}
             >
               {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
               {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
@@ -242,11 +240,10 @@ export default function QuotePreviewModal({
             </div>
           ) : !quoteData ? (
             <div
-              className={`flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-[24px] px-6 text-center ${
-                isDark
-                  ? "border border-dashed border-white/10 bg-[#151515]"
-                  : "border border-dashed border-[#DFDDDD] bg-white"
-              }`}
+              className={`flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-[24px] px-6 text-center ${isDark
+                ? "border border-dashed border-white/10 bg-[#151515]"
+                : "border border-dashed border-[#DFDDDD] bg-white"
+                }`}
             >
               <p className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>
                 Preview data unavailable
@@ -258,37 +255,6 @@ export default function QuotePreviewModal({
           ) : (
             <>
               <div className="mb-6 flex flex-col gap-4 lg:mb-8">
-                <div className="flex flex-col gap-2 md:hidden">
-                  <PreviewActionButton
-                    onClick={() => {
-                      void handleCopy();
-                    }}
-                    disabled={isPreparingLink}
-                    className={`h-11 rounded-xl ${
-                      isDark
-                        ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-                        : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-                    }`}
-                  >
-                    {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-                    {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
-                  </PreviewActionButton>
-                  <PreviewActionButton
-                    onClick={() => {
-                      void handleSendQuote();
-                    }}
-                    disabled={!canSendQuote}
-                    className="h-11 rounded-xl bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                  >
-                    {isSending ? (
-                      <Loader2 size={18} className="mr-2 animate-spin" />
-                    ) : (
-                      <Send size={18} className="mr-2" />
-                    )}
-                    {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
-                  </PreviewActionButton>
-                </div>
-
                 <div>
                   <h2 className={`text-[20px] font-medium lg:text-[30px] ${isDark ? "text-white" : "text-black"}`}>
                     Quote Preview
@@ -299,9 +265,46 @@ export default function QuotePreviewModal({
                 </div>
               </div>
 
-              <QuotePreviewDocument quote={quoteData} quoteId={quoteId} />
+              <QuotePreviewDocument
+                quote={quoteData}
+                quoteId={quoteId}
+                paymentSummaryOverrides={paymentSummaryOverrides}
+              />
             </>
           )}
+        </div>
+
+        {/* Floating Mobile Buttons */}
+        <div className={`flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8 ${isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD] bg-white"}`}>
+          <div className="flex gap-2 lg:hidden w-full">
+            <PreviewActionButton
+              onClick={() => {
+                void handleCopy();
+              }}
+              disabled={isPreparingLink}
+              className={`w-full h-11 rounded-xl ${isDark
+                ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                }`}
+            >
+              {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+              {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
+            </PreviewActionButton>
+            <PreviewActionButton
+              onClick={() => {
+                void handleSendQuote();
+              }}
+              disabled={!canSendQuote}
+              className="w-full h-11 rounded-xl bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+            >
+              {isSending ? (
+                <Loader2 size={18} className="mr-2 animate-spin" />
+              ) : (
+                <Send size={18} className="mr-2" />
+              )}
+              {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
+            </PreviewActionButton>
+          </div>
         </div>
       </div>
     </div>

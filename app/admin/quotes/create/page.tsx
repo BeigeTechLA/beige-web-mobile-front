@@ -64,6 +64,7 @@ import {
   getQuoteAdditionalPaymentDetails,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
+  getQuoteNumber,
 } from "@/lib/quoteDetail";
 import {
   clearQuoteEditorEditReason,
@@ -80,6 +81,7 @@ import {
 } from "@/lib/quoteDraft";
 import {
   buildQuoteSummarySnapshot,
+  buildPreviewQuoteFromSummary,
   hasQuoteSummaryContent,
   getQuoteValidationMessage,
   validateQuoteForReview,
@@ -349,13 +351,13 @@ const buildConvertModalInitialData = (
 
   const bookingDays = Array.isArray(booking.booking_days)
     ? booking.booking_days
-        .filter((day) => day?.event_date)
-        .map((day) => ({
-          date: day.event_date,
-          startTime: normalizeConvertModalTime(day.start_time),
-          endTime: normalizeConvertModalTime(day.end_time),
-        }))
-        .filter((day) => day.startTime && day.endTime)
+      .filter((day) => day?.event_date)
+      .map((day) => ({
+        date: day.event_date,
+        startTime: normalizeConvertModalTime(day.start_time),
+        endTime: normalizeConvertModalTime(day.end_time),
+      }))
+      .filter((day) => day.startTime && day.endTime)
     : [];
 
   if (bookingDays.length > 1) {
@@ -1168,6 +1170,9 @@ export default function CreateQuotePage() {
   const [editingTypeConfigs, setEditingTypeConfigs] = useState<
     Record<string, { quantity: number; estimatedPrice: number }>
   >({});
+  const [estimatedPriceDrafts, setEstimatedPriceDrafts] = useState<
+    Record<string, string>
+  >({});
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
@@ -1853,14 +1858,14 @@ export default function CreateQuotePage() {
                     (normalizedKey &&
                       type.key.trim().toLowerCase() === normalizedKey) ||
                     normalizeShootTypeLabelKey(type.label) ===
-                      normalizeShootTypeLabelKey(normalizedLabel),
+                    normalizeShootTypeLabelKey(normalizedLabel),
                 ) ||
                 nextOptions.find(
                   (type) =>
                     (normalizedKey &&
                       type.key.trim().toLowerCase() === normalizedKey) ||
                     normalizeShootTypeLabelKey(type.label) ===
-                      normalizeShootTypeLabelKey(normalizedLabel),
+                    normalizeShootTypeLabelKey(normalizedLabel),
                 );
 
               if (matchedEditingType) {
@@ -1962,13 +1967,63 @@ export default function CreateQuotePage() {
     return config.estimatedPrice;
   };
 
-    const handleServicePriceUpdate = (serviceId, value) => {
+  const handleServicePriceUpdate = (serviceId, value) => {
     const config = serviceConfigs[serviceId];
     if (!config) return;
 
     const raw = parseRawPrice(value);
     const nextPrice = parseFloat(raw) || 0;
     handleConfigUpdate(serviceId, "estimatedPrice", nextPrice);
+  };
+
+  const getEstimatedPriceInputKey = (
+    isEditingService: boolean,
+    serviceId: string,
+    editingTypeId: string,
+  ) => (isEditingService ? `editing:${editingTypeId}` : `service:${serviceId}`);
+
+  const getAddonPriceInputKey = (addonId: string) => `addon:${addonId}`;
+  const getLineItemPriceInputKey = (lineItemId: string) =>
+    `line_item:${lineItemId}`;
+
+  const getEstimatedPriceInputValue = (
+    inputKey: string,
+    persistedValue: number,
+  ) =>
+    Object.prototype.hasOwnProperty.call(estimatedPriceDrafts, inputKey)
+      ? estimatedPriceDrafts[inputKey]
+      : `$ ${formatAddonDisplayValue(persistedValue)}`;
+
+  const getCurrencyDraftInputValue = (
+    inputKey: string,
+    persistedValue: number,
+  ) =>
+    Object.prototype.hasOwnProperty.call(estimatedPriceDrafts, inputKey)
+      ? estimatedPriceDrafts[inputKey]
+      : `$ ${formatAddonDisplayValue(persistedValue)}`;
+
+  const setEstimatedPriceDraftValue = (inputKey: string, value: string) => {
+    const sanitizedValue = sanitizeCurrencyInput(value);
+    setEstimatedPriceDrafts((prev) => ({
+      ...prev,
+      [inputKey]: sanitizedValue,
+    }));
+  };
+
+  const commitEstimatedPriceDraftValue = (
+    inputKey: string,
+    persistedValue: number,
+    onCommit: (nextValue: number) => void,
+  ) => {
+    const draftValue = estimatedPriceDrafts[inputKey];
+    const nextValue =
+      draftValue === undefined ? persistedValue : parseCurrencyInput(draftValue);
+    onCommit(nextValue);
+    setEstimatedPriceDrafts((prev) => {
+      const nextDrafts = { ...prev };
+      delete nextDrafts[inputKey];
+      return nextDrafts;
+    });
   };
 
   const handleAddonConfigUpdate = (
@@ -1980,6 +2035,13 @@ export default function CreateQuotePage() {
       field === "quantity" ? Math.max(1, value) : Math.max(0, value);
 
     setAddonConfigs((prev) => ({
+      ...prev,
+      [addonId]: {
+        ...prev[addonId],
+        [field]: nextValue,
+      },
+    }));
+    setAppliedAddonConfigs((prev) => ({
       ...prev,
       [addonId]: {
         ...prev[addonId],
@@ -2807,12 +2869,12 @@ export default function CreateQuotePage() {
     .map((itemId) => logisticsItems.find((item) => item.id === itemId))
     .filter((item): item is (typeof logisticsItems)[number] => Boolean(item));
   const totalLogisticsCost = selectedLogisticsItems.reduce((total, item) => {
-    const config = appliedLogisticsConfigs[item.id];
+    const config = logisticsConfigs[item.id] ?? appliedLogisticsConfigs[item.id];
     if (!config) return total;
     return total + config.price;
   }, 0);
   const totalLineItemsCost = lineItems.reduce((total, item) => {
-    const config = appliedLineItemConfigs[item.id];
+    const config = lineItemConfigs[item.id] ?? appliedLineItemConfigs[item.id];
     if (!config) return total;
     return total + config.price;
   }, 0);
@@ -2926,12 +2988,29 @@ export default function CreateQuotePage() {
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
+  const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
+  const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
+  const quoteContextPaidAmount =
+    getQuoteNumber(
+      previewQuote?.additional_payment?.previously_paid_amount,
+      quoteToEdit?.additional_payment?.previously_paid_amount
+    ) ?? 0;
+  const safePreviouslyPaidOverride =
+    (Number.isFinite(leadPricingPaid) && leadPricingPaid > 0
+      ? leadPricingPaid
+      : quoteContextPaidAmount > 0
+        ? quoteContextPaidAmount
+        : 0) || undefined;
+  const safePreviousTotalOverride =
+    Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
     () =>
-      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
+      getQuoteAdditionalPaymentDetails(previewQuote ?? quoteToEdit, {
         revisedTotalOverride: totalAfterTax,
+        previouslyPaidOverride: safePreviouslyPaidOverride,
+        previousTotalOverride: safePreviousTotalOverride,
       }),
-    [previewQuote, quoteToEdit, totalAfterTax],
+    [previewQuote, quoteToEdit, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -3242,9 +3321,9 @@ export default function CreateQuotePage() {
   React.useEffect(() => {
     setHasUnsavedQuoteChanges(
       Boolean(quoteToEdit) &&
-        (reviewChangesData.lineChanges.length > 0 ||
-          reviewChangesData.fieldChanges.length > 0 ||
-          Math.abs(reviewChangesData.delta) > 0.009),
+      (reviewChangesData.lineChanges.length > 0 ||
+        reviewChangesData.fieldChanges.length > 0 ||
+        Math.abs(reviewChangesData.delta) > 0.009),
     );
   }, [quoteToEdit, reviewChangesData]);
 
@@ -3278,22 +3357,22 @@ export default function CreateQuotePage() {
     );
     const payload = isUpdatingExistingQuote
       ? {
-          ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
-          is_draft: action === "draft",
-          ...(resolvedEditReason ? { edit_reason: resolvedEditReason } : {}),
-          ...(resolvedOpsReviewConfirmed ? { ops_review_confirmed: true } : {}),
-          ...(options?.saveAsNewVersion
-            ? {
-                save_as_new_version: true,
-                version_notes: options.versionNotes?.trim() || undefined,
-              }
-            : {}),
-        }
+        ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
+        is_draft: action === "draft",
+        ...(resolvedEditReason ? { edit_reason: resolvedEditReason } : {}),
+        ...(resolvedOpsReviewConfirmed ? { ops_review_confirmed: true } : {}),
+        ...(options?.saveAsNewVersion
+          ? {
+            save_as_new_version: true,
+            version_notes: options.versionNotes?.trim() || undefined,
+          }
+          : {}),
+      }
       : action === "save"
         ? {
-            ...basePayload,
-            is_draft: false,
-          }
+          ...basePayload,
+          is_draft: false,
+        }
         : basePayload;
 
     setIsCreatingQuoteDraft(true);
@@ -3454,6 +3533,23 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (isEditMode) {
+      const previewSnapshot = getQuoteSummarySnapshot();
+      setPreviewQuote(buildPreviewQuoteFromSummary(previewSnapshot));
+      setPreviewQuoteId(effectiveQuoteId);
+      setIsPreviewModalOpen(true);
+      return;
+    }
+
+    if (!hasUnsavedQuoteChanges && (previewQuote || quoteToEdit)) {
+      if (!previewQuote && quoteToEdit) {
+        setPreviewQuote(quoteToEdit);
+        setPreviewQuoteId(effectiveQuoteId);
+      }
+      setIsPreviewModalOpen(true);
+      return;
+    }
+
     await saveQuoteDraft("save", { suppressRedirect: true, openPreview: true });
   };
 
@@ -3610,19 +3706,22 @@ export default function CreateQuotePage() {
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
+      const isManualInvoicePdf =
+        typeof invoicePdfUrl === "string" &&
+        /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
       const invoiceBookingId =
         response.data?.booking_id !== undefined &&
-        response.data?.booking_id !== null &&
-        String(response.data.booking_id).trim()
+          response.data?.booking_id !== null &&
+          String(response.data.booking_id).trim()
           ? String(response.data.booking_id)
           : convertedBookingId;
       const apiBase = (
         process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
       ).replace(/\/$/, "");
-      const proxiedPdfUrl = invoiceBookingId
+      const proxiedPdfUrl = !isManualInvoicePdf && invoiceBookingId
         ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
         : null;
-      const proxiedDownloadUrl = invoiceBookingId
+      const proxiedDownloadUrl = !isManualInvoicePdf && invoiceBookingId
         ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
         : null;
 
@@ -3630,7 +3729,7 @@ export default function CreateQuotePage() {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !isManualInvoicePdf) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
@@ -4252,6 +4351,13 @@ export default function CreateQuotePage() {
 
   const confirmDelete = async () => {
     if (!itemToDelete) return;
+    const numericCatalogId = Number(itemToDelete.id);
+    const hasValidCatalogId = Number.isFinite(numericCatalogId) && numericCatalogId > 0;
+    const isCatalogBackedItem =
+      itemToDelete.type === "service" ||
+      itemToDelete.type === "addon" ||
+      itemToDelete.type === "logistics" ||
+      itemToDelete.type === "line_item";
 
     if (
       itemToDelete.type === "line_item" &&
@@ -4285,6 +4391,25 @@ export default function CreateQuotePage() {
 
     setIsDeleting(true);
     try {
+      if (isCatalogBackedItem && !hasValidCatalogId) {
+        if (itemToDelete.type === "service") {
+          setSelectedServices((prev) => prev.filter((sid) => sid !== itemToDelete.id));
+        } else if (itemToDelete.type === "addon") {
+          removeSelectedAddon(itemToDelete.id);
+        } else if (itemToDelete.type === "logistics") {
+          removeLogisticsItem(itemToDelete.id);
+        } else {
+          removeLineItem(itemToDelete.id);
+        }
+
+        toast.success(
+          `${itemToDelete.type === "service" ? "Service" : itemToDelete.type === "addon" ? "Add-on" : itemToDelete.type === "logistics" ? "Logistics item" : "Line item"} removed from this quote`,
+        );
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+        return;
+      }
+
       const res =
         itemToDelete.type === "editing_type"
           ? await salesApi.deleteAiEditingType(itemToDelete.id)
@@ -4638,9 +4763,9 @@ export default function CreateQuotePage() {
       } else {
         toast.error(
           res?.error ||
-            `Failed to update ${getCatalogEditItemLabel(
-              editCatalogItem.type,
-            ).toLowerCase()}`,
+          `Failed to update ${getCatalogEditItemLabel(
+            editCatalogItem.type,
+          ).toLowerCase()}`,
         );
       }
     } catch (error) {
@@ -4723,7 +4848,7 @@ export default function CreateQuotePage() {
         }
       />
 
-      <div className="px-4 pb-30 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
+      <div className="px-4 pb-40 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
         {/* Navigation & Progress Header */}
         <div className="flex justify-between items-center mb-7">
           <button
@@ -4740,7 +4865,7 @@ export default function CreateQuotePage() {
                 type="button"
                 onClick={handleOpenQuoteSummary}
                 disabled={!canOpenQuoteSummary}
-                className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black disabled:opacity-60"
+                className="block lg:hidden bg-[#E5D5B8] text-sm h-10 lg:h-8 text-black disabled:opacity-60"
               >
                 View Quote Summary
               </Button>
@@ -4781,7 +4906,7 @@ export default function CreateQuotePage() {
         {/* Main Card */}
         {/* <div className={`border rounded-[18px] mb-8 bg-[#171717] border-[#3D3D3D] ${view === 'selection' ? 'overflow-visible' : 'p-10 overflow-hidden'}`}> */}
         <div
-          className={`border rounded-[18px] mb-8 bg-[#171717] border-[#3D3D3D] overflow-visible`}
+          className={`border rounded-[18px] ${(view === "tax") ? "mb-25":"mb-10"} lg:mb-8 bg-[#171717] border-[#3D3D3D] overflow-visible`}
         >
           {view === "logistics" ? (
             <div className="">
@@ -4963,9 +5088,6 @@ export default function CreateQuotePage() {
                       <div className="space-y-4 lg:space-y-6">
                         {selectedLogisticsItems.map((item) => {
                           const config = logisticsConfigs[item.id];
-                          const hasPendingChanges = hasPendingLogisticsChanges(
-                            item.id,
-                          );
                           if (!config) return null;
 
                           return (
@@ -4987,37 +5109,41 @@ export default function CreateQuotePage() {
                                 </div>
 
                                 <div className="flex shrink-0 items-center gap-4">
-                                 <div className="relative w-[190px] h-[50px] bg-[#1A1A1F] border border-[#3B3B46] rounded-xl flex items-center px-5 transition-all focus-within:border-[#E8D1AB]">
-                                  <span className="text-white text-base font-medium mr-1 opacity-80">$</span>
-                                  <input
-                                    value={
-                                      inputValue[item.id] !== undefined 
-                                        ? inputValue[item.id] 
-                                        : config.price.toFixed(2)
-                                    }
-                                    onChange={(e) => {
-                                      const raw = parseRawPrice(e.target.value);
-                                      setInputValue((prev) => ({ ...prev, [item.id]: raw }));
-                                      
-                                      const num = parseFloat(raw);
-                                      if (!isNaN(num)) {
-                                        setLogisticsConfigs((prev) => ({
-                                          ...prev,
-                                          [item.id]: { ...prev[item.id], price: num },
-                                        }));
+                                  <div className="relative w-[190px] h-[50px] bg-[#1A1A1F] border border-[#3B3B46] rounded-xl flex items-center px-5 transition-all focus-within:border-[#E8D1AB]">
+                                    <span className="text-white text-base font-medium mr-1 opacity-80">$</span>
+                                    <input
+                                      value={
+                                        inputValue[item.id] !== undefined
+                                          ? inputValue[item.id]
+                                          : config.price.toFixed(2)
                                       }
-                                    }}
-                                    onBlur={() => {
-                                      setInputValue((prev) => {
-                                        const next = { ...prev };
-                                        delete next[item.id];
-                                        return next;
-                                      });
-                                    }}
-                                    className="bg-transparent border-0 outline-none text-white font-normal text-base w-full p-0 focus:ring-0"
-                                    inputMode="decimal"
-                                  />
-                                </div>
+                                      onChange={(e) => {
+                                        const raw = parseRawPrice(e.target.value);
+                                        setInputValue((prev) => ({ ...prev, [item.id]: raw }));
+
+                                        const num = parseFloat(raw);
+                                        if (!isNaN(num)) {
+                                          setLogisticsConfigs((prev) => ({
+                                            ...prev,
+                                            [item.id]: { ...prev[item.id], price: num },
+                                          }));
+                                          setAppliedLogisticsConfigs((prev) => ({
+                                            ...prev,
+                                            [item.id]: { ...prev[item.id], price: num },
+                                          }));
+                                        }
+                                      }}
+                                      onBlur={() => {
+                                        setInputValue((prev) => {
+                                          const next = { ...prev };
+                                          delete next[item.id];
+                                          return next;
+                                        });
+                                      }}
+                                      className="bg-transparent border-0 outline-none text-white font-normal text-base w-full p-0 focus:ring-0"
+                                      inputMode="decimal"
+                                    />
+                                  </div>
 
                                   <div className="flex items-center gap-5 ml-2">
                                     <button
@@ -5025,14 +5151,6 @@ export default function CreateQuotePage() {
                                       className="text-red-500 hover:text-red-400 transition-colors"
                                     >
                                       <Trash2 size={18} />
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        applyLogisticsChanges(item.id, item.label)
-                                      }
-                                      className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                    >
-                                      <Check size={18} strokeWidth={3} />
                                     </button>
                                   </div>
                                 </div>
@@ -5072,6 +5190,13 @@ export default function CreateQuotePage() {
                                               price: numericVal,
                                             },
                                           }));
+                                          setAppliedLogisticsConfigs((prev) => ({
+                                            ...prev,
+                                            [item.id]: {
+                                              ...prev[item.id],
+                                              price: numericVal,
+                                            },
+                                          }));
                                         }
                                       }}
                                       onBlur={() => {
@@ -5090,14 +5215,6 @@ export default function CreateQuotePage() {
                                     className="text-red-500 hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      applyLogisticsChanges(item.id, item.label)
-                                    }
-                                    className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                  >
-                                    <Check size={18} strokeWidth={3} />
                                   </button>
                                 </div>
                               </div>
@@ -5164,7 +5281,6 @@ export default function CreateQuotePage() {
                             // ? "bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                             // : "bg-transparent border-[#303030] hover:border-zinc-700"
                             // }`}
-
                             //  className={`h-[52px] w-full rounded-xl px-5 pr-11 font-medium transition-all border text-sm lg:text-base tracking-tight text-left flex items-center ${selectedId === type.id
                             ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
                             : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
@@ -5314,8 +5430,6 @@ export default function CreateQuotePage() {
                       {selectedAddons.map((addonId) => {
                         const addon = addons.find((a) => a.id === addonId);
                         const config = addonConfigs[addonId];
-                        const hasPendingChanges =
-                          hasPendingAddonChanges(addonId);
                         if (!addon || !config) return null;
 
                         return (
@@ -5375,33 +5489,50 @@ export default function CreateQuotePage() {
                                 </div>
 
                                 {/* Price Override */}
-                                <div className="relative w-[190px] h-[50px] bg-[#1A1A1F] border border-[#3B3B46] rounded-xl flex items-center px-5 transition-all focus-within:border-[#E8D1AB]">
-                                  <span className="text-white text-base font-medium mr-1 opacity-80">$</span>
-                                  <input
-                                    value={
-                                      inputValue[addonId] !== undefined 
-                                        ? inputValue[addonId] 
-                                        : config.price.toFixed(2)
-                                    }
-                                    onChange={(e) => {
-                                      const raw = parseRawPrice(e.target.value);
-                                      setInputValue((prev) => ({ ...prev, [addonId]: raw }));
-                                      
-                                      const num = parseFloat(raw);
-                                      if (!isNaN(num)) {
-                                        handleAddonConfigUpdate(addonId, "price", num);
-                                      }
-                                    }}
-                                    onBlur={() => {
-                                      setInputValue((prev) => {
-                                        const next = { ...prev };
-                                        delete next[addonId];
-                                        return next;
-                                      });
-                                    }}
-                                    className="bg-transparent border-0 outline-none text-white font-normal text-base w-full p-0 focus:ring-0"
-                                    inputMode="decimal"
-                                  />
+                                <div className="relative w-[190px]">
+                                  {(() => {
+                                    const addonInputKey =
+                                      getAddonPriceInputKey(addonId);
+
+                                    return (
+                                      <Input
+                                        value={getCurrencyDraftInputValue(
+                                          addonInputKey,
+                                          getAddonDraftPrice(addonId),
+                                        )}
+                                        onFocus={(e) => {
+                                          setEstimatedPriceDraftValue(
+                                            addonInputKey,
+                                            e.target.value,
+                                          );
+                                        }}
+                                        onChange={(e) =>
+                                          setEstimatedPriceDraftValue(
+                                            addonInputKey,
+                                            e.target.value,
+                                          )
+                                        }
+                                        onBlur={() =>
+                                          commitEstimatedPriceDraftValue(
+                                            addonInputKey,
+                                            getAddonDraftPrice(addonId),
+                                            (nextValue) => {
+                                              handleAddonPriceUpdate(
+                                                addonId,
+                                                String(nextValue),
+                                              );
+                                            },
+                                          )
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.currentTarget.blur();
+                                          }
+                                        }}
+                                        inputMode="decimal"
+                                      />
+                                    );
+                                  })()}
                                 </div>
 
                                 <div className="flex items-center gap-5 ml-2">
@@ -5410,14 +5541,6 @@ export default function CreateQuotePage() {
                                     className="text-red-500 hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      applyAddonChanges(addonId, addon.label)
-                                    }
-                                    className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                  >
-                                    <Check size={18} strokeWidth={3} />
                                   </button>
                                 </div>
                               </div>
@@ -5447,7 +5570,7 @@ export default function CreateQuotePage() {
                                 >
                                   <Minus size={16} strokeWidth={2.5} />
                                 </button>
-                                <div className="h-10 min-w-[84px] rounded-[10px] border border-[#3B3B46] bg-[#1A1A1F] px-3 flex flex-col items-center justify-center">
+                                <div className="h-10 min-w-[84px] w-full lg:w-auto rounded-[10px] border border-[#3B3B46] bg-[#1A1A1F] px-3 flex flex-col items-center justify-center">
                                   <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[#8A8A8A]">
                                     Qty
                                   </span>
@@ -5470,31 +5593,56 @@ export default function CreateQuotePage() {
                               </div>
                               <div className="flex gap-3 items-center">
                                 <div className="relative flex-1">
-                                  <Input
-                                    value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
-                                    onChange={(e) =>
-                                      handleAddonPriceUpdate(
-                                        addonId,
-                                        e.target.value,
-                                      )
-                                    }
-                                    inputMode="decimal"
-                                    className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
-                                  />
+                                  {(() => {
+                                    const addonInputKey =
+                                      getAddonPriceInputKey(addonId);
+
+                                    return (
+                                      <Input
+                                        value={getCurrencyDraftInputValue(
+                                          addonInputKey,
+                                          getAddonDraftPrice(addonId),
+                                        )}
+                                        onFocus={(e) => {
+                                          setEstimatedPriceDraftValue(
+                                            addonInputKey,
+                                            e.target.value,
+                                          );
+                                        }}
+                                        onChange={(e) =>
+                                          setEstimatedPriceDraftValue(
+                                            addonInputKey,
+                                            e.target.value,
+                                          )
+                                        }
+                                        onBlur={() =>
+                                          commitEstimatedPriceDraftValue(
+                                            addonInputKey,
+                                            getAddonDraftPrice(addonId),
+                                            (nextValue) => {
+                                              handleAddonPriceUpdate(
+                                                addonId,
+                                                String(nextValue),
+                                              );
+                                            },
+                                          )
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.currentTarget.blur();
+                                          }
+                                        }}
+                                        inputMode="decimal"
+                                        className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
+                                      />
+                                    );
+                                  })()}
                                 </div>
                                 <button
                                   onClick={() => removeSelectedAddon(addonId)}
                                   className="text-red-500 hover:text-red-400 transition-colors"
                                 >
                                   <Trash2 size={18} />
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    applyAddonChanges(addonId, addon.label)
-                                  }
-                                  className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
-                                >
-                                  <Check size={18} strokeWidth={3} />
                                 </button>
                               </div>
                             </div>
@@ -5529,7 +5677,7 @@ export default function CreateQuotePage() {
                 </div>
                 <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-                <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 ">
+                <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 mb-5">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     {loadingServices ? (
                       <div className="col-span-3 py-10 flex justify-center items-center">
@@ -5548,12 +5696,12 @@ export default function CreateQuotePage() {
                               onClick={() =>
                                 handleServiceSelect(service.id, service.price)
                               }
-                              className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
+                              className={`group relative flex lg:h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
                                 ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                                 : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
                                 }`}
                             >
-                              <div className="mb-2 w-full truncate pr-6 font-medium text-base text-white">
+                              <div className="mb-2 w-2/3 md:w-full truncate pr-6 font-medium text-base text-white">
                                 {getServiceDisplayLabel(service.label)}
                               </div>
                               <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -5908,11 +6056,16 @@ export default function CreateQuotePage() {
                                 : null;
                               const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
                               const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+                              const estimatedPriceInputKey = getEstimatedPriceInputKey(
+                                isEditingService,
+                                serviceId,
+                                editingTypeId,
+                              );
                               const serviceTotal = isEditingService
                                 ? quantity * estimatedPrice
                                 : config.duration *
-                                  config.crewSize *
-                                  config.estimatedPrice;
+                                config.crewSize *
+                                config.estimatedPrice;
                               const cardKey = isEditingService
                                 ? `${serviceId}-${editingTypeId || "editing"}-${index}`
                                 : serviceId;
@@ -5922,94 +6075,146 @@ export default function CreateQuotePage() {
                                   key={cardKey}
                                   className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden"
                                 >
-                                <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
-                                  <div className="min-w-0 flex-1 space-y-2">
-                                    <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
-                                      {isEditingServiceLabel(service.label) ? (
-                                        <>
-                                          Editing Type - <span className="break-words text-[#8E826A]">{editingLabel || "Not selected"}</span>
-                                        </>
-                                      ) : shootTypeLabel ? (
-                                        <>
-                                          {getServiceDisplayLabel(service.label)} -{" "}
-                                          <span className="break-words text-[#8E826A]">
-                                            ({shootTypeLabel})
-                                          </span>
-                                        </>
-                                      ) : (
-                                        <>{getServiceDisplayLabel(service.label)}</>
-                                      )}
-                                    </h3>
-                                    <p className="text-[#8A8A8A] text-xs font-normal">
-                                      Base: ${service.price.toFixed(2)} per hour
-                                    </p>
-                                  </div>
-                                  <div className="flex shrink-0 items-center gap-5">
-                                    <div className="hidden lg:flex flex-col items-end gap-1">
-                                      <span className="text-[#7B7B85] text-xs font-normal">
-                                        Total
-                                      </span>
-                                      <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">
-                                        ${serviceTotal.toFixed(2).toLocaleString()}
-                                        {/* service.price.toFixed(2) */}
-                                      </span>
+                                  <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                      <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
+                                        {isEditingServiceLabel(service.label) ? (
+                                          <>
+                                            Editing Type - <span className="break-words text-[#8E826A]">{editingLabel || "Not selected"}</span>
+                                          </>
+                                        ) : shootTypeLabel ? (
+                                          <>
+                                            {getServiceDisplayLabel(service.label)} -{" "}
+                                            <span className="break-words text-[#8E826A]">
+                                              ({shootTypeLabel})
+                                            </span>
+                                          </>
+                                        ) : (
+                                          <>{getServiceDisplayLabel(service.label)}</>
+                                        )}
+                                      </h3>
+                                      <p className="text-[#8A8A8A] text-xs font-normal">
+                                        Base: ${service.price.toFixed(2)} per hour
+                                      </p>
                                     </div>
-                                    {index === 0 && (
-                                      <button
-                                        onClick={() =>
-                                          setSelectedServices((prev) =>
-                                            prev.filter((id) => id !== serviceId),
-                                          )
-                                        }
-                                        className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                                      >
-                                        <Trash2 size={18} />
-                                      </button>
-                                    )}
+                                    <div className="flex shrink-0 items-center gap-5">
+                                      <div className="hidden lg:flex flex-col items-end gap-1">
+                                        <span className="text-[#7B7B85] text-xs font-normal">
+                                          Total
+                                        </span>
+                                        <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">
+                                          ${serviceTotal.toFixed(2).toLocaleString()}
+                                          {/* service.price.toFixed(2) */}
+                                        </span>
+                                      </div>
+                                      {index === 0 && (
+                                        <button
+                                          onClick={() =>
+                                            setSelectedServices((prev) =>
+                                              prev.filter((id) => id !== serviceId),
+                                            )
+                                          }
+                                          className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                                        >
+                                          <Trash2 size={18} />
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
 
-                                <div className="my-3 lg:my-6 border-t border-[#303030]" />
+                                  <div className="my-3 lg:my-6 border-t border-[#303030]" />
 
-                                <div className="flex lg:hidden justify-between items-center gap-1">
-                                  <span className="text-[#7B7B85] text-sm font-normal">
-                                    Total
-                                  </span>
-                                  <span className="font-semibold text-[#F0DCB1] tracking-tight leading-none">
-                                    ${serviceTotal.toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="lg:hidden my-4 lg:my-8 border-t border-[#303030]" />
+                                  <div className="flex lg:hidden justify-between items-center gap-1">
+                                    <span className="text-[#7B7B85] text-sm font-normal">
+                                      Total
+                                    </span>
+                                    <span className="font-semibold text-[#F0DCB1] tracking-tight leading-none">
+                                      ${serviceTotal.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className="lg:hidden my-4 lg:my-8 border-t border-[#303030]" />
 
-                                <div className={`grid grid-cols-1 ${isEditingService ? "md:grid-cols-2" : "md:grid-cols-3"} gap-3 lg:gap-6`}>
-                                  {!isEditingService && (
+                                  <div className={`grid grid-cols-1 ${isEditingService ? "md:grid-cols-2" : "md:grid-cols-3"} gap-3 lg:gap-6`}>
+                                    {!isEditingService && (
+                                      <div className="flex flex-col gap-2">
+                                        <span className="text-sm font-normal text-[#9A9AA4]">
+                                          Duration (hours)
+                                        </span>
+                                        <div className="flex items-center gap-2 h-9">
+                                          <button
+                                            onClick={() =>
+                                              handleConfigUpdate(
+                                                serviceId,
+                                                "duration",
+                                                config.duration - 0.5,
+                                              )
+                                            }
+                                            className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                          >
+                                            <Minus size={16} strokeWidth={2.5} />
+                                          </button>
+                                          <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
+                                            {config.duration}
+                                          </div>
+                                          <button
+                                            onClick={() =>
+                                              handleConfigUpdate(
+                                                serviceId,
+                                                "duration",
+                                                config.duration + 0.5,
+                                              )
+                                            }
+                                            className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                          >
+                                            <Plus size={16} strokeWidth={2.5} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+
                                     <div className="flex flex-col gap-2">
                                       <span className="text-sm font-normal text-[#9A9AA4]">
-                                        Duration (hours)
+                                        {isEditingService ? "Quantity" : "Crew Size"}
                                       </span>
                                       <div className="flex items-center gap-2 h-9">
                                         <button
                                           onClick={() =>
-                                            handleConfigUpdate(
-                                              serviceId,
-                                              "duration",
-                                              config.duration - 0.5,
-                                            )
+                                            isEditingService
+                                              ? setEditingTypeConfigs((prev) => ({
+                                                ...prev,
+                                                [editingTypeId]: {
+                                                  quantity: Math.max(1, quantity - 1),
+                                                  estimatedPrice,
+                                                },
+                                              }))
+                                              : handleConfigUpdate(
+                                                serviceId,
+                                                "crewSize",
+                                                config.crewSize - 1,
+                                              )
                                           }
                                           className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                         >
                                           <Minus size={16} strokeWidth={2.5} />
                                         </button>
                                         <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                          {config.duration}
+                                          {isEditingService ? quantity : config.crewSize}
                                         </div>
                                         <button
                                           onClick={() =>
-                                            handleConfigUpdate(
-                                              serviceId,
-                                              "duration",
-                                              config.duration + 0.5,
-                                            )
+                                            isEditingService
+                                              ? setEditingTypeConfigs((prev) => ({
+                                                ...prev,
+                                                [editingTypeId]: {
+                                                  quantity: Math.max(1, quantity + 1),
+                                                  estimatedPrice,
+                                                },
+                                              }))
+                                              : handleConfigUpdate(
+                                                serviceId,
+                                                "crewSize",
+                                                config.crewSize + 1,
+                                              )
                                           }
                                           className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                         >
@@ -6017,135 +6222,99 @@ export default function CreateQuotePage() {
                                         </button>
                                       </div>
                                     </div>
-                                  )}
 
-                                  <div className="flex flex-col gap-2">
-                                    <span className="text-sm font-normal text-[#9A9AA4]">
-                                      {isEditingService ? "Quantity" : "Crew Size"}
-                                    </span>
-                                    <div className="flex items-center gap-2 h-9">
-                                      <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity: Math.max(1, quantity - 1),
-                                                estimatedPrice,
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "crewSize",
-                                              config.crewSize - 1,
-                                            )
-                                        }
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Minus size={16} strokeWidth={2.5} />
-                                      </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                        {isEditingService ? quantity : config.crewSize}
-                                      </div>
-                                      <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity: Math.max(1, quantity + 1),
-                                                estimatedPrice,
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "crewSize",
-                                              config.crewSize + 1,
-                                            )
-                                        }
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Plus size={16} strokeWidth={2.5} />
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Estimated Pricing */}
-                                  <div className="flex flex-col gap-2">
-                                    <span className="text-sm font-normal text-[#9A9AA4]">
-                                      Estimated Pricing
-                                    </span>
-                                    <div className="flex items-center gap-2 h-9">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const current = isEditingService ? estimatedPrice : config.estimatedPrice;
-                                          const val = Math.max(0, current - 50);
-                                          if (isEditingService) {
-                                            setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
-                                          } else {
-                                            handleConfigUpdate(serviceId, "estimatedPrice", val);
-                                          }
-                                        }}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Minus size={16} strokeWidth={2.5} />
-                                      </button>
-
-                                      <div className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] flex items-center justify-center group focus-within:border-[#E8D1AB] transition-all px-2">
-                                        
-                                        <span className="text-white text-sm font-medium mr-1 opacity-80">$</span>
-                                        
-                                        <input
-                                          value={
-                                            inputValue[cardKey] !== undefined 
-                                              ? inputValue[cardKey] 
-                                              : (isEditingService ? estimatedPrice : config.estimatedPrice).toFixed(2)
-                                          }
-                                          onChange={(e) => {
-                                            const raw = parseRawPrice(e.target.value);
-                                            setInputValue((prev) => ({ ...prev, [cardKey]: raw }));
-                                            
-                                            const num = parseFloat(raw);
-                                            if (!isNaN(num)) {
-                                              if (isEditingService) {
-                                                setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: num } }));
-                                              } else {
-                                                handleConfigUpdate(serviceId, "estimatedPrice", num);
-                                              }
+                                    {/* Estimated Pricing */}
+                                    <div className="flex flex-col gap-2">
+                                      <span className="text-sm font-normal text-[#9A9AA4]">
+                                        Estimated Pricing
+                                      </span>
+                                      <div className="flex items-center gap-2 h-9">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const current = isEditingService ? estimatedPrice : config.estimatedPrice;
+                                            const val = Math.max(0, current - 50);
+                                            if (isEditingService) {
+                                              setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
+                                            } else {
+                                              handleConfigUpdate(serviceId, "estimatedPrice", val);
                                             }
                                           }}
-                                          onBlur={() => {
-                                            setInputValue((prev) => {
-                                              const next = { ...prev };
-                                              delete next[cardKey];
-                                              return next;
-                                            });
+                                          className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        >
+                                          <Minus size={16} strokeWidth={2.5} />
+                                        </button>
+                                        <Input
+                                          value={getEstimatedPriceInputValue(
+                                            estimatedPriceInputKey,
+                                            isEditingService
+                                              ? estimatedPrice
+                                              : getServiceDraftPrice(serviceId),
+                                          )}
+                                          onFocus={(e) => {
+                                            setEstimatedPriceDraftValue(
+                                              estimatedPriceInputKey,
+                                              e.target.value,
+                                            );
                                           }}
-                                          className="bg-transparent border-0 outline-none text-white font-normal text-sm w-[70px] p-0 focus:ring-0"
-                                          inputMode="decimal"
-                                        />
-                                      </div>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const current = isEditingService ? estimatedPrice : config.estimatedPrice;
-                                          const val = current + 50;
-                                          if (isEditingService) {
-                                            setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
-                                          } else {
-                                            handleConfigUpdate(serviceId, "estimatedPrice", val);
+                                          onChange={(e) =>
+                                            setEstimatedPriceDraftValue(
+                                              estimatedPriceInputKey,
+                                              e.target.value,
+                                            )
                                           }
-                                        }}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Plus size={16} strokeWidth={2.5} />
-                                      </button>
+                                          onBlur={() =>
+                                            commitEstimatedPriceDraftValue(
+                                              estimatedPriceInputKey,
+                                              isEditingService
+                                                ? estimatedPrice
+                                                : getServiceDraftPrice(serviceId),
+                                              (nextValue) => {
+                                                if (isEditingService) {
+                                                  setEditingTypeConfigs((prev) => ({
+                                                    ...prev,
+                                                    [editingTypeId]: {
+                                                      quantity,
+                                                      estimatedPrice: nextValue,
+                                                    },
+                                                  }));
+                                                  return;
+                                                }
+
+                                                handleServicePriceUpdate(
+                                                  serviceId,
+                                                  String(nextValue),
+                                                );
+                                              },
+                                            )
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            }
+                                          }}
+                                          inputMode="decimal"
+                                          className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const current = isEditingService ? estimatedPrice : config.estimatedPrice;
+                                            const val = current + 50;
+                                            if (isEditingService) {
+                                              setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
+                                            } else {
+                                              handleConfigUpdate(serviceId, "estimatedPrice", val);
+                                            }
+                                          }}
+                                          className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        >
+                                          <Plus size={16} strokeWidth={2.5} />
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
                               );
                             });
                           })}
@@ -6258,15 +6427,15 @@ export default function CreateQuotePage() {
                             Cost
                           </span>
                         </div>
-                      <Input
-                        placeholder="$ 0.00"
-                        value={customItemCost}
-                        onChange={(e) =>
-                          setCustomItemCost(sanitizeCurrencyInput(e.target.value))
-                        }
-                        inputMode="decimal"
-                        className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                      />
+                        <Input
+                          placeholder="$ 0.00"
+                          value={customItemCost}
+                          onChange={(e) =>
+                            setCustomItemCost(sanitizeCurrencyInput(e.target.value))
+                          }
+                          inputMode="decimal"
+                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        />
                       </div>
                       <button
                         onClick={handleCreateLineItem}
@@ -6299,7 +6468,6 @@ export default function CreateQuotePage() {
                 <div className="space-y-4 lg:space-y-6 p-4 lg:p-8 lg:pb-6">
                   {lineItems.map((item) => {
                     const config = lineItemConfigs[item.id];
-                    const hasPendingChanges = hasPendingLineItemChanges(item.id);
                     const isProtectedLineItem = isProtectedLineItemLabel(
                       item.label,
                     );
@@ -6348,32 +6516,48 @@ export default function CreateQuotePage() {
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               /> */}
                               <Input
-                                value={
-                                  inputValue[item.id] !== undefined
-                                    ? inputValue[item.id]
-                                    : (config?.price || 0).toFixed(2)
-                                }
-                                onChange={(e) => {
-                                  const raw = parseRawPrice(e.target.value);
-                                  setInputValue((prev) => ({ ...prev, [item.id]: raw }));
-
-                                  const numericVal = parseFloat(raw);
-                                  if (!isNaN(numericVal)) {
-                                    setLineItemConfigs((prev) => ({
-                                      ...prev,
-                                      [item.id]: {
-                                        ...prev[item.id],
-                                        price: numericVal,
-                                      },
-                                    }));
-                                  }
+                                value={getCurrencyDraftInputValue(
+                                  getLineItemPriceInputKey(item.id),
+                                  config?.price || 0,
+                                )}
+                                onFocus={(e) => {
+                                  setEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    e.target.value,
+                                  );
                                 }}
-                                onBlur={() => {
-                                  setInputValue((prev) => {
-                                    const next = { ...prev };
-                                    delete next[item.id];
-                                    return next;
-                                  });
+                                onChange={(e) =>
+                                  setEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    e.target.value,
+                                  )
+                                }
+                                onBlur={() =>
+                                  commitEstimatedPriceDraftValue(
+                                    getLineItemPriceInputKey(item.id),
+                                    config?.price || 0,
+                                    (nextValue) => {
+                                      setLineItemConfigs((prev) => ({
+                                        ...prev,
+                                        [item.id]: {
+                                          ...prev[item.id],
+                                          price: nextValue,
+                                        },
+                                      }));
+                                      setAppliedLineItemConfigs((prev) => ({
+                                        ...prev,
+                                        [item.id]: {
+                                          ...prev[item.id],
+                                          price: nextValue,
+                                        },
+                                      }));
+                                    },
+                                  )
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                  }
                                 }}
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                                 inputMode="decimal"
@@ -6401,14 +6585,6 @@ export default function CreateQuotePage() {
                                   <Trash2 size={18} />
                                 </button>
                               )}
-                              <button
-                                onClick={() =>
-                                  applyLineItemChanges(item.id, item.label)
-                                }
-                                className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-700/70 hover:text-green-600"}`}
-                              >
-                                <Check size={18} strokeWidth={3} />
-                              </button>
                             </div>
                           </div>
                         </div>
@@ -6561,7 +6737,7 @@ export default function CreateQuotePage() {
                       />
                     </div>
 
-                    <div className="my-6 flex flex-col gap-2">
+                    <div className="my-4 lg:my-6 flex flex-col gap-2">
                       <div className="flex justify-between text-[#9F9FA9] ">
                         <p>Subtotal</p>
                         <p>{formatCurrency(quoteSubtotal)}</p>
@@ -6844,18 +7020,18 @@ export default function CreateQuotePage() {
                           </div>
                         ) : null}
                         <div className="flex justify-between items-center">
-                          <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            {additionalPaymentDetails.additionalAmount < 0
+                          <span className="text-sm lg:text-base text-white font-medium">
+                            {additionalPaymentDetails.isDecrease
                               ? "Reduced Amount"
                               : "Additional Amount"}
                           </span>
-                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-500" : "text-[#9F9FA9]"}`}>
-                            {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
+                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.isDecrease ? "text-red-500" : "text-[#9F9FA9]"}`}>
+                            {additionalPaymentDetails.isDecrease ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
                           </span>
                         </div>
                         {additionalPaymentDetails.isDecrease ? (
                           <p className="text-xs lg:text-sm text-[#E8D1AB]">
-                            This amount will be added as Beige Credits after approval.
+                            This reduced amount will be added as Beige Credits after approval.
                           </p>
                         ) : null}
                       </div>
@@ -7364,7 +7540,7 @@ export default function CreateQuotePage() {
           </div>
 
           <div className="flex gap-4 self-start sm:self-auto">
-              {showInvoiceActions ? (
+            {showInvoiceActions ? (
               <>
                 <Button
                   type="button"
@@ -7439,7 +7615,7 @@ export default function CreateQuotePage() {
       {/* --- FLOATING MOBILE BUTTON --- */}
       <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
         {showInvoiceActions ? (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2">
             <Button
               type="button"
               onClick={handleConvertToBooking}
@@ -7448,58 +7624,67 @@ export default function CreateQuotePage() {
             >
               {isConverting ? "Converting..." : convertBookingActionLabel}
             </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void handleViewInvoice();
-              }}
-              disabled={isViewingInvoice || isSendingInvoice || isConverting}
-              className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-            >
-              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void handleSendInvoice();
-              }}
-              disabled={isViewingInvoice || isSendingInvoice || isConverting}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-            >
-              {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
-            </Button>
-          </div>
-        ) : showPreviewAction ? (
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              onClick={handleSaveAsDraft}
-              disabled={isCreatingQuoteDraft}
-              className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-            >
-              {isCreatingQuoteDraft && activeQuoteAction === "draft"
-                ? "Saving Draft..."
-                : "Save as Draft"}
-            </Button>
-            {showReviewChangesAction ? (
+            <div className="flex items-center justify-center gap-2">
               <Button
                 type="button"
+                onClick={() => {
+                  void handleViewInvoice();
+                }}
+                disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              >
+                {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleSendInvoice();
+                }}
+                disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              >
+                {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+              </Button>
+            </div>
+
+          </div>
+        ) : showPreviewAction ? (
+          <div className="flex flex-col lg:flex-row gap-2">
+            {(showReviewChangesAction && showInvoiceActions) ? (
+              <Button
+                variant="default"
                 onClick={handleOpenReviewChangesModal}
                 disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-                className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 Review Changes
               </Button>
             ) : null}
             <Button
-              type="button"
+              variant="beige"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."
                 : "Preview Quote"}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveAsDraft}
+              disabled={isCreatingQuoteDraft}
+              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              <div className="flex items-center justify-center">
+                <Save
+                  size={20}
+                  className="group-hover:scale-110 transition-transform"
+                />
+              </div>
+              {isCreatingQuoteDraft && activeQuoteAction === "draft"
+                ? "Saving Draft..."
+                : "Save as Draft"}
             </Button>
           </div>
         ) : (
@@ -7521,18 +7706,6 @@ export default function CreateQuotePage() {
           </Button>
         )}
         <div className="flex gap-2">
-          {showInvoiceActions && showPreviewAction ? (
-            <Button
-              type="button"
-              onClick={handlePreviewQuote}
-              disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-            >
-              {isPreviewLoading
-                ? "Loading Preview..."
-                : "Preview Quote"}
-            </Button>
-          ) : null}
           <Button
             variant="outline"
             className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
@@ -7540,6 +7713,18 @@ export default function CreateQuotePage() {
           >
             Back
           </Button>
+          {showInvoiceActions && showPreviewAction ? (
+            <Button
+              type="button"
+              onClick={handlePreviewQuote}
+              disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              {isPreviewLoading
+                ? "Loading Preview..."
+                : "Preview Quote"}
+            </Button>
+          ) : null}
           {!showInvoiceActions ? (
             showReviewChangesAction ? (
               <Button
@@ -7616,20 +7801,20 @@ export default function CreateQuotePage() {
                 />
               </div>
             </div>
-            
+
             <h2 className="mb-2 text-center text-[28px] font-bold leading-tight text-white sm:text-[36px] lg:text-[40px]">
               New Quote Version Created Successfully
             </h2>
             <p className="mx-auto mb-10 max-w-[450px] text-center text-[16px] text-[#A1A1AA] sm:text-[18px]">
               A New Version Of This Quote Has Been Saved <br className="hidden sm:block" /> With Updated Changes.
             </p>
-            
+
             <button
               type="button"
               onClick={() => {
                 setIsVersionSaveSuccessOpen(false);
                 const targetId = createdQuoteId || editQuoteId || effectiveQuoteId;
-                const targetUrl = targetId 
+                const targetUrl = targetId
                   ? `/admin/quotes/${encodeURIComponent(String(targetId))}/summary`
                   : "/admin/quotes";
                 router.push(targetUrl);
@@ -7723,9 +7908,9 @@ export default function CreateQuotePage() {
               : "Convert to Booking Before Sending Invoice"
             : convertIntent === "view_invoice"
               ? "Convert to Booking Before Viewing Invoice"
-            : isConvertedToBooking
-              ? "Update Booking"
-              : "Convert to Booking"
+              : isConvertedToBooking
+                ? "Update Booking"
+                : "Convert to Booking"
         }
         description={
           convertIntent === "send_invoice"
@@ -7734,9 +7919,9 @@ export default function CreateQuotePage() {
               : "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
             : convertIntent === "view_invoice"
               ? "This quote must be converted to a booking before an invoice can be viewed. Complete the booking details below to continue."
-            : isConvertedToBooking
-              ? "Review or update the booking date and time below."
-              : "Select booking type, shoot date and time before continuing."
+              : isConvertedToBooking
+                ? "Review or update the booking date and time below."
+                : "Select booking type, shoot date and time before continuing."
         }
         submitLabel={
           convertIntent === "send_invoice"
@@ -7761,6 +7946,11 @@ export default function CreateQuotePage() {
         quote={previewQuote}
         quoteId={previewQuoteId}
         isLoading={isPreviewLoading}
+        paymentSummaryOverrides={{
+          previousTotal: additionalPaymentDetails?.previousTotal,
+          previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
+          revisedTotal: totalAfterTax,
+        }}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { CalendarClock, ExternalLink, Eye, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,13 @@ import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusCl
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import EmptyMeetingState from "./EmptyMeetingState";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/src/components/landing/ui/tooltip"
+
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -208,148 +215,149 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-[#222222] bg-[#111111] p-5">
-        {loading ? 
-        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        {loading ?
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]"
         }`}>
-        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-      </div>: error ? (
-          <div className="py-16 text-center text-sm text-[#ff8e8e]">{error}</div>
-        ) : filteredMeetings.length === 0 ? (
-          <div className="py-16 text-center text-sm text-white/45">
-            {search.trim()
-              ? "No meetings match your search."
-              : <EmptyMeetingState />}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredMeetings.map((meeting) => {
-              const shootLink = getShootLink(role, meeting);
-              const effectiveStatus = getEffectiveMeetingStatus(meeting);
-              const isCompleted = effectiveStatus === "completed";
-              const currentResponse = getParticipantResponse(meeting, currentUserId);
-              const createdById = getIdentityId(meeting.created_by?.id);
-              const isClientCreatedBySelf =
-                role === "client" &&
-                !!currentUserId &&
-                !!createdById &&
-                String(currentUserId) === createdById;
-              const canRespond =
-                !!meeting.id &&
-                !!currentUserId &&
-                !isAdminView &&
-                !isClientCreatedBySelf &&
-                !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
-              const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
-              const isResponding = respondingMeetingId === String(meeting.id || "");
+            <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+          </div> : error ? (
+            <div className="py-16 text-center text-sm text-[#ff8e8e]">{error}</div>
+          ) : filteredMeetings.length === 0 ? (
+            <div className="py-16 text-center text-sm text-white/45">
+              {search.trim()
+                ? "No meetings match your search."
+                : <EmptyMeetingState />}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredMeetings.map((meeting) => {
+                const shootLink = getShootLink(role, meeting);
+                const effectiveStatus = getEffectiveMeetingStatus(meeting);
+                const isCompleted = effectiveStatus === "completed";
+                const isCancelled = String(effectiveStatus || "").toLowerCase() === "cancelled";
+                const currentResponse = getParticipantResponse(meeting, currentUserId);
+                const createdById = getIdentityId(meeting.created_by?.id);
+                const isClientCreatedBySelf =
+                  role === "client" &&
+                  !!currentUserId &&
+                  !!createdById &&
+                  String(currentUserId) === createdById;
+                const canRespond =
+                  !!meeting.id &&
+                  !!currentUserId &&
+                  !isAdminView &&
+                  !isClientCreatedBySelf &&
+                  !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
+                const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
+                const isResponding = respondingMeetingId === String(meeting.id || "");
 
-              return (
-                <div
-                  key={String(meeting.id || Math.random())}
-                  className="rounded-2xl border border-white/10 bg-[#151515] p-5 transition-colors hover:border-white/20"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="truncate text-lg font-semibold text-white">
-                          {meeting.meeting_title || meeting.order?.name || "Meeting"}
-                        </h2>
-                        <span className={cn("rounded-full border px-3 py-1 text-xs font-medium", getMeetingStatusClasses(effectiveStatus))}>
-                          {formatMeetingStatusLabel(effectiveStatus)}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/55">
-                        <span className="inline-flex items-center gap-2">
-                          <CalendarClock size={14} />
-                          {formatDateTime(meeting.meeting_date_time)}
-                        </span>
-                        {meeting.order?.name ? <span>Order: {meeting.order.name}</span> : null}
-                        {canRespond ? (
-                          <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-medium capitalize text-amber-300">
-                            Your response: {formatInvitationResponse(currentResponse)}
+                return (
+                  <div
+                    key={String(meeting.id || Math.random())}
+                    className="rounded-2xl border border-white/10 bg-[#151515] p-5 transition-colors hover:border-white/20"
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0 max-w-3/7">
+                        <div className="flex flex-nowrap items-center gap-3">
+                          <TruncatedMeetingTitle
+                            title={meeting.meeting_title || meeting.order?.name || "Meeting"}
+                          />
+                          <span className={cn("shrink-0 rounded-full border px-3 py-1 text-xs font-medium", getMeetingStatusClasses(effectiveStatus))}>
+                            {formatMeetingStatusLabel(effectiveStatus)}
                           </span>
-                        ) : null}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/55">
+                          <span className="inline-flex items-center gap-2">
+                            <CalendarClock size={14} />
+                            {formatDateTime(meeting.meeting_date_time)}
+                          </span>
+                          {meeting.order?.name ? <span>Order: {meeting.order.name}</span> : null}
+                          {canRespond ? (
+                            <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-medium capitalize text-amber-300">
+                              Your response: {formatInvitationResponse(currentResponse)}
+                            </span>
+                          ) : null}
+                        </div>
+                        {meeting.description ? <p className="mt-3 line-clamp-2 text-sm text-white/65">{meeting.description}</p> : null}
                       </div>
-                      {meeting.description ? <p className="mt-3 line-clamp-2 text-sm text-white/65">{meeting.description}</p> : null}
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                      {canRespond && currentResponse !== "accepted" ? (
-                        <Button
-                          type="button"
-                          onClick={() => handleRespond(meeting.id as string | number, "accepted")}
-                          disabled={isResponding}
-                          className="bg-emerald-500 text-white hover:bg-emerald-600"
-                        >
-                          {isResponding ? <RefreshCw size={14} className="animate-spin" /> : null}
-                          Accept
-                        </Button>
-                      ) : null}
-                      {canRespond && currentResponse !== "declined" ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleRespond(meeting.id as string | number, "declined")}
-                          disabled={isResponding}
-                          className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
-                        >
-                          Reject
-                        </Button>
-                      ) : null}
-                      {meeting.meetLink ? (
-                        <a
-                          href={meeting.meetLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-disabled={isCompleted}
-                          onClick={(event) => {
-                            if (isCompleted) {
-                              event.preventDefault();
-                            }
-                          }}
-                          className={cn(
-                            "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium",
-                            isCompleted
-                              ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/30"
-                              : "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]"
-                          )}
-                        >
-                          Join Meeting
-                          <ExternalLink size={14} />
-                        </a>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedMeeting(meeting)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-white hover:bg-[#222222]"
-                      >
-                        <Eye size={14} />
-                        {isAdminView ? "Edit / Reschedule" : "View Details"}
-                      </button>
-                      {canDeleteThisMeeting ? (
+                      <div className="flex flex-wrap items-center gap-3 max-w-4/7">
+                        {canRespond && currentResponse !== "accepted" ? (
+                          <Button
+                            type="button"
+                            onClick={() => handleRespond(meeting.id as string | number, "accepted")}
+                            disabled={isResponding}
+                            className="bg-emerald-500 text-white hover:bg-emerald-600"
+                          >
+                            {isResponding ? <RefreshCw size={14} className="animate-spin" /> : null}
+                            Accept
+                          </Button>
+                        ) : null}
+                        {canRespond && currentResponse !== "declined" ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleRespond(meeting.id as string | number, "declined")}
+                            disabled={isResponding}
+                            className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
+                          >
+                            Reject
+                          </Button>
+                        ) : null}
+                        {meeting.meetLink ? (
+                          <a
+                            href={meeting.meetLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-disabled={isCompleted || isCancelled}
+                            onClick={(event) => {
+                              if (isCompleted || isCancelled) {
+                                event.preventDefault();
+                              }
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium",
+                              isCompleted || isCancelled
+                                ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/30"
+                                : "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]"
+                            )}
+                          >
+                            Join Meeting
+                            <ExternalLink size={14} />
+                          </a>
+                        ) : null}
                         <button
                           type="button"
-                          onClick={() => setMeetingPendingDelete(meeting)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-200 hover:bg-rose-500/20"
+                          onClick={() => setSelectedMeeting(meeting)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-white hover:bg-[#222222]"
                         >
-                          <Trash2 size={14} />
-                          Delete
+                          <Eye size={14} />
+                          {isAdminView ? "Edit / Reschedule" : "View Details"}
                         </button>
-                      ) : null}
-                      {shootLink ? (
-                        <Link
-                          href={shootLink}
-                          className="inline-flex items-center gap-2 rounded-xl bg-[#E5D5B8] px-4 py-2 text-sm font-semibold text-black hover:bg-[#d9c5a0]"
-                        >
-                          Open Shoot
-                        </Link>
-                      ) : null}
+                        {canDeleteThisMeeting ? (
+                          <button
+                            type="button"
+                            onClick={() => setMeetingPendingDelete(meeting)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-200 hover:bg-rose-500/20"
+                          >
+                            <Trash2 size={14} />
+                            Delete
+                          </button>
+                        ) : null}
+                        {shootLink ? (
+                          <Link
+                            href={shootLink}
+                            className="inline-flex items-center gap-2 rounded-xl bg-[#E5D5B8] px-4 py-2 text-sm font-semibold text-black hover:bg-[#d9c5a0]"
+                          >
+                            Open Shoot
+                          </Link>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
       </div>
 
       <CreateMeetingModal
@@ -399,3 +407,49 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     </div>
   );
 }
+
+const TruncatedMeetingTitle = ({ title }: { title: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // 1. Explicitly type the ref as HTMLHeadingElement
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  const handleMouseEnter = () => {
+    const element = titleRef.current;
+    console.log(element);
+
+    if (element) {
+      // 2. Now TypeScript knows 'element' has scrollWidth and offsetWidth
+      const isActuallyTruncated = element.scrollWidth > element.offsetWidth;
+
+      console.log(isActuallyTruncated);
+      console.log(element.scrollWidth, element.offsetWidth);
+
+      setIsOpen(isActuallyTruncated);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsOpen(false);
+  };
+
+  return (
+    <TooltipProvider>
+      <Tooltip open={isOpen}>
+        <TooltipTrigger asChild>
+          <h2
+            ref={titleRef}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className="min-w-0 truncate text-lg font-semibold text-white cursor-default"
+          >
+            {title}
+          </h2>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs break-words">
+          <p>{title}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};

@@ -27,6 +27,7 @@ import { meetingsApi } from "@/lib/meetingsApi";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
+import SearchAutocomplete from "@/components/chat/SearchAutocomplete";
 type MeetingType = "pre_production" | "post_production";
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -48,6 +49,7 @@ interface ParticipantOption {
 interface ProjectOption {
   id: string;
   label: string;
+  description?: string;
 }
 
 type MemberTab = "cp" | "staff";
@@ -151,6 +153,12 @@ const getProjectName = (project: ProjectSource | null | undefined) => {
       .map((value) => String(value || "").trim())
       .find((value) => value && value.toLowerCase() !== "shoot #") || `Shoot #${bookingId || "New"}`
   );
+};
+
+const getProjectOptionLabel = (project: ProjectSource | null | undefined) => {
+  const bookingId = getProjectId(project);
+  const name = getProjectName(project);
+  return bookingId ? `${name} (Booking #${bookingId})` : name;
 };
 
 const formatRoleLabel = (value?: string) =>
@@ -373,7 +381,11 @@ const getNextValidTime = () => {
           .filter((item) => getProjectId(item))
           .map((item) => ({
             id: getProjectId(item),
-            label: getProjectName(item),
+            label: getProjectOptionLabel(item),
+            description:
+              resolveClientName(item) ||
+              resolveClientEmail(item) ||
+              (getProjectId(item) ? `Booking #${getProjectId(item)}` : "Project"),
           }));
 
         setProjects(normalizedProjects);
@@ -687,18 +699,23 @@ const getNextValidTime = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-white/70">Project / Shoot</label>
-                  <Select value={activeOrderId} onValueChange={setSelectedOrderId} disabled={fixedOrder || isLoadingProjects}>
-                    <SelectTrigger className="h-12 border-[#2C2C2C] bg-[#151515] text-white">
-                      <SelectValue placeholder={isLoadingProjects ? "Loading projects..." : "Select a project"} />
-                    </SelectTrigger>
-                    <SelectContent className="border-white/10 bg-[#111111] text-white">
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id} className="focus:bg-[#1B1B1B] focus:text-white">
-                          {project.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {fixedOrder ? (
+                    <div className="h-12 rounded-2xl border border-[#2C2C2C] bg-[#151515] px-4 text-sm text-white flex items-center">
+                      {projects.find((project) => project.id === activeOrderId)?.label || `Booking #${activeOrderId}`}
+                    </div>
+                  ) : (
+                    <SearchAutocomplete
+                      placeholder={isLoadingProjects ? "Loading projects..." : "Search by project name or booking ID"}
+                      options={projects.map((project) => ({
+                        id: project.id,
+                        label: project.label,
+                        description: project.description,
+                      }))}
+                      value={activeOrderId}
+                      onChange={setSelectedOrderId}
+                      emptyMessage="No project matches your search"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -784,7 +801,7 @@ const getNextValidTime = () => {
                   <div>
                     <p className="text-base font-semibold text-white">Google Meet</p>
                     <p className="mt-1 text-sm leading-6 text-white/45">
-                      Auto-generate the meeting room from your live Google Meet integration.
+                      The meeting will take place via Google Meet.
                     </p>
                   </div>
                 </div>

@@ -1210,7 +1210,7 @@ export default function LeadDetailPage() {
             />
 
             <div className="lg:text-right lg:mt-[82px]">
-              <Button
+              {/* <Button
                 onClick={() => router.push(`/admin/sales-representative/client/${leadId}/select-creatives`)}
                 className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-all ${isDark
                   ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
@@ -1218,7 +1218,7 @@ export default function LeadDetailPage() {
                   }`}
               >
                 Change CPs
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>
