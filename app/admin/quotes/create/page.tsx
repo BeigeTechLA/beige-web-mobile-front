@@ -434,6 +434,32 @@ const pickFirstClientValue = (
   return "";
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizePhoneNumberInput = (value: string) =>
+  value.replace(/[^\d-]/g, "");
+
+const validateClientContactDetails = ({
+  email,
+  phone,
+}: {
+  email: string;
+  phone: string;
+}) => {
+  const trimmedEmail = email.trim();
+  const trimmedPhone = phone.trim();
+
+  if (!EMAIL_REGEX.test(trimmedEmail)) {
+    return "Please enter a valid email address.";
+  }
+
+  if (trimmedPhone && !/^[\d-]+$/.test(trimmedPhone)) {
+    return "Phone number must contain only digits and hyphen (-).";
+  }
+
+  return null;
+};
+
 const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
   pickFirstClientValue(client?.name, client?.client_name, client?.full_name);
 
@@ -1283,7 +1309,7 @@ export default function CreateQuotePage() {
 
       setClientName(getClientDisplayName(client));
       setEmailId(getClientEmail(client));
-      setPhoneNumber(getClientPhone(client));
+      setPhoneNumber(normalizePhoneNumberInput(getClientPhone(client)));
       setAddress(getClientAddress(client));
     },
     [],
@@ -1311,7 +1337,7 @@ export default function CreateQuotePage() {
 
     setClientName(getClientDisplayName(selectedClient));
     setEmailId(getClientEmail(selectedClient));
-    setPhoneNumber(getClientPhone(selectedClient));
+    setPhoneNumber(normalizePhoneNumberInput(getClientPhone(selectedClient)));
     setAddress(getClientAddress(selectedClient));
   }, [selectedClient]);
 
@@ -1651,7 +1677,7 @@ export default function CreateQuotePage() {
         setSelectedClient(hydratedState.selectedClient);
         setClientName(hydratedState.clientName);
         setEmailId(hydratedState.emailId);
-        setPhoneNumber(hydratedState.phoneNumber);
+        setPhoneNumber(normalizePhoneNumberInput(hydratedState.phoneNumber));
         setAddress(hydratedState.address);
         setProjectDescription(hydratedState.projectDescription);
         setValidityDays(hydratedState.validityDays);
@@ -2631,6 +2657,18 @@ export default function CreateQuotePage() {
     if (!currentStepValidation.isValid) {
       toast.error(getQuoteValidationMessage(currentStepValidation));
       return;
+    }
+
+    if (view === "details") {
+      const contactValidationError = validateClientContactDetails({
+        email: emailId,
+        phone: phoneNumber,
+      });
+
+      if (contactValidationError) {
+        toast.error(contactValidationError);
+        return;
+      }
     }
 
     if (view === "selection" && selectedClient) {
@@ -7108,6 +7146,8 @@ export default function CreateQuotePage() {
                     <Input
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
+                      type="email"
+                      inputMode="email"
                       className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
@@ -7119,7 +7159,10 @@ export default function CreateQuotePage() {
                     </div>
                     <Input
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      onChange={(e) =>
+                        setPhoneNumber(normalizePhoneNumberInput(e.target.value))
+                      }
+                      inputMode="numeric"
                       className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
