@@ -55,6 +55,9 @@ const resolveSignatureSource = (...sources: Array<unknown>) => {
     const value = source.trim();
     if (!value) continue;
     if (value.startsWith("data:")) return value;
+    if (/^[A-Za-z0-9+/=\r\n]+$/.test(value) && value.length > 80) {
+      return `data:image/png;base64,${value}`;
+    }
     if (/^https?:\/\//i.test(value) && !/localhost|127\.0\.0\.1|::1/i.test(value)) {
       return value;
     }
@@ -285,9 +288,16 @@ export default function QuotePreviewDocument({
   const signatureSource = resolveSignatureSource(
     quoteData.signature_base64,
     quoteData.signature_path,
+    (quoteData as Record<string, unknown>)?.signature_url,
+    (quoteData as Record<string, unknown>)?.file_url,
+    (quoteData as Record<string, unknown>)?.file_path,
     (quote as Record<string, unknown>)?.signature_base64,
     (quote as Record<string, unknown>)?.signature_path,
+    (quote as Record<string, unknown>)?.signature_url,
+    (quote as Record<string, unknown>)?.file_url,
+    (quote as Record<string, unknown>)?.file_path,
   );
+  const isQuoteSigned = Boolean(signatureSource || quoteData.signed_at);
   return (
     <div
       className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
@@ -405,10 +415,10 @@ export default function QuotePreviewDocument({
                   ) : null}
                   <div className="flex items-center justify-between gap-6">
                     <div className="flex items-center gap-1.5">
-                      <span>{additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}</span>
+                      <span>{additionalPaymentDetails.totalDelta < 0 ? "Reduced Amount" : "Additional Amount"}</span>
                     </div>
-                    <span className={`font-semibold ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-600" : ""}`}>
-                      {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
+                    <span className={`font-semibold ${additionalPaymentDetails.totalDelta < 0 ? "text-red-600" : ""}`}>
+                      {additionalPaymentDetails.totalDelta < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.totalDelta))}
                     </span>
                   </div>
                 </div>
@@ -446,12 +456,12 @@ export default function QuotePreviewDocument({
 
             {/* Right - Signature */}
             <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
-              {quoteData.signature_base64 ? (
+              {signatureSource ? (
                 <>
-                  <div className={`border rounded-lg p-3 w-full max-w-[220px] ${isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
+                  <div className={`border rounded-lg p-3 w-full max-w-[220px] ${isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
                     }`}>
                     <img
-                      src={quoteData.signature_base64}
+                      src={signatureSource}
                       alt="Signature"
                       className="w-full max-h-20 object-contain"
                     />
@@ -481,7 +491,8 @@ export default function QuotePreviewDocument({
           >
             <input
               type="checkbox"
-              checked={acceptServiceAgreement}
+              checked={isQuoteSigned ? true : acceptServiceAgreement}
+              disabled={isQuoteSigned}
               onChange={(e) => onAcceptServiceAgreementChange?.(e.target.checked)}
               className="mt-1 cursor-pointer"
             />

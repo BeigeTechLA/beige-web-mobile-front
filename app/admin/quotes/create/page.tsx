@@ -434,6 +434,32 @@ const pickFirstClientValue = (
   return "";
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizePhoneNumberInput = (value: string) =>
+  value.replace(/[^\d-]/g, "");
+
+const validateClientContactDetails = ({
+  email,
+  phone,
+}: {
+  email: string;
+  phone: string;
+}) => {
+  const trimmedEmail = email.trim();
+  const trimmedPhone = phone.trim();
+
+  if (!EMAIL_REGEX.test(trimmedEmail)) {
+    return "Please enter a valid email address.";
+  }
+
+  if (trimmedPhone && !/^[\d-]+$/.test(trimmedPhone)) {
+    return "Phone number must contain only digits and hyphen (-).";
+  }
+
+  return null;
+};
+
 const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
   pickFirstClientValue(client?.name, client?.client_name, client?.full_name);
 
@@ -1283,7 +1309,7 @@ export default function CreateQuotePage() {
 
       setClientName(getClientDisplayName(client));
       setEmailId(getClientEmail(client));
-      setPhoneNumber(getClientPhone(client));
+      setPhoneNumber(normalizePhoneNumberInput(getClientPhone(client)));
       setAddress(getClientAddress(client));
     },
     [],
@@ -1311,7 +1337,7 @@ export default function CreateQuotePage() {
 
     setClientName(getClientDisplayName(selectedClient));
     setEmailId(getClientEmail(selectedClient));
-    setPhoneNumber(getClientPhone(selectedClient));
+    setPhoneNumber(normalizePhoneNumberInput(getClientPhone(selectedClient)));
     setAddress(getClientAddress(selectedClient));
   }, [selectedClient]);
 
@@ -1651,7 +1677,7 @@ export default function CreateQuotePage() {
         setSelectedClient(hydratedState.selectedClient);
         setClientName(hydratedState.clientName);
         setEmailId(hydratedState.emailId);
-        setPhoneNumber(hydratedState.phoneNumber);
+        setPhoneNumber(normalizePhoneNumberInput(hydratedState.phoneNumber));
         setAddress(hydratedState.address);
         setProjectDescription(hydratedState.projectDescription);
         setValidityDays(hydratedState.validityDays);
@@ -2633,6 +2659,18 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (view === "details") {
+      const contactValidationError = validateClientContactDetails({
+        email: emailId,
+        phone: phoneNumber,
+      });
+
+      if (contactValidationError) {
+        toast.error(contactValidationError);
+        return;
+      }
+    }
+
     if (view === "selection" && selectedClient) {
       applyClientSelection(selectedClient);
       setIsCreateNewClientFlow(false);
@@ -2897,6 +2935,18 @@ export default function CreateQuotePage() {
 
     return total + (selectedEditingTypes.length ? editingTotal : baseTotal);
   }, 0);
+  const effectiveAddonConfigs = React.useMemo(
+    () => ({ ...appliedAddonConfigs, ...addonConfigs }),
+    [appliedAddonConfigs, addonConfigs],
+  );
+  const effectiveLogisticsConfigs = React.useMemo(
+    () => ({ ...appliedLogisticsConfigs, ...logisticsConfigs }),
+    [appliedLogisticsConfigs, logisticsConfigs],
+  );
+  const effectiveLineItemConfigs = React.useMemo(
+    () => ({ ...appliedLineItemConfigs, ...lineItemConfigs }),
+    [appliedLineItemConfigs, lineItemConfigs],
+  );
   const selectedServicesMaxDurationHours = React.useMemo(() => {
     const durations = selectedServices
       .filter((serviceId) => {
@@ -3005,12 +3055,18 @@ export default function CreateQuotePage() {
     Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
     () =>
-      getQuoteAdditionalPaymentDetails(previewQuote ?? quoteToEdit, {
+      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
         revisedTotalOverride: totalAfterTax,
         previouslyPaidOverride: safePreviouslyPaidOverride,
         previousTotalOverride: safePreviousTotalOverride,
       }),
-    [previewQuote, quoteToEdit, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+    [quoteToEdit, previewQuote, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+  );
+  const showQuoteRevisionSummary = Boolean(
+    isEditMode &&
+    quoteToEdit &&
+    additionalPaymentDetails &&
+    Math.abs(additionalPaymentDetails.totalDelta) > 0.009
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -3107,11 +3163,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
       maxStep,
     });
 
@@ -3140,11 +3196,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
       maxStep,
     });
 
@@ -3174,11 +3230,11 @@ export default function CreateQuotePage() {
         serviceConfigs,
         selectedAddons,
         addons,
-        appliedAddonConfigs,
+        appliedAddonConfigs: effectiveAddonConfigs,
         logisticsItems: selectedLogisticsItems,
-        appliedLogisticsConfigs,
+        appliedLogisticsConfigs: effectiveLogisticsConfigs,
         lineItems,
-        appliedLineItemConfigs,
+        appliedLineItemConfigs: effectiveLineItemConfigs,
       },
       step,
     );
@@ -3205,11 +3261,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
     });
 
   const currentDraftLineItems = React.useMemo(() => {
@@ -3237,11 +3293,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
     });
 
     return buildCurrentDraftReviewItems({
@@ -3254,9 +3310,9 @@ export default function CreateQuotePage() {
   }, [
     address,
     addons,
-    appliedAddonConfigs,
-    appliedLineItemConfigs,
-    appliedLogisticsConfigs,
+    effectiveAddonConfigs,
+    effectiveLineItemConfigs,
+    effectiveLogisticsConfigs,
     clientName,
     discountEnabled,
     discountType,
@@ -6997,7 +7053,7 @@ export default function CreateQuotePage() {
                       {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
-                  {additionalPaymentDetails ? (
+                  {showQuoteRevisionSummary ? (
                     <>
                       <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
                       <div className="space-y-3">
@@ -7006,7 +7062,7 @@ export default function CreateQuotePage() {
                             Old Quote Total
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.previousTotal)}
+                            {formatCurrency(reviewChangesData.previousTotal)}
                           </span>
                         </div>
                         {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
@@ -7021,15 +7077,16 @@ export default function CreateQuotePage() {
                         ) : null}
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-white font-medium">
-                            {additionalPaymentDetails.isDecrease
+                            {reviewChangesData.delta < 0
                               ? "Reduced Amount"
                               : "Additional Amount"}
                           </span>
-                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.isDecrease ? "text-red-500" : "text-[#9F9FA9]"}`}>
-                            {additionalPaymentDetails.isDecrease ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
+                          <span className={`text-sm lg:text-base tracking-tight ${reviewChangesData.delta < 0 ? "text-red-500" : "text-[#9F9FA9]"}`}>
+                            {reviewChangesData.delta < 0 ? "-" : "+"}{formatCurrency(Math.abs(reviewChangesData.delta))}
                           </span>
                         </div>
-                        {additionalPaymentDetails.isDecrease ? (
+                        {reviewChangesData.delta < 0 &&
+                        additionalPaymentDetails.previouslyPaidAmount > 0 ? (
                           <p className="text-xs lg:text-sm text-[#E8D1AB]">
                             This reduced amount will be added as Beige Credits after approval.
                           </p>
@@ -7108,6 +7165,8 @@ export default function CreateQuotePage() {
                     <Input
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
+                      type="email"
+                      inputMode="email"
                       className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
@@ -7119,7 +7178,10 @@ export default function CreateQuotePage() {
                     </div>
                     <Input
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      onChange={(e) =>
+                        setPhoneNumber(normalizePhoneNumberInput(e.target.value))
+                      }
+                      inputMode="numeric"
                       className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
@@ -7946,11 +8008,15 @@ export default function CreateQuotePage() {
         quote={previewQuote}
         quoteId={previewQuoteId}
         isLoading={isPreviewLoading}
-        paymentSummaryOverrides={{
-          previousTotal: additionalPaymentDetails?.previousTotal,
-          previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
-          revisedTotal: totalAfterTax,
-        }}
+        paymentSummaryOverrides={
+          showQuoteRevisionSummary
+            ? {
+                previousTotal: reviewChangesData.previousTotal,
+                previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
+                revisedTotal: totalAfterTax,
+              }
+            : undefined
+        }
       />
     </div>
   );

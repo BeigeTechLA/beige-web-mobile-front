@@ -12,6 +12,7 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
 import {
@@ -46,6 +47,15 @@ export default function AdminFolderDetailsPage() {
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareResource, setShareResource] = useState<{
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+    label?: string;
+  } | null>(null);
 
   const loadWorkspace = async () => {
     try {
@@ -332,6 +342,16 @@ export default function AdminFolderDetailsPage() {
                         setSelectedFolder(folder);
                         setIsDeleteModalOpen(true);
                       }}
+                      onShare={() => {
+                        setSelectedFolder(folder);
+                        setShareResource({
+                          resourceType: "folder",
+                          externalId: String(projectId || ""),
+                          phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                          label: folder.title,
+                        });
+                        setIsShareModalOpen(true);
+                      }}
                       onRename={() => toast.info("Folder rename is the next safe step.")}
                     />
                   ))}
@@ -404,6 +424,16 @@ export default function AdminFolderDetailsPage() {
             anchor={menuAnchor}
             href={selectedFolder?.href}
             onDownload={handleDownloadSelectedFolder}
+            onShare={() => {
+              if (!selectedFolder) return;
+              setShareResource({
+                resourceType: "folder",
+                externalId: String(projectId || ""),
+                phase: getSelectedFolderPhase(),
+                label: selectedFolder.title,
+              });
+              setIsShareModalOpen(true);
+            }}
             onDelete={() => setIsDeleteModalOpen(true)}
             onRename={() => toast.info("Folder rename is the next safe step.")}
           />
@@ -422,6 +452,15 @@ export default function AdminFolderDetailsPage() {
           itemName={selectedFolder?.title || "this folder"}
           itemType="folder"
           isDeleting={isDeleting}
+        />
+
+        <ShareResourceModal
+          isOpen={isShareModalOpen}
+          onClose={() => {
+            setIsShareModalOpen(false);
+            setShareResource(null);
+          }}
+          resource={shareResource}
         />
       </div>
     </>

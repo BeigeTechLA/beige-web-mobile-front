@@ -255,9 +255,21 @@ const mergeVersionQuoteWithPrimaryContext = (
       incomingBookingId !== undefined && incomingBookingId !== null && String(incomingBookingId).trim()
         ? incomingBookingId
         : (current as Record<string, unknown>)?.booking_id,
-    activities: incomingActivities.length > 0 ? incomingActivities : current.activities,
+    // For historical version views, never inherit activities from the currently loaded quote.
+    // Inheriting current activities leaks newer change metadata (e.g. reduced/additional amounts)
+    // into older versions like Version 1.
+    activities: incomingActivities,
     converted_booking_details:
       incoming.converted_booking_details || current.converted_booking_details,
+    signature_base64: incoming.signature_base64 ?? current.signature_base64,
+    signature_path: incoming.signature_path ?? current.signature_path,
+    signature_url:
+      (incoming as Record<string, unknown>)?.signature_url ??
+      (current as Record<string, unknown>)?.signature_url,
+    signed_at: incoming.signed_at ?? current.signed_at,
+    signer_name:
+      (incoming as Record<string, unknown>)?.signer_name ??
+      (current as Record<string, unknown>)?.signer_name,
   };
 };
 
@@ -361,6 +373,19 @@ const formatStatusLabel = (value: string) =>
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+
+const INVOICE_ACTION_VISIBLE_STATUSES = new Set([
+  "accepted",
+  "approved",
+  "confirmed",
+  "pending",
+  "sent",
+  "viewed",
+  "paid",
+  "partially paid",
+  "partial_paid",
+  "partially_paid",
+]);
 
 const getServiceIcon = (name: string) => {
   const normalizedName = name.toLowerCase();
@@ -578,6 +603,60 @@ const resolveSignatureImageUrl = (value: string | null | undefined) => {
   return `${prefix}/${raw.replace(/^\/+/, "")}`;
 };
 
+const mergeQuoteSignatureFields = (
+  quoteDetail: SalesQuoteDetailData,
+  rawData: Record<string, unknown> | null
+): SalesQuoteDetailData => {
+  if (!rawData) {
+    return quoteDetail;
+  }
+
+  const nestedData =
+    rawData.data && typeof rawData.data === "object"
+      ? (rawData.data as Record<string, unknown>)
+      : null;
+
+  const signatureBase64 =
+    typeof rawData.signature_base64 === "string"
+      ? rawData.signature_base64
+      : typeof nestedData?.signature_base64 === "string"
+        ? nestedData.signature_base64
+        : undefined;
+  const signaturePath =
+    typeof rawData.signature_path === "string"
+      ? rawData.signature_path
+      : typeof nestedData?.signature_path === "string"
+        ? nestedData.signature_path
+        : undefined;
+  const signatureUrl =
+    typeof rawData.signature_url === "string"
+      ? rawData.signature_url
+      : typeof nestedData?.signature_url === "string"
+        ? nestedData.signature_url
+        : undefined;
+  const signerName =
+    typeof rawData.signer_name === "string"
+      ? rawData.signer_name
+      : typeof nestedData?.signer_name === "string"
+        ? nestedData.signer_name
+        : undefined;
+  const signedAt =
+    typeof rawData.signed_at === "string"
+      ? rawData.signed_at
+      : typeof nestedData?.signed_at === "string"
+        ? nestedData.signed_at
+        : undefined;
+
+  return {
+    ...quoteDetail,
+    ...(signatureBase64 ? { signature_base64: signatureBase64 } : {}),
+    ...(signaturePath ? { signature_path: signaturePath } : {}),
+    ...(signatureUrl ? { signature_url: signatureUrl } : {}),
+    ...(signerName ? { signer_name: signerName } : {}),
+    ...(signedAt ? { signed_at: signedAt } : {}),
+  } as SalesQuoteDetailData;
+};
+
 export default function QuoteDetailsPage({
   quoteId,
   baseHref,
@@ -595,6 +674,10 @@ export default function QuoteDetailsPage({
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewPaymentSummaryOverrides, setPreviewPaymentSummaryOverrides] = useState<{
+    previousTotal?: number;
+    revisedTotal?: number;
+  } | undefined>(undefined);
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
   const [isRejecting, setIsRejecting] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
@@ -623,6 +706,65 @@ export default function QuoteDetailsPage({
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const hasTriggeredPaymentActionRef = useRef(false);
 
+  const refreshSignedQuoteState = useCallback(async () => {
+    try {
+      const response = await salesApi.getQuoteDetail(quoteId);
+      if (response?.error || response?.success === false) {
+        return;
+      }
+
+      const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+      if (!quoteDetail) {
+        return;
+      }
+
+      const rawData =
+        response?.data && typeof response.data === "object"
+          ? (response.data as Record<string, unknown>)
+          : null;
+      const normalizedQuoteDetail = mergeQuoteSignatureFields(quoteDetail, rawData);
+      const nestedData =
+        rawData?.data && typeof rawData.data === "object"
+          ? (rawData.data as Record<string, unknown>)
+          : null;
+      const sig = resolveSignatureSource(rawData);
+      const nextSignerName =
+        typeof rawData?.signer_name === "string"
+          ? rawData.signer_name
+          : typeof nestedData?.signer_name === "string"
+            ? nestedData.signer_name
+            : null;
+      const nextSignedAt =
+        typeof rawData?.signed_at === "string"
+          ? rawData.signed_at
+          : typeof nestedData?.signed_at === "string"
+            ? nestedData.signed_at
+            : null;
+
+      setQuote((current) =>
+        current
+          ? ({
+              ...current,
+              signature_base64: normalizedQuoteDetail.signature_base64 ?? current.signature_base64,
+              signature_path: normalizedQuoteDetail.signature_path ?? current.signature_path,
+              signature_url:
+                (normalizedQuoteDetail as Record<string, unknown>)?.signature_url ??
+                (current as Record<string, unknown>)?.signature_url,
+              signed_at: normalizedQuoteDetail.signed_at ?? current.signed_at,
+              signer_name:
+                (normalizedQuoteDetail as Record<string, unknown>)?.signer_name ??
+                (current as Record<string, unknown>)?.signer_name,
+            } as SalesQuoteDetailData)
+          : normalizedQuoteDetail
+      );
+      setSignatureBase64(sig);
+      setSignerName(nextSignerName);
+      setSignedAt(nextSignedAt);
+    } catch (error) {
+      console.error("Failed to refresh signed quote state", error);
+    }
+  }, [quoteId]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -645,15 +787,17 @@ export default function QuoteDetailsPage({
           throw new Error("Quote details are unavailable");
         }
 
-        if (!isMounted) {
-          return;
-        }
-
-        setQuote(quoteDetail);
         const rawData =
           response?.data && typeof response.data === "object"
             ? (response.data as Record<string, unknown>)
             : null;
+        const normalizedQuoteDetail = mergeQuoteSignatureFields(quoteDetail, rawData);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setQuote(normalizedQuoteDetail);
         const nestedData =
           rawData?.data && typeof rawData.data === "object"
             ? (rawData.data as Record<string, unknown>)
@@ -675,9 +819,12 @@ export default function QuoteDetailsPage({
                 ? nestedData.signed_at
                 : null
           );
+        } else {
+          setSignatureBase64(null);
+          setSignerName(null);
+          setSignedAt(null);
         }
 
-        // Fetch versions after loading initial details
         const versionsRes = await salesApi.getQuoteVersions(quoteId);
         if (versionsRes?.success && isMounted) {
           const versionsData = Array.isArray(versionsRes.data) ? versionsRes.data : versionsRes.data?.versions || [];
@@ -719,11 +866,6 @@ export default function QuoteDetailsPage({
   useEffect(() => {
     if (!selectedVersionId) return;
 
-    // Skip if this is already the currently displayed quote's version
-    if (quote && quote.version_number?.toString() === selectedVersionId) {
-      return;
-    }
-
     let isMounted = true;
     const fetchVersionDetail = async () => {
       setLoading(true);
@@ -735,10 +877,53 @@ export default function QuoteDetailsPage({
             setQuote((current) =>
               mergeVersionQuoteWithPrimaryContext(current, quoteDetail)
             );
+
+            const selectedVersionNumber = Number(selectedVersionId);
+            const revisedTotal = getQuoteNumber(
+              quoteDetail.total,
+              quoteDetail.total_amount,
+              quoteDetail.final_total
+            );
+
+            if (
+              Number.isFinite(selectedVersionNumber) &&
+              selectedVersionNumber > 1 &&
+              revisedTotal !== undefined
+            ) {
+              const previousVersionResponse = await salesApi.getQuoteVersionDetail(
+                quoteId,
+                String(selectedVersionNumber - 1)
+              );
+              const previousVersionQuote = unwrapSalesQuoteDetail(previousVersionResponse?.data ?? null);
+              const previousTotal = getQuoteNumber(
+                previousVersionQuote?.total,
+                previousVersionQuote?.total_amount,
+                previousVersionQuote?.final_total
+              );
+
+              if (
+                previousTotal !== undefined &&
+                Math.abs(revisedTotal - previousTotal) > 0.009
+              ) {
+                setPreviewPaymentSummaryOverrides({
+                  previousTotal,
+                  revisedTotal,
+                });
+              } else {
+                setPreviewPaymentSummaryOverrides(undefined);
+              }
+            } else {
+              setPreviewPaymentSummaryOverrides(undefined);
+            }
+          } else {
+            setPreviewPaymentSummaryOverrides(undefined);
           }
         }
       } catch (error) {
         console.error("Failed to fetch quote version detail", error);
+        if (isMounted) {
+          setPreviewPaymentSummaryOverrides(undefined);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -750,6 +935,28 @@ export default function QuoteDetailsPage({
       isMounted = false;
     };
   }, [selectedVersionId, quoteId]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      void refreshSignedQuoteState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      void refreshSignedQuoteState();
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshSignedQuoteState]);
 
   useEffect(() => {
     const editViews: QuoteEditorView[] = [
@@ -819,12 +1026,6 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
-  const canSendInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
-    normalizedQuoteStatus
-  );
-  const canViewInvoiceFromDetails = ["accepted", "approved", "confirmed", "pending"].includes(
-    normalizedQuoteStatus
-  );
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -854,6 +1055,50 @@ export default function QuoteDetailsPage({
   const { data: linkedLeadDetails, refetch: refetchLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
     skip: !quoteLeadId,
   });
+  const refreshQuotePrimaryContext = useCallback(async () => {
+    try {
+      const response = await salesApi.getQuoteDetail(quoteId);
+
+      if (response?.error || response?.success === false) {
+        return;
+      }
+
+      const latestQuoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+      if (!latestQuoteDetail) {
+        return;
+      }
+
+      setQuote((current) => mergeVersionQuoteWithPrimaryContext(current, latestQuoteDetail));
+    } catch (error) {
+      console.error("Failed to refresh quote details", error);
+    }
+  }, [quoteId]);
+  const syncConvertedQuoteState = useCallback(async (bookingId?: number | string | null) => {
+    const normalizedBookingId =
+      bookingId !== undefined && bookingId !== null && String(bookingId).trim()
+        ? String(bookingId)
+        : null;
+
+    if (normalizedBookingId) {
+      setConvertedBookingIdOverride(normalizedBookingId);
+    }
+
+    setIsConvertedOverride(true);
+    setQuote((current) =>
+      current
+        ? {
+          ...current,
+          ...(normalizedBookingId ? { booking_id: normalizedBookingId } : {}),
+        }
+        : current
+    );
+
+    await refreshQuotePrimaryContext();
+    if (quoteLeadId) {
+      void refetchLeadDetails();
+    }
+    dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
+  }, [dispatch, quoteLeadId, refetchLeadDetails, refreshQuotePrimaryContext]);
   const conversionActivity = useMemo(() => {
     const activities = (quote?.activities as QuoteActivityLike[] | undefined) || [];
 
@@ -982,6 +1227,19 @@ export default function QuoteDetailsPage({
     : isPartiallyPaid
       ? "Partially Paid"
       : quoteStatus;
+  const normalizedDisplayStatus = displayStatus.trim().toLowerCase();
+  const hasInvoiceablePaymentContext =
+    effectivePreviouslyPaid > 0 ||
+    partialPaidFromActivity > 0 ||
+    quoteOutstandingAmount > 0 ||
+    Boolean(quote?.additional_payment?.last_sent_at) ||
+    Boolean(quote?.additional_payment?.invoice_url) ||
+    Boolean(signedAt);
+  const canSendInvoiceFromDetails =
+    INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedQuoteStatus) ||
+    INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedDisplayStatus) ||
+    hasInvoiceablePaymentContext;
+  const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
 
   const ensureBookingForPayment = useCallback(async () => {
     if (resolvedBookingId) {
@@ -1190,6 +1448,11 @@ export default function QuoteDetailsPage({
           String(response.data.booking_id).trim()
           ? String(response.data.booking_id)
           : convertedBookingId;
+      if (invoiceBookingId) {
+        await syncConvertedQuoteState(invoiceBookingId);
+      } else {
+        await refreshQuotePrimaryContext();
+      }
       const apiBase = (
         process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
       ).replace(/\/$/, "");
@@ -1245,8 +1508,9 @@ export default function QuoteDetailsPage({
       }
 
       if (response?.data?.booking_id) {
-        setConvertedBookingIdOverride(String(response.data.booking_id));
-        setIsConvertedOverride(true);
+        await syncConvertedQuoteState(response.data.booking_id);
+      } else {
+        await refreshQuotePrimaryContext();
       }
 
       toast.success(response?.message || "Invoice sent successfully");
@@ -1800,6 +2064,7 @@ export default function QuoteDetailsPage({
                         {convertedBookingId ? ` #${convertedBookingId}` : ""}.
                       </p>
                       <p className="mt-1 text-xs text-emerald-300/90">
+                      <Loader2/>
                         Lead linkage is unavailable in this response, so manual payment updates from this panel are hidden.
                       </p>
                     </div>
@@ -2033,6 +2298,7 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+        paymentSummaryOverrides={previewPaymentSummaryOverrides}
       />
       <EditAccessModalComponent
         open={pendingEditView !== null}

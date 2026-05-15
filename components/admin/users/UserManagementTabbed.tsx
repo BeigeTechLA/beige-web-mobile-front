@@ -39,6 +39,7 @@ interface UserData {
     role?: string;
     imageUrl?: string | null;
     referralCode?: string | null;
+    clientType?: "Registered" | "Guest" | "Not Applicable";
 }
 
 type SortConfig = {
@@ -57,6 +58,36 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
     return (
         <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${styles[status] || styles.Pending}`}>
             {status}
+        </span>
+    );
+};
+
+const ClientTypeBadge = ({
+    clientType,
+    isDark,
+}: {
+    clientType: UserData["clientType"];
+    isDark: boolean;
+}) => {
+    if (clientType === "Registered") {
+        return (
+            <span className="px-4 py-1.5 rounded-full text-sm font-semibold border bg-[#E7F0FF] text-[#2563EB] border-[#2563EB]/20">
+                Registered
+            </span>
+        );
+    }
+
+    if (clientType === "Guest") {
+        return (
+            <span className="px-4 py-1.5 rounded-full text-sm font-semibold border bg-[#FFF7E8] text-[#C27C2C] border-[#C27C2C]/20">
+                Guest
+            </span>
+        );
+    }
+
+    return (
+        <span className={`inline-flex items-center whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-semibold border ${isDark ? "bg-white/5 text-[#A1A1AA] border-white/10" : "bg-[#F4F4F5] text-[#71717A] border-[#E4E4E7]"}`}>
+            Not Applicable
         </span>
     );
 };
@@ -235,6 +266,7 @@ export const UserManagementTabbed = () => {
                         phoneNumber: client.phone_number || "N/A",
                         imageUrl: client.profile_image || null,
                         referralCode: client.referral_code || null,
+                        clientType: client?.client_type === "registered" ? "Registered" : "Guest",
                     }));
                     allUsers = [...allUsers, ...mapped];
                     paginationData = clientsRes.pagination;
@@ -264,6 +296,7 @@ export const UserManagementTabbed = () => {
                             role: member.role?.role_name || "N/A",
                             imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
                             referralCode: member.referral_code || null,
+                            clientType: "Not Applicable" as const,
                         };
                     });
                     allUsers = [...allUsers, ...mapped];
@@ -376,6 +409,7 @@ export const UserManagementTabbed = () => {
                                 <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
                                     <div className="flex items-center">Status {getSortIcon('status', isDark)}</div>
                                 </th>
+                                <th className="py-5 px-6 font-medium">Client Type</th>
                                 <th className="py-5 px-6 font-medium">Referral Code</th>
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
@@ -383,11 +417,11 @@ export const UserManagementTabbed = () => {
                         <tbody>
                             {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-20 text-center">
+                  <td colSpan={8} className="py-20 text-center">
                     <Loader2 className={`animate-spin inline ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} />
                   </td>
                 </tr>                            ) : sortedUsers.length === 0 ? (
-                                <tr><td colSpan={7} className="py-10 text-center text-[#888]">No users found.</td></tr>
+                                <tr><td colSpan={8} className="py-10 text-center text-[#888]">No users found.</td></tr>
                             ) : (
                                 sortedUsers.map((user, idx) => (
                                     <tr
@@ -419,6 +453,9 @@ export const UserManagementTabbed = () => {
                                             {user.type === "Client" ? user.phoneNumber : <span className={`px-2 py-0.5 rounded text-xs ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]": "bg-transparent text-[#000]"}`}>{user.role}</span>}
                                         </td>
                                         <td className="py-5 px-6"><StatusBadge status={user.status} /></td>
+                                        <td className="py-5 px-6">
+                                            <ClientTypeBadge clientType={user.clientType} isDark={isDark} />
+                                        </td>
                                         <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
                                             {user.referralCode ? (
                                                 <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{user.referralCode}</span>

@@ -1243,7 +1243,7 @@ export default function ExternalChatView({
                       onClick={() => setIsComposerOpen(true)}
                       className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E5D5B8] text-black transition hover:bg-[#d8c49e]"
                     >
-                      <span className="text-[34px] font-light leading-none">+</span>
+                      <span className="text-[34px] font-light leading-none -mt-1">+</span>
                     </button>
                   ) : null}
                 </div>

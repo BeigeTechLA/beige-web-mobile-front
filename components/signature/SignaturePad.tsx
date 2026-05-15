@@ -1,26 +1,33 @@
 import { useRef, useState } from "react";
 import SignatureCanvas from "react-signature-canvas";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SignaturePadProps {
-    onSave: (base64: string) => void;
+    onSave: (base64: string) => void | Promise<void>;
     onClear?: () => void;
+    isSaving?: boolean;
 }
 
-export default function SignaturePad({ onSave, onClear }: SignaturePadProps) {
+export default function SignaturePad({
+    onSave,
+    onClear,
+    isSaving = false,
+}: SignaturePadProps) {
     const sigRef = useRef<SignatureCanvas>(null);
     const [isEmpty, setIsEmpty] = useState(true);
 
     const handleClear = () => {
+        if (isSaving) return;
         sigRef.current?.clear();
         setIsEmpty(true);
         onClear?.();
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!sigRef.current || sigRef.current.isEmpty()) return;
         const base64 = sigRef.current.getTrimmedCanvas().toDataURL("image/png");
-        onSave(base64);
+        await onSave(base64);
     };
 
     return (
@@ -30,6 +37,7 @@ export default function SignaturePad({ onSave, onClear }: SignaturePadProps) {
                     type="button"
                     variant="outline"
                     onClick={handleClear}
+                    disabled={isSaving}
                     className="border-gray-300 text-gray-700 hover:bg-gray-100"
                 >
                     Clear
@@ -38,11 +46,14 @@ export default function SignaturePad({ onSave, onClear }: SignaturePadProps) {
                 <Button
                     type="button"
                     variant="default"
-                    onClick={handleSave}
-                    disabled={isEmpty}
+                    onClick={() => {
+                        void handleSave();
+                    }}
+                    disabled={isEmpty || isSaving}
                     className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                 >
-                    Save Signature
+                    {isSaving ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
+                    {isSaving ? "Saving..." : "Save Signature"}
                 </Button>
             </div>
             {/* Canvas Box */}

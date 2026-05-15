@@ -28,6 +28,7 @@ import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import { meetingsApi } from "@/lib/meetingsApi";
 
 type ShootStatus =
   | "Booked"
@@ -89,6 +90,19 @@ const FILTER_STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ] as const;
 
+const PRODUCTION_GAP_FILTER_SET = new Set([
+  "pre_production_file_not_provided",
+  "pre_production_meeting_not_done",
+  "post_production_file_not_uploaded",
+  "post_production_meeting_not_done",
+]);
+
+const isProductionGapStatusFilter = (value: string) => PRODUCTION_GAP_FILTER_SET.has(String(value || "").toLowerCase());
+const isMeetingGapStatusFilter = (value: string) =>
+  value === "pre_production_meeting_not_done" || value === "post_production_meeting_not_done";
+const isFileGapStatusFilter = (value: string) =>
+  value === "pre_production_file_not_provided" || value === "post_production_file_not_uploaded";
+
 const normalizeStatusKey = (value: string) =>
   String(value || "")
     .toLowerCase()
@@ -98,6 +112,11 @@ const timelineStatusKeyFromLabel = (status: ShootStatus) => {
   const normalized = normalizeStatusKey(status);
   if (normalized === "assetsdelivered") return "assetsdelivered";
   return normalized;
+};
+
+const isPostProductionEligibleStatus = (status: ShootStatus) => {
+  const key = timelineStatusKeyFromLabel(status);
+  return ["postproduction", "revision", "completed", "assetsdelivered"].includes(key);
 };
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -180,6 +199,8 @@ interface ShootsTableProps {
   setCategoryFilter: (v: string) => void;
   statusFilter: string;
   setStatusFilter: (v: string) => void;
+  productionFilter?: string;
+  setProductionFilter?: (v: string) => void;
   range: string;
   setRange: (v: string) => void;
   cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
@@ -188,6 +209,7 @@ interface ShootsTableProps {
   setViewMode?: (v: "grid" | "list") => void;
   showHeaderControls?: boolean;
   showHeaderFilters?: boolean;
+  showViewToggle?: boolean;
 }
 
 export const ShootsTable = ({
@@ -200,6 +222,8 @@ export const ShootsTable = ({
   setCategoryFilter,
   statusFilter,
   setStatusFilter,
+  productionFilter = "all",
+  setProductionFilter,
   range,
   setRange,
   cpAssignmentFilter,
@@ -208,6 +232,7 @@ export const ShootsTable = ({
   setViewMode,
   showHeaderControls = true,
   showHeaderFilters = true,
+  showViewToggle = true,
 }: ShootsTableProps) => {
   const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
   const router = useRouter();
@@ -219,6 +244,8 @@ export const ShootsTable = ({
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [meetingGapLoading, setMeetingGapLoading] = useState(false);
+  const [meetingGapBookingIds, setMeetingGapBookingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [internalViewMode, setInternalViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
@@ -296,6 +323,9 @@ export const ShootsTable = ({
         if (statusFilter !== "all") {
           params.status = statusFilter;
         }
+        if (productionFilter !== "all" && isFileGapStatusFilter(productionFilter)) {
+          params.production_filter = productionFilter;
+        }
         if (categoryFilter !== "all") {
           params.category = categoryFilter;
         }
@@ -360,7 +390,66 @@ export const ShootsTable = ({
     };
 
     fetchData();
-  }, [range, statusFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+  }, [range, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+
+  useEffect(() => {
+    if (!isMeetingGapStatusFilter(productionFilter)) {
+      setMeetingGapBookingIds(new Set());
+      return;
+    }
+
+    let cancelled = false;
+    const loadMeetingGap = async () => {
+      try {
+        setMeetingGapLoading(true);
+        const meetingsResponse = await meetingsApi.listAll({
+          limit: 5000,
+          page: 1,
+          sortBy: "meeting_date_time:desc",
+        });
+        if (cancelled) return;
+
+        const meetings = Array.isArray(meetingsResponse?.results) ? meetingsResponse.results : [];
+        const scheduledOrderIds = new Set<string>();
+
+        meetings.forEach((meeting: any) => {
+          const type = String(meeting?.meeting_type || "").toLowerCase();
+          const status = String(meeting?.meeting_status || "").toLowerCase();
+          const orderId = String(meeting?.order?.id || "").trim();
+          if (!orderId) return;
+          if (status === "cancelled") return;
+
+          if (productionFilter === "pre_production_meeting_not_done" && type === "pre_production") {
+            scheduledOrderIds.add(orderId);
+          }
+          if (productionFilter === "post_production_meeting_not_done" && type === "post_production") {
+            scheduledOrderIds.add(orderId);
+          }
+        });
+
+        const missingMeetingIds = new Set<string>();
+        shoots.forEach((shoot) => {
+          const bookingId = String(shoot.id || "").replace("#", "").trim();
+          if (!bookingId) return;
+          if (!scheduledOrderIds.has(bookingId)) {
+            missingMeetingIds.add(bookingId);
+          }
+        });
+
+        setMeetingGapBookingIds(missingMeetingIds);
+      } catch (error) {
+        console.error("Failed to load meetings for meeting-gap filter:", error);
+        setMeetingGapBookingIds(new Set());
+      } finally {
+        if (!cancelled) setMeetingGapLoading(false);
+      }
+    };
+
+    loadMeetingGap();
+    return () => {
+      cancelled = true;
+    };
+  }, [productionFilter, shoots]);
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
@@ -372,6 +461,21 @@ export const ShootsTable = ({
       if (!matchesSearch) return false;
 
       if (statusFilter === "all") return true;
+
+      if (isMeetingGapStatusFilter(productionFilter)) {
+        const bookingId = String(shoot.id || "").replace("#", "").trim();
+        if (!bookingId) return false;
+        if (productionFilter === "post_production_meeting_not_done" && !isPostProductionEligibleStatus(shoot.status)) {
+          return false;
+        }
+        return meetingGapBookingIds.has(bookingId);
+      }
+
+      if (isProductionGapStatusFilter(productionFilter)) {
+        // Production gap filters are resolved by backend via `production_filter`.
+        return true;
+      }
+
       return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
     });
 
@@ -409,7 +513,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig, statusFilter, activeCpAssignmentFilter]);
+  }, [shoots, searchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -434,7 +538,7 @@ export const ShootsTable = ({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentShoots = processedShoots.slice(startIndex, startIndex + itemsPerPage);
   const visibleKanbanStatuses = useMemo(() => {
-    if (statusFilter !== "all") {
+    if (statusFilter !== "all" && !isProductionGapStatusFilter(statusFilter)) {
       const selectedStatus = FILTER_STATUS_COLUMN_MAP[statusFilter];
       return selectedStatus ? [selectedStatus] : [];
     }
@@ -717,6 +821,7 @@ export const ShootsTable = ({
           </>
           )}
           <div className="flex flex-wrap gap-3">
+            {showViewToggle && (
             <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
               <button
                 type="button"
@@ -745,12 +850,13 @@ export const ShootsTable = ({
                 <Grid3X3 size={18} />
               </button>
             </div>
+            )}
           </div>
         </div>
       </div>
       )}
 
-      {loading ? (
+      {loading || meetingGapLoading ? (
         <div className="text-center py-20">
           <div className="flex justify-center items-center">
             <Loader2 className="animate-spin text-[#666]" size={32} />
@@ -804,7 +910,7 @@ export const ShootsTable = ({
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
                                 }`}>
                                 {shoot.initials}
                               </div>
@@ -940,47 +1046,59 @@ export const ShootsTable = ({
                               setDraggedStatus(null);
                             }}
                             className={`group cursor-pointer rounded-2xl border p-4 transition-all ${isDark
-                                ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
-                                : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
+                                ? "border-[#2F2F2F] bg-[#1A1A1A] hover:border-[#4A4A4A]"
+                                : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
                               } ${draggedShootId === shoot.id ? "opacity-55" : ""}`}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
+                          <div className="flex items-start justify-between gap-3 -mt-2 -mr-2">
+                            <p className={`pt-2 text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
+                              {shoot.id}
+                            </p>
+                            <div className="flex items-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteClick(e, shoot.id);
+                                }}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
+                                  isDark 
+                                    ? "text-[#666] hover:bg-white/10 hover:text-red-500" 
+                                    : "text-[#999] hover:bg-red-50 hover:text-red-500"
+                                }`}
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRowClick(shoot.id);
+                                }}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
+                                  isDark 
+                                    ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" 
+                                    : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
+                                }`}
+                              >
+                                <ChevronRight size={18} />
+                              </button>
+                            </div>
+                          </div>
+
+                            <div className="flex items-center gap-3 mt-1">
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
                                 }`}>
                                 {shoot.initials}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDeleteClick(e, shoot.id)}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"
-                                    }`}
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRowClick(shoot.id);
-                                  }}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
-                                    }`}
-                                >
-                                  <ChevronRight size={18} />
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="mt-4 space-y-4">
-                              <div>
-                                <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
-                                  {shoot.id}
-                                </p>
-                                <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"
+                               <h4 className={`mt-2 text-sm font- leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"
                                   }`}>
                                   {shoot.customerName}
                                 </h4>
+                              </div>
+
+                            <div className="mt-4 space-y-4">
+                              <div>                                                            
                                 <p className={`mt-1 text-sm ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
                                   {shoot.date}
                                 </p>
@@ -1049,7 +1167,7 @@ export const ShootsTable = ({
                       <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
                       <td className="py-5 px-6">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                             {shoot.initials}
                           </div>
                           <div>
@@ -1085,7 +1203,7 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && processedShoots.length > 0 && activeViewMode !== "grid" && (
+        !loading && !meetingGapLoading && processedShoots.length > 0 && activeViewMode !== "grid" && (
           <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
               {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}

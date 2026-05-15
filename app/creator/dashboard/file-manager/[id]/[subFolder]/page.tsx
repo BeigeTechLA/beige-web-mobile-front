@@ -35,6 +35,7 @@ import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
@@ -116,6 +117,15 @@ export default function CreatorFileManagerPhasePage() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareResource, setShareResource] = useState<{
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+    label?: string;
+  } | null>(null);
 
   const isOnOrAfterShootDay = useCallback((date?: string | null) => {
     if (!date) return false;
@@ -791,6 +801,17 @@ export default function CreatorFileManagerPhasePage() {
                           }
                           : undefined
                       }
+                      onShare={() => {
+                        const slug = folder.href?.split("/").filter(Boolean).pop();
+                        setShareResource({
+                          resourceType: "folder",
+                          externalId: String(projectId || ""),
+                          phase: currentPhase,
+                          path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+                          label: folder.title,
+                        });
+                        setIsShareModalOpen(true);
+                      }}
                       onRename={() => toast.info("Folder rename is the next safe step.")}
                     />
                   ))}
@@ -882,6 +903,15 @@ export default function CreatorFileManagerPhasePage() {
                               }
                               : undefined
                           }
+                          onShare={() => {
+                            setShareResource({
+                              resourceType: "folder",
+                              externalId: String(projectId || ""),
+                              phase: currentPhase,
+                              label: folder.title,
+                            });
+                            setIsShareModalOpen(true);
+                          }}
                         />
                       ))}
                     </div>
@@ -912,6 +942,16 @@ export default function CreatorFileManagerPhasePage() {
                                   }
                                   : undefined
                               }
+                              onShare={() => {
+                                setShareResource({
+                                  resourceType: "file",
+                                  externalId: String(projectId || ""),
+                                  phase: currentPhase,
+                                  filepath: file.filepath || undefined,
+                                  label: file.title,
+                                });
+                                setIsShareModalOpen(true);
+                              }}
                             />
                           ))}
                         </div>
@@ -955,6 +995,16 @@ export default function CreatorFileManagerPhasePage() {
                             }
                             : undefined
                         }
+                        onShare={() => {
+                          setShareResource({
+                            resourceType: "file",
+                            externalId: String(projectId || ""),
+                            phase: currentPhase,
+                            filepath: file.filepath || undefined,
+                            label: file.title,
+                          });
+                          setIsShareModalOpen(true);
+                        }}
                       />
                     ))}
                   </div>
@@ -1038,6 +1088,17 @@ export default function CreatorFileManagerPhasePage() {
                 }
               : undefined
           }
+          onShare={() => {
+            const slug = selectedFolder.href?.split("/").filter(Boolean).pop();
+            setShareResource({
+              resourceType: "folder",
+              externalId: String(projectId || ""),
+              phase: currentPhase,
+              path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+              label: selectedFolder.title,
+            });
+            setIsShareModalOpen(true);
+          }}
           onRename={() => toast.info("Folder rename is the next safe step.")}
         />
       ) : null}
@@ -1052,6 +1113,14 @@ export default function CreatorFileManagerPhasePage() {
         fileUrl={viewerUrl}
         contentType={typeof viewerFile?.contentType === "string" ? viewerFile.contentType : undefined}
         fileMetaId={typeof viewerFile?.filepath === "string" ? viewerFile.filepath : null}
+      />
+      <ShareResourceModal
+        isOpen={isShareModalOpen}
+        onClose={() => {
+          setIsShareModalOpen(false);
+          setShareResource(null);
+        }}
+        resource={shareResource}
       />
 
       {selectedFilePaths.length > 0 ? (

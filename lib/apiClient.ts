@@ -34,7 +34,8 @@ class ApiClient {
     this.client.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         const token = Cookies.get('revure_token');
-        if (token && config.headers) {
+        if (token && config.headers && !config.headers.Authorization) {
+          // Respect explicitly provided Authorization headers (e.g. external shared-link access tokens).
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -53,14 +54,19 @@ class ApiClient {
 
           // Handle specific status codes
           switch (status) {
-            case 401:
-              // Unauthorized - clear token and redirect to login
-              Cookies.remove('revure_token');
-              Cookies.remove('revure_user');
+            case 401: {
+              const requestUrl = String(error.config?.url || '').toLowerCase();
+              const isExternalShareRequest = requestUrl.includes('external-file-manager/share/');
+              // For shared-link OTP/token endpoints, do not clear the logged-in session cookies.
+              if (!isExternalShareRequest) {
+                Cookies.remove('revure_token');
+                Cookies.remove('revure_user');
+              }
               if (typeof window !== 'undefined') {
                 console.error('Unauthorized: Token expired or invalid');
               }
               break;
+            }
             case 403:
               console.error('Forbidden: Insufficient permissions');
               break;
