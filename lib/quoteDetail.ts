@@ -116,6 +116,49 @@ const getLatestQuotePaymentSummaryMetadata = (
 };
 
 const PAID_PAYMENT_STATUSES = new Set(["paid", "success", "completed"]);
+const normalizeGenericLabel = (value: string) =>
+  value.trim().toLowerCase().replace(/[_\s]+/g, " ");
+const isGenericLineItemLabel = (value: string) =>
+  normalizeGenericLabel(value) === "line item";
+const getStringValue = (value: unknown) =>
+  typeof value === "string" && value.trim() ? value.trim() : "";
+const pushLabelCandidate = (store: string[], value: unknown) => {
+  const normalized = getStringValue(value);
+  if (normalized) {
+    store.push(normalized);
+  }
+};
+const pushRecordLabelCandidates = (
+  store: string[],
+  record: Record<string, unknown> | null
+) => {
+  if (!record) {
+    return;
+  }
+
+  Object.entries(record).forEach(([key, value]) => {
+    if (typeof value !== "string") {
+      return;
+    }
+
+    const normalizedKey = key.toLowerCase();
+    const canContainName =
+      normalizedKey.includes("name") ||
+      normalizedKey.includes("label") ||
+      normalizedKey.includes("title");
+    const isStructuralField =
+      normalizedKey.includes("section") ||
+      normalizedKey.includes("category") ||
+      normalizedKey === "type" ||
+      normalizedKey.includes("source");
+
+    if (!canContainName || isStructuralField) {
+      return;
+    }
+
+    pushLabelCandidate(store, value);
+  });
+};
 
 const getHistoricalConfirmedPaidAmount = (
   quote: SalesQuoteDetailData | null | undefined
@@ -311,6 +354,43 @@ const resolveLineItemConfiguration = (item: SalesQuoteDetailLineItem) => {
   return asRecord(item.configuration_json);
 };
 
+export const resolveQuoteLineItemDisplayName = (item: SalesQuoteDetailLineItem) => {
+  const catalogItem = asRecord(item.catalog_item);
+  const configuration = resolveLineItemConfiguration(item);
+  const nameCandidates: string[] = [];
+
+  [
+    item.item_name,
+    item.name,
+    item.label,
+    item.title,
+    item.item_label,
+    item.display_name,
+    item.catalog_item_name,
+    item.service_name,
+    item.addon_name,
+    item.logistics_name,
+    catalogItem?.name,
+    catalogItem?.label,
+    catalogItem?.title,
+    catalogItem?.item_name,
+    configuration?.name,
+    configuration?.label,
+    configuration?.title,
+    configuration?.item_name,
+  ].forEach((candidate) => pushLabelCandidate(nameCandidates, candidate));
+
+  pushRecordLabelCandidates(nameCandidates, item as Record<string, unknown>);
+  pushRecordLabelCandidates(nameCandidates, catalogItem);
+  pushRecordLabelCandidates(nameCandidates, configuration);
+
+  return (
+    nameCandidates.find((candidate) => !isGenericLineItemLabel(candidate)) ||
+    nameCandidates[0] ||
+    "Line Item"
+  );
+};
+
 export type QuoteLineItemEditingTypeConfiguration = {
   editingTypeKey: string;
   editingTypeLabel: string;
@@ -496,12 +576,9 @@ export const normalizeQuoteLineItems = (
       }
     }
 
-    const catalogItem = asRecord(item.catalog_item);
     const editingTypeLabel = getQuoteLineItemEditingTypeLabel(item);
     const directSubtitle = getQuoteText(item.subtitle);
-    const resolvedName = editingTypeLabel
-      ? getQuoteText(catalogItem?.name, item.name, item.label, item.item_name, "Line Item")
-      : getQuoteText(item.item_name, item.name, item.label, catalogItem?.name, "Line Item");
+    const resolvedName = resolveQuoteLineItemDisplayName(item);
 
     return {
       id: String(item.line_item_id ?? item.catalog_item_id ?? item.item_id ?? item.id ?? index),

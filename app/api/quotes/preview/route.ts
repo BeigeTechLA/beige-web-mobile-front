@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { verifyQuotePreviewToken } from "@/lib/server/quotePreviewToken";
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/";
 
@@ -15,18 +13,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const payload = verifyQuotePreviewToken(quoteKey);
-
-  if (!payload?.qid) {
-    return NextResponse.json(
-      { success: false, error: "This quote link is invalid or expired." },
-      { status: 401 }
-    );
-  }
-
   try {
     const quoteResponse = await fetch(
-      `${API_BASE_URL.replace(/\/$/, "")}/sales/quotes/public/${payload.qid}`,
+      `${API_BASE_URL.replace(/\/$/, "")}/sales/quotes/public/by-key/${encodeURIComponent(quoteKey)}`,
       {
         method: "GET",
         headers: {
