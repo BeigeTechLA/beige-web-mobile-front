@@ -1436,6 +1436,34 @@ export const adminApi = {
       };
     }
   },
+  getCreditPointsUserByGuestEmail: async (guestEmail: string) => {
+    try {
+      const response = await api.get('finance/admin/credit-points/users', {
+        params: { guest_email: guestEmail },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Credit Points User By Guest Email Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch credit points user details',
+      };
+    }
+  },
+  exportCreditPoints: async () => {
+    try {
+      const response = await api.get('finance/admin/credit-points/export');
+      return response.data;
+    } catch (error: any) {
+      console.error('Export Credit Points Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to export credit points',
+      };
+    }
+  },
   createManualCreditPoint: async (payload: {
     user_type: string;
     target_user_id: number;

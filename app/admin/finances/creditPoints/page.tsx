@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpToLine, BadgeDollarSign, Coins, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
@@ -138,15 +138,16 @@ const matchesRange = (value: string, range: string) => {
 
 const extractDashboardPayload = (response: CreditPointsDashboardResponse) => {
   const data = asRecord(response?.data) || {};
+  const history = asRecord(pickFirstValue(data, ["credit_points_history", "history"]));
 
   return {
     metrics: asRecord(
       pickFirstValue(data, ["summary", "metrics", "overview", "stats"]) || data
     ) || {},
     rows: getArray(
-      pickFirstValue(data, [
-        "history",
+      pickFirstValue(history || data, [
         "rows",
+        "history",
         "clients",
         "users",
         "items",
@@ -157,48 +158,44 @@ const extractDashboardPayload = (response: CreditPointsDashboardResponse) => {
   };
 };
 
-const mapDashboardRow = (
+const mapDashboardHistoryRow = (
   item: Record<string, unknown>,
   index: number
 ): CreditHistoryRow => {
-  const clientName = pickFirstString(item, [
-    "client_name",
-    "name",
-    "user_name",
-    "full_name",
-  ]) || `User ${index + 1}`;
-  const availablePoints = pickFirstNumber(item, [
-    "available_points",
+  const clientName = pickFirstString(item, ["name", "client_name", "user_name"]) || `User ${index + 1}`;
+  const availableValue = pickFirstNumber(item, [
+    "total_credits_available",
     "total_credit_points_available",
-    "credit_points_available",
-    "balance",
-    "current_balance",
+    "available_points",
+    "available_credits",
   ]);
-  const usedPoints = pickFirstNumber(item, [
-    "used_points",
+  const usedValue = pickFirstNumber(item, [
+    "total_credits_used",
     "total_credit_points_used",
-    "credit_points_used",
-    "credits_used",
+    "used_points",
+    "used_credits",
   ]);
 
   return {
     id:
-      pickFirstString(item, ["id", "user_id", "client_id", "account_id"]) ||
+      pickFirstString(item, ["user_id", "id", "account_credit_ledger_id"]) ||
       String(index + 1),
+    userId: (() => {
+      const raw = pickFirstValue(item, ["user_id"]);
+      const parsed = Number(raw);
+      return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    })(),
+    guestEmail: pickFirstString(item, ["guest_email"]) || "",
     date: formatDisplayDate(
-      pickFirstString(item, ["created_at", "date", "credited_at", "updated_at"])
+      pickFirstString(item, ["date", "created_at", "transaction_date", "approved_at"])
     ),
     clientName,
-    email: pickFirstString(item, ["email", "email_id", "user_email"]) || "-",
-    availablePoints: formatPoints(availablePoints),
-    usedPoints: usedPoints > 0 ? `-${formatPoints(usedPoints)}` : formatPoints(usedPoints),
+    email:
+      pickFirstString(item, ["email", "client_email", "guest_email"]) || "-",
+    availablePoints: formatPoints(availableValue),
+    usedPoints: usedValue > 0 ? `-${formatPoints(usedValue)}` : formatPoints(usedValue),
     lastActivity: formatActivityDate(
-      pickFirstString(item, [
-        "last_activity",
-        "last_activity_at",
-        "updated_at",
-        "created_at",
-      ])
+      pickFirstString(item, ["last_activity_at", "date", "approved_at", "created_at"])
     ),
     initials: getInitials(clientName),
     avatarColor: avatarPalette[index % avatarPalette.length],
@@ -208,6 +205,7 @@ const mapDashboardRow = (
 
 export default function AdminFinancesPage() {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
@@ -243,17 +241,18 @@ export default function AdminFinancesPage() {
     try {
       setLoading(true);
 
-      const response = await adminApi.getCreditPointsDashboard();
-      if (response?.error) {
-        toast.error(response.error);
+      const dashboardResponse = await adminApi.getCreditPointsDashboard();
+
+      if (dashboardResponse?.error) {
+        toast.error(dashboardResponse.error);
         setDashboardMetrics({});
         setCreditHistoryRows([]);
         return;
       }
 
-      const { metrics, rows } = extractDashboardPayload(response);
+      const { metrics, rows } = extractDashboardPayload(dashboardResponse);
       setDashboardMetrics(metrics);
-      setCreditHistoryRows(rows.map(mapDashboardRow));
+      setCreditHistoryRows(rows.map(mapDashboardHistoryRow));
     } catch (error) {
       console.error("Failed to load credit points dashboard:", error);
       toast.error("Failed to load credit points dashboard");
@@ -301,6 +300,7 @@ export default function AdminFinancesPage() {
         label: "Total Credits Available",
         value: new Intl.NumberFormat("en-US").format(
           pickFirstNumber(dashboardMetrics, [
+            "total_credits_available",
             "total_available_credits",
             "total_credit_points_available",
             "available_points",
@@ -315,6 +315,7 @@ export default function AdminFinancesPage() {
         label: "Total Credits Used",
         value: new Intl.NumberFormat("en-US").format(
           pickFirstNumber(dashboardMetrics, [
+            "total_credits_used",
             "total_used_credits",
             "total_credit_points_used",
             "used_points",
@@ -329,6 +330,7 @@ export default function AdminFinancesPage() {
         label: "Active Users with Credits",
         value: new Intl.NumberFormat("en-US").format(
           pickFirstNumber(dashboardMetrics, [
+            "active_users_holding_credits",
             "active_users_with_credits",
             "users_with_credits",
             "active_credit_users",
@@ -341,6 +343,23 @@ export default function AdminFinancesPage() {
     ],
     [dashboardMetrics]
   );
+
+  const handleCreditHistoryRowClick = useCallback((row: CreditHistoryRow) => {
+    if (row.userId && row.userId > 0) {
+      router.push(`/admin/finances/creditPoints/${row.userId}`);
+      return;
+    }
+
+    if (row.guestEmail) {
+      const encodedEmail = encodeURIComponent(row.guestEmail);
+      router.push(
+        `/admin/finances/creditPoints/${encodedEmail}?guest_email=${encodedEmail}`
+      );
+      return;
+    }
+
+    toast.error("No user id or guest email found for this row");
+  }, [router]);
 
   const updateCreditForm = <K extends keyof typeof creditForm>(
     key: K,
@@ -434,7 +453,7 @@ export default function AdminFinancesPage() {
         pathname={pathname}
         actions={
           <div className="flex items-center gap-3">
-            <Button
+            {/* <Button
               type="button"
               variant="beige"
               className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
@@ -442,8 +461,11 @@ export default function AdminFinancesPage() {
             >
               <Plus size={18} />
               Add Credit Points
-            </Button>
-            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+            </Button> */}
+            <Button
+              type="button"
+              className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
+            >
               <ArrowUpToLine size={18} />
               Export
             </Button>
@@ -478,7 +500,7 @@ export default function AdminFinancesPage() {
           />
         </div>
 
-        <FinanceMetricCards
+        {/* <FinanceMetricCards
           metrics={metrics}
           activeId={activeMetricId}
           onSelect={setActiveMetricId}
@@ -486,7 +508,7 @@ export default function AdminFinancesPage() {
           dropdownValue={metricRange}
           dropdownOptions={metricDropdownOptions}
           onDropdownChange={setMetricRange}
-        />
+        /> */}
 
         <CreditHistoryTable
           rows={filteredRows}
@@ -497,6 +519,7 @@ export default function AdminFinancesPage() {
           statusValue={historyStatus}
           statusOptions={historyStatusOptions}
           onStatusChange={setHistoryStatus}
+          onRowClick={handleCreditHistoryRowClick}
         />
       </div>
 

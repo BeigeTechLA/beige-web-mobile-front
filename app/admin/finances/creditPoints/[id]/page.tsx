@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { ArrowLeft, CalendarDays, FileText } from "lucide-react";
+import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
-import type { CreditHistoryRow } from "@/components/affiliate/CreditHistoryTable";
 import {
   Select,
   SelectContent,
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { adminApi } from "@/lib/api";
 
 const filterOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const typeOptions = ["All", "Used", "Available"];
@@ -29,198 +30,214 @@ type CreditActivityItem = {
 };
 
 type CreditUserDetails = {
+  clientName: string;
+  email: string;
+  initials: string;
+  avatarColor: string;
   totalCreditPoints: string;
   currentBalance: string;
   totalUsed: string;
   activities: CreditActivityItem[];
 };
 
-const adminCreditHistoryRows: CreditHistoryRow[] = [
-  {
-    id: "1",
-    date: "Apr 23, 2026",
-    clientName: "Alex Morgan",
-    email: "alex.morgan@example.com",
-    availablePoints: "3,500 Points",
-    usedPoints: "-850 Points",
-    lastActivity: "22-04-2026",
-    initials: "AM",
-    avatarColor: "#F0C4E3",
-  },
-  {
-    id: "2",
-    date: "Apr 10, 2026",
-    clientName: "Ethan Carter",
-    email: "ethancarter@gmail.com",
-    availablePoints: "4,000 Points",
-    usedPoints: "-400 Points",
-    lastActivity: "12-04-2026",
-    initials: "EC",
-    avatarColor: "#F5E4BC",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "3",
-    date: "Mar 31, 2026",
-    clientName: "Maya Ross",
-    email: "mayaross@gmail.com",
-    availablePoints: "5,500 Points",
-    usedPoints: "-100 Points",
-    lastActivity: "01-04-2026",
-    initials: "MR",
-    avatarColor: "#CFF3B9",
-  },
-  {
-    id: "4",
-    date: "Mar 12, 2026",
-    clientName: "John Lee",
-    email: "johnlee@outlook.com",
-    availablePoints: "3,000 Points",
-    usedPoints: "-200 Points",
-    lastActivity: "21-03-2026",
-    initials: "JL",
-    avatarColor: "#F1DFC3",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "5",
-    date: "Mar 4, 2026",
-    clientName: "Raj Yadhav",
-    email: "rajyadhav@outlook.com",
-    availablePoints: "2,450 Points",
-    usedPoints: "-550 Points",
-    lastActivity: "06-03-2026",
-    initials: "RY",
-    avatarColor: "#D5D9E8",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "6",
-    date: "Feb 8, 2026",
-    clientName: "Daniel Roberts",
-    email: "danielr@gmail.com",
-    availablePoints: "2,450 Points",
-    usedPoints: "-600 Points",
-    lastActivity: "15-02-2026",
-    initials: "DR",
-    avatarColor: "#F4F4F4",
-  },
-  {
-    id: "7",
-    date: "Jan 30, 2026",
-    clientName: "Sophia Bennett",
-    email: "sophiab@gmail.com",
-    availablePoints: "6,100 Points",
-    usedPoints: "0 Points",
-    lastActivity: "31-01-2026",
-    initials: "SB",
-    avatarColor: "#FFE0C7",
-  },
-  {
-    id: "8",
-    date: "Jan 14, 2026",
-    clientName: "Noah Walker",
-    email: "noahwalker@gmail.com",
-    availablePoints: "1,900 Points",
-    usedPoints: "0 Points",
-    lastActivity: "16-01-2026",
-    initials: "NW",
-    avatarColor: "#D7E6FF",
-  },
+const avatarPalette = [
+  "#F0C4E3",
+  "#F5E4BC",
+  "#CFF3B9",
+  "#F1DFC3",
+  "#D5D9E8",
+  "#F4F4F4",
+  "#FFE0C7",
+  "#D7E6FF",
 ];
 
-const adminCreditUserDetailsMap: Record<string, CreditUserDetails> = {
-  "1": {
-    totalCreditPoints: "3500",
-    currentBalance: "2,450",
-    totalUsed: "850",
-    activities: [
-      { id: "CR-045", title: "Used for Shoot Payment", date: "22-04-2026", reference: "CR-045", amount: "-250", shootId: "SH-012", invoiceId: "INV-012-A" },
-      { id: "CR-041", title: "Referral Bonus", date: "20-04-2026", reference: "CR-041", amount: "+500" },
-      { id: "CR-038", title: "Used for Shoot Payment", date: "18-04-2026", reference: "CR-038", amount: "-200", shootId: "SH-009", invoiceId: "INV-009-B" },
-      { id: "CR-032", title: "Monthly Loyalty Reward", date: "15-04-2026", reference: "CR-032", amount: "+300" },
-      { id: "CR-028", title: "Used for Studio Rental", date: "12-04-2026", reference: "CR-028", amount: "-150", shootId: "SH-007", invoiceId: "INV-007-A" },
-    ],
-  },
-  "2": {
-    totalCreditPoints: "4000",
-    currentBalance: "3,600",
-    totalUsed: "400",
-    activities: [
-      { id: "CR-044", title: "Used for Shoot Payment", date: "12-04-2026", reference: "CR-044", amount: "-150", shootId: "SH-010", invoiceId: "INV-010-B" },
-      { id: "CR-039", title: "Credit Top-Up", date: "10-04-2026", reference: "CR-039", amount: "+550" },
-      { id: "CR-033", title: "Used for Editing Service", date: "08-04-2026", reference: "CR-033", amount: "-250", shootId: "SH-006", invoiceId: "INV-006-C" },
-    ],
-  },
-  "3": {
-    totalCreditPoints: "5500",
-    currentBalance: "5,400",
-    totalUsed: "100",
-    activities: [
-      { id: "CR-036", title: "Welcome Bonus", date: "01-04-2026", reference: "CR-036", amount: "+500" },
-      { id: "CR-031", title: "Used for Shoot Payment", date: "31-03-2026", reference: "CR-031", amount: "-100", shootId: "SH-004", invoiceId: "INV-004-A" },
-    ],
-  },
-  "4": {
-    totalCreditPoints: "3000",
-    currentBalance: "2,800",
-    totalUsed: "200",
-    activities: [
-      { id: "CR-029", title: "Used for Studio Rental", date: "21-03-2026", reference: "CR-029", amount: "-200", shootId: "SH-008", invoiceId: "INV-008-A" },
-    ],
-  },
-  "5": {
-    totalCreditPoints: "2450",
-    currentBalance: "1,900",
-    totalUsed: "550",
-    activities: [
-      { id: "CR-027", title: "Used for Shoot Payment", date: "06-03-2026", reference: "CR-027", amount: "-550", shootId: "SH-005", invoiceId: "INV-005-A" },
-    ],
-  },
-  "6": {
-    totalCreditPoints: "2450",
-    currentBalance: "1,850",
-    totalUsed: "600",
-    activities: [
-      { id: "CR-024", title: "Used for Shoot Payment", date: "15-02-2026", reference: "CR-024", amount: "-600", shootId: "SH-003", invoiceId: "INV-003-A" },
-    ],
-  },
-  "7": {
-    totalCreditPoints: "6100",
-    currentBalance: "6,100",
-    totalUsed: "0",
-    activities: [
-      { id: "CR-019", title: "Monthly Loyalty Reward", date: "31-01-2026", reference: "CR-019", amount: "+300" },
-      { id: "CR-016", title: "Referral Bonus", date: "28-01-2026", reference: "CR-016", amount: "+500" },
-    ],
-  },
-  "8": {
-    totalCreditPoints: "1900",
-    currentBalance: "1,900",
-    totalUsed: "0",
-    activities: [
-      { id: "CR-013", title: "Credit Top-Up", date: "16-01-2026", reference: "CR-013", amount: "+400" },
-    ],
-  },
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const getArray = (value: unknown): Record<string, unknown>[] =>
+  Array.isArray(value)
+    ? value.map((item) => asRecord(item)).filter(Boolean) as Record<string, unknown>[]
+    : [];
+
+const pickFirstValue = (source: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const pickFirstString = (source: Record<string, unknown>, keys: string[]) => {
+  const value = pickFirstValue(source, keys);
+  return value === undefined ? "" : String(value);
+};
+
+const pickFirstNumber = (source: Record<string, unknown>, keys: string[]) => {
+  const value = pickFirstValue(source, keys);
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatNumber = (value: number) =>
+  new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+
+const formatDisplayDate = (value?: string) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB").replace(/\//g, "-");
+};
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "NA";
+
+const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetails => {
+  const root = asRecord(payload) || {};
+  const data = asRecord(pickFirstValue(root, ["data"])) || root;
+  const summary = asRecord(pickFirstValue(data, ["summary", "overview", "stats"])) || data;
+  const profile = asRecord(pickFirstValue(data, ["user", "profile", "client", "details"])) || data;
+  const ledger = asRecord(pickFirstValue(data, ["ledger"])) || {};
+  const activitiesRaw = getArray(
+    pickFirstValue(ledger, ["rows"]) ||
+      pickFirstValue(data, ["history", "credit_history", "activities", "rows", "items", "transactions"])
+  );
+
+  const clientName =
+    pickFirstString(profile, ["name", "client_name", "user_name"]) ||
+    pickFirstString(summary, ["name", "client_name", "user_name"]) ||
+    "User";
+
+  const email =
+    pickFirstString(profile, ["email", "client_email", "guest_email"]) ||
+    pickFirstString(summary, ["email", "client_email", "guest_email"]) ||
+    "-";
+
+  const totalCreditPoints = pickFirstNumber(summary, [
+    "total_credit_points",
+    "total_credits_available",
+    "total_available_credits",
+    "credited_total",
+  ]);
+
+  const currentBalance = pickFirstNumber(summary, [
+    "current_balance",
+    "available_balance",
+    "remaining_balance",
+    "total_credits_available",
+    "total_available_credits",
+  ]);
+
+  const totalUsed = pickFirstNumber(summary, [
+    "total_used",
+    "total_credits_used",
+    "total_used_credits",
+    "used_total",
+  ]);
+
+  const activities: CreditActivityItem[] = activitiesRaw.map((item, index) => {
+    const amountNumber = pickFirstNumber(item, ["amount", "used_amount", "credited_amount"]);
+    const direction = pickFirstString(item, ["direction", "entry_type"]).toLowerCase();
+    const isDebit = direction.includes("debit") || direction.includes("used") || amountNumber < 0;
+
+    return {
+      id: pickFirstString(item, ["id", "account_credit_ledger_id", "reference", "entry_id"]) || `${index + 1}`,
+      title:
+        pickFirstString(item, ["title", "reason", "notes", "entry_type", "source_type"]) ||
+        "Credit Activity",
+      date: formatDisplayDate(pickFirstString(item, ["transaction_date", "date", "created_at", "approved_at"])),
+      reference:
+        pickFirstString(item, ["reference", "source_quote_number", "entry_type"]) ||
+        `CR-${index + 1}`,
+      amount: `${isDebit ? "-" : "+"}${formatNumber(Math.abs(amountNumber))}`,
+      shootId: pickFirstString(item, ["source_booking_id"]) || undefined,
+      invoiceId: pickFirstString(item, ["invoice_number", "invoice_id"]) || undefined,
+    };
+  });
+
+  return {
+    clientName,
+    email,
+    initials: getInitials(clientName),
+    avatarColor: avatarPalette[Math.abs(fallbackKey.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)) % avatarPalette.length],
+    totalCreditPoints: formatNumber(totalCreditPoints),
+    currentBalance: formatNumber(currentBalance),
+    totalUsed: formatNumber(totalUsed),
+    activities,
+  };
 };
 
 export default function AdminCreditPointDetailsPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
+
   const [mounted, setMounted] = useState(false);
   const [monthFilter, setMonthFilter] = useState("Month");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [userDetails, setUserDetails] = useState<CreditUserDetails | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const isDark = !mounted || resolvedTheme === "dark" || theme === "dark";
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        setLoading(true);
 
-  const userRow = adminCreditHistoryRows.find((row) => row.id === params.id);
-  const userDetails = adminCreditUserDetailsMap[params.id];
+        const routeId = decodeURIComponent(params.id || "").trim();
+        const queryGuestEmail = (searchParams.get("guest_email") || "").trim();
+
+        let response: { error?: string; data?: unknown } | null = null;
+
+        const numericId = Number(routeId);
+        if (Number.isInteger(numericId) && numericId > 0) {
+          response = await adminApi.getCreditPointsUserById(numericId);
+        } else {
+          const guestEmail = queryGuestEmail || (routeId.includes("@") ? routeId : "");
+          if (guestEmail) {
+            response = await adminApi.getCreditPointsUserByGuestEmail(guestEmail);
+          }
+        }
+
+        if (!response) {
+          toast.error("Missing user id or guest email");
+          setUserDetails(null);
+          return;
+        }
+
+        if (response.error) {
+          toast.error(response.error);
+          setUserDetails(null);
+          return;
+        }
+
+        setUserDetails(mapUserDetails(response.data, params.id));
+      } catch (error) {
+        console.error("Failed to fetch credit points user details:", error);
+        toast.error("Failed to fetch credit points user details");
+        setUserDetails(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserDetails();
+  }, [params.id, searchParams]);
+
+  const isDark = !mounted || resolvedTheme === "dark" || theme === "dark";
 
   const filteredActivities = useMemo(() => {
     if (!userDetails) return [];
@@ -230,7 +247,7 @@ export default function AdminCreditPointDetailsPage() {
     );
   }, [typeFilter, userDetails]);
 
-  if (!userRow || !userDetails) {
+  if (!loading && !userDetails) {
     return (
       <>
         <Topbar
@@ -310,22 +327,22 @@ export default function AdminCreditPointDetailsPage() {
                 <div className="flex items-center gap-4">
                   <div
                     className="flex h-[66px] w-[66px] items-center justify-center rounded-full text-[30px] font-medium text-[#171717]"
-                    style={{ backgroundColor: rowAvatarColor(userRow.avatarColor) }}
+                    style={{ backgroundColor: userDetails?.avatarColor || "#F0C4E3" }}
                   >
-                    {userRow.initials}
+                    {userDetails?.initials || "NA"}
                   </div>
                   <div>
                     <p className={`text-[18px] font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
-                      {userRow.clientName}
+                      {userDetails?.clientName || "-"}
                     </p>
-                    <p className={`mt-1 text-sm ${isDark ? "text-white/50" : "text-[#6F6F6F]"}`}>{userRow.email}</p>
+                    <p className={`mt-1 text-sm ${isDark ? "text-white/50" : "text-[#6F6F6F]"}`}>{userDetails?.email || "-"}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:min-w-[600px]">
-                  <MetricCard label="Total Credit Points" value={userDetails.totalCreditPoints} isDark={isDark} accent />
-                  <MetricCard label="Current Balance" value={userDetails.currentBalance} isDark={isDark} accent />
-                  <MetricCard label="Total Used" value={userDetails.totalUsed} isDark={isDark} />
+                  <MetricCard label="Total Credit Points" value={userDetails?.totalCreditPoints || "0"} isDark={isDark} accent />
+                  <MetricCard label="Current Balance" value={userDetails?.currentBalance || "0"} isDark={isDark} accent />
+                  <MetricCard label="Total Used" value={userDetails?.totalUsed || "0"} isDark={isDark} />
                 </div>
               </div>
             </div>
@@ -364,51 +381,62 @@ export default function AdminCreditPointDetailsPage() {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {filteredActivities.map((activity) => (
-                  <article
-                    key={activity.id}
-                    className={`rounded-[14px] border px-4 py-4 lg:px-5 ${
-                      isDark ? "border-[#2A2A2A] bg-[#221F1F]" : "border-[#E5D9CB] bg-white shadow-[0_10px_30px_rgba(117,92,49,0.05)]"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
-                        <p className={`text-[16px] ${isDark ? "text-white" : "text-[#171717]"}`}>{activity.title}</p>
-                        <div className={`mt-2 flex flex-wrap items-center gap-3 text-sm ${isDark ? "text-white/50" : "text-[#6F6F6F]"}`}>
-                          <span className="inline-flex items-center gap-2">
-                            <CalendarDays size={14} />
-                            {activity.date}
-                          </span>
-                          <span>{activity.reference}</span>
+              {loading ? (
+                <div className={`rounded-[14px] border px-4 py-6 text-sm ${isDark ? "border-[#2A2A2A] text-white/70" : "border-[#E5D9CB] text-[#6F6F6F]"}`}>
+                  Loading credit activity...
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredActivities.map((activity) => (
+                    <article
+                      key={activity.id}
+                      className={`rounded-[14px] border px-4 py-4 lg:px-5 ${
+                        isDark ? "border-[#2A2A2A] bg-[#221F1F]" : "border-[#E5D9CB] bg-white shadow-[0_10px_30px_rgba(117,92,49,0.05)]"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <p className={`text-[16px] ${isDark ? "text-white" : "text-[#171717]"}`}>{activity.title}</p>
+                          <div className={`mt-2 flex flex-wrap items-center gap-3 text-sm ${isDark ? "text-white/50" : "text-[#6F6F6F]"}`}>
+                            <span className="inline-flex items-center gap-2">
+                              <CalendarDays size={14} />
+                              {activity.date}
+                            </span>
+                            <span>{activity.reference}</span>
+                          </div>
                         </div>
+                        <p className={`text-[18px] font-semibold ${activity.amount.startsWith("-") ? "text-[#FF8A80]" : "text-[#00C48C]"}`}>
+                          {activity.amount}
+                        </p>
                       </div>
-                      <p className={`text-[18px] font-semibold ${activity.amount.startsWith("-") ? "text-[#FF8A80]" : "text-[#00C48C]"}`}>
-                        {activity.amount}
-                      </p>
-                    </div>
 
-                    {(activity.shootId || activity.invoiceId) && (
-                      <div className={`mt-4 flex flex-wrap items-center gap-4 border-t pt-4 text-sm ${isDark ? "border-[#2A2A2A] text-white/65" : "border-[#EEE4D6] text-[#6F6F6F]"}`}>
-                        {activity.shootId && (
-                          <span className="inline-flex items-center gap-2">
-                            <FileText size={14} />
-                            Shoot:
-                            <span className="text-[#D3B98A]">{activity.shootId}</span>
-                          </span>
-                        )}
-                        {activity.invoiceId && (
-                          <span className="inline-flex items-center gap-2">
-                            <FileText size={14} />
-                            Invoice:
-                            <span className="text-[#D3B98A]">{activity.invoiceId}</span>
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
+                      {(activity.shootId || activity.invoiceId) && (
+                        <div className={`mt-4 flex flex-wrap items-center gap-4 border-t pt-4 text-sm ${isDark ? "border-[#2A2A2A] text-white/65" : "border-[#EEE4D6] text-[#6F6F6F]"}`}>
+                          {activity.shootId && (
+                            <span className="inline-flex items-center gap-2">
+                              <FileText size={14} />
+                              Shoot:
+                              <span className="text-[#D3B98A]">{activity.shootId}</span>
+                            </span>
+                          )}
+                          {activity.invoiceId && (
+                            <span className="inline-flex items-center gap-2">
+                              <FileText size={14} />
+                              Invoice:
+                              <span className="text-[#D3B98A]">{activity.invoiceId}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                  {filteredActivities.length === 0 && (
+                    <div className={`rounded-[14px] border px-4 py-6 text-sm ${isDark ? "border-[#2A2A2A] text-white/70" : "border-[#E5D9CB] text-[#6F6F6F]"}`}>
+                      No credit activity found.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="rounded-[14px] bg-[#E5D5B8] px-4 py-5 text-sm font-medium text-[#171717]">
@@ -444,8 +472,4 @@ function MetricCard({
       </p>
     </div>
   );
-}
-
-function rowAvatarColor(color: string) {
-  return color;
 }
