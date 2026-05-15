@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 
 import { ShootsTable } from '@/components/admin/ShootsTable';
-import { Grid3X3, List, Search } from 'lucide-react';
+import { Grid3X3, List, Search, RotateCcw } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
@@ -16,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const SHOOTS_FILTERS_STORAGE_KEY = "admin-shoots-filters-v1";
 
 const FILTER_STATUS_OPTIONS = [
   { value: "all", label: "All Status" },
@@ -46,6 +48,83 @@ export default function ShootsPage() {
   const [range, setRange] = useState("all");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [hasRestoredFilters, setHasRestoredFilters] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(SHOOTS_FILTERS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (typeof parsed.searchQuery === "string") setSearchQuery(parsed.searchQuery);
+      if (typeof parsed.categoryFilter === "string") setCategoryFilter(parsed.categoryFilter);
+      if (typeof parsed.statusFilter === "string") setStatusFilter(parsed.statusFilter);
+      if (typeof parsed.productionFilter === "string") setProductionFilter(parsed.productionFilter);
+      if (typeof parsed.range === "string") setRange(parsed.range);
+      if (parsed.cpAssignmentFilter === "all" || parsed.cpAssignmentFilter === "assigned" || parsed.cpAssignmentFilter === "not_assigned") {
+        setCpAssignmentFilter(parsed.cpAssignmentFilter);
+      }
+      if (parsed.viewMode === "grid" || parsed.viewMode === "list") {
+        setViewMode(parsed.viewMode);
+      }
+      if (typeof parsed.selectedDate === "string") {
+        const parsedDate = new Date(parsed.selectedDate);
+        if (!Number.isNaN(parsedDate.getTime())) {
+          setSelectedDate(parsedDate);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to restore shoots filters:", error);
+    } finally {
+      setHasRestoredFilters(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasRestoredFilters) return;
+    try {
+      window.sessionStorage.setItem(
+        SHOOTS_FILTERS_STORAGE_KEY,
+        JSON.stringify({
+          searchQuery,
+          categoryFilter,
+          statusFilter,
+          productionFilter,
+          range,
+          cpAssignmentFilter,
+          viewMode,
+          selectedDate: selectedDate ? selectedDate.toISOString() : null,
+        })
+      );
+    } catch (error) {
+      console.error("Failed to persist shoots filters:", error);
+    }
+  }, [
+    hasRestoredFilters,
+    searchQuery,
+    categoryFilter,
+    statusFilter,
+    productionFilter,
+    range,
+    cpAssignmentFilter,
+    viewMode,
+    selectedDate,
+  ]);
+
+  const resetAllFilters = () => {
+    setSelectedDate(null);
+    setSearchQuery("");
+    setCategoryFilter("all");
+    setStatusFilter("all");
+    setProductionFilter("all");
+    setRange("all");
+    setCpAssignmentFilter("all");
+    setViewMode("list");
+    try {
+      window.sessionStorage.removeItem(SHOOTS_FILTERS_STORAGE_KEY);
+    } catch (error) {
+      console.error("Failed to clear shoots filters:", error);
+    }
+  };
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -84,6 +163,7 @@ export default function ShootsPage() {
               }`}>Shoots Management</h1>
             <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"
               }`}>Track and manage your photography and videography project</p>
+              
           </div>
           <SortDateButton
             selectedDate={selectedDate}
@@ -92,8 +172,11 @@ export default function ShootsPage() {
         </div>
         {/* Search Bar */}
          <div className="flex flex-col gap-3">
+                        <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3>
+
              <div className="flex items-center gap-3">
-              <div className="relative w-full flex items-center">
+              <div className="relative w-full flex items-center">   
+                           
                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
                 <input
                   type="text"
@@ -201,6 +284,15 @@ export default function ShootsPage() {
                   <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                type="button"
+                onClick={resetAllFilters}
+                aria-label="Reset filters"
+                title="Reset filters"
+                className={`h-12 w-12 p-0 rounded-lg flex items-center justify-center ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
+              >
+                <RotateCcw size={18} />
+              </Button>
             </div>
           </div>
  

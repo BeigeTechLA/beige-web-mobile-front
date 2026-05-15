@@ -11,6 +11,8 @@ import {
   ChevronDown,
   Grid3X3,
   List,
+  MoreVertical,
+  CirclePlus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -237,9 +239,16 @@ export const ShootsTable = ({
   const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
   const router = useRouter();
   const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
+  const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const gridPanStateRef = React.useRef<{ startX: number; scrollLeft: number; isActive: boolean }>({
+    startX: 0,
+    scrollLeft: 0,
+    isActive: false,
+  });
   const dragAutoScrollFrameRef = React.useRef<number | null>(null);
   const dragAutoScrollStatusRef = React.useRef<ShootStatus | null>(null);
   const dragAutoScrollDirectionRef = React.useRef<"up" | "down" | null>(null);
+  const latestFetchIdRef = React.useRef(0);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
@@ -252,6 +261,8 @@ export const ShootsTable = ({
   const [kanbanOrder, setKanbanOrder] = useState<Record<ShootStatus, string[]>>({} as Record<ShootStatus, string[]>);
   const [draggedShootId, setDraggedShootId] = useState<string | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<ShootStatus | null>(null);
+  const [openCardActionId, setOpenCardActionId] = useState<string | null>(null);
+  const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
 
   // Filtering states
@@ -260,6 +271,7 @@ export const ShootsTable = ({
   const setActiveViewMode = setViewMode ?? setInternalViewMode;
   const activeCpAssignmentFilter = cpAssignmentFilter ?? internalCpAssignmentFilter;
   const setActiveCpAssignmentFilter = setCpAssignmentFilter ?? setInternalCpAssignmentFilter;
+  const shouldRenderHeaderControls = showHeaderControls && (showHeaderFilters || showViewToggle);
 
   // --- SORTING STATE ---
   const [sortConfig, setSortConfig] = useState<{ key: keyof ShootRecord; direction: 'asc' | 'desc' | null }>({
@@ -299,7 +311,67 @@ export const ShootsTable = ({
     };
   }, []);
 
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-card-actions]")) return;
+      setOpenCardActionId(null);
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleWindowMouseUp = () => {
+      gridPanStateRef.current.isActive = false;
+      setIsGridPanning(false);
+    };
+
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, []);
+
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
+  const handleGridMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("button, a, input, select, textarea, [draggable='true'], [data-card-actions]")) {
+      return;
+    }
+
+    const container = gridScrollRef.current;
+    if (!container) return;
+
+    gridPanStateRef.current = {
+      startX: event.clientX,
+      scrollLeft: container.scrollLeft,
+      isActive: true,
+    };
+    setIsGridPanning(true);
+  };
+
+  const handleGridMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!gridPanStateRef.current.isActive) return;
+
+    const container = gridScrollRef.current;
+    if (!container) return;
+
+    const deltaX = event.clientX - gridPanStateRef.current.startX;
+    container.scrollLeft = gridPanStateRef.current.scrollLeft - deltaX;
+    event.preventDefault();
+  };
+
+  const handleGridMouseEnd = () => {
+    gridPanStateRef.current.isActive = false;
+    setIsGridPanning(false);
+  };
 
   // Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -316,6 +388,9 @@ export const ShootsTable = ({
   }, [externalSelectedDate]);
 
   useEffect(() => {
+    let isCancelled = false;
+    const fetchId = ++latestFetchIdRef.current;
+
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -381,15 +456,24 @@ export const ShootsTable = ({
             hasAssignedCp,
           };
         });
-        setShoots(mappedShoots);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          setShoots(mappedShoots);
+        }
       } catch (error) {
-        console.error("Failed to fetch shoots:", error);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          console.error("Failed to fetch shoots:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+    return () => {
+      isCancelled = true;
+    };
   }, [range, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
 
   useEffect(() => {
@@ -744,12 +828,15 @@ export const ShootsTable = ({
   if (!mounted) return null;
 
   return (
-    <div className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+    <div className={`w-full overflow-hidden transition-all duration-300 ${activeViewMode === "list"
+      ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
+      : "bg-transparent border-transparent"
+      }`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
-      {showHeaderControls && (
-      <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
-        <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3>
-        <div className="flex flex-col md:flex-row gap-3">
+      {shouldRenderHeaderControls && (
+<div className={`flex flex-col lg:flex-row justify-end lg:items-center px-4 lg:px-6 pt-4 lg:pt-6 pb-0 gap-4`}>
+        {/* <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3> */}
+  <div className="flex flex-col md:flex-row gap-3 w-full justify-end">
           {showHeaderFilters && (
           <>
           <div className="relative">
@@ -867,7 +954,7 @@ export const ShootsTable = ({
       ) : (
         <>
           {/* MOBILE ONLY VIEW */}
-          {true ? (
+          {activeViewMode === "list" ? (
             <div className={`lg:hidden transition-colors duration-300 ${isDark ? "bg-[#111111]" : ""}`}>
               <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"}`}>
                 <span>Customer Name</span>
@@ -963,28 +1050,32 @@ export const ShootsTable = ({
           )}
 
           {activeViewMode === "grid" ? (
-            <div className="hidden lg:block p-6 pt-5">
-              <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-2">
-                <div className="flex items-start gap-5 min-w-max">
+            <div className="block pt-0">
+              <div
+                ref={gridScrollRef}
+                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-2 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                onMouseDown={handleGridMouseDown}
+                onMouseMove={handleGridMouseMove}
+                onMouseUp={handleGridMouseEnd}
+                onMouseLeave={handleGridMouseEnd}
+              >
+                <div className="flex items-start gap-5 min-w-max px-4">
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[320px] shrink-0 rounded-[24px] ${isDark ? "bg-[#141414]" : "bg-[#FBF7EF]"
+                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
-                      <div className={`flex items-center justify-between px-5 py-4 ${isDark ? "border-b border-white/5" : "border-b border-[#E8E0D2]"
+                      <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
                         }`}>
-                        <div className="flex items-center gap-3">
-                          <h4 className={`text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                            {column.status}
-                          </h4>
-                          <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-medium ${isDark ? "bg-[#242424] text-white/70" : "bg-white text-[#666]"
-                            }`}>
-                            {column.totalItems}
-                          </span>
-                        </div>
-                        {/* <StatusBadge status={column.status} /> */}
+                        <h4 className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                          {column.status}
+                        </h4>
+                        <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-[#666]"}`}>
+                          {column.totalItems}
+                        </span>
                       </div>
+                        {/* <StatusBadge status={column.status} /> */}
 
                       <div
                         ref={(node) => {
@@ -1045,88 +1136,99 @@ export const ShootsTable = ({
                               setDraggedShootId(null);
                               setDraggedStatus(null);
                             }}
-                            className={`group cursor-pointer rounded-2xl border p-4 transition-all ${isDark
-                                ? "border-[#2F2F2F] bg-[#1A1A1A] hover:border-[#4A4A4A]"
-                                : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
-                              } ${draggedShootId === shoot.id ? "opacity-55" : ""}`}
+                            className={`group cursor-pointer rounded-2xl transition-all duration-200 ${isDark
+                                ? "bg-[#202020] hover:bg-[#1A1A1A]"
+                                : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
+                              } ${draggedShootId === shoot.id ? "opacity-50 scale-95" : "opacity-100"}`}
                           >
-                          <div className="flex items-start justify-between gap-3 -mt-2 -mr-2">
-                            <p className={`pt-2 text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
-                              {shoot.id}
-                            </p>
-                            <div className="flex items-center">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteClick(e, shoot.id);
-                                }}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
-                                  isDark 
-                                    ? "text-[#666] hover:bg-white/10 hover:text-red-500" 
-                                    : "text-[#999] hover:bg-red-50 hover:text-red-500"
-                                }`}
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRowClick(shoot.id);
-                                }}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
-                                  isDark 
-                                    ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" 
-                                    : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
-                                }`}
-                              >
-                                <ChevronRight size={18} />
-                              </button>
-                            </div>
-                          </div>
-
-                            <div className="flex items-center gap-3 mt-1">
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
-                                }`}>
-                                {shoot.initials}
-                              </div>
-                               <h4 className={`mt-2 text-sm font- leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"
-                                  }`}>
-                                  {shoot.customerName}
-                                </h4>
-                              </div>
-
-                            <div className="mt-4 space-y-4">
-                              <div>                                                            
-                                <p className={`mt-1 text-sm ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
-                                  {shoot.date}
-                                </p>
-                              </div>
-
-                              <div className={`rounded-xl p-3 ${isDark ? "bg-[#101010]" : "bg-[#FAF6EE]"}`}>
-                                <div className="flex items-center justify-between gap-3">
-                                  <div>
-                                    <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Category</p>
-                                    <p className={`mt-1 text-sm font-medium line-clamp-2 ${isDark ? "text-[#F1F1F1]" : "text-[#222222]"}`}>
-                                      {shoot.category}
-                                    </p>
-                                  </div>
-                                  <div className="text-right shrink-0">
-                                    <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Price</p>
-                                    <p className={`mt-1 text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                                      {shoot.price}
-                                    </p>
-                                  </div>
+                            <div className="flex items-start justify-between gap-3 p-5">
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <div className={`w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl shrink-0`}>
+                                  {shoot.initials}
+                                </div>
+                                <div className="min-w-0 pt-1">
+                                  <h4 className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
+                                    {shoot.customerName}
+                                  </h4>
+                                  <p className={`mt-1 text-sm font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                    {shoot.date}
+                                  </p>
                                 </div>
                               </div>
+                                <div className="relative shrink-0" data-card-actions>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
+                                    }}
+                                    className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                                    aria-label="Card actions"
+                                  >
+                                    <MoreVertical size={24} />
+                                  </button>
 
-                              <div className="flex items-center justify-between gap-3">
-                                <StatusBadge status={shoot.status} />
-                                <span className={`text-xs ${isDark ? "text-[#5F5F5F]" : "text-[#9A9A9A]"}`}>
-                                  Open details
-                                </span>
+                                  {openCardActionId === shoot.id && (
+                                    <div
+                                      className={`absolute right-0 top-9 z-20 min-w-[150px] rounded-xl border p-1 shadow-xl ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
+                                        }`}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenCardActionId(null);
+                                          handleRowClick(shoot.id);
+                                        }}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
+                                          }`}
+                                      >
+                                        <ChevronRight size={16} />
+                                        Open details
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenCardActionId(null);
+                                          handleDeleteClick(e, shoot.id);
+                                        }}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                          }`}
+                                      >
+                                        <Trash2 size={16} />
+                                        Delete
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+                            {/* DIVIDER */}
+                            <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                            {/* BODY */}
+                            <div className="space-y-4 p-5">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot ID</p>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.id}</p>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Category</p>
+                                <p className={`text-sm text-right font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.category}</p>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Price</p>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.price}</p>
+                              </div>
+                            </div>
+
+                            {/* DIVIDER */}
+                            <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                            {/* FOOTER */}
+                            <div className="flex items-center p-5">
+                              <StatusBadge status={shoot.status} />
                             </div>
                           </div>
                         ))}
