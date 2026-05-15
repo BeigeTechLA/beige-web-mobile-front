@@ -383,6 +383,16 @@ const PRODUCTION_FILTER_ALLOWED_VALUES = new Set(
   PRODUCTION_FILTER_OPTIONS.map((option) => option.value)
 );
 
+const GRID_STATUS_PAGE_SIZE = 10;
+
+type GridColumnState = {
+  page: number;
+  total: number;
+  hasMore: boolean;
+  loading: boolean;
+  items: LeadData[];
+};
+
 const normalizeProductionFilterValue = (value: unknown): string => {
   const raw = String(value ?? "").trim();
   if (!raw) return "all";
@@ -419,6 +429,10 @@ export default function AdminSaleRepManagerPage() {
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
   const [productionFilter, setProductionFilter] = useState<string>("all");
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
+  const [gridColumnsState, setGridColumnsState] = useState<Record<string, GridColumnState>>({});
+  const [gridBoardBootstrapping, setGridBoardBootstrapping] = useState(false);
+  const [gridBoardRefreshNonce, setGridBoardRefreshNonce] = useState(0);
+  const [gridBoardTotal, setGridBoardTotal] = useState(0);
 
   // Filters state
   const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
@@ -448,6 +462,36 @@ export default function AdminSaleRepManagerPage() {
         ? LEADS_FILTER_ALL_LIMIT
         : 50
       : 10;
+  const isBoardAllStatusesMode = activeTab === "Booking" && leadsViewMode === "grid" && statusFilter === "All";
+
+  const mapApiLeadToViewLead = (lead: any): LeadData => {
+    const manualPaymentSummary = lead?.manual_payment_summary || {};
+    const hasManualPaymentHistory = Boolean(
+      manualPaymentSummary?.paidAmount > 0 || manualPaymentSummary?.hasFullPayment
+    );
+    const hasFullManualPayment = Boolean(manualPaymentSummary?.hasFullPayment);
+    const isPaidByBookingStatus = isPaidBookingStatus(lead.booking_status);
+
+    return {
+      lead_id: lead.lead_id,
+      bookingId: lead.booking_id ? String(lead.booking_id) : undefined,
+      clientName: lead.client_name || lead.guest_email || "Unknown User",
+      email: lead.guest_email || "No email",
+      registrationType: lead.user_id ? "registered" : "guest",
+      leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
+      bookingStatus: hasFullManualPayment
+        ? "Paid"
+        : normalizeBookingStatusForList(lead.booking_status || "Unknown"),
+      lastActivity: formatRelativeTime(lead.last_activity_at),
+      date: new Date(lead.created_at),
+      intent: lead.intent || "Hot",
+      assignedSalesRepName: lead.assigned_sales_rep?.name || "",
+      assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
+      hasManualPaymentHistory,
+      isPaymentPending: !(isPaidByBookingStatus || hasFullManualPayment),
+      hasCreativePartnerAssigned: Array.isArray(lead.selected_crew_ids) && lead.selected_crew_ids.length > 0,
+    };
+  };
 
   // --- USERS STATE (Client/CP Tabs) ---
   const [users, setUsers] = useState<UserData[]>([]);
@@ -632,7 +676,7 @@ export default function AdminSaleRepManagerPage() {
   ]);
 
   // --- LEADS API CALL WITH FILTERS ---
-  const leadsQueryArgs = token
+  const leadsQueryArgs = token && !isBoardAllStatusesMode
     ? {
       page: leadsCurrentPage,
       limit: leadsLimit,
@@ -671,6 +715,143 @@ export default function AdminSaleRepManagerPage() {
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
   });
+
+  const getBoardBaseLeadParams = () => ({
+    search: debouncedSearch || undefined,
+    lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
+    assigned_to:
+      normalizeAssignedRepFilterValue(assignedRepIdFilter) === "all"
+        ? undefined
+        : normalizeAssignedRepFilterValue(assignedRepIdFilter),
+    cp_assignment: cpAssignmentFilter !== "all" ? cpAssignmentFilter : undefined,
+    production_filter:
+      normalizeProductionFilterValue(productionFilter) !== "all"
+        ? normalizeProductionFilterValue(productionFilter)
+        : undefined,
+    intent: intentFilter === "All" ? undefined : intentFilter,
+  });
+
+  const mergeBoardColumns = (
+    columnsPayload: Record<string, any>,
+    overallTotal?: number,
+    appendByStatus: Record<string, boolean> = {}
+  ) => {
+    if (typeof overallTotal === "number" && Number.isFinite(overallTotal)) {
+      setGridBoardTotal(overallTotal);
+    }
+    setGridColumnsState((prev) => {
+      const next = { ...prev };
+      Object.entries(columnsPayload || {}).forEach(([status, columnData]) => {
+        const leads = Array.isArray(columnData?.leads) ? columnData.leads : [];
+        const mapped = leads.map(mapApiLeadToViewLead);
+        const pagination = columnData?.pagination || {};
+        const page = Number(pagination.page || 1);
+        const total = Number(pagination.total || 0);
+        const totalPages = Number(pagination.totalPages || 0);
+        const hasMore = Boolean(pagination.hasMore ?? page < totalPages);
+        const shouldAppend = Boolean(appendByStatus[status]);
+        const existing = prev[status];
+
+        next[status] = {
+          page,
+          total,
+          hasMore,
+          loading: false,
+          items: shouldAppend && existing ? [...existing.items, ...mapped] : mapped,
+        };
+      });
+      return next;
+    });
+  };
+
+  const loadMoreGridColumn = async (status: string) => {
+    if (!isBoardAllStatusesMode) return;
+    const current = gridColumnsState[status];
+    if (!current || current.loading || !current.hasMore) return;
+
+    setGridColumnsState((prev) => ({
+      ...prev,
+      [status]: {
+        ...prev[status],
+        loading: true,
+      },
+    }));
+
+    try {
+      const response = await salesService.getLeadsBoard({
+        ...getBoardBaseLeadParams(),
+        status,
+        page: current.page + 1,
+        limit: GRID_STATUS_PAGE_SIZE,
+      });
+      mergeBoardColumns(response?.data?.columns || {}, response?.data?.pagination?.total, { [status]: true });
+    } catch (error) {
+      setGridColumnsState((prev) => ({
+        ...prev,
+        [status]: {
+          ...prev[status],
+          loading: false,
+        },
+      }));
+      console.error("Failed to load more board leads:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!token || !isBoardAllStatusesMode) {
+      setGridColumnsState({});
+      setGridBoardBootstrapping(false);
+      setGridBoardTotal(0);
+      return;
+    }
+
+    let isCancelled = false;
+    const statuses = BOOKING_STATUS_OPTIONS.map((status) => String(status));
+
+    setGridBoardBootstrapping(true);
+    setGridColumnsState(
+      statuses.reduce<Record<string, GridColumnState>>((acc, status) => {
+        acc[status] = { page: 0, total: 0, hasMore: true, loading: true, items: [] };
+        return acc;
+      }, {})
+    );
+
+    salesService.getLeadsBoard({
+      ...getBoardBaseLeadParams(),
+      page: 1,
+      limit: GRID_STATUS_PAGE_SIZE,
+    }).then((response) => {
+      if (isCancelled) return;
+      mergeBoardColumns(response?.data?.columns || {}, response?.data?.pagination?.total);
+    }).catch(() => {
+      if (isCancelled) return;
+      setGridColumnsState(
+        statuses.reduce<Record<string, GridColumnState>>((acc, key) => {
+          acc[key] = { page: 1, total: 0, hasMore: false, loading: false, items: [] };
+          return acc;
+        }, {})
+      );
+      setGridBoardTotal(0);
+    }).finally(() => {
+      if (!isCancelled) {
+        setGridBoardBootstrapping(false);
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    token,
+    isBoardAllStatusesMode,
+    debouncedSearch,
+    leadTypeFilter,
+    assignedRepIdFilter,
+    cpAssignmentFilter,
+    productionFilter,
+    intentFilter,
+    gridBoardRefreshNonce,
+  ]);
 
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {
@@ -819,43 +1000,33 @@ export default function AdminSaleRepManagerPage() {
       return;
     }
 
-    if (leadsApiData?.leads) {
-      const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => {
-        const manualPaymentSummary = lead?.manual_payment_summary || {};
-        const hasManualPaymentHistory = Boolean(
-          manualPaymentSummary?.paidAmount > 0 || manualPaymentSummary?.hasFullPayment
-        );
-        const hasFullManualPayment = Boolean(manualPaymentSummary?.hasFullPayment);
-        const isPaidByBookingStatus = isPaidBookingStatus(lead.booking_status);
+    if (isBoardAllStatusesMode) {
+      const merged = BOOKING_STATUS_OPTIONS.flatMap((status) => gridColumnsState[String(status)]?.items || []);
+      setDisplayLeads(merged);
+      return;
+    }
 
-        return {
-          lead_id: lead.lead_id,
-          bookingId: lead.booking_id ? String(lead.booking_id) : undefined,
-          clientName: lead.client_name || lead.guest_email || "Unknown User",
-          email: lead.guest_email || "No email",
-          registrationType: lead.user_id ? "registered" : "guest",
-          leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
-          bookingStatus: hasFullManualPayment
-            ? "Paid"
-            : normalizeBookingStatusForList(lead.booking_status || "Unknown"),
-          lastActivity: formatRelativeTime(lead.last_activity_at),
-          date: new Date(lead.created_at),
-          intent: lead.intent || "Hot",
-          assignedSalesRepName: lead.assigned_sales_rep?.name || "",
-          assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
-          hasManualPaymentHistory,
-          isPaymentPending: !(isPaidByBookingStatus || hasFullManualPayment),
-          hasCreativePartnerAssigned: Array.isArray(lead.selected_crew_ids) && lead.selected_crew_ids.length > 0,
-        };
-      });
+    if (leadsApiData?.leads) {
+      const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => mapApiLeadToViewLead(lead));
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
       setDisplayLeads([]); // Clear if no leads found
     }
-  }, [leadsApiData]);
+  }, [token, isBoardAllStatusesMode, gridColumnsState, leadsApiData]);
 
-  const leadsTotalRecords = leadsApiData?.pagination?.total || 0;
-  const leadsTotalPages = Math.ceil(leadsTotalRecords / leadsLimit);
+  const leadsTotalRecords = isBoardAllStatusesMode
+    ? gridBoardTotal
+    : (leadsApiData?.pagination?.total || 0);
+  const leadsTotalPages = isBoardAllStatusesMode ? 1 : Math.ceil(leadsTotalRecords / leadsLimit);
+  const boardColumnLoadingByStatus = Object.fromEntries(
+    Object.entries(gridColumnsState).map(([status, col]) => [status, Boolean(col.loading)])
+  );
+  const boardColumnHasMoreByStatus = Object.fromEntries(
+    Object.entries(gridColumnsState).map(([status, col]) => [status, Boolean(col.hasMore)])
+  );
+  const boardColumnTotalByStatus = Object.fromEntries(
+    Object.entries(gridColumnsState).map(([status, col]) => [status, Number(col.total || 0)])
+  );
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -1192,8 +1363,8 @@ export default function AdminSaleRepManagerPage() {
               <div>
                 <LeadsTable
                   data={displayLeads}
-                  loading={leadsIsLoading}
-                  isFetching={leadsIsFetching}
+                  loading={isBoardAllStatusesMode ? gridBoardBootstrapping : leadsIsLoading}
+                  isFetching={isBoardAllStatusesMode ? gridBoardBootstrapping : leadsIsFetching}
                   currentPage={leadsCurrentPage}
                   totalPages={leadsTotalPages}
                   totalRecords={leadsTotalRecords}
@@ -1204,6 +1375,10 @@ export default function AdminSaleRepManagerPage() {
                   onViewModeChange={setLeadsViewMode}
                   // onViewModeChange={setViewMode}
                   onPageChange={(page) => setLeadsCurrentPage(page)}
+                  onGridColumnEndReached={isBoardAllStatusesMode ? loadMoreGridColumn : undefined}
+                  gridColumnLoadingByStatus={isBoardAllStatusesMode ? boardColumnLoadingByStatus : undefined}
+                  gridColumnHasMoreByStatus={isBoardAllStatusesMode ? boardColumnHasMoreByStatus : undefined}
+                  gridColumnTotalByStatus={isBoardAllStatusesMode ? boardColumnTotalByStatus : undefined}
                   onRowClick={handleRowClick}
                   onOpenMenu={handleOpenMenu}
                 />
@@ -1438,14 +1613,22 @@ export default function AdminSaleRepManagerPage() {
               onClose={() => setMenuAnchor(null)}
               anchor={menuAnchor}
               onDeleteSuccess={() => {
-                refetchLeads();
+                if (isBoardAllStatusesMode) {
+                  setGridBoardRefreshNonce((prev) => prev + 1);
+                } else {
+                  refetchLeads();
+                }
                 fetchDashboardOverview();
                 if (activeTab !== "Booking") {
                   fetchUsers();
                 }
               }}
               onManualPaymentSuccess={() => {
-                refetchLeads();
+                if (isBoardAllStatusesMode) {
+                  setGridBoardRefreshNonce((prev) => prev + 1);
+                } else {
+                  refetchLeads();
+                }
                 fetchDashboardOverview();
                 if (activeTab !== "Booking") {
                   fetchUsers();

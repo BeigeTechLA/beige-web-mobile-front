@@ -815,7 +815,10 @@ export const ShootsTable = ({
   if (!mounted) return null;
 
   return (
-    <div className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+    <div className={`w-full overflow-hidden transition-all duration-300 ${activeViewMode === "list"
+      ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
+      : "bg-transparent border-transparent"
+      }`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
       {shouldRenderHeaderControls && (
 <div className={`flex flex-col lg:flex-row justify-end lg:items-center px-4 lg:px-6 pt-4 lg:pt-6 pb-0 gap-4`}>
@@ -938,7 +941,7 @@ export const ShootsTable = ({
       ) : (
         <>
           {/* MOBILE ONLY VIEW */}
-          {true ? (
+          {activeViewMode === "list" ? (
             <div className={`lg:hidden transition-colors duration-300 ${isDark ? "bg-[#111111]" : ""}`}>
               <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"}`}>
                 <span>Customer Name</span>
@@ -1034,34 +1037,31 @@ export const ShootsTable = ({
           )}
 
           {activeViewMode === "grid" ? (
-            <div className="hidden lg:block pt-0">
+            <div className="block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-2 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
                 onMouseLeave={handleGridMouseEnd}
               >
-                <div className="flex items-start gap-5 min-w-max bg-[#0A0A0A]">
+                <div className="flex items-start gap-5 min-w-max px-4">
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[320px] shrink-0 rounded-2xl ${isDark ? "bg-[#0A0A0A] border  border-[#4b4949] " : "bg-[#FBF7EF]"
+                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
-                      <div className={`flex items-center rounded-2xl justify-between px-5 py-4 ${isDark ? "bg-[#202020] border-b border-white/5" : "border-b border-[#E8E0D2]"
+                      <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
                         }`}>
-                        <div className="flex items-center gap-3">
-                          <h4 className={`text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                            {column.status}
-                          </h4>
-                          </div>
-                          
-                          <span className={`text-md font-medium ${isDark ? "text-white" : "text-[#666]"}`}>
-                            {column.totalItems}
-                          </span>
-                        </div>
+                        <h4 className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                          {column.status}
+                        </h4>
+                        <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-[#666]"}`}>
+                          {column.totalItems}
+                        </span>
+                      </div>
                         {/* <StatusBadge status={column.status} /> */}
 
                       <div
@@ -1123,27 +1123,25 @@ export const ShootsTable = ({
                               setDraggedShootId(null);
                               setDraggedStatus(null);
                             }}
-                            className={`group cursor-pointer overflow-visible rounded-2xl border transition-all ${isDark
-                                ? "border-[#2F2F2F] bg-[#202020] hover:border-[#4A4A4A]"
-                                : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
-                              } ${draggedShootId === shoot.id ? "opacity-55" : ""}`}
+                            className={`group cursor-pointer rounded-2xl transition-all duration-200 ${isDark
+                                ? "bg-[#202020] hover:bg-[#1A1A1A]"
+                                : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
+                              } ${draggedShootId === shoot.id ? "opacity-50 scale-95" : "opacity-100"}`}
                           >
-                            <div className="p-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3 min-w-0">
-                                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-semibold text-[15px] shrink-0 ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"
-                                    }`}>
-                                    {shoot.initials}
-                                  </div>
-                                  <div className="min-w-0 pt-1">
-                                    <h4 className={`text-[15px] font-medium leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"}`}>
-                                      {shoot.customerName}
-                                    </h4>
-                                    <p className={`mt-1 text-sm ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
-                                      {shoot.date}
-                                    </p>
-                                  </div>
+                            <div className="flex items-start justify-between gap-3 p-5">
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <div className={`w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl shrink-0`}>
+                                  {shoot.initials}
                                 </div>
+                                <div className="min-w-0 pt-1">
+                                  <h4 className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
+                                    {shoot.customerName}
+                                  </h4>
+                                  <p className={`mt-1 text-sm font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                    {shoot.date}
+                                  </p>
+                                </div>
+                              </div>
                                 <div className="relative shrink-0" data-card-actions>
                                   <button
                                     type="button"
@@ -1151,11 +1149,10 @@ export const ShootsTable = ({
                                       e.stopPropagation();
                                       setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
                                     }}
-                                    className={`-mt-1 -mr-1 flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#D8D8D8] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
-                                      }`}
+                                    className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
                                     aria-label="Card actions"
                                   >
-                                    <MoreVertical size={18} />
+                                    <MoreVertical size={24} />
                                   </button>
 
                                   {openCardActionId === shoot.id && (
@@ -1194,30 +1191,31 @@ export const ShootsTable = ({
                                   )}
                                 </div>
                               </div>
-                            </div>
+                            {/* DIVIDER */}
+                            <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
-                            <div className={`border-t px-4 py-4 ${isDark ? "border-[#4A4A4A]" : "border-[#EAE3D6]"}`}>
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className={`text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot ID</p>
-                                  <p className={`text-sm ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.id}</p>
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className={`text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Category</p>
-                                  <p className={`text-sm text-right ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.category}</p>
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className={`text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Price</p>
-                                  <p className={`text-sm ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.price}</p>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className={`border-t px-4 py-4 ${isDark ? "border-[#4A4A4A]" : "border-[#EAE3D6]"}`}>
+                            {/* BODY */}
+                            <div className="space-y-4 p-5">
                               <div className="flex items-center justify-between gap-3">
-                                <StatusBadge status={shoot.status} />
-                                
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot ID</p>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.id}</p>
                               </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Category</p>
+                                <p className={`text-sm text-right font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.category}</p>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Price</p>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.price}</p>
+                              </div>
+                            </div>
+
+                            {/* DIVIDER */}
+                            <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                            {/* FOOTER */}
+                            <div className="flex items-center p-5">
+                              <StatusBadge status={shoot.status} />
                             </div>
                           </div>
                         ))}

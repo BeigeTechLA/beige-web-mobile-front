@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { ChevronLeft, ChevronDown, ChevronRight, List, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
@@ -140,6 +140,60 @@ export default function UsersTable<T>({
   const [kanbanOrder, setKanbanOrder] = useState<Record<string, string[]>>({});
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<string | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const gridPanStateRef = useRef<{ startX: number; scrollLeft: number; isActive: boolean }>({
+    startX: 0,
+    scrollLeft: 0,
+    isActive: false,
+  });
+  const [isGridPanning, setIsGridPanning] = useState(false);
+
+  useEffect(() => {
+    const handleWindowMouseUp = () => {
+      gridPanStateRef.current.isActive = false;
+      setIsGridPanning(false);
+    };
+
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, []);
+
+  const handleGridMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("button, a, input, select, textarea, [draggable='true'], [data-card-actions]")) {
+      return;
+    }
+
+    const container = gridScrollRef.current;
+    if (!container) return;
+
+    gridPanStateRef.current = {
+      startX: event.clientX,
+      scrollLeft: container.scrollLeft,
+      isActive: true,
+    };
+    setIsGridPanning(true);
+  };
+
+  const handleGridMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!gridPanStateRef.current.isActive) return;
+
+    const container = gridScrollRef.current;
+    if (!container) return;
+
+    const deltaX = event.clientX - gridPanStateRef.current.startX;
+    container.scrollLeft = gridPanStateRef.current.scrollLeft - deltaX;
+    event.preventDefault();
+  };
+
+  const handleGridMouseEnd = () => {
+    gridPanStateRef.current.isActive = false;
+    setIsGridPanning(false);
+  };
 
   const startIndex = (currentPage - 1) * limit;
   const endIndex = startIndex + limit;
@@ -311,7 +365,14 @@ export default function UsersTable<T>({
           {viewMode === "grid" ? (
             /* GRID VIEW: Unified Mobile & Desktop per Reference */
             <div className="block">
-              <div className="overflow-x-auto overflow-y-auto no-scrollbar pb-2 max-h-[calc(100vh-200px)] snap-x snap-mandatory">
+              <div
+                ref={gridScrollRef}
+                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-2 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                onMouseDown={handleGridMouseDown}
+                onMouseMove={handleGridMouseMove}
+                onMouseUp={handleGridMouseEnd}
+                onMouseLeave={handleGridMouseEnd}
+              >
                 <div className="flex items-start gap-5 min-w-max px-4">
                   {kanbanColumns.map((column) => (
                     <div
@@ -328,7 +389,7 @@ export default function UsersTable<T>({
                         </span>
                       </div>
 
-                      <div className="px-4 py-4 space-y-3"
+                      <div className="max-h-[620px] overflow-y-auto no-scrollbar px-4 py-4 space-y-3"
                       // onDragOver={(e) => draggedStatus === column.status && e.preventDefault()}
                       // onDrop={(e) => {
                       //   if (draggedStatus !== column.status || !draggedItemId) return;

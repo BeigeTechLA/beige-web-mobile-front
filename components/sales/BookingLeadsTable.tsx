@@ -37,6 +37,10 @@ interface LeadsTableProps {
   showViewSwitcher?: boolean;
   onViewModeChange?: (mode: "list" | "grid") => void;
   onPageChange: (page: number) => void;
+  onGridColumnEndReached?: (status: string) => void;
+  gridColumnLoadingByStatus?: Record<string, boolean>;
+  gridColumnHasMoreByStatus?: Record<string, boolean>;
+  gridColumnTotalByStatus?: Record<string, number>;
   onRowClick: (id: number) => void;
   onOpenMenu: (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -106,6 +110,10 @@ export default function LeadsTable({
   showViewSwitcher = true,
   onViewModeChange,
   onPageChange,
+  onGridColumnEndReached,
+  gridColumnLoadingByStatus,
+  gridColumnHasMoreByStatus,
+  gridColumnTotalByStatus,
   onRowClick,
   onOpenMenu,
 }: LeadsTableProps) {
@@ -123,6 +131,7 @@ export default function LeadsTable({
   const [draggedStatus, setDraggedStatus] = useState<string | null>(null);
   const [isGridPanning, setIsGridPanning] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | number | null>(null);
+  const gridSentinelRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const currentViewMode = viewMode ?? internalViewMode;
 
   useEffect(() => {
@@ -146,7 +155,7 @@ export default function LeadsTable({
     if (event.button !== 0) return;
 
     const target = event.target as HTMLElement | null;
-    if (target?.closest("button, a, input, select, textarea, [draggable='true']")) {
+    if (target?.closest("button, a, input, select, textarea, [draggable='true'], [data-card-actions]")) {
       return;
     }
 
@@ -274,6 +283,32 @@ export default function LeadsTable({
     });
   };
 
+  useEffect(() => {
+    if (!onGridColumnEndReached || currentViewMode !== "grid") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const status = (entry.target as HTMLElement).dataset.status || "";
+          if (!status) return;
+          const isLoading = Boolean(gridColumnLoadingByStatus?.[status]);
+          const hasMore = gridColumnHasMoreByStatus?.[status] !== false;
+          if (!isLoading && hasMore) {
+            onGridColumnEndReached(status);
+          }
+        });
+      },
+      { root: null, rootMargin: "200px 0px 200px 0px", threshold: 0 }
+    );
+
+    Object.values(gridSentinelRefs.current).forEach((node) => {
+      if (node) observer.observe(node);
+    });
+
+    return () => observer.disconnect();
+  }, [onGridColumnEndReached, gridColumnLoadingByStatus, gridColumnHasMoreByStatus, currentViewMode, data]);
+
   if (loading && data.length === 0) {
     return (
       <div
@@ -314,8 +349,15 @@ export default function LeadsTable({
         )}
         <div className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
           {currentViewMode === "grid" ? (
-            <div className="block">
-              <div className="overflow-x-auto overflow-y-auto no-scrollbar pb-2 max-h-[calc(100vh-200px)] snap-x snap-mandatory">
+            <div className="block pt-0">
+              <div
+                ref={gridScrollRef}
+                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-2 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                onMouseDown={handleGridMouseDown}
+                onMouseMove={handleGridMouseMove}
+                onMouseUp={handleGridMouseEnd}
+                onMouseLeave={handleGridMouseEnd}
+              >
                 <div className="flex items-start gap-5 min-w-max px-4"> {/* Added padding for mobile breathing room */}
                   {/* <div className={`w-full overflow-hidden transition-all duration-300 ${viewMode === "list" ? `rounded-2xl border ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E5E5E5] bg-white"}` : "bg-transparent border-transparent"}`}>
       {showViewSwitcher && (
@@ -383,20 +425,19 @@ export default function LeadsTable({
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"}`}
+                      className={`w-[320px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"}`}
                     >
                       <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 ${isDark ? "border-b border-white/5 bg-[#202020]" : "border-b border-[#E8E0D2] bg-[#FBF7EF]"}`}>
                         <h4 className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
                           {column.status}
                         </h4>
                         <span className={`inline-flex h-6 min-w-6 items-center justify-center  px-2 text-sm font-medium ${isDark ? "text-white/70" : "text-[#666]"}`}>
-                          {column.totalItems}
+                          {gridColumnTotalByStatus?.[column.status] ?? column.totalItems}
                         </span>
                       </div>
 
                       <div
-                        /* Removed h-[500px] and overflow-y-auto to allow full length */
-                        className="px-4 py-4 space-y-3"
+                        className="max-h-[620px] overflow-y-auto no-scrollbar px-4 py-4 space-y-3"
                         onDragOver={(e) => {
                           if (draggedStatus !== column.status) return;
                           e.preventDefault();
@@ -450,8 +491,8 @@ export default function LeadsTable({
                                   } ${draggedLeadId === lead.lead_id ? "opacity-50 scale-95" : "opacity-100"}`}
                               >
                                 {/* 1. HEADER: Avatar, Name, Date, Menu */}
-                                <div className="flex items-start justify-between p-5">
-                                  <div className="flex items-center gap-3">
+                                <div className="flex items-start justify-between gap-3 p-5">
+                                  <div className="flex min-w-0 flex-1 items-center gap-3">
                                     <div className="w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl shrink-0">
                                       {lead.clientName
                                         .split(" ")
@@ -461,7 +502,10 @@ export default function LeadsTable({
                                         .substring(0, 2)}
                                     </div>
                                     <div className="min-w-0">
-                                      <h4 className={`text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
+                                      <h4
+                                        className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}
+                                        title={lead.clientName}
+                                      >
                                         {lead.clientName}
                                       </h4>
                                       <div className="mt-1">
@@ -487,7 +531,7 @@ export default function LeadsTable({
                                   <button
                                     type="button"
                                     disabled={isActionDisabled}
-                                    className={`p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                                    className={`shrink-0 p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onOpenMenu(
@@ -550,6 +594,22 @@ export default function LeadsTable({
                             );
                           })
                         )}
+                        {Boolean(gridColumnLoadingByStatus?.[column.status]) && (
+                          <div
+                            className={`mt-1 flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs ${isDark
+                              ? "border-white/10 bg-white/[0.03] text-white/70"
+                              : "border-[#E8E0D2] bg-[#FFF9EF] text-[#6B6256]"
+                              }`}
+                          >
+                            <Loader2 size={14} className="animate-spin" />
+                            <span>Loading more leads...</span>
+                          </div>
+                        )}
+                        <div
+                          ref={(el) => { gridSentinelRefs.current[column.status] = el; }}
+                          data-status={column.status}
+                          className="h-px w-full opacity-0"
+                        />
                       </div >
                     </div >
                   ))}

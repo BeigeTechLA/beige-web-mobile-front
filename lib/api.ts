@@ -2118,6 +2118,56 @@ export const ConfirmCPEventLocation = async () => {
 };
 
 export const salesApi = {
+  getLeads: async (params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    lead_type?: string;
+    assigned_to?: string;
+    search?: string;
+    start_date?: string;
+    end_date?: string;
+    intent?: string;
+    cp_assignment?: string;
+    production_filter?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('/sales/leads', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Leads Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch leads',
+      };
+    }
+  },
+  getLeadsBoard: async (params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    lead_type?: string;
+    assigned_to?: string;
+    search?: string;
+    start_date?: string;
+    end_date?: string;
+    intent?: string;
+    cp_assignment?: string;
+    production_filter?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('/sales/leads/board', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Leads Board Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch leads board',
+      };
+    }
+  },
   getLeadStats: async (leadId: number | string) => {
     try {
       const response = await api.get(`/sales/get-lead-stats/${leadId}`);
