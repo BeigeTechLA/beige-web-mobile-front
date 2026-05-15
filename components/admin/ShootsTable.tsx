@@ -248,6 +248,7 @@ export const ShootsTable = ({
   const dragAutoScrollFrameRef = React.useRef<number | null>(null);
   const dragAutoScrollStatusRef = React.useRef<ShootStatus | null>(null);
   const dragAutoScrollDirectionRef = React.useRef<"up" | "down" | null>(null);
+  const latestFetchIdRef = React.useRef(0);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
@@ -387,6 +388,9 @@ export const ShootsTable = ({
   }, [externalSelectedDate]);
 
   useEffect(() => {
+    let isCancelled = false;
+    const fetchId = ++latestFetchIdRef.current;
+
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -452,15 +456,24 @@ export const ShootsTable = ({
             hasAssignedCp,
           };
         });
-        setShoots(mappedShoots);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          setShoots(mappedShoots);
+        }
       } catch (error) {
-        console.error("Failed to fetch shoots:", error);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          console.error("Failed to fetch shoots:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+    return () => {
+      isCancelled = true;
+    };
   }, [range, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
 
   useEffect(() => {
