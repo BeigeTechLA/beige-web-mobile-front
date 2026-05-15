@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const payload = verifyQuotePreviewToken(quoteKey);
     if (!payload?.qid) {
       return NextResponse.json(
-        { success: false, error: "This quote link is invalid or expired." },
+        // { success: false, error: "This quote link is invalid or expired." },
         { status: 401 }
       );
     }
