@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, List, Grid3X3, SlidersHorizontal, Users, Check, X, ArrowUpToLine, Grid2x2, Filter, ChevronDown, MoreHorizontal } from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, List, SlidersHorizontal, Users, Check, X, ArrowUpToLine, Grid2x2, Filter, ChevronDown, MoreHorizontal, ArrowUpRight, User, Camera, Grid3X3 } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
@@ -71,6 +71,7 @@ interface LeadData {
   assignedSalesRepEmail?: string;
   hasManualPaymentHistory?: boolean;
   isPaymentPending?: boolean;
+  hasCreativePartnerAssigned?: boolean;
 }
 
 type OverviewMetric = {
@@ -328,6 +329,7 @@ const tabs: { label: string; value: TabType }[] = [
 
 const SALES_REP_PAGE_FILTERS_KEY = "sales-rep-management-filters";
 const SALES_REP_PRESERVE_KEY = "sales-rep-management-preserve";
+const LEADS_FILTER_ALL_LIMIT = 5000;
 
 const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
   "Signed Up - Lead Created",
@@ -353,6 +355,42 @@ const SHOOT_STAGE_OPTIONS = [
   { label: "Cancelled", value: "cancelled" },
 ] as const;
 
+const CP_ASSIGNMENT_OPTIONS = [
+  { label: "All CP Assignment", value: "all" },
+  { label: "CP Assigned", value: "assigned" },
+  { label: "CP Not Assigned", value: "not_assigned" },
+] as const;
+
+const PRODUCTION_FILTER_OPTIONS = [
+  { label: "All Production", value: "all" },
+  { label: "Pre Production - File Not Provided", value: "pre_production_file_not_provided" },
+  { label: "Pre Production - Meeting Not Done", value: "pre_production_meeting_not_done" },
+  { label: "Post Production - Meeting Not Done", value: "post_production_meeting_not_done" },
+  { label: "Post Production - File Not Uploaded", value: "post_production_file_not_uploaded" },
+] as const;
+
+const normalizeAssignedRepFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "all";
+  const lower = raw.toLowerCase();
+  if (lower === "all") return "all";
+  if (lower === "unassigned") return "unassigned";
+  if (/^\d+$/.test(raw)) return raw;
+  return "all";
+};
+
+const PRODUCTION_FILTER_ALLOWED_VALUES = new Set(
+  PRODUCTION_FILTER_OPTIONS.map((option) => option.value)
+);
+
+const normalizeProductionFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "all";
+  const lower = raw.toLowerCase();
+  if (lower === "all" || lower === "all production") return "all";
+  return PRODUCTION_FILTER_ALLOWED_VALUES.has(raw) ? raw : "all";
+};
+
 export default function AdminSaleRepManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -376,8 +414,10 @@ export default function AdminSaleRepManagerPage() {
   // --- LEADS STATE (Booking Tab) ---
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
   const [leadsViewMode, setLeadsViewMode] = useState<"list" | "grid">("list");
-  const leadsLimit = viewMode === "grid" ? 50 : 10;
+  // const leadsLimit = viewMode === "grid" ? 50 : 10;
 
+  const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [productionFilter, setProductionFilter] = useState<string>("all");
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
   // Filters state
@@ -392,6 +432,22 @@ export default function AdminSaleRepManagerPage() {
   const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([
     { label: "All Representatives", value: "all" },
   ]);
+  const hasAnyGridLeadFilterActive = (
+    leadTypeFilter !== "All Leads" ||
+    statusFilter !== "All" ||
+    intentFilter !== "All" ||
+    shootStageFilter !== "all" ||
+    assignedRepIdFilter !== "all" ||
+    cpAssignmentFilter !== "all" ||
+    productionFilter !== "all" ||
+    Boolean(debouncedSearch)
+  );
+  const leadsLimit =
+    leadsViewMode === "grid" //Change it to viewMode
+      ? hasAnyGridLeadFilterActive
+        ? LEADS_FILTER_ALL_LIMIT
+        : 50
+      : 10;
 
   // --- USERS STATE (Client/CP Tabs) ---
   const [users, setUsers] = useState<UserData[]>([]);
@@ -399,7 +455,9 @@ export default function AdminSaleRepManagerPage() {
   const [usersCurrentPage, setUsersCurrentPage] = useState(1);
   const [usersTotalPages, setUsersTotalPages] = useState(0);
   const [usersTotalRecords, setUsersTotalRecords] = useState(0);
-  const usersLimit = viewMode === "grid" ? 50 : 10;
+  // const usersLimit = viewMode === "grid" ? 50 : 10;
+  const usersLimit = leadsViewMode === "grid" ? 50 : 10;
+
 
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(true);
@@ -435,31 +493,32 @@ export default function AdminSaleRepManagerPage() {
     setMounted(true);
 
     try {
-      const shouldPreserveFilters = window.sessionStorage.getItem(SALES_REP_PRESERVE_KEY) === "true";
-
-      if (!shouldPreserveFilters) {
-        window.sessionStorage.removeItem(SALES_REP_PAGE_FILTERS_KEY);
-        return;
-      }
-
       const savedFilters = window.sessionStorage.getItem(SALES_REP_PAGE_FILTERS_KEY);
       if (!savedFilters) return;
 
       const parsed = JSON.parse(savedFilters);
+
+      console.log(parsed);
+
       if (parsed.activeTab) setActiveTab(parsed.activeTab);
       if (typeof parsed.searchQuery === "string") setSearchQuery(parsed.searchQuery);
       if (parsed.leadTypeFilter) setLeadTypeFilter(parsed.leadTypeFilter);
       if (parsed.statusFilter) setStatusFilter(parsed.statusFilter);
       if (parsed.intentFilter) setIntentFilter(parsed.intentFilter);
       if (parsed.shootStageFilter) setShootStageFilter(parsed.shootStageFilter);
-      if (parsed.assignedRepIdFilter) setAssignedRepIdFilter(parsed.assignedRepIdFilter);
-      if (parsed.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(parsed.clientAssignedRepIdFilter);
+      if (parsed.assignedRepIdFilter) setAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsed.assignedRepIdFilter));
+      if (parsed.cpAssignmentFilter) setCpAssignmentFilter(parsed.cpAssignmentFilter);
+      if (parsed.productionFilter) setProductionFilter(normalizeProductionFilterValue(parsed.productionFilter));
+      if (parsed.leadsViewMode === "grid" || parsed.leadsViewMode === "list") {
+        setLeadsViewMode(parsed.leadsViewMode);
+        // setViewMode(parsed.leadsViewMode);
+      }
+      if (parsed.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsed.clientAssignedRepIdFilter));
       if (parsed.leadsCurrentPage) setLeadsCurrentPage(parsed.leadsCurrentPage);
       if (parsed.usersCurrentPage) setUsersCurrentPage(parsed.usersCurrentPage);
     } catch (error) {
       console.error("Failed to restore sales representative page filters:", error);
     } finally {
-      window.sessionStorage.removeItem(SALES_REP_PRESERVE_KEY);
       hasRestoredFiltersRef.current = true;
     }
   }, []);
@@ -470,7 +529,7 @@ export default function AdminSaleRepManagerPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, debouncedSearch, leadsViewMode]);
+  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, cpAssignmentFilter, productionFilter, debouncedSearch, leadsViewMode]);
 
   useEffect(() => {
     setUsersCurrentPage(1);
@@ -517,6 +576,20 @@ export default function AdminSaleRepManagerPage() {
   }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
 
   useEffect(() => {
+    const normalizedAssigned = normalizeAssignedRepFilterValue(assignedRepIdFilter);
+    const normalizedClientAssigned = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
+    const validValues = new Set(salesRepOptions.map((option) => option.value));
+
+    if (normalizedAssigned !== "all" && normalizedAssigned !== "unassigned" && !validValues.has(normalizedAssigned)) {
+      setAssignedRepIdFilter("all");
+    }
+
+    if (normalizedClientAssigned !== "all" && normalizedClientAssigned !== "unassigned" && !validValues.has(normalizedClientAssigned)) {
+      setClientAssignedRepIdFilter("all");
+    }
+  }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
+
+  useEffect(() => {
     if (!mounted || !hasRestoredFiltersRef.current) return;
 
     try {
@@ -530,7 +603,10 @@ export default function AdminSaleRepManagerPage() {
           intentFilter,
           shootStageFilter,
           assignedRepIdFilter,
+          cpAssignmentFilter,
+          productionFilter,
           clientAssignedRepIdFilter,
+          leadsViewMode,
           leadsCurrentPage,
           usersCurrentPage,
         })
@@ -547,7 +623,10 @@ export default function AdminSaleRepManagerPage() {
     intentFilter,
     shootStageFilter,
     assignedRepIdFilter,
+    cpAssignmentFilter,
+    productionFilter,
     clientAssignedRepIdFilter,
+    leadsViewMode,
     leadsCurrentPage,
     usersCurrentPage,
   ]);
@@ -566,7 +645,18 @@ export default function AdminSaleRepManagerPage() {
           : statusFilter === "All"
             ? undefined
             : statusFilter,
-      assigned_to: assignedRepIdFilter === "all" ? undefined : assignedRepIdFilter,
+      assigned_to:
+        normalizeAssignedRepFilterValue(assignedRepIdFilter) === "all"
+          ? undefined
+          : normalizeAssignedRepFilterValue(assignedRepIdFilter),
+      cp_assignment:
+        leadsViewMode === "grid" && cpAssignmentFilter !== "all"
+          ? cpAssignmentFilter
+          : undefined,
+      production_filter:
+        leadsViewMode === "grid" && normalizeProductionFilterValue(productionFilter) !== "all"
+          ? normalizeProductionFilterValue(productionFilter)
+          : undefined,
       // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
       intent: intentFilter === "All" ? undefined : intentFilter,
     }
@@ -595,8 +685,9 @@ export default function AdminSaleRepManagerPage() {
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (usersStatusFilter !== "all") params.status = usersStatusFilter;
-      if (activeTab === "Client" && clientAssignedRepIdFilter !== "all") {
-        params.assigned_to = clientAssignedRepIdFilter;
+      const normalizedClientAssignedRep = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
+      if (activeTab === "Client" && normalizedClientAssignedRep !== "all") {
+        params.assigned_to = normalizedClientAssignedRep;
       }
 
       let allUsers: UserData[] = [];
@@ -604,8 +695,6 @@ export default function AdminSaleRepManagerPage() {
 
       if (activeTab === "Client") {
         const clientsRes = await adminApi.getClients(params);
-
-        console.log("Fetched Clients Count:", clientsRes?.data?.length);
 
         const clientsPayload = clientsRes?.data?.data || clientsRes?.data || {};
         const clientsList = Array.isArray(clientsPayload)
@@ -756,6 +845,7 @@ export default function AdminSaleRepManagerPage() {
           assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
           hasManualPaymentHistory,
           isPaymentPending: !(isPaidByBookingStatus || hasFullManualPayment),
+          hasCreativePartnerAssigned: Array.isArray(lead.selected_crew_ids) && lead.selected_crew_ids.length > 0,
         };
       });
       setDisplayLeads(mapped);
@@ -895,6 +985,7 @@ export default function AdminSaleRepManagerPage() {
                 setActiveTab(tab);
                 if (tab === "Creative Partner") {
                   setViewMode("list");
+                  setLeadsViewMode("list");
                 }
                 setUsersCurrentPage(1);
                 setLeadsCurrentPage(1);
@@ -918,14 +1009,19 @@ export default function AdminSaleRepManagerPage() {
                 />
               </div>
 
-              <div className={`flex items-center gap-2 ${activeTab === "Creative Partner" ? "justify-end" : "justify-between"}`}>
-                <Button
-                  className={`h-12 px-3 lg:px-5 transition-colors text-sm font-medium border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]" : "bg-[#E5E5E5] text-black hover:bg-[#D9D9D9]"}`}
-                  onClick={() => setShowFilters((prev) => !prev)}
-                >
-                  <SlidersHorizontal size={24} className={`mr-1 transition-colors ${isDark ? "text-white" : "text-black"}`} />
-                  Filter
-                </Button>
+              <div className={`flex items-center gap-2 ${(activeTab === "Creative Partner") ? "justify-end" : "justify-between"}`}>
+                {/* Update this conditional rendering as required */}
+                {
+                  leadsViewMode === "grid" && (
+                    <Button
+                      className={`h-12 px-3 lg:px-5 transition-colors text-sm font-medium border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]" : "bg-[#E5E5E5] text-black hover:bg-[#D9D9D9]"}`}
+                      onClick={() => setShowFilters((prev) => !prev)}
+                    >
+                      <SlidersHorizontal size={24} className={`mr-1 transition-colors ${isDark ? "text-white" : "text-black"}`} />
+                      Filter
+                    </Button>
+                  )
+                }
 
                 {
                   activeTab !== "Creative Partner" && (
@@ -937,15 +1033,18 @@ export default function AdminSaleRepManagerPage() {
                           className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
                             }`}
                           style={{
-                            transform: viewMode === "grid" ? "translateX(100%)" : "translateX(0%)",
+                            transform: leadsViewMode === "grid" ? "translateX(100%)" : "translateX(0%)",
                           }}
                         />
 
                         {/* List Button */}
                         <button
                           type="button"
-                          onClick={() => setViewMode("list")}
-                          className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "list"
+                          onClick={() => {
+                            setViewMode("list")
+                            setLeadsViewMode("list")
+                          }}
+                          className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${leadsViewMode === "list"
                             ? "text-black"
                             : isDark
                               ? "text-white/60 hover:text-white"
@@ -958,8 +1057,11 @@ export default function AdminSaleRepManagerPage() {
                         {/* Grid Button */}
                         <button
                           type="button"
-                          onClick={() => setViewMode("grid")}
-                          className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "grid"
+                          onClick={() => {
+                            setViewMode("grid")
+                            setLeadsViewMode("grid")
+                          }}
+                          className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${leadsViewMode === "grid"
                             ? "text-black"
                             : isDark
                               ? "text-white/60 hover:text-white"
@@ -973,12 +1075,12 @@ export default function AdminSaleRepManagerPage() {
                   )
                 }
               </div>
-            </div>
+            </div >
 
             {
-              (showFilters && (activeTab !== "Creative Partner")) && (
+              (showFilters && (activeTab !== "Creative Partner") && leadsViewMode === "grid") && (
                 <div className={`${isDark ? "bg-[#171717]" : "bg-white"} rounded-lg lg:rounded-xl p-3.5 transition-colors duration-300`}>
-                  {activeTab === "Booking" && (
+                  {activeTab === "Booking" && leadsViewMode === "grid" && (
                     <div className="flex flex-wrap gap-2 lg:justify-start lg:gap-4">
 
                       <BasicDropdown
@@ -987,6 +1089,7 @@ export default function AdminSaleRepManagerPage() {
                         options={["All Leads", "Self-Serve", "Sales Assisted"]}
                         onChange={(val) => setLeadTypeFilter(val)}
                       />
+
                       <BasicDropdown
                         label="Client Representative"
                         value={assignedRepIdFilter}
@@ -994,7 +1097,7 @@ export default function AdminSaleRepManagerPage() {
                         searchable
                         searchPlaceholder="Search representative..."
                         onChange={(val) => {
-                          setAssignedRepIdFilter(val);
+                          setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
                         }}
                         openAlign={"right"}
                       />
@@ -1004,14 +1107,18 @@ export default function AdminSaleRepManagerPage() {
                         options={["All", "Hot", "Warm", "Cold"]}
                         onChange={(val) => setIntentFilter(val as any)}
                       />
-                      {leadsViewMode === "grid" && (
-                        <BasicDropdown
-                          label="Shoot Stage"
-                          value={shootStageFilter}
-                          options={SHOOT_STAGE_OPTIONS as any}
-                          onChange={(val) => setShootStageFilter(val)}
-                        />
-                      )}
+                      <BasicDropdown
+                        label="Shoot Stage"
+                        value={shootStageFilter}
+                        options={SHOOT_STAGE_OPTIONS as any}
+                        onChange={(val) => setShootStageFilter(val)}
+                      />
+                      <BasicDropdown
+                        label="CP Assignment"
+                        value={cpAssignmentFilter}
+                        options={CP_ASSIGNMENT_OPTIONS as any}
+                        onChange={(val) => setCpAssignmentFilter(val as "all" | "assigned" | "not_assigned")}
+                      />
 
                       <BasicDropdown
                         label="All Statuses"
@@ -1021,6 +1128,39 @@ export default function AdminSaleRepManagerPage() {
                         openAlign={"right"}
                       />
                     </div>
+                    // {activeTab === "Booking" && leadsViewMode !== "grid" && (
+                    //   <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
+
+                    //     <BasicDropdown
+                    //       label="Lead Type"
+                    //       value={leadTypeFilter}
+                    //       options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                    //       onChange={(val) => setLeadTypeFilter(val)}
+                    //     />
+                    //     <BasicDropdown
+                    //       label="Client Representative"
+                    //       value={assignedRepIdFilter}
+                    //       options={salesRepOptions}
+                    //       searchable
+                    //       searchPlaceholder="Search representative..."
+                    //       onChange={(val) => {
+                    //         setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
+                    //       }}
+                    //       openAlign={"right"}
+                    //     />
+                    //     <BasicDropdown
+                    //       label="Intent Type"
+                    //       value={intentFilter}
+                    //       options={["All", "Hot", "Warm", "Cold"]}
+                    //       onChange={(val) => setIntentFilter(val as any)}
+                    //     />
+                    //     {leadsViewMode === "grid" && (
+                    //       <BasicDropdown
+                    //         label="Shoot Stage"
+                    //         value={shootStageFilter}
+                    //         options={SHOOT_STAGE_OPTIONS as any}
+                    //         onChange={(val) => setShootStageFilter(val)}
+                    //       />
                   )}
 
                   {activeTab === "Client" && (
@@ -1032,40 +1172,44 @@ export default function AdminSaleRepManagerPage() {
                         searchable
                         searchPlaceholder="Search representative..."
                         onChange={(val) => {
-                          setClientAssignedRepIdFilter(val);
+                          setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
                         }}
                         openAlign={"right"}
                       />
                     </div>
                   )}
                 </div>
-              )}
-          </div>
-        </div>
+              )
+            }
+          </div >
+        </div >
 
         {/* <DottedDivider className="lg:hidden" /> */}
 
-        {activeTab === "Booking" ? (
-          <div className="flex flex-col gap-4">
-            <div>
-              <LeadsTable
-                data={displayLeads}
-                loading={leadsIsLoading}
-                isFetching={leadsIsFetching}
-                currentPage={leadsCurrentPage}
-                totalPages={leadsTotalPages}
-                totalRecords={leadsTotalRecords}
-                limit={leadsLimit}
-                activeStatusFilter={statusFilter}
-                onViewModeChange={setLeadsViewMode}
-                onPageChange={(page) => setLeadsCurrentPage(page)}
-                onRowClick={handleRowClick}
-                onOpenMenu={handleOpenMenu}
-                viewMode={viewMode}
-              />
-            </div>
+        {
+          activeTab === "Booking" ? (
+            <div className="flex flex-col gap-4">
+              <div>
+                <LeadsTable
+                  data={displayLeads}
+                  loading={leadsIsLoading}
+                  isFetching={leadsIsFetching}
+                  currentPage={leadsCurrentPage}
+                  totalPages={leadsTotalPages}
+                  totalRecords={leadsTotalRecords}
+                  limit={leadsLimit}
+                  activeStatusFilter={statusFilter}
+                  viewMode={leadsViewMode}
+                  showViewSwitcher={false}
+                  onViewModeChange={setLeadsViewMode}
+                  // onViewModeChange={setViewMode}
+                  onPageChange={(page) => setLeadsCurrentPage(page)}
+                  onRowClick={handleRowClick}
+                  onOpenMenu={handleOpenMenu}
+                />
+              </div>
 
-            {/* <div className="lg:hidden flex flex-col gap-2">
+              {/* <div className="lg:hidden flex flex-col gap-2">
               {displayLeads.map((lead) => (
                 <MobileLeadRow
                   key={lead.lead_id}
@@ -1080,242 +1224,245 @@ export default function AdminSaleRepManagerPage() {
                 />
               ))}
             </div> */}
-          </div>
-        ) : (
-          <UsersTable<UserData>
-            data={users}
-            loading={usersLoading}
-            currentPage={usersCurrentPage}
-            totalPages={usersTotalPages}
-            totalRecords={usersTotalRecords}
-            limit={usersLimit}
-            headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
-            onPageChange={(page) => setUsersCurrentPage(page)}
-            enableKanbanView
-            kanbanStatuses={[...BOOKING_STATUS_OPTIONS, "Approved", "Rejected", "Pending", "Unknown"]}
-            getItemId={(user) => user.id}
-            getItemStatus={(user) => user.bookingStatus || user.status}
-            viewMode={viewMode}
-            renderRow={(user, isExpanded) => (
-              <>
-                {/* 1. USER ID (Desktop Only) */}
-                <td className={`hidden md:table-cell py-5 px-6 text-sm transition-colors ${isDark ? "text-[#888]" : "text-[#666]"}`}>{
-                  user.id}</td>
-                {/* 2. USER INFO (Visible on Mobile & Desktop) */}
-                <td className={`p-5 border-b lg:w-auto w-1/2 transition-colors ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
-                  <div className="flex items-start gap-3 min-w-0">
-                    {/* Mobile Chevron Toggle */}
-                    <div className={`shrink-0 md:hidden h-6 w-6 rounded-full flex items-center justify-center border transition-transform ${isExpanded ? "rotate-180 border-[#E8D1AB] bg-[#E8D1AB]/10" : "border-[#4B4B4B]"
-                      }`}>
-                      <ChevronDown size={14} className={isExpanded ? "text-[#E8D1AB]" : "text-[#777]"} />
-                    </div>
-
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
+            </div>
+          ) : (
+            <UsersTable<UserData>
+              data={users}
+              loading={usersLoading}
+              currentPage={usersCurrentPage}
+              totalPages={usersTotalPages}
+              totalRecords={usersTotalRecords}
+              limit={usersLimit}
+              headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
+              onPageChange={(page) => setUsersCurrentPage(page)}
+              enableKanbanView
+              kanbanStatuses={[...BOOKING_STATUS_OPTIONS, "Approved", "Rejected", "Pending", "Unknown"]}
+              getItemId={(user) => user.id}
+              getItemStatus={(user) => user.bookingStatus || user.status}
+              viewMode={leadsViewMode}
+              renderRow={(user, isExpanded) => (
+                <>
+                  {/* 1. USER ID (Desktop Only) */}
+                  <td className={`hidden md:table-cell py-5 px-6 text-sm transition-colors ${isDark ? "text-[#888]" : "text-[#666]"}`}>{
+                    user.id}</td>
+                  {/* 2. USER INFO (Visible on Mobile & Desktop) */}
+                  <td className={`p-5 border-b lg:w-auto w-1/2 transition-colors ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                    <div className="flex items-start gap-3 min-w-0">
+                      {/* Mobile Chevron Toggle */}
+                      <div className={`shrink-0 md:hidden h-6 w-6 rounded-full flex items-center justify-center border transition-transform ${isExpanded ? "rotate-180 border-[#E8D1AB] bg-[#E8D1AB]/10" : "border-[#4B4B4B]"
                         }`}>
-                        {user.imageUrl ? (
-                          <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
-                        ) : (
-                          <span>{user.initials}</span>
-                        )}
+                        <ChevronDown size={14} className={isExpanded ? "text-[#E8D1AB]" : "text-[#777]"} />
                       </div>
-                      <div className="truncate">
-                        <div className="flex items-center gap-2">
-                          <p className={`font-medium text-[15px] truncate ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>
-                            {user.name}
-                          </p>
-                          <span className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${user.registrationType === "registered"
-                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                            : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                            }`}>
-                            {user.registrationType === "registered" ? "Reg" : "Guest"}
-                          </span>
+
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
+                          }`}>
+                          {user.imageUrl ? (
+                            <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            <span>{user.initials}</span>
+                          )}
                         </div>
-                        <p className={`text-xs mt-0.5 ${isDark ? "text-[#666]" : "text-[#999]"}`}>{user.joinDate}</p>
+                        <div className="truncate">
+                          <div className="flex items-center gap-2">
+                            <p className={`font-medium text-[15px] truncate ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>
+                              {user.name}
+                            </p>
+                            <span className={`hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${user.registrationType === "registered"
+                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                              }`}>
+                              {user.registrationType === "registered" ? "Reg" : "Guest"}
+                            </span>
+                          </div>
+                          <p className={`text-xs mt-0.5 ${isDark ? "text-[#666]" : "text-[#999]"}`}>{user.joinDate}</p>
+                        </div>
+                        {user.bookingId ? (
+                          <p className={`text-xs transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                            #{user.bookingId}
+                          </p>
+                        ) : null}
                       </div>
-                      {user.bookingId ? (
-                        <p className={`text-xs transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                          #{user.bookingId}
+                    </div>
+                  </td>
+
+                  {/* 3. TYPE (Desktop Only) */}
+                  <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm">{user.type}</span>
+                      <span className={`text-xs ${isDark ? "text-[#666]" : "text-[#999]"}`}>
+                        {user.registrationType === "registered" ? "Registered" : "Guest"}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* 4. INTENT (Desktop Only) */}
+                  <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
+                    <IntentBadge intent={(user.intent as any) || "Warm"} />
+                  </td>
+
+                  {/* 5. STATUS (Mobile & Desktop) */}
+                  <td className={`p-5 border-b text-right md:text-left ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                    <div className="flex justify-end md:justify-start">
+                      <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
+                    </div>
+                  </td>
+
+                  {/* 6. CONTACT (Desktop Only) */}
+                  <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
+                    <div className="space-y-1 min-w-0">
+                      <p>{user.phoneNumber}</p>
+                      {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                        <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                          {user.assignedSalesRepName || "Unassigned"}
+                          {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
                         </p>
-                      ) : null}
+                      )}
+                    </div>
+                  </td>
+
+                  {/* 7. ACTION (Desktop Only) */}
+                  <td className={`hidden md:table-cell p-5 border-b text-right ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                    <button
+                      className={`transition-colors p-2 rounded-lg ${isDark ? "text-[#666] hover:text-white hover:bg-white/5" : "text-[#999] hover:text-black hover:bg-black/5"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rawId = user.id.replace('#', '');
+                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
+                      }}
+                    >
+                      <MoreVertical size={20} />
+                    </button>
+                  </td>
+                </>
+              )}
+
+              /* GRID VIEW CARD */
+              renderKanbanCard={(user) => (
+                <div onClick={() => handleUserRowClick(user)} className="w-full">
+                  {/* 1. HEADER: Avatar, Name, Date, Menu */}
+                  <div className="flex items-start justify-between p-5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl shrink-0">
+                        {user.imageUrl ? <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" /> : user.initials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-xs uppercase tracking-widest ${isDark ? "text-[#666]" : "text-[#A3A3A3]"}`}>{user.id}</p>
+                        <h4 className={`mt-1 text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>{user.name}</h4>
+                      </div>
+                    </div>
+                    <button
+                      className={`p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                      onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}
+                    >
+                      <MoreVertical size={24} />
+                    </button>
+                  </div>
+                  {/* DIVIDER */}
+                  <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                  {/* 2. BODY: Row-based content */}
+                  <div className="space-y-4 p-5">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                        Intent
+                      </span>
+                      <IntentBadge intent={(user.intent || "Hot") as any} size="sm" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                        Type
+                      </span>
+                      <span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
+                        {user.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                        Contact Info
+                      </span>
+                      <span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
+                        {user.phoneNumber}
+                      </span>
                     </div>
                   </div>
-                </td>
 
-                {/* 3. TYPE (Desktop Only) */}
-                <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm">{user.type}</span>
-                    <span className={`text-xs ${isDark ? "text-[#666]" : "text-[#999]"}`}>
-                      {user.registrationType === "registered" ? "Registered" : "Guest"}
-                    </span>
+                  {/* DIVIDER */}
+                  <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                  {/* 3. FOOTER: Status Badge */}
+                  <div className="flex items-center p-5">
+                    <LeadsStatusBadge status={user.bookingStatus || "Unknown"} />
                   </div>
-                </td>
+                </div>
+              )}
 
-                {/* 4. INTENT (Desktop Only) */}
-                <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
-                  <IntentBadge intent={(user.intent as any) || "Warm"} />
-                </td>
-
-                {/* 5. STATUS (Mobile & Desktop) */}
-                <td className={`p-5 border-b text-right md:text-left ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
-                  <div className="flex justify-end md:justify-start">
-                    <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
-                  </div>
-                </td>
-
-                {/* 6. CONTACT (Desktop Only) */}
-                <td className={`hidden md:table-cell p-5 border-b ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#F0F0F0] text-[#333]"}`}>
+              /* MOBILE EXPANDABLE DETAILS */
+              renderMobileDetails={(user) => (
+                <div className="grid grid-cols-2 gap-y-5">
                   <div className="space-y-1 min-w-0">
-                    <p>{user.phoneNumber}</p>
-                    {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
-                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
-                        {user.assignedSalesRepName || "Unassigned"}
-                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
-                      </p>
-                    )}
+                    <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Email</p>
+                    <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{user.email}</p>
                   </div>
-                </td>
-
-                {/* 7. ACTION (Desktop Only) */}
-                <td className={`hidden md:table-cell p-5 border-b text-right ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
-                  <button
-                    className={`transition-colors p-2 rounded-lg ${isDark ? "text-[#666] hover:text-white hover:bg-white/5" : "text-[#999] hover:text-black hover:bg-black/5"}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const rawId = user.id.replace('#', '');
-                      handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
-                    }}
-                  >
-                    <MoreVertical size={20} />
-                  </button>
-                </td>
-              </>
-            )}
-
-            /* GRID VIEW CARD */
-            renderKanbanCard={(user) => (
-              <div onClick={() => handleUserRowClick(user)} className="w-full">
-                {/* 1. HEADER: Avatar, Name, Date, Menu */}
-                <div className="flex items-start justify-between p-5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl shrink-0">
-                      {user.imageUrl ? <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" /> : user.initials}
-                    </div>
-                    <div className="min-w-0">
-                      <p className={`text-xs uppercase tracking-widest ${isDark ? "text-[#666]" : "text-[#A3A3A3]"}`}>{user.id}</p>
-                      <h4 className={`mt-1 text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>{user.name}</h4>
-                    </div>
+                  <div className="space-y-1 text-right">
+                    <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Type</p>
+                    <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{user.type}</p>
                   </div>
-                  <button
-                    className={`p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
-                    onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}
-                  >
-                    <MoreVertical size={24} />
-                  </button>
-                </div>
-                {/* DIVIDER */}
-                <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
-
-                {/* 2. BODY: Row-based content */}
-                <div className="space-y-4 p-5">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                      Intent
-                    </span>
-                    <IntentBadge intent={(user.intent || "Hot") as any} size="sm" />
+                  <div className="space-y-1 min-w-0">
+                    <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Intent</p>
+                    <IntentBadge intent={(user.intent || "Hot") as "Hot" | "Warm" | "Cold"} />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                      Type
-                    </span>
-                    <span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
-                      {user.type}
-                    </span>
+                  <div className="space-y-1 text-right">
+                    <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>Contact Info</p>
+                    <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                      Contact Info
-                    </span>
-                    <span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
-                      {user.phoneNumber}
-                    </span>
+                  <div className="space-y-1 min-w-0">
+                    <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Action</p>
+                    <button className={`inline-flex items-center justify-center p-1 ${isDark ? "text-white" : "text-black"}`} onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}>
+                      <MoreHorizontal size={28} />
+                    </button>
                   </div>
                 </div>
+              )}
+            />
+          )
+        }
 
-                {/* DIVIDER */}
-                <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
-
-                {/* 3. FOOTER: Status Badge */}
-                <div className="flex items-center p-5">
-                  <LeadsStatusBadge status={user.bookingStatus || "Unknown"} />
-                </div>
-              </div>
-            )}
-
-            /* MOBILE EXPANDABLE DETAILS */
-            renderMobileDetails={(user) => (
-              <div className="grid grid-cols-2 gap-y-5">
-                <div className="space-y-1 min-w-0">
-                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Email</p>
-                  <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{user.email}</p>
-                </div>
-                <div className="space-y-1 text-right">
-                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Type</p>
-                  <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{user.type}</p>
-                </div>
-                <div className="space-y-1 min-w-0">
-                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Intent</p>
-                  <IntentBadge intent={(user.intent || "Hot") as "Hot" | "Warm" | "Cold"} />
-                </div>
-                <div className="space-y-1 text-right">
-                  <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>Contact Info</p>
-                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
-                </div>
-                <div className="space-y-1 min-w-0">
-                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Action</p>
-                  <button className={`inline-flex items-center justify-center p-1 ${isDark ? "text-white" : "text-black"}`} onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}>
-                    <MoreHorizontal size={28} />
-                  </button>
-                </div>
-              </div>
-            )}
-          />
-        )}
-
-        {menuAnchor && selectedLeadId && (
-          <ActionMenu
-            client={selectedClient}
-            leadId={selectedLeadId}
-            allowPaymentTransaction={selectedAllowPaymentTransaction}
-            isOpen={true}
-            onClose={() => setMenuAnchor(null)}
-            anchor={menuAnchor}
-            onDeleteSuccess={() => {
-              refetchLeads();
-              fetchDashboardOverview();
-              if (activeTab !== "Booking") {
-                fetchUsers();
+        {
+          menuAnchor && selectedLeadId && (
+            <ActionMenu
+              client={selectedClient}
+              leadId={selectedLeadId}
+              allowPaymentTransaction={selectedAllowPaymentTransaction}
+              isOpen={true}
+              onClose={() => setMenuAnchor(null)}
+              anchor={menuAnchor}
+              onDeleteSuccess={() => {
+                refetchLeads();
+                fetchDashboardOverview();
+                if (activeTab !== "Booking") {
+                  fetchUsers();
+                }
+              }}
+              onManualPaymentSuccess={() => {
+                refetchLeads();
+                fetchDashboardOverview();
+                if (activeTab !== "Booking") {
+                  fetchUsers();
+                }
+              }}
+              basePath={
+                activeTab === "Booking"
+                  ? "/admin/sales-representative"
+                  : activeTab === "Client"
+                    ? "/admin/sales-representative/client"
+                    : activeTab === "Creative Partner"
+                      ? "/admin/users/creative-partners"
+                      : undefined
               }
-            }}
-            onManualPaymentSuccess={() => {
-              refetchLeads();
-              fetchDashboardOverview();
-              if (activeTab !== "Booking") {
-                fetchUsers();
-              }
-            }}
-            basePath={
-              activeTab === "Booking"
-                ? "/admin/sales-representative"
-                : activeTab === "Client"
-                  ? "/admin/sales-representative/client"
-                  : activeTab === "Creative Partner"
-                    ? "/admin/users/creative-partners"
-                    : undefined
-            }
-          />
-        )}
+            />
+          )
+        }
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
@@ -1326,7 +1473,7 @@ export default function AdminSaleRepManagerPage() {
             Create new lead
           </Button>
         </div>
-      </div>
+      </div >
     </>
   );
 }

@@ -22,6 +22,10 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 type QuotePreviewDocumentProps = {
   quote: SalesQuoteDetailData;
   quoteId?: string | null;
+  showServiceAgreementAcceptance?: boolean;
+  acceptServiceAgreement?: boolean;
+  onAcceptServiceAgreementChange?: (checked: boolean) => void;
+  onOpenServiceAgreement?: () => void;
   paymentSummaryOverrides?: {
     previousTotal?: number;
     previouslyPaid?: number;
@@ -210,6 +214,10 @@ const ServiceTable = ({
 export default function QuotePreviewDocument({
   quote,
   quoteId,
+  showServiceAgreementAcceptance = false,
+  acceptServiceAgreement = true,
+  onAcceptServiceAgreementChange,
+  onOpenServiceAgreement,
   paymentSummaryOverrides,
 }: QuotePreviewDocumentProps) {
   const { isDark } = useResolvedTheme();
@@ -464,6 +472,32 @@ export default function QuotePreviewDocument({
 
           </div>
         </section>
+
+        {showServiceAgreementAcceptance ? (
+          <div
+            className={`flex items-start gap-3 rounded-[10px] p-3 lg:p-4 ${
+              isDark ? "bg-[#2A2A2A]" : "border border-[#E3E3E3] bg-[#F4F5F7]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={acceptServiceAgreement}
+              onChange={(e) => onAcceptServiceAgreementChange?.(e.target.checked)}
+              className="mt-1 cursor-pointer"
+            />
+            <p className={`text-sm ${isDark ? "text-[#999]" : "text-[#52525B]"}`}>
+              I have read and agree to the{" "}
+              <button
+                type="button"
+                onClick={onOpenServiceAgreement}
+                className="text-[#E8D5B5] underline hover:text-[#f3e4cd] cursor-pointer"
+              >
+                Service Agreement & Terms of Engagement
+              </button>
+              .
+            </p>
+          </div>
+        ) : null}
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 

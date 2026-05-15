@@ -121,7 +121,7 @@ export interface SalesLeadDetails extends SalesLead {
     crew_roles?: string;
     skills_needed?: string;
     equipments_needed?: string;
-    reference_links?: string;
+    reference_links?: string | string[];
     edits_needed?: boolean;
     special_instructions?: string;
     is_draft?: boolean;
