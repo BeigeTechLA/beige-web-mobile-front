@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { MoreVertical, Loader2, Grid3X3, List } from "lucide-react";
 import { LeadsStatusBadge, BookingStatus } from "@/components/sales/LeadsStatusBadge";
@@ -111,15 +111,69 @@ export default function LeadsTable({
 }: LeadsTableProps) {
   const { theme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark" || theme === "dark";
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const gridPanStateRef = useRef<{ startX: number; scrollLeft: number; isActive: boolean }>({
+    startX: 0,
+    scrollLeft: 0,
+    isActive: false,
+  });
   const [internalViewMode, setInternalViewMode] = useState<"list" | "grid">("list");
   const [kanbanOrder, setKanbanOrder] = useState<Record<string, number[]>>({});
   const [draggedLeadId, setDraggedLeadId] = useState<number | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<string | null>(null);
+  const [isGridPanning, setIsGridPanning] = useState(false);
   const currentViewMode = viewMode ?? internalViewMode;
 
   useEffect(() => {
     onViewModeChange?.(currentViewMode);
   }, [onViewModeChange, currentViewMode]);
+
+  useEffect(() => {
+    const handleWindowMouseUp = () => {
+      gridPanStateRef.current.isActive = false;
+      setIsGridPanning(false);
+    };
+
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, []);
+
+  const handleGridMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("button, a, input, select, textarea, [draggable='true']")) {
+      return;
+    }
+
+    const container = gridScrollRef.current;
+    if (!container) return;
+
+    gridPanStateRef.current = {
+      startX: event.clientX,
+      scrollLeft: container.scrollLeft,
+      isActive: true,
+    };
+    setIsGridPanning(true);
+  };
+
+  const handleGridMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!gridPanStateRef.current.isActive) return;
+
+    const container = gridScrollRef.current;
+    if (!container) return;
+
+    const deltaX = event.clientX - gridPanStateRef.current.startX;
+    container.scrollLeft = gridPanStateRef.current.scrollLeft - deltaX;
+    event.preventDefault();
+  };
+
+  const handleGridMouseEnd = () => {
+    gridPanStateRef.current.isActive = false;
+    setIsGridPanning(false);
+  };
 
 const visibleStatuses = useMemo(() => {
   if (activeStatusFilter !== "All") {
@@ -308,28 +362,33 @@ const visibleStatuses = useMemo(() => {
 
         <div className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
         {currentViewMode === "grid" ? (
-          <div className="hidden lg:block p-6">
-            <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-2">
-              <div className="flex items-start gap-5 min-w-max">
+          <div className="hidden lg:block pt-0">
+            <div
+              ref={gridScrollRef}
+              className={`overflow-x-auto overflow-y-hidden ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+              onMouseDown={handleGridMouseDown}
+              onMouseMove={handleGridMouseMove}
+              onMouseUp={handleGridMouseEnd}
+              onMouseLeave={handleGridMouseEnd}
+            >
+              <div className="flex items-start gap-5 min-w-max bg-[#010101]">
                 {kanbanColumns.map((column) => (
                   <div
                     key={column.status}
-                    className={`w-[320px] shrink-0 rounded-[24px] ${
-                      isDark ? "bg-[#141414]" : "bg-[#FBF7EF]"
+                    className={`w-[320px] shrink-0 rounded-2xl ${
+                      isDark ? "bg-[#010101] border  border-[#4b4949]" : "bg-[#FBF7EF]"
                     }`}
                   >
                     <div
-                      className={`flex items-center justify-between px-5 py-4 ${
-                        isDark ? "border-b border-white/5" : "border-b border-[#E8E0D2]"
-                      }`}
+                      className={`flex items-center rounded-2xl justify-between px-5 py-4 ${isDark ? "bg-[#202020] border-b border-white/5" : "border-b border-[#E8E0D2]"}`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex w-full items-center justify-between gap-3">
                         <h4 className={`text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
                           {column.status}
                         </h4>
                         <span
-                          className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-medium ${
-                            isDark ? "bg-[#242424] text-white/70" : "bg-white text-[#666]"
+                          className={`text-md font-medium ${
+                            isDark ? "text-white" : "text-[#666]"
                           }`}
                         >
                           {column.totalItems}
@@ -461,14 +520,14 @@ const visibleStatuses = useMemo(() => {
     {/* 2. BODY: Row-based content */}
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className={`text-sm font-medium ${isDark ? "text-[#C5A47E]" : "text-[#8C6A00]"}`}>
+        <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
           Intent Type
         </span>
         <IntentBadge intent={(lead.intent || "Hot") as any} size="sm" />
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <span className={`text-sm font-medium ${isDark ? "text-[#C5A47E]" : "text-[#8C6A00]"}`}>
+        <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
           Email ID
         </span>
         <span
@@ -480,7 +539,7 @@ const visibleStatuses = useMemo(() => {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className={`text-sm font-medium ${isDark ? "text-[#C5A47E]" : "text-[#8C6A00]"}`}>
+        <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
           Lead Type
         </span>
         <span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
