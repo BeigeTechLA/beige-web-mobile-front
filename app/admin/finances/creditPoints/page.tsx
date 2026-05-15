@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { ArrowUpToLine, BadgeDollarSign, Coins, Users } from "lucide-react";
+import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
@@ -13,108 +14,186 @@ import CreditHistoryTable, {
   type CreditHistoryRow,
 } from "@/components/affiliate/CreditHistoryTable";
 import FinanceMetricCards from "@/components/affiliate/FinanceMetricCards";
-import { useRouter } from "next/navigation";
+import { adminApi } from "@/lib/api";
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyMonthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyStatusOptions = ["All", "Used", "Available"];
 
-const adminCreditHistoryRows: CreditHistoryRow[] = [
-  {
-    id: "1",
-    date: "Apr 23, 2026",
-    clientName: "Alex Morgan",
-    email: "alex.morgan@example.com",
-    availablePoints: "3,500 Points",
-    usedPoints: "-850 Points",
-    lastActivity: "22-04-2026",
-    initials: "AM",
-    avatarColor: "#F0C4E3",
-  },
-  {
-    id: "2",
-    date: "Apr 10, 2026",
-    clientName: "Ethan Carter",
-    email: "ethancarter@gmail.com",
-    availablePoints: "4,000 Points",
-    usedPoints: "-400 Points",
-    lastActivity: "12-04-2026",
-    initials: "EC",
-    avatarColor: "#F5E4BC",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "3",
-    date: "Mar 31, 2026",
-    clientName: "Maya Ross",
-    email: "mayaross@gmail.com",
-    availablePoints: "5,500 Points",
-    usedPoints: "-100 Points",
-    lastActivity: "01-04-2026",
-    initials: "MR",
-    avatarColor: "#CFF3B9",
-  },
-  {
-    id: "4",
-    date: "Mar 12, 2026",
-    clientName: "John Lee",
-    email: "johnlee@outlook.com",
-    availablePoints: "3,000 Points",
-    usedPoints: "-200 Points",
-    lastActivity: "21-03-2026",
-    initials: "JL",
-    avatarColor: "#F1DFC3",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "5",
-    date: "Mar 4, 2026",
-    clientName: "Raj Yadhav",
-    email: "rajyadhav@outlook.com",
-    availablePoints: "2,450 Points",
-    usedPoints: "-550 Points",
-    lastActivity: "06-03-2026",
-    initials: "RY",
-    avatarColor: "#D5D9E8",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "6",
-    date: "Feb 8, 2026",
-    clientName: "Daniel Roberts",
-    email: "danielr@gmail.com",
-    availablePoints: "2,450 Points",
-    usedPoints: "-600 Points",
-    lastActivity: "15-02-2026",
-    initials: "DR",
-    avatarColor: "#F4F4F4",
-  },
-  {
-    id: "7",
-    date: "Jan 30, 2026",
-    clientName: "Sophia Bennett",
-    email: "sophiab@gmail.com",
-    availablePoints: "6,100 Points",
-    usedPoints: "0 Points",
-    lastActivity: "31-01-2026",
-    initials: "SB",
-    avatarColor: "#FFE0C7",
-  },
-  {
-    id: "8",
-    date: "Jan 14, 2026",
-    clientName: "Noah Walker",
-    email: "noahwalker@gmail.com",
-    availablePoints: "1,900 Points",
-    usedPoints: "0 Points",
-    lastActivity: "16-01-2026",
-    initials: "NW",
-    avatarColor: "#D7E6FF",
-  },
+type CreditPointsDashboardResponse = {
+  success?: boolean;
+  data?: unknown;
+  error?: string;
+};
+
+const avatarPalette = [
+  "#F0C4E3",
+  "#F5E4BC",
+  "#CFF3B9",
+  "#F1DFC3",
+  "#D5D9E8",
+  "#F4F4F4",
+  "#FFE0C7",
+  "#D7E6FF",
 ];
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const getArray = (value: unknown): Record<string, unknown>[] =>
+  Array.isArray(value)
+    ? value.map((item) => asRecord(item)).filter(Boolean) as Record<string, unknown>[]
+    : [];
+
+const pickFirstValue = (source: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const pickFirstString = (source: Record<string, unknown>, keys: string[]) => {
+  const value = pickFirstValue(source, keys);
+  return value === undefined ? "" : String(value);
+};
+
+const pickFirstNumber = (source: Record<string, unknown>, keys: string[]) => {
+  const value = pickFirstValue(source, keys);
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatPoints = (value: number) =>
+  `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)} Points`;
+
+const formatDisplayDate = (value?: string) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+};
+
+const formatActivityDate = (value?: string) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB").replace(/\//g, "-");
+};
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "NA";
+
+const matchesRange = (value: string, range: string) => {
+  if (!value) return false;
+  const rowDate = new Date(value);
+  if (Number.isNaN(rowDate.getTime())) return false;
+
+  const now = new Date();
+  if (range === "Last 30 Days") {
+    const from = new Date(now);
+    from.setDate(now.getDate() - 30);
+    return rowDate >= from;
+  }
+  if (range === "This Quarter") {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const from = new Date(now.getFullYear(), quarterStartMonth, 1);
+    return rowDate >= from;
+  }
+  if (range === "This Year") {
+    return rowDate.getFullYear() === now.getFullYear();
+  }
+
+  return (
+    rowDate.getMonth() === now.getMonth() &&
+    rowDate.getFullYear() === now.getFullYear()
+  );
+};
+
+const extractDashboardPayload = (response: CreditPointsDashboardResponse) => {
+  const data = asRecord(response?.data) || {};
+
+  return {
+    metrics: asRecord(
+      pickFirstValue(data, ["summary", "metrics", "overview", "stats"]) || data
+    ) || {},
+    rows: getArray(
+      pickFirstValue(data, [
+        "history",
+        "rows",
+        "clients",
+        "users",
+        "items",
+        "list",
+        "dashboard",
+      ])
+    ),
+  };
+};
+
+const mapDashboardRow = (
+  item: Record<string, unknown>,
+  index: number
+): CreditHistoryRow => {
+  const clientName = pickFirstString(item, [
+    "client_name",
+    "name",
+    "user_name",
+    "full_name",
+  ]) || `User ${index + 1}`;
+  const availablePoints = pickFirstNumber(item, [
+    "available_points",
+    "total_credit_points_available",
+    "credit_points_available",
+    "balance",
+    "current_balance",
+  ]);
+  const usedPoints = pickFirstNumber(item, [
+    "used_points",
+    "total_credit_points_used",
+    "credit_points_used",
+    "credits_used",
+  ]);
+
+  return {
+    id:
+      pickFirstString(item, ["id", "user_id", "client_id", "account_id"]) ||
+      String(index + 1),
+    date: formatDisplayDate(
+      pickFirstString(item, ["created_at", "date", "credited_at", "updated_at"])
+    ),
+    clientName,
+    email: pickFirstString(item, ["email", "email_id", "user_email"]) || "-",
+    availablePoints: formatPoints(availablePoints),
+    usedPoints: usedPoints > 0 ? `-${formatPoints(usedPoints)}` : formatPoints(usedPoints),
+    lastActivity: formatActivityDate(
+      pickFirstString(item, [
+        "last_activity",
+        "last_activity_at",
+        "updated_at",
+        "created_at",
+      ])
+    ),
+    initials: getInitials(clientName),
+    avatarColor: avatarPalette[index % avatarPalette.length],
+    avatarImage: pickFirstString(item, ["avatar", "avatar_url", "profile_image"]) || undefined,
+  };
+};
 
 export default function AdminFinancesPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const { theme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
@@ -124,53 +203,113 @@ export default function AdminFinancesPage() {
   const [metricRange, setMetricRange] = useState("Month");
   const [historyMonth, setHistoryMonth] = useState("Month");
   const [historyStatus, setHistoryStatus] = useState("All");
+  const [dashboardMetrics, setDashboardMetrics] = useState<Record<string, unknown>>({});
+  const [creditHistoryRows, setCreditHistoryRows] = useState<CreditHistoryRow[]>([]);
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    setLoading(true);
-    const timer = window.setTimeout(() => {
-      setLoading(false);
-    }, 450);
+  const fetchCreditPointsDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
 
-    return () => window.clearTimeout(timer);
-  }, [selectedDate, historyMonth, historyStatus, metricRange]);
+      const response = await adminApi.getCreditPointsDashboard();
+      if (response?.error) {
+        toast.error(response.error);
+        setDashboardMetrics({});
+        setCreditHistoryRows([]);
+        return;
+      }
+
+      const { metrics, rows } = extractDashboardPayload(response);
+      setDashboardMetrics(metrics);
+      setCreditHistoryRows(rows.map(mapDashboardRow));
+    } catch (error) {
+      console.error("Failed to load credit points dashboard:", error);
+      toast.error("Failed to load credit points dashboard");
+      setDashboardMetrics({});
+      setCreditHistoryRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCreditPointsDashboard();
+  }, [fetchCreditPointsDashboard]);
 
   const isDark = !mounted || theme === "dark";
 
   const filteredRows = useMemo(() => {
-    if (historyStatus === "All") return adminCreditHistoryRows;
+    return creditHistoryRows.filter((row) => {
+      const rowHasUsedPoints = row.usedPoints.startsWith("-");
 
-    return adminCreditHistoryRows.filter((row) =>
-      historyStatus === "Used"
-        ? row.usedPoints.startsWith("-")
-        : !row.usedPoints.startsWith("-")
-    );
-  }, [historyStatus]);
+      if (historyStatus === "Used" && !rowHasUsedPoints) return false;
+      if (historyStatus === "Available" && rowHasUsedPoints) return false;
+      if (historyMonth !== "Month" && !matchesRange(row.date, historyMonth)) return false;
 
-  const metrics = [
-    {
-      id: "available",
-      label: "Total Credits Available",
-      value: "10,050",
-      helperText: "Across all users",
-      icon: Coins,
-    },
-    {
-      id: "used",
-      label: "Total Credits Used",
-      value: "3,450",
-      helperText: "All-time usage",
-      icon: BadgeDollarSign,
-    },
-    {
-      id: "users",
-      label: "Active Users with Credits",
-      value: "5",
-      helperText: "Currently holding credits",
-      icon: Users,
-    },
-  ];
+      if (selectedDate) {
+        const rowDate = new Date(row.date);
+        if (
+          Number.isNaN(rowDate.getTime()) ||
+          rowDate.getDate() !== selectedDate.getDate() ||
+          rowDate.getMonth() !== selectedDate.getMonth() ||
+          rowDate.getFullYear() !== selectedDate.getFullYear()
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [creditHistoryRows, historyMonth, historyStatus, selectedDate]);
+
+  const metrics = useMemo(
+    () => [
+      {
+        id: "available",
+        label: "Total Credits Available",
+        value: new Intl.NumberFormat("en-US").format(
+          pickFirstNumber(dashboardMetrics, [
+            "total_available_credits",
+            "total_credit_points_available",
+            "available_points",
+            "available_credits",
+          ])
+        ),
+        helperText: "Across all users",
+        icon: Coins,
+      },
+      {
+        id: "used",
+        label: "Total Credits Used",
+        value: new Intl.NumberFormat("en-US").format(
+          pickFirstNumber(dashboardMetrics, [
+            "total_used_credits",
+            "total_credit_points_used",
+            "used_points",
+            "used_credits",
+          ])
+        ),
+        helperText: "All-time usage",
+        icon: BadgeDollarSign,
+      },
+      {
+        id: "users",
+        label: "Active Users with Credits",
+        value: new Intl.NumberFormat("en-US").format(
+          pickFirstNumber(dashboardMetrics, [
+            "active_users_with_credits",
+            "users_with_credits",
+            "active_credit_users",
+            "active_users",
+          ])
+        ),
+        helperText: "Currently holding credits",
+        icon: Users,
+      },
+    ],
+    [dashboardMetrics]
+  );
 
   return (
     <>
@@ -230,7 +369,6 @@ export default function AdminFinancesPage() {
           statusValue={historyStatus}
           statusOptions={historyStatusOptions}
           onStatusChange={setHistoryStatus}
-          onRowClick={(row: CreditHistoryRow) => router.push(`/admin/finances/creditPoints/${row.id}`)}
         />
       </div>
     </>

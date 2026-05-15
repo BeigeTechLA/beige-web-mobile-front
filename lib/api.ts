@@ -1403,6 +1403,26 @@ export const adminApi = {
       };
     }
   },
+  getCreditPointsDashboard: async (params: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    date_on?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('finance/admin/credit-points/dashboard', {
+        params,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Credit Points Dashboard Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch credit points dashboard',
+      };
+    }
+  },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/get-dashboard-summary', { params });
