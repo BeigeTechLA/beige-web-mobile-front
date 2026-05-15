@@ -21,7 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatQuoteCurrency, formatQuoteItemDisplayName } from "@/lib/quoteDetail";
+import {
+  formatQuoteCurrency,
+  normalizeQuoteLineItems,
+} from "@/lib/quoteDetail";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { getInitials } from "@/lib/utils";
@@ -144,12 +147,12 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
   }, [currentVersionNumber]);
   
   const lineItems = useMemo(() => {
-    const items = quote?.line_items || quote?.items || quote?.quote_items || [];
+    const items = quote ? normalizeQuoteLineItems(quote) : [];
     return {
-      services: items.filter((it: any) => it.section_type === "service" || it.section === "service"),
-      addons: items.filter((it: any) => it.section_type === "addon" || it.section === "addon"),
-      logistics: items.filter((it: any) => it.section_type === "logistics" || it.section === "logistics"),
-      custom: items.filter((it: any) => it.section_type === "custom" || it.section === "custom"),
+      services: items.filter((it: any) => it.section === "service"),
+      addons: items.filter((it: any) => it.section === "addon"),
+      logistics: items.filter((it: any) => it.section === "logistics"),
+      custom: items.filter((it: any) => it.section === "custom"),
     };
   }, [quote]);
 
@@ -266,7 +269,7 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
               <div className="rounded-[20px] bg-[#171717] border border-white/5 overflow-hidden">
                 <div className="px-8 py-6 flex items-center justify-between border-b border-white/10">
                   <span className="text-[18px] font-medium text-[#8F8F95]">Service Include</span>
-                  <span className="text-[20px] font-bold text-white">{formatQuoteCurrency(lineItems.services.reduce((s, i) => s + (Number(i.line_total) || 0), 0))}</span>
+                  <span className="text-[20px] font-bold text-white">{formatQuoteCurrency(lineItems.services.reduce((s, i) => s + (Number(i.amount) || 0), 0))}</span>
                 </div>
                 <div className="px-6 py-5 space-y-4">
                   {lineItems.services.map((item: any) => (
@@ -277,7 +280,7 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[17px] font-medium text-white">
-                            {formatQuoteItemDisplayName(item.item_name || item.name)}
+                            {item.name}
                             {item.subtitle && (
                               <span className="text-[#8F8F95] ml-2 font-normal"> - ({item.subtitle})</span>
                             )}
@@ -285,7 +288,7 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
                         </div>
                       </div>
                       <span className="text-[17px] font-medium text-[#8F8F95]">
-                        {formatQuoteCurrency(item.line_total)}
+                        {formatQuoteCurrency(item.amount)}
                       </span>
                     </div>
                   ))}
@@ -298,13 +301,13 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
               <div className="rounded-[20px] bg-[#171717] border border-white/5 overflow-hidden">
                 <div className="px-8 py-6 flex items-center justify-between border-b border-white/10">
                   <span className="text-[18px] font-medium text-[#8F8F95]">Add-ons</span>
-                  <span className="text-[20px] font-bold text-white">{formatQuoteCurrency(lineItems.addons.reduce((s, i) => s + (Number(i.line_total) || 0), 0))}</span>
+                  <span className="text-[20px] font-bold text-white">{formatQuoteCurrency(lineItems.addons.reduce((s, i) => s + (Number(i.amount) || 0), 0))}</span>
                 </div>
                 <div className="px-8 py-6 space-y-6">
                   {lineItems.addons.map((item: any) => (
                     <div key={item.id || item.line_item_id || item.name} className="flex items-center justify-between">
-                      <span className="text-[18px] text-white">{formatQuoteItemDisplayName(item.item_name || item.name)}</span>
-                      <span className="text-[18px] text-[#8F8F95]">{formatQuoteCurrency(item.line_total)}</span>
+                      <span className="text-[18px] text-white">{item.name}</span>
+                      <span className="text-[18px] text-[#8F8F95]">{formatQuoteCurrency(item.amount)}</span>
                     </div>
                   ))}
                 </div>
@@ -316,13 +319,13 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
               <div className="rounded-[20px] bg-[#171717] border border-white/5 overflow-hidden">
                 <div className="px-8 py-6 flex items-center justify-between border-b border-white/10">
                   <span className="text-[18px] font-medium text-[#8F8F95]">Logistics</span>
-                  <span className="text-[20px] font-bold text-white">{formatQuoteCurrency(lineItems.logistics.reduce((s, i) => s + (Number(i.line_total) || 0), 0))}</span>
+                  <span className="text-[20px] font-bold text-white">{formatQuoteCurrency(lineItems.logistics.reduce((s, i) => s + (Number(i.amount) || 0), 0))}</span>
                 </div>
                 <div className="px-8 py-6 space-y-6">
                   {lineItems.logistics.map((item: any) => (
                     <div key={item.id || item.line_item_id || item.name} className="flex items-center justify-between">
-                      <span className="text-[18px] text-white">{formatQuoteItemDisplayName(item.item_name || item.name)}</span>
-                      <span className="text-[18px] text-[#8F8F95]">{formatQuoteCurrency(item.line_total)}</span>
+                      <span className="text-[18px] text-white">{item.name}</span>
+                      <span className="text-[18px] text-[#8F8F95]">{formatQuoteCurrency(item.amount)}</span>
                     </div>
                   ))}
                 </div>
