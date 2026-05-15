@@ -255,7 +255,10 @@ const mergeVersionQuoteWithPrimaryContext = (
       incomingBookingId !== undefined && incomingBookingId !== null && String(incomingBookingId).trim()
         ? incomingBookingId
         : (current as Record<string, unknown>)?.booking_id,
-    activities: incomingActivities.length > 0 ? incomingActivities : current.activities,
+    // For historical version views, never inherit activities from the currently loaded quote.
+    // Inheriting current activities leaks newer change metadata (e.g. reduced/additional amounts)
+    // into older versions like Version 1.
+    activities: incomingActivities,
     converted_booking_details:
       incoming.converted_booking_details || current.converted_booking_details,
     signature_base64: incoming.signature_base64 ?? current.signature_base64,
@@ -671,6 +674,10 @@ export default function QuoteDetailsPage({
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewPaymentSummaryOverrides, setPreviewPaymentSummaryOverrides] = useState<{
+    previousTotal?: number;
+    revisedTotal?: number;
+  } | undefined>(undefined);
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
   const [isRejecting, setIsRejecting] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
@@ -859,11 +866,6 @@ export default function QuoteDetailsPage({
   useEffect(() => {
     if (!selectedVersionId) return;
 
-    // Skip if this is already the currently displayed quote's version
-    if (quote && quote.version_number?.toString() === selectedVersionId) {
-      return;
-    }
-
     let isMounted = true;
     const fetchVersionDetail = async () => {
       setLoading(true);
@@ -875,10 +877,53 @@ export default function QuoteDetailsPage({
             setQuote((current) =>
               mergeVersionQuoteWithPrimaryContext(current, quoteDetail)
             );
+
+            const selectedVersionNumber = Number(selectedVersionId);
+            const revisedTotal = getQuoteNumber(
+              quoteDetail.total,
+              quoteDetail.total_amount,
+              quoteDetail.final_total
+            );
+
+            if (
+              Number.isFinite(selectedVersionNumber) &&
+              selectedVersionNumber > 1 &&
+              revisedTotal !== undefined
+            ) {
+              const previousVersionResponse = await salesApi.getQuoteVersionDetail(
+                quoteId,
+                String(selectedVersionNumber - 1)
+              );
+              const previousVersionQuote = unwrapSalesQuoteDetail(previousVersionResponse?.data ?? null);
+              const previousTotal = getQuoteNumber(
+                previousVersionQuote?.total,
+                previousVersionQuote?.total_amount,
+                previousVersionQuote?.final_total
+              );
+
+              if (
+                previousTotal !== undefined &&
+                Math.abs(revisedTotal - previousTotal) > 0.009
+              ) {
+                setPreviewPaymentSummaryOverrides({
+                  previousTotal,
+                  revisedTotal,
+                });
+              } else {
+                setPreviewPaymentSummaryOverrides(undefined);
+              }
+            } else {
+              setPreviewPaymentSummaryOverrides(undefined);
+            }
+          } else {
+            setPreviewPaymentSummaryOverrides(undefined);
           }
         }
       } catch (error) {
         console.error("Failed to fetch quote version detail", error);
+        if (isMounted) {
+          setPreviewPaymentSummaryOverrides(undefined);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -2253,6 +2298,7 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+        paymentSummaryOverrides={previewPaymentSummaryOverrides}
       />
       <EditAccessModalComponent
         open={pendingEditView !== null}

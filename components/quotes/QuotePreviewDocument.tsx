@@ -415,10 +415,10 @@ export default function QuotePreviewDocument({
                   ) : null}
                   <div className="flex items-center justify-between gap-6">
                     <div className="flex items-center gap-1.5">
-                      <span>{additionalPaymentDetails.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}</span>
+                      <span>{additionalPaymentDetails.totalDelta < 0 ? "Reduced Amount" : "Additional Amount"}</span>
                     </div>
-                    <span className={`font-semibold ${additionalPaymentDetails.additionalAmount < 0 ? "text-red-600" : ""}`}>
-                      {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
+                    <span className={`font-semibold ${additionalPaymentDetails.totalDelta < 0 ? "text-red-600" : ""}`}>
+                      {additionalPaymentDetails.totalDelta < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.totalDelta))}
                     </span>
                   </div>
                 </div>

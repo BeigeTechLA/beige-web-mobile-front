@@ -229,27 +229,29 @@ const QuoteActionMenu = ({
   mobile = false,
   disabled = false,
 }: QuoteActionMenuProps) => {
-  const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-  };
 
-  const handleMenuAction =
-    (action: () => void) => (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      action();
-    };
+  const handleAction = (action: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    action();
+    onOpenChange(false);
+  };
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
-          onClick={handleTriggerClick}
           disabled={disabled}
-          className={`${mobile
-            ? "rounded-lg p-2 text-[#E8D1AB] transition-colors hover:bg-[#2a2a2a]"
-            : "text-[#E8D1AB] transition-colors hover:text-white"
-            }${disabled ? "opacity-30 cursor-not-allowed " : ""}`}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          className={`flex transition-colors outline-none ${mobile
+            ? "items-end justify-end text-[#E8D1AB] w-full"
+            : "items-center justify-center text-[#E8D1AB] hover:text-white"
+            } ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
           aria-label="Quote actions"
         >
           {mobile ? <MoreHorizontal size={18} /> : <MoreVertical size={18} />}
@@ -258,42 +260,39 @@ const QuoteActionMenu = ({
 
       <PopoverContent
         align="end"
-        sideOffset={10}
-        onClick={(event) => event.stopPropagation()}
-        className="w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_80px_rgba(0,0,0,0.55)]"
+        side="top"
+        sideOffset={15}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="z-[999] w-[220px] rounded-[20px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_80px_rgba(0,0,0,0.55)]"
       >
-        <div className="flex flex-col p-1.5">
+        <div className="flex flex-col p-1.5" onClick={(e) => e.stopPropagation()}>
           <QuoteActionMenuButton
             icon={<FileText size={18} />}
             label="View Details"
-            onClick={handleMenuAction(onViewDetails)}
+            onClick={handleAction(onViewDetails)}
           />
           <QuoteActionMenuButton
             icon={<Copy size={18} />}
             label="Duplicate"
-            onClick={handleMenuAction(onDuplicate)}
+            onClick={handleAction(onDuplicate)}
           />
-          {allowEdit ? (
+          {allowEdit && (
             <QuoteActionMenuButton
               icon={<SquarePen size={18} />}
               label="Edit"
-              onClick={handleMenuAction(onEdit)}
+              onClick={handleAction(onEdit)}
             />
-          ) : null}
+          )}
           <QuoteActionMenuButton
             icon={<DollarSign size={18} />}
             label="Record Payment"
-            onClick={handleMenuAction(onPaymentTransaction)}
+            onClick={handleAction(onPaymentTransaction)}
           />
-        </div>
-
-        <div className="h-[1px] w-full bg-white/10" />
-
-        <div className="flex flex-col p-1.5">
+          <div className="my-1 h-[1px] w-full bg-white/10" />
           <QuoteActionMenuButton
             icon={<XCircle size={18} />}
             label="Reject Quote"
-            onClick={handleMenuAction(onReject)}
+            onClick={handleAction(onReject)}
             variant="danger"
           />
         </div>
@@ -1522,10 +1521,7 @@ export default function QuotesDashboardPage({
         </div>
 
         {hasOverviewData && (
-          <div
-            className={`rounded-3xl p-6 ${isDark ? "border border-[#3D3D3D] bg-[#171717]" : "border border-[#E5E5E5] bg-white"
-              }`}
-          >
+          <div className={`rounded-2xl lg:rounded-3xl p-5 lg:p-6 ${isDark ? "border border-[#3D3D3D] bg-[#171717]" : "border border-[#E5E5E5] bg-white"}`}>
             <div className="mb-6 flex items-center gap-2">
               <div className="h-4 w-1 rounded-full bg-[#E5D5B8]" />
               <span className="text-sm font-medium">Overview</span>
@@ -1558,10 +1554,7 @@ export default function QuotesDashboardPage({
               </div>
             </div>
 
-            <div
-              className={`mb-8 grid grid-cols-1 gap-4 rounded-xl p-4 md:grid-cols-2 lg:grid-cols-4 ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
-                }`}
-            >
+            <div className={`mb-8 grid grid-cols-1 gap-4 rounded-xl p-4 md:grid-cols-2 lg:grid-cols-4 ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}`}>
               {displayStats.map((stat) => {
                 const isSelected = selectedStat === stat.title;
                 const bgColor = isSelected
@@ -1620,7 +1613,7 @@ export default function QuotesDashboardPage({
               })}
             </div>
 
-            <div className="relative mt-10 h-[310px] w-full lg:h-[350px]">
+            <div className="relative mt-10 h-[300px] w-full lg:h-[350px]">
               {loading && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#E5D5B8] border-t-transparent" />
@@ -1879,8 +1872,8 @@ export default function QuotesDashboardPage({
                             <td className="hidden px-6 py-4 text-right md:table-cell">
                               <QuoteActionMenu
                                 disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
-                                open={openActionMenuId === quote.id}
-                                onOpenChange={(open) => setOpenActionMenuId(open ? quote.id : null)}
+                                open={openActionMenuId === `desktop-${quote.id}`}
+                                onOpenChange={(open) => setOpenActionMenuId(open ? `desktop-${quote.id}` : null)}
                                 onViewDetails={() => {
                                   handleViewQuoteDetails(quote.id);
                                 }}
@@ -1899,46 +1892,49 @@ export default function QuotesDashboardPage({
 
                           {/* Mobile Expanded Detail Row */}
                           {isExpanded && (
-                            <tr className={`md:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
-                              <td colSpan={2} className="pl-14 pr-4 pb-4 pt-0 space-y-4">
-                                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                                  <div>
-                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Project</p>
-                                    <p className={`font-medium truncate ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.project}</p>
+                            <tr className={`lg:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
+                              <td colSpan={2} className="relative overflow-visible pl-14 pr-4 pb-4 pt-0">
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                                    <div>
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Project</p>
+                                      <p className={`font-medium truncate ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.project}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Amount</p>
+                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{formatCurrency(quote.amountValue)}</p>
+                                    </div>
                                   </div>
-                                  <div className="text-right">
-                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Amount</p>
-                                    <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{formatCurrency(quote.amountValue)}</p>
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-3 gap-y-6 gap-x-4">
-                                  <div>
-                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Valid Until</p>
-                                    <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.validUntil}</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Salesperson</p>
-                                    <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.salesperson}</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Action</p>
-                                    <QuoteActionMenu
-                                      disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
-                                      open={openActionMenuId === quote.id}
-                                      onOpenChange={(open) => setOpenActionMenuId(open ? quote.id : null)}
-                                      onViewDetails={() => {
-                                        handleViewQuoteDetails(quote.id);
-                                      }}
-                                      onDuplicate={() => {
-                                        void handleDuplicateQuote(quote.id);
-                                      }}
-                                      onEdit={() => handleEditQuote(quote)}
-                                      onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
-                                      onReject={() => {
-                                        void handleRejectQuote(quote.id, quote.statusKey);
-                                      }}
-                                      allowEdit
-                                    />
+                                  <div className="grid grid-cols-3 gap-y-6 gap-x-4">
+                                    <div>
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Valid Until</p>
+                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.validUntil}</p>
+                                    </div>
+                                    <div className="text-center">
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Salesperson</p>
+                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.salesperson}</p>
+                                    </div>
+                                    <div className="flex flex-col justify-end items-end relative overflow-visible" onClick={(e) => e.stopPropagation()}>
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Action</p>
+                                      <QuoteActionMenu
+                                        mobile={true}
+                                        disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
+                                        open={openActionMenuId === `mobile-${quote.id}`}
+                                        onOpenChange={(open) => setOpenActionMenuId(open ? `mobile-${quote.id}` : null)}
+                                        onViewDetails={() => {
+                                          handleViewQuoteDetails(quote.id);
+                                        }}
+                                        onDuplicate={() => {
+                                          void handleDuplicateQuote(quote.id);
+                                        }}
+                                        onEdit={() => handleEditQuote(quote)}
+                                        onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
+                                        onReject={() => {
+                                          void handleRejectQuote(quote.id, quote.statusKey);
+                                        }}
+                                        allowEdit
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               </td>

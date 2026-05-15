@@ -2871,6 +2871,18 @@ export default function CreateQuotePage() {
 
     return total + (selectedEditingTypes.length ? editingTotal : baseTotal);
   }, 0);
+  const effectiveAddonConfigs = React.useMemo(
+    () => ({ ...appliedAddonConfigs, ...addonConfigs }),
+    [appliedAddonConfigs, addonConfigs],
+  );
+  const effectiveLogisticsConfigs = React.useMemo(
+    () => ({ ...appliedLogisticsConfigs, ...logisticsConfigs }),
+    [appliedLogisticsConfigs, logisticsConfigs],
+  );
+  const effectiveLineItemConfigs = React.useMemo(
+    () => ({ ...appliedLineItemConfigs, ...lineItemConfigs }),
+    [appliedLineItemConfigs, lineItemConfigs],
+  );
   const selectedServicesMaxDurationHours = React.useMemo(() => {
     const durations = selectedServices
       .filter((serviceId) => {
@@ -2979,12 +2991,18 @@ export default function CreateQuotePage() {
     Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
     () =>
-      getQuoteAdditionalPaymentDetails(previewQuote ?? quoteToEdit, {
+      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
         revisedTotalOverride: totalAfterTax,
         previouslyPaidOverride: safePreviouslyPaidOverride,
         previousTotalOverride: safePreviousTotalOverride,
       }),
-    [previewQuote, quoteToEdit, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+    [quoteToEdit, previewQuote, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+  );
+  const showQuoteRevisionSummary = Boolean(
+    isEditMode &&
+    quoteToEdit &&
+    additionalPaymentDetails &&
+    Math.abs(additionalPaymentDetails.totalDelta) > 0.009
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -3082,11 +3100,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
       maxStep,
     });
 
@@ -3115,11 +3133,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
       maxStep,
     });
 
@@ -3149,11 +3167,11 @@ export default function CreateQuotePage() {
         serviceConfigs,
         selectedAddons,
         addons,
-        appliedAddonConfigs,
+        appliedAddonConfigs: effectiveAddonConfigs,
         logisticsItems: selectedLogisticsItems,
-        appliedLogisticsConfigs,
+        appliedLogisticsConfigs: effectiveLogisticsConfigs,
         lineItems,
-        appliedLineItemConfigs,
+        appliedLineItemConfigs: effectiveLineItemConfigs,
       },
       step,
     );
@@ -3180,11 +3198,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
     });
 
   const currentDraftLineItems = React.useMemo(() => {
@@ -3212,11 +3230,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
     });
 
     return buildCurrentDraftReviewItems({
@@ -3229,9 +3247,9 @@ export default function CreateQuotePage() {
   }, [
     address,
     addons,
-    appliedAddonConfigs,
-    appliedLineItemConfigs,
-    appliedLogisticsConfigs,
+    effectiveAddonConfigs,
+    effectiveLineItemConfigs,
+    effectiveLogisticsConfigs,
     clientName,
     discountEnabled,
     discountType,
@@ -6967,7 +6985,7 @@ export default function CreateQuotePage() {
                       {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
-                  {additionalPaymentDetails ? (
+                  {showQuoteRevisionSummary ? (
                     <>
                       <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
                       <div className="space-y-3">
@@ -6991,15 +7009,16 @@ export default function CreateQuotePage() {
                         ) : null}
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-white font-medium">
-                            {additionalPaymentDetails.isDecrease
+                            {additionalPaymentDetails.totalDelta < 0
                               ? "Reduced Amount"
                               : "Additional Amount"}
                           </span>
-                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.isDecrease ? "text-red-500" : "text-[#9F9FA9]"}`}>
-                            {additionalPaymentDetails.isDecrease ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
+                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.totalDelta < 0 ? "text-red-500" : "text-[#9F9FA9]"}`}>
+                            {additionalPaymentDetails.totalDelta < 0 ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.totalDelta))}
                           </span>
                         </div>
-                        {additionalPaymentDetails.isDecrease ? (
+                        {additionalPaymentDetails.totalDelta < 0 &&
+                        additionalPaymentDetails.previouslyPaidAmount > 0 ? (
                           <p className="text-xs lg:text-sm text-[#E8D1AB]">
                             This reduced amount will be added as Beige Credits after approval.
                           </p>
@@ -7908,11 +7927,15 @@ export default function CreateQuotePage() {
         quote={previewQuote}
         quoteId={previewQuoteId}
         isLoading={isPreviewLoading}
-        paymentSummaryOverrides={{
-          previousTotal: additionalPaymentDetails?.previousTotal,
-          previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
-          revisedTotal: totalAfterTax,
-        }}
+        paymentSummaryOverrides={
+          showQuoteRevisionSummary
+            ? {
+                previousTotal: additionalPaymentDetails?.previousTotal,
+                previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
+                revisedTotal: totalAfterTax,
+              }
+            : undefined
+        }
       />
     </div>
   );

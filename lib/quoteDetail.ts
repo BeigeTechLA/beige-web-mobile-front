@@ -652,7 +652,8 @@ export const getQuoteAdditionalPaymentDetails = (
     totalDelta < -0.009
       ? Math.max(previouslyPaidAmount, historicalConfirmedPaidAmount ?? 0)
       : previouslyPaidAmount;
-  const derivedAdditionalAmount =
+  const derivedAdditionalAmount = totalDelta;
+  const derivedOutstandingAmount =
     revisedTotal > 0 || effectivePaidAmount > 0
       ? revisedTotal - effectivePaidAmount
       : 0;
@@ -674,7 +675,7 @@ export const getQuoteAdditionalPaymentDetails = (
   }
 
   const additionalAmount = derivedAdditionalAmount;
-  const outstandingAmount = Math.max(0, additionalAmount);
+  const outstandingAmount = Math.max(0, derivedOutstandingAmount);
   const displayAmount = Math.abs(additionalAmount);
   const isDecrease = additionalAmount < -0.009;
 
