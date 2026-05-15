@@ -444,7 +444,11 @@ function buildServiceItems(
 
       const applySource = (item: QuoteDraftLineItem): QuoteDraftLineItem =>
         catalogItemId
-          ? { ...item, catalog_item_id: catalogItemId }
+          ? {
+              ...item,
+              catalog_item_id: catalogItemId,
+              item_name: service.label || "Custom Service",
+            }
           : {
               ...item,
               source_type: "custom",
@@ -545,6 +549,7 @@ function buildAddonItems(
         return {
           catalog_item_id: catalogItemId,
           section_type: "addon",
+          item_name: addon.label || "Custom Add-on",
           quantity,
           estimated_pricing: estimatedPricing,
         };
@@ -594,6 +599,7 @@ function buildSimpleItems(
         return {
           catalog_item_id: catalogItemId,
           section_type: sectionType,
+          item_name: item.label?.trim() || "Custom Item",
           quantity: 1,
           estimated_pricing: price,
         };
