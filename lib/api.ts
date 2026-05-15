@@ -1423,6 +1423,42 @@ export const adminApi = {
       };
     }
   },
+  getCreditPointsUserById: async (userId: string | number) => {
+    try {
+      const response = await api.get(`finance/admin/credit-points/users/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Credit Points User Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch credit points user details',
+      };
+    }
+  },
+  createManualCreditPoint: async (payload: {
+    user_type: string;
+    target_user_id: number;
+    amount: number;
+    credit_type: string;
+    expires_at?: string;
+    reason: string;
+    notes?: string;
+    restrictions_json?: Record<string, unknown>;
+    notify_user: boolean;
+  }) => {
+    try {
+      const response = await api.post('finance/admin/credit-points/manual', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Manual Credit Point Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create credit point',
+      };
+    }
+  },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/get-dashboard-summary', { params });

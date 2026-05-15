@@ -3,11 +3,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { ArrowUpToLine, BadgeDollarSign, Coins, Users } from "lucide-react";
+import { ArrowUpToLine, BadgeDollarSign, Coins, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import AddCreditPointsModal, {
+  type CreditPointsFormState,
+} from "@/components/admin/finances/AddCreditPointsModal";
+import CreditPointsSuccessModal from "@/components/admin/finances/CreditPointsSuccessModal";
 
 import { Button } from "@/src/components/landing/ui/button";
 import CreditHistoryTable, {
@@ -18,6 +22,8 @@ import { adminApi } from "@/lib/api";
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyMonthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyStatusOptions = ["All", "Used", "Available"];
+const creditUserTypeOptions = ["Client", "Creative Partner"];
+const creditTypeOptions = ["Promo", "Refund", "Compensation"];
 
 type CreditPointsDashboardResponse = {
   success?: boolean;
@@ -95,6 +101,14 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || "")
     .join("") || "NA";
+
+const toCreditTypeApiValue = (value: string) => value.trim().toLowerCase();
+
+const parseRestrictionContexts = (value: string) =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 const matchesRange = (value: string, range: string) => {
   if (!value) return false;
@@ -205,6 +219,23 @@ export default function AdminFinancesPage() {
   const [historyStatus, setHistoryStatus] = useState("All");
   const [dashboardMetrics, setDashboardMetrics] = useState<Record<string, unknown>>({});
   const [creditHistoryRows, setCreditHistoryRows] = useState<CreditHistoryRow[]>([]);
+  const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false);
+  const [isCreditSuccessModalOpen, setIsCreditSuccessModalOpen] = useState(false);
+  const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
+  const [submittedCreditForm, setSubmittedCreditForm] = useState<CreditPointsFormState | null>(
+    null
+  );
+  const [creditForm, setCreditForm] = useState<CreditPointsFormState>({
+    userType: "",
+    targetUserId: "",
+    amount: "",
+    creditType: "",
+    expiryDate: "",
+    reason: "",
+    notes: "",
+    usageRestrictions: "",
+    notifyUser: false,
+  });
 
   useEffect(() => setMounted(true), []);
 
@@ -311,15 +342,112 @@ export default function AdminFinancesPage() {
     [dashboardMetrics]
   );
 
+  const updateCreditForm = <K extends keyof typeof creditForm>(
+    key: K,
+    value: (typeof creditForm)[K]
+  ) => {
+    setCreditForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const resetCreditForm = () => {
+    setCreditForm({
+      userType: "",
+      targetUserId: "",
+      amount: "",
+      creditType: "",
+      expiryDate: "",
+      reason: "",
+      notes: "",
+      usageRestrictions: "",
+      notifyUser: false,
+    });
+  };
+
+  const handleCreditModalChange = (open: boolean) => {
+    setIsAddCreditModalOpen(open);
+    if (!open) {
+      resetCreditForm();
+    }
+  };
+
+  const handleCreditFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const parsedTargetUserId = Number(creditForm.targetUserId);
+    const parsedAmount = Number(creditForm.amount);
+    if (!Number.isInteger(parsedTargetUserId) || parsedTargetUserId <= 0) {
+      toast.error("Enter a valid target user id");
+      return;
+    }
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+
+    if (!creditForm.userType || !creditForm.reason || !creditForm.creditType) {
+      toast.error("Fill all required fields");
+      return;
+    }
+
+    try {
+      setIsSubmittingCredit(true);
+
+      const allowedUsageContexts = parseRestrictionContexts(
+        creditForm.usageRestrictions
+      );
+
+      const response = await adminApi.createManualCreditPoint({
+        user_type: creditForm.userType.toLowerCase().replace(/\s+/g, "_"),
+        target_user_id: parsedTargetUserId,
+        amount: parsedAmount,
+        credit_type: toCreditTypeApiValue(creditForm.creditType),
+        expires_at: creditForm.expiryDate || undefined,
+        reason: creditForm.reason.trim(),
+        notes: creditForm.notes.trim() || undefined,
+        restrictions_json: allowedUsageContexts.length
+          ? { allowed_usage_contexts: allowedUsageContexts }
+          : undefined,
+        notify_user: creditForm.notifyUser,
+      });
+
+      if (response?.error) {
+        toast.error(response.error);
+        return;
+      }
+
+      setSubmittedCreditForm(creditForm);
+      handleCreditModalChange(false);
+      setIsCreditSuccessModalOpen(true);
+      fetchCreditPointsDashboard();
+    } catch (error) {
+      console.error("Failed to create credit point:", error);
+      toast.error("Failed to create credit point");
+    } finally {
+      setIsSubmittingCredit(false);
+    }
+  };
+
   return (
     <>
       <Topbar
         pathname={pathname}
         actions={
-          <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
-            <ArrowUpToLine size={18} />
-            Export
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="beige"
+              className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
+              onClick={() => setIsAddCreditModalOpen(true)}
+            >
+              <Plus size={18} />
+              Add Credit Points
+            </Button>
+            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              <ArrowUpToLine size={18} />
+              Export
+            </Button>
+          </div>
         }
       />
 
@@ -371,6 +499,22 @@ export default function AdminFinancesPage() {
           onStatusChange={setHistoryStatus}
         />
       </div>
+
+      <AddCreditPointsModal
+        open={isAddCreditModalOpen}
+        form={creditForm}
+        isSubmitting={isSubmittingCredit}
+        userTypeOptions={creditUserTypeOptions}
+        creditTypeOptions={creditTypeOptions}
+        onOpenChange={handleCreditModalChange}
+        onChange={updateCreditForm}
+        onSubmit={handleCreditFormSubmit}
+      />
+      <CreditPointsSuccessModal
+        open={isCreditSuccessModalOpen}
+        details={submittedCreditForm}
+        onOpenChange={setIsCreditSuccessModalOpen}
+      />
     </>
   );
 }
