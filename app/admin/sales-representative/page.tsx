@@ -1524,6 +1524,11 @@ export default function AdminSaleRepManagerPage() {
                       <div className="min-w-0">
                         <p className={`text-xs uppercase tracking-widest ${isDark ? "text-[#666]" : "text-[#A3A3A3]"}`}>{user.id}</p>
                         <h4 className={`mt-1 text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>{user.name}</h4>
+                        {user.bookingId ? (
+                          <p className={`mt-1 text-xs transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                            #{user.bookingId}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                     <button
@@ -1578,6 +1583,11 @@ export default function AdminSaleRepManagerPage() {
                   <div className="space-y-1 min-w-0">
                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Email</p>
                     <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{user.email}</p>
+                    {user.bookingId ? (
+                      <p className={`text-xs transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                        #{user.bookingId}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="space-y-1 text-right">
                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Type</p>

@@ -525,6 +525,11 @@ export default function LeadsTable({
                                       <p className={`text-sm mt-1 font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
                                         {format(lead.date, "MMM dd, yyyy")}
                                       </p>
+                                      {lead.bookingId ? (
+                                        <p className={`text-xs mt-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                                          #{lead.bookingId}
+                                        </p>
+                                      ) : null}
                                     </div>
                                   </div>
 
@@ -755,8 +760,13 @@ export default function LeadsTable({
                                   <div className="space-y-1 min-w-0">
                                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Email ID</p>
                                     <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{lead.email}</p>
-                                  </div>
-                                  <div className="space-y-1 text-right">
+                                    {lead.bookingId ? (
+                                      <p className={`text-xs transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                                        #{lead.bookingId}
+                                      </p>
+                                    ) : null}
+                                    </div>
+                                    <div className="space-y-1 text-right">
                                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Lead Type</p>
                                     <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{lead.leadType}</p>
                                   </div>
