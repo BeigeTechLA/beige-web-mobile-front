@@ -1056,16 +1056,6 @@ export default function QuoteDetailsPage({
   const canEditSelectedVersion =
     isSelectedCurrentVersion &&
     !["rejected", "cancelled"].includes(normalizedQuoteStatus);
-  const canSendInvoiceFromDetails =
-    isSelectedCurrentVersion &&
-    ["accepted", "approved", "confirmed", "pending"].includes(
-      normalizedQuoteStatus
-    );
-  const canViewInvoiceFromDetails =
-    isSelectedCurrentVersion &&
-    ["accepted", "approved", "confirmed", "pending"].includes(
-      normalizedQuoteStatus
-    );
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -1276,9 +1266,12 @@ export default function QuoteDetailsPage({
     Boolean(quote?.additional_payment?.invoice_url) ||
     Boolean(signedAt);
   const canSendInvoiceFromDetails =
-    INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedQuoteStatus) ||
-    INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedDisplayStatus) ||
-    hasInvoiceablePaymentContext;
+    isSelectedCurrentVersion &&
+    (
+      INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedQuoteStatus) ||
+      INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedDisplayStatus) ||
+      hasInvoiceablePaymentContext
+    );
   const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
 
   const ensureBookingForPayment = useCallback(async () => {
