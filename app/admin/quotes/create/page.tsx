@@ -3404,8 +3404,8 @@ export default function CreateQuotePage() {
       versionNotes?: string;
       showVersionSuccess?: boolean;
     },
-  ) => {
-    if (isCreatingQuoteDraft) return;
+  ): Promise<boolean> => {
+    if (isCreatingQuoteDraft) return false;
 
     const isUpdatingExistingQuote = Boolean(effectiveQuoteId);
     const basePayload = getQuoteDraftPayload(
@@ -3483,7 +3483,7 @@ export default function CreateQuotePage() {
           setIsReviewChangesModalOpen(false);
           setIsVersionSaveSuccessOpen(true);
           setReviewChangeReason("");
-          return;
+          return true;
         }
         toast.success(
           isUpdatingExistingQuote
@@ -3492,11 +3492,14 @@ export default function CreateQuotePage() {
         );
         await delayAfterSuccessToast();
         if (!shouldOpenPreview) {
+          if (options?.suppressRedirect) {
+            return true;
+          }
           if (isEditMode && quoteEditReturnHref && !isFullEditFlow) {
             router.push(quoteEditReturnHref);
-            return;
+            return true;
           }
-          return;
+          return true;
         }
       }
 
@@ -3506,7 +3509,7 @@ export default function CreateQuotePage() {
             ? "Draft updated successfully"
             : "Draft saved successfully",
         );
-        return;
+        return true;
       }
 
       if (!savedQuoteId) {
@@ -3514,7 +3517,7 @@ export default function CreateQuotePage() {
           setPreviewQuoteId(extractQuoteIdFromResponse(persistedQuote));
           setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
-          return;
+          return true;
         }
 
         throw new Error("Quote draft was saved, but no quote id was returned");
@@ -3527,7 +3530,7 @@ export default function CreateQuotePage() {
           setPreviewQuoteId(savedQuoteId);
           setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
-          return;
+          return true;
         }
 
         throw new Error(
@@ -3549,6 +3552,7 @@ export default function CreateQuotePage() {
         setPreviewQuote(quoteDetail);
         toast.success("Quote preview loaded");
       }
+      return true;
     } catch (error) {
       console.error(
         action === "preview"
@@ -3577,6 +3581,7 @@ export default function CreateQuotePage() {
                 : "Failed to save quote";
 
       toast.error(error instanceof Error ? error.message : fallbackMessage);
+      return false;
     } finally {
       setIsCreatingQuoteDraft(false);
       setActiveQuoteAction(null);
@@ -3858,6 +3863,14 @@ export default function CreateQuotePage() {
 
     await sendQuoteInvoiceRequest();
   };
+
+  const handleBeforeSendQuoteFromPreview = React.useCallback(async () => {
+    if (!isEditMode || !hasUnsavedQuoteChanges) {
+      return true;
+    }
+
+    return saveQuoteDraft("save", { suppressRedirect: true });
+  }, [hasUnsavedQuoteChanges, isEditMode, saveQuoteDraft]);
 
   const handleConvertToBooking = () => {
     if (!resolvedInvoiceQuoteId) {
@@ -8008,6 +8021,7 @@ export default function CreateQuotePage() {
         quote={previewQuote}
         quoteId={previewQuoteId}
         isLoading={isPreviewLoading}
+        onBeforeSend={handleBeforeSendQuoteFromPreview}
         paymentSummaryOverrides={
           showQuoteRevisionSummary
             ? {

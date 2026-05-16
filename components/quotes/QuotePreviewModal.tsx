@@ -24,6 +24,7 @@ type QuotePreviewModalProps = {
   quote: SalesQuoteDetailData | null;
   quoteId?: string | null;
   isLoading?: boolean;
+  onBeforeSend?: () => Promise<boolean> | boolean;
   paymentSummaryOverrides?: {
     previousTotal?: number;
     previouslyPaid?: number;
@@ -53,6 +54,7 @@ export default function QuotePreviewModal({
   quote,
   quoteId,
   isLoading = false,
+  onBeforeSend,
   paymentSummaryOverrides,
 }: QuotePreviewModalProps) {
   const { isDark } = useResolvedTheme();
@@ -153,6 +155,13 @@ export default function QuotePreviewModal({
     setIsSending(true);
 
     try {
+      if (onBeforeSend) {
+        const canContinue = await onBeforeSend();
+        if (!canContinue) {
+          return;
+        }
+      }
+
       const response = await salesApi.sendQuoteProposal(resolvedQuoteId);
 
       if (response?.error || response?.success === false) {

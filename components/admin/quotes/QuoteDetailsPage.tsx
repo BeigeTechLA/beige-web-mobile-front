@@ -1026,6 +1026,46 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
+  const selectedVersionMeta = useMemo(() => {
+    if (!selectedVersionId || versions.length === 0) return null;
+    return (
+      versions.find(
+        (version) =>
+          version?.version_number != null &&
+          String(version.version_number) === selectedVersionId
+      ) || null
+    );
+  }, [selectedVersionId, versions]);
+  const latestVersionMeta = useMemo(() => {
+    if (versions.length === 0) return null;
+    const currentFlagged =
+      versions.find((version) => Boolean(version?.is_current)) || null;
+    if (currentFlagged) return currentFlagged;
+
+    return versions.reduce((latest: any, candidate: any) => {
+      const latestNo = Number(latest?.version_number || 0);
+      const candidateNo = Number(candidate?.version_number || 0);
+      return candidateNo > latestNo ? candidate : latest;
+    }, versions[0]);
+  }, [versions]);
+  const isSelectedCurrentVersion =
+    !selectedVersionMeta ||
+    !latestVersionMeta ||
+    String(selectedVersionMeta?.version_number) ===
+      String(latestVersionMeta?.version_number);
+  const canEditSelectedVersion =
+    isSelectedCurrentVersion &&
+    !["rejected", "cancelled"].includes(normalizedQuoteStatus);
+  const canSendInvoiceFromDetails =
+    isSelectedCurrentVersion &&
+    ["accepted", "approved", "confirmed", "pending"].includes(
+      normalizedQuoteStatus
+    );
+  const canViewInvoiceFromDetails =
+    isSelectedCurrentVersion &&
+    ["accepted", "approved", "confirmed", "pending"].includes(
+      normalizedQuoteStatus
+    );
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -1425,6 +1465,11 @@ export default function QuoteDetailsPage({
   };
 
   const handleViewInvoice = async () => {
+    if (!isSelectedCurrentVersion) {
+      toast.error("Invoices can only be viewed for the latest quote version.");
+      return;
+    }
+
     if (!resolvedQuoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -1492,6 +1537,11 @@ export default function QuoteDetailsPage({
   };
 
   const sendQuoteInvoiceRequest = async () => {
+    if (!isSelectedCurrentVersion) {
+      toast.error("Invoices can only be sent for the latest quote version.");
+      return false;
+    }
+
     if (!resolvedQuoteId) {
       toast.error("Quote id is missing.");
       return false;
@@ -1648,6 +1698,11 @@ export default function QuoteDetailsPage({
   };
 
   const proceedToEditQuote = (targetView: QuoteEditorView) => {
+    if (!canEditSelectedVersion) {
+      toast.error("Only the latest quote version can be edited.");
+      return;
+    }
+
     if (quote) {
       persistQuoteEditorNavigationCache(quoteId, quote);
     }
@@ -1712,11 +1767,7 @@ export default function QuoteDetailsPage({
     />
   );
 
-  const selectedVersionNumber = useMemo(() => {
-    if (!selectedVersionId || versions.length === 0) return null;
-    const v = versions.find((version) => version?.version_number != null && String(version.version_number) === selectedVersionId);
-    return v ? v.version_number : null;
-  }, [selectedVersionId, versions]);
+  const selectedVersionNumber = selectedVersionMeta?.version_number ?? null;
 
   return (
     <div
@@ -1800,8 +1851,8 @@ export default function QuoteDetailsPage({
           <div className="space-y-3 lg:space-y-6 pb-12 lg:pb-0">
             <SectionShell
               title="Client Information"
-              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Details" : undefined}
-              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("details") : undefined}
+              actionLabel={canEditSelectedVersion ? "Edit Details" : undefined}
+              onAction={canEditSelectedVersion ? () => setPendingEditView("details") : undefined}
             >
               <div className="flex flex-col gap-3 lg:gap-6">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -2077,8 +2128,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
-              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Services" : undefined}
-              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("services") : undefined}
+              actionLabel={canEditSelectedVersion ? "Edit Services" : undefined}
+              onAction={canEditSelectedVersion ? () => setPendingEditView("services") : undefined}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -2097,8 +2148,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Add-On Includes"
-              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Add ons" : undefined}
-              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("addons") : undefined}
+              actionLabel={canEditSelectedVersion ? "Edit Add ons" : undefined}
+              onAction={canEditSelectedVersion ? () => setPendingEditView("addons") : undefined}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -2120,8 +2171,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Logistics"
-              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Logistics" : undefined}
-              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("logistics") : undefined}
+              actionLabel={canEditSelectedVersion ? "Edit Logistics" : undefined}
+              onAction={canEditSelectedVersion ? () => setPendingEditView("logistics") : undefined}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -2142,8 +2193,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Custom Line Item"
-              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Items" : undefined}
-              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("customlineitems") : undefined}
+              actionLabel={canEditSelectedVersion ? "Edit Items" : undefined}
+              onAction={canEditSelectedVersion ? () => setPendingEditView("customlineitems") : undefined}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
@@ -2171,8 +2222,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Other Details"
-              actionLabel={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Edit Tax & Discounts" : undefined}
-              onAction={!["rejected", "cancelled"].includes(normalizedQuoteStatus) ? () => setPendingEditView("discounts") : undefined}
+              actionLabel={canEditSelectedVersion ? "Edit Tax & Discounts" : undefined}
+              onAction={canEditSelectedVersion ? () => setPendingEditView("discounts") : undefined}
             >
               <div className="space-y-3 lg:space-y-6">
                 <div className="inline-flex rounded-lg lg:rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
