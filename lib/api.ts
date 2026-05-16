@@ -1466,7 +1466,8 @@ export const adminApi = {
   },
   createManualCreditPoint: async (payload: {
     user_type: string;
-    target_user_id: number;
+    target_user_id?: number;
+    guest_email?: string;
     amount: number;
     credit_type: string;
     expires_at?: string;

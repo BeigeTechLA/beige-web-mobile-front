@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import AddCreditPointsModal, {
+  type ClientDropdownItem,
   type CreditPointsFormState,
 } from "@/components/admin/finances/AddCreditPointsModal";
 import CreditPointsSuccessModal from "@/components/admin/finances/CreditPointsSuccessModal";
@@ -18,11 +19,10 @@ import CreditHistoryTable, {
   type CreditHistoryRow,
 } from "@/components/affiliate/CreditHistoryTable";
 import FinanceMetricCards from "@/components/affiliate/FinanceMetricCards";
-import { adminApi } from "@/lib/api";
+import { adminApi, salesApi } from "@/lib/api";
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyMonthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyStatusOptions = ["All", "Used", "Available"];
-const creditUserTypeOptions = ["Client", "Creative Partner"];
 const creditTypeOptions = ["Promo", "Refund", "Compensation"];
 
 type CreditPointsDashboardResponse = {
@@ -75,6 +75,27 @@ const pickFirstNumber = (source: Record<string, unknown>, keys: string[]) => {
 
 const formatPoints = (value: number) =>
   `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)} Points`;
+
+const pickFirstClientValue = (
+  ...values: Array<string | number | null | undefined>
+) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+
+    const normalized = String(value).trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+};
+
+const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.name, client?.client_name, client?.full_name);
+
+const getClientEmail = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.email, client?.client_email, client?.guest_email);
 
 const formatDisplayDate = (value?: string) => {
   if (!value) return "-";
@@ -220,12 +241,19 @@ export default function AdminFinancesPage() {
   const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false);
   const [isCreditSuccessModalOpen, setIsCreditSuccessModalOpen] = useState(false);
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
+  const [clientSuggestions, setClientSuggestions] = useState<ClientDropdownItem[]>([]);
+  const [selectedClientSuggestion, setSelectedClientSuggestion] =
+    useState<ClientDropdownItem | null>(null);
+  const [isClientSuggestionOpen, setIsClientSuggestionOpen] = useState(false);
+  const [isLoadingClientSuggestions, setIsLoadingClientSuggestions] = useState(false);
   const [submittedCreditForm, setSubmittedCreditForm] = useState<CreditPointsFormState | null>(
     null
   );
   const [creditForm, setCreditForm] = useState<CreditPointsFormState>({
-    userType: "",
+    userType: "Client",
+    clientSearch: "",
     targetUserId: "",
+    guestEmail: "",
     amount: "",
     creditType: "",
     expiryDate: "",
@@ -266,6 +294,35 @@ export default function AdminFinancesPage() {
   useEffect(() => {
     fetchCreditPointsDashboard();
   }, [fetchCreditPointsDashboard]);
+
+  useEffect(() => {
+    const trimmedQuery = creditForm.clientSearch.trim();
+
+    if (!isAddCreditModalOpen || !isClientSuggestionOpen || trimmedQuery.length === 0) {
+      setClientSuggestions([]);
+      setIsLoadingClientSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLoadingClientSuggestions(true);
+      try {
+        const result = await salesApi.getClientDropdown(trimmedQuery);
+        if (!result?.error && Array.isArray(result.data)) {
+          setClientSuggestions(result.data as ClientDropdownItem[]);
+        } else {
+          setClientSuggestions([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch client suggestions:", error);
+        setClientSuggestions([]);
+      } finally {
+        setIsLoadingClientSuggestions(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [creditForm.clientSearch, isAddCreditModalOpen, isClientSuggestionOpen]);
 
   const isDark = !mounted || theme === "dark";
 
@@ -365,13 +422,31 @@ export default function AdminFinancesPage() {
     key: K,
     value: (typeof creditForm)[K]
   ) => {
-    setCreditForm((current) => ({ ...current, [key]: value }));
+    setCreditForm((current) => {
+      if (key === "clientSearch") {
+        return {
+          ...current,
+          clientSearch: String(value),
+          targetUserId: "",
+          guestEmail: "",
+        };
+      }
+
+      return { ...current, [key]: value };
+    });
+
+    if (key === "clientSearch") {
+      setSelectedClientSuggestion(null);
+      setIsClientSuggestionOpen(true);
+    }
   };
 
   const resetCreditForm = () => {
     setCreditForm({
-      userType: "",
+      userType: "Client",
+      clientSearch: "",
       targetUserId: "",
+      guestEmail: "",
       amount: "",
       creditType: "",
       expiryDate: "",
@@ -380,22 +455,43 @@ export default function AdminFinancesPage() {
       usageRestrictions: "",
       notifyUser: false,
     });
+    setClientSuggestions([]);
+    setSelectedClientSuggestion(null);
+    setIsClientSuggestionOpen(false);
+    setIsLoadingClientSuggestions(false);
   };
 
   const handleCreditModalChange = (open: boolean) => {
     setIsAddCreditModalOpen(open);
     if (!open) {
       resetCreditForm();
+      return;
     }
+
+    setCreditForm((current) => ({ ...current, userType: "Client" }));
+  };
+
+  const handleClientSuggestionSelect = (client: ClientDropdownItem) => {
+    const resolvedUserId = pickFirstClientValue(client.user_id);
+    const resolvedGuestEmail = resolvedUserId ? "" : getClientEmail(client);
+
+    setSelectedClientSuggestion(client);
+    setCreditForm((current) => ({
+      ...current,
+      userType: "Client",
+      clientSearch: getClientDisplayName(client) || getClientEmail(client),
+      targetUserId: resolvedUserId,
+      guestEmail: resolvedGuestEmail,
+    }));
+    setIsClientSuggestionOpen(false);
   };
 
   const handleCreditFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const parsedTargetUserId = Number(creditForm.targetUserId);
     const parsedAmount = Number(creditForm.amount);
-    if (!Number.isInteger(parsedTargetUserId) || parsedTargetUserId <= 0) {
-      toast.error("Enter a valid target user id");
+    if (!selectedClientSuggestion) {
+      toast.error("Select a client from suggestions");
       return;
     }
 
@@ -404,8 +500,17 @@ export default function AdminFinancesPage() {
       return;
     }
 
-    if (!creditForm.userType || !creditForm.reason || !creditForm.creditType) {
+    if (!creditForm.reason || !creditForm.creditType) {
       toast.error("Fill all required fields");
+      return;
+    }
+
+    const parsedTargetUserId = Number(creditForm.targetUserId);
+    const hasRegisteredUser = Number.isInteger(parsedTargetUserId) && parsedTargetUserId > 0;
+    const resolvedGuestEmail = creditForm.guestEmail.trim();
+
+    if (!hasRegisteredUser && !resolvedGuestEmail) {
+      toast.error("Selected client must have a user id or guest email");
       return;
     }
 
@@ -417,8 +522,10 @@ export default function AdminFinancesPage() {
       );
 
       const response = await adminApi.createManualCreditPoint({
-        user_type: creditForm.userType.toLowerCase().replace(/\s+/g, "_"),
-        target_user_id: parsedTargetUserId,
+        user_type: "client",
+        ...(hasRegisteredUser
+          ? { target_user_id: parsedTargetUserId }
+          : { guest_email: resolvedGuestEmail }),
         amount: parsedAmount,
         credit_type: toCreditTypeApiValue(creditForm.creditType),
         expires_at: creditForm.expiryDate || undefined,
@@ -453,7 +560,7 @@ export default function AdminFinancesPage() {
         pathname={pathname}
         actions={
           <div className="flex items-center gap-3">
-            {/* <Button
+             <Button
               type="button"
               variant="beige"
               className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
@@ -461,7 +568,7 @@ export default function AdminFinancesPage() {
             >
               <Plus size={18} />
               Add Credit Points
-            </Button> */}
+            </Button> 
             <Button
               type="button"
               className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
@@ -527,10 +634,15 @@ export default function AdminFinancesPage() {
         open={isAddCreditModalOpen}
         form={creditForm}
         isSubmitting={isSubmittingCredit}
-        userTypeOptions={creditUserTypeOptions}
         creditTypeOptions={creditTypeOptions}
+        clientSuggestions={clientSuggestions}
+        selectedClient={selectedClientSuggestion}
+        isLoadingClientSuggestions={isLoadingClientSuggestions}
+        isClientSuggestionOpen={isClientSuggestionOpen}
         onOpenChange={handleCreditModalChange}
         onChange={updateCreditForm}
+        onClientSelect={handleClientSuggestionSelect}
+        onClientSuggestionOpenChange={setIsClientSuggestionOpen}
         onSubmit={handleCreditFormSubmit}
       />
       <CreditPointsSuccessModal
