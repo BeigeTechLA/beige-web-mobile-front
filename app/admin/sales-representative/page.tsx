@@ -1095,22 +1095,6 @@ export default function AdminSaleRepManagerPage() {
       <Topbar pathname={pathname}
         actions={
           <>
-            <div className="relative flex-1 max-w-lg">
-              <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
-              <input
-                type="text"
-                placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`h-12 w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
-                  ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
-                  : "bg-white border-black/10 text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
-                  }`}
-              />
-            </div>
-            {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
-              <ArrowUpToLine /> Export
-            </Button> */}
             <Button
               onClick={() => router.push("/admin/sales-representative/create-new-deal")}
               className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
