@@ -188,7 +188,7 @@ export default function AddCreditPointsModal({
 
         <form
           onSubmit={onSubmit}
-          className="max-h-[calc(90vh-60px)] overflow-y-auto px-5 py-5"
+          className="max-h-[calc(90vh-60px)] overflow-y-auto px-5 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
           <div className="space-y-3.5">
             <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
