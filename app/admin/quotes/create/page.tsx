@@ -2640,6 +2640,7 @@ export default function CreateQuotePage() {
     selectedServices,
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
+  const shouldHideBackButton = isQuoteSaved;
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
@@ -3509,6 +3510,18 @@ export default function CreateQuotePage() {
             ? "Draft updated successfully"
             : "Draft saved successfully",
         );
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("view", view);
+        if (!nextParams.get("quoteId") && savedQuoteId) {
+          nextParams.set("quoteId", savedQuoteId);
+        }
+        if (
+          !nextParams.get("editMode") &&
+          nextParams.get("quoteId")
+        ) {
+          nextParams.set("editMode", "full");
+        }
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
         return true;
       }
 
@@ -4920,13 +4933,17 @@ export default function CreateQuotePage() {
       <div className="px-4 pb-40 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
         {/* Navigation & Progress Header */}
         <div className="flex justify-between items-center mb-7">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
-          >
-            <ArrowLeft size={18} />
-            Back
-          </button>
+          {!shouldHideBackButton ? (
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+          ) : (
+            <div />
+          )}
 
           <div className="text-right">
             {view === "tax" && (
@@ -7579,13 +7596,15 @@ export default function CreateQuotePage() {
         {/* Footer Actions */}
         <div className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
           <div className="flex gap-4">
-            <Button
-              variant="outline"
-              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
-              onClick={handleBack}
-            >
-              Back
-            </Button>
+            {!shouldHideBackButton ? (
+              <Button
+                variant="outline"
+                className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
+                onClick={handleBack}
+              >
+                Back
+              </Button>
+            ) : null}
             {!showInvoiceActions ? (
               showReviewChangesAction ? (
                 <Button
@@ -7781,13 +7800,15 @@ export default function CreateQuotePage() {
           </Button>
         )}
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
-            onClick={handleBack}
-          >
-            Back
-          </Button>
+          {!shouldHideBackButton ? (
+            <Button
+              variant="outline"
+              className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+              onClick={handleBack}
+            >
+              Back
+            </Button>
+          ) : null}
           {showInvoiceActions && showPreviewAction ? (
             <Button
               type="button"
