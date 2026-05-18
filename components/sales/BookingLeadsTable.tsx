@@ -6,6 +6,7 @@ import { MoreVertical, Loader2, ChevronDown, MoreHorizontal, ChevronLeft, Chevro
 import { LeadsStatusBadge, BookingStatus } from "@/components/sales/LeadsStatusBadge";
 import { IntentBadge } from "./IntentBadge";
 import { useTheme } from "next-themes";
+import BoardMiniMapNavigator from "../admin/BoardMiniMapNavigator";
 
 interface LeadData {
   lead_id: number;
@@ -349,10 +350,10 @@ export default function LeadsTable({
         )}
         <div className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
           {currentViewMode === "grid" ? (
-            <div className="block pt-0">
+            <div className="relative block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-2 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-16 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
@@ -508,9 +509,12 @@ export default function LeadsTable({
                                       >
                                         {lead.clientName}
                                       </h4>
-                                      <div className="mt-1">
+                                      <div className="mt-1 flex items-center gap-3">
+                                        <p className={`text-sm font-medium whitespace-nowrap ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                          {format(lead.date, "MMM dd, yyyy")}
+                                        </p>
                                         <span
-                                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${lead.registrationType === "registered"
+                                          className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${lead.registrationType === "registered"
                                             ? isDark
                                               ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                                               : "bg-emerald-100 text-emerald-700 border border-emerald-200"
@@ -522,14 +526,6 @@ export default function LeadsTable({
                                           {lead.registrationType === "registered" ? "Registered" : "Guest"}
                                         </span>
                                       </div>
-                                      <p className={`text-sm mt-1 font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                        {format(lead.date, "MMM dd, yyyy")}
-                                      </p>
-                                      {lead.bookingId ? (
-                                        <p className={`text-xs mt-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                                          #{lead.bookingId}
-                                        </p>
-                                      ) : null}
                                     </div>
                                   </div>
 
@@ -577,6 +573,17 @@ export default function LeadsTable({
                                     </span>
                                   </div>
 
+                                  {lead.bookingId ? (
+                                    <div className="flex items-center justify-between gap-4">
+                                      <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                                        Booking ID
+                                      </span>
+                                      <span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
+                                        #{lead.bookingId}
+                                      </span>
+                                    </div>
+                                  ) : null}
+
                                   <div className="flex items-center justify-between">
                                     <span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
                                       Lead Type
@@ -620,6 +627,14 @@ export default function LeadsTable({
                   ))}
                 </div >
               </div >
+
+              <BoardMiniMapNavigator
+                boardRef={gridScrollRef}
+                segmentCount={kanbanColumns.length}
+                isDark={isDark}
+                visible={currentViewMode === "grid"}
+                syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
+              />
             </div >
           ) : (
             // <div className="w-full overflow-hidden lg:overflow-x-auto rounded-2xl">
