@@ -775,7 +775,17 @@ export default function LeadDetailPage() {
   const shootType = booking?.shoot_type || booking?.event_type || "Not specified";
 
   // Pricing from breakdown
-  const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
+  const convertedQuoteTotal = isQuoteConvertedLead
+    ? Number(
+        lead?.custom_quote?.total ??
+        additionalPaymentDetails?.revisedTotal ??
+        primaryQuote?.total ??
+        0
+      )
+    : 0;
+  const basePrice = (isQuoteConvertedLead && convertedQuoteTotal > 0)
+    ? convertedQuoteTotal
+    : (lead?.pricing_breakdown?.shoot_cost || 0);
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
   const discountAmount = isQuoteConvertedLead
@@ -800,11 +810,13 @@ export default function LeadDetailPage() {
       lead?.pricing_breakdown?.total ??
       0
   );
-  const total = effectiveCreditApplied > 0
-    ? totalAfterCredit
-    : (isQuoteConvertedLead
-      ? Number(primaryQuote?.total ?? totalAfterCredit)
-      : totalAfterCredit);
+  const total = convertedQuoteTotal > 0
+    ? convertedQuoteTotal
+    : (effectiveCreditApplied > 0
+      ? totalAfterCredit
+      : (isQuoteConvertedLead
+        ? Number(primaryQuote?.total ?? totalAfterCredit)
+        : totalAfterCredit));
 
   const referralInfo = useMemo(() => {
     const notes = booking?.primary_quote?.notes || "";
