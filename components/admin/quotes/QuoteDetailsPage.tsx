@@ -1048,11 +1048,20 @@ export default function QuoteDetailsPage({
       return candidateNo > latestNo ? candidate : latest;
     }, versions[0]);
   }, [versions]);
-  const isSelectedCurrentVersion =
-    !selectedVersionMeta ||
-    !latestVersionMeta ||
-    String(selectedVersionMeta?.version_number) ===
-      String(latestVersionMeta?.version_number);
+  const isSelectedCurrentVersion = useMemo(() => {
+    if (versions.length === 0) return true;
+    if (!latestVersionMeta) return false;
+
+    const latestVersionNumber = Number(latestVersionMeta?.version_number);
+    const selectedVersionNumber =
+      Number(selectedVersionMeta?.version_number ?? selectedVersionId);
+
+    if (!Number.isFinite(latestVersionNumber) || !Number.isFinite(selectedVersionNumber)) {
+      return Boolean(selectedVersionMeta?.is_current);
+    }
+
+    return selectedVersionNumber === latestVersionNumber;
+  }, [latestVersionMeta, selectedVersionId, selectedVersionMeta, versions.length]);
   const canEditSelectedVersion =
     isSelectedCurrentVersion &&
     !["rejected", "cancelled"].includes(normalizedQuoteStatus);

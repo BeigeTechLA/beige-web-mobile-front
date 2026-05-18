@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Grid3X3, List, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -17,6 +17,7 @@ import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow"
 import { StatusBadge } from "../admin/StatusBadge";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
+import BoardMiniMapNavigator from "../admin/BoardMiniMapNavigator";
 
 type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Unknown";
 interface ShootRecord {
@@ -73,6 +74,7 @@ export default function SalesShootsTable({ externalSelectedDate,
   const dragAutoScrollFrameRef = React.useRef<number | null>(null);
   const dragAutoScrollStatusRef = React.useRef<ShootStatus | null>(null);
   const dragAutoScrollDirectionRef = React.useRef<"up" | "down" | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
@@ -399,7 +401,7 @@ export default function SalesShootsTable({ externalSelectedDate,
               <Grid3X3 size={18} />
             </button>
            
-          </div> */}
+          </div> 
 
         {/* </div>
       </div> */}
@@ -482,8 +484,8 @@ export default function SalesShootsTable({ externalSelectedDate,
             </>
           ) : (
             <>
-              <div className="hidden lg:block p-6 pt-5">
-                <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-2">
+              <div className="relative hidden lg:block p-6 pt-5">
+                <div ref={gridScrollRef} className="overflow-x-auto overflow-y-hidden no-scrollbar pb-16">
                   <div className="flex items-start gap-5 min-w-max">
                     {kanbanColumns.map((column) => (
                       <div
@@ -618,6 +620,14 @@ export default function SalesShootsTable({ externalSelectedDate,
                     ))}
                   </div>
                 </div>
+
+                <BoardMiniMapNavigator
+                  boardRef={gridScrollRef}
+                  segmentCount={kanbanColumns.length}
+                  isDark={isDark}
+                  visible={viewMode === "grid"}
+                  syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
+                />
               </div>
             </>
           )}
