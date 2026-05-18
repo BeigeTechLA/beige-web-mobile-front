@@ -835,113 +835,111 @@ export const ShootsTable = ({
       }`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
       {shouldRenderHeaderControls && (
-<div className={`flex flex-col lg:flex-row justify-end lg:items-center px-4 lg:px-6 pt-4 lg:pt-6 pb-0 gap-4`}>
-        {/* <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3> */}
-  <div className="flex flex-col md:flex-row gap-3 w-full justify-end">
-          {showHeaderFilters && (
-          <>
-          <div className="relative">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
-            <input
-              type="text"
-              placeholder="Search project name..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className={`w-full md:w-[280px] border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-                }`}
-              />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
-              <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="corporate">Corporate</SelectItem>
-                <SelectItem value="wedding">Wedding</SelectItem>
-                <SelectItem value="private">Private Events</SelectItem>
-                <SelectItem value="commercial">Commercial</SelectItem>
-                <SelectItem value="social">Social Content</SelectItem>
-                <SelectItem value="podcasts">Podcasts</SelectItem>
-                <SelectItem value="music">Music Videos</SelectItem>
-                <SelectItem value="narrative">Narrative</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
-              <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                {FILTER_STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
-              <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="Range" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                <SelectItem value="all">All time</SelectItem>
-                <SelectItem value="week">Week</SelectItem>
-                <SelectItem value="month">Month</SelectItem>
-                <SelectItem value="year">Year</SelectItem>
-                {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
-              </SelectContent>
-            </Select>
-            <Select value={activeCpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => { setActiveCpAssignmentFilter(v); setCurrentPage(1); }}>
-              <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="CP Assignment" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                <SelectItem value="all">All CP Assignment</SelectItem>
-                <SelectItem value="assigned">CP Assigned</SelectItem>
-                <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          </>
-          )}
-          <div className="flex flex-wrap gap-3">
-            {showViewToggle && (
-            <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
-              <button
-                type="button"
-                onClick={() => setActiveViewMode("list")}
-                className={`px-4 py-2.5 transition-colors ${
-                  activeViewMode === "list"
-                    ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                    : isDark
-                      ? "bg-transparent text-white/40 hover:text-white"
-                      : "bg-transparent text-[#666] hover:text-black"
-                }`}
-              >
-                <List size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveViewMode("grid")}
-                className={`px-4 py-2.5 transition-colors ${
-                  activeViewMode === "grid"
-                    ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                    : isDark
-                      ? "bg-transparent text-white/40 hover:text-white"
-                      : "bg-transparent text-[#666] hover:text-black"
-                }`}
-              >
-                <Grid3X3 size={18} />
-              </button>
-            </div>
+        <div className={`flex flex-col lg:flex-row justify-end lg:items-center px-4 lg:px-6 pt-4 lg:pt-6 pb-0 gap-4`}>
+          {/* <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3> */}
+          <div className="flex flex-col md:flex-row gap-3 w-full justify-end">
+            {showHeaderFilters && (
+              <>
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search project name..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full md:w-[280px] border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+                      }`}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
+                    <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                      <SelectItem value="wedding">Wedding</SelectItem>
+                      <SelectItem value="private">Private Events</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                      <SelectItem value="social">Social Content</SelectItem>
+                      <SelectItem value="podcasts">Podcasts</SelectItem>
+                      <SelectItem value="music">Music Videos</SelectItem>
+                      <SelectItem value="narrative">Narrative</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+                    <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      {FILTER_STATUS_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
+                    <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Range" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All time</SelectItem>
+                      <SelectItem value="week">Week</SelectItem>
+                      <SelectItem value="month">Month</SelectItem>
+                      <SelectItem value="year">Year</SelectItem>
+                      {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                  <Select value={activeCpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => { setActiveCpAssignmentFilter(v); setCurrentPage(1); }}>
+                    <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="CP Assignment" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All CP Assignment</SelectItem>
+                      <SelectItem value="assigned">CP Assigned</SelectItem>
+                      <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             )}
+            <div className="flex flex-wrap gap-3">
+              {showViewToggle && (
+                <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewMode("list")}
+                    className={`px-4 py-2.5 transition-colors ${activeViewMode === "list"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : isDark
+                        ? "bg-transparent text-white/40 hover:text-white"
+                        : "bg-transparent text-[#666] hover:text-black"
+                      }`}
+                  >
+                    <List size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewMode("grid")}
+                    className={`px-4 py-2.5 transition-colors ${activeViewMode === "grid"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : isDark
+                        ? "bg-transparent text-white/40 hover:text-white"
+                        : "bg-transparent text-[#666] hover:text-black"
+                      }`}
+                  >
+                    <Grid3X3 size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       {loading || meetingGapLoading ? (
@@ -955,14 +953,14 @@ export const ShootsTable = ({
       ) : (
         <>
           {/* MOBILE ONLY VIEW */}
-          {activeViewMode === "list" ? (
+          {activeViewMode === "list" && (
             <div className={`lg:hidden transition-colors duration-300 ${isDark ? "bg-[#111111]" : ""}`}>
-              <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"}`}>
+              <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
                 <span>Customer Name</span>
                 <span>Status</span>
               </div>
 
-              <div className="flex flex-col gap-2 ">
+              <div className="flex flex-col">
                 {currentShoots.map((shoot, idx) => (
                   <MobileShootRow
                     key={idx}
@@ -972,7 +970,8 @@ export const ShootsTable = ({
                 ))}
               </div>
             </div>
-          ) : (
+          )}
+          {/* ) : (
             <div className="lg:hidden p-4">
               <div className="space-y-4">
                 {kanbanColumns.map((column) => (
@@ -992,8 +991,8 @@ export const ShootsTable = ({
                           key={`${column.status}-${idx}`}
                           onClick={() => handleRowClick(shoot.id)}
                           className={`rounded-2xl border p-4 transition-colors ${isDark
-                              ? "border-[#2F2F2F] bg-[#151515]"
-                              : "border-[#EAE3D6] bg-[#FFFCF8]"
+                            ? "border-[#2F2F2F] bg-[#151515]"
+                            : "border-[#EAE3D6] bg-[#FFFCF8]"
                             }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -1048,7 +1047,7 @@ export const ShootsTable = ({
                 ))}
               </div>
             </div>
-          )}
+          )} */}
 
           {activeViewMode === "grid" ? (
             <div className="relative block pt-0">
@@ -1076,7 +1075,7 @@ export const ShootsTable = ({
                           {column.totalItems}
                         </span>
                       </div>
-                        {/* <StatusBadge status={column.status} /> */}
+                      {/* <StatusBadge status={column.status} /> */}
 
                       <div
                         ref={(node) => {
@@ -1104,8 +1103,8 @@ export const ShootsTable = ({
                       >
                         {column.items.length === 0 ? (
                           <div className={`rounded-2xl border border-dashed px-4 py-10 text-center text-sm ${isDark
-                              ? "border-white/10 text-white/35"
-                              : "border-[#E3D9C8] text-[#9A8F7C]"
+                            ? "border-white/10 text-white/35"
+                            : "border-[#E3D9C8] text-[#9A8F7C]"
                             }`}>
                             No shoots in this stage
                           </div>
@@ -1138,13 +1137,13 @@ export const ShootsTable = ({
                               setDraggedStatus(null);
                             }}
                             className={`group cursor-pointer rounded-2xl transition-all duration-200 ${isDark
-                                ? "bg-[#202020] hover:bg-[#1A1A1A]"
-                                : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
+                              ? "bg-[#202020] hover:bg-[#1A1A1A]"
+                              : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
                               } ${draggedShootId === shoot.id ? "opacity-50 scale-95" : "opacity-100"}`}
                           >
                             <div className="flex items-start justify-between gap-3 p-5">
                               <div className="flex min-w-0 flex-1 items-center gap-3">
-                                <div className={`w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl shrink-0`}>
+                                <div className={`shrink-0 w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl`}>
                                   {shoot.initials}
                                 </div>
                                 <div className="min-w-0 pt-1">
@@ -1156,55 +1155,55 @@ export const ShootsTable = ({
                                   </p>
                                 </div>
                               </div>
-                                <div className="relative shrink-0" data-card-actions>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
-                                    }}
-                                    className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
-                                    aria-label="Card actions"
-                                  >
-                                    <MoreVertical size={24} />
-                                  </button>
+                              <div className="relative shrink-0" data-card-actions>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
+                                  }}
+                                  className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                                  aria-label="Card actions"
+                                >
+                                  <MoreVertical size={24} />
+                                </button>
 
-                                  {openCardActionId === shoot.id && (
-                                    <div
-                                      className={`absolute right-0 top-9 z-20 min-w-[150px] rounded-xl border p-1 shadow-xl ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
+                                {openCardActionId === shoot.id && (
+                                  <div
+                                    className={`absolute right-0 top-9 z-20 min-w-[150px] rounded-xl border p-1 shadow-xl ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
+                                      }`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenCardActionId(null);
+                                        handleRowClick(shoot.id);
+                                      }}
+                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
                                         }`}
-                                      onClick={(e) => e.stopPropagation()}
                                     >
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setOpenCardActionId(null);
-                                          handleRowClick(shoot.id);
-                                        }}
-                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
-                                          }`}
-                                      >
-                                        <ChevronRight size={16} />
-                                        Open details
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setOpenCardActionId(null);
-                                          handleDeleteClick(e, shoot.id);
-                                        }}
-                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
-                                          }`}
-                                      >
-                                        <Trash2 size={16} />
-                                        Delete
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                                      <ChevronRight size={16} />
+                                      Open details
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenCardActionId(null);
+                                        handleDeleteClick(e, shoot.id);
+                                      }}
+                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                        }`}
+                                    >
+                                      <Trash2 size={16} />
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
                               </div>
+                            </div>
                             {/* DIVIDER */}
                             <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
@@ -1277,7 +1276,7 @@ export const ShootsTable = ({
                       <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
                       <td className="py-5 px-6">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
+                          <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                             {shoot.initials}
                           </div>
                           <div>

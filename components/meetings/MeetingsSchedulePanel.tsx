@@ -11,6 +11,7 @@ import MeetingDetailsModal from "@/components/meetings/MeetingDetailsModal";
 import { meetingsApi, type MeetingItem, type MeetingParticipantRef } from "@/lib/meetingsApi";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
 import {
   Select,
@@ -154,6 +155,8 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
     params?.bookingId ||
     params?.projectId ||
     params?.shootId;
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const normalizedParamOrderId = Array.isArray(paramOrderId) ? paramOrderId[0] : paramOrderId;
   const resolvedOrderId = orderId ?? normalizedParamOrderId ?? null;
   const [meetings, setMeetings] = useState<MeetingItem[]>([]);
@@ -166,6 +169,11 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
   const [meetingPendingDelete, setMeetingPendingDelete] = useState<MeetingItem | null>(null);
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [respondingMeetingId, setRespondingMeetingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   const currentUserId = useMemo(() => {
     if (!user || typeof user !== "object") return undefined;
@@ -239,11 +247,11 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
 
   return (
     <>
-      <div className="mt-6 rounded-2xl border border-[#222222] bg-[#111111] p-6">
-        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className={`${isDark ? "bg-[#111111]" : "bg-[#FFFFFF]"}`}>
+        <div className={`p-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
           <div>
-            <h3 className="text-lg font-bold text-white">Meeting Schedule</h3>
-            <p className="mt-1 text-sm text-white/45">
+            <h3 className={`lg:text-lg font-bold ${isDark ? "text-white" : "text-black"}`}>Meeting Schedule</h3>
+            <p className={`mt-1 text-sm ${isDark ? "text-white/45" : "text-[#323232]"}`}>
               {role === "client"
                 ? "Track project meetings, create them when needed, and open the join link when available."
                 : role === "cp"
@@ -253,250 +261,252 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="min-w-[170px] border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent className="border-white/10 bg-[#111111] text-white">
-                {availableStatuses.map((status) => (
-                  <SelectItem key={status} value={status} className="focus:bg-[#1E1E1E] focus:text-white">
-                    {status === "all" ? "All Status" : formatMeetingStatusLabel(status)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className={`flex gap-3`}>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="min-w-[170px] border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent className="border-white/10 bg-[#111111] text-white">
+                  {availableStatuses.map((status) => (
+                    <SelectItem key={status} value={status} className="focus:bg-[#1E1E1E] focus:text-white">
+                      {status === "all" ? "All Status" : formatMeetingStatusLabel(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={loading}
-              className="border-white/10 bg-[#1A1A1A] text-white hover:bg-[#242424]"
-            >
-              <RefreshCw size={16} className={cn(loading && "animate-spin")} />
-              Refresh
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={loading}
+                className="h-12 border-white/10 bg-[#1A1A1A] text-white hover:bg-[#242424]"
+              >
+                <RefreshCw size={16} className={cn(loading && "animate-spin")} />
+                <span>Refresh</span>
+              </Button>
+            </div>
+
 
             {canCreateMeeting ? (
-              <Button onClick={() => setIsModalOpen(true)} className="bg-white text-black hover:bg-zinc-200">
+              <Button onClick={() => setIsModalOpen(true)} className="h-13 lg:h-12 bg-white text-black hover:bg-zinc-200">
                 Create New Meeting
               </Button>
             ) : null}
           </div>
         </div>
 
-        <div className="w-full">
-          <div className="hidden grid-cols-[2fr_1fr_1fr_auto] border-b border-[#222222] px-2 pb-4 text-base font-medium text-[#888888] lg:grid">
+        <div className={`overflow-x-auto `}  >
+          <div className={`hidden grid-cols-[2fr_1fr_1fr_auto] p-5 text-sm font-medium lg:grid border-y ${isDark ? "border-[#3D3D3D] text-[#E8D1AB] bg-[#202020]" : "bg-[#F4F5F7] text-black border-[#E5E5E5]"}`}>
             <span>Date & Time</span>
             <span>Members</span>
             <span>Status</span>
             <span className="text-right">Action</span>
           </div>
-          <div className="flex justify-between border-b border-[#222222] px-2 pb-4 text-sm font-medium text-[#E8D1AB] lg:hidden">
+          <div className={`flex justify-between p-5 text-sm font-medium lg:hidden border-y ${isDark ? "border-[#3D3D3D] text-[#E8D1AB] bg-[#202020]" : "bg-[#F4F5F7] text-black border-[#E5E5E5]"}`}>
             <span>Members</span>
             <span>Status</span>
           </div>
 
-          {loading ? 
-          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
-        }`}>
-        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-      </div>: error ? (
-            <div className="px-2 py-10 text-center text-sm text-[#ff8e8e]">{error}</div>
-          ) : filteredMeetings.length === 0 ? (
-            <div className="px-2 py-10 text-center text-sm text-white/45">No meetings found for this project yet.</div>
-          ) : (
-            <div className="flex flex-col">
-              {filteredMeetings.map((meeting) => {
-                const meetingId = String(meeting.id || "");
-                const participants = getMeetingParticipants(meeting);
-                const isExpanded = expandedId === meetingId;
-                const effectiveStatus = getEffectiveMeetingStatus(meeting);
-                const isCompleted = effectiveStatus === "completed";
-                const currentResponse = getParticipantResponse(meeting, currentUserId);
-                const createdById = resolveId(meeting.created_by?.id);
-                const isClientCreatedBySelf =
-                  role === "client" &&
-                  !!currentUserId &&
-                  !!createdById &&
-                  String(currentUserId) === createdById;
-                const canRespond =
-                  !!meeting.id &&
-                  !!currentUserId &&
-                  role !== "admin" &&
-                  !isClientCreatedBySelf &&
-                  !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
-                const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
-                const isResponding = respondingMeetingId === meetingId;
+          {loading ?
+            <div className={`flex items-center justify-center py-20 border transition-colors duration-300 border-[#3D3D3D] bg-[#171717] `}>
+              <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+            </div> : error ? (
+              <div className="px-2 py-10 text-center text-sm text-[#ff8e8e]">{error}</div>
+            ) : filteredMeetings.length === 0 ? (
+              <div className="px-2 py-10 text-center text-sm text-white/45">No meetings found for this project yet.</div>
+            ) : (
+              <div className="flex flex-col">
+                {filteredMeetings.map((meeting) => {
+                  const meetingId = String(meeting.id || "");
+                  const participants = getMeetingParticipants(meeting);
+                  const isExpanded = expandedId === meetingId;
+                  const effectiveStatus = getEffectiveMeetingStatus(meeting);
+                  const isCompleted = effectiveStatus === "completed";
+                  const currentResponse = getParticipantResponse(meeting, currentUserId);
+                  const createdById = resolveId(meeting.created_by?.id);
+                  const isClientCreatedBySelf =
+                    role === "client" &&
+                    !!currentUserId &&
+                    !!createdById &&
+                    String(currentUserId) === createdById;
+                  const canRespond =
+                    !!meeting.id &&
+                    !!currentUserId &&
+                    role !== "admin" &&
+                    !isClientCreatedBySelf &&
+                    !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
+                  const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
+                  const isResponding = respondingMeetingId === meetingId;
 
-                return (
-                  <React.Fragment key={meetingId}>
-                    <div className="hidden grid-cols-[2fr_1fr_1fr_auto] items-center border-b border-[#222222] px-2 py-4 transition-colors hover:bg-white/[0.02] lg:grid">
-                      <div>
-                        <div className="text-base font-medium text-[#E0E0E0]">{formatDateTime(meeting.meeting_date_time)}</div>
-                        {meeting.meeting_title ? <div className="mt-1 text-sm text-white/45">{meeting.meeting_title}</div> : null}
-                      </div>
-                      <MemberStack meeting={meeting} />
-                      <div>
-                        <StatusBadge status={effectiveStatus} />
-                        {canRespond ? (
-                          <p className="mt-2 text-xs capitalize text-white/45">Your response: {formatInvitationResponse(currentResponse)}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex items-center justify-end gap-3">
-                        {canRespond && currentResponse !== "accepted" ? (
-                          <Button
-                            type="button"
-                            onClick={() => handleRespond(meeting.id as string | number, "accepted")}
-                            disabled={isResponding}
-                            className="h-9 bg-emerald-500 px-3 text-white hover:bg-emerald-600"
-                          >
-                            {isResponding ? <RefreshCw size={14} className="animate-spin" /> : null}
-                            Accept
-                          </Button>
-                        ) : null}
-                        {canRespond && currentResponse !== "declined" ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => handleRespond(meeting.id as string | number, "declined")}
-                            disabled={isResponding}
-                            className="h-9 border-rose-400/20 bg-rose-500/10 px-3 text-rose-200 hover:bg-rose-500/20"
-                          >
-                            Reject
-                          </Button>
-                        ) : null}
-                        {meeting.meetLink ? (
-                          <a
-                            href={meeting.meetLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-disabled={isCompleted}
-                            onClick={(event) => {
-                              if (isCompleted) {
-                                event.preventDefault();
-                              }
-                            }}
-                            className={cn(
-                              "inline-flex items-center gap-1 text-sm font-medium",
-                              isCompleted ? "cursor-not-allowed text-white/30" : "text-[#E5D5B8] hover:underline"
-                            )}
-                          >
-                            Join <ExternalLink size={14} />
-                          </a>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedMeeting(meeting)}
-                          className="text-[#888888] transition-colors hover:text-white"
-                        >
-                          <MoreVertical size={20} />
-                        </button>
-                        {canDeleteThisMeeting ? (
+                  return (
+                    <React.Fragment key={meetingId}>
+                      <div className="hidden grid-cols-[2fr_1fr_1fr_auto] items-center border-b border-[#222222] px-5 py-4 transition-colors hover:bg-white/[0.02] lg:grid">
+                        <div>
+                          <div className="text-base font-medium text-[#E0E0E0]">{formatDateTime(meeting.meeting_date_time)}</div>
+                          {meeting.meeting_title ? <div className="mt-1 text-sm text-white/45">{meeting.meeting_title}</div> : null}
+                        </div>
+                        <MemberStack meeting={meeting} />
+                        <div>
+                          <StatusBadge status={effectiveStatus} />
+                          {canRespond ? (
+                            <p className="mt-2 text-xs capitalize text-white/45">Your response: {formatInvitationResponse(currentResponse)}</p>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center justify-end gap-3">
+                          {canRespond && currentResponse !== "accepted" ? (
+                            <Button
+                              type="button"
+                              onClick={() => handleRespond(meeting.id as string | number, "accepted")}
+                              disabled={isResponding}
+                              className="h-9 bg-emerald-500 px-3 text-white hover:bg-emerald-600"
+                            >
+                              {isResponding ? <RefreshCw size={14} className="animate-spin" /> : null}
+                              Accept
+                            </Button>
+                          ) : null}
+                          {canRespond && currentResponse !== "declined" ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleRespond(meeting.id as string | number, "declined")}
+                              disabled={isResponding}
+                              className="h-9 border-rose-400/20 bg-rose-500/10 px-3 text-rose-200 hover:bg-rose-500/20"
+                            >
+                              Reject
+                            </Button>
+                          ) : null}
+                          {meeting.meetLink ? (
+                            <a
+                              href={meeting.meetLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-disabled={isCompleted}
+                              onClick={(event) => {
+                                if (isCompleted) {
+                                  event.preventDefault();
+                                }
+                              }}
+                              className={cn(
+                                "inline-flex items-center gap-1 text-sm font-medium",
+                                isCompleted ? "cursor-not-allowed text-white/30" : "text-[#E5D5B8] hover:underline"
+                              )}
+                            >
+                              Join <ExternalLink size={14} />
+                            </a>
+                          ) : null}
                           <button
                             type="button"
-                            onClick={() => setMeetingPendingDelete(meeting)}
-                            className="inline-flex items-center gap-1 text-sm font-medium text-rose-300 hover:text-rose-200"
+                            onClick={() => setSelectedMeeting(meeting)}
+                            className="text-[#888888] transition-colors hover:text-white"
                           >
-                            <Trash2 size={14} />
-                            Delete
+                            <MoreVertical size={20} />
                           </button>
+                          {canDeleteThisMeeting ? (
+                            <button
+                              type="button"
+                              onClick={() => setMeetingPendingDelete(meeting)}
+                              className="inline-flex items-center gap-1 text-sm font-medium text-rose-300 hover:text-rose-200"
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col lg:hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(isExpanded ? null : meetingId)}
+                          className="flex items-center justify-between p-5 text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={cn("transition-transform duration-200 rounded-full border p-1", isExpanded ? "rotate-180 text-[#E8D1AB]" : "text-[#888888]", isDark ? "border-[#4B4B4B]" : "bg-[#F4F5F7]")}>
+                              <ChevronDown size={16} />
+                            </div>
+                            <MemberStack meeting={meeting} />
+                          </div>
+                          <StatusBadge status={effectiveStatus} />
+                        </button>
+
+                        {isExpanded ? (
+                          <div className={`grid grid-cols-2 gap-y-4 px-5 pb-6 text-sm animate-in fade-in slide-in-from-top-2 duration-200 border-b ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+                            <div>
+                              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Date & Time</p>
+                              <p className="text-white">{formatDateTime(meeting.meeting_date_time)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Members</p>
+                              <p className="text-white">{participants.length || 0}</p>
+                            </div>
+                            {meeting.meeting_title ? (
+                              <div className="col-span-2">
+                                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Title</p>
+                                <p className="text-white">{meeting.meeting_title}</p>
+                              </div>
+                            ) : null}
+                            {meeting.description ? (
+                              <div className="col-span-2">
+                                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Description</p>
+                                <p className="text-white/75">{meeting.description}</p>
+                              </div>
+                            ) : null}
+                            {canRespond ? (
+                              <div className="col-span-2">
+                                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Your Response</p>
+                                <p className="capitalize text-white">{formatInvitationResponse(currentResponse)}</p>
+                              </div>
+                            ) : null}
+                            <div className="col-span-2 flex items-center justify-between">
+                              <p className="text-xs font-medium uppercase tracking-wider text-[#888888]">Action</p>
+                              <div className="flex flex-wrap items-center gap-4">
+                                {canRespond && currentResponse !== "accepted" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRespond(meeting.id as string | number, "accepted")}
+                                    disabled={isResponding}
+                                    className="text-sm font-semibold text-emerald-300 hover:underline disabled:opacity-50"
+                                  >
+                                    Accept
+                                  </button>
+                                ) : null}
+                                {canRespond && currentResponse !== "declined" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRespond(meeting.id as string | number, "declined")}
+                                    disabled={isResponding}
+                                    className="text-sm font-semibold text-rose-300 hover:underline disabled:opacity-50"
+                                  >
+                                    Reject
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedMeeting(meeting)}
+                                  className="text-sm font-semibold text-[#E5D5B8] hover:underline"
+                                >
+                                  View Details
+                                </button>
+                                {canDeleteThisMeeting ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setMeetingPendingDelete(meeting)}
+                                    className="text-sm font-semibold text-rose-300 hover:underline"
+                                  >
+                                    Delete
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
                         ) : null}
                       </div>
-                    </div>
-
-                    <div className="flex flex-col border-b border-[#222222] lg:hidden">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId(isExpanded ? null : meetingId)}
-                        className="flex items-center justify-between py-4 text-left"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn("transition-transform duration-200", isExpanded ? "rotate-180 text-[#E8D1AB]" : "text-[#888888]")}>
-                            <ChevronDown size={20} />
-                          </div>
-                          <MemberStack meeting={meeting} />
-                        </div>
-                        <StatusBadge status={effectiveStatus} />
-                      </button>
-
-                      {isExpanded ? (
-                        <div className="grid grid-cols-2 gap-y-4 pb-6 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
-                          <div>
-                            <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Date & Time</p>
-                            <p className="text-white">{formatDateTime(meeting.meeting_date_time)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Members</p>
-                            <p className="text-white">{participants.length || 0}</p>
-                          </div>
-                          {meeting.meeting_title ? (
-                            <div className="col-span-2">
-                              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Title</p>
-                              <p className="text-white">{meeting.meeting_title}</p>
-                            </div>
-                          ) : null}
-                          {meeting.description ? (
-                            <div className="col-span-2">
-                              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Description</p>
-                              <p className="text-white/75">{meeting.description}</p>
-                            </div>
-                          ) : null}
-                          {canRespond ? (
-                            <div className="col-span-2">
-                              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Your Response</p>
-                              <p className="capitalize text-white">{formatInvitationResponse(currentResponse)}</p>
-                            </div>
-                          ) : null}
-                          <div className="col-span-2 flex items-center justify-between">
-                            <p className="text-xs font-medium uppercase tracking-wider text-[#888888]">Action</p>
-                            <div className="flex flex-wrap items-center gap-4">
-                              {canRespond && currentResponse !== "accepted" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRespond(meeting.id as string | number, "accepted")}
-                                  disabled={isResponding}
-                                  className="text-sm font-semibold text-emerald-300 hover:underline disabled:opacity-50"
-                                >
-                                  Accept
-                                </button>
-                              ) : null}
-                              {canRespond && currentResponse !== "declined" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRespond(meeting.id as string | number, "declined")}
-                                  disabled={isResponding}
-                                  className="text-sm font-semibold text-rose-300 hover:underline disabled:opacity-50"
-                                >
-                                  Reject
-                                </button>
-                              ) : null}
-                              <button
-                                type="button"
-                                onClick={() => setSelectedMeeting(meeting)}
-                                className="text-sm font-semibold text-[#E5D5B8] hover:underline"
-                              >
-                                View Details
-                              </button>
-                              {canDeleteThisMeeting ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setMeetingPendingDelete(meeting)}
-                                  className="text-sm font-semibold text-rose-300 hover:underline"
-                                >
-                                  Delete
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            )}
         </div>
       </div>
 

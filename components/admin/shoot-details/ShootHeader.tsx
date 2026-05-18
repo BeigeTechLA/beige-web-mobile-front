@@ -189,7 +189,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
     <div>
       <button
         onClick={() => router.back()}
-        className={`lg:hidden transition-colors flex items-center gap-2 mb-3 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
+        className={`lg:hidden transition-colors flex items-center gap-2 mb-5 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
       >
         <ArrowLeft size={20} />
         <span className="text-sm font-medium">Back</span>
@@ -260,20 +260,20 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
 
         <div>
           <div className={`hidden lg:block w-full h-px my-6 transition-colors ${isDark ? "bg-[#222222]" : "bg-[#E5E5E5]"}`} />
-          <div className={`mt-4 lg:mt-0 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10 text-sm lg:text-base ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
+          <div className={`mt-4 lg:mt-0 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10 text-sm lg:text-base ${isDark ? "text-[#AAA7A7]" : "text-[#AAA7A7] lg:text-[#747171]"}`}>
             <div className="space-y-3 min-w-0">
               <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Schedule & Location</p>
-              <div className="flex items-center justify-between gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Shoot Date :</span>
-                <span title={projectDateText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectDateText}</span>
+                <span title={projectDateText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectDateText}</span>
               </div>
-              <div className="flex items-center justify-between gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Time :</span>
-                <span title={projectTimeText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectTimeText}</span>
+                <span title={projectTimeText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectTimeText}</span>
               </div>
-              <div className="flex items-center justify-between gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Location :</span>
-                <span title={locationText} className={`${isDark ? "text-white" : "text-black"} font-medium whitespace-nowrap truncate text-right`}>
+                <span title={locationText} className={`${isDark ? "text-white" : "text-black"} whitespace-nowrap truncate text-right`}>
                   {locationText}
                 </span>
               </div>
@@ -283,19 +283,19 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
               <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Pricing Breakdown</p>
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <span className="whitespace-nowrap">Total Value :</span>
-                <span title={totalValueText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
+                <span title={totalValueText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
                   {totalValueText}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <span className="whitespace-nowrap">Discount/Referral/Credit :</span>
-                <span title={totalReductionText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
+                <span title={totalReductionText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
                   {totalReductionText}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <span className="whitespace-nowrap">Final Value :</span>
-                <span title={finalValueText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
+                <span title={finalValueText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>
                   {finalValueText}
                 </span>
               </div>
@@ -305,7 +305,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
               <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Other Details</p>
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <span className="whitespace-nowrap">Payment Status :</span>
-                <span title={effectivePaymentStatus.label} className={cn("font-medium whitespace-nowrap truncate text-right", effectivePaymentStatus.className)}>
+                <span title={effectivePaymentStatus.label} className={cn("whitespace-nowrap truncate text-right", effectivePaymentStatus.className)}>
                   {effectivePaymentStatus.label}
                 </span>
               </div>
@@ -317,13 +317,13 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
               </div>
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <span className="whitespace-nowrap">Pending Amount :</span>
-                <span title={pendingAmountText} className="font-medium whitespace-nowrap truncate text-right text-amber-500">
+                <span title={pendingAmountText} className="whitespace-nowrap truncate text-right text-amber-500">
                   {pendingAmountText}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <span className="whitespace-nowrap">Shoot Files :</span>
-                <span title={shootFilesText} className={`font-medium whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
+                <span title={shootFilesText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
               </div>
             </div>
           </div>
