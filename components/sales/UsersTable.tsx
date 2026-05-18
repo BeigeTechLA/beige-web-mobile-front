@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronDown, ChevronRight, List, Loader2 } from "lucide-re
 import { motion, AnimatePresence } from "framer-motion";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { useTheme } from "next-themes";
+import BoardMiniMapNavigator from "../admin/BoardMiniMapNavigator";
 
 type MobileUserLike = {
   imageUrl?: string | null;
@@ -364,10 +365,10 @@ export default function UsersTable<T>({
 
           {viewMode === "grid" ? (
             /* GRID VIEW: Unified Mobile & Desktop per Reference */
-            <div className="block">
+            <div className="relative block">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-2 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-16 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
@@ -449,6 +450,14 @@ export default function UsersTable<T>({
                   ))}
                 </div>
               </div>
+
+              <BoardMiniMapNavigator
+                boardRef={gridScrollRef}
+                segmentCount={kanbanColumns.length}
+                isDark={isDark}
+                visible={viewMode === "grid"}
+                syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
+              />
             </div>
           ) : (
             /* LIST VIEW: Responsive Table with Expandable Rows (No MobileUserRow) */

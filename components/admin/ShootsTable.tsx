@@ -31,6 +31,7 @@ import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { meetingsApi } from "@/lib/meetingsApi";
+import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
 
 type ShootStatus =
   | "Booked"
@@ -1050,10 +1051,10 @@ export const ShootsTable = ({
           )}
 
           {activeViewMode === "grid" ? (
-            <div className="block pt-0">
+            <div className="relative block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-2 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-16 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
@@ -1237,6 +1238,13 @@ export const ShootsTable = ({
                   ))}
                 </div>
               </div>
+              <BoardMiniMapNavigator
+                  boardRef={gridScrollRef}
+                  segmentCount={kanbanColumns.length}
+                  isDark={isDark}
+                  visible={activeViewMode === "grid"}
+                  syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
+              />
             </div>
           ) : (
             <div className="hidden lg:block w-full overflow-x-auto">
