@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useRouter, useParams, usePathname } from "next/navigation";
+import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
@@ -282,7 +282,16 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
+  const searchParams = useSearchParams();
   const leadId = params.id as string;
+  const returnTo = String(searchParams.get("returnTo") || "").trim();
+  const handleBackNavigation = () => {
+    if (returnTo.startsWith("/")) {
+      router.push(returnTo);
+      return;
+    }
+    router.back();
+  };
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -1357,7 +1366,7 @@ export default function LeadDetailPage() {
     return (
       <div className={`${isDark ? "text-white" : "text-black"} font-sans`}>
         <Button
-          onClick={() => router.back()}
+          onClick={handleBackNavigation}
           className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none border-none`}
         >
           <ArrowLeft size={24} />
@@ -1376,7 +1385,7 @@ export default function LeadDetailPage() {
       <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
         {/* Back Button */}
         <Button
-          onClick={() => router.back()}
+          onClick={handleBackNavigation}
           className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none border-none ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-[#B18A00]"}`}
         >
           <ArrowLeft size={24} />
