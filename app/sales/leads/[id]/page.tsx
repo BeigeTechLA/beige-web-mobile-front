@@ -372,6 +372,8 @@ export default function SalesLeadDetailsPage() {
   const primaryQuote = booking?.primary_quote;
   const projectedQuote = lead?.projected_quote;
   const rawAdditionalPayment = lead?.custom_quote?.additional_payment;
+  const normalizedLeadPaymentStatus = String(lead?.payment_status || "").trim().toLowerCase();
+  const normalizedAdditionalPaymentStatus = String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase();
   const additionalPaymentOutstandingAmount = Number(
     rawAdditionalPayment?.outstanding_amount ?? 0
   );
@@ -426,15 +428,28 @@ export default function SalesLeadDetailsPage() {
       return null;
     }
 
+    const leadSignalsPaid =
+      ["paid", "success", "completed"].includes(normalizedLeadPaymentStatus) ||
+      Boolean(booking?.payment_id || booking?.payment_completed_at);
+    const isSettledAdditionalPayment =
+      leadSignalsPaid &&
+      additionalPaymentOutstandingAmount <= 0.009 &&
+      (normalizedAdditionalPaymentStatus === "" ||
+        ["paid", "success", "completed"].includes(normalizedAdditionalPaymentStatus));
+
     return {
       additionalAmount: paymentDetails.additionalAmount,
       isDecrease: paymentDetails.isDecrease,
-      paymentStatus: paymentDetails.paymentStatus,
-      paymentStatusLabel: formatStatusLabel(paymentDetails.paymentStatus || rawAdditionalPayment.payment_status),
+      paymentStatus: isSettledAdditionalPayment ? "paid" : paymentDetails.paymentStatus,
+      paymentStatusLabel: formatStatusLabel(
+        isSettledAdditionalPayment
+          ? "paid"
+          : (paymentDetails.paymentStatus || rawAdditionalPayment.payment_status)
+      ),
       previousTotal: paymentDetails.previousTotal,
       previouslyPaidAmount: paymentDetails.previouslyPaidAmount,
       revisedTotal: paymentDetails.revisedTotal,
-      outstandingAmount: paymentDetails.outstandingAmount,
+      outstandingAmount: isSettledAdditionalPayment ? 0 : paymentDetails.outstandingAmount,
       invoiceNumber: rawAdditionalPayment.invoice_number
         ? String(rawAdditionalPayment.invoice_number).trim()
         : null,
@@ -447,6 +462,11 @@ export default function SalesLeadDetailsPage() {
     lead?.pricing_breakdown?.total,
     lead?.pricing_breakdown?.total_amount,
     lead?.pricing_breakdown?.total_paid,
+    normalizedAdditionalPaymentStatus,
+    normalizedLeadPaymentStatus,
+    additionalPaymentOutstandingAmount,
+    booking?.payment_completed_at,
+    booking?.payment_id,
   ]);
 
   const isQuoteConvertedLead = useMemo(() => {
@@ -748,6 +768,12 @@ export default function SalesLeadDetailsPage() {
     ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
     : Number(lead?.pricing_breakdown?.discount ?? 0);
   const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
+  const hasAdditionalRevisionAmount =
+    Boolean(additionalPaymentDetails) &&
+    Math.abs(Number(additionalPaymentDetails?.additionalAmount || 0)) > 0;
+  const shouldIgnoreCreditApplied =
+    hasAdditionalRevisionAmount && !additionalPaymentDetails?.isDecrease;
+  const effectiveCreditApplied = shouldIgnoreCreditApplied ? 0 : creditApplied;
   const totalBeforeCredit = Number(
     lead?.pricing_breakdown?.total_before_credit ??
       primaryQuote?.total ??
@@ -760,7 +786,7 @@ export default function SalesLeadDetailsPage() {
       lead?.pricing_breakdown?.total ??
       0
   );
-  const total = creditApplied > 0
+  const total = effectiveCreditApplied > 0
     ? totalAfterCredit
     : (isQuoteConvertedLead
       ? Number(primaryQuote?.total ?? totalAfterCredit)
@@ -865,6 +891,25 @@ export default function SalesLeadDetailsPage() {
     latestManualPaymentEntry?.data?.total_amount,
     total,
   ]);
+  const shouldForceFullyPaid =
+    isAmountPaid &&
+    !hasPendingAdditionalPayment &&
+    (Number(lead?.outstanding_amount ?? 0) <= 0.009 || Number(additionalPaymentDetails?.outstandingAmount ?? 0) <= 0.009);
+  const effectiveManualPaymentSummary = shouldForceFullyPaid
+    ? {
+        ...manualPaymentSummary,
+        paidAmount: Math.max(manualPaymentSummary.paidAmount, total),
+        pendingAmount: 0,
+        hasFullPayment: true,
+        isPartiallyPaid: false,
+        canTakePayment: false,
+      }
+    : manualPaymentSummary;
+  const displayPaidAmount = Math.max(
+    Number(lead?.collected_amount ?? 0),
+    Number(lead?.pricing_breakdown?.total_paid ?? 0),
+    Number(effectiveManualPaymentSummary.paidAmount ?? 0)
+  );
 
   const manualPaymentEntries = useMemo(() => {
     return (lead?.activities || [])
@@ -898,7 +943,7 @@ export default function SalesLeadDetailsPage() {
 
   const effectiveStatusLabel = hasPendingAdditionalPayment
     ? "Pending"
-    : manualPaymentSummary.isPartiallyPaid
+    : effectiveManualPaymentSummary.isPartiallyPaid
       ? "Partially Paid"
       : status;
   const hasManualPaymentHistory = manualPaymentEntries.length > 0;
@@ -929,7 +974,7 @@ export default function SalesLeadDetailsPage() {
         toast.error("Partial amount must be greater than 0");
         return;
       }
-      if (parsedAmount > manualPaymentSummary.pendingAmount) {
+      if (parsedAmount > effectiveManualPaymentSummary.pendingAmount) {
         toast.error("Partial amount cannot exceed pending amount");
         return;
       }
@@ -1846,7 +1891,7 @@ export default function SalesLeadDetailsPage() {
                     <span className="text-sm lg:text-base text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
                   </div>
                 )}
-                {creditApplied > 0 && (
+                {effectiveCreditApplied > 0 && (
                   <>
                     <div className="flex justify-between font-medium">
                       <span className="text-[#71717B] text-xs">Total Before Credit</span>
@@ -1856,7 +1901,7 @@ export default function SalesLeadDetailsPage() {
                     </div>
                     <div className="flex justify-between font-medium">
                       <span className="text-[#71717B] text-xs">Account Credit Used</span>
-                      <span className="text-sm lg:text-base text-emerald-400">-${creditApplied.toLocaleString()}</span>
+                      <span className="text-sm lg:text-base text-emerald-400">-${effectiveCreditApplied.toLocaleString()}</span>
                     </div>
                   </>
                 )}
@@ -2078,21 +2123,21 @@ export default function SalesLeadDetailsPage() {
                 )}
                 <div className={`rounded-lg border px-3 py-2 ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E8D1AB] bg-[#FFF3D6]"}`}>
                   <p className={`text-xs ${isDark ? "text-white/70" : "text-black/70"}`}>
-                    Paid: <span className="font-semibold text-emerald-500">{formatCurrencyValue(manualPaymentSummary.paidAmount)}</span>
+                    Paid: <span className="font-semibold text-emerald-500">{formatCurrencyValue(effectiveManualPaymentSummary.paidAmount)}</span>
                     {" · "}
-                    Pending: <span className="font-semibold text-amber-500">{formatCurrencyValue(manualPaymentSummary.pendingAmount)}</span>
+                    Pending: <span className="font-semibold text-amber-500">{formatCurrencyValue(effectiveManualPaymentSummary.pendingAmount)}</span>
                   </p>
                 </div>
                 <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
                   Payment flow: <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>Manual Payment</span>
                 </p>
-                {manualPaymentSummary.hasFullPayment && (
+                {effectiveManualPaymentSummary.hasFullPayment && (
                   <div className={`rounded-lg border px-3 py-2 text-xs ${isDark ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
                     Full payment already completed. New payment entry is locked.
                   </div>
                 )}
 
-                {!manualPaymentSummary.hasFullPayment && (
+                {!effectiveManualPaymentSummary.hasFullPayment && (
                   <div className="grid grid-cols-1 gap-3">
                     <div className="grid grid-cols-2 gap-2">
                       {(["full", "partial"] as const).map((type) => (
@@ -2100,11 +2145,11 @@ export default function SalesLeadDetailsPage() {
                           key={type}
                           type="button"
                           onClick={() => setManualPaymentType(type)}
-                          disabled={manualPaymentSummary.hasFullPayment}
+                          disabled={effectiveManualPaymentSummary.hasFullPayment}
                           className={`h-10 rounded-lg border text-sm font-medium transition-colors ${manualPaymentType === type
                             ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF3D6] text-black")
                             : (isDark ? "border-white/20 text-white/70 hover:border-white/40" : "border-[#D8D8D8] text-black/70 hover:border-[#BFA780]")
-                            } ${manualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
+                            } ${effectiveManualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           {type === "full" ? "Full Payment" : "Partial Payment"}
                         </button>
@@ -2115,7 +2160,7 @@ export default function SalesLeadDetailsPage() {
                       <input
                         type="number"
                         min="0"
-                        max={manualPaymentSummary.pendingAmount}
+                        max={effectiveManualPaymentSummary.pendingAmount}
                         step="0.01"
                         value={manualPaymentAmount}
                         onChange={(event) => {
@@ -2126,15 +2171,15 @@ export default function SalesLeadDetailsPage() {
                           }
                           const numeric = Number(nextValue);
                           if (!Number.isFinite(numeric) || numeric < 0) return;
-                          if (numeric > manualPaymentSummary.pendingAmount) {
-                            setManualPaymentAmount(String(manualPaymentSummary.pendingAmount));
+                          if (numeric > effectiveManualPaymentSummary.pendingAmount) {
+                            setManualPaymentAmount(String(effectiveManualPaymentSummary.pendingAmount));
                             toast.error("Amount cannot exceed pending amount");
                             return;
                           }
                           setManualPaymentAmount(nextValue);
                         }}
-                        placeholder={`Enter amount (max ${formatCurrencyValue(manualPaymentSummary.pendingAmount)})`}
-                        disabled={manualPaymentSummary.hasFullPayment}
+                        placeholder={`Enter amount (max ${formatCurrencyValue(effectiveManualPaymentSummary.pendingAmount)})`}
+                        disabled={effectiveManualPaymentSummary.hasFullPayment}
                         className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                       />
                     )}
@@ -2144,7 +2189,7 @@ export default function SalesLeadDetailsPage() {
                       onValueChange={(value) =>
                         setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
                       }
-                      disabled={manualPaymentSummary.hasFullPayment}
+                      disabled={effectiveManualPaymentSummary.hasFullPayment}
                     >
                       <SelectTrigger
                         className={`h-11 rounded-lg border px-3 text-sm ${
@@ -2179,7 +2224,7 @@ export default function SalesLeadDetailsPage() {
                         value={manualPaymentOtherMode}
                         onChange={(event) => setManualPaymentOtherMode(event.target.value)}
                         placeholder="Enter payment mode"
-                        disabled={manualPaymentSummary.hasFullPayment}
+                        disabled={effectiveManualPaymentSummary.hasFullPayment}
                         className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                       />
                     )}
@@ -2200,7 +2245,7 @@ export default function SalesLeadDetailsPage() {
                               const file = event.target.files?.[0] || null;
                               void handleManualProofUpload(file);
                             }}
-                            disabled={isUploadingManualProof || manualPaymentSummary.hasFullPayment}
+                            disabled={isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment}
                           />
                         </label>
                         {isUploadingManualProof ? (
@@ -2217,13 +2262,13 @@ export default function SalesLeadDetailsPage() {
                       onChange={(event) => setManualPaymentNotes(event.target.value)}
                       placeholder="Notes (optional)"
                       rows={3}
-                      disabled={manualPaymentSummary.hasFullPayment}
+                      disabled={effectiveManualPaymentSummary.hasFullPayment}
                       className={`rounded-lg border p-3 text-sm bg-transparent outline-none resize-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                     />
 
                     <Button
                       onClick={handleManualPaymentSubmit}
-                      disabled={isSubmittingManualPayment || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
+                      disabled={isSubmittingManualPayment || isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment}
                       className={`h-11 text-sm font-semibold ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
                     >
                       {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
@@ -2289,16 +2334,22 @@ export default function SalesLeadDetailsPage() {
                     <p>
                       Total Paid Amount:{" "}
                       <span className={isDark ? "text-white" : "text-black"}>
-                        {formatCurrencyValue(lead?.collected_amount ?? lead?.pricing_breakdown?.total_paid ?? total)}
+                        {formatCurrencyValue(displayPaidAmount)}
                       </span>
                     </p>
                     <p className="mt-1">
                       Pending Amount:{" "}
-                      <span className={additionalPaymentDetails?.isDecrease ? "text-red-500" : (isDark ? "text-white" : "text-black")}>
-                        {additionalPaymentDetails && additionalPaymentDetails.additionalAmount !== 0
-                          ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
-                          : ""}
-                        {formatCurrencyValue(Math.abs(additionalPaymentDetails?.additionalAmount ?? 0))}
+                      <span className={isDark ? "text-white" : "text-black"}>
+                        {formatCurrencyValue(
+                          Math.max(
+                            0,
+                            Number(
+                              additionalPaymentDetails?.outstandingAmount ??
+                                effectiveManualPaymentSummary.pendingAmount ??
+                                0
+                            )
+                          )
+                        )}
                       </span>
                       {additionalPaymentDetails?.isDecrease && (
                         <span className="ml-1 text-[10px] text-golden italic">

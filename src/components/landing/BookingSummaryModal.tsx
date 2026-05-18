@@ -117,6 +117,19 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
 
   const bookingDays = Array.isArray(data?.booking_days) ? data.booking_days : [];
   const hasMultipleBookingDays = bookingDays.length > 1;
+  const toNumber = (value: unknown) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
+  const creditAppliedAmount = Math.max(toNumber(data?.pricing?.credit_applied), 0);
+  const cardPaidAmount = Math.max(toNumber(data?.pricing?.total_paid ?? data?.pricing?.total), 0);
+  const combinedPaidAmount = Math.max(cardPaidAmount + creditAppliedAmount, 0);
+  const paymentMethodLabel =
+    creditAppliedAmount > 0 && cardPaidAmount > 0
+      ? "Paid via Card + Account Credit"
+      : creditAppliedAmount > 0
+        ? "Paid via Account Credit"
+        : "Paid via Card";
 
   return (
     <div 
@@ -394,24 +407,24 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                         <span>-{formatCurrency(data.pricing.referral_discount)}</span>
                      </div>
                    )}
-                   {data.pricing.credit_applied > 0 && (
-                     <div className="flex justify-between text-sm text-green-500 font-medium">
-                        <span>Account Credit</span>
-                        <span>-{formatCurrency(data.pricing.credit_applied)}</span>
-                     </div>
-                   )}
+	                   {data.pricing.credit_applied > 0 && (
+	                     <div className="flex justify-between text-sm text-green-500 font-medium">
+	                        <span>Account Credit</span>
+	                        <span>-{formatCurrency(data.pricing.credit_applied)}</span>
+	                     </div>
+	                   )}
                    
                    <div className="pt-4 mt-2 border-t border-white/20 print:border-gray-300">
-                     <div className="flex items-center justify-between gap-6">
-                        <p className="text-white font-bold text-base sm:text-lg leading-none whitespace-nowrap print:text-black">Total Paid</p>
-                        <span className="text-[#E8D1AB] font-bold text-xl sm:text-2xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">
-                           {formatCurrency(data.pricing.total_paid ?? data.pricing.total)}
-                        </span>
-                     </div>
-                     <p className="mt-2 text-[10px] text-white/35 uppercase font-bold tracking-[0.12em] whitespace-nowrap print:text-gray-400">Paid via Card</p>
-                   </div>
-                </section>
-              </div>
+	                     <div className="flex items-center justify-between gap-6">
+	                        <p className="text-white font-bold text-base sm:text-lg leading-none whitespace-nowrap print:text-black">Total Paid</p>
+	                        <span className="text-[#E8D1AB] font-bold text-xl sm:text-2xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">
+	                           {formatCurrency(combinedPaidAmount)}
+	                        </span>
+	                     </div>
+	                     <p className="mt-2 text-[10px] text-white/35 uppercase font-bold tracking-[0.12em] whitespace-nowrap print:text-gray-400">{paymentMethodLabel}</p>
+	                   </div>
+	                </section>
+	              </div>
 
               {/* Information Notice */}
               <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl print:bg-white print:border-gray-200">
