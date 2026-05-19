@@ -1064,7 +1064,7 @@ export default function QuoteDetailsPage({
   }, [latestVersionMeta, selectedVersionId, selectedVersionMeta, versions.length]);
   const canEditSelectedVersion =
     isSelectedCurrentVersion &&
-    !["rejected", "cancelled"].includes(normalizedQuoteStatus);
+    !["rejected", "cancelled","expired"].includes(normalizedQuoteStatus);
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -1276,6 +1276,7 @@ export default function QuoteDetailsPage({
     Boolean(signedAt);
   const canSendInvoiceFromDetails =
     isSelectedCurrentVersion &&
+    normalizedQuoteStatus !== "expired" &&
     (
       INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedQuoteStatus) ||
       INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedDisplayStatus) ||
