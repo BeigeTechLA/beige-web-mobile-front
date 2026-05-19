@@ -1,116 +1,228 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import { usePathname } from "next/navigation";
-import { ArrowUpToLine, BadgeDollarSign, Coins, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowUpToLine, BadgeDollarSign, Coins, Plus, Users } from "lucide-react";
+import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import AddCreditPointsModal, {
+  type ClientDropdownItem,
+  type CreditPointsFormState,
+} from "@/components/admin/finances/AddCreditPointsModal";
+import CreditPointsSuccessModal from "@/components/admin/finances/CreditPointsSuccessModal";
 
 import { Button } from "@/src/components/landing/ui/button";
 import CreditHistoryTable, {
   type CreditHistoryRow,
 } from "@/components/affiliate/CreditHistoryTable";
 import FinanceMetricCards from "@/components/affiliate/FinanceMetricCards";
-import { useRouter } from "next/navigation";
+import { adminApi, salesApi } from "@/lib/api";
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyMonthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyStatusOptions = ["All", "Used", "Available"];
+const creditTypeOptions = ["Promo", "Refund", "Compensation"];
 
-const adminCreditHistoryRows: CreditHistoryRow[] = [
-  {
-    id: "1",
-    date: "Apr 23, 2026",
-    clientName: "Alex Morgan",
-    email: "alex.morgan@example.com",
-    availablePoints: "3,500 Points",
-    usedPoints: "-850 Points",
-    lastActivity: "22-04-2026",
-    initials: "AM",
-    avatarColor: "#F0C4E3",
-  },
-  {
-    id: "2",
-    date: "Apr 10, 2026",
-    clientName: "Ethan Carter",
-    email: "ethancarter@gmail.com",
-    availablePoints: "4,000 Points",
-    usedPoints: "-400 Points",
-    lastActivity: "12-04-2026",
-    initials: "EC",
-    avatarColor: "#F5E4BC",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "3",
-    date: "Mar 31, 2026",
-    clientName: "Maya Ross",
-    email: "mayaross@gmail.com",
-    availablePoints: "5,500 Points",
-    usedPoints: "-100 Points",
-    lastActivity: "01-04-2026",
-    initials: "MR",
-    avatarColor: "#CFF3B9",
-  },
-  {
-    id: "4",
-    date: "Mar 12, 2026",
-    clientName: "John Lee",
-    email: "johnlee@outlook.com",
-    availablePoints: "3,000 Points",
-    usedPoints: "-200 Points",
-    lastActivity: "21-03-2026",
-    initials: "JL",
-    avatarColor: "#F1DFC3",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "5",
-    date: "Mar 4, 2026",
-    clientName: "Raj Yadhav",
-    email: "rajyadhav@outlook.com",
-    availablePoints: "2,450 Points",
-    usedPoints: "-550 Points",
-    lastActivity: "06-03-2026",
-    initials: "RY",
-    avatarColor: "#D5D9E8",
-    avatarImage: "/images/avatar.png",
-  },
-  {
-    id: "6",
-    date: "Feb 8, 2026",
-    clientName: "Daniel Roberts",
-    email: "danielr@gmail.com",
-    availablePoints: "2,450 Points",
-    usedPoints: "-600 Points",
-    lastActivity: "15-02-2026",
-    initials: "DR",
-    avatarColor: "#F4F4F4",
-  },
-  {
-    id: "7",
-    date: "Jan 30, 2026",
-    clientName: "Sophia Bennett",
-    email: "sophiab@gmail.com",
-    availablePoints: "6,100 Points",
-    usedPoints: "0 Points",
-    lastActivity: "31-01-2026",
-    initials: "SB",
-    avatarColor: "#FFE0C7",
-  },
-  {
-    id: "8",
-    date: "Jan 14, 2026",
-    clientName: "Noah Walker",
-    email: "noahwalker@gmail.com",
-    availablePoints: "1,900 Points",
-    usedPoints: "0 Points",
-    lastActivity: "16-01-2026",
-    initials: "NW",
-    avatarColor: "#D7E6FF",
-  },
+type CreditPointsDashboardResponse = {
+  success?: boolean;
+  data?: unknown;
+  error?: string;
+};
+
+const avatarPalette = [
+  "#F0C4E3",
+  "#F5E4BC",
+  "#CFF3B9",
+  "#F1DFC3",
+  "#D5D9E8",
+  "#F4F4F4",
+  "#FFE0C7",
+  "#D7E6FF",
 ];
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const getArray = (value: unknown): Record<string, unknown>[] =>
+  Array.isArray(value)
+    ? value.map((item) => asRecord(item)).filter(Boolean) as Record<string, unknown>[]
+    : [];
+
+const pickFirstValue = (source: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const pickFirstString = (source: Record<string, unknown>, keys: string[]) => {
+  const value = pickFirstValue(source, keys);
+  return value === undefined ? "" : String(value);
+};
+
+const pickFirstNumber = (source: Record<string, unknown>, keys: string[]) => {
+  const value = pickFirstValue(source, keys);
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatPoints = (value: number) =>
+  `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)} Points`;
+
+const pickFirstClientValue = (
+  ...values: Array<string | number | null | undefined>
+) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+
+    const normalized = String(value).trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+};
+
+const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.name, client?.client_name, client?.full_name);
+
+const getClientEmail = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.email, client?.client_email, client?.guest_email);
+
+const formatDisplayDate = (value?: string) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+};
+
+const formatActivityDate = (value?: string) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB").replace(/\//g, "-");
+};
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "NA";
+
+const toCreditTypeApiValue = (value: string) => value.trim().toLowerCase();
+
+const parseRestrictionContexts = (value: string) =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const matchesRange = (value: string, range: string) => {
+  if (!value) return false;
+  const rowDate = new Date(value);
+  if (Number.isNaN(rowDate.getTime())) return false;
+
+  const now = new Date();
+  if (range === "Last 30 Days") {
+    const from = new Date(now);
+    from.setDate(now.getDate() - 30);
+    return rowDate >= from;
+  }
+  if (range === "This Quarter") {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const from = new Date(now.getFullYear(), quarterStartMonth, 1);
+    return rowDate >= from;
+  }
+  if (range === "This Year") {
+    return rowDate.getFullYear() === now.getFullYear();
+  }
+
+  return (
+    rowDate.getMonth() === now.getMonth() &&
+    rowDate.getFullYear() === now.getFullYear()
+  );
+};
+
+const extractDashboardPayload = (response: CreditPointsDashboardResponse) => {
+  const data = asRecord(response?.data) || {};
+  const history = asRecord(pickFirstValue(data, ["credit_points_history", "history"]));
+
+  return {
+    metrics: asRecord(
+      pickFirstValue(data, ["summary", "metrics", "overview", "stats"]) || data
+    ) || {},
+    rows: getArray(
+      pickFirstValue(history || data, [
+        "rows",
+        "history",
+        "clients",
+        "users",
+        "items",
+        "list",
+        "dashboard",
+      ])
+    ),
+  };
+};
+
+const mapDashboardHistoryRow = (
+  item: Record<string, unknown>,
+  index: number
+): CreditHistoryRow => {
+  const clientName = pickFirstString(item, ["name", "client_name", "user_name"]) || `User ${index + 1}`;
+  const availableValue = pickFirstNumber(item, [
+    "total_credits_available",
+    "total_credit_points_available",
+    "available_points",
+    "available_credits",
+  ]);
+  const usedValue = pickFirstNumber(item, [
+    "total_credits_used",
+    "total_credit_points_used",
+    "used_points",
+    "used_credits",
+  ]);
+
+  return {
+    id:
+      pickFirstString(item, ["user_id", "id", "account_credit_ledger_id"]) ||
+      String(index + 1),
+    userId: (() => {
+      const raw = pickFirstValue(item, ["user_id"]);
+      const parsed = Number(raw);
+      return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    })(),
+    guestEmail: pickFirstString(item, ["guest_email"]) || "",
+    date: formatDisplayDate(
+      pickFirstString(item, ["date", "created_at", "transaction_date", "approved_at"])
+    ),
+    clientName,
+    email:
+      pickFirstString(item, ["email", "client_email", "guest_email"]) || "-",
+    availablePoints: formatPoints(availableValue),
+    usedPoints: usedValue > 0 ? `-${formatPoints(usedValue)}` : formatPoints(usedValue),
+    lastActivity: formatActivityDate(
+      pickFirstString(item, ["last_activity_at", "date", "approved_at", "created_at"])
+    ),
+    initials: getInitials(clientName),
+    avatarColor: avatarPalette[index % avatarPalette.length],
+    avatarImage: pickFirstString(item, ["avatar", "avatar_url", "profile_image"]) || undefined,
+  };
+};
 
 export default function AdminFinancesPage() {
   const pathname = usePathname();
@@ -124,63 +236,347 @@ export default function AdminFinancesPage() {
   const [metricRange, setMetricRange] = useState("Month");
   const [historyMonth, setHistoryMonth] = useState("Month");
   const [historyStatus, setHistoryStatus] = useState("All");
+  const [dashboardMetrics, setDashboardMetrics] = useState<Record<string, unknown>>({});
+  const [creditHistoryRows, setCreditHistoryRows] = useState<CreditHistoryRow[]>([]);
+  const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false);
+  const [isCreditSuccessModalOpen, setIsCreditSuccessModalOpen] = useState(false);
+  const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
+  const [clientSuggestions, setClientSuggestions] = useState<ClientDropdownItem[]>([]);
+  const [selectedClientSuggestion, setSelectedClientSuggestion] =
+    useState<ClientDropdownItem | null>(null);
+  const [isClientSuggestionOpen, setIsClientSuggestionOpen] = useState(false);
+  const [isLoadingClientSuggestions, setIsLoadingClientSuggestions] = useState(false);
+  const [submittedCreditForm, setSubmittedCreditForm] = useState<CreditPointsFormState | null>(
+    null
+  );
+  const [creditForm, setCreditForm] = useState<CreditPointsFormState>({
+    userType: "Client",
+    clientSearch: "",
+    targetUserId: "",
+    guestEmail: "",
+    amount: "",
+    creditType: "",
+    expiryDate: "",
+    reason: "",
+    notes: "",
+    usageRestrictions: "",
+    notifyUser: false,
+  });
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    setLoading(true);
-    const timer = window.setTimeout(() => {
-      setLoading(false);
-    }, 450);
+  const fetchCreditPointsDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
 
-    return () => window.clearTimeout(timer);
-  }, [selectedDate, historyMonth, historyStatus, metricRange]);
+      const dashboardResponse = await adminApi.getCreditPointsDashboard();
+
+      if (dashboardResponse?.error) {
+        toast.error(dashboardResponse.error);
+        setDashboardMetrics({});
+        setCreditHistoryRows([]);
+        return;
+      }
+
+      const { metrics, rows } = extractDashboardPayload(dashboardResponse);
+      setDashboardMetrics(metrics);
+      setCreditHistoryRows(rows.map(mapDashboardHistoryRow));
+    } catch (error) {
+      console.error("Failed to load credit points dashboard:", error);
+      toast.error("Failed to load credit points dashboard");
+      setDashboardMetrics({});
+      setCreditHistoryRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCreditPointsDashboard();
+  }, [fetchCreditPointsDashboard]);
+
+  useEffect(() => {
+    const trimmedQuery = creditForm.clientSearch.trim();
+
+    if (!isAddCreditModalOpen || !isClientSuggestionOpen || trimmedQuery.length === 0) {
+      setClientSuggestions([]);
+      setIsLoadingClientSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLoadingClientSuggestions(true);
+      try {
+        const result = await salesApi.getClientDropdown(trimmedQuery);
+        if (!result?.error && Array.isArray(result.data)) {
+          setClientSuggestions(result.data as ClientDropdownItem[]);
+        } else {
+          setClientSuggestions([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch client suggestions:", error);
+        setClientSuggestions([]);
+      } finally {
+        setIsLoadingClientSuggestions(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [creditForm.clientSearch, isAddCreditModalOpen, isClientSuggestionOpen]);
 
   const isDark = !mounted || theme === "dark";
 
   const filteredRows = useMemo(() => {
-    if (historyStatus === "All") return adminCreditHistoryRows;
+    return creditHistoryRows.filter((row) => {
+      const rowHasUsedPoints = row.usedPoints.startsWith("-");
 
-    return adminCreditHistoryRows.filter((row) =>
-      historyStatus === "Used"
-        ? row.usedPoints.startsWith("-")
-        : !row.usedPoints.startsWith("-")
-    );
-  }, [historyStatus]);
+      if (historyStatus === "Used" && !rowHasUsedPoints) return false;
+      if (historyStatus === "Available" && rowHasUsedPoints) return false;
+      if (historyMonth !== "Month" && !matchesRange(row.date, historyMonth)) return false;
 
-  const metrics = [
-    {
-      id: "available",
-      label: "Total Credits Available",
-      value: "10,050",
-      helperText: "Across all users",
-      icon: Coins,
-    },
-    {
-      id: "used",
-      label: "Total Credits Used",
-      value: "3,450",
-      helperText: "All-time usage",
-      icon: BadgeDollarSign,
-    },
-    {
-      id: "users",
-      label: "Active Users with Credits",
-      value: "5",
-      helperText: "Currently holding credits",
-      icon: Users,
-    },
-  ];
+      if (selectedDate) {
+        const rowDate = new Date(row.date);
+        if (
+          Number.isNaN(rowDate.getTime()) ||
+          rowDate.getDate() !== selectedDate.getDate() ||
+          rowDate.getMonth() !== selectedDate.getMonth() ||
+          rowDate.getFullYear() !== selectedDate.getFullYear()
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [creditHistoryRows, historyMonth, historyStatus, selectedDate]);
+
+  const metrics = useMemo(
+    () => [
+      {
+        id: "available",
+        label: "Total Credits Available",
+        value: new Intl.NumberFormat("en-US").format(
+          pickFirstNumber(dashboardMetrics, [
+            "total_credits_available",
+            "total_available_credits",
+            "total_credit_points_available",
+            "available_points",
+            "available_credits",
+          ])
+        ),
+        helperText: "Across all users",
+        icon: Coins,
+      },
+      {
+        id: "used",
+        label: "Total Credits Used",
+        value: new Intl.NumberFormat("en-US").format(
+          pickFirstNumber(dashboardMetrics, [
+            "total_credits_used",
+            "total_used_credits",
+            "total_credit_points_used",
+            "used_points",
+            "used_credits",
+          ])
+        ),
+        helperText: "All-time usage",
+        icon: BadgeDollarSign,
+      },
+      {
+        id: "users",
+        label: "Active Users with Credits",
+        value: new Intl.NumberFormat("en-US").format(
+          pickFirstNumber(dashboardMetrics, [
+            "active_users_holding_credits",
+            "active_users_with_credits",
+            "users_with_credits",
+            "active_credit_users",
+            "active_users",
+          ])
+        ),
+        helperText: "Currently holding credits",
+        icon: Users,
+      },
+    ],
+    [dashboardMetrics]
+  );
+
+  const handleCreditHistoryRowClick = useCallback((row: CreditHistoryRow) => {
+    if (row.userId && row.userId > 0) {
+      router.push(`/admin/finances/creditPoints/${row.userId}`);
+      return;
+    }
+
+    if (row.guestEmail) {
+      const encodedEmail = encodeURIComponent(row.guestEmail);
+      router.push(
+        `/admin/finances/creditPoints/${encodedEmail}?guest_email=${encodedEmail}`
+      );
+      return;
+    }
+
+    toast.error("No user id or guest email found for this row");
+  }, [router]);
+
+  const updateCreditForm = <K extends keyof typeof creditForm>(
+    key: K,
+    value: (typeof creditForm)[K]
+  ) => {
+    setCreditForm((current) => {
+      if (key === "clientSearch") {
+        return {
+          ...current,
+          clientSearch: String(value),
+          targetUserId: "",
+          guestEmail: "",
+        };
+      }
+
+      return { ...current, [key]: value };
+    });
+
+    if (key === "clientSearch") {
+      setSelectedClientSuggestion(null);
+      setIsClientSuggestionOpen(true);
+    }
+  };
+
+  const resetCreditForm = () => {
+    setCreditForm({
+      userType: "Client",
+      clientSearch: "",
+      targetUserId: "",
+      guestEmail: "",
+      amount: "",
+      creditType: "",
+      expiryDate: "",
+      reason: "",
+      notes: "",
+      usageRestrictions: "",
+      notifyUser: false,
+    });
+    setClientSuggestions([]);
+    setSelectedClientSuggestion(null);
+    setIsClientSuggestionOpen(false);
+    setIsLoadingClientSuggestions(false);
+  };
+
+  const handleCreditModalChange = (open: boolean) => {
+    setIsAddCreditModalOpen(open);
+    if (!open) {
+      resetCreditForm();
+      return;
+    }
+
+    setCreditForm((current) => ({ ...current, userType: "Client" }));
+  };
+
+  const handleClientSuggestionSelect = (client: ClientDropdownItem) => {
+    const resolvedUserId = pickFirstClientValue(client.user_id);
+    const resolvedGuestEmail = resolvedUserId ? "" : getClientEmail(client);
+
+    setSelectedClientSuggestion(client);
+    setCreditForm((current) => ({
+      ...current,
+      userType: "Client",
+      clientSearch: getClientDisplayName(client) || getClientEmail(client),
+      targetUserId: resolvedUserId,
+      guestEmail: resolvedGuestEmail,
+    }));
+    setIsClientSuggestionOpen(false);
+  };
+
+  const handleCreditFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const parsedAmount = Number(creditForm.amount);
+    if (!selectedClientSuggestion) {
+      toast.error("Select a client from suggestions");
+      return;
+    }
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+
+    if (!creditForm.reason || !creditForm.creditType) {
+      toast.error("Fill all required fields");
+      return;
+    }
+
+    const parsedTargetUserId = Number(creditForm.targetUserId);
+    const hasRegisteredUser = Number.isInteger(parsedTargetUserId) && parsedTargetUserId > 0;
+    const resolvedGuestEmail = creditForm.guestEmail.trim();
+
+    if (!hasRegisteredUser && !resolvedGuestEmail) {
+      toast.error("Selected client must have a user id or guest email");
+      return;
+    }
+
+    try {
+      setIsSubmittingCredit(true);
+
+      const allowedUsageContexts = parseRestrictionContexts(
+        creditForm.usageRestrictions
+      );
+
+      const response = await adminApi.createManualCreditPoint({
+        user_type: "client",
+        ...(hasRegisteredUser
+          ? { target_user_id: parsedTargetUserId }
+          : { guest_email: resolvedGuestEmail }),
+        amount: parsedAmount,
+        credit_type: toCreditTypeApiValue(creditForm.creditType),
+        expires_at: creditForm.expiryDate || undefined,
+        reason: creditForm.reason.trim(),
+        notes: creditForm.notes.trim() || undefined,
+        restrictions_json: allowedUsageContexts.length
+          ? { allowed_usage_contexts: allowedUsageContexts }
+          : undefined,
+        notify_user: creditForm.notifyUser,
+      });
+
+      if (response?.error) {
+        toast.error(response.error);
+        return;
+      }
+
+      setSubmittedCreditForm(creditForm);
+      handleCreditModalChange(false);
+      setIsCreditSuccessModalOpen(true);
+      fetchCreditPointsDashboard();
+    } catch (error) {
+      console.error("Failed to create credit point:", error);
+      toast.error("Failed to create credit point");
+    } finally {
+      setIsSubmittingCredit(false);
+    }
+  };
 
   return (
     <>
       <Topbar
         pathname={pathname}
         actions={
-          <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
-            <ArrowUpToLine size={18} />
-            Export
-          </Button>
+          <div className="flex items-center gap-3">
+             <Button
+              type="button"
+              variant="beige"
+              className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
+              onClick={() => setIsAddCreditModalOpen(true)}
+            >
+              <Plus size={18} />
+              Add Credit Points
+            </Button> 
+            <Button
+              type="button"
+              className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
+            >
+              <ArrowUpToLine size={18} />
+              Export
+            </Button>
+          </div>
         }
       />
 
@@ -211,7 +607,7 @@ export default function AdminFinancesPage() {
           />
         </div>
 
-        <FinanceMetricCards
+        {/* <FinanceMetricCards
           metrics={metrics}
           activeId={activeMetricId}
           onSelect={setActiveMetricId}
@@ -219,7 +615,7 @@ export default function AdminFinancesPage() {
           dropdownValue={metricRange}
           dropdownOptions={metricDropdownOptions}
           onDropdownChange={setMetricRange}
-        />
+        /> */}
 
         <CreditHistoryTable
           rows={filteredRows}
@@ -230,9 +626,30 @@ export default function AdminFinancesPage() {
           statusValue={historyStatus}
           statusOptions={historyStatusOptions}
           onStatusChange={setHistoryStatus}
-          onRowClick={(row: CreditHistoryRow) => router.push(`/admin/finances/creditPoints/${row.id}`)}
+          onRowClick={handleCreditHistoryRowClick}
         />
       </div>
+
+      <AddCreditPointsModal
+        open={isAddCreditModalOpen}
+        form={creditForm}
+        isSubmitting={isSubmittingCredit}
+        creditTypeOptions={creditTypeOptions}
+        clientSuggestions={clientSuggestions}
+        selectedClient={selectedClientSuggestion}
+        isLoadingClientSuggestions={isLoadingClientSuggestions}
+        isClientSuggestionOpen={isClientSuggestionOpen}
+        onOpenChange={handleCreditModalChange}
+        onChange={updateCreditForm}
+        onClientSelect={handleClientSuggestionSelect}
+        onClientSuggestionOpenChange={setIsClientSuggestionOpen}
+        onSubmit={handleCreditFormSubmit}
+      />
+      <CreditPointsSuccessModal
+        open={isCreditSuccessModalOpen}
+        details={submittedCreditForm}
+        onOpenChange={setIsCreditSuccessModalOpen}
+      />
     </>
   );
 }

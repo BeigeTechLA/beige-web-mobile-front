@@ -1,8 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-import { createQuotePreviewToken } from "@/lib/server/quotePreviewToken";
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/";
 
@@ -39,9 +37,9 @@ export async function POST(request: NextRequest) {
     }
 
     const quoteResponse = await fetch(
-      `${API_BASE_URL.replace(/\/$/, "")}/sales/quotes/${quoteId}`,
+      `${API_BASE_URL.replace(/\/$/, "")}/sales/quotes/${quoteId}/preview-link`,
       {
-        method: "GET",
+        method: "POST",
         headers: {
           Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
@@ -50,14 +48,29 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    if (!quoteResponse.ok) {
+    const responseData = await quoteResponse.json().catch(() => null);
+
+    if (!quoteResponse.ok || responseData?.success === false) {
       return NextResponse.json(
-        { success: false, error: "Quote access denied." },
+        {
+          success: false,
+          error:
+            typeof responseData?.message === "string"
+              ? responseData.message
+              : "Failed to create quote preview link.",
+        },
         { status: quoteResponse.status }
       );
     }
 
-    const quoteKey = createQuotePreviewToken(quoteId);
+    const quoteKey = String(responseData?.data?.quote_key ?? "").trim();
+    if (!quoteKey) {
+      return NextResponse.json(
+        { success: false, error: "Quote preview link is unavailable." },
+        { status: 500 }
+      );
+    }
+
     const previewUrl = `/quotes/preview?quoteKey=${encodeURIComponent(quoteKey)}`;
 
     return NextResponse.json({

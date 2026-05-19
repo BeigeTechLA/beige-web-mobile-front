@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   FolderOpen,
+  Share2,
   Download,
   Trash2
 } from "lucide-react";
@@ -19,10 +20,11 @@ interface FileActionMenuProps {
   onDownload?: () => void;
   onDelete?: () => void;
   onRename?: () => void;
+  onShare?: () => void;
 }
 
 const FileActionMenu: React.FC<FileActionMenuProps> = ({
-  isOpen, onClose, anchor, folderName, href, onOpen, onDownload, onDelete
+  isOpen, onClose, anchor, folderName, href, onOpen, onDownload, onDelete, onShare
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -93,8 +95,12 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
 
         {/* Section 2: Sharing */}
         <div className="flex flex-col p-1.5">
-          {/* Temporarily hidden action: Share */}
-          {/* <MenuButton icon={<Share2 size={18} />} label="Share" onClick={onClose} /> */}
+          {onShare ? (
+            <MenuButton icon={<Share2 size={18} />} label="Share" onClick={() => {
+              onShare();
+              onClose();
+            }} />
+          ) : null}
           <MenuButton icon={<Download size={18} />} label="Download" onClick={() => {
             onDownload?.();
             onClose();

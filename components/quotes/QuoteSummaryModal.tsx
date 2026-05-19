@@ -65,7 +65,7 @@ export default function QuoteSummaryModal({
             type="button"
             onClick={onPreview}
             disabled={!snapshot || previewDisabled}
-            className="hidden lg:blockh-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90 disabled:opacity-60"
+            className="hidden lg:block h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90 disabled:opacity-60"
           >
             Preview Quote
           </Button>

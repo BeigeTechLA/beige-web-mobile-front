@@ -125,9 +125,7 @@ const GeneratePaymentLink = ({
   const showInvoiceActions =
     (!!paymentData && !paymentData.isExpired) || isPaidBooking || hasPendingAdditionalPayment;
   const showGenerateSection =
-    !isPaidBooking &&
-    !hasPendingAdditionalPayment &&
-    (!paymentData || (paymentData.isExpired && !activeLink));
+    !isPaidBooking && (!paymentData || (paymentData.isExpired && !activeLink));
   const shouldAttachDiscount =
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
@@ -398,6 +396,11 @@ const GeneratePaymentLink = ({
             >
               {isPreparingBooking ? "Preparing Booking..." : isGenerating ? "Generating..." : "Generate Payment Link"}
             </Button>
+            {hasPendingAdditionalPayment && (
+              <p className={`text-xs ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
+                Outstanding amount: {formatCurrencyValue(additionalPaymentOutstandingAmount)}.
+              </p>
+            )}
           </div>
         ) : paymentData && !isPaidBooking ? (
           /* Active / Expired Link UI */

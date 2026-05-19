@@ -6,6 +6,7 @@ import {
   getQuoteDisplayShootTypeLabel,
   getQuoteNumber,
   getQuoteText,
+  resolveQuoteLineItemDisplayName,
 } from "@/lib/quoteDetail";
 
 export type QuoteEditorView =
@@ -202,17 +203,7 @@ const resolveDetailSection = (item: SalesQuoteDetailLineItem) => {
 };
 
 const resolveItemLabel = (item: SalesQuoteDetailLineItem) => {
-  const catalogItem = asRecord(item.catalog_item);
-
-  return (
-    getQuoteText(
-      item.item_name,
-      item.name,
-      item.label,
-      catalogItem?.name,
-      "Line Item"
-    ) || "Line Item"
-  );
+  return resolveQuoteLineItemDisplayName(item);
 };
 
 const resolveItemCreatedAt = (item: SalesQuoteDetailLineItem) =>
