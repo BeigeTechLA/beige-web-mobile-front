@@ -346,8 +346,9 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                   <Share2 className="h-5 w-5 text-[#E5D5B8]" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold text-white">Share {resource?.label || "Resource"}</h2>
-                  <p className="mt-0.5 text-xs text-white/40">Note: Accessing the link requires email OTP verification, even if the user has the shared access link.</p>
+                  <h2 className="text-base font-semibold text-white">Share Access</h2>
+                  {/* {resource?.label || "Resource"} */}
+                  <p className="mt-0.5 text-xs text-white/40">Note: Recipients must verify their email with an OTP each time they access shared files.</p>
                 </div>
               </div>
               <button
@@ -410,7 +411,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                 <div>
                   <label className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-white/40">
                     <Mail size={12} />
-                    Invite by Email(s)
+                    Invite by Email
                   </label>
 
                   <div className="flex gap-2">
@@ -424,7 +425,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                           addCurrentEmail();
                         }
                       }}
-                      placeholder="client@example.com"
+                      placeholder="name@company.com"
                       className="h-[42px] w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white outline-none transition-all placeholder:text-white/25 focus:border-[#E5D5B8]/50 focus:bg-white/[0.05] focus:ring-2 focus:ring-[#E5D5B8]/15"
                     />
                     <Button
@@ -462,12 +463,12 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
 
                   <div className="mt-3">
                     <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-white/40">
-                      Add Message (Optional)
+                      Message (Optional)
                     </label>
                     <textarea
                       value={shareMessage}
                       onChange={(e) => setShareMessage(e.target.value.slice(0, 2000))}
-                      placeholder="Add a note for recipients..."
+                      placeholder="Write a short note..."
                       className="min-h-[78px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white outline-none transition-all placeholder:text-white/25 focus:border-[#E5D5B8]/50 focus:bg-white/[0.05] focus:ring-2 focus:ring-[#E5D5B8]/15"
                     />
                     <p className="mt-1 text-right text-[11px] text-white/35">{shareMessage.length}/2000</p>
@@ -484,7 +485,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                         Sharing...
                       </span>
                     ) : (
-                      "Share"
+                      "Share Access"
                     )}
                   </Button>
                 </div>
@@ -500,7 +501,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                           : "border-transparent text-white/60 hover:text-white"
                       }`}
                     >
-                      People with Access
+                      Shared With
                     </button>
                     <button
                       type="button"
@@ -511,7 +512,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                           : "border-transparent text-white/60 hover:text-white"
                       }`}
                     >
-                      Access Activity
+                     Activity
                     </button>
                   </div>
 
