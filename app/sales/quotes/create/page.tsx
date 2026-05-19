@@ -4918,7 +4918,7 @@ export default function CreateQuotePage() {
                             toggleSelectedLogistics(item.id);
                           }
                         }}
-                        className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedLogistics.includes(item.id)
+                        className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedLogistics.includes(item.id)
                           ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
                           : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                           }`}
@@ -4947,7 +4947,7 @@ export default function CreateQuotePage() {
                             <Trash2 size={16} />
                           </button>
                         </div>
-                        <div className="flex w-full min-w-0 items-start gap-4">
+                        <div className="flex w-full min-w-0 items-start gap-4 pr-2">
                           <div
                             className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedLogistics.includes(item.id)
                               ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
@@ -4959,7 +4959,10 @@ export default function CreateQuotePage() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1 space-y-2">
-                            <div className="block w-full truncate font-medium text-base text-white leading-none">
+                            <div
+                              title={item.label}
+                              className="block w-full truncate font-medium text-base text-white leading-none"
+                            >
                               {item.label}
                             </div>
                             <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -5264,7 +5267,7 @@ export default function CreateQuotePage() {
                               }));
                             }
                           }}
-                          className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
+                          className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedAddons.includes(addon.id)
                             // ? "bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                             // : "bg-transparent border-[#303030] hover:border-zinc-700"
                             // }`}
@@ -5274,7 +5277,7 @@ export default function CreateQuotePage() {
                             : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                             }`}
                         >
-                          <div className="flex w-full min-w-0 items-start gap-4 pr-8">
+                          <div className="flex w-full min-w-0 items-start gap-4 pr-2">
                             <div
                               className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
                                 ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
@@ -5286,7 +5289,10 @@ export default function CreateQuotePage() {
                               )}
                             </div>
                             <div className="min-w-0 flex-1 space-y-2">
-                              <div className="block w-full truncate font-medium text-base text-white leading-none">
+                              <div
+                                title={addon.label}
+                                className="block w-full truncate font-medium text-base text-white leading-none"
+                              >
                                 {addon.label}
                               </div>
                               <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -5684,12 +5690,15 @@ export default function CreateQuotePage() {
                               onClick={() =>
                                 handleServiceSelect(service.id, service.price)
                               }
-                              className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
+                              className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedServices.includes(service.id)
                                 ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                                 : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
                                 }`}
                             >
-                              <div className="mb-2 w-full truncate pr-6 font-medium text-base leading-none text-white">
+                              <div
+                                title={getServiceDisplayLabel(service.label)}
+                                className="mb-2 w-full truncate pr-2 font-medium text-base leading-none text-white"
+                              >
                                 {getServiceDisplayLabel(service.label)}
                               </div>
                               <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
