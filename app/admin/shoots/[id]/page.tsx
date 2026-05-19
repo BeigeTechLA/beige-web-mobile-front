@@ -276,7 +276,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
                 ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
-                : "bg-white border-[#E5E5E5] text-[#666] hover:bg-zinc-50"
+                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
                 }`}
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
@@ -332,7 +332,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               {activeTab === "Meetings" && (
                 <>
                   <MeetingSchedule orderId={id} />
-                  <div className={`px-5`}>
+                  <div className={`px-5 border-t ${isDark ? "border-t-[#FFFFFF80]" : "border-t-black/40"}`}>
                     <MeetingOverviewChart />
                   </div>
                 </>
