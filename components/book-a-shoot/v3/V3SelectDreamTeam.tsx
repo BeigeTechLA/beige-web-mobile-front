@@ -71,12 +71,24 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   const isEditingOnly =
     data.contentType.length === 1 && data.contentType.includes("editing");
 
+  const locationLatitude =
+    data.locationDetails?.coordinates?.lat ??
+    data.locationDetails?.lat ??
+    data.locationDetails?.center?.[1] ??
+    undefined;
+  const locationLongitude =
+    data.locationDetails?.coordinates?.lng ??
+    data.locationDetails?.lng ??
+    data.locationDetails?.center?.[0] ??
+    undefined;
+
   // Build search params from booking data
   const searchParams = {
     content_types: isEditingOnly
       ? "editor"
       : data.contentType.filter((t) => t !== "editing").join(","),
-    location: isEditingOnly ? undefined : data.location || undefined,
+    latitude: isEditingOnly ? undefined : locationLatitude,
+    longitude: isEditingOnly ? undefined : locationLongitude,
     limit: 12,
     page: 1,
   };
@@ -88,7 +100,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     error,
   } = useSearchCreatorsQuery(searchParams, {
     skip:
-      data.contentType.length === 0 || (!isEditingOnly && !data.location),
+      data.contentType.length === 0 || (!isEditingOnly && (locationLatitude === undefined || locationLongitude === undefined)),
   });
 
   // Transform API creators to display format

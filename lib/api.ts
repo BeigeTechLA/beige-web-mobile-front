@@ -1540,7 +1540,14 @@ export const adminApi = {
       };
     }
   },
-  getCrewForShoot: async (params: { project_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+  getCrewForShoot: async (params: {
+    project_id: number | string,
+    role_type: string,
+    search_query?: string,
+    radius?: number,
+    latitude?: number,
+    longitude?: number
+  }) => {
     try {
       const response = await api.get('admin/get-crew-for-shoot/', { params });
       return response.data;
@@ -2279,7 +2286,14 @@ export const salesApi = {
       };
     }
   },
-  getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+  getCrewForLead: async (params: {
+    lead_id: number | string,
+    role_type: string,
+    search_query?: string,
+    radius?: number,
+    latitude?: number,
+    longitude?: number
+  }) => {
     try {
       const response = await api.get('admin/get-crew-for-lead/', { params });
       return response.data;
