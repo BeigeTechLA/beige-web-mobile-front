@@ -2,15 +2,44 @@ import type { MeetingItem } from "@/lib/meetingsApi";
 
 const normalizeStatus = (value?: string) => String(value || "pending").toLowerCase();
 
-const STATUS_STYLES: Record<string, string> = {
-  pending: "border-[#B18A00]/25 bg-[#2A2110] text-[#F3D27A]",
-  confirmed: "border-[#0E9F6E]/25 bg-[#10261E] text-[#67E8B5]",
-  in_progress: "border-[#3B82F6]/25 bg-[#111E33] text-[#93C5FD]",
-  ongoing: "border-[#38BDF8]/25 bg-[#0E2230] text-[#7DD3FC]",
-  change_request: "border-[#C065F0]/25 bg-[#241228] text-[#E9B8FF]",
-  completed: "border-[#34D399]/25 bg-[#0F241D] text-[#9AE6B4]",
-  cancelled: "border-[#FB7185]/25 bg-[#2A1419] text-[#FDA4AF]",
-  rescheduled: "border-[#818CF8]/25 bg-[#171B33] text-[#C7D2FE]",
+interface ThemeStyles {
+  dark: string;
+  light: string;
+}
+
+const STATUS_STYLES: Record<string, ThemeStyles> = {
+  pending: {
+    dark: "border-[#B18A00]/25 bg-[#2A2110] text-[#F3D27A]",
+    light: "border-[#B18A00]/30 bg-[#FEF7E0] text-[#B18A00]",
+  },
+  confirmed: {
+    dark: "border-[#0E9F6E]/25 bg-[#10261E] text-[#67E8B5]",
+    light: "border-[#0E9F6E]/30 bg-[#E6F6F0] text-[#0E9F6E]",
+  },
+  in_progress: {
+    dark: "border-[#3B82F6]/25 bg-[#111E33] text-[#93C5FD]",
+    light: "border-[#3B82F6]/30 bg-[#EFF6FF] text-[#1D4ED8]",
+  },
+  ongoing: {
+    dark: "border-[#38BDF8]/25 bg-[#0E2230] text-[#7DD3FC]",
+    light: "border-[#38BDF8]/30 bg-[#F0F9FF] text-[#0369A1]",
+  },
+  change_request: {
+    dark: "border-[#C065F0]/25 bg-[#241228] text-[#E9B8FF]",
+    light: "border-[#C065F0]/30 bg-[#FAF5FF] text-[#A855F7]",
+  },
+  completed: {
+    dark: "border-[#34D399]/25 bg-[#0F241D] text-[#9AE6B4]",
+    light: "border-[#34D399]/30 bg-[#ECFDF5] text-[#047857]",
+  },
+  cancelled: {
+    dark: "border-[#FB7185]/25 bg-[#2A1419] text-[#FDA4AF]",
+    light: "border-[#FB7185]/30 bg-[#FFF1F2] text-[#E11D48]",
+  },
+  rescheduled: {
+    dark: "border-[#818CF8]/25 bg-[#171B33] text-[#C7D2FE]",
+    light: "border-[#818CF8]/30 bg-[#EEF2FF] text-[#4338CA]",
+  },
 };
 
 export const getEffectiveMeetingStatus = (meeting?: Pick<MeetingItem, "meeting_status" | "meeting_date_time" | "meeting_end_time"> | null) => {
@@ -49,5 +78,7 @@ export const formatMeetingStatusLabel = (value?: string) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-export const getMeetingStatusClasses = (value?: string) =>
-  STATUS_STYLES[normalizeStatus(value)] || STATUS_STYLES.pending;
+export const getMeetingStatusClasses = (value?: string, isDark: boolean = true) => {
+  const targetStyles = STATUS_STYLES[normalizeStatus(value)] || STATUS_STYLES.pending;
+  return isDark ? targetStyles.dark : targetStyles.light;
+};

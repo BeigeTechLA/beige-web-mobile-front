@@ -100,16 +100,16 @@ const formatDateTime = (value?: string) => {
   });
 };
 
-const StatusBadge = ({ status }: { status?: string }) => {
+const StatusBadge = ({ status, isDark = true }: { status?: string; isDark?: boolean }) => {
   const normalized = String(status || "pending").toLowerCase();
   return (
-    <span className={cn("rounded-full border px-4 py-1.5 text-sm font-medium", getMeetingStatusClasses(normalized))}>
+    <span className={cn("rounded-full border px-4 py-1.5 text-sm font-medium", getMeetingStatusClasses(normalized, isDark))}>
       {formatMeetingStatusLabel(normalized)}
     </span>
   );
 };
 
-const MemberStack = ({ meeting }: { meeting: MeetingItem }) => {
+const MemberStack = ({ meeting, isDark = true }: { meeting: MeetingItem; isDark: boolean }) => {
   const participants = getMeetingParticipants(meeting);
   const visible = participants.slice(0, 3);
 
@@ -118,14 +118,14 @@ const MemberStack = ({ meeting }: { meeting: MeetingItem }) => {
       {visible.map((member, index) => (
         <div
           key={`${member?.id || member?.email || member?.name}-${index}`}
-          className="relative h-8 w-8 overflow-hidden rounded-full border-2 border-[#111111] bg-[#202020]"
+          className={`relative h-8 w-8 overflow-hidden rounded-full border-2  ${isDark ? "border-[#111111] bg-[#202020]" : "border-[#E8D1AB] bg-[#E8D1AB]"}`}
           title={member?.name || "Participant"}
         >
           {member?.profile_picture ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={member.profile_picture} alt={member.name || "Participant"} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-white">
+            <div className={`flex h-full w-full items-center justify-center text-[10px] font-semibold ${isDark ? "text-white" : "text-black"}`}>
               {String(member?.name || "P")
                 .split(" ")
                 .filter(Boolean)
@@ -138,7 +138,7 @@ const MemberStack = ({ meeting }: { meeting: MeetingItem }) => {
       ))}
 
       {participants.length > 3 ? (
-        <div className="z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#111111] bg-[#E5D5B8] text-[10px] font-bold text-black">
+        <div className={`z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-[10px] font-bold  ${isDark ? "border-[#111111] bg-[#202020] text-white" : "border-[#E8D1AB] bg-[#E8D1AB] text-black"}`}>
           +{participants.length - 3}
         </div>
       ) : null}
@@ -263,12 +263,12 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className={`flex gap-3`}>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="min-w-[170px] border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50">
+                <SelectTrigger className={`min-w-[170px] ${isDark ? "border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50 " : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232]"} `}>
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#111111] text-white">
+                <SelectContent className={`${isDark ? "bg-[#1A1A1A] border-white/10 text-white " : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232]"}`}>
                   {availableStatuses.map((status) => (
-                    <SelectItem key={status} value={status} className="focus:bg-[#1E1E1E] focus:text-white">
+                    <SelectItem key={status} value={status} className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>
                       {status === "all" ? "All Status" : formatMeetingStatusLabel(status)}
                     </SelectItem>
                   ))}
@@ -280,7 +280,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={loading}
-                className="h-12 border-white/10 bg-[#1A1A1A] text-white hover:bg-[#242424]"
+                className={`h-12 ${isDark ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"}`}
               >
                 <RefreshCw size={16} className={cn(loading && "animate-spin")} />
                 <span>Refresh</span>
@@ -289,7 +289,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
 
 
             {canCreateMeeting ? (
-              <Button onClick={() => setIsModalOpen(true)} className="h-13 lg:h-12 bg-white text-black hover:bg-zinc-200">
+              <Button onClick={() => setIsModalOpen(true)} className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"}`}>
                 Create New Meeting
               </Button>
             ) : null}
@@ -309,12 +309,12 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
           </div>
 
           {loading ?
-            <div className={`flex items-center justify-center py-20 border transition-colors duration-300 border-[#3D3D3D] bg-[#171717] `}>
+            <div className={`flex items-center justify-center py-20 border transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]":"border-[#E5E5E5] bg-[#fff]"} `}>
               <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
             </div> : error ? (
               <div className="px-2 py-10 text-center text-sm text-[#ff8e8e]">{error}</div>
             ) : filteredMeetings.length === 0 ? (
-              <div className="px-2 py-10 text-center text-sm text-white/45">No meetings found for this project yet.</div>
+              <div className={`px-2 py-10 text-center text-sm ${isDark ? "text-white/45" : "text-black/75"}`}>No meetings found for this project yet.</div>
             ) : (
               <div className="flex flex-col">
                 {filteredMeetings.map((meeting) => {
@@ -341,16 +341,16 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
 
                   return (
                     <React.Fragment key={meetingId}>
-                      <div className="hidden grid-cols-[2fr_1fr_1fr_auto] items-center border-b border-[#222222] px-5 py-4 transition-colors hover:bg-white/[0.02] lg:grid">
+                      <div className={`hidden grid-cols-[2fr_1fr_1fr_auto] items-center border-b px-5 py-4 transition-colors lg:grid ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-white hover:bg-[#F4F5F7]"}`}>
                         <div>
-                          <div className="text-base font-medium text-[#E0E0E0]">{formatDateTime(meeting.meeting_date_time)}</div>
-                          {meeting.meeting_title ? <div className="mt-1 text-sm text-white/45">{meeting.meeting_title}</div> : null}
+                          <div className={`text-base font-medium ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{formatDateTime(meeting.meeting_date_time)}</div>
+                          {meeting.meeting_title ? <div className={`mt-1 text-sm ${isDark ? "text-white/45" : "text-black/75"}`}>{meeting.meeting_title}</div> : null}
                         </div>
-                        <MemberStack meeting={meeting} />
+                        <MemberStack meeting={meeting} isDark={isDark} />
                         <div>
-                          <StatusBadge status={effectiveStatus} />
+                          <StatusBadge status={effectiveStatus} isDark={isDark} />
                           {canRespond ? (
-                            <p className="mt-2 text-xs capitalize text-white/45">Your response: {formatInvitationResponse(currentResponse)}</p>
+                            <p className={`mt-2 text-xs capitalize ${isDark ? "text-white/45" : "text-black/75"}`}>Your response: {formatInvitationResponse(currentResponse)}</p>
                           ) : null}
                         </div>
                         <div className="flex items-center justify-end gap-3">
@@ -371,7 +371,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                               variant="outline"
                               onClick={() => handleRespond(meeting.id as string | number, "declined")}
                               disabled={isResponding}
-                              className="h-9 border-rose-400/20 bg-rose-500/10 px-3 text-rose-200 hover:bg-rose-500/20"
+                              className={`h-9 px-3 ${isDark ? "text-rose-200 border-rose-400/20 bg-rose-500/10 hover:bg-rose-500/20" : "text-red-500 border-rose-400/20 bg-rose-500/10 hover:bg-rose-500/20"}`}
                             >
                               Reject
                             </Button>
@@ -398,7 +398,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                           <button
                             type="button"
                             onClick={() => setSelectedMeeting(meeting)}
-                            className="text-[#888888] transition-colors hover:text-white"
+                            className={`transition-colors hover:text-white ${isDark ? "text-[#888888]":"text-[#000]"}`}
                           >
                             <MoreVertical size={20} />
                           </button>
@@ -406,7 +406,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                             <button
                               type="button"
                               onClick={() => setMeetingPendingDelete(meeting)}
-                              className="inline-flex items-center gap-1 text-sm font-medium text-rose-300 hover:text-rose-200"
+                              className={`inline-flex items-center gap-1 text-sm font-medium ${isDark ? "text-rose-300 hover:text-rose-200" : "text-red-500 hover:text-red-400"}`}
                             >
                               <Trash2 size={14} />
                               Delete
@@ -422,44 +422,44 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                           className="flex items-center justify-between p-5 text-left"
                         >
                           <div className="flex items-center gap-3">
-                            <div className={cn("transition-transform duration-200 rounded-full border p-1", isExpanded ? "rotate-180 text-[#E8D1AB]" : "text-[#888888]", isDark ? "border-[#4B4B4B]" : "bg-[#F4F5F7]")}>
+                            <div className={cn("transition-transform duration-200 rounded-full border p-1", isExpanded ? "rotate-180 text-[#E8D1AB]" : "text-[#888888]", isDark ? "border-[#4B4B4B]" : "border-[#D9D9D9]")}>
                               <ChevronDown size={16} />
                             </div>
-                            <MemberStack meeting={meeting} />
+                            <MemberStack meeting={meeting} isDark={isDark} />
                           </div>
-                          <StatusBadge status={effectiveStatus} />
+                          <StatusBadge status={effectiveStatus} isDark={isDark} />
                         </button>
 
                         {isExpanded ? (
                           <div className={`grid grid-cols-2 gap-y-4 px-5 pb-6 text-sm animate-in fade-in slide-in-from-top-2 duration-200 border-b ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                             <div>
-                              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Date & Time</p>
-                              <p className="text-white">{formatDateTime(meeting.meeting_date_time)}</p>
+                              <p className={`mb-1 text-xs font-medium uppercase tracking-wider ${isDark ? "text-[#888888]" : "text-black"}`}>Date & Time</p>
+                              <p className={isDark ? "text-white" : "text-[#A1A1A1]"}>{formatDateTime(meeting.meeting_date_time)}</p>
                             </div>
                             <div className="text-right">
-                              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Members</p>
-                              <p className="text-white">{participants.length || 0}</p>
+                              <p className={`mb-1 text-xs font-medium uppercase tracking-wider ${isDark ? "text-[#888888]" : "text-black"}`}>Members</p>
+                              <p className={isDark ? "text-white" : "text-[#A1A1A1]"}>{participants.length || 0}</p>
                             </div>
                             {meeting.meeting_title ? (
                               <div className="col-span-2">
-                                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Title</p>
-                                <p className="text-white">{meeting.meeting_title}</p>
+                                <p className={`mb-1 text-xs font-medium uppercase tracking-wider ${isDark ? "text-[#888888]" : "text-black"}`}>Title</p>
+                                <p className={isDark ? "text-white" : "text-[#A1A1A1]"}>{meeting.meeting_title}</p>
                               </div>
                             ) : null}
                             {meeting.description ? (
                               <div className="col-span-2">
-                                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Description</p>
-                                <p className="text-white/75">{meeting.description}</p>
+                                <p className={`mb-1 text-xs font-medium uppercase tracking-wider ${isDark ? "text-[#888888]" : "text-black"}`}>Description</p>
+                                <p className={isDark ? "text-white/75" : "text-[#A1A1A1]"}>{meeting.description}</p>
                               </div>
                             ) : null}
                             {canRespond ? (
                               <div className="col-span-2">
-                                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Your Response</p>
-                                <p className="capitalize text-white">{formatInvitationResponse(currentResponse)}</p>
+                                <p className={`mb-1 text-xs font-medium uppercase tracking-wider ${isDark ? "text-[#888888]" : "text-black"}`}>Your Response</p>
+                                <p className={`capitalize ${isDark ? "text-white" : "text-[#A1A1A1]"}`}>{formatInvitationResponse(currentResponse)}</p>
                               </div>
                             ) : null}
                             <div className="col-span-2 flex items-center justify-between">
-                              <p className="text-xs font-medium uppercase tracking-wider text-[#888888]">Action</p>
+                              <p className={`text-xs font-medium uppercase tracking-wider ${isDark ? "text-[#888888]" : "text-black"}`}>Action</p>
                               <div className="flex flex-wrap items-center gap-4">
                                 {canRespond && currentResponse !== "accepted" ? (
                                   <button
@@ -516,6 +516,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
         orderId={resolvedOrderId}
         role={role}
         onCreated={loadMeetings}
+        isDark={isDark}
       />
 
       <MeetingDetailsModal

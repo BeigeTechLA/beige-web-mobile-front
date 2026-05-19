@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { useParams } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { meetingsApi, type MeetingItem } from "@/lib/meetingsApi";
+import { useTheme } from "next-themes";
 
 interface MeetingsOverviewChartProps {
   orderId?: string | number | null;
@@ -51,6 +52,14 @@ export default function MeetingsOverviewChart({ orderId }: MeetingsOverviewChart
   const params = useParams<{ id?: string }>();
   const resolvedOrderId = orderId ?? params?.id ?? null;
   const [meetings, setMeetings] = useState<MeetingItem[]>([]);
+
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   useEffect(() => {
     let isMounted = true;
@@ -117,13 +126,13 @@ export default function MeetingsOverviewChart({ orderId }: MeetingsOverviewChart
   }
 
   return (
-    <div className="mt-6 rounded-2xl border border-[#222222] bg-[#111111] p-6">
+    <div className={`mt-6 rounded-2xl border p-6 ${isDark ? "border-[#222222] bg-[#111111]" : "bg-[#F4F5F7] border-[#F4F5F7]"}`}>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-6 w-1 rounded-full bg-[#E5D5B8]" />
-          <h3 className="text-lg font-semibold text-white">Meeting Overview</h3>
+          <div className={`h-6 w-1 rounded-full ${isDark ? "bg-[#E5D5B8]" : "bg-[#000000]"}`} />
+          <h3 className={`${isDark ? "text-white" : "text-black"}`}>Meeting Overview</h3>
         </div>
-        <button className="flex items-center gap-2 rounded-lg border border-[#222222] bg-[#1A1A1A] px-4 py-2 text-sm text-[#E0E0E0] transition-colors hover:bg-[#222222]">
+        <button className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm transition-colors ${isDark ? "border-[#222222] bg-[#1A1A1A] text-[#E0E0E0] hover:bg-[#222222]" : "border-[#E3E3E3] bg-[#FFFFFF] text-[#323232] hover:bg-[#F4F5F7]"}`}>
           Last 6 months <ChevronDown size={14} />
         </button>
       </div>
