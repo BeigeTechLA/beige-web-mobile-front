@@ -228,7 +228,7 @@ export default function QuoteVersionSummary({ quoteId }: QuoteVersionSummaryProp
       <div className="max-w-[1200px] mx-auto px-6 py-8">
         <Button 
           variant="ghost" 
-          onClick={() => router.back()}
+          onClick={() => router.push("/admin/quotes")}
           className="mb-6 h-9 gap-2 pl-0 text-[#8F8F95] hover:bg-transparent hover:text-white group"
         >
           <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />

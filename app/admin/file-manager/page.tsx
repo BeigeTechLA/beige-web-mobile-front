@@ -271,13 +271,23 @@ export default function AdminFolderManagerPage() {
     }
   };
 
+  const topbarActions = (
+    <Button
+      onClick={() => setIsCreateCommonEventModalOpen(true)}
+      disabled={isCreatingEvent}
+      className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+    >
+      {isCreatingEvent ? "Creating..." : "Create Common Event"}
+    </Button>
+  );
+
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar pathname={pathname} actions={topbarActions} />
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
         <div className="mb-3 lg:mb-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-center">
+          <div className="flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-start">
             <div className="text-white w-full">
             <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">File Manager</h1>
             <p className="text-xs lg:text-sm text-white/70">
@@ -286,13 +296,6 @@ export default function AdminFolderManagerPage() {
             </div>
 
             <div className="w-full lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <Button
-              onClick={() => setIsCreateCommonEventModalOpen(true)}
-              disabled={isCreatingEvent}
-              className="w-full sm:w-auto bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-            >
-              {isCreatingEvent ? "Creating..." : "Create Common Event"}
-            </Button>
               <SortDateButton
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}

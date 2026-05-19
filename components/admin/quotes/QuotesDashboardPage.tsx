@@ -1885,7 +1885,7 @@ export default function QuotesDashboardPage({
                                 onReject={() => {
                                   void handleRejectQuote(quote.id, quote.statusKey);
                                 }}
-                                allowEdit
+                                allowEdit={quote.statusKey !== "expired"} 
                               />
                             </td>
                           </tr>
@@ -1932,7 +1932,7 @@ export default function QuotesDashboardPage({
                                         onReject={() => {
                                           void handleRejectQuote(quote.id, quote.statusKey);
                                         }}
-                                        allowEdit
+                                        allowEdit={quote.statusKey !== "expired"} 
                                       />
                                     </div>
                                   </div>
