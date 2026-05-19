@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, List, SlidersHorizontal, Users, Check, X, ArrowUpToLine, Grid2x2, Filter, ChevronDown, MoreHorizontal, ArrowUpRight, User, Camera, Grid3X3 } from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, List, SlidersHorizontal, Users, Check, X, ArrowUpToLine, Grid2x2, ChevronDown, MoreHorizontal, ArrowUpRight, User, Camera } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
@@ -504,7 +504,7 @@ export default function AdminSaleRepManagerPage() {
 
 
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
-  const [showFilters, setShowFilters] = useState(true);
+  const [showBookingGridFilters, setShowBookingGridFilters] = useState(true);
 
   const [metrics, setMetrics] = useState<OverviewMetric[]>(() => getDefaultOverviewMetrics());
   const [activeMetric, setActiveMetric] = useState('total_active');
@@ -1165,25 +1165,20 @@ export default function AdminSaleRepManagerPage() {
               </div>
 
               <div className={`flex items-center gap-2 ${(activeTab === "Creative Partner") ? "justify-end" : "justify-between"}`}>
-                {/* Update this conditional rendering as required */}
-                {
-                  leadsViewMode === "grid" && (
-                    <Button
-                      className={`h-12 px-3 lg:px-5 transition-colors text-sm font-medium border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]" : "bg-[#E5E5E5] text-black hover:bg-[#D9D9D9]"}`}
-                      onClick={() => setShowFilters((prev) => !prev)}
-                    >
-                      <SlidersHorizontal size={24} className={`mr-1 transition-colors ${isDark ? "text-white" : "text-black"}`} />
-                      Filter
-                    </Button>
-                  )
-                }
+                {activeTab === "Booking" && leadsViewMode === "grid" && (
+                  <Button
+                    className={`h-12 px-3 lg:px-5 transition-colors text-sm font-medium border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]" : "bg-[#E5E5E5] text-black hover:bg-[#D9D9D9]"}`}
+                    onClick={() => setShowBookingGridFilters((prev) => !prev)}
+                  >
+                    <SlidersHorizontal size={24} className={`mr-1 transition-colors ${isDark ? "text-white" : "text-black"}`} />
+                    Filter
+                  </Button>
+                )}
 
                 {
                   activeTab !== "Creative Partner" && (
                     <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
-                      {/* Sliding Toggle Container */}
                       <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
-                        {/* Animated Slider Background */}
                         <div
                           className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
                             }`}
@@ -1191,13 +1186,11 @@ export default function AdminSaleRepManagerPage() {
                             transform: leadsViewMode === "grid" ? "translateX(100%)" : "translateX(0%)",
                           }}
                         />
-
-                        {/* List Button */}
                         <button
                           type="button"
                           onClick={() => {
-                            setViewMode("list")
-                            setLeadsViewMode("list")
+                            setViewMode("list");
+                            setLeadsViewMode("list");
                           }}
                           className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${leadsViewMode === "list"
                             ? "text-black"
@@ -1208,13 +1201,11 @@ export default function AdminSaleRepManagerPage() {
                         >
                           <List size={16} />
                         </button>
-
-                        {/* Grid Button */}
                         <button
                           type="button"
                           onClick={() => {
-                            setViewMode("grid")
-                            setLeadsViewMode("grid")
+                            setViewMode("grid");
+                            setLeadsViewMode("grid");
                           }}
                           className={`relative z-10 inline-flex items-center justify-center rounded-lg lg:rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-300 ${leadsViewMode === "grid"
                             ? "text-black"
@@ -1232,110 +1223,105 @@ export default function AdminSaleRepManagerPage() {
               </div>
             </div >
 
-            {
-              (showFilters && (activeTab !== "Creative Partner") && leadsViewMode === "grid") && (
-                <div className={`${isDark ? "bg-[#171717]" : "bg-white"} rounded-lg lg:rounded-xl p-3.5 transition-colors duration-300`}>
-                  {activeTab === "Booking" && leadsViewMode === "grid" && (
-                    <div className="flex flex-wrap gap-2 lg:justify-start lg:gap-4">
+            {activeTab === "Booking" && leadsViewMode !== "grid" && (
+              <div className="flex flex-wrap gap-2 lg:justify-start lg:gap-4">
+                <BasicDropdown
+                  label="Lead Type"
+                  value={leadTypeFilter}
+                  options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                  onChange={(val) => setLeadTypeFilter(val)}
+                />
+                <BasicDropdown
+                  label="Client Representative"
+                  value={assignedRepIdFilter}
+                  options={salesRepOptions}
+                  searchable
+                  searchPlaceholder="Search representative..."
+                  onChange={(val) => {
+                    setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
+                  }}
+                  openAlign={"right"}
+                />
+                <BasicDropdown
+                  label="Intent Type"
+                  value={intentFilter}
+                  options={["All", "Hot", "Warm", "Cold"]}
+                  onChange={(val) => setIntentFilter(val as any)}
+                />
+                <BasicDropdown
+                  label="All Statuses"
+                  value={statusFilter}
+                  options={["All", ...BOOKING_STATUS_OPTIONS]}
+                  onChange={(val) => setStatusFilter(val as any)}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
 
-                      <BasicDropdown
-                        label="Lead Type"
-                        value={leadTypeFilter}
-                        options={["All Leads", "Self-Serve", "Sales Assisted"]}
-                        onChange={(val) => setLeadTypeFilter(val)}
-                      />
+            {activeTab === "Client" && (
+              <div className="flex flex-wrap gap-2 lg:justify-start lg:gap-4">
+                <BasicDropdown
+                  label="Client Representative"
+                  value={clientAssignedRepIdFilter}
+                  options={salesRepOptions}
+                  searchable
+                  searchPlaceholder="Search representative..."
+                  onChange={(val) => {
+                    setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
+                  }}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
 
-                      <BasicDropdown
-                        label="Client Representative"
-                        value={assignedRepIdFilter}
-                        options={salesRepOptions}
-                        searchable
-                        searchPlaceholder="Search representative..."
-                        onChange={(val) => {
-                          setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
-                        }}
-                        openAlign={"right"}
-                      />
-                      <BasicDropdown
-                        label="Intent Type"
-                        value={intentFilter}
-                        options={["All", "Hot", "Warm", "Cold"]}
-                        onChange={(val) => setIntentFilter(val as any)}
-                      />
-                      <BasicDropdown
-                        label="Shoot Stage"
-                        value={shootStageFilter}
-                        options={SHOOT_STAGE_OPTIONS as any}
-                        onChange={(val) => setShootStageFilter(val)}
-                      />
-                      <BasicDropdown
-                        label="CP Assignment"
-                        value={cpAssignmentFilter}
-                        options={CP_ASSIGNMENT_OPTIONS as any}
-                        onChange={(val) => setCpAssignmentFilter(val as "all" | "assigned" | "not_assigned")}
-                      />
-
-                      <BasicDropdown
-                        label="All Statuses"
-                        value={statusFilter}
-                        options={["All", ...BOOKING_STATUS_OPTIONS]}
-                        onChange={(val) => setStatusFilter(val as any)}
-                        openAlign={"right"}
-                      />
-                    </div>
-                    // {activeTab === "Booking" && leadsViewMode !== "grid" && (
-                    //   <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
-
-                    //     <BasicDropdown
-                    //       label="Lead Type"
-                    //       value={leadTypeFilter}
-                    //       options={["All Leads", "Self-Serve", "Sales Assisted"]}
-                    //       onChange={(val) => setLeadTypeFilter(val)}
-                    //     />
-                    //     <BasicDropdown
-                    //       label="Client Representative"
-                    //       value={assignedRepIdFilter}
-                    //       options={salesRepOptions}
-                    //       searchable
-                    //       searchPlaceholder="Search representative..."
-                    //       onChange={(val) => {
-                    //         setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
-                    //       }}
-                    //       openAlign={"right"}
-                    //     />
-                    //     <BasicDropdown
-                    //       label="Intent Type"
-                    //       value={intentFilter}
-                    //       options={["All", "Hot", "Warm", "Cold"]}
-                    //       onChange={(val) => setIntentFilter(val as any)}
-                    //     />
-                    //     {leadsViewMode === "grid" && (
-                    //       <BasicDropdown
-                    //         label="Shoot Stage"
-                    //         value={shootStageFilter}
-                    //         options={SHOOT_STAGE_OPTIONS as any}
-                    //         onChange={(val) => setShootStageFilter(val)}
-                    //       />
-                  )}
-
-                  {activeTab === "Client" && (
-                    <div className="flex flex-wrap gap-2 lg:justify-start lg:gap-4">
-                      <BasicDropdown
-                        label="Client Representative"
-                        value={clientAssignedRepIdFilter}
-                        options={salesRepOptions}
-                        searchable
-                        searchPlaceholder="Search representative..."
-                        onChange={(val) => {
-                          setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
-                        }}
-                        openAlign={"right"}
-                      />
-                    </div>
-                  )}
+            {activeTab === "Booking" && leadsViewMode === "grid" && showBookingGridFilters && (
+              <div className={`${isDark ? "bg-[#171717]" : "bg-white"} rounded-lg lg:rounded-xl p-3.5 transition-colors duration-300`}>
+                <div className="flex flex-wrap gap-2 lg:justify-start lg:gap-4">
+                  <BasicDropdown
+                    label="Lead Type"
+                    value={leadTypeFilter}
+                    options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                    onChange={(val) => setLeadTypeFilter(val)}
+                  />
+                  <BasicDropdown
+                    label="Client Representative"
+                    value={assignedRepIdFilter}
+                    options={salesRepOptions}
+                    searchable
+                    searchPlaceholder="Search representative..."
+                    onChange={(val) => {
+                      setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
+                    }}
+                    openAlign={"right"}
+                  />
+                  <BasicDropdown
+                    label="Intent Type"
+                    value={intentFilter}
+                    options={["All", "Hot", "Warm", "Cold"]}
+                    onChange={(val) => setIntentFilter(val as any)}
+                  />
+                  <BasicDropdown
+                    label="Shoot Stage"
+                    value={shootStageFilter}
+                    options={SHOOT_STAGE_OPTIONS as any}
+                    onChange={(val) => setShootStageFilter(val)}
+                  />
+                  <BasicDropdown
+                    label="CP Assignment"
+                    value={cpAssignmentFilter}
+                    options={CP_ASSIGNMENT_OPTIONS as any}
+                    onChange={(val) => setCpAssignmentFilter(val as "all" | "assigned" | "not_assigned")}
+                  />
+                  <BasicDropdown
+                    label="All Statuses"
+                    value={statusFilter}
+                    options={["All", ...BOOKING_STATUS_OPTIONS]}
+                    onChange={(val) => setStatusFilter(val as any)}
+                    openAlign={"right"}
+                  />
                 </div>
-              )
-            }
+              </div>
+            )}
           </div >
         </div >
 
