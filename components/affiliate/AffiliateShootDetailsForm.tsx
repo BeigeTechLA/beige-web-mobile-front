@@ -942,7 +942,7 @@ export const AffiliateShootDetailsForm = ({
                       placeholder="Your answer"
                       value={formData.otherShootType}
                       onChange={(e) => updateFormData("otherShootType", e.target.value)}
-                      className={darkTextareaClass(isDark)}
+                      className={`${darkTextareaClass(isDark)} resize-y`}
                     />
                   </div>
                 )}
@@ -963,7 +963,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.projectOverview}
                     onChange={(e) => updateFormData("projectOverview", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
 
@@ -1008,7 +1008,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.agenda}
                     onChange={(e) => updateFormData("agenda", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
               </motion.div>
@@ -1038,7 +1038,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.address}
                     onChange={(e) => updateFormData("address", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
 
@@ -1080,7 +1080,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.scoutingRefs}
                     onChange={(e) => updateFormData("scoutingRefs", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
 
@@ -1118,7 +1118,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.shotList}
                     onChange={(e) => updateFormData("shotList", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
 
@@ -1139,7 +1139,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.visualRefs}
                     onChange={(e) => updateFormData("visualRefs", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
 
@@ -1156,7 +1156,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.specificInstructions}
                     onChange={(e) => updateFormData("specificInstructions", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
 
@@ -1190,7 +1190,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.additionalInfo}
                     onChange={(e) => updateFormData("additionalInfo", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
               </motion.div>
@@ -1224,7 +1224,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.postProductionIdeas}
                     onChange={(e) => updateFormData("postProductionIdeas", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
 
@@ -1241,7 +1241,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.preferredSongs}
                     onChange={(e) => updateFormData("preferredSongs", e.target.value)}
-                    className={darkTextareaClass(isDark)}
+                    className={`${darkTextareaClass(isDark)} resize-y`}
                   />
                 </div>
               </motion.div>

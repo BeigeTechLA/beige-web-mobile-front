@@ -11,6 +11,8 @@ import {
   ChevronDown,
   Grid3X3,
   List,
+  MoreVertical,
+  CirclePlus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -28,6 +30,8 @@ import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import { meetingsApi } from "@/lib/meetingsApi";
+import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
 
 type ShootStatus =
   | "Booked"
@@ -52,6 +56,7 @@ interface ShootRecord {
   price: string;
   rawPrice: number; // Added for correct numerical sorting
   status: ShootStatus;
+  hasAssignedCp: boolean;
 }
 
 const KANBAN_STATUS_ORDER: ShootStatus[] = [
@@ -88,6 +93,19 @@ const FILTER_STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ] as const;
 
+const PRODUCTION_GAP_FILTER_SET = new Set([
+  "pre_production_file_not_provided",
+  "pre_production_meeting_not_done",
+  "post_production_file_not_uploaded",
+  "post_production_meeting_not_done",
+]);
+
+const isProductionGapStatusFilter = (value: string) => PRODUCTION_GAP_FILTER_SET.has(String(value || "").toLowerCase());
+const isMeetingGapStatusFilter = (value: string) =>
+  value === "pre_production_meeting_not_done" || value === "post_production_meeting_not_done";
+const isFileGapStatusFilter = (value: string) =>
+  value === "pre_production_file_not_provided" || value === "post_production_file_not_uploaded";
+
 const normalizeStatusKey = (value: string) =>
   String(value || "")
     .toLowerCase()
@@ -97,6 +115,11 @@ const timelineStatusKeyFromLabel = (status: ShootStatus) => {
   const normalized = normalizeStatusKey(status);
   if (normalized === "assetsdelivered") return "assetsdelivered";
   return normalized;
+};
+
+const isPostProductionEligibleStatus = (status: ShootStatus) => {
+  const key = timelineStatusKeyFromLabel(status);
+  return ["postproduction", "revision", "completed", "assetsdelivered"].includes(key);
 };
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -179,8 +202,17 @@ interface ShootsTableProps {
   setCategoryFilter: (v: string) => void;
   statusFilter: string;
   setStatusFilter: (v: string) => void;
+  productionFilter?: string;
+  setProductionFilter?: (v: string) => void;
   range: string;
   setRange: (v: string) => void;
+  cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
+  setCpAssignmentFilter?: (v: "all" | "assigned" | "not_assigned") => void;
+  viewMode?: "grid" | "list";
+  setViewMode?: (v: "grid" | "list") => void;
+  showHeaderControls?: boolean;
+  showHeaderFilters?: boolean;
+  showViewToggle?: boolean;
 }
 
 export const ShootsTable = ({
@@ -193,30 +225,54 @@ export const ShootsTable = ({
   setCategoryFilter,
   statusFilter,
   setStatusFilter,
+  productionFilter = "all",
+  setProductionFilter,
   range,
   setRange,
+  cpAssignmentFilter,
+  setCpAssignmentFilter,
+  viewMode,
+  setViewMode,
+  showHeaderControls = true,
+  showHeaderFilters = true,
+  showViewToggle = true,
 }: ShootsTableProps) => {
+  const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
   const router = useRouter();
   const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
+  const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const gridPanStateRef = React.useRef<{ startX: number; scrollLeft: number; isActive: boolean }>({
+    startX: 0,
+    scrollLeft: 0,
+    isActive: false,
+  });
   const dragAutoScrollFrameRef = React.useRef<number | null>(null);
   const dragAutoScrollStatusRef = React.useRef<ShootStatus | null>(null);
   const dragAutoScrollDirectionRef = React.useRef<"up" | "down" | null>(null);
+  const latestFetchIdRef = React.useRef(0);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [meetingGapLoading, setMeetingGapLoading] = useState(false);
+  const [meetingGapBookingIds, setMeetingGapBookingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [internalViewMode, setInternalViewMode] = useState<"grid" | "list">("list");
+  const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
   const [kanbanOrder, setKanbanOrder] = useState<Record<ShootStatus, string[]>>({} as Record<ShootStatus, string[]>);
   const [draggedShootId, setDraggedShootId] = useState<string | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<ShootStatus | null>(null);
+  const [openCardActionId, setOpenCardActionId] = useState<string | null>(null);
+  const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
 
   // Filtering states
-  // const [range, setRange] = useState<string>("all");
-  // const [statusFilter, setStatusFilter] = useState<string>("all");
-  // const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  // const [searchQuery, setSearchQuery] = useState("");
+  const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const activeViewMode = viewMode ?? internalViewMode;
+  const setActiveViewMode = setViewMode ?? setInternalViewMode;
+  const activeCpAssignmentFilter = cpAssignmentFilter ?? internalCpAssignmentFilter;
+  const setActiveCpAssignmentFilter = setCpAssignmentFilter ?? setInternalCpAssignmentFilter;
+  const shouldRenderHeaderControls = showHeaderControls && (showHeaderFilters || showViewToggle);
 
   // --- SORTING STATE ---
   const [sortConfig, setSortConfig] = useState<{ key: keyof ShootRecord; direction: 'asc' | 'desc' | null }>({
@@ -227,6 +283,28 @@ export const ShootsTable = ({
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
+    try {
+      const savedViewMode = window.localStorage.getItem(SHOOTS_VIEW_MODE_KEY);
+      if (savedViewMode === "grid" || savedViewMode === "list") {
+        setActiveViewMode(savedViewMode);
+      }
+    } catch (error) {
+      console.error("Failed to restore shoots view mode:", error);
+    } finally {
+      setHasRestoredViewMode(true);
+    }
+  }, [setActiveViewMode]);
+
+  useEffect(() => {
+    if (!hasRestoredViewMode) return;
+    try {
+      window.localStorage.setItem(SHOOTS_VIEW_MODE_KEY, activeViewMode);
+    } catch (error) {
+      console.error("Failed to persist shoots view mode:", error);
+    }
+  }, [hasRestoredViewMode, activeViewMode]);
+
+  useEffect(() => {
     return () => {
       if (dragAutoScrollFrameRef.current !== null) {
         cancelAnimationFrame(dragAutoScrollFrameRef.current);
@@ -234,7 +312,67 @@ export const ShootsTable = ({
     };
   }, []);
 
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-card-actions]")) return;
+      setOpenCardActionId(null);
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleWindowMouseUp = () => {
+      gridPanStateRef.current.isActive = false;
+      setIsGridPanning(false);
+    };
+
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, []);
+
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
+  const handleGridMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("button, a, input, select, textarea, [draggable='true'], [data-card-actions]")) {
+      return;
+    }
+
+    const container = gridScrollRef.current;
+    if (!container) return;
+
+    gridPanStateRef.current = {
+      startX: event.clientX,
+      scrollLeft: container.scrollLeft,
+      isActive: true,
+    };
+    setIsGridPanning(true);
+  };
+
+  const handleGridMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!gridPanStateRef.current.isActive) return;
+
+    const container = gridScrollRef.current;
+    if (!container) return;
+
+    const deltaX = event.clientX - gridPanStateRef.current.startX;
+    container.scrollLeft = gridPanStateRef.current.scrollLeft - deltaX;
+    event.preventDefault();
+  };
+
+  const handleGridMouseEnd = () => {
+    gridPanStateRef.current.isActive = false;
+    setIsGridPanning(false);
+  };
 
   // Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -251,6 +389,9 @@ export const ShootsTable = ({
   }, [externalSelectedDate]);
 
   useEffect(() => {
+    let isCancelled = false;
+    const fetchId = ++latestFetchIdRef.current;
+
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -258,12 +399,19 @@ export const ShootsTable = ({
         if (statusFilter !== "all") {
           params.status = statusFilter;
         }
+        if (productionFilter !== "all" && isFileGapStatusFilter(productionFilter)) {
+          params.production_filter = productionFilter;
+        }
         if (categoryFilter !== "all") {
           params.category = categoryFilter;
         }
 
         if (externalSelectedDate && range === 'custom') {
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+        }
+
+        if (activeCpAssignmentFilter !== "all") {
+          params.cp_assignment = activeCpAssignmentFilter;
         }
 
         const projectsResponse = await adminApi.getProjects(params);
@@ -282,6 +430,15 @@ export const ShootsTable = ({
           const priceValue = resolvedPriceSource
             ? parseFloat(resolvedPriceSource)
             : project.budget ? parseFloat(project.budget) : 0;
+          const selectedCrewIds = Array.isArray(project.selected_crew_ids)
+            ? project.selected_crew_ids
+            : [];
+          const assignedCrews = Array.isArray(item?.assignedCrew)
+            ? item.assignedCrew
+            : Array.isArray(project.assigned_crews)
+              ? project.assigned_crews
+              : [];
+          const hasAssignedCp = assignedCrews.length > 0 || selectedCrewIds.length > 0;
 
           return {
             id: `#${project.stream_project_booking_id}`,
@@ -297,18 +454,87 @@ export const ShootsTable = ({
                 : "$0.00",
             rawPrice: priceValue,
             status: statusLabel,
+            hasAssignedCp,
           };
         });
-        setShoots(mappedShoots);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          setShoots(mappedShoots);
+        }
       } catch (error) {
-        console.error("Failed to fetch shoots:", error);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          console.error("Failed to fetch shoots:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled && fetchId === latestFetchIdRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [range, statusFilter, categoryFilter, externalSelectedDate]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [range, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+
+  useEffect(() => {
+    if (!isMeetingGapStatusFilter(productionFilter)) {
+      setMeetingGapBookingIds(new Set());
+      return;
+    }
+
+    let cancelled = false;
+    const loadMeetingGap = async () => {
+      try {
+        setMeetingGapLoading(true);
+        const meetingsResponse = await meetingsApi.listAll({
+          limit: 5000,
+          page: 1,
+          sortBy: "meeting_date_time:desc",
+        });
+        if (cancelled) return;
+
+        const meetings = Array.isArray(meetingsResponse?.results) ? meetingsResponse.results : [];
+        const scheduledOrderIds = new Set<string>();
+
+        meetings.forEach((meeting: any) => {
+          const type = String(meeting?.meeting_type || "").toLowerCase();
+          const status = String(meeting?.meeting_status || "").toLowerCase();
+          const orderId = String(meeting?.order?.id || "").trim();
+          if (!orderId) return;
+          if (status === "cancelled") return;
+
+          if (productionFilter === "pre_production_meeting_not_done" && type === "pre_production") {
+            scheduledOrderIds.add(orderId);
+          }
+          if (productionFilter === "post_production_meeting_not_done" && type === "post_production") {
+            scheduledOrderIds.add(orderId);
+          }
+        });
+
+        const missingMeetingIds = new Set<string>();
+        shoots.forEach((shoot) => {
+          const bookingId = String(shoot.id || "").replace("#", "").trim();
+          if (!bookingId) return;
+          if (!scheduledOrderIds.has(bookingId)) {
+            missingMeetingIds.add(bookingId);
+          }
+        });
+
+        setMeetingGapBookingIds(missingMeetingIds);
+      } catch (error) {
+        console.error("Failed to load meetings for meeting-gap filter:", error);
+        setMeetingGapBookingIds(new Set());
+      } finally {
+        if (!cancelled) setMeetingGapLoading(false);
+      }
+    };
+
+    loadMeetingGap();
+    return () => {
+      cancelled = true;
+    };
+  }, [productionFilter, shoots]);
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
@@ -320,8 +546,29 @@ export const ShootsTable = ({
       if (!matchesSearch) return false;
 
       if (statusFilter === "all") return true;
+
+      if (isMeetingGapStatusFilter(productionFilter)) {
+        const bookingId = String(shoot.id || "").replace("#", "").trim();
+        if (!bookingId) return false;
+        if (productionFilter === "post_production_meeting_not_done" && !isPostProductionEligibleStatus(shoot.status)) {
+          return false;
+        }
+        return meetingGapBookingIds.has(bookingId);
+      }
+
+      if (isProductionGapStatusFilter(productionFilter)) {
+        // Production gap filters are resolved by backend via `production_filter`.
+        return true;
+      }
+
       return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
     });
+
+    if (activeCpAssignmentFilter !== "all") {
+      result = result.filter((shoot) =>
+        activeCpAssignmentFilter === "assigned" ? shoot.hasAssignedCp : !shoot.hasAssignedCp
+      );
+    }
 
     // 2. Sort
     if (sortConfig.direction !== null) {
@@ -351,7 +598,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig, statusFilter]);
+  }, [shoots, searchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -376,7 +623,7 @@ export const ShootsTable = ({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentShoots = processedShoots.slice(startIndex, startIndex + itemsPerPage);
   const visibleKanbanStatuses = useMemo(() => {
-    if (statusFilter !== "all") {
+    if (statusFilter !== "all" && !isProductionGapStatusFilter(statusFilter)) {
       const selectedStatus = FILTER_STATUS_COLUMN_MAP[statusFilter];
       return selectedStatus ? [selectedStatus] : [];
     }
@@ -416,7 +663,6 @@ export const ShootsTable = ({
 
   const kanbanColumns = useMemo(() => {
     const grouped = new Map<ShootStatus, ShootRecord[]>();
-    const gridStartIndex = (currentPage - 1) * itemsPerPage;
 
     visibleKanbanStatuses.forEach((status) => {
       grouped.set(status, []);
@@ -440,23 +686,12 @@ export const ShootsTable = ({
       return {
         status,
         totalItems: orderedItems.length,
-        items: orderedItems.slice(gridStartIndex, gridStartIndex + itemsPerPage),
+        items: orderedItems,
       };
     });
-  }, [processedShoots, visibleKanbanStatuses, kanbanOrder, currentPage]);
+  }, [processedShoots, visibleKanbanStatuses, kanbanOrder]);
 
-  const gridTotalPages = useMemo(() => {
-    const maxColumnCount = Math.max(
-      0,
-      ...visibleKanbanStatuses.map(
-        (status) => processedShoots.filter((shoot) => shoot.status === status).length
-      )
-    );
-
-    return Math.max(1, Math.ceil(maxColumnCount / itemsPerPage));
-  }, [processedShoots, visibleKanbanStatuses]);
-
-  const totalPages = viewMode === "grid" ? gridTotalPages : listTotalPages;
+  const totalPages = listTotalPages;
 
   useEffect(() => {
     const nextPage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
@@ -594,108 +829,120 @@ export const ShootsTable = ({
   if (!mounted) return null;
 
   return (
-    <div className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+    <div className={`w-full overflow-hidden transition-all duration-300 ${activeViewMode === "list"
+      ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
+      : "bg-transparent border-transparent"
+      }`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
-      {/* <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
-        <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3>
-
-        <div className="flex flex-col md:flex-row gap-3"> */}
-          {/* <div className="flex flex-col sm:flex-row gap-3"> */}
-            {/* <div className="relative">
-              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
-              <input
-                type="text"
-                placeholder="Search project name..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className={`w-full md:w-[280px] border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-                  }`}
-              />
-            </div> */}
-          {/* </div> */}
-
-          {/* <div className="flex flex-wrap gap-3">
-            <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
-              <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="corporate">Corporate</SelectItem>
-                <SelectItem value="wedding">Wedding</SelectItem>
-                <SelectItem value="private">Private Events</SelectItem>
-                <SelectItem value="commercial">Commercial</SelectItem>
-                <SelectItem value="social">Social Content</SelectItem>
-                <SelectItem value="podcasts">Podcasts</SelectItem>
-                <SelectItem value="music">Music Videos</SelectItem>
-                <SelectItem value="narrative">Narrative</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
-              <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                {FILTER_STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
-              <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="Range" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                <SelectItem value="all">All time</SelectItem>
-                <SelectItem value="week">Week</SelectItem>
-                <SelectItem value="month">Month</SelectItem>
-                <SelectItem value="year">Year</SelectItem>
-                {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
-              </SelectContent>
-            </Select> */}
-
-            {/* <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
-              isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"
-            }`}>
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`px-4 py-2.5 transition-colors ${
-                  viewMode === "list"
-                    ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                    : isDark
-                      ? "bg-transparent text-white/40 hover:text-white"
-                      : "bg-transparent text-[#666] hover:text-black"
-                }`}
-              >
-                <List size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("grid")}
-                className={`px-4 py-2.5 transition-colors ${
-                  viewMode === "grid"
-                    ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                    : isDark
-                      ? "bg-transparent text-white/40 hover:text-white"
-                      : "bg-transparent text-[#666] hover:text-black"
-                }`}
-              >
-                <Grid3X3 size={18} />
-              </button>
-            </div> */}
-          {/* </div>
+      {shouldRenderHeaderControls && (
+        <div className={`flex flex-col lg:flex-row justify-end lg:items-center px-4 lg:px-6 pt-4 lg:pt-6 pb-0 gap-4`}>
+          {/* <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3> */}
+          <div className="flex flex-col md:flex-row gap-3 w-full justify-end">
+            {showHeaderFilters && (
+              <>
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search project name..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full md:w-[280px] border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+                      }`}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
+                    <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                      <SelectItem value="wedding">Wedding</SelectItem>
+                      <SelectItem value="private">Private Events</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                      <SelectItem value="social">Social Content</SelectItem>
+                      <SelectItem value="podcasts">Podcasts</SelectItem>
+                      <SelectItem value="music">Music Videos</SelectItem>
+                      <SelectItem value="narrative">Narrative</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+                    <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      {FILTER_STATUS_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
+                    <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Range" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All time</SelectItem>
+                      <SelectItem value="week">Week</SelectItem>
+                      <SelectItem value="month">Month</SelectItem>
+                      <SelectItem value="year">Year</SelectItem>
+                      {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                  <Select value={activeCpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => { setActiveCpAssignmentFilter(v); setCurrentPage(1); }}>
+                    <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="CP Assignment" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All CP Assignment</SelectItem>
+                      <SelectItem value="assigned">CP Assigned</SelectItem>
+                      <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            <div className="flex flex-wrap gap-3">
+              {showViewToggle && (
+                <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewMode("list")}
+                    className={`px-4 py-2.5 transition-colors ${activeViewMode === "list"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : isDark
+                        ? "bg-transparent text-white/40 hover:text-white"
+                        : "bg-transparent text-[#666] hover:text-black"
+                      }`}
+                  >
+                    <List size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveViewMode("grid")}
+                    className={`px-4 py-2.5 transition-colors ${activeViewMode === "grid"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : isDark
+                        ? "bg-transparent text-white/40 hover:text-white"
+                        : "bg-transparent text-[#666] hover:text-black"
+                      }`}
+                  >
+                    <Grid3X3 size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div> */}
+      )}
 
-      {loading ? (
+      {loading || meetingGapLoading ? (
         <div className="text-center py-20">
           <div className="flex justify-center items-center">
             <Loader2 className="animate-spin text-[#666]" size={32} />
@@ -706,14 +953,14 @@ export const ShootsTable = ({
       ) : (
         <>
           {/* MOBILE ONLY VIEW */}
-          {true ? (
+          {activeViewMode === "list" && (
             <div className={`lg:hidden transition-colors duration-300 ${isDark ? "bg-[#111111]" : ""}`}>
-              <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"}`}>
+              <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
                 <span>Customer Name</span>
                 <span>Status</span>
               </div>
 
-              <div className="flex flex-col gap-2 ">
+              <div className="flex flex-col">
                 {currentShoots.map((shoot, idx) => (
                   <MobileShootRow
                     key={idx}
@@ -723,7 +970,8 @@ export const ShootsTable = ({
                 ))}
               </div>
             </div>
-          ) : (
+          )}
+          {/* ) : (
             <div className="lg:hidden p-4">
               <div className="space-y-4">
                 {kanbanColumns.map((column) => (
@@ -743,13 +991,13 @@ export const ShootsTable = ({
                           key={`${column.status}-${idx}`}
                           onClick={() => handleRowClick(shoot.id)}
                           className={`rounded-2xl border p-4 transition-colors ${isDark
-                              ? "border-[#2F2F2F] bg-[#151515]"
-                              : "border-[#EAE3D6] bg-[#FFFCF8]"
+                            ? "border-[#2F2F2F] bg-[#151515]"
+                            : "border-[#EAE3D6] bg-[#FFFCF8]"
                             }`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
                                 }`}>
                                 {shoot.initials}
                               </div>
@@ -799,31 +1047,35 @@ export const ShootsTable = ({
                 ))}
               </div>
             </div>
-          )}
+          )} */}
 
-          {viewMode === "grid" ? (
-            <div className="hidden lg:block p-6 pt-5">
-              <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-2">
-                <div className="flex items-start gap-5 min-w-max">
+          {activeViewMode === "grid" ? (
+            <div className="relative block pt-0">
+              <div
+                ref={gridScrollRef}
+                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-16 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                onMouseDown={handleGridMouseDown}
+                onMouseMove={handleGridMouseMove}
+                onMouseUp={handleGridMouseEnd}
+                onMouseLeave={handleGridMouseEnd}
+              >
+                <div className="flex items-start gap-5 min-w-max px-4">
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[320px] shrink-0 rounded-[24px] ${isDark ? "bg-[#141414]" : "bg-[#FBF7EF]"
+                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
-                      <div className={`flex items-center justify-between px-5 py-4 ${isDark ? "border-b border-white/5" : "border-b border-[#E8E0D2]"
+                      <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
                         }`}>
-                        <div className="flex items-center gap-3">
-                          <h4 className={`text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                            {column.status}
-                          </h4>
-                          <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-medium ${isDark ? "bg-[#242424] text-white/70" : "bg-white text-[#666]"
-                            }`}>
-                            {column.totalItems}
-                          </span>
-                        </div>
-                        {/* <StatusBadge status={column.status} /> */}
+                        <h4 className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                          {column.status}
+                        </h4>
+                        <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-[#666]"}`}>
+                          {column.totalItems}
+                        </span>
                       </div>
+                      {/* <StatusBadge status={column.status} /> */}
 
                       <div
                         ref={(node) => {
@@ -851,8 +1103,8 @@ export const ShootsTable = ({
                       >
                         {column.items.length === 0 ? (
                           <div className={`rounded-2xl border border-dashed px-4 py-10 text-center text-sm ${isDark
-                              ? "border-white/10 text-white/35"
-                              : "border-[#E3D9C8] text-[#9A8F7C]"
+                            ? "border-white/10 text-white/35"
+                            : "border-[#E3D9C8] text-[#9A8F7C]"
                             }`}>
                             No shoots in this stage
                           </div>
@@ -884,76 +1136,99 @@ export const ShootsTable = ({
                               setDraggedShootId(null);
                               setDraggedStatus(null);
                             }}
-                            className={`group cursor-pointer rounded-2xl border p-4 transition-all ${isDark
-                                ? "border-[#2F2F2F] bg-[#151515] hover:border-[#4A4A4A] hover:bg-[#1A1A1A]"
-                                : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)]"
-                              } ${draggedShootId === shoot.id ? "opacity-55" : ""}`}
+                            className={`group cursor-pointer rounded-2xl transition-all duration-200 ${isDark
+                              ? "bg-[#202020] hover:bg-[#1A1A1A]"
+                              : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
+                              } ${draggedShootId === shoot.id ? "opacity-50 scale-95" : "opacity-100"}`}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
-                                }`}>
-                                {shoot.initials}
+                            <div className="flex items-start justify-between gap-3 p-5">
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <div className={`shrink-0 w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl`}>
+                                  {shoot.initials}
+                                </div>
+                                <div className="min-w-0 pt-1">
+                                  <h4 className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
+                                    {shoot.customerName}
+                                  </h4>
+                                  <p className={`mt-1 text-sm font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                    {shoot.date}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDeleteClick(e, shoot.id)}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"
-                                    }`}
-                                >
-                                  <Trash2 size={18} />
-                                </button>
+                              <div className="relative shrink-0" data-card-actions>
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleRowClick(shoot.id);
+                                    setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
                                   }}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
-                                    }`}
+                                  className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                                  aria-label="Card actions"
                                 >
-                                  <ChevronRight size={18} />
+                                  <MoreVertical size={24} />
                                 </button>
+
+                                {openCardActionId === shoot.id && (
+                                  <div
+                                    className={`absolute right-0 top-9 z-20 min-w-[150px] rounded-xl border p-1 shadow-xl ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
+                                      }`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenCardActionId(null);
+                                        handleRowClick(shoot.id);
+                                      }}
+                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
+                                        }`}
+                                    >
+                                      <ChevronRight size={16} />
+                                      Open details
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenCardActionId(null);
+                                        handleDeleteClick(e, shoot.id);
+                                      }}
+                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                        }`}
+                                    >
+                                      <Trash2 size={16} />
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {/* DIVIDER */}
+                            <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                            {/* BODY */}
+                            <div className="space-y-4 p-5">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot ID</p>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.id}</p>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Category</p>
+                                <p className={`text-sm text-right font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.category}</p>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Price</p>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.price}</p>
                               </div>
                             </div>
 
-                            <div className="mt-4 space-y-4">
-                              <div>
-                                <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
-                                  {shoot.id}
-                                </p>
-                                <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"
-                                  }`}>
-                                  {shoot.customerName}
-                                </h4>
-                                <p className={`mt-1 text-sm ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
-                                  {shoot.date}
-                                </p>
-                              </div>
+                            {/* DIVIDER */}
+                            <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
-                              <div className={`rounded-xl p-3 ${isDark ? "bg-[#101010]" : "bg-[#FAF6EE]"}`}>
-                                <div className="flex items-center justify-between gap-3">
-                                  <div>
-                                    <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Category</p>
-                                    <p className={`mt-1 text-sm font-medium line-clamp-2 ${isDark ? "text-[#F1F1F1]" : "text-[#222222]"}`}>
-                                      {shoot.category}
-                                    </p>
-                                  </div>
-                                  <div className="text-right shrink-0">
-                                    <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>Price</p>
-                                    <p className={`mt-1 text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                                      {shoot.price}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center justify-between gap-3">
-                                <StatusBadge status={shoot.status} />
-                                <span className={`text-xs ${isDark ? "text-[#5F5F5F]" : "text-[#9A9A9A]"}`}>
-                                  Open details
-                                </span>
-                              </div>
+                            {/* FOOTER */}
+                            <div className="flex items-center p-5">
+                              <StatusBadge status={shoot.status} />
                             </div>
                           </div>
                         ))}
@@ -962,6 +1237,13 @@ export const ShootsTable = ({
                   ))}
                 </div>
               </div>
+              <BoardMiniMapNavigator
+                  boardRef={gridScrollRef}
+                  segmentCount={kanbanColumns.length}
+                  isDark={isDark}
+                  visible={activeViewMode === "grid"}
+                  syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
+              />
             </div>
           ) : (
             <div className="hidden lg:block w-full overflow-x-auto">
@@ -994,7 +1276,7 @@ export const ShootsTable = ({
                       <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
                       <td className="py-5 px-6">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
+                          <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                             {shoot.initials}
                           </div>
                           <div>
@@ -1030,12 +1312,10 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && processedShoots.length > 0 && (
+        !loading && !meetingGapLoading && processedShoots.length > 0 && activeViewMode !== "grid" && (
           <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-              {viewMode === "grid"
-                ? `Showing up to ${itemsPerPage} cards per status column`
-                : `Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
+              {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
             </div>
             <div className="flex gap-2 items-center">
               <button

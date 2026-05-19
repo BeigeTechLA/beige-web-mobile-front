@@ -112,6 +112,7 @@ interface Props {
   floating?: boolean;
   labelSx?: SxProps<Theme>;
   isDark?: boolean;
+  disablePortal?: boolean;
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -127,6 +128,7 @@ export const DatePicker: React.FC<Props> = ({
   labelSx,
   floating = false, // Default to your original top-label style
   isDark = true,
+  disablePortal = false,
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
   const colors = { ...activeTheme, ...customColors };
@@ -251,6 +253,7 @@ export const DatePicker: React.FC<Props> = ({
               },
             },
             popper: {
+              disablePortal,
               sx: {
                 "& .MuiPaper-root": {
                   backgroundColor: colors.paperBackground,

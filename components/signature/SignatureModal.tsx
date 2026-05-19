@@ -34,7 +34,7 @@ export default function SignatureModal({
 
         if (res.success) {
             setLoading(false);
-            onSuccess?.(null);
+            onSuccess?.(res.data ?? null);
             onClose();
         } else {
             setError(res.error || "Something went wrong, please try again");
@@ -68,11 +68,8 @@ export default function SignatureModal({
                     <SignaturePad
                         onSave={handleSignatureSave}
                         onClear={() => setError("")}
+                        isSaving={loading}
                     />
-
-                    {loading && (
-                        <p className="text-blue-600 text-sm mt-3">Saving...</p>
-                    )}
 
                     {error && (
                         <p className="text-red-500 text-sm mt-3">{error}</p>

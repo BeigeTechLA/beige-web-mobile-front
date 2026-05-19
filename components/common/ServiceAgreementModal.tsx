@@ -121,6 +121,7 @@ const SERVICE_AGREEMENT_SECTIONS: AgreementSection[] = [
 interface ServiceAgreementModalProps {
   isOpen: boolean;
   initialChecked: boolean;
+  isAcceptedLocked?: boolean;
   onClose: () => void;
   onAccept: () => void;
 }
@@ -128,6 +129,7 @@ interface ServiceAgreementModalProps {
 export function ServiceAgreementModal({
   isOpen,
   initialChecked,
+  isAcceptedLocked = false,
   onClose,
   onAccept,
 }: ServiceAgreementModalProps) {
@@ -208,6 +210,7 @@ export function ServiceAgreementModal({
             <input
               type="checkbox"
               checked={checked}
+              disabled={isAcceptedLocked}
               onChange={(e) => setChecked(e.target.checked)}
             />
             <span className="text-xs text-white/70">
@@ -219,13 +222,13 @@ export function ServiceAgreementModal({
             <button
               type="button"
               onClick={() => {
-                if (!checked) return;
+                if (!checked || isAcceptedLocked) return;
                 onAccept();
               }}
-              disabled={!checked}
+              disabled={!checked || isAcceptedLocked}
               className="h-11 px-4 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-[10px] disabled:opacity-50"
             >
-              Accept & Continue
+              {isAcceptedLocked ? "Already Signed" : "Accept & Continue"}
             </button>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { MoreVertical, Search, Target, ChartLine, Calendar, Users, Loader2 } from "lucide-react";
+import { MoreVertical, Search, Target, ChartLine, Calendar, Users, Loader2, List, Grid3X3 } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -103,6 +103,7 @@ type DashboardMetricStat = {
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 const SALES_DASHBOARD_FILTERS_KEY = "sales-dashboard-filters";
 const SALES_DASHBOARD_PRESERVE_KEY = "sales-dashboard-preserve";
+const LEADS_FILTER_ALL_LIMIT = 5000;
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (
@@ -332,6 +333,42 @@ const SHOOT_STAGE_OPTIONS = [
   { label: "Cancelled", value: "cancelled" },
 ] as const;
 
+const CP_ASSIGNMENT_OPTIONS = [
+  { label: "All CP Assignment", value: "all" },
+  { label: "CP Assigned", value: "assigned" },
+  { label: "CP Not Assigned", value: "not_assigned" },
+] as const;
+
+const PRODUCTION_FILTER_OPTIONS = [
+  { label: "All Production", value: "all" },
+  { label: "Pre Production - File Not Provided", value: "pre_production_file_not_provided" },
+  { label: "Pre Production - Meeting Not Done", value: "pre_production_meeting_not_done" },
+  { label: "Post Production - Meeting Not Done", value: "post_production_meeting_not_done" },
+  { label: "Post Production - File Not Uploaded", value: "post_production_file_not_uploaded" },
+] as const;
+
+const normalizeAssignedRepFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "all";
+  const lower = raw.toLowerCase();
+  if (lower === "all") return "all";
+  if (lower === "unassigned") return "unassigned";
+  if (/^\d+$/.test(raw)) return raw;
+  return "all";
+};
+
+const PRODUCTION_FILTER_ALLOWED_VALUES = new Set(
+  PRODUCTION_FILTER_OPTIONS.map((option) => option.value)
+);
+
+const normalizeProductionFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "all";
+  const lower = raw.toLowerCase();
+  if (lower === "all" || lower === "all production") return "all";
+  return PRODUCTION_FILTER_ALLOWED_VALUES.has(raw) ? raw : "all";
+};
+
 export default function SalesLeadsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -354,7 +391,8 @@ export default function SalesLeadsPage() {
   // --- LEADS STATE (Booking Tab) ---
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
   const [leadsViewMode, setLeadsViewMode] = useState<"list" | "grid">("list");
-  const leadsLimit = leadsViewMode === "grid" ? 50 : 10;
+  const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [productionFilter, setProductionFilter] = useState<string>("all");
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
   // Filters state
@@ -367,6 +405,22 @@ export default function SalesLeadsPage() {
   const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([
     { label: "All Representatives", value: "all" },
   ]);
+  const hasAnyGridLeadFilterActive = (
+    leadTypeFilter !== "All Leads" ||
+    statusFilter !== "All" ||
+    intentFilter !== "All" ||
+    shootStageFilter !== "all" ||
+    assignedRepIdFilter !== "all" ||
+    cpAssignmentFilter !== "all" ||
+    productionFilter !== "all" ||
+    Boolean(debouncedSearch)
+  );
+  const leadsLimit =
+    leadsViewMode === "grid"
+      ? hasAnyGridLeadFilterActive
+        ? LEADS_FILTER_ALL_LIMIT
+        : 50
+      : 10;
 
   // --- USERS STATE (Client/CP Tabs) ---
   const [users, setUsers] = useState<UserData[]>([]);
@@ -432,14 +486,6 @@ export default function SalesLeadsPage() {
       setIsUserTypeSeven(userTypeId === 7);
       setCanManageSalesDashboardFilters(canManageFilters);
 
-      const shouldPreserveFilters = window.sessionStorage.getItem(SALES_DASHBOARD_PRESERVE_KEY) === "true";
-
-      if (!shouldPreserveFilters) {
-        window.sessionStorage.removeItem(SALES_DASHBOARD_FILTERS_KEY);
-        hasRestoredFiltersRef.current = true;
-        return;
-      }
-
       const savedFilters = window.sessionStorage.getItem(SALES_DASHBOARD_FILTERS_KEY);
       if (!savedFilters) {
         hasRestoredFiltersRef.current = true;
@@ -453,10 +499,15 @@ export default function SalesLeadsPage() {
       if (parsedFilters.statusFilter) setStatusFilter(parsedFilters.statusFilter);
       if (parsedFilters.intentFilter) setIntentFilter(parsedFilters.intentFilter);
       if (parsedFilters.shootStageFilter) setShootStageFilter(parsedFilters.shootStageFilter);
+      if (parsedFilters.cpAssignmentFilter) setCpAssignmentFilter(parsedFilters.cpAssignmentFilter);
+      if (parsedFilters.productionFilter) setProductionFilter(normalizeProductionFilterValue(parsedFilters.productionFilter));
+      if (parsedFilters.leadsViewMode === "grid" || parsedFilters.leadsViewMode === "list") {
+        setLeadsViewMode(parsedFilters.leadsViewMode);
+      }
 
       if (canManageFilters) {
-        if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(parsedFilters.assignedRepIdFilter);
-        if (parsedFilters.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(parsedFilters.clientAssignedRepIdFilter);
+        if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsedFilters.assignedRepIdFilter));
+        if (parsedFilters.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsedFilters.clientAssignedRepIdFilter));
       }
 
       if (parsedFilters.leadsCurrentPage) setLeadsCurrentPage(parsedFilters.leadsCurrentPage);
@@ -464,7 +515,6 @@ export default function SalesLeadsPage() {
     } catch (error) {
       console.error("Failed to restore sales dashboard filters:", error);
     } finally {
-      window.sessionStorage.removeItem(SALES_DASHBOARD_PRESERVE_KEY);
       hasRestoredFiltersRef.current = true;
     }
   }, []);
@@ -475,7 +525,7 @@ export default function SalesLeadsPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, debouncedSearch, leadsViewMode]);
+  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, cpAssignmentFilter, productionFilter, debouncedSearch, leadsViewMode]);
 
   useEffect(() => {
     setUsersCurrentPage(1);
@@ -525,8 +575,11 @@ export default function SalesLeadsPage() {
           statusFilter,
           intentFilter,
           shootStageFilter,
+          cpAssignmentFilter,
+          productionFilter,
           assignedRepIdFilter,
           clientAssignedRepIdFilter,
+          leadsViewMode,
           leadsCurrentPage,
           usersCurrentPage,
         })
@@ -542,11 +595,28 @@ export default function SalesLeadsPage() {
     statusFilter,
     intentFilter,
     shootStageFilter,
+    cpAssignmentFilter,
+    productionFilter,
     assignedRepIdFilter,
     clientAssignedRepIdFilter,
+    leadsViewMode,
     leadsCurrentPage,
     usersCurrentPage,
   ]);
+
+  useEffect(() => {
+    const normalizedAssigned = normalizeAssignedRepFilterValue(assignedRepIdFilter);
+    const normalizedClientAssigned = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
+    const validValues = new Set(salesRepOptions.map((option) => option.value));
+
+    if (normalizedAssigned !== "all" && normalizedAssigned !== "unassigned" && !validValues.has(normalizedAssigned)) {
+      setAssignedRepIdFilter("all");
+    }
+
+    if (normalizedClientAssigned !== "all" && normalizedClientAssigned !== "unassigned" && !validValues.has(normalizedClientAssigned)) {
+      setClientAssignedRepIdFilter("all");
+    }
+  }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
 
   // --- LEADS API CALL WITH FILTERS ---
   const leadsQueryArgs = token
@@ -562,7 +632,18 @@ export default function SalesLeadsPage() {
             : statusFilter === "All"
               ? undefined
               : statusFilter,
-        assigned_to: canManageSalesDashboardFilters && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
+        assigned_to:
+          canManageSalesDashboardFilters && normalizeAssignedRepFilterValue(assignedRepIdFilter) !== "all"
+            ? normalizeAssignedRepFilterValue(assignedRepIdFilter)
+            : undefined,
+        cp_assignment:
+          leadsViewMode === "grid" && cpAssignmentFilter !== "all"
+            ? cpAssignmentFilter
+            : undefined,
+        production_filter:
+          leadsViewMode === "grid" && normalizeProductionFilterValue(productionFilter) !== "all"
+            ? normalizeProductionFilterValue(productionFilter)
+            : undefined,
         // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
         intent: intentFilter === "All" ? undefined : intentFilter,
       }
@@ -588,8 +669,9 @@ export default function SalesLeadsPage() {
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (usersStatusFilter !== "all") params.status = usersStatusFilter;
-      if (activeTab === "Client" && canManageSalesDashboardFilters && clientAssignedRepIdFilter !== "all") {
-        params.assigned_to = clientAssignedRepIdFilter;
+      const normalizedClientAssignedRep = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
+      if (activeTab === "Client" && canManageSalesDashboardFilters && normalizedClientAssignedRep !== "all") {
+        params.assigned_to = normalizedClientAssignedRep;
       }
 
       let allUsers: UserData[] = [];
@@ -1018,7 +1100,7 @@ export default function SalesLeadsPage() {
                 }}
               />
 
-              {activeTab === "Booking" && (
+              {activeTab === "Booking" && leadsViewMode !== "grid" && (
                 <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
                   <BasicDropdown
                     label="Lead Type"
@@ -1033,7 +1115,7 @@ export default function SalesLeadsPage() {
                       options={salesRepOptions}
                       searchable
                       searchPlaceholder="Search representative..."
-                      onChange={(val) => setAssignedRepIdFilter(val)}
+                      onChange={(val) => setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}
                       openAlign={"right"}
                     />
                   )}
@@ -1043,14 +1125,6 @@ export default function SalesLeadsPage() {
                     options={["All", "Hot", "Warm", "Cold"]}
                     onChange={(val) => setIntentFilter(val as any)}
                   />
-                  {leadsViewMode === "grid" && (
-                    <BasicDropdown
-                      label="Shoot Stage"
-                      value={shootStageFilter}
-                      options={SHOOT_STAGE_OPTIONS as any}
-                      onChange={(val) => setShootStageFilter(val)}
-                    />
-                  )}
                   <BasicDropdown
                     label="All Statuses"
                     value={statusFilter}
@@ -1069,31 +1143,125 @@ export default function SalesLeadsPage() {
                     options={salesRepOptions}
                     searchable
                     searchPlaceholder="Search representative..."
-                    onChange={(val) => setClientAssignedRepIdFilter(val)}
+                    onChange={(val) => setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}
                     openAlign={"right"}
                   />
                 </div>
               )}
             </div>
 
-            <div
-              className={`relative flex w-full items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${isDark
-                ? "bg-[#111] border-[#333]"
-                : "bg-[#fff] border-[#E5E5E5]"
+            <div className="flex w-full items-center gap-2">
+              <div
+                className={`relative flex-1 p-1 rounded-xl border transition-all duration-300 ${
+                  isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"
                 }`}
-            >
-              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
-              <input
-                type="text"
-                placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
-                  ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
-                  : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
+              >
+                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+                <input
+                  type="text"
+                  placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${
+                    isDark
+                      ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                      : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
                   }`}
-              />
+                />
+              </div>
+
+              {/* {activeTab === "Booking" && (
+                <div
+                  className={`h-11 shrink-0 flex items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${
+                    isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setLeadsViewMode("list")}
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                      leadsViewMode === "list"
+                        ? isDark
+                          ? "bg-[#E5D5B8] text-black"
+                          : "bg-[#E8D1AB] text-black"
+                        : isDark
+                          ? "text-white/60 hover:bg-white/5"
+                          : "text-[#666666] hover:bg-black/5"
+                    }`}
+                  >
+                    <List size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeadsViewMode("grid")}
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                      leadsViewMode === "grid"
+                        ? isDark
+                          ? "bg-[#E5D5B8] text-black"
+                          : "bg-[#E8D1AB] text-black"
+                        : isDark
+                          ? "text-white/60 hover:bg-white/5"
+                          : "text-[#666666] hover:bg-black/5"
+                    }`}
+                  >
+                    <Grid3X3 size={14} />
+                  </button>
+                </div>
+              )} */}
             </div>
+
+            {activeTab === "Booking" && leadsViewMode === "grid" && (
+              <div className="flex flex-wrap gap-2">
+                <BasicDropdown
+                  label="Lead Type"
+                  value={leadTypeFilter}
+                  options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                  onChange={(val) => setLeadTypeFilter(val)}
+                />
+                {canManageSalesDashboardFilters && (
+                  <BasicDropdown
+                    label="Sales Representative"
+                    value={assignedRepIdFilter}
+                    options={salesRepOptions}
+                    searchable
+                    searchPlaceholder="Search representative..."
+                    onChange={(val) => setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}
+                    openAlign={"right"}
+                  />
+                )}
+                <BasicDropdown
+                  label="Intent Type"
+                  value={intentFilter}
+                  options={["All", "Hot", "Warm", "Cold"]}
+                  onChange={(val) => setIntentFilter(val as any)}
+                />
+                <BasicDropdown
+                  label="Shoot Stage"
+                  value={shootStageFilter}
+                  options={SHOOT_STAGE_OPTIONS as any}
+                  onChange={(val) => setShootStageFilter(val)}
+                />
+                <BasicDropdown
+                  label="CP Assignment"
+                  value={cpAssignmentFilter}
+                  options={CP_ASSIGNMENT_OPTIONS as any}
+                  onChange={(val) => setCpAssignmentFilter(val as "all" | "assigned" | "not_assigned")}
+                />
+                {/* <BasicDropdown
+                  label="Production"
+                  value={productionFilter}
+                  options={PRODUCTION_FILTER_OPTIONS as any}
+                  onChange={(val) => setProductionFilter(normalizeProductionFilterValue(val))}
+                /> */}
+                <BasicDropdown
+                  label="All Statuses"
+                  value={statusFilter}
+                  options={["All", ...BOOKING_STATUS_OPTIONS]}
+                  onChange={(val) => setStatusFilter(val as any)}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -1111,6 +1279,8 @@ export default function SalesLeadsPage() {
                 totalRecords={leadsTotalRecords}
                 limit={leadsLimit}
                 activeStatusFilter={statusFilter}
+                viewMode={leadsViewMode}
+                showViewSwitcher={false}
                 onViewModeChange={setLeadsViewMode}
                 onPageChange={(page) => setLeadsCurrentPage(page)}
                 onRowClick={handleRowClick}

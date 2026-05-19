@@ -34,6 +34,7 @@ import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderM
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
@@ -160,6 +161,15 @@ export default function AdminFileManagerPhasePage() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareResource, setShareResource] = useState<{
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+    label?: string;
+  } | null>(null);
 
   const loadPhase = async () => {
     try {
@@ -704,6 +714,17 @@ export default function AdminFileManagerPhasePage() {
                           setSelectedFile(null);
                           setIsDeleteModalOpen(true);
                         }}
+                        onShare={() => {
+                          setSelectedFolder(folder);
+                          setShareResource({
+                            resourceType: "folder",
+                            externalId: String(projectId || ""),
+                            phase: currentPhase,
+                            path: getPhaseRelativePath(folder.resourcePath, folder.title),
+                            label: folder.title,
+                          });
+                          setIsShareModalOpen(true);
+                        }}
                         onRename={() => toast.info("Folder rename is the next safe step.")}
                       />
                     ))}
@@ -807,6 +828,17 @@ export default function AdminFileManagerPhasePage() {
                                 setSelectedFile(null);
                                 setIsDeleteModalOpen(true);
                               }}
+                              onShare={() => {
+                                setSelectedFolder(folder);
+                                setShareResource({
+                                  resourceType: "folder",
+                                  externalId: String(projectId || ""),
+                                  phase: currentPhase,
+                                  path: getPhaseRelativePath(folder.resourcePath, folder.title),
+                                  label: folder.title,
+                                });
+                                setIsShareModalOpen(true);
+                              }}
                               onRename={() => toast.info("Folder rename is the next safe step.")}
                             />
                           ))}
@@ -833,6 +865,17 @@ export default function AdminFileManagerPhasePage() {
                                     setSelectedFile(file);
                                     setSelectedFolder(null);
                                     setIsDeleteModalOpen(true);
+                                  }}
+                                  onShare={() => {
+                                    setSelectedFile(file);
+                                    setShareResource({
+                                      resourceType: "file",
+                                      externalId: String(projectId || ""),
+                                      phase: currentPhase,
+                                      filepath: file.filepath,
+                                      label: file.title,
+                                    });
+                                    setIsShareModalOpen(true);
                                   }}
                                   isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                                   onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
@@ -1000,6 +1043,20 @@ export default function AdminFileManagerPhasePage() {
                                           }}>
                                             Download
                                           </Button>
+                                          <Button variant="ghost" className="text-white/40 hover:text-[#E8D1AB]" onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedFile(item);
+                                            setShareResource({
+                                              resourceType: "file",
+                                              externalId: String(projectId || ""),
+                                              phase: currentPhase,
+                                              filepath: item.filepath,
+                                              label: item.title,
+                                            });
+                                            setIsShareModalOpen(true);
+                                          }}>
+                                            Share
+                                          </Button>
                                           <Button variant="ghost" className="text-white/40 hover:text-[#F04438]" onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedFile(item);
@@ -1049,6 +1106,17 @@ export default function AdminFileManagerPhasePage() {
                             setSelectedFile(file);
                             setSelectedFolder(null);
                             setIsDeleteModalOpen(true);
+                          }}
+                          onShare={() => {
+                            setSelectedFile(file);
+                            setShareResource({
+                              resourceType: "file",
+                              externalId: String(projectId || ""),
+                              phase: currentPhase,
+                              filepath: file.filepath,
+                              label: file.title,
+                            });
+                            setIsShareModalOpen(true);
                           }}
                           isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                           onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
@@ -1147,6 +1215,20 @@ export default function AdminFileManagerPhasePage() {
                                   }}>
                                     Download
                                   </Button>
+                                  <Button variant="ghost" className="text-white/40 hover:text-[#E8D1AB]" onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedFile(item);
+                                    setShareResource({
+                                      resourceType: "file",
+                                      externalId: String(projectId || ""),
+                                      phase: currentPhase,
+                                      filepath: item.filepath,
+                                      label: item.title,
+                                    });
+                                    setIsShareModalOpen(true);
+                                  }}>
+                                    Share
+                                  </Button>
                                   <Button variant="ghost" className="text-white/40 hover:text-[#F04438]" onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedFile(item);
@@ -1189,6 +1271,17 @@ export default function AdminFileManagerPhasePage() {
             anchor={menuAnchor}
             href={selectedFolder?.href}
             onDownload={handleDownloadSelectedFolder}
+            onShare={() => {
+              if (!selectedFolder) return;
+              setShareResource({
+                resourceType: "folder",
+                externalId: String(projectId || ""),
+                phase: currentPhase,
+                path: getSelectedFolderPath(),
+                label: selectedFolder.title,
+              });
+              setIsShareModalOpen(true);
+            }}
             onDelete={() => setIsDeleteModalOpen(true)}
             onRename={() => toast.info("Folder rename is the next safe step.")}
           />
@@ -1254,6 +1347,15 @@ export default function AdminFileManagerPhasePage() {
           fileUrl={viewerUrl}
           contentType={viewerFile?.contentType}
           fileMetaId={viewerFile?.filepath || null}
+        />
+
+        <ShareResourceModal
+          isOpen={isShareModalOpen}
+          onClose={() => {
+            setIsShareModalOpen(false);
+            setShareResource(null);
+          }}
+          resource={shareResource}
         />
 
         {/* Batch Action Toolbar */}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useRouter, useParams, usePathname } from "next/navigation";
+import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
@@ -65,12 +65,16 @@ import ConvertBookingModal, {
 } from "@/components/admin/quotes/ConvertBookingModal";
 import QuoteEditAccessModal from "@/components/admin/quotes/QuoteEditAccessModal";
 import {
-  salesApi ,
+  salesApi,
   type LeadBookingSchedulePayload,
 } from "@/lib/api";
 import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import {
+  getQuoteAdditionalPaymentDetails,
+  getQuotePaymentProgressDetails,
+} from "@/lib/quoteDetail";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -261,13 +265,11 @@ function HoverTooltip({
   return (
     <div
       role="tooltip"
-      className={`pointer-events-none absolute top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border px-3 py-2 text-xs leading-5 shadow-xl opacity-0 translate-y-1 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 ${
-        align === "right" ? "right-0" : "left-0"
-      } ${
-        isDark
+      className={`pointer-events-none absolute top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border px-3 py-2 text-xs leading-5 shadow-xl opacity-0 translate-y-1 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 ${align === "right" ? "right-0" : "left-0"
+        } ${isDark
           ? "border-[#3D3D3D] bg-[#111111] text-white/80"
           : "border-[#E7D7BC] bg-white text-black/75"
-      }`}
+        }`}
     >
       {message}
     </div>
@@ -278,7 +280,16 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
+  const searchParams = useSearchParams();
   const leadId = params.id as string;
+  const returnTo = String(searchParams.get("returnTo") || "").trim();
+  const handleBackNavigation = () => {
+    if (returnTo.startsWith("/")) {
+      router.push(returnTo);
+      return;
+    }
+    router.back();
+  };
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -381,6 +392,8 @@ export default function LeadDetailPage() {
   const primaryQuote = booking?.primary_quote;
   const projectedQuote = lead?.projected_quote;
   const rawAdditionalPayment = lead?.custom_quote?.additional_payment;
+  const normalizedLeadPaymentStatus = String(lead?.payment_status || "").trim().toLowerCase();
+  const normalizedAdditionalPaymentStatus = String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase();
   const additionalPaymentOutstandingAmount = Number(
     rawAdditionalPayment?.outstanding_amount ?? 0
   );
@@ -399,17 +412,35 @@ export default function LeadDetailPage() {
     if (!rawAdditionalPayment) return null;
 
     const actuallyPaidAmount = Number(lead?.pricing_breakdown?.total_paid ?? 0);
-    const revisedTotal = Number(lead?.custom_quote?.total ?? lead?.pricing_breakdown?.total ?? rawAdditionalPayment.revised_total ?? 0);
-    const outstandingAmount = Number(
-      rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - actuallyPaidAmount, 0)
+    const revisedTotal = Number(
+      lead?.custom_quote?.total ??
+      lead?.pricing_breakdown?.total ??
+      rawAdditionalPayment.revised_total ??
+      0
     );
-    const additionalAmount = revisedTotal - actuallyPaidAmount;
+    const paymentDetails = getQuoteAdditionalPaymentDetails(
+      (lead?.custom_quote ?? null) as any,
+      {
+        revisedTotalOverride: revisedTotal,
+        previouslyPaidOverride:
+          Number.isFinite(actuallyPaidAmount) && actuallyPaidAmount > 0
+            ? actuallyPaidAmount
+            : undefined,
+        previousTotalOverride:
+          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
+          undefined,
+      }
+    );
+
+    if (!paymentDetails) {
+      return null;
+    }
 
     if (
-      Math.abs(additionalAmount) <= 0.009 &&
-      actuallyPaidAmount <= 0 &&
-      revisedTotal <= 0 &&
-      outstandingAmount <= 0 &&
+      Math.abs(paymentDetails.additionalAmount) <= 0.009 &&
+      paymentDetails.previouslyPaidAmount <= 0 &&
+      paymentDetails.revisedTotal <= 0 &&
+      paymentDetails.outstandingAmount <= 0 &&
       !String(rawAdditionalPayment.payment_status || "").trim() &&
       !rawAdditionalPayment.invoice_number &&
       !rawAdditionalPayment.last_sent_at
@@ -417,19 +448,46 @@ export default function LeadDetailPage() {
       return null;
     }
 
+    const leadSignalsPaid =
+      ["paid", "success", "completed"].includes(normalizedLeadPaymentStatus) ||
+      Boolean(booking?.payment_id || booking?.payment_completed_at);
+    const isSettledAdditionalPayment =
+      leadSignalsPaid &&
+      additionalPaymentOutstandingAmount <= 0.009 &&
+      (normalizedAdditionalPaymentStatus === "" ||
+        ["paid", "success", "completed"].includes(normalizedAdditionalPaymentStatus));
+
     return {
-      additionalAmount,
-      isDecrease: additionalAmount < -0.009,
-      previouslyPaidAmount: actuallyPaidAmount,
-      revisedTotal,
-      outstandingAmount,
-      paymentStatusLabel: formatStatusLabel(rawAdditionalPayment.payment_status),
+      additionalAmount: paymentDetails.additionalAmount,
+      isDecrease: paymentDetails.isDecrease,
+      paymentStatus: isSettledAdditionalPayment ? "paid" : paymentDetails.paymentStatus,
+      paymentStatusLabel: formatStatusLabel(
+        isSettledAdditionalPayment
+          ? "paid"
+          : (paymentDetails.paymentStatus || rawAdditionalPayment.payment_status)
+      ),
+      previousTotal: paymentDetails.previousTotal,
+      previouslyPaidAmount: paymentDetails.previouslyPaidAmount,
+      revisedTotal: paymentDetails.revisedTotal,
+      outstandingAmount: isSettledAdditionalPayment ? 0 : paymentDetails.outstandingAmount,
       invoiceNumber: rawAdditionalPayment.invoice_number
         ? String(rawAdditionalPayment.invoice_number).trim()
         : null,
       lastSentAtLabel: formatDateTimeUI(rawAdditionalPayment.last_sent_at),
     };
-  }, [rawAdditionalPayment, lead?.pricing_breakdown?.total_paid, lead?.pricing_breakdown?.total, lead?.custom_quote?.total]);
+  }, [
+    rawAdditionalPayment,
+    lead?.activities,
+    lead?.custom_quote,
+    lead?.pricing_breakdown?.total,
+    lead?.pricing_breakdown?.total_amount,
+    lead?.pricing_breakdown?.total_paid,
+    normalizedAdditionalPaymentStatus,
+    normalizedLeadPaymentStatus,
+    additionalPaymentOutstandingAmount,
+    booking?.payment_completed_at,
+    booking?.payment_id,
+  ]);
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -570,12 +628,12 @@ export default function LeadDetailPage() {
 
     const bookingDays = Array.isArray(booking.booking_days)
       ? (booking.booking_days as BookingDayLike[])
-          .filter((day) => day?.event_date || (day as any)?.date)
-          .map((day) => ({
-            date: String(day.event_date || (day as any).date),
-            startTime: normalizeTimeKey(day.start_time),
-            endTime: normalizeTimeKey(day.end_time),
-          }))
+        .filter((day) => day?.event_date || (day as any)?.date)
+        .map((day) => ({
+          date: String(day.event_date || (day as any).date),
+          startTime: normalizeTimeKey(day.start_time),
+          endTime: normalizeTimeKey(day.end_time),
+        }))
       : [];
 
     const isMultiDayBooking = bookingDays.length > 1;
@@ -600,10 +658,10 @@ export default function LeadDetailPage() {
       ? bookingDays
       : booking.event_date
         ? [{
-            date: String(booking.event_date),
-            startTime: normalizeTimeKey(booking.start_time),
-            endTime: normalizeTimeKey(booking.end_time),
-          }]
+          date: String(booking.event_date),
+          startTime: normalizeTimeKey(booking.start_time),
+          endTime: normalizeTimeKey(booking.end_time),
+        }]
         : [];
 
     const firstDay = normalizedDays[0];
@@ -695,11 +753,20 @@ export default function LeadDetailPage() {
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
   const clientRegistrationType = lead?.user_id ? "Registered" : "Guest";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
+  const normalizedRevisionPaymentStatus = String(
+    additionalPaymentDetails?.paymentStatus || ""
+  )
+    .trim()
+    .toLowerCase();
+  const isRevisionPaymentPending =
+    normalizedRevisionPaymentStatus === "pending" ||
+    normalizedRevisionPaymentStatus === "partially_paid";
   const isAmountPaid =
-    ["paid", "success", "completed"].includes(
+    !isRevisionPaymentPending &&
+    (["paid", "success", "completed"].includes(
       String(lead?.payment_status || "").trim().toLowerCase()
     ) ||
-    Boolean(booking?.payment_id || booking?.payment_completed_at);
+      Boolean(booking?.payment_id || booking?.payment_completed_at));
   const showCompletedPaymentMessage =
     isAmountPaid && !hasPendingAdditionalPayment;
   const isClosedLostLead = isClosedLostStatus(lead?.booking_status || status);
@@ -715,30 +782,48 @@ export default function LeadDetailPage() {
   const shootType = booking?.shoot_type || booking?.event_type || "Not specified";
 
   // Pricing from breakdown
-  const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
+  const convertedQuoteTotal = isQuoteConvertedLead
+    ? Number(
+      lead?.custom_quote?.total ??
+      additionalPaymentDetails?.revisedTotal ??
+      primaryQuote?.total ??
+      0
+    )
+    : 0;
+  const basePrice = (isQuoteConvertedLead && convertedQuoteTotal > 0)
+    ? convertedQuoteTotal
+    : (lead?.pricing_breakdown?.shoot_cost || 0);
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
   const discountAmount = isQuoteConvertedLead
     ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
     : Number(lead?.pricing_breakdown?.discount ?? 0);
   const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
+  const hasAdditionalRevisionAmount =
+    Boolean(additionalPaymentDetails) &&
+    Math.abs(Number(additionalPaymentDetails?.additionalAmount || 0)) > 0;
+  const shouldIgnoreCreditApplied =
+    hasAdditionalRevisionAmount && !additionalPaymentDetails?.isDecrease;
+  const effectiveCreditApplied = shouldIgnoreCreditApplied ? 0 : creditApplied;
   const totalBeforeCredit = Number(
     lead?.pricing_breakdown?.total_before_credit ??
-      primaryQuote?.total ??
-      lead?.pricing_breakdown?.total ??
-      0
+    primaryQuote?.total ??
+    lead?.pricing_breakdown?.total ??
+    0
   );
   const totalAfterCredit = Number(
     lead?.pricing_breakdown?.total_after_credit ??
-      primaryQuote?.total ??
-      lead?.pricing_breakdown?.total ??
-      0
+    primaryQuote?.total ??
+    lead?.pricing_breakdown?.total ??
+    0
   );
-  const total = creditApplied > 0
-    ? totalAfterCredit
-    : (isQuoteConvertedLead
-      ? Number(primaryQuote?.total ?? totalAfterCredit)
-      : totalAfterCredit);
+  const total = convertedQuoteTotal > 0
+    ? convertedQuoteTotal
+    : (effectiveCreditApplied > 0
+      ? totalAfterCredit
+      : (isQuoteConvertedLead
+        ? Number(primaryQuote?.total ?? totalAfterCredit)
+        : totalAfterCredit));
 
   const referralInfo = useMemo(() => {
     const notes = booking?.primary_quote?.notes || "";
@@ -809,17 +894,55 @@ export default function LeadDetailPage() {
     }, 0);
 
     const resolvedTotal = total > 0 ? total : Number(latestManualPaymentEntry?.data?.total_amount || 0);
-    const paidAmount = hasFullPayment ? resolvedTotal : partialPaid;
-    const pendingAmount = Math.max(resolvedTotal - paidAmount, 0);
+    const paymentProgress = getQuotePaymentProgressDetails(
+      (lead?.custom_quote ?? null) as any,
+      {
+        totalAmountOverride: resolvedTotal,
+        previouslyPaidOverride: Number(lead?.pricing_breakdown?.total_paid ?? 0) || undefined,
+        previousTotalOverride:
+          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
+          undefined,
+        collectedAmountOverride: Number(lead?.collected_amount ?? 0) || undefined,
+        manualPaidOverride: hasFullPayment ? resolvedTotal : partialPaid,
+      }
+    );
 
     return {
-      hasFullPayment,
-      paidAmount,
-      pendingAmount,
-      isPartiallyPaid: !hasFullPayment && paidAmount > 0 && pendingAmount > 0,
-      canTakePayment: !hasFullPayment && pendingAmount > 0,
+      hasFullPayment: paymentProgress.hasFullPayment || hasFullPayment,
+      paidAmount: paymentProgress.paidAmount,
+      pendingAmount: paymentProgress.pendingAmount,
+      isPartiallyPaid: paymentProgress.isPartiallyPaid,
+      canTakePayment: paymentProgress.canTakePayment,
     };
-  }, [lead?.activities, latestManualPaymentEntry?.data?.total_amount, total]);
+  }, [
+    lead?.activities,
+    lead?.collected_amount,
+    lead?.custom_quote,
+    lead?.pricing_breakdown?.total,
+    lead?.pricing_breakdown?.total_amount,
+    lead?.pricing_breakdown?.total_paid,
+    latestManualPaymentEntry?.data?.total_amount,
+    total,
+  ]);
+  const shouldForceFullyPaid =
+    isAmountPaid &&
+    !hasPendingAdditionalPayment &&
+    (Number(lead?.outstanding_amount ?? 0) <= 0.009 || Number(additionalPaymentDetails?.outstandingAmount ?? 0) <= 0.009);
+  const effectiveManualPaymentSummary = shouldForceFullyPaid
+    ? {
+      ...manualPaymentSummary,
+      paidAmount: Math.max(manualPaymentSummary.paidAmount, total),
+      pendingAmount: 0,
+      hasFullPayment: true,
+      isPartiallyPaid: false,
+      canTakePayment: false,
+    }
+    : manualPaymentSummary;
+  const displayPaidAmount = Math.max(
+    Number(lead?.collected_amount ?? 0),
+    Number(lead?.pricing_breakdown?.total_paid ?? 0),
+    Number(effectiveManualPaymentSummary.paidAmount ?? 0)
+  );
 
   const manualPaymentEntries = useMemo(() => {
     return (lead?.activities || [])
@@ -851,18 +974,20 @@ export default function LeadDetailPage() {
       : "Paid (Manual)"
     : null;
 
-  const effectiveStatusLabel = hasPendingAdditionalPayment
-    ? "Pending"
-    : manualPaymentSummary.isPartiallyPaid
-      ? "Partially Paid"
-      : status;
+  const effectiveStatusLabel = isRevisionPaymentPending
+    ? "Partially Paid"
+    : hasPendingAdditionalPayment
+      ? "Pending"
+      : effectiveManualPaymentSummary.isPartiallyPaid
+        ? "Partially Paid"
+        : status;
   const hasManualPaymentHistory = manualPaymentEntries.length > 0;
   const paymentMethodLabel = hasManualPaymentHistory
     ? "Manual"
     : isAmountPaid
       ? "Stripe"
       : "Pending";
-  const showManualPaymentPanel = !isAmountPaid || hasManualPaymentHistory;
+  const showManualPaymentPanel = !isAmountPaid || isRevisionPaymentPending || hasManualPaymentHistory;
 
   const handleManualPaymentSubmit = async () => {
     if (isClosedLostLead) {
@@ -889,7 +1014,7 @@ export default function LeadDetailPage() {
         toast.error("Partial amount must be greater than 0");
         return;
       }
-      if (parsedAmount > manualPaymentSummary.pendingAmount) {
+      if (parsedAmount > effectiveManualPaymentSummary.pendingAmount) {
         toast.error("Partial amount cannot exceed pending amount");
         return;
       }
@@ -1239,7 +1364,7 @@ export default function LeadDetailPage() {
     return (
       <div className={`${isDark ? "text-white" : "text-black"} font-sans`}>
         <Button
-          onClick={() => router.back()}
+          onClick={handleBackNavigation}
           className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none border-none`}
         >
           <ArrowLeft size={24} />
@@ -1258,7 +1383,7 @@ export default function LeadDetailPage() {
       <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
         {/* Back Button */}
         <Button
-          onClick={() => router.back()}
+          onClick={handleBackNavigation}
           className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none border-none ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-[#B18A00]"}`}
         >
           <ArrowLeft size={24} />
@@ -1296,22 +1421,24 @@ export default function LeadDetailPage() {
                       {initials}
                     </div>
                     <div className="flex flex-col gap-2 min-w-0">
-                      <h1 className={`lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
-                      <div className="flex items-center">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-                            clientRegistrationType === "Registered"
+                      <div className="flex lg:flex-col gap-2">
+                        <h1 className={`text-lg lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
+                        <div className="flex items-center">
+                          <span
+                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${clientRegistrationType === "Registered"
                               ? isDark
                                 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                                 : "bg-emerald-100 text-emerald-700 border border-emerald-200"
                               : isDark
                                 ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                                 : "bg-amber-100 text-amber-700 border border-amber-200"
-                          }`}
-                        >
-                          {clientRegistrationType}
-                        </span>
+                              }`}
+                          >
+                            {clientRegistrationType}
+                          </span>
+                        </div>
                       </div>
+
                       <div className=" lg:hidden">
                         <LeadsStatusBadge status={effectiveStatusLabel as any} />
                       </div>
@@ -1324,7 +1451,7 @@ export default function LeadDetailPage() {
                     </div>
                   </div>
                 </div>
-                <div className={`flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
+                <div className={`flex flex-col lg:flex-row flex-wrap gap-2 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
                   <p>
                     Email ID : <span className={isDark ? "text-white" : "text-black"}>{email}</span>
                   </p>
@@ -1337,7 +1464,7 @@ export default function LeadDetailPage() {
                     Lead Type : <span className={isDark ? "text-white" : "text-black"}>{leadType}</span>
                   </p>
                 </div>
-                <div className={`flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
+                <div className={`flex flex-col lg:flex-row flex-wrap gap-2 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
                   <p>
                     Temporary Booking ID : <span className="text-[#E8D1AB]">{`TMP-${new Date(lead.created_at).getFullYear()}-${lead.booking_id?.toString().padStart(3, '0')}`}</span>
                   </p>
@@ -1385,16 +1512,16 @@ export default function LeadDetailPage() {
                             </div>
                           ) : (
                             <div className="py-1.5">
-                                {salesRepDropdownOptions.map((option) => {
-                                  const isSelected =
-                                    option.value === ASSIGN_TO_ME_VALUE
-                                      ? Boolean(currentUserId) && currentUserId === String(lead?.assigned_sales_rep?.id || "")
-                                      : option.value === selectedSalesRepId;
-                                  return (
-                                    <button
-                                      key={option.value}
-                                      type="button"
-                                      onClick={() => {
+                              {salesRepDropdownOptions.map((option) => {
+                                const isSelected =
+                                  option.value === ASSIGN_TO_ME_VALUE
+                                    ? Boolean(currentUserId) && currentUserId === String(lead?.assigned_sales_rep?.id || "")
+                                    : option.value === selectedSalesRepId;
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => {
                                       if (isUpdatingSalesRep) return;
                                       setSelectedSalesRepId(option.value);
                                       handleUpdateSalesRep(option.value);
@@ -1713,7 +1840,7 @@ export default function LeadDetailPage() {
                 Pricing Breakdown
               </h2>
               <hr className={`my-4 lg:my-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
-              <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
+              <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6 !pt-0">
                 {isQuoteConvertedLead && (
                   <div
                     className={`rounded-2xl border px-4 py-3 ${isDark
@@ -1728,11 +1855,10 @@ export default function LeadDetailPage() {
                 )}
                 {additionalPaymentDetails && (
                   <div
-                    className={`rounded-2xl border p-4 ${
-                      isDark
-                        ? "border-[#E8D1AB]/20 bg-[#1B1710]"
-                        : "border-[#E8D1AB] bg-[#FFF8EA]"
-                    }`}
+                    className={`rounded-2xl border p-4 ${isDark
+                      ? "border-[#E8D1AB]/20 bg-[#1B1710]"
+                      : "border-[#E8D1AB] bg-[#FFF8EA]"
+                      }`}
                   >
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
@@ -1749,15 +1875,14 @@ export default function LeadDetailPage() {
                         </p>
                       </div>
                       <span
-                        className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-[11px] font-medium ${
-                          hasPendingAdditionalPayment
-                            ? isDark
-                              ? "bg-[#E8D1AB]/15 text-[#E8D1AB]"
-                              : "bg-[#FDECC8] text-[#8A5B00]"
-                            : isDark
-                              ? "bg-emerald-500/15 text-emerald-300"
-                              : "bg-emerald-100 text-emerald-700"
-                        }`}
+                        className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-[11px] font-medium ${hasPendingAdditionalPayment
+                          ? isDark
+                            ? "bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                            : "bg-[#FDECC8] text-[#8A5B00]"
+                          : isDark
+                            ? "bg-emerald-500/15 text-emerald-300"
+                            : "bg-emerald-100 text-emerald-700"
+                          }`}
                       >
                         {additionalPaymentDetails.paymentStatusLabel}
                       </span>
@@ -1775,18 +1900,16 @@ export default function LeadDetailPage() {
                       ].map(([label, value]) => (
                         <div
                           key={label as string}
-                          className={`rounded-xl border px-3 py-3 ${
-                            isDark ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-white/70"
-                          }`}
+                          className={`rounded-xl border px-3 py-3 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-white/70"
+                            }`}
                         >
                           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#71717B]">
                             {label}
                           </p>
-                          <p className={`mt-2 text-base font-semibold ${
-                            label === "Reduced Amount" || (typeof value === 'number' && value < 0)
-                              ? "text-red-500"
-                              : isDark ? "text-white" : "text-black"
-                          }`}>
+                          <p className={`mt-2 text-base font-semibold ${label === "Reduced Amount" || (typeof value === 'number' && value < 0)
+                            ? "text-red-500"
+                            : isDark ? "text-white" : "text-black"
+                            }`}>
                             {label === "Reduced Amount" || label === "Additional Amount"
                               ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
                               : ""}
@@ -1855,7 +1978,7 @@ export default function LeadDetailPage() {
                     <span className="text-sm lg:text-base text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
                   </div>
                 )}
-                {creditApplied > 0 && (
+                {effectiveCreditApplied > 0 && (
                   <>
                     <div className="flex justify-between font-medium">
                       <span className="text-[#71717B] text-xs">Total Before Credit</span>
@@ -1865,7 +1988,7 @@ export default function LeadDetailPage() {
                     </div>
                     <div className="flex justify-between font-medium">
                       <span className="text-[#71717B] text-xs">Account Credit Used</span>
-                      <span className="text-sm lg:text-base text-emerald-400">-${creditApplied.toLocaleString()}</span>
+                      <span className="text-sm lg:text-base text-emerald-400">-${effectiveCreditApplied.toLocaleString()}</span>
                     </div>
                   </>
                 )}
@@ -1908,19 +2031,19 @@ export default function LeadDetailPage() {
                 <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Total Amount</span>
                 <span className="lg:text-lg font-semibold text-[#E8D1AB]">${total.toLocaleString()}</span>
               </div>
-              {manualPaymentSummary.paidAmount > 0 && (
+              {effectiveManualPaymentSummary.paidAmount > 0 && (
                 <div className="p-4 lg:px-9 lg:py-4 flex justify-between items-center border-t border-dashed border-white/10">
                   <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Paid Amount</span>
                   <span className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                    ${manualPaymentSummary.paidAmount.toLocaleString()}
+                    ${effectiveManualPaymentSummary.paidAmount.toLocaleString()}
                   </span>
                 </div>
               )}
-              {manualPaymentSummary.pendingAmount > 0 && (
+              {effectiveManualPaymentSummary.pendingAmount > 0 && (
                 <div className="p-4 lg:px-9 lg:py-4 flex justify-between items-center border-t border-dashed border-white/10">
                   <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Remaining Amount</span>
                   <span className="text-sm lg:text-base font-semibold text-[#E8D1AB]">
-                    ${manualPaymentSummary.pendingAmount.toLocaleString()}
+                    ${effectiveManualPaymentSummary.pendingAmount.toLocaleString()}
                   </span>
                 </div>
               )}
@@ -1937,11 +2060,10 @@ export default function LeadDetailPage() {
                 {isDiscountLockedByQuote && (
                   <>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] ${
-                        isDark
-                          ? "bg-white/5 text-[#E8D1AB]"
-                          : "bg-[#FFF3D6] text-[#7A5A00]"
-                      }`}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] ${isDark
+                        ? "bg-white/5 text-[#E8D1AB]"
+                        : "bg-[#FFF3D6] text-[#7A5A00]"
+                        }`}
                     >
                       Locked
                     </span>
@@ -2118,222 +2240,221 @@ export default function LeadDetailPage() {
             />
 
             {showManualPaymentPanel ? (
-            <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
-              <div className="p-4 lg:p-7 space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                    Manual Payment Update
-                  </h2>
-                  {manualPaymentStatusLabel && (
-                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-[#FFF3D6] text-[#7A5A00]"}`}>
-                      {manualPaymentStatusLabel}
-                    </span>
-                  )}
-                </div>
-
-                {latestManualPaymentEntry?.createdAt && (
-                  <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                    Last updated {formatDateTimeUI(latestManualPaymentEntry.createdAt)}
-                  </p>
-                )}
-                <div className={`rounded-lg border px-3 py-2 ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E8D1AB] bg-[#FFF3D6]"}`}>
-                  <p className={`text-xs ${isDark ? "text-white/70" : "text-black/70"}`}>
-                    Paid: <span className="font-semibold text-emerald-500">{formatCurrencyValue(manualPaymentSummary.paidAmount)}</span>
-                    {" · "}
-                    Pending: <span className="font-semibold text-amber-500">{formatCurrencyValue(manualPaymentSummary.pendingAmount)}</span>
-                  </p>
-                </div>
-                <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                  Payment flow: <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>Manual Payment</span>
-                </p>
-                {manualPaymentSummary.hasFullPayment && (
-                  <div className={`rounded-lg border px-3 py-2 text-xs ${isDark ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
-                    Full payment already completed. New payment entry is locked.
-                  </div>
-                )}
-
-                {!manualPaymentSummary.hasFullPayment && (
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      {(["full", "partial"] as const).map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => setManualPaymentType(type)}
-                          disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
-                          className={`h-10 rounded-lg border text-sm font-medium transition-colors ${manualPaymentType === type
-                            ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF3D6] text-black")
-                            : (isDark ? "border-white/20 text-white/70 hover:border-white/40" : "border-[#D8D8D8] text-black/70 hover:border-[#BFA780]")
-                            } ${isClosedLostLead || manualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
-                        >
-                          {type === "full" ? "Full Payment" : "Partial Payment"}
-                        </button>
-                      ))}
-                    </div>
-
-                    {manualPaymentType === "partial" && (
-                      <input
-                        type="number"
-                        min="0"
-                        max={manualPaymentSummary.pendingAmount}
-                        step="0.01"
-                        value={manualPaymentAmount}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          if (!nextValue) {
-                            setManualPaymentAmount("");
-                            return;
-                          }
-                          const numeric = Number(nextValue);
-                          if (!Number.isFinite(numeric) || numeric < 0) return;
-                          if (numeric > manualPaymentSummary.pendingAmount) {
-                            setManualPaymentAmount(String(manualPaymentSummary.pendingAmount));
-                            toast.error("Amount cannot exceed pending amount");
-                            return;
-                          }
-                          setManualPaymentAmount(nextValue);
-                        }}
-                        placeholder={`Enter amount (max ${formatCurrencyValue(manualPaymentSummary.pendingAmount)})`}
-                        disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
-                        className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
-                      />
+              <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                <div className="p-4 lg:p-7 space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                      Manual Payment Update
+                    </h2>
+                    {manualPaymentStatusLabel && (
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-[#FFF3D6] text-[#7A5A00]"}`}>
+                        {manualPaymentStatusLabel}
+                      </span>
                     )}
+                  </div>
 
-                    <Select
-                      value={manualPaymentMode}
-                      onValueChange={(value) =>
-                        setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
-                      }
-                      disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
-                    >
-                      <SelectTrigger
-                        className={`h-11 rounded-lg border px-3 text-sm ${
-                          isDark
+                  {latestManualPaymentEntry?.createdAt && (
+                    <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                      Last updated {formatDateTimeUI(latestManualPaymentEntry.createdAt)}
+                    </p>
+                  )}
+                  <div className={`rounded-lg border px-3 py-2 ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E8D1AB] bg-[#FFF3D6]"}`}>
+                    <p className={`text-xs ${isDark ? "text-white/70" : "text-black/70"}`}>
+                      Paid: <span className="font-semibold text-emerald-500">{formatCurrencyValue(effectiveManualPaymentSummary.paidAmount)}</span>
+                      {" · "}
+                      Pending: <span className="font-semibold text-amber-500">{formatCurrencyValue(effectiveManualPaymentSummary.pendingAmount)}</span>
+                    </p>
+                  </div>
+                  <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                    Payment flow: <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>Manual Payment</span>
+                  </p>
+                  {effectiveManualPaymentSummary.hasFullPayment && (
+                    <div className={`rounded-lg border px-3 py-2 text-xs ${isDark ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+                      Full payment already completed. New payment entry is locked.
+                    </div>
+                  )}
+
+                  {!effectiveManualPaymentSummary.hasFullPayment && (
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["full", "partial"] as const).map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setManualPaymentType(type)}
+                            disabled={isClosedLostLead || effectiveManualPaymentSummary.hasFullPayment}
+                            className={`h-10 rounded-lg border text-sm font-medium transition-colors ${manualPaymentType === type
+                              ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF3D6] text-black")
+                              : (isDark ? "border-white/20 text-white/70 hover:border-white/40" : "border-[#D8D8D8] text-black/70 hover:border-[#BFA780]")
+                              } ${isClosedLostLead || effectiveManualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            {type === "full" ? "Full Payment" : "Partial Payment"}
+                          </button>
+                        ))}
+                      </div>
+
+                      {manualPaymentType === "partial" && (
+                        <input
+                          type="number"
+                          min="0"
+                          max={effectiveManualPaymentSummary.pendingAmount}
+                          step="0.01"
+                          value={manualPaymentAmount}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            if (!nextValue) {
+                              setManualPaymentAmount("");
+                              return;
+                            }
+                            const numeric = Number(nextValue);
+                            if (!Number.isFinite(numeric) || numeric < 0) return;
+                            if (numeric > effectiveManualPaymentSummary.pendingAmount) {
+                              setManualPaymentAmount(String(effectiveManualPaymentSummary.pendingAmount));
+                              toast.error("Amount cannot exceed pending amount");
+                              return;
+                            }
+                            setManualPaymentAmount(nextValue);
+                          }}
+                          placeholder={`Enter amount (max ${formatCurrencyValue(effectiveManualPaymentSummary.pendingAmount)})`}
+                          disabled={isClosedLostLead || effectiveManualPaymentSummary.hasFullPayment}
+                          className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
+                        />
+                      )}
+
+                      <Select
+                        value={manualPaymentMode}
+                        onValueChange={(value) =>
+                          setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
+                        }
+                        disabled={isClosedLostLead || effectiveManualPaymentSummary.hasFullPayment}
+                      >
+                        <SelectTrigger
+                          className={`h-11 rounded-lg border px-3 text-sm ${isDark
                             ? "border-white/20 bg-transparent text-white"
                             : "border-[#D8D8D8] bg-transparent text-black"
-                        }`}
-                      >
-                        <SelectValue placeholder="Select payment mode" />
-                      </SelectTrigger>
-                      <SelectContent
-                        className={
-                          isDark
-                            ? "border-[#333333] bg-[#111111] text-white"
-                            : "border-[#D8D8D8] bg-white text-black"
-                        }
-                      >
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="wire">Wire</SelectItem>
-                        <SelectItem value="ach">ACH</SelectItem>
-                        <SelectItem value="zelle">Zelle</SelectItem>
-                        <SelectItem value="venmo">Venmo</SelectItem>
-                        <SelectItem value="cashapp">CashApp</SelectItem>
-                        <SelectItem value="applepay">ApplePay</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                            }`}
+                        >
+                          <SelectValue placeholder="Select payment mode" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={
+                            isDark
+                              ? "border-[#333333] bg-[#111111] text-white"
+                              : "border-[#D8D8D8] bg-white text-black"
+                          }
+                        >
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="wire">Wire</SelectItem>
+                          <SelectItem value="ach">ACH</SelectItem>
+                          <SelectItem value="zelle">Zelle</SelectItem>
+                          <SelectItem value="venmo">Venmo</SelectItem>
+                          <SelectItem value="cashapp">CashApp</SelectItem>
+                          <SelectItem value="applepay">ApplePay</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
 
-                    {manualPaymentMode === "other" && (
-                      <input
-                        type="text"
-                        value={manualPaymentOtherMode}
-                        onChange={(event) => setManualPaymentOtherMode(event.target.value)}
-                        placeholder="Enter payment mode"
-                        disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
-                        className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
-                      />
-                    )}
+                      {manualPaymentMode === "other" && (
+                        <input
+                          type="text"
+                          value={manualPaymentOtherMode}
+                          onChange={(event) => setManualPaymentOtherMode(event.target.value)}
+                          placeholder="Enter payment mode"
+                          disabled={isClosedLostLead || effectiveManualPaymentSummary.hasFullPayment}
+                          className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
+                        />
+                      )}
 
-                    <div className={`rounded-lg border p-3 ${isDark ? "border-white/20" : "border-[#D8D8D8]"}`}>
-                      <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
-                        Proof Upload (Required)
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${isDark ? "border-white/20 hover:bg-white/5" : "border-[#D8D8D8] hover:bg-black/[0.03]"}`}>
-                          <ArrowUpToLine size={14} />
-                          {isUploadingManualProof ? "Uploading..." : "Choose File"}
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            className="hidden"
-                            onChange={(event) => {
-                              const file = event.target.files?.[0] || null;
-                              void handleManualProofUpload(file);
-                            }}
-                            disabled={isClosedLostLead || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
-                          />
+                      <div className={`rounded-lg border p-3 ${isDark ? "border-white/20" : "border-[#D8D8D8]"}`}>
+                        <label className="mb-2 block text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
+                          Proof Upload (Required)
                         </label>
-                        {isUploadingManualProof ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : null}
-                        {manualPaymentProofFileName ? (
-                          <span className="truncate text-xs text-[#71717B]">{manualPaymentProofFileName}</span>
-                        ) : null}
+                        <div className="flex items-center gap-2">
+                          <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${isDark ? "border-white/20 hover:bg-white/5" : "border-[#D8D8D8] hover:bg-black/[0.03]"}`}>
+                            <ArrowUpToLine size={14} />
+                            {isUploadingManualProof ? "Uploading..." : "Choose File"}
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              onChange={(event) => {
+                                const file = event.target.files?.[0] || null;
+                                void handleManualProofUpload(file);
+                              }}
+                              disabled={isClosedLostLead || isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment}
+                            />
+                          </label>
+                          {isUploadingManualProof ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : null}
+                          {manualPaymentProofFileName ? (
+                            <span className="truncate text-xs text-[#71717B]">{manualPaymentProofFileName}</span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <textarea
+                        value={manualPaymentNotes}
+                        onChange={(event) => setManualPaymentNotes(event.target.value)}
+                        placeholder="Notes (optional)"
+                        rows={3}
+                        disabled={isClosedLostLead || effectiveManualPaymentSummary.hasFullPayment}
+                        className={`rounded-lg border p-3 text-sm bg-transparent outline-none resize-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
+                      />
+
+                      <Button
+                        onClick={handleManualPaymentSubmit}
+                        disabled={isClosedLostLead || isSubmittingManualPayment || isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment}
+                        className={`h-11 text-sm font-semibold ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
+                      >
+                        {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {manualPaymentEntries.length > 0 && (
+                    <div className={`rounded-lg border p-3 ${isDark ? "border-white/15 bg-white/[0.02]" : "border-[#E4E4E7] bg-white"}`}>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
+                        Uploaded Payment Proofs
+                      </p>
+                      <div className="space-y-2">
+                        {manualPaymentEntries.map((entry, index) => {
+                          const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
+                          const paidMode = entry.data.payment_mode
+                            ? String(entry.data.payment_mode).replace(/_/g, " ")
+                            : "manual";
+                          return (
+                            <div
+                              key={`${entry.createdAt || "entry"}-${index}`}
+                              className={`rounded-md border px-3 py-2 text-xs ${isDark ? "border-white/10" : "border-[#ECECEC]"}`}
+                            >
+                              <p className={isDark ? "text-white/80" : "text-black/75"}>
+                                {entry.data.payment_type === "partial"
+                                  ? `Partial paid ${formatCurrencyValue(entry.data.amount)}`
+                                  : "Full payment marked"}{" "}
+                                via {paidMode}
+                              </p>
+                              <p className={isDark ? "text-white/45 mt-1" : "text-black/45 mt-1"}>
+                                {entry.createdAt ? formatDateTimeUI(entry.createdAt) : "Date unavailable"}
+                              </p>
+                              {proofUrl && (
+                                <a
+                                  href={proofUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
+                                >
+                                  Download Proof
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-
-                    <textarea
-                      value={manualPaymentNotes}
-                      onChange={(event) => setManualPaymentNotes(event.target.value)}
-                      placeholder="Notes (optional)"
-                      rows={3}
-                      disabled={isClosedLostLead || manualPaymentSummary.hasFullPayment}
-                      className={`rounded-lg border p-3 text-sm bg-transparent outline-none resize-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
-                    />
-
-                    <Button
-                      onClick={handleManualPaymentSubmit}
-                      disabled={isClosedLostLead || isSubmittingManualPayment || isUploadingManualProof || manualPaymentSummary.hasFullPayment}
-                      className={`h-11 text-sm font-semibold ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
-                    >
-                      {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
-                    </Button>
-                  </div>
-                )}
-
-                {manualPaymentEntries.length > 0 && (
-                  <div className={`rounded-lg border p-3 ${isDark ? "border-white/15 bg-white/[0.02]" : "border-[#E4E4E7] bg-white"}`}>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
-                      Uploaded Payment Proofs
-                    </p>
-                    <div className="space-y-2">
-                      {manualPaymentEntries.map((entry, index) => {
-                        const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
-                        const paidMode = entry.data.payment_mode
-                          ? String(entry.data.payment_mode).replace(/_/g, " ")
-                          : "manual";
-                        return (
-                          <div
-                            key={`${entry.createdAt || "entry"}-${index}`}
-                            className={`rounded-md border px-3 py-2 text-xs ${isDark ? "border-white/10" : "border-[#ECECEC]"}`}
-                          >
-                            <p className={isDark ? "text-white/80" : "text-black/75"}>
-                              {entry.data.payment_type === "partial"
-                                ? `Partial paid ${formatCurrencyValue(entry.data.amount)}`
-                                : "Full payment marked"}{" "}
-                              via {paidMode}
-                            </p>
-                            <p className={isDark ? "text-white/45 mt-1" : "text-black/45 mt-1"}>
-                              {entry.createdAt ? formatDateTimeUI(entry.createdAt) : "Date unavailable"}
-                            </p>
-                            {proofUrl && (
-                              <a
-                                href={proofUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
-                              >
-                                Download Proof
-                              </a>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
             ) : isAmountPaid ? (
               <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
                 <div className="p-4 lg:p-7 space-y-3">
@@ -2349,16 +2470,22 @@ export default function LeadDetailPage() {
                     <p>
                       Total Paid Amount:{" "}
                       <span className={isDark ? "text-white" : "text-black"}>
-                        {formatCurrencyValue(lead?.collected_amount ?? lead?.pricing_breakdown?.total_paid ?? total)}
+                        {formatCurrencyValue(displayPaidAmount)}
                       </span>
                     </p>
                     <p className="mt-1">
                       Pending Amount:{" "}
-                      <span className={additionalPaymentDetails?.isDecrease ? "text-red-500" : (isDark ? "text-white" : "text-black")}>
-                        {additionalPaymentDetails && additionalPaymentDetails.additionalAmount !== 0
-                          ? (additionalPaymentDetails.additionalAmount < 0 ? "-" : "+")
-                          : ""}
-                        {formatCurrencyValue(Math.abs(additionalPaymentDetails?.additionalAmount ?? 0))}
+                      <span className={isDark ? "text-white" : "text-black"}>
+                        {formatCurrencyValue(
+                          Math.max(
+                            0,
+                            Number(
+                              additionalPaymentDetails?.outstandingAmount ??
+                              effectiveManualPaymentSummary.pendingAmount ??
+                              0
+                            )
+                          )
+                        )}
                       </span>
                       {additionalPaymentDetails?.isDecrease && (
                         <span className="ml-1 text-[10px] text-golden italic">
@@ -2400,9 +2527,8 @@ export default function LeadDetailPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       {quotePricingDetails.status && (
                         <span
-                          className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize ${
-                            isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-[#FFF6D9] text-[#7A5A00]"
-                          }`}
+                          className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize ${isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-[#FFF6D9] text-[#7A5A00]"
+                            }`}
                         >
                           {quotePricingDetails.status}
                         </span>
@@ -2412,11 +2538,10 @@ export default function LeadDetailPage() {
                           type="button"
                           onClick={handleEditQuoteRedirect}
                           disabled={isClosedLostLead || !canEditQuote}
-                          className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
-                            isDark
-                              ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
-                              : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
-                          } ${isClosedLostLead || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                          className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${isDark
+                            ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
+                            : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
+                            } ${isClosedLostLead || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
                           aria-label="Edit Quote"
                           title={isClosedLostLead ? "Quote editing is disabled for Closed - Lost leads" : "Edit Quote"}
                         >

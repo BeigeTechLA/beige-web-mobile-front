@@ -183,13 +183,30 @@ const getHistoricalConfirmedPaidAmount = (
 
     const candidates: number[] = [];
 
-    // Only explicit paid/collected amounts count as real paid money.
+    const isExplicitPaymentEvent =
+      activityType === "payment_completed" ||
+      (activityType === "status_changed" && PAID_PAYMENT_STATUSES.has(paymentStatus));
+
+    // Prefer explicit paid/collected amounts from concrete payment events.
+    if (collectedAmount !== undefined && isExplicitPaymentEvent) {
+      candidates.push(collectedAmount);
+    }
+
+    // When extra amount is tracked separately, include it for paid payment events.
     if (
+      isExplicitPaymentEvent &&
+      PAID_PAYMENT_STATUSES.has(paymentStatus) &&
       collectedAmount !== undefined &&
       (activityType === "payment_completed" ||
         (activityType === "status_changed" && PAID_PAYMENT_STATUSES.has(paymentStatus)))
     ) {
       candidates.push(collectedAmount);
+    }
+
+    if (activityType === "status_changed" && paymentStatus === "paid") {
+      if (collectedAmount !== undefined) {
+        candidates.push(collectedAmount);
+      }
     }
 
     candidates.forEach((candidate) => {
@@ -218,14 +235,12 @@ export const getQuoteText = (...values: unknown[]) => {
 };
 
 export const formatQuoteItemDisplayName = (value: unknown) => {
-  const normalizedRawValue = typeof value === "string" ? value : "";
-  const trimmedValue = normalizedRawValue.trim();
-
-  if (!trimmedValue) {
+  const safeValue = typeof value === "string" ? value.trim() : "";
+  if (!safeValue) {
     return "Line Item";
   }
 
-  const normalizedValue = trimmedValue.toLowerCase().replace(/[_\s]+/g, " ");
+  const normalizedValue = safeValue.toLowerCase().replace(/[_\s]+/g, " ");
 
   if (normalizedValue === "ai editing") {
     return "Editing";
@@ -237,7 +252,7 @@ export const formatQuoteItemDisplayName = (value: unknown) => {
     return "Studio";
   }
 
-  return trimmedValue;
+  return safeValue;
 };
 
 export const getQuoteNumber = (...values: unknown[]): number | undefined => {
@@ -722,6 +737,10 @@ export const getQuoteAdditionalPaymentDetails = (
 
   const metadataExtraAmount = getQuoteNumber(latestPaymentMetadata?.extra_amount);
   const metadataReducedAmount = getQuoteNumber(latestPaymentMetadata?.reduced_amount);
+  const paymentStatus = getQuoteText(
+    latestPaymentMetadata?.payment_status,
+    additionalPayment?.payment_status
+  ).toLowerCase();
 
   let effectiveMetadataAmount = metadataExtraAmount;
   if (
@@ -732,10 +751,6 @@ export const getQuoteAdditionalPaymentDetails = (
     effectiveMetadataAmount = -metadataReducedAmount;
   }
 
-  const paymentStatus = getQuoteText(
-    latestPaymentMetadata?.payment_status,
-    additionalPayment?.payment_status
-  ).toLowerCase();
   const additionalAmount = derivedAdditionalAmount;
   const outstandingAmount = Math.max(0, derivedOutstandingAmount);
   const displayAmount = Math.abs(additionalAmount);

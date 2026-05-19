@@ -22,6 +22,10 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 type QuotePreviewDocumentProps = {
   quote: SalesQuoteDetailData;
   quoteId?: string | null;
+  showServiceAgreementAcceptance?: boolean;
+  acceptServiceAgreement?: boolean;
+  onAcceptServiceAgreementChange?: (checked: boolean) => void;
+  onOpenServiceAgreement?: () => void;
   paymentSummaryOverrides?: {
     previousTotal?: number;
     previouslyPaid?: number;
@@ -51,6 +55,9 @@ const resolveSignatureSource = (...sources: Array<unknown>) => {
     const value = source.trim();
     if (!value) continue;
     if (value.startsWith("data:")) return value;
+    if (/^[A-Za-z0-9+/=\r\n]+$/.test(value) && value.length > 80) {
+      return `data:image/png;base64,${value}`;
+    }
     if (/^https?:\/\//i.test(value) && !/localhost|127\.0\.0\.1|::1/i.test(value)) {
       return value;
     }
@@ -210,6 +217,10 @@ const ServiceTable = ({
 export default function QuotePreviewDocument({
   quote,
   quoteId,
+  showServiceAgreementAcceptance = false,
+  acceptServiceAgreement = true,
+  onAcceptServiceAgreementChange,
+  onOpenServiceAgreement,
   paymentSummaryOverrides,
 }: QuotePreviewDocumentProps) {
   const { isDark } = useResolvedTheme();
@@ -277,9 +288,16 @@ export default function QuotePreviewDocument({
   const signatureSource = resolveSignatureSource(
     quoteData.signature_base64,
     quoteData.signature_path,
+    (quoteData as Record<string, unknown>)?.signature_url,
+    (quoteData as Record<string, unknown>)?.file_url,
+    (quoteData as Record<string, unknown>)?.file_path,
     (quote as Record<string, unknown>)?.signature_base64,
     (quote as Record<string, unknown>)?.signature_path,
+    (quote as Record<string, unknown>)?.signature_url,
+    (quote as Record<string, unknown>)?.file_url,
+    (quote as Record<string, unknown>)?.file_path,
   );
+  const isQuoteSigned = Boolean(signatureSource || quoteData.signed_at);
   return (
     <div
       className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
@@ -438,12 +456,12 @@ export default function QuotePreviewDocument({
 
             {/* Right - Signature */}
             <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
-              {quoteData.signature_base64 ? (
+              {signatureSource ? (
                 <>
-                  <div className={`border rounded-lg p-3 w-full max-w-[220px] ${isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
+                  <div className={`border rounded-lg p-3 w-full max-w-[220px] ${isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
                     }`}>
                     <img
-                      src={quoteData.signature_base64}
+                      src={signatureSource}
                       alt="Signature"
                       className="w-full max-h-20 object-contain"
                     />
@@ -464,6 +482,33 @@ export default function QuotePreviewDocument({
 
           </div>
         </section>
+
+        {showServiceAgreementAcceptance ? (
+          <div
+            className={`flex items-start gap-3 rounded-[10px] p-3 lg:p-4 ${
+              isDark ? "bg-[#2A2A2A]" : "border border-[#E3E3E3] bg-[#F4F5F7]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={isQuoteSigned ? true : acceptServiceAgreement}
+              disabled={isQuoteSigned}
+              onChange={(e) => onAcceptServiceAgreementChange?.(e.target.checked)}
+              className="mt-1 cursor-pointer"
+            />
+            <p className={`text-sm ${isDark ? "text-[#999]" : "text-[#52525B]"}`}>
+              I have read and agree to the{" "}
+              <button
+                type="button"
+                onClick={onOpenServiceAgreement}
+                className="text-[#E8D5B5] underline hover:text-[#f3e4cd] cursor-pointer"
+              >
+                Service Agreement & Terms of Engagement
+              </button>
+              .
+            </p>
+          </div>
+        ) : null}
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 

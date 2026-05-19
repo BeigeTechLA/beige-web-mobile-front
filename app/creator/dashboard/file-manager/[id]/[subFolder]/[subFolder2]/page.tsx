@@ -613,6 +613,16 @@ export default function CreatorSubFolderDetailsPage() {
 		                    userInitials={folder.userInitials}
 			                    onOpenLinkModal={() => undefined}
 			                    href={folder.href}
+                          onShare={() => {
+                            setShareResource({
+                              resourceType: "folder",
+                              externalId: String(projectId || ""),
+                              phase: phaseSlug === "post-production" ? "post" : "pre",
+                              path: String(folder.resourcePath || ""),
+                              label: folder.title,
+                            });
+                            setIsShareModalOpen(true);
+                          }}
 			                    onDelete={
                           canDeleteFolders
                             ? () => {

@@ -329,6 +329,24 @@ const normalizeDiscountCodeValue = (value?: string | null) => {
   return normalized || null;
 };
 
+const resolveBasePayableAmount = (details: any) => {
+  const quoteTotal = parseFloat(details?.quote?.total || 0);
+  const additionalPayment = details?.quote?.additional_payment || details?.quote?.partial_payment || null;
+  const outstandingAmount = parseFloat(additionalPayment?.outstanding_amount || 0);
+  const additionalStatus = String(additionalPayment?.payment_status || '').toLowerCase();
+  const hasOutstandingAdditional = outstandingAmount > 0 && additionalStatus !== 'paid';
+
+  if (hasOutstandingAdditional) return outstandingAmount;
+  return Math.max(quoteTotal, 0);
+};
+
+const isAdditionalPaymentFlow = (details: any) => {
+  const additionalPayment = details?.quote?.additional_payment || details?.quote?.partial_payment || null;
+  const outstandingAmount = parseFloat(additionalPayment?.outstanding_amount || 0);
+  const additionalStatus = String(additionalPayment?.payment_status || '').toLowerCase();
+  return outstandingAmount > 0 && additionalStatus !== 'paid';
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -393,6 +411,9 @@ function StripePaymentFormMulti({
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
     Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
+  const usedCreditAmount =
+    canUseAccountCredit && useAccountCredit ? Math.max(creditAppliedAmount || 0, 0) : 0;
+  const remainingCreditAmount = Math.max(availableCreditAmount - usedCreditAmount, 0);
   const isReferralLocked =
     isFree && parseFloat(quote?.discount_total || quote?.discount_amount || 0) > 0;
   const activeDiscountCode = normalizeDiscountCodeValue(
@@ -1041,7 +1062,7 @@ function StripePaymentFormMulti({
                   ? "border-red-500 focus:border-red-400"
                   : "border-white/30 focus:border-white/50"
                 }`}
-              placeholder={isReferralLocked ? "Disabled for $0 total" : "Enter code"}
+              placeholder={isReferralLocked ? "Referral Code" : "Enter code"}
               maxLength={10}
               disabled={isReferralLocked}
             />
@@ -1180,7 +1201,7 @@ function StripePaymentFormMulti({
                   Use Account Credit
                 </span>
                 <span className="text-xs lg:text-sm text-white/60 mt-0.5">
-                  Available balance: {formatCurrency(availableCreditAmount || 0)}
+                  Available balance: {formatCurrency(remainingCreditAmount)}
                 </span>
               </div>
             </div>
@@ -1191,10 +1212,26 @@ function StripePaymentFormMulti({
             )}
           </label>
           {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
-            <div className="mt-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300 flex items-center justify-between">
-              <span>Credit applied</span>
-              <span className="font-semibold">-{formatCurrency(creditAppliedAmount)}</span>
-            </div>
+            <>
+              <div className="mt-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300 flex items-center justify-between">
+                <span>Credit applied</span>
+                <span className="font-semibold">-{formatCurrency(usedCreditAmount)}</span>
+              </div>
+              <div className="mt-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs lg:text-sm text-white/70 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span>Original credit</span>
+                  <span>{formatCurrency(availableCreditAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between text-emerald-300">
+                  <span>Used now</span>
+                  <span>-{formatCurrency(usedCreditAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between font-semibold text-white">
+                  <span>Remaining credit</span>
+                  <span>{formatCurrency(remainingCreditAmount)}</span>
+                </div>
+              </div>
+            </>
           )}
           {!canUseAccountCredit && (
             <p className="text-white/50 text-sm mt-3">No account credit available for this booking.</p>
@@ -1419,12 +1456,12 @@ function MultiCreatorPaymentContent() {
   const fetchIntent = async (details: any, useCreditOverride: boolean = useAccountCredit) => {
     if (!details || !shootId) return;
     const { booking, quote } = details;
-    const rawQuoteTotal = parseFloat(quote?.total || 0);
+    const basePayableAmount = resolveBasePayableAmount(details);
     const availableCredit = parseFloat(details?.account_credit?.available_credit_amount || 0);
     const canUseCredit = Boolean(details?.account_credit?.can_use_credit) && availableCredit > 0;
     const creditToApply =
-      useCreditOverride && canUseCredit ? Math.min(availableCredit, rawQuoteTotal) : 0;
-    const payableAmount = Math.max(rawQuoteTotal - creditToApply, 0);
+      useCreditOverride && canUseCredit ? Math.min(availableCredit, basePayableAmount) : 0;
+    const payableAmount = Math.max(basePayableAmount - creditToApply, 0);
 
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
@@ -1434,6 +1471,7 @@ function MultiCreatorPaymentContent() {
           booking_id: shootId,
           amount: payableAmount,
           guest_email: resolveGuestEmail(booking, summaryData?.client_email),
+          payment_source: isAdditionalPaymentFlow(details) ? "additional_invoice" : undefined,
           use_credit: useCreditOverride && canUseCredit,
           credit_amount_used: creditToApply,
         },
@@ -1594,16 +1632,17 @@ function MultiCreatorPaymentContent() {
   const { booking, creators, quote } = paymentDetails;
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
+  const basePayableAmount = resolveBasePayableAmount(paymentDetails);
   const accountCredit = paymentDetails?.account_credit || {};
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
     Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
   const creditAppliedAmount =
     isQuoteValid && canUseAccountCredit && useAccountCredit
-      ? Math.min(availableCreditAmount, quoteTotal || 0)
+      ? Math.min(availableCreditAmount, basePayableAmount)
       : 0;
   const payableTotal = isQuoteValid
-    ? Math.max((quoteTotal || 0) - creditAppliedAmount, 0)
+    ? Math.max(basePayableAmount - creditAppliedAmount, 0)
     : 0;
 
   const customerName =
@@ -1662,7 +1701,7 @@ function MultiCreatorPaymentContent() {
       return booking?.event_type?.toLowerCase().includes("wedding") ? weddingFormUrl : generalFormUrl;
     };
 
-    const paidAmount = summaryData?.pricing?.total_paid ?? quoteTotal;
+    const paidAmount = payableTotal || summaryData?.pricing?.total_paid ?? quoteTotal;
 
     return (
       <div className="pt-20 lg:pt-32 pb-20">
