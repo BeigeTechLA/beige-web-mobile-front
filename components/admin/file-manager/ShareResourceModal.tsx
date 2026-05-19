@@ -550,7 +550,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                                 <div className="min-w-0 flex-1">
                                   <p className="truncate text-[13px] font-medium text-white/90">{label}</p>
                                   <p className="mt-0.5 text-[10px] text-white/30 font-medium uppercase tracking-wider">
-                                    {isAnyone ? "Public access" : "Private access"}
+                                    {isAnyone ? "Public Link access" : "Private access"}
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-1.5 opacity-0 transition-all group-hover:opacity-100">
