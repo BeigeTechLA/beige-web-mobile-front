@@ -2444,7 +2444,7 @@ export default function CreateQuotePage() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 lg:gap-4">
                 {loadingShootTypes ? (
                   <div className="col-span-4 py-5 flex justify-center items-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
@@ -2467,7 +2467,7 @@ export default function CreateQuotePage() {
                               setSelectedPhotoShootType(type.id);
                             }
                           }}
-                          className={`h-[52px] w-full rounded-xl px-5 pr-11 font-medium transition-all border text-sm lg:text-base tracking-tight text-left flex items-center ${selectedId === type.id
+                          className={`h-10 lg:h-[52px] w-full rounded-xl px-6 lg:px-5 lg:pr-11 font-medium transition-all border text-sm lg:text-base tracking-tight text-left flex items-center ${selectedId === type.id
                             ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
                             : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                             }`}
@@ -4992,7 +4992,7 @@ export default function CreateQuotePage() {
         {/* Main Card */}
         {/* <div className={`border rounded-[18px] mb-8 bg-[#171717] border-[#3D3D3D] ${view === 'selection' ? 'overflow-visible' : 'p-10 overflow-hidden'}`}> */}
         <div
-          className={`border rounded-[18px] ${(view === "tax") ? "mb-25":"mb-10"} lg:mb-8 bg-[#171717] border-[#3D3D3D] overflow-visible`}
+          className={`border rounded-[18px] ${(view === "tax") ? "mb-25" : "mb-10"} lg:mb-8 bg-[#171717] border-[#3D3D3D] overflow-visible`}
         >
           {view === "logistics" ? (
             <div className="">
@@ -5045,7 +5045,7 @@ export default function CreateQuotePage() {
                               event.stopPropagation();
                               handleDeleteCatalogItem(item.id, "logistics");
                             }}
-                            className="text-red-500 hover:text-red-400 transition-colors"
+                            className="text-[#FF6467] hover:text-red-400 transition-colors"
                             title="Delete logistics"
                           >
                             <Trash2 size={16} />
@@ -5237,7 +5237,7 @@ export default function CreateQuotePage() {
                                   <div className="flex items-center gap-5 ml-2">
                                     <button
                                       onClick={() => removeSelectedLogistics(item.id)}
-                                      className="text-red-500 hover:text-red-400 transition-colors"
+                                      className="text-[#FF6467] hover:text-red-400 transition-colors"
                                     >
                                       <Trash2 size={18} />
                                     </button>
@@ -5246,7 +5246,7 @@ export default function CreateQuotePage() {
                               </div>
 
                               <div className="flex flex-col lg:hidden gap-4">
-                                <div className="space-y-1">
+                                <div className="min-w-0 flex-1 pr-2 flex items-center justify-between">
                                   <h3 className="text-sm font-medium text-white leading-snug break-words">
                                     {item.label}
                                   </h3>
@@ -5301,10 +5301,11 @@ export default function CreateQuotePage() {
                                   </div>
                                   <button
                                     onClick={() => removeSelectedLogistics(item.id)}
-                                    className="text-red-500 hover:text-red-400 transition-colors"
+                                    className="text-[#FF6467] hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
                                   </button>
+                                  <Check size={16} strokeWidth={2} className={`text-[#16A34A]`} />
                                 </div>
                               </div>
                             </div>
@@ -5630,7 +5631,7 @@ export default function CreateQuotePage() {
                                 <div className="flex items-center gap-5 ml-2">
                                   <button
                                     onClick={() => removeSelectedAddon(addonId)}
-                                    className="text-red-500 hover:text-red-400 transition-colors"
+                                    className="text-[#FF6467] hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
                                   </button>
@@ -5732,7 +5733,7 @@ export default function CreateQuotePage() {
                                 </div>
                                 <button
                                   onClick={() => removeSelectedAddon(addonId)}
-                                  className="text-red-500 hover:text-red-400 transition-colors"
+                                  className="text-[#FF6467] hover:text-red-400 transition-colors"
                                 >
                                   <Trash2 size={18} />
                                 </button>
@@ -5785,21 +5786,19 @@ export default function CreateQuotePage() {
                           <div key={service.id} className="relative">
                             <button
                               type="button"
-                              onClick={() =>
-                                handleServiceSelect(service.id, service.price)
-                              }
-                              className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedServices.includes(service.id)
+                              onClick={() => handleServiceSelect(service.id, service.price)}
+                              className={`group relative grid h-[78px] w-full grid-rows-[auto_auto] content-center items-start overflow-hidden rounded-xl border px-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedServices.includes(service.id)
                                 ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                                 : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
                                 }`}
                             >
                               <div
                                 title={getServiceDisplayLabel(service.label)}
-                                className="mb-2 w-full truncate pr-2 font-medium leading-tight text-base text-white"
+                                className="w-full truncate pr-2 font-medium leading-normal text-base text-white self-end"
                               >
                                 {getServiceDisplayLabel(service.label)}
                               </div>
-                              <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                              <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-normal mt-0.5 self-start">
                                 ${service.price.toFixed(2)}{" "}
                                 <span className="text-[#71717B] font-medium text-xs lowercase ml-1">
                                   per hour
@@ -5807,7 +5806,8 @@ export default function CreateQuotePage() {
                               </div>
                               {selectedServices.includes(service.id) && (
                                 <div
-                                  className={`absolute top-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none ${isProtectedService ? "right-16 lg:right-16" : "right-20 lg:right-20"}`}
+                                  className={`absolute top-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none ${isProtectedService ? "right-16 lg:right-16" : "right-20 lg:right-20"
+                                    }`}
                                 >
                                   Selected
                                 </div>
@@ -6175,12 +6175,12 @@ export default function CreateQuotePage() {
                                       <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
                                         {isEditingServiceLabel(service.label) ? (
                                           <>
-                                            Editing Type - <span className="break-words text-[#8E826A]">{editingLabel || "Not selected"}</span>
+                                            Editing Type - <span className="break-words text-[#E8D1AB]">{editingLabel || "Not selected"}</span>
                                           </>
                                         ) : shootTypeLabel ? (
                                           <>
                                             {getServiceDisplayLabel(service.label)} -{" "}
-                                            <span className="break-words text-[#8E826A]">
+                                            <span className="break-words text-[#E8D1AB]">
                                               ({shootTypeLabel})
                                             </span>
                                           </>
@@ -6209,7 +6209,7 @@ export default function CreateQuotePage() {
                                               prev.filter((id) => id !== serviceId),
                                             )
                                           }
-                                          className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                                          className="w-10 h-10 rounded-full bg-[#323232] hover:bg-[#2A2A2A] border border-transparent flex items-center justify-center text-[#FF6467] transition-all"
                                         >
                                           <Trash2 size={18} />
                                         </button>
@@ -6573,17 +6573,17 @@ export default function CreateQuotePage() {
                     return (
                       <div
                         key={item.id}
-                        className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden"
+                        className="bg-[#111111] border border-[#FFFFFF80] rounded-xl p-4 lg:p-5 relative overflow-hidden"
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                          <div className="min-w-0 flex-1 pr-2 lg:flex lg:flex-col lg:justify-between lg:gap-1">
+                          <div className="min-w-0 flex-1 pr-2 flex lg:flex-col items-center justify-between lg:items-start lg:gap-1">
                             <h3
                               title={item.label}
-                              className="max-w-full truncate text-base font-medium text-white leading-snug"
+                              className="max-w-full truncate text-sm lg:text-lg font-medium text-white leading-snug"
                             >
                               {item.label}
                             </h3>
-                            <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                            <p className="text-[#F0DCB1] text-sm lg:text-lg font-semibold tracking-tight leading-none">
                               $
                               {item.basePrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
@@ -6675,11 +6675,12 @@ export default function CreateQuotePage() {
                                   onClick={() =>
                                     handleDeleteCatalogItem(item.id, "line_item")
                                   }
-                                  className="text-red-500 hover:text-red-400 transition-colors"
+                                  className="text-[#FF6467] hover:text-red-400 transition-colors"
                                 >
                                   <Trash2 size={18} />
                                 </button>
                               )}
+                              <Check size={16} strokeWidth={2} className={`text-[#16A34A]`} />
                             </div>
                           </div>
                         </div>
@@ -7125,7 +7126,7 @@ export default function CreateQuotePage() {
                           </span>
                         </div>
                         {reviewChangesData.delta < 0 &&
-                        additionalPaymentDetails.previouslyPaidAmount > 0 ? (
+                          additionalPaymentDetails.previouslyPaidAmount > 0 ? (
                           <p className="text-xs lg:text-sm text-[#E8D1AB]">
                             This reduced amount will be added as Beige Credits after approval.
                           </p>
@@ -7833,7 +7834,7 @@ export default function CreateQuotePage() {
           {!showInvoiceActions ? (
             showReviewChangesAction ? (
               <Button
-                className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1"
+                className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1"
                 disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft}
                 onClick={handleOpenReviewChangesModal}
               >
@@ -7844,11 +7845,11 @@ export default function CreateQuotePage() {
                 className={`${canPrimaryAction
                   ? view === "tax"
                     ? "bg-white text-[#1B1B1B]"
-                    : "bg-[#E8D1AB] text-[#101010]"
+                    : "bg-[#E8D1AB] text-[#1D1D1B]"
                   : isDark
-                    ? "bg-[#2A2B2D] text-zinc-600"
+                    ? "bg-[#E8D1AB] text-[#1D1D1B]"
                     : "bg-[#A4A5A6] text-white"
-                  } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1 `}
+                  } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1 `}
                 disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
                 onClick={handlePrimaryAction}
               >
@@ -8055,10 +8056,10 @@ export default function CreateQuotePage() {
         paymentSummaryOverrides={
           showQuoteRevisionSummary
             ? {
-                previousTotal: reviewChangesData.previousTotal,
-                previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
-                revisedTotal: totalAfterTax,
-              }
+              previousTotal: reviewChangesData.previousTotal,
+              previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
+              revisedTotal: totalAfterTax,
+            }
             : undefined
         }
       />
