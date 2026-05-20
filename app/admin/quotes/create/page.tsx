@@ -7777,8 +7777,8 @@ export default function CreateQuotePage() {
             <Button
               type="button"
               onClick={handleSaveAsDraft}
-              disabled={isCreatingQuoteDraft}
-              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              disabled={(selectedClient === null) || isCreatingQuoteDraft}
+              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
             >
               <div className="flex items-center justify-center">
                 <Save
@@ -7795,8 +7795,8 @@ export default function CreateQuotePage() {
           <Button
             type="button"
             onClick={handleSaveAsDraft}
-            disabled={isCreatingQuoteDraft}
-            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            disabled={(selectedClient === null) || isCreatingQuoteDraft}
+            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
           >
             <div className="flex items-center justify-center">
               <Save

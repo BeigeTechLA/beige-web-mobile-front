@@ -71,11 +71,7 @@ const SectionCard = ({
   const total = items.reduce((sum, item) => sum + item.amount, 0);
 
   return (
-    <div
-      className={`rounded-[18px] p-4 lg:p-6 ${
-        isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
-      }`}
-    >
+    <div className={`rounded-xl p-4 lg:p-6 ${isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"}`}>
       <div className="mb-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
@@ -94,9 +90,7 @@ const SectionCard = ({
         {items.map((item) => (
           <div
             key={`${title}-${item.id}`}
-            className={`rounded-2xl px-4 py-3 ${
-              isDark ? "border border-white/10 bg-[#151515]" : "border border-[#E9E9E9] bg-[#F4F5F7]"
-            }`}
+            className={`rounded-2xl px-4 py-3 ${isDark ? "border border-white/10 bg-[#151515]" : "border border-[#E9E9E9] bg-[#F4F5F7]"}`}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -140,20 +134,15 @@ const InfoTile = ({
   }
 
   return (
-    <div
-      className={`rounded-[18px] p-4 ${
-        isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
-      }`}
-    >
-      <div
-        className={`mb-3 flex h-10 w-10 items-center justify-center rounded-2xl text-[#E8D1AB] ${
-          isDark ? "bg-[#2A2A2A]" : "bg-[#F4F5F7]"
-        }`}
-      >
-        {icon}
+    <div className={`rounded-xl flex flex-col p-4 lg:border gap-2 ${isDark ? "border-white/10 bg-[#282727]" : " border-[#DFDDDD] bg-white"}`}>
+      <div className="flex lg:flex-col gap-2 lg:gap-3 items-center lg:items-start">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl text-[#E8D1AB] ${isDark ? "bg-[#2A2A2A]" : "bg-[#F4F5F7]"}`}>
+          {icon}
+        </div>
+        <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">{label}</p>
       </div>
-      <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">{label}</p>
-      <p className={`mt-2 text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"}`}>
+
+      <p className={`text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"}`}>
         {value}
       </p>
     </div>
@@ -175,11 +164,11 @@ export default function QuoteSummaryContent({
   );
   const hasClientSummary = Boolean(
     snapshot &&
-      (
-        snapshot.clientName.trim() ||
-        snapshot.clientEmail.trim() ||
-        snapshot.clientPhone.trim()
-      )
+    (
+      snapshot.clientName.trim() ||
+      snapshot.clientEmail.trim() ||
+      snapshot.clientPhone.trim()
+    )
   );
   const hasTotals =
     Boolean(snapshot) &&
@@ -197,41 +186,37 @@ export default function QuoteSummaryContent({
       : "";
   const visibleInfoTiles = snapshot
     ? [
-        {
-          key: "validUntil",
-          icon: <CalendarDays size={18} />,
-          label: "Valid Until",
-          value: validUntilText,
-        },
-        {
-          key: "shootType",
-          icon: <Film size={18} />,
-          label: "Shoot Type",
-          value: snapshot.shootTypeLabel,
-        },
-        {
-          key: "address",
-          icon: <MapPin size={18} />,
-          label: "Address",
-          value: snapshot.clientAddress,
-        },
-        {
-          key: "project",
-          icon: <FileText size={18} />,
-          label: "Project",
-          value: snapshot.projectDescription,
-        },
-      ].filter((item) => item.value.trim())
+      {
+        key: "validUntil",
+        icon: <CalendarDays size={18} />,
+        label: "Valid Until",
+        value: validUntilText,
+      },
+      {
+        key: "shootType",
+        icon: <Film size={18} />,
+        label: "Shoot Type",
+        value: snapshot.shootTypeLabel,
+      },
+      {
+        key: "address",
+        icon: <MapPin size={18} />,
+        label: "Address",
+        value: snapshot.clientAddress,
+      },
+      {
+        key: "project",
+        icon: <FileText size={18} />,
+        label: "Project",
+        value: snapshot.projectDescription,
+      },
+    ].filter((item) => item.value.trim())
     : [];
 
   return (
     <div className="px-4 pb-24 pt-6 lg:px-9 lg:pb-12 lg:pt-8">
       {!snapshot ? (
-        <div
-          className={`rounded-[20px] p-6 text-center lg:p-10 ${
-            isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
-          }`}
-        >
+        <div className={`rounded-[20px] p-6 text-center lg:p-10 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"}`}>
           <p className={`text-xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
             Quote summary unavailable
           </p>
@@ -249,11 +234,7 @@ export default function QuoteSummaryContent({
         </div>
       ) : (
         <>
-          <div
-            className={`rounded-[20px] ${
-              isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
-            }`}
-          >
+          <div className={`rounded-[20px] ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"}`}>
             <div className={`px-5 py-5 lg:px-8 lg:py-7 ${isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD]"}`}>
               <h1 className={`text-[20px] font-semibold lg:text-[24px] ${isDark ? "text-white" : "text-black"}`}>
                 Quote Summary
@@ -266,47 +247,56 @@ export default function QuoteSummaryContent({
             <div className="space-y-6 px-5 py-5 lg:px-8 lg:py-8">
               {hasClientSummary ? (
                 <div
-                  className={`rounded-[18px] p-5 lg:p-6 ${
-                    isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-[#F4F5F7]"
-                  }`}
+                // className={`rounded-xl p-5 lg:p-6 ${isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-[#F4F5F7]"}`}
                 >
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-medium lg:h-20 lg:w-20 lg:text-2xl ${
-                          isDark ? "bg-[#333333] text-[#FFFFFF85]" : "bg-white text-[#00000085]"
-                        }`}
-                      >
-                        {getInitials(snapshot.clientName || snapshot.clientEmail || snapshot.clientPhone)}
-                      </div>
-                      <div>
-                        <p className={`text-xl font-semibold lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
-                          {snapshot.clientName || snapshot.clientEmail || snapshot.clientPhone}
-                        </p>
-                        <div className="mt-2 flex flex-col gap-2 text-sm text-[#A1A1AA]">
-                          {snapshot.clientEmail.trim() ? (
-                            <span className="flex items-center gap-2">
-                              <Mail size={15} className="text-[#E8D1AB]" />
-                              {snapshot.clientEmail}
-                            </span>
-                          ) : null}
-                          {snapshot.clientPhone.trim() ? (
-                            <span className="flex items-center gap-2">
-                              <Phone size={15} className="text-[#E8D1AB]" />
-                              {snapshot.clientPhone}
-                            </span>
-                          ) : null}
+                    <div className="flex flex-col gap-2 ">
+                      <div className="flex items-center gap-4">
+                        <div className={`shrink-0 flex h-15 w-15 lg:h-16 lg:w-16 items-center justify-center rounded-full text-xl lg:text-2xl font-medium lg:h-20 lg:w-20 lg:text-2xl ${isDark ? "bg-[#333333] text-[#FFFFFF85]" : "bg-white text-[#00000085]"}`}>
+                          {getInitials(snapshot.clientName || snapshot.clientEmail || snapshot.clientPhone)}
                         </div>
+                        <div>
+                          <p className={`text-xl font-semibold lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
+                            {snapshot.clientName || snapshot.clientEmail || snapshot.clientPhone}
+                          </p>
+                          <div className="hidden mt-2 lg:flex flex-col gap-2 text-sm text-[#A1A1AA]">
+                            {snapshot.clientEmail.trim() ? (
+                              <span className="flex items-center gap-2">
+                                <Mail size={15} className="text-[#E8D1AB]" />
+                                {snapshot.clientEmail}
+                              </span>
+                            ) : null}
+                            {snapshot.clientPhone.trim() ? (
+                              <span className="flex items-center gap-2">
+                                <Phone size={15} className="text-[#E8D1AB]" />
+                                {snapshot.clientPhone}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                      <div className=" flex mt-2 lg:hidden flex-col gap-1 text-sm text-[#A1A1AA]">
+                        {snapshot.clientEmail.trim() ? (
+                          <span className="flex items-center gap-2">
+                            <Mail size={15} className="text-[#E8D1AB]" />
+                            {snapshot.clientEmail}
+                          </span>
+                        ) : null}
+                        {snapshot.clientPhone.trim() ? (
+                          <span className="flex items-center gap-2">
+                            <Phone size={15} className="text-[#E8D1AB]" />
+                            {snapshot.clientPhone}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 
+
                     <div
-                      className={`rounded-2xl px-4 py-3 lg:min-w-[260px] ${
-                        isDark ? "border border-white/10 bg-[#151515]" : "border border-[#DFDDDD] bg-white"
-                      }`}
+                      className={`rounded-xl lg:rounded-2xl px-4 py-3 lg:min-w-[260px] flex lg:flex-col items-center justify-between lg:items-start lg:gap-2 ${isDark ? "border border-white/10 bg-[#151515]" : "border border-[#DFDDDD] bg-white"}`}
                     >
                       <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">Generated</p>
-                      <p className={`mt-2 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                      <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
                         {formatDate(snapshot.generatedAt)}
                       </p>
                     </div>
@@ -336,11 +326,7 @@ export default function QuoteSummaryContent({
               </div>
 
               {hasTotals ? (
-                <div
-                  className={`rounded-[18px] p-4 lg:p-6 ${
-                    isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
-                  }`}
-                >
+                <div className={`rounded-xl p-4 lg:p-6 ${isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"}`}>
                   <div className="mb-5 flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
                       <FileText size={18} />
@@ -385,11 +371,7 @@ export default function QuoteSummaryContent({
               ) : null}
 
               {hasTerms ? (
-                <div
-                  className={`rounded-[18px] p-4 lg:p-6 ${
-                    isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
-                  }`}
-                >
+                <div className={`rounded-xl p-4 lg:p-6 ${isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"}`}>
                   <div className="mb-4 flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
                       <FileText size={18} />
