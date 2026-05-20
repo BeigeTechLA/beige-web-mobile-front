@@ -35,9 +35,24 @@ export function PermissionMatrixTable({
   const toggleSelection = (rowId: string, checked: boolean) => {
     if (readOnly) return;
     onChange?.(
-      rows.map((row) =>
-        row.id === rowId ? { ...row, selected: checked } : row,
-      ),
+      rows.map((row) => {
+        if (row.id === rowId) {
+          const newAccess = { ...row.access };
+          // Only toggle actions that are allowed for this module
+          const actionsToToggle = row.allowedActions || accessColumns.map(c => c.key);
+          
+          actionsToToggle.forEach(action => {
+            newAccess[action] = checked;
+          });
+
+          return {
+            ...row,
+            selected: checked,
+            access: newAccess,
+          };
+        }
+        return row;
+      }),
     );
   };
 
@@ -52,24 +67,30 @@ export function PermissionMatrixTable({
     }
 
     const targetRow = rows.find((row) => row.id === rowId);
+    if (!targetRow) return;
 
-    if (checked && key !== "view" && targetRow && !targetRow.access.view) {
+    if (checked && key !== "view" && !targetRow.access.view) {
       onInvalidAccessAttempt?.(targetRow, key);
       return;
     }
 
     onChange?.(
-      rows.map((row) =>
-        row.id === rowId
-          ? {
-              ...row,
-              access: { ...row.access, [key]: checked },
-              selected: Object.entries({ ...row.access, [key]: checked }).some(
-                ([, value]) => Boolean(value),
-              ),
-            }
-          : row,
-      ),
+      rows.map((row) => {
+        if (row.id === rowId) {
+          const updatedAccess = { ...row.access, [key]: checked };
+          const actionsToCheck = row.allowedActions || accessColumns.map(c => c.key);
+          
+          // Row is 'selected' only if ALL its allowed actions are checked
+          const allAllowedChecked = actionsToCheck.every(action => updatedAccess[action]);
+
+          return {
+            ...row,
+            access: updatedAccess,
+            selected: allAllowedChecked,
+          };
+        }
+        return row;
+      }),
     );
   };
 
@@ -140,14 +161,18 @@ export function PermissionMatrixTable({
                 {accessColumns.map((column) => (
                   <td key={column.key} className="px-6 py-8 text-center">
                     <div className="flex justify-center" onClick={() => readOnly && onReadOnlyClick?.()}>
-                      <Checkbox
-                        checked={row.access[column.key]}
-                        onCheckedChange={(value) =>
-                          toggleAccess(row.id, column.key, value === true)
-                        }
-                        disabled={readOnly}
-                        className="h-6 w-6 rounded-md border-white/10 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
-                      />
+                      {(!row.allowedActions || row.allowedActions.includes(column.key)) ? (
+                        <Checkbox
+                          checked={row.access[column.key]}
+                          onCheckedChange={(value) =>
+                            toggleAccess(row.id, column.key, value === true)
+                          }
+                          disabled={readOnly}
+                          className="h-6 w-6 rounded-md border-white/10 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
+                        />
+                      ) : (
+                        <span className="text-white/10">—</span>
+                      )}
                     </div>
                   </td>
                 ))}

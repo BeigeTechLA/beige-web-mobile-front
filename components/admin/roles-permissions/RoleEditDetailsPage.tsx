@@ -97,6 +97,7 @@ export function RoleEditDetailsPage({
             <PermissionMatrixTable
               rows={rows}
               onChange={onRowsChange}
+              showSelectionColumn
               readOnly={readOnly}
               onReadOnlyClick={onOpenModal}
               onInvalidAccessAttempt={onInvalidAccessAttempt}

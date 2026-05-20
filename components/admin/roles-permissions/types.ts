@@ -36,4 +36,5 @@ export type PermissionMatrixRow = {
   label: string;
   selected: boolean;
   access: Record<PermissionColumnKey, boolean>;
+  allowedActions?: PermissionColumnKey[];
 };

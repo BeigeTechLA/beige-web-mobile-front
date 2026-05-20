@@ -16,6 +16,7 @@ export interface User {
   instagram_handle?: string;
   userTypeId: number;
   userRole: string;
+  role_id?: number | string;
   email_verified?: number;
   crew_member_id?: number | null;
   created_at?: string;

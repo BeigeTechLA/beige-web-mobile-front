@@ -5,6 +5,7 @@ import { User } from '@/lib/types';
 interface AuthState {
   user: User | null;
   token: string | null;
+  permissions: Record<string, Record<string, boolean>> | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -12,6 +13,7 @@ interface AuthState {
 const initialState: AuthState = {
   user: null,
   token: null,
+  permissions: null,
   isAuthenticated: false,
   isLoading: true,
 };
@@ -54,12 +56,16 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
+      state.permissions = null;
       state.isAuthenticated = false;
       state.isLoading = false;
 
       // Clear cookies
       Cookies.remove('revure_token');
       Cookies.remove('revure_user');
+    },
+    setPermissions: (state, action: PayloadAction<Record<string, Record<string, boolean>>>) => {
+      state.permissions = action.payload;
     },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
@@ -73,5 +79,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, logout, updateUser, setLoading } = authSlice.actions;
+export const { setCredentials, logout, updateUser, setLoading, setPermissions } = authSlice.actions;
 export default authSlice.reducer;

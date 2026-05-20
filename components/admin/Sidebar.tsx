@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt, DollarSign, ShieldCheck, Settings } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -41,16 +41,17 @@ const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
 };
 
 const menuItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
-  { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
-  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
-  { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
+  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['dashboard'] },
+  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['request_shoots', 'shoots'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
+  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
+  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },
   {
     name: 'Sales Representative',
     icon: CircleDollarSign,
     link: '/admin/sales-representative',
+    permissionKeys: ['sales_representative'],
     children: [
       { name: 'Dashboard', link: '/admin/sales-representative' },
       { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
@@ -68,24 +69,26 @@ const menuItems = [
   {
     name: 'Users',
     icon: Users,
+    permissionKeys: ['profile', 'users'],
     children: [
       { name: 'All Users', link: '/admin/users/all' },
       { name: 'Clients', link: '/admin/users/clients' },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
-  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions' },
+  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions', permissionKeys: ['settings', 'roles_permissions'] },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
     link: '/admin/quotes',
+    permissionKeys: ['sales', 'quotes'],
     children: [
       { name: 'All Quotes', link: '/admin/quotes' },
       { name: 'Quote Approvals', link: '/admin/quotes/change-requests' },
       { name: 'Master Pricing', link: '/admin/quotes/pricing' },
     ],
   },
-  { name: 'Invoices', icon: Receipt, link: '/admin/invoice' },
+  { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['invoices'] },
 ];
 
 type MenuItem = {
@@ -94,6 +97,7 @@ type MenuItem = {
   link?: string;
   children?: { name: string; link: string; isDisabled?: boolean }[];
   isDisabled?: boolean;
+  permissionKeys?: string[];
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
