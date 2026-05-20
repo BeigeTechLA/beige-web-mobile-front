@@ -591,7 +591,7 @@ const RequestDetailsModal = ({
           <section className="rounded-2xl border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
             <h4 className="lg:text-xl font-medium text-white">Change Summary</h4>
             <div className="mt-5 overflow-hidden rounded-xl border border-white/12 bg-[#0B0B0B]">
-              <div className="border-b border-white/10 px-5 py-6 lg:text-lg font-semibold leading-8 text-[#E7D2AB]">
+              <div className="border-b border-white/10 p-4 lg:px-5 lg:py-6 text-sm lg:text-lg font-semibold leading-5 lg:leading-8 text-[#E7D2AB]">
                 {changeSummary ||
                   `Quote total changed from ${formatCurrency(previousTotal)} to ${formatCurrency(
                     newTotal
@@ -599,7 +599,7 @@ const RequestDetailsModal = ({
                     requestType === "increase" ? extraAmount : reducedAmount
                   )}) across 1 update.`}
               </div>
-              <div className="space-y-4 px-5 py-5 text-xs lg:text-sm leading-5 lg:leading-7 text-white/70 lg:text-base">
+              <div className="space-y-4 p-4 lg:p-5 text-sm leading-5 lg:leading-7 text-white/70 lg:text-base">
                 {summaryLines.length > 0 ? (
                   summaryLines.map((line, index) => (
                     <p key={`${request.activity_id}-line-${index}`}>{line}</p>
@@ -612,7 +612,7 @@ const RequestDetailsModal = ({
                   <Link href={`${detailsHrefBase}/${request.quote_id}`}>
                     <Button
                       type="button"
-                      className="mt-2 h-14 rounded-lg lg:rounded-2xl bg-[#EED4A7] px-5 text-sm lg:text-base font-semibold text-black hover:bg-[#EED4A7]/92"
+                      className="mt-2 h-14 rounded-lg lg:rounded-2xl bg-[#EED4A7] px-5 text-sm lg:text-base font-semibold text-black hover:bg-[#EED4A7]/92 w-full lg:w-fit"
                     >
                       View Full Quote Details
                     </Button>

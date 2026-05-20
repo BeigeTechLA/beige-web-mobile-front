@@ -1502,6 +1502,91 @@ export const adminApi = {
       };
     }
   },
+  getCreditPointsDashboard: async (params: {
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    date_on?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('finance/admin/credit-points/dashboard', {
+        params,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Credit Points Dashboard Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch credit points dashboard',
+      };
+    }
+  },
+  getCreditPointsUserById: async (userId: string | number) => {
+    try {
+      const response = await api.get(`finance/admin/credit-points/users/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Credit Points User Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch credit points user details',
+      };
+    }
+  },
+  getCreditPointsUserByGuestEmail: async (guestEmail: string) => {
+    try {
+      const response = await api.get('finance/admin/credit-points/users', {
+        params: { guest_email: guestEmail },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Credit Points User By Guest Email Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch credit points user details',
+      };
+    }
+  },
+  exportCreditPoints: async () => {
+    try {
+      const response = await api.get('finance/admin/credit-points/export');
+      return response.data;
+    } catch (error: any) {
+      console.error('Export Credit Points Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to export credit points',
+      };
+    }
+  },
+  createManualCreditPoint: async (payload: {
+    user_type: string;
+    target_user_id?: number;
+    guest_email?: string;
+    amount: number;
+    credit_type: string;
+    expires_at?: string;
+    reason: string;
+    notes?: string;
+    restrictions_json?: Record<string, unknown>;
+    notify_user: boolean;
+  }) => {
+    try {
+      const response = await api.post('finance/admin/credit-points/manual', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Manual Credit Point Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create credit point',
+      };
+    }
+  },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/get-dashboard-summary', { params });
@@ -1554,7 +1639,14 @@ export const adminApi = {
       };
     }
   },
-  getCrewForShoot: async (params: { project_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+  getCrewForShoot: async (params: {
+    project_id: number | string,
+    role_type: string,
+    search_query?: string,
+    radius?: number,
+    latitude?: number,
+    longitude?: number
+  }) => {
     try {
       const response = await api.get('admin/get-crew-for-shoot/', { params });
       return response.data;
@@ -1697,7 +1789,7 @@ export const adminApi = {
       };
     }
   },
-  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
+  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string } = {}) => {
     try {
       const response = await api.get('admin/get-projects', {
         params,
@@ -2422,6 +2514,56 @@ export const ConfirmCPEventLocation = async () => {
 };
 
 export const salesApi = {
+  getLeads: async (params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    lead_type?: string;
+    assigned_to?: string;
+    search?: string;
+    start_date?: string;
+    end_date?: string;
+    intent?: string;
+    cp_assignment?: string;
+    production_filter?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('/sales/leads', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Leads Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch leads',
+      };
+    }
+  },
+  getLeadsBoard: async (params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    lead_type?: string;
+    assigned_to?: string;
+    search?: string;
+    start_date?: string;
+    end_date?: string;
+    intent?: string;
+    cp_assignment?: string;
+    production_filter?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('/sales/leads/board', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Leads Board Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch leads board',
+      };
+    }
+  },
   getLeadStats: async (leadId: number | string) => {
     try {
       const response = await api.get(`/sales/get-lead-stats/${leadId}`);
@@ -2448,7 +2590,14 @@ export const salesApi = {
       };
     }
   },
-  getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+  getCrewForLead: async (params: {
+    lead_id: number | string,
+    role_type: string,
+    search_query?: string,
+    radius?: number,
+    latitude?: number,
+    longitude?: number
+  }) => {
     try {
       const response = await api.get('admin/get-crew-for-lead/', { params });
       return response.data;

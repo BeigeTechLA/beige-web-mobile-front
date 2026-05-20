@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { useRouter,useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
 import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
@@ -109,8 +109,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
         const responseData = projectResponse?.data || null;
 
-const projectData: ProjectDetails | undefined = 
-  responseData?.project || responseData || projectResponse;
+        const projectData: ProjectDetails | undefined =
+          responseData?.project || responseData || projectResponse;
 
         if (projectData) {
           // 3. Map Skills Needed to Names
@@ -276,7 +276,7 @@ const projectData: ProjectDetails | undefined =
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
                 ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
-                : "bg-white border-[#E5E5E5] text-[#666] hover:bg-zinc-50"
+                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
                 }`}
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
@@ -288,9 +288,9 @@ const projectData: ProjectDetails | undefined =
         }
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-6 lg:-m-10 relative">
+      <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-4 lg:-m-10 relative">
         {/* Main Content (Left) */}
-        <div className="flex-1 p-6 pb-30 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] ">
+        <div className="flex-1 p-4 pb-30 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] ">
           <ShootHeader activeTab={activeTab} project={project} projectId={id} />
           <Button
             className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
@@ -302,45 +302,55 @@ const projectData: ProjectDetails | undefined =
             View Project Timeline
           </Button>
 
-          <div className={`rounded-lg lg:rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
+          <div className={`rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
             <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
-            <div className="px-5 py-6 lg:py-9">
+            <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
                     <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
                   </div>
-                  <MeetingSchedule orderId={id} />
+                  <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+                    <MeetingSchedule orderId={id} />
+                  </div>
                 </>
               )}
 
-          {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-            <PreProductionTab projectId={String(bookingId)} />
-          )}
+              {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
+                <div className={`px-5`}>
+                  <PreProductionTab projectId={String(bookingId)} />
+                </div>
+              )}
 
-          {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-            <PostProductionTab projectId={String(bookingId)} />
-          )}
+              {(activeTab === "Post_Production" || activeTab === "Post Production") && (
+                <div className={`px-5`}>
+                  <PostProductionTab projectId={String(bookingId)} />
+                </div>
+              )}
 
-          {activeTab === "Meetings" && (
-            <>
-              <MeetingSchedule orderId={id} />
-              <MeetingOverviewChart />
-            </>
-          )}
+              {activeTab === "Meetings" && (
+                <>
+                  <MeetingSchedule orderId={id} />
+                  <div className={`px-5 border-t ${isDark ? "border-t-[#FFFFFF80]" : "border-t-black/40"}`}>
+                    <MeetingOverviewChart />
+                  </div>
+                </>
+              )}
 
-          {activeTab === "Messages" && (
-            <MessagesTab
-              role="admin"
-              bookingId={project?.booking_id || project?.stream_project_booking_id || id}
-              assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
-              projectName={project?.project_name}
-              salesRepName={project?.lead_details?.assigned_sales_rep?.name || null}
-              clientName={project?.project?.client?.name || project?.client?.name || null}
-            />
-          )}
-          </div>
+              {activeTab === "Messages" && (
+                <div className={`px-5`}>
+                  <MessagesTab
+                    role="admin"
+                    bookingId={project?.booking_id || project?.stream_project_booking_id || id}
+                    assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+                    projectName={project?.project_name}
+                    salesRepName={project?.lead_details?.assigned_sales_rep?.name || null}
+                    clientName={project?.project?.client?.name || project?.client?.name || null}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

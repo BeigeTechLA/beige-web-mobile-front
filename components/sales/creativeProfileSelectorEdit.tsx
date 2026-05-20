@@ -44,17 +44,10 @@ export const CreativeProfileSelectorAddEdit = ({
             
             setIsLoading(true);
             try {
-                // Extract City from Location (e.g., "Dubai, United Arab Emirates" -> "Dubai")
-                const locationParts = currentLocation.split(/[,،]/);
-                let cityHint = "";
-                if (locationParts.length > 0) {
-                    cityHint = locationParts[0].trim().replace(/\d+/g, '');
-                }
-
                 const response = await salesApi.getCrewForLead({
                     lead_id: leadId,
                     role_type: roleType,
-                    search_query: debouncedSearch || cityHint
+                    search_query: debouncedSearch || undefined
                 });
 
                 if (response && response.data) {

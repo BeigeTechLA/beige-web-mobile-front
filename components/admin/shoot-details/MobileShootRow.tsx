@@ -69,11 +69,10 @@ export const MobileShootRow = ({ shoot, onRowClick }: MobileShootRowProps) => {
   if (!mounted) return null;
 
   return (
-    <div className={`rounded-lg  transition-all duration-300 ${isDark ? "bg-[#171717] border border-white/5" : ((isExpanded ? "bg-[#F9F9F9]" : "bg-white"))
-      }`}>
+    <div className={`transition-all duration-300 ${isDark ? ((isExpanded ? "bg-[#202020]" : "bg-[#171717]")) : ((isExpanded ? "bg-[#F9F9F9]" : "bg-white"))}`}>
       {/* Header - Always Visible */}
       <div
-        className="flex items-center justify-between p-3 cursor-pointer"
+        className="flex items-center justify-between p-5 cursor-pointer gap-2"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-4">
@@ -87,7 +86,7 @@ export const MobileShootRow = ({ shoot, onRowClick }: MobileShootRowProps) => {
 
           {/* Customer Avatar & Name */}
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-sm flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
+            <div className={`shrink-0 w-8 h-8 rounded-sm flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
               }`}>
               {shoot.initials}
             </div>
@@ -108,10 +107,9 @@ export const MobileShootRow = ({ shoot, onRowClick }: MobileShootRowProps) => {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className={`transition-colors duration-300 ${isDark ? "border-t border-white/5 bg-black/10" : "border-[#E5E5E5] bg-[#F9F9F9]"
-              }`}
+            className={`transition-colors duration-300 ${isDark ? "bg-[#202020]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}
           >
-            <div className="p-3 space-y-4">
+            <div className="pt-0 pr-5 pb-7 pl-14 space-y-4">
               {/* Data Grid: 2 Columns */}
               <div className="grid grid-cols-2 gap-y-3">
                 <div>

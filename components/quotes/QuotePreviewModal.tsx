@@ -24,6 +24,7 @@ type QuotePreviewModalProps = {
   quote: SalesQuoteDetailData | null;
   quoteId?: string | null;
   isLoading?: boolean;
+  onBeforeSend?: () => Promise<boolean> | boolean;
   paymentSummaryOverrides?: {
     previousTotal?: number;
     previouslyPaid?: number;
@@ -53,6 +54,7 @@ export default function QuotePreviewModal({
   quote,
   quoteId,
   isLoading = false,
+  onBeforeSend,
   paymentSummaryOverrides,
 }: QuotePreviewModalProps) {
   const { isDark } = useResolvedTheme();
@@ -78,6 +80,8 @@ export default function QuotePreviewModal({
   }, [open]);
 
   const quoteData = unwrapSalesQuoteDetail(quote);
+  const isExpired = quoteData?.status?.toLowerCase() === "expired";
+
   const resolvedQuoteId = String(
     quoteData?.sales_quote_id ?? quoteData?.quote_id ?? quoteData?.id ?? quoteId ?? ""
   );
@@ -153,6 +157,13 @@ export default function QuotePreviewModal({
     setIsSending(true);
 
     try {
+      if (onBeforeSend) {
+        const canContinue = await onBeforeSend();
+        if (!canContinue) {
+          return;
+        }
+      }
+
       const response = await salesApi.sendQuoteProposal(resolvedQuoteId);
 
       if (response?.error || response?.success === false) {
@@ -200,7 +211,7 @@ export default function QuotePreviewModal({
             <ArrowLeft size={18} className="mr-2" />
             Back
           </Button>
-
+          {!isExpired && (
           <div className="hidden items-center gap-3 lg:flex">
             <PreviewActionButton
               onClick={() => {
@@ -230,7 +241,9 @@ export default function QuotePreviewModal({
               {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
             </PreviewActionButton>
           </div>
+           )}
         </div>
+       
 
         <div className="flex-1 overflow-y-auto px-4 pb-8 pt-6 lg:px-8 lg:pb-12 lg:pt-8">
           {isLoading ? (

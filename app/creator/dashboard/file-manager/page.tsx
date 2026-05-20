@@ -20,6 +20,7 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import {
@@ -56,6 +57,15 @@ export default function CreatorFileManagerPage() {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareResource, setShareResource] = useState<{
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+    label?: string;
+  } | null>(null);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -351,6 +361,14 @@ export default function CreatorFileManagerPage() {
                   }
                 }}
                 onDownload={() => handleDownloadSelectedFolder(folder)}
+                onShare={() => {
+                  setShareResource({
+                    resourceType: "workspace",
+                    externalId: String(folder.id || ""),
+                    label: folder.title,
+                  });
+                  setIsShareModalOpen(true);
+                }}
                 onRename={() => toast.info("Folder rename is the next safe step.")}
               />
             ))}
@@ -421,6 +439,15 @@ export default function CreatorFileManagerPage() {
           anchor={menuAnchor}
           href={selectedFolder?.href}
           onDownload={handleDownloadSelectedFolder}
+          onShare={() => {
+            if (!selectedFolder) return;
+            setShareResource({
+              resourceType: "workspace",
+              externalId: String(selectedFolder.id || ""),
+              label: selectedFolder.title,
+            });
+            setIsShareModalOpen(true);
+          }}
           onDelete={
             selectedFolder && isCommonEventWorkspaceId(selectedFolder.id)
               ? () => setIsDeleteModalOpen(true)
@@ -443,6 +470,14 @@ export default function CreatorFileManagerPage() {
         itemName={selectedFolder?.title || "this folder"}
         itemType="folder"
         isDeleting={isDeleting}
+      />
+      <ShareResourceModal
+        isOpen={isShareModalOpen}
+        onClose={() => {
+          setIsShareModalOpen(false);
+          setShareResource(null);
+        }}
+        resource={shareResource}
       />
     </div>
   );

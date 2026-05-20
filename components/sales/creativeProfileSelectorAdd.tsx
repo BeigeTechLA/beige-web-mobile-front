@@ -45,7 +45,7 @@ export const CreativeProfileSelectorAdd = ({
   const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [appliedFilters, setAppliedFilters] = useState({ radius: 100 });
+  const [appliedFilters, setAppliedFilters] = useState({ radius: 50 });
   const [stats, setStats] = useState<any>(null);
   const [creatives, setCreatives] = useState<any[]>([]);
   // const [roleType, setRoleType] = useState<string>('videographer');
@@ -101,45 +101,21 @@ export const CreativeProfileSelectorAdd = ({
         setIsLoading(false);
         return;
       }
-
-      const location = currentLocation || stats?.location;
-
-      // Allow search with location even without leadId
-      if (!location && !debouncedSearch) {
-        if (leadId && !targets && !stats) {
-          return;
-        }
-        setIsLoading(false);
-        return;
-      }
-
       setIsLoading(true);
       try {
-        // Extract city logic
-        let city = "";
-        if (location) {
-          const locationParts = location.split(/[,،]/);
-          city = location;
-          if (locationParts.length > 1) {
-            let candidate = locationParts[1].trim();
-            candidate = candidate.replace(/\d+/g, '').trim();
-            if (candidate) city = candidate;
-          }
-        }
-
         let response;
         if (projectId) {
           response = await adminApi.getCrewForShoot({
             project_id: projectId,
             role_type: roleType,
-            search_query: debouncedSearch || city,
+            search_query: debouncedSearch || undefined,
             radius: appliedFilters.radius
           });
         } else {
           response = await salesApi.getCrewForLead({
             lead_id: leadId || 0,
             role_type: roleType,
-            search_query: debouncedSearch || city,
+            search_query: debouncedSearch || undefined,
             radius: appliedFilters.radius
           });
         }
@@ -408,3 +384,5 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark }:
     </div>
   );
 };
+
+

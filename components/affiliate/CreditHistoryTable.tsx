@@ -14,6 +14,8 @@ import {
 
 export type CreditHistoryRow = {
   id: string;
+  userId?: number | null;
+  guestEmail?: string;
   date: string;
   clientName: string;
   email: string;

@@ -42,7 +42,7 @@ export const IntentBadge = ({
     <span
       className={cn(
         "rounded-full font-medium transition-colors inline-flex items-center justify-center",
-        size === "sm" ? "px-3 py-1 text-[10px] lg:text-xs" : "px-4 py-1.5 text-sm lg:text-base",
+        size === "sm" ? "px-3 py-1 text-[10px] lg:text-xs" : "px-4 py-1.5 text-xs lg:text-sm",
         activeClasses,
         className
       )}

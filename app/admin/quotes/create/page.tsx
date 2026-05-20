@@ -434,6 +434,32 @@ const pickFirstClientValue = (
   return "";
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizePhoneNumberInput = (value: string) =>
+  value.replace(/[^\d-]/g, "");
+
+const validateClientContactDetails = ({
+  email,
+  phone,
+}: {
+  email: string;
+  phone: string;
+}) => {
+  const trimmedEmail = email.trim();
+  const trimmedPhone = phone.trim();
+
+  if (!EMAIL_REGEX.test(trimmedEmail)) {
+    return "Please enter a valid email address.";
+  }
+
+  if (trimmedPhone && !/^[\d-]+$/.test(trimmedPhone)) {
+    return "Phone number must contain only digits and hyphen (-).";
+  }
+
+  return null;
+};
+
 const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
   pickFirstClientValue(client?.name, client?.client_name, client?.full_name);
 
@@ -1283,7 +1309,7 @@ export default function CreateQuotePage() {
 
       setClientName(getClientDisplayName(client));
       setEmailId(getClientEmail(client));
-      setPhoneNumber(getClientPhone(client));
+      setPhoneNumber(normalizePhoneNumberInput(getClientPhone(client)));
       setAddress(getClientAddress(client));
     },
     [],
@@ -1311,7 +1337,7 @@ export default function CreateQuotePage() {
 
     setClientName(getClientDisplayName(selectedClient));
     setEmailId(getClientEmail(selectedClient));
-    setPhoneNumber(getClientPhone(selectedClient));
+    setPhoneNumber(normalizePhoneNumberInput(getClientPhone(selectedClient)));
     setAddress(getClientAddress(selectedClient));
   }, [selectedClient]);
 
@@ -1651,7 +1677,7 @@ export default function CreateQuotePage() {
         setSelectedClient(hydratedState.selectedClient);
         setClientName(hydratedState.clientName);
         setEmailId(hydratedState.emailId);
-        setPhoneNumber(hydratedState.phoneNumber);
+        setPhoneNumber(normalizePhoneNumberInput(hydratedState.phoneNumber));
         setAddress(hydratedState.address);
         setProjectDescription(hydratedState.projectDescription);
         setValidityDays(hydratedState.validityDays);
@@ -2614,6 +2640,7 @@ export default function CreateQuotePage() {
     selectedServices,
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
+  const shouldHideBackButton = isQuoteSaved;
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
@@ -2631,6 +2658,18 @@ export default function CreateQuotePage() {
     if (!currentStepValidation.isValid) {
       toast.error(getQuoteValidationMessage(currentStepValidation));
       return;
+    }
+
+    if (view === "details") {
+      const contactValidationError = validateClientContactDetails({
+        email: emailId,
+        phone: phoneNumber,
+      });
+
+      if (contactValidationError) {
+        toast.error(contactValidationError);
+        return;
+      }
     }
 
     if (view === "selection" && selectedClient) {
@@ -2897,6 +2936,18 @@ export default function CreateQuotePage() {
 
     return total + (selectedEditingTypes.length ? editingTotal : baseTotal);
   }, 0);
+  const effectiveAddonConfigs = React.useMemo(
+    () => ({ ...appliedAddonConfigs, ...addonConfigs }),
+    [appliedAddonConfigs, addonConfigs],
+  );
+  const effectiveLogisticsConfigs = React.useMemo(
+    () => ({ ...appliedLogisticsConfigs, ...logisticsConfigs }),
+    [appliedLogisticsConfigs, logisticsConfigs],
+  );
+  const effectiveLineItemConfigs = React.useMemo(
+    () => ({ ...appliedLineItemConfigs, ...lineItemConfigs }),
+    [appliedLineItemConfigs, lineItemConfigs],
+  );
   const selectedServicesMaxDurationHours = React.useMemo(() => {
     const durations = selectedServices
       .filter((serviceId) => {
@@ -3005,12 +3056,18 @@ export default function CreateQuotePage() {
     Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
     () =>
-      getQuoteAdditionalPaymentDetails(previewQuote ?? quoteToEdit, {
+      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
         revisedTotalOverride: totalAfterTax,
         previouslyPaidOverride: safePreviouslyPaidOverride,
         previousTotalOverride: safePreviousTotalOverride,
       }),
-    [previewQuote, quoteToEdit, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+    [quoteToEdit, previewQuote, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+  );
+  const showQuoteRevisionSummary = Boolean(
+    isEditMode &&
+    quoteToEdit &&
+    additionalPaymentDetails &&
+    Math.abs(additionalPaymentDetails.totalDelta) > 0.009
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -3107,11 +3164,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
       maxStep,
     });
 
@@ -3140,11 +3197,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
       maxStep,
     });
 
@@ -3174,11 +3231,11 @@ export default function CreateQuotePage() {
         serviceConfigs,
         selectedAddons,
         addons,
-        appliedAddonConfigs,
+        appliedAddonConfigs: effectiveAddonConfigs,
         logisticsItems: selectedLogisticsItems,
-        appliedLogisticsConfigs,
+        appliedLogisticsConfigs: effectiveLogisticsConfigs,
         lineItems,
-        appliedLineItemConfigs,
+        appliedLineItemConfigs: effectiveLineItemConfigs,
       },
       step,
     );
@@ -3205,11 +3262,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
     });
 
   const currentDraftLineItems = React.useMemo(() => {
@@ -3237,11 +3294,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
     });
 
     return buildCurrentDraftReviewItems({
@@ -3254,9 +3311,9 @@ export default function CreateQuotePage() {
   }, [
     address,
     addons,
-    appliedAddonConfigs,
-    appliedLineItemConfigs,
-    appliedLogisticsConfigs,
+    effectiveAddonConfigs,
+    effectiveLineItemConfigs,
+    effectiveLogisticsConfigs,
     clientName,
     discountEnabled,
     discountType,
@@ -3348,8 +3405,8 @@ export default function CreateQuotePage() {
       versionNotes?: string;
       showVersionSuccess?: boolean;
     },
-  ) => {
-    if (isCreatingQuoteDraft) return;
+  ): Promise<boolean> => {
+    if (isCreatingQuoteDraft) return false;
 
     const isUpdatingExistingQuote = Boolean(effectiveQuoteId);
     const basePayload = getQuoteDraftPayload(
@@ -3427,7 +3484,7 @@ export default function CreateQuotePage() {
           setIsReviewChangesModalOpen(false);
           setIsVersionSaveSuccessOpen(true);
           setReviewChangeReason("");
-          return;
+          return true;
         }
         toast.success(
           isUpdatingExistingQuote
@@ -3436,11 +3493,14 @@ export default function CreateQuotePage() {
         );
         await delayAfterSuccessToast();
         if (!shouldOpenPreview) {
+          if (options?.suppressRedirect) {
+            return true;
+          }
           if (isEditMode && quoteEditReturnHref && !isFullEditFlow) {
             router.push(quoteEditReturnHref);
-            return;
+            return true;
           }
-          return;
+          return true;
         }
       }
 
@@ -3450,7 +3510,19 @@ export default function CreateQuotePage() {
             ? "Draft updated successfully"
             : "Draft saved successfully",
         );
-        return;
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("view", view);
+        if (!nextParams.get("quoteId") && savedQuoteId) {
+          nextParams.set("quoteId", savedQuoteId);
+        }
+        if (
+          !nextParams.get("editMode") &&
+          nextParams.get("quoteId")
+        ) {
+          nextParams.set("editMode", "full");
+        }
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+        return true;
       }
 
       if (!savedQuoteId) {
@@ -3458,7 +3530,7 @@ export default function CreateQuotePage() {
           setPreviewQuoteId(extractQuoteIdFromResponse(persistedQuote));
           setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
-          return;
+          return true;
         }
 
         throw new Error("Quote draft was saved, but no quote id was returned");
@@ -3471,7 +3543,7 @@ export default function CreateQuotePage() {
           setPreviewQuoteId(savedQuoteId);
           setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
-          return;
+          return true;
         }
 
         throw new Error(
@@ -3493,6 +3565,7 @@ export default function CreateQuotePage() {
         setPreviewQuote(quoteDetail);
         toast.success("Quote preview loaded");
       }
+      return true;
     } catch (error) {
       console.error(
         action === "preview"
@@ -3521,6 +3594,7 @@ export default function CreateQuotePage() {
                 : "Failed to save quote";
 
       toast.error(error instanceof Error ? error.message : fallbackMessage);
+      return false;
     } finally {
       setIsCreatingQuoteDraft(false);
       setActiveQuoteAction(null);
@@ -3802,6 +3876,14 @@ export default function CreateQuotePage() {
 
     await sendQuoteInvoiceRequest();
   };
+
+  const handleBeforeSendQuoteFromPreview = React.useCallback(async () => {
+    if (!isEditMode || !hasUnsavedQuoteChanges) {
+      return true;
+    }
+
+    return saveQuoteDraft("save", { suppressRedirect: true });
+  }, [hasUnsavedQuoteChanges, isEditMode, saveQuoteDraft]);
 
   const handleConvertToBooking = () => {
     if (!resolvedInvoiceQuoteId) {
@@ -4851,13 +4933,17 @@ export default function CreateQuotePage() {
       <div className="px-4 pb-40 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
         {/* Navigation & Progress Header */}
         <div className="flex justify-between items-center mb-7">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
-          >
-            <ArrowLeft size={18} />
-            Back
-          </button>
+          {!shouldHideBackButton ? (
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+          ) : (
+            <div />
+          )}
 
           <div className="text-right">
             {view === "tax" && (
@@ -4936,7 +5022,7 @@ export default function CreateQuotePage() {
                             toggleSelectedLogistics(item.id);
                           }
                         }}
-                        className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedLogistics.includes(item.id)
+                        className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedLogistics.includes(item.id)
                           ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
                           : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                           }`}
@@ -4965,7 +5051,7 @@ export default function CreateQuotePage() {
                             <Trash2 size={16} />
                           </button>
                         </div>
-                        <div className="flex w-full min-w-0 items-start gap-4">
+                        <div className="flex w-full min-w-0 items-start gap-4 pr-2">
                           <div
                             className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedLogistics.includes(item.id)
                               ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
@@ -4977,7 +5063,10 @@ export default function CreateQuotePage() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1 space-y-2">
-                            <div className="block w-full truncate font-medium text-base text-white">
+                            <div
+                              title={item.label}
+                              className="block w-full truncate font-medium text-base text-white"
+                            >
                               {item.label}
                             </div>
                             <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -5277,7 +5366,7 @@ export default function CreateQuotePage() {
                               }));
                             }
                           }}
-                          className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
+                          className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedAddons.includes(addon.id)
                             // ? "bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                             // : "bg-transparent border-[#303030] hover:border-zinc-700"
                             // }`}
@@ -5286,7 +5375,7 @@ export default function CreateQuotePage() {
                             : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                             }`}
                         >
-                          <div className="flex w-full min-w-0 items-start gap-4 pr-8">
+                          <div className="flex w-full min-w-0 items-start gap-4 pr-2">
                             <div
                               className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
                                 ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
@@ -5298,7 +5387,10 @@ export default function CreateQuotePage() {
                               )}
                             </div>
                             <div className="min-w-0 flex-1 space-y-2">
-                              <div className="block w-full truncate font-medium text-base text-white">
+                              <div
+                                title={addon.label}
+                                className="block w-full truncate font-medium text-base text-white"
+                              >
                                 {addon.label}
                               </div>
                               <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -5696,12 +5788,15 @@ export default function CreateQuotePage() {
                               onClick={() =>
                                 handleServiceSelect(service.id, service.price)
                               }
-                              className={`group relative flex lg:h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
+                              className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedServices.includes(service.id)
                                 ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                                 : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
                                 }`}
                             >
-                              <div className="mb-2 w-2/3 md:w-full truncate pr-6 font-medium text-base text-white">
+                              <div
+                                title={getServiceDisplayLabel(service.label)}
+                                className="mb-2 w-full truncate pr-2 font-medium leading-tight text-base text-white"
+                              >
                                 {getServiceDisplayLabel(service.label)}
                               </div>
                               <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -6997,7 +7092,7 @@ export default function CreateQuotePage() {
                       {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
-                  {additionalPaymentDetails ? (
+                  {showQuoteRevisionSummary ? (
                     <>
                       <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
                       <div className="space-y-3">
@@ -7006,7 +7101,7 @@ export default function CreateQuotePage() {
                             Old Quote Total
                           </span>
                           <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.previousTotal)}
+                            {formatCurrency(reviewChangesData.previousTotal)}
                           </span>
                         </div>
                         {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
@@ -7021,15 +7116,16 @@ export default function CreateQuotePage() {
                         ) : null}
                         <div className="flex justify-between items-center">
                           <span className="text-sm lg:text-base text-white font-medium">
-                            {additionalPaymentDetails.isDecrease
+                            {reviewChangesData.delta < 0
                               ? "Reduced Amount"
                               : "Additional Amount"}
                           </span>
-                          <span className={`text-sm lg:text-base tracking-tight ${additionalPaymentDetails.isDecrease ? "text-red-500" : "text-[#9F9FA9]"}`}>
-                            {additionalPaymentDetails.isDecrease ? "-" : "+"}{formatCurrency(Math.abs(additionalPaymentDetails.additionalAmount))}
+                          <span className={`text-sm lg:text-base tracking-tight ${reviewChangesData.delta < 0 ? "text-red-500" : "text-[#9F9FA9]"}`}>
+                            {reviewChangesData.delta < 0 ? "-" : "+"}{formatCurrency(Math.abs(reviewChangesData.delta))}
                           </span>
                         </div>
-                        {additionalPaymentDetails.isDecrease ? (
+                        {reviewChangesData.delta < 0 &&
+                        additionalPaymentDetails.previouslyPaidAmount > 0 ? (
                           <p className="text-xs lg:text-sm text-[#E8D1AB]">
                             This reduced amount will be added as Beige Credits after approval.
                           </p>
@@ -7108,6 +7204,8 @@ export default function CreateQuotePage() {
                     <Input
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
+                      type="email"
+                      inputMode="email"
                       className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
@@ -7119,7 +7217,10 @@ export default function CreateQuotePage() {
                     </div>
                     <Input
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      onChange={(e) =>
+                        setPhoneNumber(normalizePhoneNumberInput(e.target.value))
+                      }
+                      inputMode="numeric"
                       className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
@@ -7504,13 +7605,15 @@ export default function CreateQuotePage() {
         {/* Footer Actions */}
         <div className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
           <div className="flex gap-4">
-            <Button
-              variant="outline"
-              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
-              onClick={handleBack}
-            >
-              Back
-            </Button>
+            {!shouldHideBackButton ? (
+              <Button
+                variant="outline"
+                className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
+                onClick={handleBack}
+              >
+                Back
+              </Button>
+            ) : null}
             {!showInvoiceActions ? (
               showReviewChangesAction ? (
                 <Button
@@ -7706,13 +7809,15 @@ export default function CreateQuotePage() {
           </Button>
         )}
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
-            onClick={handleBack}
-          >
-            Back
-          </Button>
+          {!shouldHideBackButton ? (
+            <Button
+              variant="outline"
+              className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+              onClick={handleBack}
+            >
+              Back
+            </Button>
+          ) : null}
           {showInvoiceActions && showPreviewAction ? (
             <Button
               type="button"
@@ -7815,7 +7920,7 @@ export default function CreateQuotePage() {
                 setIsVersionSaveSuccessOpen(false);
                 const targetId = createdQuoteId || editQuoteId || effectiveQuoteId;
                 const targetUrl = targetId
-                  ? `/admin/quotes/${encodeURIComponent(String(targetId))}/summary`
+                  ? `/admin/quotes/${encodeURIComponent(String(targetId))}/summary?returnTo=${encodeURIComponent("/admin/quotes")}`
                   : "/admin/quotes";
                 router.push(targetUrl);
               }}
@@ -7946,11 +8051,16 @@ export default function CreateQuotePage() {
         quote={previewQuote}
         quoteId={previewQuoteId}
         isLoading={isPreviewLoading}
-        paymentSummaryOverrides={{
-          previousTotal: additionalPaymentDetails?.previousTotal,
-          previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
-          revisedTotal: totalAfterTax,
-        }}
+        onBeforeSend={handleBeforeSendQuoteFromPreview}
+        paymentSummaryOverrides={
+          showQuoteRevisionSummary
+            ? {
+                previousTotal: reviewChangesData.previousTotal,
+                previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
+                revisedTotal: totalAfterTax,
+              }
+            : undefined
+        }
       />
     </div>
   );

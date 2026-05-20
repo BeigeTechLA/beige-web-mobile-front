@@ -18,6 +18,7 @@ interface SearchAutocompleteProps {
   value?: string;
   onChange: (value: string) => void;
   emptyMessage?: string;
+  isDark?: boolean;
 }
 
 export default function SearchAutocomplete({
@@ -27,6 +28,7 @@ export default function SearchAutocomplete({
   value = "",
   onChange,
   emptyMessage = "No results found",
+  isDark = true,
 }: SearchAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
