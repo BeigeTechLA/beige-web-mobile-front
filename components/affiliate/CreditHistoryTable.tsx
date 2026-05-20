@@ -40,6 +40,26 @@ interface CreditHistoryTable {
   onRowClick?: (row: CreditHistoryRow) => void;
   itemsPerPage?: number;
 }
+const formatDate = (dateString: string) => {
+  if (!dateString) return "—";
+
+  let date: Date;
+
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+    const [day, month, year] = dateString.split("-");
+    date = new Date(`${year}-${month}-${day}`);
+  } else {
+    date = new Date(dateString);
+  }
+
+  if (isNaN(date.getTime())) return dateString;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
 
 const buildPaginationItems = (
   currentPage: number,
@@ -226,7 +246,7 @@ export default function CreditHistoryTable({
                       isDark ? "text-white" : "text-[#171717]"
                     }`}
                   >
-                    {row.date}
+                    {formatDate(row.date)}
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
@@ -284,7 +304,7 @@ export default function CreditHistoryTable({
                       isDark ? "text-white" : "text-[#171717]"
                     }`}
                   >
-                    {row.lastActivity}
+                    {formatDate(row.lastActivity)}
                   </td>
                 </tr>
               ))
@@ -360,7 +380,7 @@ export default function CreditHistoryTable({
                   Date
                 </p>
                 <p className={isDark ? "text-white" : "text-[#171717]"}>
-                  {row.date}
+                  {formatDate(row.date)}
                 </p>
               </div>
               <div>
@@ -368,7 +388,7 @@ export default function CreditHistoryTable({
                   Last Activity
                 </p>
                 <p className={isDark ? "text-white" : "text-[#171717]"}>
-                  {row.lastActivity}
+                  {formatDate(row.lastActivity)}
                 </p>
               </div>
               <div>

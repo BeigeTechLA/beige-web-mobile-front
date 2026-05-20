@@ -17,7 +17,7 @@ import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow"
 import { StatusBadge } from "../admin/StatusBadge";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
-import BoardMiniMapNavigator from "../admin/BoardMiniMapNavigator";
+// import BoardMiniMapNavigator from "../admin/BoardMiniMapNavigator";
 
 type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Unknown";
 interface ShootRecord {
@@ -485,7 +485,7 @@ export default function SalesShootsTable({ externalSelectedDate,
           ) : (
             <>
               <div className="relative hidden lg:block p-6 pt-5">
-                <div ref={gridScrollRef} className="overflow-x-auto overflow-y-hidden no-scrollbar pb-16">
+                <div ref={gridScrollRef} className="overflow-x-auto overflow-y-hidden pb-6">
                   <div className="flex items-start gap-5 min-w-max">
                     {kanbanColumns.map((column) => (
                       <div
@@ -621,6 +621,7 @@ export default function SalesShootsTable({ externalSelectedDate,
                   </div>
                 </div>
 
+                {/*
                 <BoardMiniMapNavigator
                   boardRef={gridScrollRef}
                   segmentCount={kanbanColumns.length}
@@ -628,6 +629,7 @@ export default function SalesShootsTable({ externalSelectedDate,
                   visible={viewMode === "grid"}
                   syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
                 />
+                */}
               </div>
             </>
           )}

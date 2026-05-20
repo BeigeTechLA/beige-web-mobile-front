@@ -43,6 +43,22 @@ const STATUSES = ["Linked", "Unlinked"];
 const PAGE_SIZE = 24;
 const PAGINATION_WINDOW = 1;
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [delay, value]);
+
+  return debouncedValue;
+}
+
 const getPageItems = (currentPage: number, totalPages: number) => {
   if (totalPages <= 1) return [1];
 
@@ -74,7 +90,7 @@ export default function AdminFolderManagerPage() {
   const pathname = usePathname();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm.trim(), 350);
   const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
 
@@ -149,14 +165,6 @@ export default function AdminFolderManagerPage() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm.trim());
-    }, 350);
-
-    return () => clearTimeout(timeout);
-  }, [searchTerm]);
 
   useEffect(() => {
     setCurrentPage(1);

@@ -361,7 +361,7 @@ const getStatusStyles = (status: string) => {
   }
 
   if (["expired"].includes(normalizedStatus)) {
-    return "border border-white/10 bg-[#E5E7EB] text-[#4B5563]";
+    return "border border-white/10 bg-[#FFF6E9] text-[#D4A017]";
   }
 
   return "border border-[#E8D1AB]/20 bg-[#2A2418] text-[#E8D1AB]";
