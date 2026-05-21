@@ -10,8 +10,6 @@ import {
   FileSpreadsheet,
   FileText,
   FileVideo,
-  Grid3X3,
-  List,
   Loader2,
   MoreVertical,
 
@@ -39,6 +37,8 @@ import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
+import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
+import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
@@ -52,6 +52,18 @@ import { toast } from "sonner";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
+const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
+const FILE_BOARD_ORDER = ["image", "video", "pdf", "doc", "ppt", "sheet", "zip", "file"];
+const FILE_BOARD_TITLES: Record<string, string> = {
+  image: "Images",
+  video: "Videos",
+  pdf: "PDFs",
+  doc: "Documents",
+  ppt: "Presentations",
+  sheet: "Sheets",
+  zip: "Archives",
+  file: "Other Files",
+};
 
 const getFileExtension = (title?: string) => {
   const parts = (title || "").toLowerCase().split(".");
@@ -140,7 +152,7 @@ export default function AdminFileManagerPhasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useViewMode();
+  const [viewMode, setViewMode] = useViewMode(ADMIN_FILE_MANAGER_VIEW_MODE_KEY);
   const [isOpen, setIsOpen] = useState(false);
 
   const [status, setStatus] = useState("");
@@ -271,6 +283,36 @@ export default function AdminFileManagerPhasePage() {
     [filteredFiles, visibleFileCount]
   );
   const hasMoreFiles = filteredFiles.length > visibleFileCount;
+
+  const folderBoardColumns = useMemo(
+    () => [
+      {
+        id: "linked",
+        title: "Linked",
+        items: filteredFolders.filter((folder) => folder.isLinked),
+      },
+      {
+        id: "unlinked",
+        title: "Unlinked",
+        items: filteredFolders.filter((folder) => !folder.isLinked),
+      },
+    ],
+    [filteredFolders]
+  );
+
+  const fileBoardColumns = useMemo(() => {
+    const labels = Array.from(new Set(filteredFiles.map((file) => file.label || "file")));
+    const orderedLabels = [
+      ...FILE_BOARD_ORDER.filter((label) => labels.includes(label)),
+      ...labels.filter((label) => !FILE_BOARD_ORDER.includes(label)),
+    ];
+
+    return orderedLabels.map((label) => ({
+      id: label,
+      title: FILE_BOARD_TITLES[label] || `${String(label).charAt(0).toUpperCase()}${String(label).slice(1)} Files`,
+      items: filteredFiles.filter((file) => (file.label || "file") === label),
+    }));
+  }, [filteredFiles]);
 
   useEffect(() => {
     setVisibleFileCount(FILES_PAGE_SIZE);
@@ -619,65 +661,111 @@ export default function AdminFileManagerPhasePage() {
                     </Button>
                   )}
                   {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-                  <div className="md:hidden relative">
-                    <Button
-                      onClick={() => setIsOpen((prev) => !prev)}
-                      className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
-                    >
-                      {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
-                    </Button>
-
-                    {isOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
-                        <button
-                          onClick={() => {
-                            setViewMode("grid");
-                            setIsOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                            }`}
-                        >
-                          <Grid3X3 size={18} />
-                          Grid View
-                        </button>
-                        <button
-                          onClick={() => {
-                            setViewMode("list");
-                            setIsOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                            }`}
-                        >
-                          <List size={18} />
-                          List View
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
-                    <Button
-                      onClick={() => setViewMode("grid")}
-                      className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === "grid"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
-                        }`}
-                    >
-                      <Grid3X3 size={20} />
-                    </Button>
-                    <Button
-                      onClick={() => setViewMode("list")}
-                      className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === "list"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
-                        }`}
-                    >
-                      <List size={20} />
-                    </Button>
-                  </div>
+                  <FileManagerViewToggle
+                    isOpen={isOpen}
+                    setIsOpen={setIsOpen}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                  />
                 </div>
               </div>
 
-              {viewState.kind === "folders" ? (
+              {viewMode === "board" ? (
+                <div className="space-y-6">
+                  {filteredFolders.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="px-1">
+                        <h3 className="text-sm font-medium text-[#E8D1AB]">Folders Board</h3>
+                      </div>
+                      <FileManagerBoard
+                        columns={folderBoardColumns}
+                        emptyMessage="No folders in this column"
+                        getItemId={(folder) => String(folder.id)}
+                        renderCard={(folder) => (
+                          <FolderCard
+                            title={folder.title}
+                            fileCount={folder.fileCount}
+                            lastOpened={folder.lastOpened}
+                            userInitials={folder.userInitials}
+                            isLinked={folder.isLinked}
+                            category={folder.category}
+                            href={folder.href}
+                            onOpen={() => router.push(folder.href || `${pathname}/${folder.id}`)}
+                            onOpenLinkModal={() => {
+                              setSelectedFolder(folder);
+                              setIsLinkModalOpen(true);
+                            }}
+                            onDownload={async () => {
+                              setSelectedFolder(folder);
+                              try {
+                                const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
+                                  phase: currentPhase,
+                                  path: getSelectedFolderPath(),
+                                });
+                                if (result?.url) {
+                                  window.open(result.url, "_blank", "noopener,noreferrer");
+                                }
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to download folder");
+                              }
+                            }}
+                            onDelete={() => {
+                              setSelectedFolder(folder);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            onShare={() => {
+                              setSelectedFolder(folder);
+                              setIsShareModalOpen(true);
+                            }}
+                            onRename={() => toast.info("Folder rename is the next safe step.")}
+                          />
+                        )}
+                      />
+                    </div>
+                  ) : null}
+
+                  {filteredFiles.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="px-1">
+                        <h3 className="text-sm font-medium text-[#E8D1AB]">Files Board</h3>
+                      </div>
+                      <FileManagerBoard
+                        columns={fileBoardColumns}
+                        emptyMessage="No files in this column"
+                        getItemId={(file) => String(file.id)}
+                        renderCard={(file) => (
+                          <FileCard
+                            file={{ ...file, previewUrl: previewUrls[file.id] }}
+                            onOpen={() => handleOpenFile(file)}
+                            onDownload={() => handleDownloadFile(file)}
+                            onDelete={() => {
+                              if (!isPreProduction) return;
+                              setSelectedFile(file);
+                              setSelectedFolder(null);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            onShare={() => {
+                              setSelectedFile(file);
+                              setShareResource({
+                                resourceType: "file",
+                                externalId: String(projectId || ""),
+                                phase: currentPhase,
+                                filepath: file.filepath,
+                                label: file.title,
+                              });
+                              setIsShareModalOpen(true);
+                            }}
+                            isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                            onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                          />
+                        )}
+                      />
+                    </div>
+                  ) : filteredFolders.length === 0 ? (
+                    <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  ) : null}
+                </div>
+              ) : viewState.kind === "folders" ? (
                 viewMode === "grid" ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                     {filteredFolders.map((folder) => (

@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
-import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Search, Upload } from "lucide-react";
+import { ArrowLeft, LinkIcon, Loader2, MoreVertical, Search, Unlink, Upload } from "lucide-react";
 
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
@@ -14,6 +14,8 @@ import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
+import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
+import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
@@ -24,6 +26,7 @@ import {
 import { toast } from "sonner";
 
 const STATUSES = ["Linked", "Unlinked"];
+const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
 
 export default function AdminFolderDetailsPage() {
   const router = useRouter();
@@ -38,7 +41,7 @@ export default function AdminFolderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useViewMode();
+  const [viewMode, setViewMode] = useViewMode(ADMIN_FILE_MANAGER_VIEW_MODE_KEY);
   const [isOpen, setIsOpen] = useState(false);
 
   const [status, setStatus] = useState("");
@@ -111,6 +114,22 @@ export default function AdminFolderDetailsPage() {
     const query = searchTerm.toLowerCase();
     return items.filter((item) => item.title.toLowerCase().includes(query));
   }, [folders, searchTerm, status]);
+
+  const boardColumns = useMemo(
+    () => [
+      {
+        id: "linked",
+        title: "Linked",
+        items: visibleFolders.filter((folder) => folder.isLinked),
+      },
+      {
+        id: "unlinked",
+        title: "Unlinked",
+        items: visibleFolders.filter((folder) => !folder.isLinked),
+      },
+    ],
+    [visibleFolders]
+  );
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -249,65 +268,12 @@ export default function AdminFolderDetailsPage() {
                 </div>
                 <div className="flex gap-2 ">
                   {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-                  <div className="md:hidden relative">
-                    <Button
-                      onClick={() => setIsOpen((prev) => !prev)}
-                      className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
-                    >
-                      {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
-                    </Button>
-
-                    {isOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
-                        <button
-                          onClick={() => {
-                            setViewMode("grid");
-                            setIsOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                            viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                          }`}
-                        >
-                          <Grid3X3 size={18} />
-                          Grid View
-                        </button>
-                        <button
-                          onClick={() => {
-                            setViewMode("list");
-                            setIsOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                            viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                          }`}
-                        >
-                          <List size={18} />
-                          List View
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
-                    <Button
-                      onClick={() => setViewMode("grid")}
-                      className={`px-5 py-2.5 rounded-l-lg transition-colors ${
-                        viewMode === "grid"
-                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                          : "bg-transparent text-white/40 hover:text-white"
-                      }`}
-                    >
-                      <Grid3X3 size={20} />
-                    </Button>
-                    <Button
-                      onClick={() => setViewMode("list")}
-                      className={`px-5 py-2.5 rounded-r-lg transition-colors ${
-                        viewMode === "list"
-                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                          : "bg-transparent text-white/40 hover:text-white"
-                      }`}
-                    >
-                      <List size={20} />
-                    </Button>
-                  </div>
+                  <FileManagerViewToggle
+                    isOpen={isOpen}
+                    setIsOpen={setIsOpen}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                  />
                 </div>
               </div>
 
@@ -356,6 +322,47 @@ export default function AdminFolderDetailsPage() {
                     />
                   ))}
                 </div>
+              ) : viewMode === "board" ? (
+                <FileManagerBoard
+                  columns={boardColumns}
+                  emptyMessage="No folders in this column"
+                  getItemId={(folder) => String(folder.id)}
+                  renderCard={(folder) => (
+                    <FolderCard
+                      title={folder.title}
+                      fileCount={folder.fileCount}
+                      lastOpened={folder.lastOpened}
+                      userInitials={folder.userInitials}
+                      isLinked={folder.isLinked}
+                      href={folder.href}
+                      onOpen={() => router.push(folder.href || `${pathname}/${folder.id}`)}
+                      onOpenLinkModal={() => {
+                        setSelectedFolder(folder);
+                        setIsLinkModalOpen(true);
+                      }}
+                      onDownload={async () => {
+                        setSelectedFolder(folder);
+                        try {
+                          const result = await fileManagerApi.getExternalFolderDownloadUrl(folder.id);
+                          if (result?.url) {
+                            window.open(result.url, "_blank", "noopener,noreferrer");
+                          }
+                        } catch (err: any) {
+                          toast.error(err?.message || "Failed to download folder");
+                        }
+                      }}
+                      onDelete={() => {
+                        setSelectedFolder(folder);
+                        setIsDeleteModalOpen(true);
+                      }}
+                      onShare={() => {
+                        setSelectedFolder(folder);
+                        setIsShareModalOpen(true);
+                      }}
+                      onRename={() => toast.info("Folder rename is the next safe step.")}
+                    />
+                  )}
+                />
               ) : (
                 <div className="flex flex-col gap-3">
                   <div className="lg:hidden">

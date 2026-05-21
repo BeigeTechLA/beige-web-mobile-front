@@ -1247,6 +1247,7 @@ export default function CreateQuotePage() {
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [quoteToEdit, setQuoteToEdit] =
     React.useState<SalesQuoteDetailData | null>(null);
+  const [quoteVersionNumber, setQuoteVersionNumber] = React.useState<number | null>(null);
   const [isReviewChangesModalOpen, setIsReviewChangesModalOpen] =
     React.useState(false);
   const [reviewChangeReason, setReviewChangeReason] = React.useState("");
@@ -1360,6 +1361,56 @@ export default function CreateQuotePage() {
 
   React.useEffect(() => {
     setConvertModalInitialDataOverride(null);
+  }, [effectiveQuoteId]);
+
+  React.useEffect(() => {
+    if (!effectiveQuoteId) {
+      setQuoteVersionNumber(null);
+      return;
+    }
+
+    let isMounted = true;
+    setQuoteVersionNumber(null);
+
+    const loadQuoteVersionNumber = async () => {
+      try {
+        const response = await salesApi.getQuoteVersions(effectiveQuoteId);
+        const responseData = response?.data as {
+          versions?: Array<Record<string, unknown>>;
+        } | null | undefined;
+        const versionsData: Array<Record<string, unknown>> =
+          response?.success
+            ? Array.isArray(response.data)
+              ? (response.data as Array<Record<string, unknown>>)
+              : Array.isArray(responseData?.versions)
+                ? responseData.versions
+                : []
+            : [];
+
+        const currentVersion =
+          versionsData.find((version) => version?.is_current && version?.version_number != null) ||
+          versionsData.find((version) => version?.version_number != null);
+        const versionNumber = Number(currentVersion?.version_number);
+
+        if (isMounted) {
+          setQuoteVersionNumber(
+            Number.isFinite(versionNumber) && versionNumber > 0 ? versionNumber : null,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load quote versions", error);
+
+        if (isMounted) {
+          setQuoteVersionNumber(null);
+        }
+      }
+    };
+
+    void loadQuoteVersionNumber();
+
+    return () => {
+      isMounted = false;
+    };
   }, [effectiveQuoteId]);
 
   React.useEffect(() => {
@@ -3642,6 +3693,11 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (quoteVersionNumber === null || quoteVersionNumber <= 1) {
+      toast.error("Review Changes is available only after the first saved version.");
+      return;
+    }
+
     setIsReviewChangesModalOpen(true);
   };
 
@@ -3653,6 +3709,11 @@ export default function CreateQuotePage() {
 
     if (!reviewChangeReason.trim()) {
       toast.error("Please provide a reason for these changes.");
+      return;
+    }
+
+    if (quoteVersionNumber === null || quoteVersionNumber <= 1) {
+      toast.error("Version 1 should be updated directly instead of creating a new version.");
       return;
     }
 
@@ -3722,7 +3783,12 @@ export default function CreateQuotePage() {
       ? handleSaveQuote
       : handleContinue;
   const showReviewChangesAction =
-    isEditMode && isFullEditFlow && !isDuplicateFlow && view === "tax";
+    isEditMode &&
+    isFullEditFlow &&
+    !isDuplicateFlow &&
+    view === "tax" &&
+    quoteVersionNumber !== null &&
+    quoteVersionNumber > 1;
 
   const primaryActionLabel = isEditMode
     ? isFullEditFlow
