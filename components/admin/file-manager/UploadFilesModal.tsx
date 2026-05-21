@@ -10,6 +10,7 @@ interface UploadModalProps {
   folderName: string;
   uploadPath?: string;
   onUploadComplete?: () => Promise<void> | void;
+  isDark?: boolean;
 }
 
 type UploadStatus = "queued" | "uploading" | "uploaded" | "failed";
@@ -44,6 +45,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
   folderName,
   uploadPath,
   onUploadComplete,
+  isDark = true,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<UploadQueueItem[]>([]);
@@ -89,12 +91,12 @@ const UploadModal: React.FC<UploadModalProps> = ({
       previewUrlsRef.current.clear();
     };
   }, []);
-useEffect(() => {
-  if (!isOpen) {
-    setSelectionError(null);
-    setStatusMessage(null); 
-  }
-}, [isOpen]);
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectionError(null);
+      setStatusMessage(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -110,7 +112,7 @@ useEffect(() => {
 
   const handleFiles = (files: FileList | null) => {
     if (files) {
-      setSelectionError(null); 
+      setSelectionError(null);
       const now = Date.now();
       const incoming = Array.from(files);
       const validIncoming = incoming.filter((file) => file.size > 0);
@@ -323,8 +325,8 @@ useEffect(() => {
             const batchItems = Array.isArray((response as any)?.items)
               ? (response as any).items
               : Array.isArray((response as any)?.data?.items)
-              ? (response as any).data.items
-              : [];
+                ? (response as any).data.items
+                : [];
 
             batchItems.forEach((item: any) => {
               if (item.success && item.data?.url && item.data?.fields) {
@@ -446,8 +448,8 @@ useEffect(() => {
               const metadataItems = Array.isArray((response as any)?.items)
                 ? (response as any).items
                 : Array.isArray((response as any)?.data?.items)
-                ? (response as any).data.items
-                : [];
+                  ? (response as any).data.items
+                  : [];
               const failedPaths = new Set(
                 metadataItems
                   .filter((item) => !item.success)
@@ -553,7 +555,8 @@ useEffect(() => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       {/* Modal Container */}
-      <div className="mx-5 w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
+      <div className={`mx-5 w-full max-w-xl overflow-hidden rounded-2xl border shadow-2xl ${isDark ? "border-white/10 bg-black" : "border-zinc-200 bg-white"
+        }`}>
 
         {/* Header */}
         <div className="relative p-3 lg:p-5">
@@ -562,23 +565,25 @@ useEffect(() => {
               if (isUploading) return;
               onClose();
             }}
-            className="absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-hover hover:bg-white/20"
+            className={`absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+              }`}
           >
             <X size={20} />
           </button>
 
-          <h2 className="text-lg font-semibold text-white">Upload Files</h2>
-          <p className="mt-1 text-sm text-white/60">
-            Files will be uploaded to the folder <span className="text-white/80">{folderName}</span>
+          <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>Upload Files</h2>
+          <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+            Files will be uploaded to the folder <span className={isDark ? "text-white/80" : "text-zinc-800 font-medium"}>{folderName}</span>
           </p>
           {uploadPath ? (
-            <p className="mt-1 text-xs text-white/40">{uploadPath}</p>
+            <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-zinc-400"}`}>{uploadPath}</p>
           ) : (
-            <p className="mt-1 text-xs text-red-300">Open a folder before uploading files.</p>
+            <p className={`mt-1 text-xs ${isDark ? "text-red-300" : "text-red-500"}`}>Open a folder before uploading files.</p>
           )}
           {selectedFiles.length > 0 && (
-            <div className="mt-3 space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
-              <div className="flex items-center justify-between text-xs text-white/70">
+            <div className={`mt-3 space-y-2 rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/5" : "border-zinc-200 bg-zinc-50"
+              }`}>
+              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/70" : "text-zinc-600"}`}>
                 <span>
                   Uploaded {uploadedCount}/{totalCount}
                 </span>
@@ -586,9 +591,9 @@ useEffect(() => {
                   Failed {failedCount} | Pending {Math.max(totalCount - completedCount, 0)}
                 </span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div className={`h-2 w-full overflow-hidden rounded-full ${isDark ? "bg-white/10" : "bg-zinc-200"}`}>
                 <div
-                  className="h-full rounded-full bg-[#E8D1AB] transition-all duration-200"
+                  className={`h-full rounded-full transition-all duration-200 ${isDark ? "bg-[#E8D1AB]" : "bg-black"}`}
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -597,7 +602,7 @@ useEffect(() => {
         </div>
 
         {/* Divider */}
-        <div className="h-[1px] w-full bg-white/10" />
+        <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
 
         {/* Dropzone Area */}
         <div className="p-3 lg:p-5">
@@ -608,56 +613,66 @@ useEffect(() => {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={`group relative flex h-[185px] cursor-pointer flex-col items-center justify-center rounded-[10px] border transition-all duration-200 
-              ${isDragging
-                ? "border-[#E8D1AB] bg-[#E8D1AB]/5"
-                : "border-white/10 bg-[#202020] hover:border-white/20 hover:bg-[#202020]/[0.04]"
+          ${isDragging
+                ? isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/5" : "border-black bg-zinc-50"
+                : isDark
+                  ? "border-white/10 bg-[#202020] hover:border-white/20 hover:bg-[#202020]/[0.04]"
+                  : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:bg-zinc-100"
               }`}
           >
             <input type="file" className="hidden" ref={fileInputRef} multiple onChange={(e) => handleFiles(e.target.files)} />
 
             <div className="mb-4 flex h-16 w-16 items-center justify-center">
-              <UploadCloud className="text-[#E8D1AB]" size={32} />
+              <UploadCloud className={isDark ? "text-[#E8D1AB]" : "text-zinc-600"} size={32} />
             </div>
 
-            <p className="text-lg font-medium text-white">
+            <p className={`text-lg font-medium ${isDark ? "text-white" : "text-zinc-800"}`}>
               Drag your files here or{" "}
-              <span className="text-[#E8D1AB] underline decoration-[#E8D1AB]/30 underline-offset-4 hover:decoration-[#E8D1AB]">
+              <span className={
+                isDark
+                  ? "text-[#E8D1AB] underline decoration-[#E8D1AB]/30 underline-offset-4 hover:decoration-[#E8D1AB]"
+                  : "text-zinc-900 underline decoration-zinc-900/30 underline-offset-4 hover:decoration-zinc-900"
+              }>
                 Browse
               </span>
             </p>
-             {selectionError && (
+            {selectionError && (
               <p className="mt-2 text-sm font-medium text-red-500">
                 {selectionError}
               </p>
             )}
           </div>
 
-          {/* New: File List Area */}
+          {/* File List Area */}
           {selectedFiles.length > 0 && (
-            <div className="mt-4 max-h-[200px] overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-white/10">
+            <div className={`mt-4 max-h-[200px] overflow-y-auto space-y-2 pr-2 scrollbar-thin ${isDark ? "scrollbar-thumb-white/10" : "scrollbar-thumb-zinc-200"
+              }`}>
               {selectedFiles.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between rounded-lg bg-white/5 p-3 border border-white/5"
+                  className={`flex items-center justify-between rounded-lg p-3 border ${isDark ? "bg-white/5 border-white/5" : "bg-white border-zinc-200"
+                    }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {item.previewUrl ? (
                       <img
                         src={item.previewUrl}
                         alt={item.file.name}
-                        className="h-11 w-11 rounded-md object-cover shrink-0 border border-white/10"
+                        className={`h-11 w-11 rounded-md object-cover shrink-0 border ${isDark ? "border-white/10" : "border-zinc-200"
+                          }`}
                       />
                     ) : (
-                      <div className="flex h-11 w-11 items-center justify-center rounded-md border border-white/10 bg-white/5 shrink-0">
-                        <File size={18} className="text-[#E8D1AB]" />
+                      <div className={`flex h-11 w-11 items-center justify-center rounded-md border shrink-0 ${isDark ? "border-white/10 bg-white/5" : "border-zinc-200 bg-zinc-50"
+                        }`}>
+                        <File size={18} className={isDark ? "text-[#E8D1AB]" : "text-zinc-500"} />
                       </div>
                     )}
                     <div className="flex flex-col min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{item.file.name}</p>
-                      <p className="text-xs text-white/40">
+                      <p className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-zinc-800"}`}>{item.file.name}</p>
+                      <p className={`text-xs ${isDark ? "text-white/40" : "text-zinc-500"}`}>
                         {(item.file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
-                      <p className="text-[11px] text-white/50 capitalize">
+                      <p className={`text-[11px] capitalize ${isDark ? "text-white/50" : "text-zinc-400"}`}>
                         {item.status === "failed"
                           ? `Failed${item.error ? `: ${item.error}` : ""}`
                           : item.status}
@@ -670,7 +685,8 @@ useEffect(() => {
                       removeFile(item.id);
                     }}
                     disabled={isUploading}
-                    className="p-1.5 text-white/40 hover:text-red-400 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`p-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white/40 hover:text-red-400" : "text-zinc-400 hover:text-red-500"
+                      }`}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -680,7 +696,8 @@ useEffect(() => {
           )}
 
           {statusMessage && (
-            <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+            <div className={`mt-4 rounded-lg border p-3 text-sm ${isDark ? "border-white/10 bg-white/5 text-white/70" : "border-zinc-200 bg-zinc-50 text-zinc-700"
+              }`}>
               {statusMessage}
             </div>
           )}
@@ -693,7 +710,8 @@ useEffect(() => {
               if (isUploading) return;
               onClose();
             }}
-            className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:flex-none lg:min-w-[90px]"
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:flex-none lg:min-w-[90px] ${isDark ? "bg-white text-black" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+              }`}
             disabled={isUploading}
           >
             Cancel
@@ -701,7 +719,8 @@ useEffect(() => {
           <button
             onClick={handleUpload}
             disabled={isUploading || !uploadPath}
-            className="flex-1 rounded-lg bg-[#E8D1AB] px-4 py-2 text-sm font-medium text-[#101010] transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[110px]"
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[110px] ${isDark ? "bg-[#E8D1AB] text-[#101010]" : "bg-black text-white"
+              }`}
           >
             {isUploading ? `Uploading ${uploadedCount}/${totalCount}` : "Upload Files"}
           </button>
@@ -709,7 +728,10 @@ useEffect(() => {
             <button
               onClick={() => handleUpload("failedOnly")}
               disabled={isUploading || !uploadPath}
-              className="rounded-lg border border-[#E8D1AB]/50 px-4 py-2 text-sm font-medium text-[#E8D1AB] transition-opacity hover:bg-[#E8D1AB]/10 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark
+                  ? "border border-[#E8D1AB]/50 text-[#E8D1AB] hover:bg-[#E8D1AB]/10"
+                  : "border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                }`}
             >
               Retry Failed
             </button>
