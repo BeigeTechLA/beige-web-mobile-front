@@ -30,6 +30,7 @@ import "swiper/css";
 import "swiper/css/effect-coverflow";
 import "swiper/css/navigation";
 import { pushToDataLayer } from "@/lib/gtm";
+import type { CrewRole, SelectedCrewRoles } from "./types";
 
 interface Props {
   data: BookingDataV3;
@@ -60,9 +61,13 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   const swiperRef = useRef<SwiperType | null>(null);
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(0);
   const [showSalesModal, setShowSalesModal] = useState(false);
+  const [activeRoleFilter, setActiveRoleFilter] = useState<"video" | "photo" | null>(null);
 
   // Use local state for selection if not in data yet
   const [selectedIds, setSelectedIds] = useState<number[]>(data.selectedCrewIds || []);
+  const [selectedRoles, setSelectedRoles] = useState<SelectedCrewRoles>(
+    data.selectedCrewRoles || {}
+  );
   const [showSalesPopup, setShowSalesPopup] = useState(false);
 
   // Sales lead mutation
@@ -182,8 +187,50 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     };
   }, [creators, data.roleCounts]);
 
+  useEffect(() => {
+    if (requirements.required.video > 0 && requirements.required.photo === 0) {
+      setActiveRoleFilter("video");
+      return;
+    }
+
+    if (requirements.required.photo > 0 && requirements.required.video === 0) {
+      setActiveRoleFilter("photo");
+      return;
+    }
+
+    if (requirements.required.video > 0 && requirements.required.photo > 0) {
+      setActiveRoleFilter((prev) => prev ?? "video");
+      return;
+    }
+
+    setActiveRoleFilter(null);
+  }, [requirements.required.video, requirements.required.photo]);
+
+  const getDefaultRoleForCreator = (
+    creator: Creator,
+    currentCounts: { video: number; photo: number },
+  ): CrewRole | null => {
+    const caps = getCreatorCapabilities(creator);
+
+    if (caps.isVideo && !caps.isPhoto) return "video";
+    if (!caps.isVideo && caps.isPhoto) return "photo";
+    if (!caps.isVideo && !caps.isPhoto) return null;
+
+    if (currentCounts.video < requirements.required.video && currentCounts.photo >= requirements.required.photo) {
+      return "video";
+    }
+    if (currentCounts.photo < requirements.required.photo && currentCounts.video >= requirements.required.video) {
+      return "photo";
+    }
+
+    return currentCounts.video <= currentCounts.photo ? "video" : "photo";
+  };
+
   // Helper to calculate counts for any set of IDs
-  const calculateCounts = (ids: number[]) => {
+  const calculateCounts = (
+    ids: number[],
+    roleAssignments: SelectedCrewRoles = {}
+  ) => {
     const selectedCreators = creators.filter(c => ids.includes(c.crew_member_id));
     let videoCount = 0;
     let photoCount = 0;
@@ -191,13 +238,19 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
     selectedCreators.forEach(c => {
       const caps = getCreatorCapabilities(c);
-      if (caps.isVideo && !caps.isPhoto) {
+      const assignedRole = roleAssignments[c.crew_member_id];
+
+      if (assignedRole === "video") {
         videoCount++;
-      } else if (!caps.isVideo && caps.isPhoto) {
+      }
+
+      if (assignedRole === "photo") {
         photoCount++;
-      } else if (caps.isVideo && caps.isPhoto) {
+      }
+
+      if (!assignedRole && caps.isVideo && caps.isPhoto) {
         both.push(c);
-      } else {
+      } else if (!assignedRole) {
         const role = (c.role_name || "").toLowerCase();
         if (role.includes("video")) videoCount++;
         else if (role.includes("photo")) photoCount++;
@@ -207,14 +260,15 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     const targetV = requirements.required.video;
     const targetP = requirements.required.photo;
 
-    both.forEach(_ => {
-      const deficitV = targetV - videoCount;
-      const deficitP = targetP - photoCount;
-      if (deficitV > deficitP) videoCount++;
-      else if (deficitP > deficitV) photoCount++;
-      else {
-        if (videoCount <= photoCount) videoCount++;
-        else photoCount++;
+    both.forEach(() => {
+        const deficitV = targetV - videoCount;
+        const deficitP = targetP - photoCount;
+        if (deficitV > 0 && deficitP > 0) videoCount++;
+        else if (deficitV > deficitP) videoCount++;
+        else if (deficitP > deficitV) photoCount++;
+        else {
+          if (videoCount <= photoCount) videoCount++;
+          else photoCount++;
       }
     });
 
@@ -222,22 +276,96 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   };
 
   // Smart counting to distribute multi-role creators to fill holes
-  const selectedCounts = useMemo(() => calculateCounts(selectedIds), [selectedIds, creators, requirements]);
+  const selectedCounts = useMemo(
+    () => calculateCounts(selectedIds, selectedRoles),
+    [selectedIds, selectedRoles, creators, requirements, calculateCounts]
+  );
+
+  const filteredCreators = useMemo(() => {
+    if (activeRoleFilter === "video") {
+      return creators.filter((creator) => getCreatorCapabilities(creator).isVideo);
+    }
+
+    if (activeRoleFilter === "photo") {
+      return creators.filter((creator) => getCreatorCapabilities(creator).isPhoto);
+    }
+
+    return creators;
+  }, [activeRoleFilter, creators]);
 
   const toggleSelection = (id: number) => {
     const creator = creators.find(c => c.crew_member_id === id);
     if (!creator) return;
 
     const { isVideo, isPhoto } = getCreatorCapabilities(creator);
+    const currentCounts = calculateCounts(selectedIds, selectedRoles);
+    const activeRole =
+      activeRoleFilter === "video" && isVideo
+        ? "video"
+        : activeRoleFilter === "photo" && isPhoto
+          ? "photo"
+          : null;
+
+    if (activeRole) {
+      setSelectedIds((prev) => {
+        const isAlreadySelected = prev.includes(id);
+        const nextRoles = { ...selectedRoles };
+
+        if (isAlreadySelected) {
+          if (nextRoles[id] && nextRoles[id] !== activeRole) {
+            toast.error("This CP is already selected.");
+            return prev;
+          }
+
+          delete nextRoles[id];
+          setSelectedRoles(nextRoles);
+          return prev.filter((p) => p !== id);
+        }
+
+        nextRoles[id] = activeRole;
+        const nextIds = [...prev, id];
+
+        const nextCounts = calculateCounts(nextIds, nextRoles);
+        const isVideoFull = nextCounts.video > requirements.required.video;
+        const isPhotoFull = nextCounts.photo > requirements.required.photo;
+
+        if (activeRole === "video" && isVideoFull) {
+          toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
+          return prev;
+        }
+
+        if (activeRole === "photo" && isPhotoFull) {
+          toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
+          return prev;
+        }
+
+        setSelectedRoles(nextRoles);
+        return nextIds;
+      });
+      return;
+    }
 
     setSelectedIds((prev) => {
       const isAlreadySelected = prev.includes(id);
-      if (isAlreadySelected) return prev.filter((p) => p !== id);
+      if (isAlreadySelected) {
+        setSelectedRoles((prevRoles) => {
+          const nextRoles = { ...prevRoles };
+          delete nextRoles[id];
+          return nextRoles;
+        });
+        return prev.filter((p) => p !== id);
+      }
 
-      // Perform a "Dry Run" to see if this addition is valid
+      const desiredRole = getDefaultRoleForCreator(creator, currentCounts);
+      const nextRoles = { ...selectedRoles };
+
+      if (desiredRole) {
+        nextRoles[id] = desiredRole;
+      }
+
       const nextIds = [...prev, id];
-      const nextCounts = calculateCounts(nextIds);
-      
+      const nextCounts = calculateCounts(nextIds, nextRoles);
+
       const isVideoFull = nextCounts.video > requirements.required.video;
       const isPhotoFull = nextCounts.photo > requirements.required.photo;
 
@@ -259,13 +387,14 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         return prev;
       }
 
+      setSelectedRoles(nextRoles);
       return nextIds;
     });
   };
 
   useEffect(() => {
-    updateData({ selectedCrewIds: selectedIds });
-  }, [selectedIds, updateData]);
+    updateData({ selectedCrewIds: selectedIds, selectedCrewRoles: selectedRoles });
+  }, [selectedIds, selectedRoles, updateData]);
 
   // Handle Connect with Sales
   const handleConnectWithSales = async () => {
@@ -377,11 +506,23 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           <h2 className="text-lg lg:text-[54px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
             Our system is finding your perfect match — let&apos;s get your shoot started.
           </h2>
+          {/*
+          <h2 className="text-lg lg:text-[54px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
+            No creators are currently available for your request.
+          </h2>
+          */}
           <p className="text-white/60 mb-6">
             {error
               ? "We encountered an issue loading creators. Please try again."
               : "A Beige specialist will step in to make sure everything runs smoothly."}
           </p>
+          {/* 
+          <p className="text-white/60 mb-6">
+            {error
+              ? "We encountered an issue loading creators. Please try again."
+              : "You can continue now, and our team will help source the right creative talent for you."}
+          </p>
+          */}
         </div>
 
         <div className="mx-auto">
@@ -523,29 +664,45 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       </div>
 
       <div className="border-t border-white/10 pt-15">
-        <CreatorCarousel
-          creators={creators}
-          selectedIds={selectedIds}
-          toggleSelection={toggleSelection}
-        />
+        {filteredCreators.length > 0 ? (
+          <CreatorCarousel
+            creators={filteredCreators}
+            selectedIds={selectedIds}
+            selectedRoles={selectedRoles}
+            activeRoleFilter={activeRoleFilter}
+            toggleSelection={toggleSelection}
+          />
+        ) : (
+          <div className="text-center text-white/60 py-16">
+            No {activeRoleFilter === "photo" ? "photographers" : "videographers"} available right now.
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap justify-center gap-4">
         {requirements.required.video > 0 && (
-          <div className={`h-12 flex items-center gap-2 border px-6 py-2 rounded-lg text-sm transition-all ${selectedCounts.video >= requirements.required.video ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}>
+          <button
+            type="button"
+            onClick={() => setActiveRoleFilter("video")}
+            className={`h-12 flex items-center gap-2 border px-6 py-2 rounded-lg text-sm transition-all ${activeRoleFilter === "video" || selectedCounts.video >= requirements.required.video ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}
+          >
             <Video size={16} />
             <span className="font-medium">
               Videographer(s): {selectedCounts.video} / {requirements.required.video}
             </span>
-          </div>
+          </button>
         )}
         {requirements.required.photo > 0 && (
-          <div className={`h-12 flex items-center gap-2 border px-6 py-2 rounded-lg text-sm transition-all ${selectedCounts.photo >= requirements.required.photo ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}>
+          <button
+            type="button"
+            onClick={() => setActiveRoleFilter("photo")}
+            className={`h-12 flex items-center gap-2 border px-6 py-2 rounded-lg text-sm transition-all ${activeRoleFilter === "photo" || selectedCounts.photo >= requirements.required.photo ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}
+          >
             <Camera size={16} />
             <span className="font-medium">
               Photographer(s): {selectedCounts.photo} / {requirements.required.photo}
             </span>
-          </div>
+          </button>
         )}
       </div>
       <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
@@ -594,7 +751,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
               <p className="text-white/60 text-lg leading-relaxed mb-8">
                 You are choosing to continue without adding any team members.
                 <br />
-                <span className="text-[#E8D1AB] font-medium">Beige's team will create the best talent for you based on your needs.</span>
+                <span className="text-[#E8D1AB] font-medium">Beige team will create the best talent for you based on your needs.</span>
               </p>
               <div className="flex flex-col md:flex-row gap-4">
                 <Button
