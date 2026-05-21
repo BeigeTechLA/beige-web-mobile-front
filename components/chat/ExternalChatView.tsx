@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
 import {
   Archive,
   CalendarDays,
@@ -320,6 +321,30 @@ const getLatestSeenTimestamp = (items: ExternalChatMessage[] = []) => {
   return "";
 };
 
+const buildMessageFromSocketPayload = (payload: any): ExternalChatMessage | null => {
+  const messageId = String(payload?.messageId || payload?.id || payload?._id || "").trim();
+  if (!messageId) return null;
+
+  return {
+    id: messageId,
+    _id: messageId,
+    message: payload?.message || "",
+    chat_room_id: payload?.roomId ? String(payload.roomId) : undefined,
+    sent_by:
+      payload?.sent_by ||
+      (payload?.senderId || payload?.senderName
+        ? { id: payload?.senderId != null ? String(payload.senderId) : undefined, name: payload?.senderName }
+        : null),
+    message_type: payload?.message_type || (payload?.fileUrl ? "file" : "text"),
+    file_url: payload?.fileUrl || payload?.file_url,
+    file_name: payload?.fileName || payload?.file_name,
+    file_type: payload?.fileType || payload?.file_type,
+    createdAt: payload?.createdAt || payload?.updatedAt || new Date().toISOString(),
+    updatedAt: payload?.updatedAt || payload?.createdAt || new Date().toISOString(),
+    reply_to: payload?.replyTo || payload?.reply_to || null,
+  };
+};
+
 const getUnreadStorageKey = (userId?: string | null) => `external-chat-unread-state:${userId || "guest"}`;
 
 const readUnreadStorage = (userId?: string | null) => {
@@ -537,7 +562,8 @@ export default function ExternalChatView({
   const [activeThreadUnreadCount, setActiveThreadUnreadCount] = useState(0);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [accessRevokedNotice, setAccessRevokedNotice] = useState<string | null>(null);
-  const pollRef = useRef<number | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const socketRefreshTimerRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottomRef = useRef(true);
@@ -551,7 +577,26 @@ export default function ExternalChatView({
 
   const effectiveUser = useMemo(() => ({ ...(storedUser || {}), ...(user || {}) }), [storedUser, user]);
   const userId = effectiveUser?.id != null ? String(effectiveUser.id) : null;
+  const userName = String(effectiveUser?.name || effectiveUser?.email || "").trim();
+  const safeUserName = userName || `User ${userId || "guest"}`;
   const isAdminView = role === "admin";
+  const socketServerUrl = useMemo(() => {
+    const explicitSocketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "").trim();
+    if (explicitSocketUrl) {
+      return explicitSocketUrl.replace(/\/+$/, "");
+    }
+
+    const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
+    if (apiEndpoint) {
+      const normalized = apiEndpoint.replace(/\/v1\/?$/i, "").replace(/\/+$/, "");
+      if (/localhost:5001/i.test(normalized)) {
+        return normalized.replace(/localhost:5001/i, "localhost:5002");
+      }
+      return normalized;
+    }
+
+    return "http://localhost:5002";
+  }, []);
   const currentSender = {
     id: effectiveUser?.id != null ? String(effectiveUser.id) : undefined,
     name: effectiveUser?.name || undefined,
@@ -785,6 +830,22 @@ export default function ExternalChatView({
     }
   };
 
+  const scheduleSocketRefresh = (options?: { forceRoomRefresh?: boolean }) => {
+    if (socketRefreshTimerRef.current) {
+      window.clearTimeout(socketRefreshTimerRef.current);
+      socketRefreshTimerRef.current = null;
+    }
+
+    socketRefreshTimerRef.current = window.setTimeout(() => {
+      const activeRoom = selectedRoomRef.current;
+      refreshRoomListSnapshot().catch(() => undefined);
+
+      if (options?.forceRoomRefresh && getRoomId(activeRoom)) {
+        loadRoomDetails(activeRoom, { silent: true }).catch(() => undefined);
+      }
+    }, 250);
+  };
+
   const hydrateRoomPreviews = async (
     roomList: ExternalChatRoom[],
     options?: { forceLatestMessage?: boolean; onMessages?: (roomId: string, roomMessages: ExternalChatMessage[]) => void }
@@ -895,6 +956,7 @@ export default function ExternalChatView({
 
       setMessages(sortedMessages);
       syncRoomSnapshot(roomWithClearedUnread, sortedMessages);
+      await externalChatApi.markRoomAsRead(roomId, currentSender).catch(() => undefined);
       if (!options?.preserveRoomUnread && (!options?.silent || shouldStickToBottomRef.current)) {
         const latestSeenTimestamp = getLatestSeenTimestamp(sortedMessages);
         if (latestSeenTimestamp) {
@@ -984,30 +1046,212 @@ export default function ExternalChatView({
   }, [rooms]);
 
   useEffect(() => {
-    if (pollRef.current) {
-      window.clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
+    if (!userId) return undefined;
 
-    if (isManageOpen || isComposerOpen) {
-      return undefined;
-    }
+    const socket = io(socketServerUrl, {
+      transports: ["websocket", "polling"],
+    });
+    socketRef.current = socket;
 
-    pollRef.current = window.setInterval(() => {
-      const activeRoom = selectedRoomRef.current;
-      refreshRoomListSnapshot().catch(() => undefined);
-      if (getRoomId(activeRoom)) {
-        loadRoomDetails(activeRoom, { silent: true });
+    const joinActiveRoom = () => {
+      const activeRoomId = getRoomId(selectedRoomRef.current);
+      if (!activeRoomId) return;
+      socket.emit("joinRoom", {
+        roomId: activeRoomId,
+        userId,
+        userName: safeUserName,
+      });
+    };
+
+    socket.on("connect", () => {
+      socket.emit("joinNotificationRoom", { userId, userRole: role });
+      joinActiveRoom();
+      scheduleSocketRefresh({ forceRoomRefresh: true });
+    });
+
+    socket.on("message", (payload: any) => {
+      if (payload?.success === false) {
+        const errorText = String(payload?.error || "").trim();
+        if (errorText) {
+          toast.error(errorText);
+        }
+        return;
       }
-    }, 4000);
+      const activeRoomId = getRoomId(selectedRoomRef.current);
+      const roomIdFromPayload = String(payload?.roomId || "").trim();
+      const incomingMessage = buildMessageFromSocketPayload(payload);
+      const incomingSenderId = String(payload?.senderId || normalizeUser(incomingMessage?.sent_by || null)?.id || "").trim();
+      const incomingMessageTimestamp = String(
+        incomingMessage?.createdAt || incomingMessage?.updatedAt || payload?.createdAt || new Date().toISOString()
+      );
+
+      if (incomingMessage && roomIdFromPayload) {
+        setRooms((current) =>
+          current.map((room) => {
+            if (getRoomId(room) !== roomIdFromPayload) return room;
+            return {
+              ...room,
+              last_message: {
+                id: getMessageId(incomingMessage),
+                message: incomingMessage.message || incomingMessage.file_name || "New message",
+                createdAt: incomingMessage.createdAt || incomingMessage.updatedAt,
+                sent_by: normalizeUser(incomingMessage.sent_by),
+              },
+              updatedAt: incomingMessage.createdAt || incomingMessage.updatedAt || room.updatedAt,
+            };
+          })
+        );
+
+        roomActivityRef.current[roomIdFromPayload] = [
+          getMessageId(incomingMessage),
+          incomingMessage.createdAt || "",
+          incomingMessage.message || "",
+          incomingMessage.updatedAt || "",
+        ].join("|");
+      }
+
+      if (incomingMessage && activeRoomId && roomIdFromPayload === String(activeRoomId)) {
+        setMessages((current) => {
+          const exists = current.some((item) => getMessageId(item) === getMessageId(incomingMessage));
+          if (exists) return current;
+          return sortMessagesAsc([...current, incomingMessage]);
+        });
+
+        if (!shouldStickToBottomRef.current && incomingSenderId && incomingSenderId !== String(userId || "")) {
+          setActiveThreadUnreadCount((current) => current + 1);
+        }
+        return;
+      }
+
+      if (roomIdFromPayload && incomingSenderId && incomingSenderId !== String(userId || "")) {
+        setLocalUnreadCounts((current) => {
+          const next = {
+            ...current,
+            [roomIdFromPayload]: (current[roomIdFromPayload] || 0) + 1,
+          };
+          persistUnreadState(next);
+          return next;
+        });
+      }
+
+      if (!incomingMessage) {
+        scheduleSocketRefresh();
+      }
+    });
+
+    socket.on("updateChatRoom", (payload: any) => {
+      const roomIdFromPayload = String(payload?.roomId || "").trim();
+      if (!roomIdFromPayload) {
+        scheduleSocketRefresh();
+        return;
+      }
+
+      setRooms((current) =>
+        current.map((room) =>
+          getRoomId(room) === roomIdFromPayload
+            ? {
+                ...room,
+                last_message: {
+                  ...(room.last_message || {}),
+                  message: String(payload?.message || room.last_message?.message || "New update"),
+                },
+                updatedAt: new Date().toISOString(),
+              }
+            : room
+        )
+      );
+    });
+    socket.on("messageEdited", (payload: any) => {
+      if (payload?.success === false) return;
+      const messageId = String(payload?.messageId || "").trim();
+      if (!messageId) return;
+
+      setMessages((current) =>
+        current.map((item) =>
+          getMessageId(item) === messageId
+            ? {
+                ...item,
+                message: String(payload?.content || item.message || ""),
+                is_edited: true,
+                updatedAt: payload?.updatedAt || item.updatedAt,
+              }
+            : item
+        )
+      );
+    });
+    socket.on("messageDeleted", (payload: any) => {
+      if (payload?.success === false) return;
+      const messageId = String(payload?.messageId || "").trim();
+      if (!messageId) return;
+
+      setMessages((current) =>
+        current.map((item) =>
+          getMessageId(item) === messageId
+            ? {
+                ...item,
+                is_deleted: true,
+                message: "This message was deleted",
+                updatedAt: payload?.updatedAt || item.updatedAt,
+              }
+            : item
+        )
+      );
+    });
+    socket.on("reactionUpdated", (payload: any) => {
+      if (payload?.success === false) return;
+      const messageId = String(payload?.messageId || "").trim();
+      if (!messageId) return;
+      const nextReactions = Array.isArray(payload?.reactions) ? payload.reactions : [];
+
+      setMessages((current) =>
+        current.map((item) =>
+          getMessageId(item) === messageId
+            ? { ...item, reactions: nextReactions, updatedAt: payload?.updatedAt || item.updatedAt }
+            : item
+        )
+      );
+    });
+    socket.on("participantAdded", () => scheduleSocketRefresh({ forceRoomRefresh: true }));
+    socket.on("participantRemoved", () => scheduleSocketRefresh({ forceRoomRefresh: true }));
+    socket.on("chatRoomStatusChanged", () => scheduleSocketRefresh({ forceRoomRefresh: true }));
+    socket.on("notification:new", (payload: any) => {
+      const roomIdFromPayload = String(payload?.roomId || payload?.id || "").trim();
+      if (!roomIdFromPayload || payload?.senderId === userId) return;
+
+      setLocalUnreadCounts((current) => {
+        const next = {
+          ...current,
+          [roomIdFromPayload]: (current[roomIdFromPayload] || 0) + 1,
+        };
+        persistUnreadState(next);
+        return next;
+      });
+    });
 
     return () => {
-      if (pollRef.current) {
-        window.clearInterval(pollRef.current);
-        pollRef.current = null;
+      if (socketRefreshTimerRef.current) {
+        window.clearTimeout(socketRefreshTimerRef.current);
+        socketRefreshTimerRef.current = null;
       }
+      socket.removeAllListeners();
+      socket.disconnect();
+      socketRef.current = null;
     };
-  }, [selectedRoom, bookingId, userId, isManageOpen, isComposerOpen]);
+  }, [socketServerUrl, userId, safeUserName, role]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !socket.connected || !userId) return;
+
+    const activeRoomId = getRoomId(selectedRoom);
+    if (!activeRoomId) return;
+
+    socket.emit("joinRoom", {
+      roomId: activeRoomId,
+      userId,
+      userName: safeUserName,
+    });
+  }, [selectedRoom, userId, safeUserName]);
 
   useEffect(() => {
     if (!shouldStickToBottomRef.current) return;
@@ -1096,9 +1340,13 @@ export default function ExternalChatView({
       setShowComposerEmojis(false);
       shouldStickToBottomRef.current = true;
       if (sent) {
-        setMessages((current) => sortMessagesAsc([...current, sent]));
+        setMessages((current) => {
+          const sentId = getMessageId(sent);
+          if (sentId && current.some((item) => getMessageId(item) === sentId)) return current;
+          return sortMessagesAsc([...current, sent]);
+        });
+        syncRoomSnapshot(selectedRoom, sortMessagesAsc([...messagesRef.current, sent]));
       }
-      await loadRoomDetails(selectedRoom, { silent: true });
     } catch (err: any) {
       toast.error(err?.message || "Failed to send message");
     } finally {
@@ -1108,12 +1356,12 @@ export default function ExternalChatView({
 
   const handleReaction = async (message: ExternalChatMessage, emoji: string) => {
     const messageId = getMessageId(message);
+    const roomId = getRoomId(selectedRoom);
     if (!messageId) return;
 
     try {
-      await externalChatApi.reactToMessage(messageId, emoji, currentSender);
+      await externalChatApi.reactToMessage(messageId, emoji, currentSender, roomId || undefined);
       setShowReactionPickerId(null);
-      await loadRoomDetails(selectedRoom, { silent: true });
     } catch (err: any) {
       toast.error(err?.message || "Failed to react to message");
     }
@@ -1126,13 +1374,13 @@ export default function ExternalChatView({
   };
 
   const submitEditMessage = async () => {
+    const roomId = getRoomId(selectedRoom);
     if (!editingMessageId || !editingText.trim()) return;
 
     try {
-      await externalChatApi.editMessage(editingMessageId, editingText.trim(), currentSender);
+      await externalChatApi.editMessage(editingMessageId, editingText.trim(), currentSender, roomId || undefined);
       setEditingMessageId(null);
       setEditingText("");
-      await loadRoomDetails(selectedRoom, { silent: true });
     } catch (err: any) {
       toast.error(err?.message || "Failed to edit message");
     }
@@ -1140,10 +1388,11 @@ export default function ExternalChatView({
 
   const handleDeleteMessage = async (message: ExternalChatMessage) => {
     const messageId = getMessageId(message);
+    const roomId = getRoomId(selectedRoom);
     if (!messageId) return;
 
     try {
-      const updated = await externalChatApi.deleteMessage(messageId, currentSender);
+      const updated = await externalChatApi.deleteMessage(messageId, currentSender, roomId || undefined);
       setOpenMessageMenuId(null);
       setShowReactionPickerId(null);
       setOpenReactionDetails(null);
@@ -1162,7 +1411,6 @@ export default function ExternalChatView({
           )
         );
       }
-      await loadRoomDetails(selectedRoom, { silent: true });
     } catch (err: any) {
       toast.error(err?.message || "Failed to delete message");
     }
