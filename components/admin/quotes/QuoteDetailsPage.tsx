@@ -464,7 +464,7 @@ const ServiceLineCard = ({
           </div>
           <div className="min-w-0 flex-1">
             <p
-              className="break-words lg:text-lg font-semibold leading-1 lg:leading-7 text-white"
+              className="break-words lg:text-lg font-semibold leading-5 lg:leading-7 text-white"
               title={detailLabel ? `${item.name} - ${detailLabel}` : item.name}
             >
               {item.name}
@@ -525,12 +525,12 @@ const QuoteTopActions = ({
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
 }) => (
-  <div className="flex flex-wrap items-center gap-3">
+  <div className="flex items-center gap-1 lg:gap-3">
     {versions.length > 0 && (
-      <div className="mr-2 flex items-center gap-2">
+      <div className="mr-1 lg:mr-2 flex items-center gap-1 lg:gap-2">
         <span className="text-sm font-medium text-[#8F8F95]">Version:</span>
         <Select value={selectedVersionId || ""} onValueChange={onVersionChange}>
-          <SelectTrigger className="h-11 w-[140px] rounded-xl border-white/10 bg-[#1B1B1B] text-white">
+          <SelectTrigger className="h-11 w-[120px] md:w-[140px] rounded-xl border-white/10 bg-[#1B1B1B] text-white">
             <SelectValue placeholder="Select version" />
           </SelectTrigger>
           <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
@@ -1870,7 +1870,7 @@ export default function QuoteDetailsPage({
                         </p>
                         {selectedVersionNumber && (
                           <div className="flex flex-col items-start gap-1">
-                            <span className="rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
+                            <span className="text-nowrap rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
                               Quote Version {selectedVersionNumber}
                             </span>
                             {quote?.edit_reason && (
@@ -2059,7 +2059,7 @@ export default function QuoteDetailsPage({
                                 void handleManualPaymentSubmit();
                               }}
                               disabled={isSubmittingManualPayment || isUploadingManualProof || hasFullPayment}
-                              className="h-11 rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90"
+                              className="h-11 rounded-lg lg:rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90 w-full lg:w-auto flex items-center gap-2 justify-center"
                             >
                               {isSubmittingManualPayment ? <Loader2 size={16} className="animate-spin" /> : null}
                               {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
@@ -2311,7 +2311,7 @@ export default function QuoteDetailsPage({
                 {terms.length > 0 ? (
                   <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4 lg:p-5">
                     <p className="lg:text-lg font-semibold text-white">Terms & Conditions</p>
-                    <div className="mt-4 space-y-1 lg:space-y-2 text-xs lg:text-sm leading-none lg:leading-7 text-[#B3B3B8]">
+                    <div className="mt-4 lg:space-y-2 text-xs lg:text-sm leading-4 lg:leading-7 text-[#B3B3B8]">
                       {terms.map((term, index) => (
                         <p key={`${term}-${index}`}>{term}</p>
                       ))}
