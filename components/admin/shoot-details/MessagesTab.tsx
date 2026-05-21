@@ -12,6 +12,7 @@ interface MessagesTabProps {
   projectName?: string;
   salesRepName?: string | null;
   clientName?: string | null;
+  isDark?: boolean;
 }
 
 export default function MessagesTab({
@@ -21,6 +22,7 @@ export default function MessagesTab({
   projectName,
   salesRepName,
   clientName,
+  isDark = true,
 }: MessagesTabProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -32,7 +34,10 @@ export default function MessagesTab({
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#E5D5B8] px-4 py-3 text-sm font-semibold text-black transition-colors hover:bg-[#d9c7a5] disabled:cursor-not-allowed disabled:opacity-50"
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark
+                ? "bg-[#E5D5B8] text-black hover:bg-[#d9c7a5]"
+                : "bg-black text-white hover:bg-zinc-800"
+              }`}
             disabled={!bookingId}
           >
             <MessageSquarePlus size={16} />
@@ -46,6 +51,7 @@ export default function MessagesTab({
         role={role}
         bookingId={bookingId}
         heading="Project Chat"
+        isDark={isDark}
         description={
           role === "admin"
             ? "Create one chat room for this project with admin, assigned sales rep, selected CPs, and client when available."
@@ -67,6 +73,7 @@ export default function MessagesTab({
         salesRepName={salesRepName}
         clientName={clientName}
         assignedCrew={assignedCrew}
+        isDark={isDark}
         onCreated={() => setRefreshKey((value) => value + 1)}
       />
     </>

@@ -316,7 +316,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark }:
     <div
       onClick={onToggle}
       className={`p-2 lg:p-4 relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-xl cursor-pointer transition-all border ${isSelected
-        ? (isDark ? 'bg-white/[0.02] border-white/10' : 'bg-[#E8D1AB]/10 border-[#E8D1AB]/30')
+        ? (isDark ? 'bg-white/[0.02] border-white/10' : 'bg-transparent border-transparent')
         : 'bg-transparent border-transparent'
         }`}
     >
@@ -374,8 +374,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark }:
               e.stopPropagation();
               onViewProfile();
             }}
-            className={`text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d9bc90]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
-              }`}
+            className={`text-sm font-medium px-5 py-2.5 rounded-lg transition-colors ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d9bc90]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
           >
             View Profile
           </button>
