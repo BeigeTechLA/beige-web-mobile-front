@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState, useEffect, useRef} from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Check, Copy, Loader2, Send } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -551,17 +551,6 @@ export default function QuotePreviewPageShell({
           Continue to Payment
         </ActionButton>
       )}
-      <ServiceAgreementModal
-        isOpen={isServiceAgreementOpen}
-        initialChecked={acceptServiceAgreement}
-        isAcceptedLocked={isQuoteSigned}
-        onClose={() => setIsServiceAgreementOpen(false)}
-        onAccept={() => {
-          setAcceptServiceAgreement(true);
-          setIsServiceAgreementOpen(false);
-          setShowSignature(true);
-        }}
-      />
       {quoteDetailMode !== "public" && (
       <ActionButton
         onClick={() => {
@@ -721,6 +710,20 @@ export default function QuotePreviewPageShell({
           </div>
         )}
       </div>
+
+      {/* FIXED: Placed at root layout level so it is always mounted across mobile & desktop viewports */}
+      <ServiceAgreementModal
+        isOpen={isServiceAgreementOpen}
+        initialChecked={acceptServiceAgreement}
+        isAcceptedLocked={isQuoteSigned}
+        onClose={() => setIsServiceAgreementOpen(false)}
+        onAccept={() => {
+          setAcceptServiceAgreement(true);
+          setIsServiceAgreementOpen(false);
+          setShowSignature(true);
+        }}
+      />
+
       {showSignature && (
         <SignatureModal
           quoteId={resolvedQuoteId}
@@ -773,6 +776,7 @@ export default function QuotePreviewPageShell({
           }}
         />
       )}
+
       {quoteDetailMode === "public" && isConvertingToBooking ? (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50">
           <div className="rounded-xl bg-[#111] px-6 py-4 text-white shadow-xl">
