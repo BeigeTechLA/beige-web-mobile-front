@@ -168,18 +168,15 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-6" style={{ fontFamily: "var(--font-instrument-sans)" }}>
       {/* Topbar Banner Wrapper */}
-      <div
-        className={`flex items-center justify-between lg:p-2 rounded-lg lg:rounded-2xl border min-h-[46px] lg:min-h-[72px] ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD] shadow-sm"
-          }`}
-      >
-        <div className={`px-6 text-xs lg:text-base font-medium ${isDark ? "text-[#666666]" : "text-black/60"}`}>
+      <div className={`flex items-center justify-between rounded-2xl border min-h-[46px] lg:min-h-[72px] ${isDark ? "bg-[#111111] border-[#222222]" : "bg-[#F4F5F7] border-[#FFFFFF33] shadow-sm"}`}>
+        <div className={`px-6 text-xs lg:text-base font-medium ${isDark ? "text-[#666666]" : "text-[#7C7474]"}`}>
           {workspaceName ? `Live Pre Production for ${workspaceName}` : "Open and manage Pre Production files"}
         </div>
         <button
           onClick={() => setIsUploadModalOpen(true)}
-          className={`px-6 h-full min-h-[46px] lg:min-h-[72px] rounded-r-lg lg:rounded-xl font-medium flex items-center gap-2 transition-colors ${isDark
+          className={`px-6 h-full min-h-[46px] lg:min-h-[72px] rounded-r-xl font-medium flex items-center gap-2 transition-colors ${isDark
             ? "bg-white text-black hover:bg-zinc-200"
-            : "bg-black text-white hover:bg-zinc-800"
+            : "bg-black text-[#E8D1AB] hover:bg-black/80"
             }`}
         >
           <CloudUpload size={20} />
@@ -205,7 +202,7 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
               }`}>
               <div className={`px-6 py-4 border-b ${isDark ? "border-[#222222] bg-[#161616]" : "border-[#DFDDDD] bg-[#FAFAFA]"
                 }`}>
-                <h3 className="text-[#E5D5B8] text-base font-medium leading-none">Folders</h3>
+                <h3 className="text-[#E8D1AB] text-base font-medium leading-none">Folders</h3>
               </div>
               <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {folders.map((folder) => (
@@ -218,7 +215,7 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
                       }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Folder className="text-[#E5D5B8]" size={20} />
+                      <Folder className="text-[#E8D1AB]" size={20} />
                       <div>
                         <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{folder.title}</div>
                         <div className={`text-xs ${isDark ? "text-[#888]" : "text-black/50"}`}>{folder.fileCount} files</div>
@@ -235,9 +232,9 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
           {files.length > 0 || folders.length === 0 ? (
             <div className={`border rounded-2xl overflow-hidden min-h-[280px] ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD] shadow-sm"
               }`}>
-              <div className={`px-6 py-4 border-b flex justify-between items-center ${isDark ? "border-[#222222] bg-[#161616]" : "border-[#DFDDDD] bg-[#FAFAFA]"
+              <div className={`px-6 py-4 border-b flex justify-between items-center ${isDark ? "border-[#222222] bg-[#161616]" : "border-[#EAE3E3] bg-[#F4F5F7]"
                 }`}>
-                <h3 className="text-[#E5D5B8] text-base font-medium leading-none">Uploaded Documents</h3>
+                <h3 className={`text-base font-medium leading-none ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>Uploaded Documents</h3>
               </div>
 
               {files.length > 0 ? (
@@ -301,7 +298,7 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
                           >
                             {file.title}
                           </h4>
-                          <span className="text-[#E5D5B8] text-sm underline underline-offset-4">
+                          <span className={`text-sm underline underline-offset-4 ${isDark ? "text-[#E8D1AB]" : "text-black/80"}`}>
                             Open in File Manager
                           </span>
                         </div>
@@ -323,6 +320,7 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
         folderName="Pre Production"
         uploadPath={workspaceName ? `${workspaceName}/Pre-Production` : undefined}
         onUploadComplete={loadPreProduction}
+        isDark={isDark}
       />
     </div>
   );

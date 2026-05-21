@@ -30,7 +30,8 @@ export default function EmptyFileState({
         alt="No file uploaded"
         width={184}
         height={164}
-        className="mb-6 h-auto w-[150px] lg:w-[184px]"
+        // className="mb-6 h-auto w-[150px] lg:w-[184px]"
+        className={`mb-6 h-auto w-[150px] lg:w-[184px] ${isDark ? "" : "invert brightness-100 hue-rotate-180"}`}
         priority
       />
 
@@ -46,8 +47,8 @@ export default function EmptyFileState({
         <Button
           onClick={onAction}
           className={`mt-6 h-11 rounded-xl px-6 text-sm font-semibold transition-colors ${isDark
-            ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
-            : "bg-black text-white hover:bg-zinc-800"
+            ? "bg-[#E8D1AB] text-black hover:bg-[#d4c3a3]"
+            : "bg-black text-[#E8D1AB] hover:bg-zinc-800"
             }`}
         >
           {actionLabel}

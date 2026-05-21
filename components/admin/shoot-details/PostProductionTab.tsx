@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Play,
   Presentation,
+  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -182,7 +183,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${isDark ? "bg-[#111111] border-[#222222] text-[#999999]" : "bg-[#F0F0F0] border-[#E3E3E3] text-[#666666]"
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${isDark ? "bg-[#2F2D2D] border-[#2F2D2D] text-[#ffffff]" : "bg-[#F0F0F0] border-[#E3E3E3] text-[#666666]"
             }`}>
             <FolderSearch size={20} />
           </div>
@@ -192,7 +193,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
         </div>
 
         <div className="flex items-center gap-4">
-          <button className={`flex items-center gap-3 px-4 py-2 border rounded-lg text-sm transition-colors ${isDark ? "bg-[#1A1A1A] border-[#222222] text-[#E0E0E0] hover:bg-[#222222]" : "bg-white border-[#DFDDDD] text-[#171717] hover:bg-zinc-50"
+          <button className={`flex items-center gap-3 px-4 py-2 border rounded-lg text-sm transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33] text-[#FFFFFF] hover:bg-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
             }`}>
             <span>Status</span>
             <ChevronDown size={16} />
@@ -202,8 +203,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
           <div className="md:hidden relative">
             <Button
               onClick={toggleDropdown}
-              className={`flex items-center gap-2 border p-2 h-8 rounded-lg transition-colors ${isDark ? "bg-[#202020] border-white/10 text-white" : "bg-white border-[#E3E3E3] text-[#171717]"
-                }`}
+              className={`flex items-center gap-2 border p-2 h-8 rounded-lg transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33] text-white" : "bg-white border-[#E3E3E3] text-[#171717]"}`}
             >
               {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
             </Button>
@@ -236,15 +236,15 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
           </div>
 
           {/* Desktop Layout View Mode Selector */}
-          <div className={`hidden lg:flex border rounded-lg p-1 transition-colors ${isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3]"
+          <div className={`hidden lg:flex border rounded-lg transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33]" : "bg-[#F4F5F7] border-[#FFFFFF33]"
             }`}>
             <button
               onClick={() => handleViewChange("grid")}
               className={cn(
-                "p-2 rounded-md transition-all",
+                "py-2.5 px-5 rounded-md transition-all",
                 viewMode === "grid"
-                  ? "bg-[#E5D5B8] text-black"
-                  : isDark ? "text-[#666666] hover:text-[#E0E0E0]" : "text-black/40 hover:text-black"
+                  ? "bg-[#E8D1AB] text-black"
+                  : isDark ? "text-white hover:text-[#E0E0E0]" : "text-[#000000] hover:text-black/80"
               )}
             >
               <LayoutGrid size={18} />
@@ -252,10 +252,10 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
             <button
               onClick={() => handleViewChange("list")}
               className={cn(
-                "p-2 rounded-md transition-all",
+                "py-2.5 px-5 rounded-md transition-all",
                 viewMode === "list"
-                  ? "bg-[#E5D5B8] text-black"
-                  : isDark ? "text-[#666666] hover:text-[#E0E0E0]" : "text-black/40 hover:text-black"
+                  ? "bg-[#E8D1AB] text-black"
+                  : isDark ? "text-white hover:text-[#E0E0E0]" : "text-[#000000] hover:text-black/80"
               )}
             >
               <List size={18} />
@@ -285,34 +285,33 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                   <button
                     key={folder.id}
                     onClick={() => router.push(folder.href)}
-                    className={`text-left cursor-pointer border rounded-2xl overflow-hidden group transition-colors ${isDark ? "bg-[#111111] border-[#222222] hover:border-[#333333]" : "bg-white border-[#DFDDDD] hover:border-[#B5B5B5] shadow-sm"
-                      }`}
+                    className={`text-left cursor-pointer border rounded-2xl overflow-hidden group transition-colors ${isDark ? "bg-[#202020] border-[#222222] hover:border-[#333333]" : "bg-[#F4F5F7] border-[#F4F5F7] hover:border-[#F0F0F0] shadow-sm"}`}
                   >
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <Folder className="text-[#E5D5B8] w-8 h-8" />
+                          <FolderOpen className="text-[#E8D1AB] w-8 h-8" />
                           <div>
-                            <h3 className={`font-semibold text-base group-hover:text-[#E5D5B8] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>
+                            <h3 className={`font-semibold text-base group-hover:text-[#E8D1AB] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>
                               {folder.title}
                             </h3>
-                            <p className={`text-xs mt-0.5 ${isDark ? "text-[#666666]" : "text-black/50"}`}>
+                            <p className={`text-xs mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black/50"}`}>
                               {folder.fileCount} Items
                             </p>
                           </div>
                         </div>
-                        <ExternalLink className={isDark ? "text-white/40" : "text-black/40"} size={16} />
+                        <ExternalLink className={isDark ? "text-white" : "text-black/40"} size={16} />
                       </div>
 
                       <div className="flex items-center gap-3 mt-6">
-                        <span className={`px-4 py-2 rounded-full text-xs border transition-colors ${isDark ? "bg-[#1A1A1A] border-[#222222] text-[#E0E0E0]" : "bg-[#F5F5F5] border-[#E3E3E3] text-black/80"
+                        <span className={`px-4 py-2 rounded-full text-xs border transition-colors ${isDark ? "bg-[#171717] border-[#171717] text-[#FFFFFF]" : "bg-[#FFFFFF] border-[#FFFFFF] text-[#929292]"
                           }`}>
                           {folder.category}
                         </span>
                       </div>
                     </div>
 
-                    <div className={`px-6 py-4 border-t flex items-center gap-3 ${isDark ? "border-[#222222] bg-[#161616]/50" : "border-[#DFDDDD] bg-[#FAFAFA]"
+                    <div className={`px-6 py-4 border-t flex items-center gap-3 ${isDark ? "border-[#e3e3e3]/30 bg-[#202020]" : "border-[#e3e3e3] bg-[#F4F5F7]"
                       }`}>
                       <div className="w-8 h-8 rounded-full bg-[#DBEAFE] text-[#1E3A8A] flex items-center justify-center text-xs font-semibold">
                         {folder.userInitials}
@@ -330,7 +329,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                 }`}>
                 <div className={`px-6 py-4 border-b flex justify-between items-center ${isDark ? "border-[#222222] bg-[#161616]" : "border-[#DFDDDD] bg-[#FAFAFA]"
                   }`}>
-                  <h3 className="text-[#E5D5B8] text-base font-medium leading-none">Uploaded Documents</h3>
+                  <h3 className="text-[#E8D1AB] text-base font-medium leading-none">Uploaded Documents</h3>
                 </div>
                 <div className="p-3 lg:p-6 flex gap-6 flex-wrap">
                   {files.map((file) => {
@@ -384,7 +383,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                           <h4 className={`text-sm lg:text-base font-medium leading-tight mb-1 truncate ${isDark ? "text-white" : "text-black"}`} title={file.title}>
                             {file.title}
                           </h4>
-                          <span className="text-[#E5D5B8] text-sm underline underline-offset-4">
+                          <span className="text-[#E8D1AB] text-sm underline underline-offset-4">
                             Open in File Manager
                           </span>
                         </div>
@@ -400,16 +399,16 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
         )
       ) : (
         /* List / Table View Module */
-        <div className={`border rounded-2xl overflow-hidden ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD] shadow-sm"
+        <div className={`border rounded-2xl overflow-hidden ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5] shadow-sm"
           }`}>
           <table className="hidden lg:table w-full text-left">
             <thead>
-              <tr className={`border-b ${isDark ? "border-[#222222]" : "border-[#DFDDDD]"}`}>
-                <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[30%]">Name</th>
-                <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[20%]">Category</th>
-                <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[10%]">Files</th>
-                <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[30%]">Last Updated</th>
-                <th className="px-6 py-4 text-[#888888] font-medium text-sm text-right w-[10%]">Action</th>
+              <tr className={`border-b ${isDark ? "bg-[#202020] border-[#222222]" : "border-[#DFDDDD] bg-[#F4F5F7]"}`}>
+                <th className={`px-6 py-4 font-medium text-sm w-[30%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Name</th>
+                <th className={`px-6 py-4 font-medium text-sm w-[20%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Category</th>
+                <th className={`px-6 py-4 font-medium text-sm w-[10%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Files</th>
+                <th className={`px-6 py-4 font-medium text-sm w-[30%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Last Updated</th>
+                <th className={`px-6 py-4 font-medium text-sm text-right w-[10%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -418,32 +417,30 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                   <tr
                     key={folder.id}
                     onClick={() => router.push(folder.href)}
-                    className={`cursor-pointer border-b last:border-0 transition-colors ${isDark ? "border-[#222222] hover:bg-[#161616]" : "border-[#E3E3E3] hover:bg-zinc-50"
-                      }`}
+                    className={`cursor-pointer transition-colors ${isDark ? "hover:bg-[#222222]" : "hover:bg-zinc-50"}`}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-[#F5F5F5] border-[#E3E3E3]"
-                          }`}>
-                          <Folder size={20} className="text-[#999999]" />
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${isDark ? "bg-[#FFFFFF15] border-[#222222]" : "bg-[#F4F5F7] border-[#F4F5F7]"}`}>
+                          <FolderOpen size={20} className="text-[#E8D1AB]" />
                         </div>
                         <span className={`font-medium ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{folder.title}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-4 py-1.5 rounded-full text-xs font-medium ${isDark ? "bg-[#1A1A1A] text-[#E0E0E0]" : "bg-[#F5F5F5] text-black/80"
+                      <span className={`px-4 py-1.5 rounded-full text-xs font-medium ${isDark ? "bg-[#202020] text-[#fff]" : "bg-[#F5F5F5] text-black/80"
                         }`}>
                         {folder.category}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={isDark ? "text-[#E0E0E0] text-sm" : "text-black/80 text-sm"}>{folder.fileCount}</span>
+                      <span className={isDark ? "text-white text-sm" : "text-black text-sm"}>{folder.fileCount}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={isDark ? "text-[#E0E0E0] text-sm" : "text-black/80 text-sm"}>{folder.lastOpened}</span>
+                      <span className={isDark ? "text-white text-sm" : "text-black text-sm"}>{folder.lastOpened}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <ExternalLink className={`inline-block ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
+                      <ExternalLink className={`inline-block ${isDark ? "text-white" : "text-black"}`} size={16} strokeWidth={1.5} />
                     </td>
                   </tr>
                 ))
@@ -473,7 +470,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={previewUrls[file.id]} alt={file.title} className="h-full w-full object-cover" />
                         ) : (
-                          <span className="text-[10px] font-semibold uppercase text-[#E5D5B8]">
+                          <span className="text-[10px] font-semibold uppercase text-[#E8D1AB]">
                             {file.title.split(".").pop() || "file"}
                           </span>
                         )}
@@ -535,7 +532,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={previewUrls[file.id]} alt={file.title} className="h-full w-full object-cover" />
                       ) : (
-                        <span className="text-[10px] font-semibold uppercase text-[#E5D5B8]">
+                        <span className="text-[10px] font-semibold uppercase text-[#E8D1AB]">
                           {file.title.split(".").pop() || "file"}
                         </span>
                       )}
