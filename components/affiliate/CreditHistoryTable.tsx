@@ -231,9 +231,9 @@ export default function CreditHistoryTable({
                 </td>
               </tr>
             ) : visibleRows.length > 0 ? (
-              visibleRows.map((row) => (
+              visibleRows.map((row,index) => (
                 <tr
-                  key={row.id}
+                  key={`${row.id}-${index}`}
                   onClick={() => onRowClick?.(row)}
                   className={`border-t transition-colors ${
                     isDark
@@ -330,9 +330,9 @@ export default function CreditHistoryTable({
             <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
           </div>
         ) : visibleRows.length > 0 ? (
-          visibleRows.map((row) => (
+          visibleRows.map((row,index) => (
           <article
-            key={row.id}
+            key={`${row.id}-${index}`}
             onClick={() => onRowClick?.(row)}
             className={`rounded-[20px] border p-4 ${
               isDark
