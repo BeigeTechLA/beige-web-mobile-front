@@ -22,6 +22,7 @@ import {
   mapExternalFilesToUi,
   mapExternalFoldersToUi,
 } from "@/lib/fileManagerApi";
+import { useTheme } from "next-themes";
 
 const getFileExtension = (title?: string) => {
   const parts = (title || "").toLowerCase().split(".");
@@ -80,6 +81,8 @@ const getFileMeta = (contentType?: string, title?: string) => {
 
 export default function PreProductionTab({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const { theme, resolvedTheme } = useTheme();
+
   const [workspaceName, setWorkspaceName] = useState("");
   const [files, setFiles] = useState<any[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
@@ -87,6 +90,13 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   const loadPreProduction = async () => {
     try {
@@ -157,13 +167,20 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-6" style={{ fontFamily: "var(--font-instrument-sans)" }}>
-      <div className="flex items-center justify-between bg-[#111111] lg:p-2 rounded-lg lg:rounded-2xl border border-[#222222] min-h-[46px] lg:min-h-[72px]">
-        <div className="px-6 text-[#666666] text-xs lg:text-base font-medium">
+      {/* Topbar Banner Wrapper */}
+      <div
+        className={`flex items-center justify-between lg:p-2 rounded-lg lg:rounded-2xl border min-h-[46px] lg:min-h-[72px] ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD] shadow-sm"
+          }`}
+      >
+        <div className={`px-6 text-xs lg:text-base font-medium ${isDark ? "text-[#666666]" : "text-black/60"}`}>
           {workspaceName ? `Live Pre Production for ${workspaceName}` : "Open and manage Pre Production files"}
         </div>
         <button
           onClick={() => setIsUploadModalOpen(true)}
-          className="bg-white text-black px-6 h-full min-h-[46px] lg:min-h-[72px] rounded-r-lg lg:rounded-xl font-medium flex items-center gap-2 hover:bg-zinc-200 transition-colors"
+          className={`px-6 h-full min-h-[46px] lg:min-h-[72px] rounded-r-lg lg:rounded-xl font-medium flex items-center gap-2 transition-colors ${isDark
+            ? "bg-white text-black hover:bg-zinc-200"
+            : "bg-black text-white hover:bg-zinc-800"
+            }`}
         >
           <CloudUpload size={20} />
           <span className="text-xs lg:text-base leading-none">Upload File</span>
@@ -171,18 +188,23 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
       </div>
 
       {loading ? (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[220px] flex items-center justify-center">
-          <Loader2 className="animate-spin text-white/50" size={28} />
+        <div className={`border rounded-2xl min-h-[220px] flex items-center justify-center ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD]"
+          }`}>
+          <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/40"}`} size={28} />
         </div>
       ) : error ? (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[220px] flex items-center justify-center text-red-300 text-sm">
+        <div className={`border rounded-2xl min-h-[220px] flex items-center justify-center text-sm ${isDark ? "bg-[#111111] border-[#222222] text-red-300" : "bg-white border-[#DFDDDD] text-red-600"
+          }`}>
           {error}
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Folders List Block */}
           {folders.length > 0 && (
-            <div className="bg-[#111111] border border-[#222222] rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#222222] bg-[#161616]">
+            <div className={`border rounded-2xl overflow-hidden ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD] shadow-sm"
+              }`}>
+              <div className={`px-6 py-4 border-b ${isDark ? "border-[#222222] bg-[#161616]" : "border-[#DFDDDD] bg-[#FAFAFA]"
+                }`}>
                 <h3 className="text-[#E5D5B8] text-base font-medium leading-none">Folders</h3>
               </div>
               <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -190,25 +212,31 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
                   <button
                     key={folder.id}
                     onClick={() => router.push(folder.href)}
-                    className="text-left flex items-center justify-between rounded-2xl border border-[#222222] bg-[#0A0A0A] px-5 py-4 hover:border-[#444] transition-colors"
+                    className={`text-left flex items-center justify-between rounded-2xl border px-5 py-4 transition-colors ${isDark
+                      ? "border-[#222222] bg-[#0A0A0A] hover:border-[#444]"
+                      : "border-[#E3E3E3] bg-[#F9F9F9] hover:border-[#B5B5B5]"
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <Folder className="text-[#E5D5B8]" size={20} />
                       <div>
-                        <div className="text-white font-medium">{folder.title}</div>
-                        <div className="text-xs text-[#888]">{folder.fileCount} files</div>
+                        <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{folder.title}</div>
+                        <div className={`text-xs ${isDark ? "text-[#888]" : "text-black/50"}`}>{folder.fileCount} files</div>
                       </div>
                     </div>
-                    <ExternalLink className="text-white/40" size={16} />
+                    <ExternalLink className={isDark ? "text-white/40" : "text-black/40"} size={16} />
                   </button>
                 ))}
               </div>
             </div>
           )}
 
+          {/* Uploaded Documents List Block */}
           {files.length > 0 || folders.length === 0 ? (
-            <div className="bg-[#111111] border border-[#222222] rounded-2xl overflow-hidden min-h-[280px]">
-              <div className="px-6 py-4 border-b border-[#222222] bg-[#161616] flex justify-between items-center">
+            <div className={`border rounded-2xl overflow-hidden min-h-[280px] ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD] shadow-sm"
+              }`}>
+              <div className={`px-6 py-4 border-b flex justify-between items-center ${isDark ? "border-[#222222] bg-[#161616]" : "border-[#DFDDDD] bg-[#FAFAFA]"
+                }`}>
                 <h3 className="text-[#E5D5B8] text-base font-medium leading-none">Uploaded Documents</h3>
               </div>
 
@@ -222,9 +250,14 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
                       <button
                         key={file.id}
                         onClick={() => router.push(`/admin/file-manager/${projectId}/pre-production`)}
-                        className="text-left border border-[#222222] bg-[#0A0A0A] rounded-xl p-3 lg:p-4 flex items-center gap-4 w-full lg:w-[360px] group relative hover:border-[#444] transition-colors"
+                        className={`text-left border rounded-xl p-3 lg:p-4 flex items-center gap-4 w-full lg:w-[360px] group relative transition-colors ${isDark
+                          ? "border-[#222222] bg-[#0A0A0A] hover:border-[#444]"
+                          : "border-[#E3E3E3] bg-[#F9F9F9] hover:border-[#B5B5B5]"
+                          }`}
                       >
-                        <div className="w-14 h-14 rounded-lg bg-[#161616] shrink-0 flex items-center justify-center overflow-hidden border border-[#222222]">
+                        {/* Media Thumbnail Box */}
+                        <div className={`w-14 h-14 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border ${isDark ? "bg-[#161616] border-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3]"
+                          }`}>
                           {previewUrls[file.id] && isImageFile(file.contentType, file.title) ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -252,15 +285,20 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
                               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${meta.badgeClass}`}>
                                 <FileIcon size={20} className={meta.accentClass} />
                               </div>
-                              <span className="text-[10px] uppercase tracking-wide text-white/70">
+                              <span className={`text-[10px] uppercase tracking-wide ${isDark ? "text-white/70" : "text-black/70"}`}>
                                 {meta.label}
                               </span>
                             </div>
                           )}
                         </div>
 
+                        {/* Metadata Content Block */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-white text-sm lg:text-base font-medium leading-tight mb-1 truncate" title={file.title}>
+                          <h4
+                            className={`text-sm lg:text-base font-medium leading-tight mb-1 truncate ${isDark ? "text-white" : "text-black"
+                              }`}
+                            title={file.title}
+                          >
                             {file.title}
                           </h4>
                           <span className="text-[#E5D5B8] text-sm underline underline-offset-4">
@@ -272,7 +310,7 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
                   })}
                 </div>
               ) : (
-                <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" isDark={isDark} />
               )}
             </div>
           ) : null}

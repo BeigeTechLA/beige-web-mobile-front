@@ -9,6 +9,7 @@ interface EmptyFileStateProps {
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  isDark?: boolean;
 }
 
 export default function EmptyFileState({
@@ -16,9 +17,14 @@ export default function EmptyFileState({
   description = "No files have been uploaded for this project yet.",
   actionLabel,
   onAction,
+  isDark = true,
 }: EmptyFileStateProps) {
   return (
-    <div className="flex min-h-[260px] w-full flex-col items-center justify-center rounded-2xl border border-white/5 bg-[#111111] px-6 py-10 text-center">
+    <div
+      className={`flex min-h-[260px] w-full flex-col items-center justify-center  px-6 py-10 text-center transition-colors
+        ${isDark ? "bg-[#111111]" : "bg-white shadow-sm"}
+      `}
+    >
       <Image
         src="/images/file-manager-empty-state.png"
         alt="No file uploaded"
@@ -28,13 +34,21 @@ export default function EmptyFileState({
         priority
       />
 
-      <h3 className="mb-2 text-[28px] font-semibold leading-tight text-white">{title}</h3>
-      <p className="max-w-md text-sm text-white/45">{description}</p>
+      <h3 className={`mb-2 text-[28px] font-semibold leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
+        {title}
+      </h3>
+
+      <p className={`max-w-md text-sm transition-colors ${isDark ? "text-white/45" : "text-black/50"}`}>
+        {description}
+      </p>
 
       {actionLabel && onAction ? (
         <Button
           onClick={onAction}
-          className="mt-6 h-11 rounded-xl bg-[#E5D5B8] px-6 text-sm font-semibold text-black hover:bg-[#d4c3a3]"
+          className={`mt-6 h-11 rounded-xl px-6 text-sm font-semibold transition-colors ${isDark
+            ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+            : "bg-black text-white hover:bg-zinc-800"
+            }`}
         >
           {actionLabel}
         </Button>
