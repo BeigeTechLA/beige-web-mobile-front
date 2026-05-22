@@ -19,19 +19,19 @@ const MODULE_ALIASES: Record<string, string[]> = {
   invoices: ["invoices"],
   meetings: ["meetings"],
   messages: ["messages"],
-  profile: ["profile", "users"],
-  quotes: ["quotes", "sales"],
-  request_shoots: ["request_shoots", "request-shoots", "shoots"],
-  roles_permissions: ["roles_permissions", "roles-permissions", "settings"],
-  sales: ["sales", "quotes"],
+  profile: ["profile"],
+  quotes: ["quotes"],
+  request_shoots: ["request_shoots", "request-shoots"],
+  roles_permissions: ["roles_permissions", "roles-permissions"],
+  sales: ["sales"],
   sales_representative: ["sales_representative", "sales-representative"],
-  settings: ["settings", "roles_permissions", "roles-permissions"],
-  shoots: ["shoots", "request_shoots", "request-shoots"],
-  users: ["users", "profile"],
+  settings: ["settings"],
+  shoots: ["shoots"],
+  users: ["users"],
 };
 
 const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
-  { prefix: "/admin/shoots", permissionKeys: ["request_shoots"] },
+  { prefix: "/admin/shoots", permissionKeys: ["shoots"] },
   { prefix: "/admin/file-manager", permissionKeys: ["file_manager"] },
   { prefix: "/admin/meetings", permissionKeys: ["meetings"] },
   { prefix: "/admin/messages", permissionKeys: ["messages"] },
@@ -80,6 +80,51 @@ export const expandPermissionKeys = (moduleKeys: string[] = []) => {
   });
 
   return Array.from(expanded);
+};
+
+export const normalizePermissionsPayload = (
+  value: unknown,
+): PermissionsMap => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const source =
+    "permissions" in value &&
+    value.permissions &&
+    typeof value.permissions === "object" &&
+    !Array.isArray(value.permissions)
+      ? value.permissions
+      : value;
+
+  const normalizedPermissions: PermissionsMap = {};
+
+  Object.entries(source as Record<string, unknown>).forEach(([moduleKey, actionsValue]) => {
+    const normalizedModuleKey = normalizeKey(moduleKey);
+
+    if (Array.isArray(actionsValue)) {
+      normalizedPermissions[normalizedModuleKey] = {
+        view: actionsValue.includes("view"),
+        create: actionsValue.includes("create"),
+        edit: actionsValue.includes("edit"),
+        delete: actionsValue.includes("delete"),
+      };
+      return;
+    }
+
+    if (!actionsValue || typeof actionsValue !== "object") {
+      return;
+    }
+
+    normalizedPermissions[normalizedModuleKey] = {
+      view: Boolean((actionsValue as Record<string, unknown>).view),
+      create: Boolean((actionsValue as Record<string, unknown>).create),
+      edit: Boolean((actionsValue as Record<string, unknown>).edit),
+      delete: Boolean((actionsValue as Record<string, unknown>).delete),
+    };
+  });
+
+  return normalizedPermissions;
 };
 
 export const hasModulePermission = (

@@ -21,6 +21,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { parseISO } from "date-fns";
 import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type Status = "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Pending" | "Cancelled" | "Unknown";
 
@@ -89,6 +90,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const itemsPerPage = 10;
   const [mounted, setMounted] = useState(false);
   const { theme, resolvedTheme } = useTheme();
+  const { canEdit } = usePermissions("shoots");
 
   // Filtering states
   const [range, setRange] = useState<string>("all");
@@ -413,7 +415,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                       </p>
                     </div>
                     <div className="col-span-2 pt-2">
-                      {shoot.paymentStatus === "pending" && (
+                      {shoot.paymentStatus === "pending" && (shoot.hasQuote || canEdit) && (
                         <button
                           onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
                           className="w-full mb-2 py-2 bg-[#E8D1AB] hover:bg-[#dcb98a] rounded-lg text-black text-sm font-semibold"
@@ -508,7 +510,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                     {/* Action */}
                     <td className="py-5 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {shoot.paymentStatus === "pending" && (
+                        {shoot.paymentStatus === "pending" && (shoot.hasQuote || canEdit) && (
                           <button
                             onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
                             className="px-3 py-1.5 rounded-lg bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-xs font-semibold"

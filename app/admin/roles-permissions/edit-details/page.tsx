@@ -24,6 +24,9 @@ import {
   extractPermissionStateFromRows,
   extractPermissionsFromRows,
 } from "@/components/admin/roles-permissions/utils";
+import { normalizePermissionsPayload } from "@/lib/permissions";
+import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
+import { setPermissions } from "@/lib/redux/features/auth/authSlice";
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -44,38 +47,8 @@ type RoleOption = {
   label: string;
 };
 
-const normalizeUserPermissionsPayload = (
-  value: unknown,
-): UserPermissionsMap => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-
-  const source =
-    "permissions" in value &&
-    value.permissions &&
-    typeof value.permissions === "object" &&
-    !Array.isArray(value.permissions)
-      ? value.permissions
-      : value;
-
-  const permissions: UserPermissionsMap = {};
-
-  Object.entries(source as Record<string, unknown>).forEach(([moduleKey, actionsValue]) => {
-    if (!actionsValue || typeof actionsValue !== "object" || Array.isArray(actionsValue)) {
-      return;
-    }
-
-    permissions[moduleKey] = {
-      view: Boolean((actionsValue as Record<string, unknown>).view),
-      create: Boolean((actionsValue as Record<string, unknown>).create),
-      edit: Boolean((actionsValue as Record<string, unknown>).edit),
-      delete: Boolean((actionsValue as Record<string, unknown>).delete),
-    };
-  });
-
-  return permissions;
-};
+const normalizeUserPermissionsPayload = (value: unknown): UserPermissionsMap =>
+  normalizePermissionsPayload(value) as UserPermissionsMap;
 
 const getDeletedUserPermissionEntries = (
   previousPermissions: UserPermissionsMap,
@@ -101,6 +74,22 @@ export default function AdminRoleEditDetailsRoute() {
   const roleId = searchParams.get("role_id");
   const userId = searchParams.get("user_id");
   const mode = roleId ? "role" : "user";
+
+  const dispatch = useAppDispatch();
+  const loggedInUser = useAppSelector((state) => state.auth.user);
+
+  const refreshLoggedInUserPermissions = async () => {
+    if (loggedInUser?.id) {
+      try {
+        const response = await adminApi.getUserPermissions(loggedInUser.id);
+        if (response?.success && response.data) {
+          dispatch(setPermissions(normalizePermissionsPayload(response.data)));
+        }
+      } catch (err) {
+        console.error("Failed to refresh logged-in user permissions:", err);
+      }
+    }
+  };
 
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -277,6 +266,8 @@ export default function AdminRoleEditDetailsRoute() {
       return;
     }
 
+    await refreshLoggedInUserPermissions();
+
     setSuccessTitle("Role Updated Successfully");
     setSuccessDescription(
       "The role details and permissions have been updated successfully. Changes will reflect immediately across the platform.",
@@ -331,6 +322,9 @@ export default function AdminRoleEditDetailsRoute() {
     setRows(applyPermissionsToRows(baseRows, permissionsToApply));
     setUserCustomPermissions(normalizedPermissions);
     setHasUserCustomPermissions(true);
+
+    await refreshLoggedInUserPermissions();
+
     setSuccessTitle("User Permissions Updated Successfully");
     setSuccessDescription(
       "The user's custom permissions have been updated successfully. Changes will reflect immediately across the platform.",
@@ -387,6 +381,8 @@ export default function AdminRoleEditDetailsRoute() {
       );
       setRoleDescription(detailsResponse.data.role?.description || "");
     }
+
+    await refreshLoggedInUserPermissions();
 
     setSuccessTitle("Role Assigned Successfully");
     setSuccessDescription(

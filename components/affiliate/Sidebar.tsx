@@ -40,18 +40,21 @@ const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   );
 };
 
+import { useAppSelector } from '@/lib/redux/hooks';
+import { hasModulePermission } from '@/lib/permissions';
+
 const menuItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard' },
-  { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview' },
-  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager' },
-  { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself' },
-  { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages' },
-  { name: 'Shoots', icon: Camera, link: '/affiliate/shoots' },
-  { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes' },
-  { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot' },
-  { name: 'Finances', icon: DollarSign, link: '/affiliate/finances' },
-  { name: 'Profile', icon: Settings, link: '/affiliate/profile' },
+  { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard', permissionKeys: ['dashboard'] },
+  { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview', permissionKeys: ['users'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager', permissionKeys: ['file_manager'] },
+  { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself', permissionKeys: ['shoots'] },
+  { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings', permissionKeys: ['meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages', permissionKeys: ['messages'] },
+  { name: 'Shoots', icon: Camera, link: '/affiliate/shoots', permissionKeys: ['shoots'] },
+  { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes', permissionKeys: ['quotes'] },
+  { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot', permissionKeys: ['shoots'] },
+  { name: 'Finances', icon: DollarSign, link: '/affiliate/finances', permissionKeys: ['invoices'] },
+  { name: 'Profile', icon: Settings, link: '/affiliate/profile', permissionKeys: ['settings'] },
 ];
 
 type MenuItem = {
@@ -67,6 +70,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
+  const permissions = useAppSelector((state) => state.auth.permissions);
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
@@ -143,6 +147,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2">
           {menuItems.map((item) => {
+            if (item.permissionKeys && item.permissionKeys.length > 0) {
+              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+              if (!canView) return null;
+            }
+
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);

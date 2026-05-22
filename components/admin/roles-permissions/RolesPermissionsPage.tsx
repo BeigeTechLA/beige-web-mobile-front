@@ -16,6 +16,7 @@ import {
   type PermissionUser,
   type RoleCardData,
 } from "@/components/admin/roles-permissions/types";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type RolesPermissionsPageProps = {
   searchQuery?: string;
@@ -105,6 +106,7 @@ export function RolesPermissionsPage({
   searchQuery = "",
 }: RolesPermissionsPageProps) {
   const router = useRouter();
+  const { canCreate, canEdit, canDelete } = usePermissions("settings");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [roles, setRoles] = useState<RoleCardData[]>([]);
   const [users, setUsers] = useState<PermissionUser[]>([]);
@@ -243,7 +245,7 @@ export function RolesPermissionsPage({
                 <RoleCard
                   key={card.id}
                   card={card}
-                  onEdit={(id) => router.push(`/admin/roles-permissions/edit-details?role_id=${id}`)}
+                  onEdit={canEdit ? (id) => router.push(`/admin/roles-permissions/edit-details?role_id=${id}`) : undefined}
                 />
               ))}
 
@@ -259,47 +261,45 @@ export function RolesPermissionsPage({
                 </div>
               )}
 
-              <div className="relative flex min-h-[225px] overflow-hidden rounded-[32px] bg-[#E5D5B8] p-6 text-[#111111] shadow-lg transition-transform duration-300 hover:scale-[1.01]">
-                <div className="absolute inset-0 opacity-5 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 h-[200px] w-[180px]">
-                  <Image
-                    src="/images/handsome-stylish-bearded-guy-posing-against-white-wall 1.png"
-                    alt="Add new role"
-                    fill
-                    sizes="180px"
-                    className="object-contain object-bottom"
-                  />
-                </div>
+              {canCreate && (
+                <div className="relative flex min-h-[225px] overflow-hidden rounded-[32px] bg-[#E5D5B8] p-6 text-[#111111] shadow-lg transition-transform duration-300 hover:scale-[1.01]">
+                  <div className="absolute inset-0 opacity-5 pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 h-[200px] w-[180px]">
+                    <Image
+                      src="/images/handsome-stylish-bearded-guy-posing-against-white-wall 1.png"
+                      alt="Add new role"
+                      fill
+                      sizes="180px"
+                      className="object-contain object-bottom"
+                    />
+                  </div>
 
-                <div className="relative z-10 ml-auto flex h-full max-w-[220px] flex-col justify-center pr-2">
-                  <h3 className="text-[24px] font-bold tracking-tight text-[#111111]">
-                    New Role
-                  </h3>
-                  <p className="mt-2 text-[14px] leading-relaxed text-[#111111]/70">
-                    Add new role, if it doesn&apos;t exist.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => router.push("/admin/roles-permissions/add-new-role")}
-                    className="mt-6 inline-flex h-12 w-fit items-center rounded-2xl bg-[#111111] px-6 text-[15px] font-bold text-white transition-all hover:bg-black hover:scale-105 active:scale-95 shadow-md"
-                  >
-                    Add New Role
-                  </button>
+                  <div className="relative z-10 ml-auto flex h-full max-w-[220px] flex-col justify-center pr-2">
+                    <h3 className="text-[24px] font-bold tracking-tight text-[#111111]">
+                      New Role
+                    </h3>
+                    <p className="mt-2 text-[14px] leading-relaxed text-[#111111]/70">
+                      Add new role, if it doesn&apos;t exist.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/admin/roles-permissions/add-new-role")}
+                      className="mt-6 inline-flex h-12 w-fit items-center rounded-2xl bg-[#111111] px-6 text-[15px] font-bold text-white transition-all hover:bg-black hover:scale-105 active:scale-95 shadow-md"
+                    >
+                      Add New Role
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <PermissionUsersTable
               users={users}
               isLoading={isLoadingUsers}
               error={usersError}
-              onEdit={(user) =>
-                router.push(`/admin/roles-permissions/edit-details?user_id=${user.id}`)
-              }
-              onRowClick={(user) =>
-                router.push(`/admin/roles-permissions/edit-details?user_id=${user.id}`)
-              }
-              onDelete={handleOpenDeleteModal}
+              onEdit={canEdit ? (user) => router.push(`/admin/roles-permissions/edit-details?user_id=${user.id}`) : undefined}
+              onRowClick={canEdit ? (user) => router.push(`/admin/roles-permissions/edit-details?user_id=${user.id}`) : undefined}
+              onDelete={canDelete ? handleOpenDeleteModal : undefined}
             />
           </div>
         </div>

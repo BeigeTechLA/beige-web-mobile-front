@@ -13,6 +13,7 @@ import { Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 
 /**
@@ -27,12 +28,33 @@ const stackStyles = `
   }
 `;
 
-export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { projectId: string; leadId?: string | number, assignedCrew?: any[] }) {
+type CrewMemberFile = {
+  file_type?: string;
+  file_url?: string;
+  file_path?: string;
+};
+
+type CrewMemberProfile = {
+  first_name?: string;
+  last_name?: string;
+  primary_role?: string | number | null;
+  role_name?: string | null;
+  crew_member_files?: CrewMemberFile[];
+};
+
+type AssignedCrewMember = {
+  id?: string | number;
+  crew_member_id?: string | number;
+  crew_member?: CrewMemberProfile;
+};
+
+export default function AssignedCP({ projectId, assignedCrew = [] }: { projectId: string; assignedCrew?: AssignedCrewMember[] }) {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
+  const { canEdit } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [crewMembers, setCrewMembers] = useState<any[]>(assignedCrew);
+  const [crewMembers, setCrewMembers] = useState<AssignedCrewMember[]>(assignedCrew);
   const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -49,6 +71,8 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
 
 
   const handleRemoveCP = async (crewMemberId: number) => {
+    if (!canEdit) return;
+
     try {
       setRemovingCrewId(crewMemberId);
       const response = await adminApi.removeProjectCrew({
@@ -76,11 +100,13 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
   };
 
   // Use a placeholder if there is no image
-  const getProfileImage = (member: any) => {
+  const getProfileImage = (member: AssignedCrewMember) => {
     const s3Prefix = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
     if (member.crew_member?.crew_member_files?.length > 0) {
-      const photo = member.crew_member.crew_member_files.find((f: any) => f.file_type === "profile_photo" || f.file_type === "headshot");
+      const photo = member.crew_member.crew_member_files.find(
+        (file) => file.file_type === "profile_photo" || file.file_type === "headshot",
+      );
       if (photo) {
         if (photo.file_url) return photo.file_url;
         if (photo.file_path) return `${s3Prefix}${photo.file_path}`;
@@ -130,22 +156,24 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
                     const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
                     return (
                       <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveCP(Number(member.crew_member_id || member.id));
-                          }}
-                          disabled={removingCrewId === Number(member.crew_member_id || member.id)}
-                          className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
-                          aria-label="Remove CP"
-                        >
-                          {removingCrewId === Number(member.crew_member_id || member.id) ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                            <X size={18} />
-                          )}
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveCP(Number(member.crew_member_id || member.id));
+                            }}
+                            disabled={removingCrewId === Number(member.crew_member_id || member.id)}
+                            className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
+                            aria-label="Remove CP"
+                          >
+                            {removingCrewId === Number(member.crew_member_id || member.id) ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <X size={18} />
+                            )}
+                          </button>
+                        )}
                         <Image
                           src={getProfileImage(member)}
                           alt={`${member.crew_member?.first_name} ${member.crew_member?.last_name}`}
@@ -171,31 +199,35 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
                 </p>
               </div>
 
-              <div className="flex flex-col lg:flex-row gap-4">
-                <Button
-                  onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
-                  className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
-                >
-                  <Plus /> Add More CPs
-                </Button>
-                {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
-                                Change CPs
-                            </Button> */}
-              </div>
+              {canEdit && (
+                <div className="flex flex-col lg:flex-row gap-4">
+                  <Button
+                    onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
+                    className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
+                  >
+                    <Plus /> Add More CPs
+                  </Button>
+                  {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+                                  Change CPs
+                              </Button> */}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full py-10 relative z-30">
-              <button
-                onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
-                className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg ${isDark
-                  ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10"
-                  : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
-                  }`}
-              >
-                <Plus size={40} className="text-black" />
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
+                  className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg ${isDark
+                    ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10"
+                    : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
+                    }`}
+                >
+                  <Plus size={40} className="text-black" />
+                </button>
+              )}
               <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-text-black"}`}>
-                Assign Creative Partner
+                {canEdit ? "Assign Creative Partner" : "No Creative Partner Assigned"}
               </h4>
             </div>
           )

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import {
@@ -251,6 +252,7 @@ export const ShootsTable = ({
   const dragAutoScrollDirectionRef = React.useRef<"up" | "down" | null>(null);
   const latestFetchIdRef = React.useRef(0);
   const { theme, resolvedTheme } = useTheme();
+  const { canDelete } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1011,14 +1013,16 @@ export const ShootsTable = ({
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteClick(e, shoot.id)}
-                                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"
-                                  }`}
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                                {canDelete && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteClick(e, shoot.id)}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"
+                                      }`}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1187,19 +1191,21 @@ export const ShootsTable = ({
                                       <ChevronRight size={16} />
                                       Open details
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenCardActionId(null);
-                                        handleDeleteClick(e, shoot.id);
-                                      }}
-                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
-                                        }`}
-                                    >
-                                      <Trash2 size={16} />
-                                      Delete
-                                    </button>
+                                    {canDelete && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenCardActionId(null);
+                                          handleDeleteClick(e, shoot.id);
+                                        }}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                          }`}
+                                      >
+                                        <Trash2 size={16} />
+                                        Delete
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -1292,12 +1298,14 @@ export const ShootsTable = ({
                       </td>
                       <td className="py-5 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={(e) => handleDeleteClick(e, shoot.id)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={(e) => handleDeleteClick(e, shoot.id)}
+                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
                           <ChevronRight size={20} className={isDark ? "text-[#666666]" : "text-[#999]"} />
                         </div>
                       </td>

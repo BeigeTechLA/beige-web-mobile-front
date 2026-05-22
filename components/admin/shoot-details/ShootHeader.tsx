@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils"
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
@@ -58,6 +59,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
+  const { canEdit } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -215,12 +217,14 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
           >
             <Eye className="w-4 h-4" /> View Form Details
           </Button>
-          <Button
-            onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
-            className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
-          >
-            Edit Shoot
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
+              className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
+            >
+              Edit Shoot
+            </Button>
+          )}
         </div>
       </div>
 

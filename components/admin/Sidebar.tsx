@@ -1,11 +1,13 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, DollarSign, X, type LucideIcon, Receipt, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { useAppSelector } from '@/lib/redux/hooks';
+import { hasModulePermission } from '@/lib/permissions';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -42,7 +44,7 @@ const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['dashboard'] },
-  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['request_shoots', 'shoots'] },
+  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['shoots'] },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
   { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
@@ -69,19 +71,19 @@ const menuItems = [
   {
     name: 'Users',
     icon: Users,
-    permissionKeys: ['profile', 'users'],
+    permissionKeys: ['users'],
     children: [
       { name: 'All Users', link: '/admin/users/all' },
       { name: 'Clients', link: '/admin/users/clients' },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
-  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions', permissionKeys: ['settings', 'roles_permissions'] },
+  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions', permissionKeys: ['settings'] },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
     link: '/admin/quotes',
-    permissionKeys: ['sales', 'quotes'],
+    permissionKeys: ['quotes'],
     children: [
       { name: 'All Quotes', link: '/admin/quotes' },
       { name: 'Quote Approvals', link: '/admin/quotes/change-requests' },
@@ -105,6 +107,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
+  const permissions = useAppSelector((state) => state.auth.permissions);
 
   const initialPath = useRef(pathname);
 
@@ -230,6 +233,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2">
           {menuItems.map((item) => {
+            if (item.permissionKeys && item.permissionKeys.length > 0) {
+              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+              if (!canView) return null;
+            }
+
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);

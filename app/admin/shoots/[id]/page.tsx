@@ -17,9 +17,10 @@ import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
-import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useTheme } from "next-themes";
 
 type SkillOption = {
   id?: number | string;
@@ -59,6 +60,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { canEdit, canDelete } = usePermissions("shoots");
   // const [activeTab, setActiveTab] = useState("Overview");
   const activeTab = searchParams.get("tab") || "Overview";
 
@@ -172,6 +174,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   if (!mounted) return null;
 
   const handleDelete = async () => {
+    if (!canDelete) return;
     if (!id) return;
 
     if (window.confirm("Are you sure you want to delete this shoot? This action cannot be undone.")) {
@@ -266,12 +269,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             ><FileText size={14} />
               {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
             </Button>
-            <Button
-              className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
-              onClick={handleDelete}
-            >
-              <CircleX /> Cancel Shoot
-            </Button>
+            {canDelete && (
+              <Button
+                className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
+                onClick={handleDelete}
+              >
+                <CircleX /> Cancel Shoot
+              </Button>
+            )}
             <Button
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
@@ -281,9 +286,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
             </Button>
-            <Button onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
-              Edit Shoot
-            </Button>
+            {canEdit && (
+              <Button onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
+                Edit Shoot
+              </Button>
+            )}
           </>
         }
       />
@@ -309,7 +316,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 <>
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
-                    <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+                    <AssignedCP projectId={id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
                   </div>
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} />
@@ -389,15 +396,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
           </Button>
           <div className="flex gap-2">
-            <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
-              Cancel Shoot
-            </Button>
-            <Button
-              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
-              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
-            >
-              Edit Shoot
-            </Button>
+            {canDelete && (
+              <Button onClick={handleDelete} className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
+                Cancel Shoot
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
+                className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
+              >
+                Edit Shoot
+              </Button>
+            )}
           </div>
           <Button
             onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}

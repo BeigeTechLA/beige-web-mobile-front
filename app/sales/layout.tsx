@@ -11,6 +11,10 @@ import { useTheme } from "next-themes"; // Integrated theme hook
 import { SalesStatusProvider, useSalesStatus } from '@/context/SalesStatusContext';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { isSalesRouteAllowedWhileInactive } from '@/lib/sales-status';
+import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
+import { setPermissions } from '@/lib/redux/features/auth/authSlice';
+import { adminApi } from '@/lib/api';
+import { normalizePermissionsPayload } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,15 +22,38 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const hasShownInactiveRedirectRef = React.useRef(false);
   const {
     isManagedUser,
     isSalesAvailable,
     isLoading: isSalesStatusLoading,
   } = useSalesStatus();
+  
+  const hasShownInactiveRedirectRef = React.useRef(false);
+  const dispatch = useAppDispatch();
+  const { user, permissions } = useAppSelector((state) => state.auth);
 
   // Prevent hydration mismatch
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      const userId = user?.id;
+      if (userId) {
+        try {
+          const response = await adminApi.getUserPermissions(userId);
+          if (response?.success && response.data) {
+            dispatch(setPermissions(normalizePermissionsPayload(response.data)));
+          }
+        } catch (error) {
+          console.error("SalesLayout: Error fetching permissions:", error);
+        }
+      }
+    };
+
+    if (mounted) {
+      fetchPermissions();
+    }
+  }, [user?.id, pathname, mounted, dispatch]);
 
   // Default to dark logic as per instructions
   const isDark = !mounted || theme === "dark";

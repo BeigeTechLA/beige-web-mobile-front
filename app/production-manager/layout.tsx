@@ -10,6 +10,10 @@ import Topbar from '@/components/production-manager/Topbar';
 import { useTheme } from "next-themes"; // Integrated theme hook
 
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
+import { setPermissions } from '@/lib/redux/features/auth/authSlice';
+import { adminApi } from '@/lib/api';
+import { normalizePermissionsPayload } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
@@ -69,10 +73,33 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProdManagerLayout({ children }: { children: React.ReactNode }) {
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+  const pathname = usePathname();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      const userId = user?.id;
+      if (userId) {
+        try {
+          const response = await adminApi.getUserPermissions(userId);
+          if (response?.success && response.data) {
+            dispatch(setPermissions(normalizePermissionsPayload(response.data)));
+          }
+        } catch (error) {
+          console.error("ProdManagerLayout: Error fetching permissions:", error);
+        }
+      }
+    };
+
+    if (mounted) {
+      fetchPermissions();
+    }
+  }, [user?.id, pathname, mounted, dispatch]);
 
   const isDark = !mounted || theme === "dark";
 

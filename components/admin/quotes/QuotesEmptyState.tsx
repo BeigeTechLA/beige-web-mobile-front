@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 interface QuotesEmptyStateProps {
   createHref: string;
@@ -12,6 +13,7 @@ interface QuotesEmptyStateProps {
 
 export default function QuotesEmptyState({ createHref }: QuotesEmptyStateProps) {
   const { isDark } = useResolvedTheme();
+  const { canCreate } = usePermissions("quotes");
 
   return (
     <div
@@ -41,11 +43,13 @@ export default function QuotesEmptyState({ createHref }: QuotesEmptyStateProps) 
           Quotes you create will appear here and can be shared directly with clients.
         </p>
 
-        <Link href={createHref} className="mt-8">
-          <Button className="h-14 rounded-xl bg-[#E5D5B8] px-8 text-lg font-semibold text-black shadow-[0_18px_40px_rgba(229,213,184,0.18)] hover:bg-[#d4c3a3]">
-            Create New Quote
-          </Button>
-        </Link>
+        {canCreate && (
+          <Link href={createHref} className="mt-8">
+            <Button className="h-14 rounded-xl bg-[#E5D5B8] px-8 text-lg font-semibold text-black shadow-[0_18px_40px_rgba(229,213,184,0.18)] hover:bg-[#d4c3a3]">
+              Create New Quote
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );

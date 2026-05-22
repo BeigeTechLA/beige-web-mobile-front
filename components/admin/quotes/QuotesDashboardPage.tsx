@@ -62,6 +62,7 @@ import {
   persistQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -175,6 +176,7 @@ type QuoteActionMenuProps = {
   onPaymentTransaction: () => void;
   onReject: () => void;
   allowEdit?: boolean;
+  allowDelete?: boolean;
   mobile?: boolean;
   disabled?: boolean;
 };
@@ -226,6 +228,7 @@ const QuoteActionMenu = ({
   onPaymentTransaction,
   onReject,
   allowEdit = true,
+  allowDelete = true,
   mobile = false,
   disabled = false,
 }: QuoteActionMenuProps) => {
@@ -289,12 +292,14 @@ const QuoteActionMenu = ({
             onClick={handleAction(onPaymentTransaction)}
           />
           <div className="my-1 h-[1px] w-full bg-white/10" />
-          <QuoteActionMenuButton
-            icon={<XCircle size={18} />}
-            label="Reject Quote"
-            onClick={handleAction(onReject)}
-            variant="danger"
-          />
+          {allowDelete && (
+            <QuoteActionMenuButton
+              icon={<XCircle size={18} />}
+              label="Reject Quote"
+              onClick={handleAction(onReject)}
+              variant="danger"
+            />
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -960,6 +965,7 @@ export default function QuotesDashboardPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuotesDashboardPageProps) {
   const { isDark } = useResolvedTheme();
+  const { canCreate, canEdit, canDelete } = usePermissions("quotes");
   const pathname = usePathname();
   const router = useRouter();
   const detailBaseHref = createHref.endsWith("/create")
@@ -1500,11 +1506,13 @@ export default function QuotesDashboardPage({
               <Download size={18} className="mr-2" />
               Export
             </Button>
-            <Link href={createHref}>
-              <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
-                Create New Quote
-              </Button>
-            </Link>
+            {canCreate && (
+              <Link href={createHref}>
+                <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
+                  Create New Quote
+                </Button>
+              </Link>
+            )}
           </div>
         }
       />
@@ -1885,7 +1893,8 @@ export default function QuotesDashboardPage({
                                 onReject={() => {
                                   void handleRejectQuote(quote.id, quote.statusKey);
                                 }}
-                                allowEdit={quote.statusKey !== "expired"} 
+                                allowEdit={canEdit && quote.statusKey !== "expired"} 
+                                allowDelete={canDelete}
                               />
                             </td>
                           </tr>
@@ -1932,7 +1941,8 @@ export default function QuotesDashboardPage({
                                         onReject={() => {
                                           void handleRejectQuote(quote.id, quote.statusKey);
                                         }}
-                                        allowEdit={quote.statusKey !== "expired"} 
+                                        allowEdit={canEdit && quote.statusKey !== "expired"}
+                                        allowDelete={canDelete}
                                       />
                                     </div>
                                   </div>

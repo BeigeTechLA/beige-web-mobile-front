@@ -8,6 +8,8 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { isSalesRouteAllowedWhileInactive } from "@/lib/sales-status";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { useAppSelector } from '@/lib/redux/hooks';
+import { hasModulePermission } from '@/lib/permissions';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -47,20 +49,22 @@ const salesMenuItems: SalesMenuItem[] = [
     name: 'Sales',
     icon: LayoutDashboard,
     link: '/sales/dashboard',
+    permissionKeys: ['dashboard'],
     children: [
       { name: 'Dashboard', link: '/sales/dashboard', visibleForUserTypes: [7] },
       { name: 'Sales People', link: '/sales/sales-people', visibleForUserTypes: [7] },
     ],
   },
-  { name: 'Availability', icon: Calendar, link: '/sales/availability', visibleForUserTypes: [5] },
-  { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
-  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
+  { name: 'Availability', icon: Calendar, link: '/sales/availability', permissionKeys: ['availability'], visibleForUserTypes: [5] },
+  { name: 'Shoots', icon: Camera, link: '/sales/shoots', permissionKeys: ['shoots'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', permissionKeys: ['file_manager'] },
+  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings', permissionKeys: ['meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/sales/messages', permissionKeys: ['messages'] },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
     link: '/sales/quotes',
+    permissionKeys: ['quotes'],
     children: [
       { name: 'All Quotes', link: '/sales/quotes' },
       { name: 'Change Request', link: '/sales/quotes/change-requests' },
@@ -70,7 +74,7 @@ const salesMenuItems: SalesMenuItem[] = [
 
 
 
-  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', visibleForUserTypes: [7] },
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', permissionKeys: ['invoices'], visibleForUserTypes: [7] },
 ];
 
 type SalesMenuItem = {
@@ -79,6 +83,7 @@ type SalesMenuItem = {
   link?: string;
   isDisabled?: boolean;
   visibleForUserTypes?: number[];
+  permissionKeys?: string[];
   children?: {
     name: string;
     link: string;
@@ -117,6 +122,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     isSalesAvailable,
     isLoading: isSalesStatusLoading,
   } = useSalesStatus();
+  const permissions = useAppSelector((state) => state.auth.permissions);
 
   const initialPath = useRef(pathname);
 
@@ -154,6 +160,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const currentUserTypeId = Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null;
   const isSalesAdmin = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
   const visibleSalesMenuItems = salesMenuItems.filter((item) => {
+    if (item.permissionKeys && item.permissionKeys.length > 0) {
+      const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+      if (!canView) return false;
+    }
+
     if (!item.visibleForUserTypes?.length) {
       return true;
     }

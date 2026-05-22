@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes"; // Integrated theme hook
 
@@ -9,6 +10,7 @@ import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import { adminApi } from '@/lib/api';
 import { setPermissions } from '@/lib/redux/features/auth/authSlice';
+import { normalizePermissionsPayload } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
@@ -60,7 +62,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
-  const { user, permissions } = useAppSelector((state) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
+  const pathname = usePathname();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -68,33 +71,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const fetchPermissions = async () => {
-      // Try to get role ID from various possible fields
-      const effectiveRoleId = user?.role_id || user?.user_type_id || user?.userTypeId;
+      const userId = user?.id;
       
       console.log("AdminLayout: User object:", user);
-      console.log("AdminLayout: Effective Role ID:", effectiveRoleId);
+      console.log("AdminLayout: User ID:", userId);
 
-      // Only fetch if we have a role ID and permissions aren't already loaded
-      if (effectiveRoleId && !permissions) {
-        console.log("AdminLayout: Fetching permissions for ID:", effectiveRoleId);
+      // Fetch permissions on mount and on route change
+      if (userId) {
+        console.log("AdminLayout: Fetching permissions for User ID:", userId);
         try {
-          const response = await adminApi.getRoleById(effectiveRoleId);
+          const response = await adminApi.getUserPermissions(userId);
           console.log("AdminLayout: Permissions API Response:", response);
-          if (response?.success && response.data?.permissions) {
-            dispatch(setPermissions(response.data.permissions));
+          if (response?.success && response.data) {
+            dispatch(setPermissions(normalizePermissionsPayload(response.data)));
           }
         } catch (error) {
           console.error("AdminLayout: Error fetching permissions:", error);
         }
-      } else if (!effectiveRoleId && user) {
-        console.warn("AdminLayout: No role ID or user type ID found in user object!");
+      } else if (!userId && user) {
+        console.warn("AdminLayout: No user ID found in user object!");
       }
     };
 
     if (mounted) {
       fetchPermissions();
     }
-  }, [user, permissions, mounted, dispatch]);
+  }, [user?.id, pathname, mounted, dispatch]);
 
   const isDark = !mounted || theme === "dark";
 
