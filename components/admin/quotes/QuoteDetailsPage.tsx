@@ -700,6 +700,7 @@ export default function QuoteDetailsPage({
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentNotes, setManualPaymentNotes] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
+  const [manualPaymentProofFilePath, setManualPaymentProofFilePath] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
   const [isUploadingManualProof, setIsUploadingManualProof] = useState(false);
   const [isSubmittingManualPayment, setIsSubmittingManualPayment] = useState(false);
@@ -1336,6 +1337,7 @@ export default function QuoteDetailsPage({
         return;
       }
       setManualPaymentProofUrl(response.data.proof_url);
+      setManualPaymentProofFilePath(response.data.file_path || "");
       setManualPaymentProofFileName(file.name);
       toast.success("Proof uploaded successfully");
     } finally {
@@ -1376,7 +1378,10 @@ export default function QuoteDetailsPage({
         payment_mode: manualPaymentMode,
         other_payment_mode: manualPaymentMode === "other" ? manualPaymentOtherMode.trim() : undefined,
         proof_url: manualPaymentProofUrl.trim(),
+        proof_file_path: manualPaymentProofFilePath.trim() || undefined,
+        proof_file_name: manualPaymentProofFileName.trim() || undefined,
         notes: manualPaymentNotes.trim() || undefined,
+        sales_quote_id: resolvedQuoteId ? Number(resolvedQuoteId) : undefined,
       });
       if (!response?.success) {
         toast.error(response?.error || response?.message || "Failed to save payment");
@@ -1387,6 +1392,7 @@ export default function QuoteDetailsPage({
       setManualPaymentOtherMode("");
       setManualPaymentNotes("");
       setManualPaymentProofUrl("");
+      setManualPaymentProofFilePath("");
       setManualPaymentProofFileName("");
       void refetchLeadDetails();
     } finally {

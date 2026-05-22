@@ -321,6 +321,7 @@ export default function LeadDetailPage() {
   const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
+  const [manualPaymentProofFilePath, setManualPaymentProofFilePath] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
   const [isUploadingManualProof, setIsUploadingManualProof] = useState(false);
   const [manualPaymentNotes, setManualPaymentNotes] = useState("");
@@ -1028,6 +1029,8 @@ export default function LeadDetailPage() {
         payment_mode: manualPaymentMode,
         other_payment_mode: manualPaymentMode === "other" ? otherMode : undefined,
         proof_url: proofUrl,
+        proof_file_path: manualPaymentProofFilePath.trim() || undefined,
+        proof_file_name: manualPaymentProofFileName.trim() || undefined,
         notes: manualPaymentNotes.trim() || undefined,
       });
 
@@ -1043,6 +1046,7 @@ export default function LeadDetailPage() {
       );
       setManualPaymentAmount("");
       setManualPaymentProofUrl("");
+      setManualPaymentProofFilePath("");
       setManualPaymentProofFileName("");
       setManualPaymentNotes("");
       setManualPaymentOtherMode("");
@@ -1066,6 +1070,7 @@ export default function LeadDetailPage() {
       }
 
       setManualPaymentProofUrl(response.data.proof_url);
+      setManualPaymentProofFilePath(response.data.file_path || "");
       setManualPaymentProofFileName(file.name);
       toast.success("Proof uploaded successfully");
     } catch (error) {

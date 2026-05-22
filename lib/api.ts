@@ -2992,7 +2992,10 @@ export const salesApi = {
       payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other";
       other_payment_mode?: string;
       proof_url: string;
+      proof_file_path?: string;
+      proof_file_name?: string;
       notes?: string;
+      sales_quote_id?: number | string;
     }
   ) => {
     try {
@@ -3015,6 +3018,8 @@ export const salesApi = {
       payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other";
       other_payment_mode?: string;
       proof_url: string;
+      proof_file_path?: string;
+      proof_file_name?: string;
       notes?: string;
     }
   ) => {
