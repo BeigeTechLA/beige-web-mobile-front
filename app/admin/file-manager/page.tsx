@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
@@ -89,7 +89,7 @@ const getPageItems = (currentPage: number, totalPages: number) => {
 export default function AdminFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const [selectedTab, setSelectedTab] = useState("All Files");
+  const [selectedTab, setSelectedTab] = useState("All folders");
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm.trim(), 350);
   const [viewMode, setViewMode] = useViewMode(ADMIN_FILE_MANAGER_VIEW_MODE_KEY);
@@ -106,7 +106,9 @@ export default function AdminFolderManagerPage() {
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
+  const [boardProjects, setBoardProjects] = useState<UiFolderItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [boardPage, setBoardPage] = useState(1);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: PAGE_SIZE,
@@ -115,8 +117,25 @@ export default function AdminFolderManagerPage() {
     hasNextPage: false,
     hasPreviousPage: false,
   });
+  const [boardPagination, setBoardPagination] = useState({
+    page: 1,
+    limit: PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
   const [loading, setLoading] = useState(true);
+  const [boardLoadingInitial, setBoardLoadingInitial] = useState(false);
+  const [boardLoadingMore, setBoardLoadingMore] = useState(false);
+  const [boardColumnTotals, setBoardColumnTotals] = useState({
+    all: 0,
+    shoot: 0,
+    common: 0,
+    recent: 0,
+  });
   const [error, setError] = useState<string | null>(null);
+  const boardTotalsRequestRef = useRef(0);
 
   const getUpdatedTimestamp = (value?: string) => {
     if (!value) return 0;
@@ -137,9 +156,9 @@ export default function AdminFolderManagerPage() {
   };
 
   const tabs = [
-    { name: "All Files", icon: FolderOpen },
-    { name: "Common Event", icon: Calendar },
-    { name: "Linked to folders", icon: Link },
+    { name: "All folders", icon: FolderOpen },
+    { name: "Shoot folders", icon: Link },
+    { name: "Common events", icon: Calendar },
     { name: "Recent", icon: History },
     // { name: "Shared", icon: Share2 },
     // { name: "Trash", icon: Trash2 },
@@ -167,8 +186,52 @@ export default function AdminFolderManagerPage() {
     }
   };
 
+  const loadBoardProjects = useCallback(
+    async (page: number = 1, searchQuery: string = debouncedSearchTerm, append = false) => {
+      try {
+        if (append) {
+          setBoardLoadingMore(true);
+        } else {
+          setBoardLoadingInitial(true);
+        }
+
+        const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
+          page,
+          limit: PAGE_SIZE,
+          search: searchQuery,
+        });
+
+        const mapped = workspaces.map((workspace) =>
+          mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")
+        );
+
+        setBoardProjects((prev) => {
+          if (!append) return mapped;
+          const seen = new Set(prev.map((item) => item.id));
+          const next = [...prev];
+          mapped.forEach((item) => {
+            if (!seen.has(item.id)) {
+              next.push(item);
+              seen.add(item.id);
+            }
+          });
+          return next;
+        });
+        setBoardPagination(serverPagination);
+        setBoardPage(serverPagination.page || page);
+      } catch (err: any) {
+        setError(err?.message || "Failed to load file manager projects");
+      } finally {
+        setBoardLoadingInitial(false);
+        setBoardLoadingMore(false);
+      }
+    },
+    [debouncedSearchTerm]
+  );
+
   useEffect(() => {
     setCurrentPage(1);
+    setBoardPage(1);
   }, [debouncedSearchTerm]);
 
   useEffect(() => {
@@ -184,6 +247,81 @@ export default function AdminFolderManagerPage() {
       mounted = false;
     };
   }, [currentPage, debouncedSearchTerm]);
+
+  useEffect(() => {
+    if (viewMode !== "board") return;
+    let mounted = true;
+
+    const load = async () => {
+      if (!mounted) return;
+      await loadBoardProjects(1, debouncedSearchTerm, false);
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [viewMode, debouncedSearchTerm, loadBoardProjects]);
+
+  const handleLoadMoreBoardProjects = useCallback(async () => {
+    if (viewMode !== "board") return;
+    if (boardLoadingInitial || boardLoadingMore) return;
+    if (!boardPagination.hasNextPage) return;
+    await loadBoardProjects((boardPagination.page || boardPage) + 1, debouncedSearchTerm, true);
+  }, [
+    viewMode,
+    boardLoadingInitial,
+    boardLoadingMore,
+    boardPagination.hasNextPage,
+    boardPagination.page,
+    boardPage,
+    loadBoardProjects,
+    debouncedSearchTerm,
+  ]);
+
+  const loadBoardColumnTotals = useCallback(
+    async (searchQuery: string = debouncedSearchTerm) => {
+      const requestId = boardTotalsRequestRef.current + 1;
+      boardTotalsRequestRef.current = requestId;
+
+      try {
+        let page = 1;
+        let hasNextPage = true;
+        const allItems: UiFolderItem[] = [];
+
+        while (hasNextPage) {
+          const { workspaces, pagination: pageMeta } = await fileManagerApi.listExternalWorkspacesPaginated({
+            page,
+            limit: PAGE_SIZE,
+            search: searchQuery,
+          });
+
+          const mapped = workspaces.map((workspace) =>
+            mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")
+          );
+          allItems.push(...mapped);
+
+          hasNextPage = Boolean(pageMeta?.hasNextPage);
+          page = Number(pageMeta?.page || page) + 1;
+        }
+
+        if (boardTotalsRequestRef.current !== requestId) return;
+
+        setBoardColumnTotals({
+          all: applySharedFilters(allItems).length,
+          shoot: applySharedFilters(allItems.filter((item) => item.category !== "Common Event")).length,
+          common: applySharedFilters(allItems.filter((item) => item.category === "Common Event")).length,
+          recent: applySharedFilters(
+            allItems.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5))
+          ).length,
+        });
+      } catch {
+        // Keep previous totals if count refresh fails.
+      }
+    },
+    [debouncedSearchTerm, status, selectedDate]
+  );
 
   const applySharedFilters = (items: UiFolderItem[]) => {
     let nextItems = [...items];
@@ -207,14 +345,20 @@ export default function AdminFolderManagerPage() {
     return nextItems;
   };
 
-  const filteredFolders = useMemo(() => {
-    let items = [...projects];
+  useEffect(() => {
+    if (viewMode !== "board") return;
+    loadBoardColumnTotals(debouncedSearchTerm);
+  }, [viewMode, debouncedSearchTerm, status, selectedDate, loadBoardColumnTotals]);
 
-    if (selectedTab === "Linked to folders") {
-      items = items.filter((item) => item.isLinked);
+  const filteredFolders = useMemo(() => {
+    const source = viewMode === "board" ? boardProjects : projects;
+    let items = [...source];
+
+    if (selectedTab === "Shoot folders") {
+      items = items.filter((item) => item.category !== "Common Event");
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
-    } else if (selectedTab === "Common Event") {
+    } else if (selectedTab === "Common events") {
       items = items.filter((item) => item.category === "Common Event");
     }
     // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
@@ -222,32 +366,57 @@ export default function AdminFolderManagerPage() {
     // }
 
     return applySharedFilters(items);
-  }, [projects, selectedTab, status, selectedDate]);
+  }, [projects, boardProjects, selectedTab, status, selectedDate, viewMode]);
 
   const boardColumns = useMemo(
     () => [
       {
         id: "all-files",
-        title: "All Files",
-        items: applySharedFilters(projects),
+        title: "All folders",
+        items: applySharedFilters(boardProjects),
+        totalCount: boardColumnTotals.all,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
+      },
+      {
+        id: "shoot-folders",
+        title: "Shoot folders",
+        items: applySharedFilters(boardProjects.filter((folder) => folder.category !== "Common Event")),
+        totalCount: boardColumnTotals.shoot,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
       },
       {
         id: "common-event",
-        title: "Common Event",
-        items: applySharedFilters(projects.filter((folder) => folder.category === "Common Event")),
-      },
-      {
-        id: "linked-to-folders",
-        title: "Linked to folders",
-        items: applySharedFilters(projects.filter((folder) => folder.isLinked)),
+        title: "Common events",
+        items: applySharedFilters(boardProjects.filter((folder) => folder.category === "Common Event")),
+        totalCount: boardColumnTotals.common,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
       },
       {
         id: "recent",
         title: "Recent",
-        items: applySharedFilters(projects.filter((folder) => isRecentWithinHours(folder.updatedAtRaw, 24 * 5))),
+        items: applySharedFilters(
+          boardProjects.filter((folder) => isRecentWithinHours(folder.updatedAtRaw, 24 * 5))
+        ),
+        totalCount: boardColumnTotals.recent,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
       },
     ],
-    [projects, status, selectedDate]
+    [
+      boardProjects,
+      boardPagination.total,
+      boardPagination.hasNextPage,
+      boardLoadingMore,
+      boardColumnTotals.all,
+      boardColumnTotals.shoot,
+      boardColumnTotals.common,
+      boardColumnTotals.recent,
+      status,
+      selectedDate,
+    ]
   );
 
   const handleOpenMenu = (
@@ -367,7 +536,7 @@ export default function AdminFolderManagerPage() {
           <div className="w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base text-[#8F8F8F] bg-[#171717]/50 px-4 py-2 rounded-lg border border-white/5">
             <span className="whitespace-nowrap">Projects:</span>
             <p className="font-medium">
-              <span className="text-[#E8D1AB]">{pagination.total}</span>
+              <span className="text-[#E8D1AB]">{viewMode === "board" ? boardPagination.total : pagination.total}</span>
               <span className="mx-1">total</span>
             </p>
           </div>
@@ -397,7 +566,7 @@ export default function AdminFolderManagerPage() {
             </div>
           </div>
 
-          {loading ? (
+          {(viewMode === "board" ? boardLoadingInitial : loading) ? (
              <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
         }`}>
         <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
@@ -449,6 +618,9 @@ export default function AdminFolderManagerPage() {
             <FileManagerBoard
               columns={boardColumns}
               emptyMessage="No folders in this column"
+              onColumnEndReached={() => {
+                handleLoadMoreBoardProjects();
+              }}
               getItemId={(folder) => String(folder.id)}
               renderCard={(folder) => (
                 <FolderCard
@@ -565,7 +737,7 @@ export default function AdminFolderManagerPage() {
             </div>
           )}
 
-          {!loading && !error && pagination.totalPages > 1 && (
+          {!loading && !error && viewMode !== "board" && pagination.totalPages > 1 && (
             <div className="mt-6 flex items-center justify-center">
               <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0E0E0E] p-2">
                 <button
