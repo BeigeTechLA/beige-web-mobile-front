@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
+import { adminApi } from "@/lib/api"; 
 import { usePathname } from "next/navigation";
 import {
   ArrowUpToLine,
@@ -21,126 +22,108 @@ import PayoutHistoryTable, {
   type PayoutHistoryRow,
 } from "@/components/admin/finances/PayoutHistoryTable";
 import DottedDivider from "@/components/admin/DottedDivider";
+import { toast } from "sonner";
 
-const payoutRows: PayoutHistoryRow[] = [
-  {
-    id: "payout-1",
-    shootId: "#1234",
-    creatorName: "Prince Carter",
-    date: "Jan 13, 2026",
-    serviceType: "Videography",
-    netPayout: "$12,000",
-    paymentMethod: "Stripe",
-    status: "Completed",
-    initials: "PC",
-    avatarColor: "#F0C4E3",
-    breakdown: { earnings: "$14,000", fee: "-$2,000", net: "$12,000" },
-    invoiceIds: ["INV-001-A", "INV-001-B"],
-  },
-  {
-    id: "payout-2",
-    shootId: "#1234",
-    creatorName: "Ethan Carter",
-    date: "Jan 13, 2026",
-    serviceType: "Photography",
-    netPayout: "$8,000",
-    paymentMethod: "Bank Transfer",
-    status: "Rejected",
-    initials: "EC",
-    avatarColor: "#F5E4BC",
-    avatarImage: "/images/avatar.png",
-    breakdown: { earnings: "$9,100", fee: "-$1,100", net: "$8,000" },
-    invoiceIds: ["INV-002-A", "INV-002-B"],
-  },
-  {
-    id: "payout-3",
-    shootId: "#1234",
-    creatorName: "Sophia Johnson",
-    date: "Jan 13, 2026",
-    serviceType: "Photography",
-    netPayout: "$14,000",
-    paymentMethod: "Stripe",
-    status: "Completed",
-    initials: "SJ",
-    avatarColor: "#F4E5CC",
-    avatarImage: "/images/avatar.png",
-    breakdown: { earnings: "$15,800", fee: "-$1,800", net: "$14,000" },
-    invoiceIds: ["INV-003-A", "INV-003-B"],
-  },
-  {
-    id: "payout-4",
-    shootId: "#1234",
-    creatorName: "Maya Ross",
-    date: "Jan 13, 2026",
-    serviceType: "Photo + Video",
-    netPayout: "$4,000",
-    paymentMethod: "Stripe",
-    status: "Pending",
-    initials: "MR",
-    avatarColor: "#CFF3B9",
-    breakdown: { earnings: "$4,550", fee: "-$550", net: "$4,000" },
-    invoiceIds: ["INV-004-A", "INV-004-B"],
-  },
-  {
-    id: "payout-5",
-    shootId: "#1234",
-    creatorName: "John Lee",
-    date: "Jan 13, 2026",
-    serviceType: "Photo + Video",
-    netPayout: "$15,000",
-    paymentMethod: "Stripe",
-    status: "Completed",
-    initials: "JL",
-    avatarColor: "#E8DDD0",
-    avatarImage: "/images/avatar.png",
-    breakdown: { earnings: "$17,000", fee: "-$2,000", net: "$15,000" },
-    invoiceIds: ["INV-005-A", "INV-005-B"],
-  },
-  {
-    id: "payout-6",
-    shootId: "#1234",
-    creatorName: "Arvi Ross",
-    date: "Jan 13, 2026",
-    serviceType: "Photography",
-    netPayout: "$6,000",
-    paymentMethod: "Bank Transfer",
-    status: "Completed",
-    initials: "AR",
-    avatarColor: "#E2E2E2",
-    avatarImage: "/images/avatar.png",
-    breakdown: { earnings: "$6,800", fee: "-$800", net: "$6,000" },
-    invoiceIds: ["INV-006-A", "INV-006-B"],
-  },
-  {
-    id: "payout-7",
-    shootId: "#1234",
-    creatorName: "Daniel Roberts",
-    date: "Jan 13, 2026",
-    serviceType: "Videography",
-    netPayout: "$8,200",
-    paymentMethod: "Bank Transfer",
-    status: "Pending",
-    initials: "DR",
-    avatarColor: "#F3F3F3",
-    breakdown: { earnings: "$9,320", fee: "-$1,120", net: "$8,200" },
-    invoiceIds: ["INV-007-A", "INV-007-B"],
-  },
-  {
-    id: "payout-8",
-    shootId: "#1234",
-    creatorName: "Raj Yadhav",
-    date: "Jan 13, 2026",
-    serviceType: "Videography",
-    netPayout: "$4,500",
-    paymentMethod: "Stripe",
-    status: "Rejected",
-    initials: "RY",
-    avatarColor: "#D5D9E8",
-    avatarImage: "/images/avatar.png",
-    breakdown: { earnings: "$5,020", fee: "-$520", net: "$4,500" },
-    invoiceIds: ["INV-008-A", "INV-008-B"],
-  },
-];
+type PayoutScreenItem = {
+  id?: string | number;
+  booking_id?: string | number;
+  project_id?: string | number;
+  creator_name?: string | null;
+  creator_image?: string | null;
+  role?: string | null;
+  amount?: string | number | null;
+  total_amount?: string | number | null;
+  fee_amount?: string | number | null;
+  payment_method?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  invoices?: Array<string | number> | null;
+};
+
+type PayoutScreenSummary = {
+  available_balance?: string | number | null;
+  pending_balance?: string | number | null;
+  reserved_balance?: string | number | null;
+  total_paid_out?: string | number | null;
+  available?: string | number | null;
+  pending?: string | number | null;
+  reserved?: string | number | null;
+  total?: string | number | null;
+  [key: string]: unknown;
+};
+
+const normalizePayoutStatus = (status?: string | null): PayoutHistoryRow["status"] => {
+  const normalized = (status || "").trim().toLowerCase();
+
+  if (["completed", "paid", "success", "successful", "processed"].includes(normalized)) {
+    return "Completed";
+  }
+
+  if (["pending", "processing", "in_progress", "queued", "awaiting"].includes(normalized)) {
+    return "Pending";
+  }
+
+  if (["rejected", "failed", "declined", "cancelled", "canceled"].includes(normalized)) {
+    return "Rejected";
+  }
+
+  return "Pending";
+};
+
+const normalizePaymentMethod = (method?: string | null) => {
+  const value = (method || "").trim().toLowerCase();
+
+  if (value.includes("bank")) return "Bank Transfer";
+  if (value.includes("stripe")) return "Stripe";
+  if (value.includes("wire")) return "Bank Transfer";
+  if (value.includes("ach")) return "Bank Transfer";
+  return method || "Stripe";
+};
+
+const safeCurrency = (value?: string | number | null) => {
+  const numeric = Number(value ?? 0);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(Number.isFinite(numeric) ? numeric : 0);
+};
+
+const safeNegativeCurrency = (value?: string | number | null) => {
+  const numeric = Math.abs(Number(value ?? 0));
+  return `-${safeCurrency(Number.isFinite(numeric) ? numeric : 0)}`;
+};
+
+const parseCurrencyValue = (value?: string | number | null) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value !== "string") return 0;
+
+  const cleaned = value.replace(/[^0-9.-]/g, "");
+  const numeric = Number(cleaned);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const getPayoutItems = (responseData: unknown): PayoutScreenItem[] => {
+  if (!responseData || typeof responseData !== "object") return [];
+
+  const container = responseData as {
+    payouts?: PayoutScreenItem[];
+    data?: { payouts?: PayoutScreenItem[] };
+    items?: PayoutScreenItem[];
+    rows?: PayoutScreenItem[];
+    results?: PayoutScreenItem[];
+  };
+
+  const candidates = [
+    container.payouts,
+    container.data?.payouts,
+    container.items,
+    container.rows,
+    container.results,
+  ];
+
+  const found = candidates.find(Array.isArray);
+  return Array.isArray(found) ? found : [];
+};
 
 export default function AdminPayoutsPage() {
   const pathname = usePathname();
@@ -154,53 +137,94 @@ export default function AdminPayoutsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("Month");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [payouts, setPayouts] = useState<PayoutHistoryRow[]>([]);
+  const [payoutSummary, setPayoutSummary] = useState<PayoutScreenSummary | null>(null);
+
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    setLoading(true);
-    const timer = window.setTimeout(() => {
-      setLoading(false);
-    }, 450);
-
-    return () => window.clearTimeout(timer);
-  }, [selectedDate, metricRange, searchQuery, statusFilter, monthFilter, typeFilter]);
+    if (mounted) {
+      fetchPayoutData(); 
+    }
+  }, [mounted, selectedDate]); 
 
   const isDark = !mounted || theme === "dark";
 
-  const metrics: PayoutMetricCard[] = [
-    {
-      id: "available",
-      label: "Available Balance",
-      value: "$4,325.50",
-      helperText: "Ready for withdrawal",
-      icon: BadgeDollarSign,
-    },
-    {
-      id: "pending",
-      label: "Pending Balance",
-      value: "$1,847.25",
-      helperText: "Processing payments",
-      icon: Clock3,
-    },
-    {
-      id: "reserved",
-      label: "Reserved Balance",
-      value: "$892.80",
-      helperText: "Risk management hold",
-      icon: Shield,
-    },
-    {
-      id: "total",
-      label: "Total Paid Out",
-      value: "$47,523.90",
-      helperText: "Lifetime earnings",
-      icon: Landmark,
-    },
-  ];
+  const metrics: PayoutMetricCard[] = useMemo(() => {
+    const completedRows = payouts.filter((row) => row.status === "Completed");
+    const pendingRows = payouts.filter((row) => row.status === "Pending");
+    const rejectedRows = payouts.filter((row) => row.status === "Rejected");
+
+    const rowsTotal = payouts.reduce((sum, row) => sum + parseCurrencyValue(row.netPayout), 0);
+    const rowsCompletedTotal = completedRows.reduce((sum, row) => sum + parseCurrencyValue(row.netPayout), 0);
+    const rowsPendingTotal = pendingRows.reduce((sum, row) => sum + parseCurrencyValue(row.netPayout), 0);
+    const rowsReservedTotal = rejectedRows.reduce((sum, row) => sum + parseCurrencyValue(row.netPayout), 0);
+
+    const summary = payoutSummary || {};
+
+    const availableBalance =
+      parseCurrencyValue(summary.available_balance) ||
+      parseCurrencyValue(summary.available) ||
+      rowsCompletedTotal;
+
+    const pendingBalance =
+      parseCurrencyValue(summary.pending_balance) ||
+      parseCurrencyValue(summary.pending) ||
+      rowsPendingTotal;
+
+    const reservedBalance =
+      parseCurrencyValue(summary.reserved_balance) ||
+      parseCurrencyValue(summary.reserved) ||
+      rowsReservedTotal;
+
+    const totalPaidOut =
+      parseCurrencyValue(summary.total_paid_out) ||
+      parseCurrencyValue(summary.total) ||
+      rowsTotal;
+
+    return [
+      {
+        id: "available",
+        label: "Available Balance",
+        value: safeCurrency(availableBalance),
+        helperText: completedRows.length > 0
+          ? `${completedRows.length} payout${completedRows.length === 1 ? "" : "s"} ready for withdrawal`
+          : "Ready for withdrawal",
+        icon: BadgeDollarSign,
+      },
+      {
+        id: "pending",
+        label: "Pending Balance",
+        value: safeCurrency(pendingBalance),
+        helperText: pendingRows.length > 0
+          ? `${pendingRows.length} payout${pendingRows.length === 1 ? "" : "s"} processing`
+          : "Processing payments",
+        icon: Clock3,
+      },
+      {
+        id: "reserved",
+        label: "Reserved Balance",
+        value: safeCurrency(reservedBalance),
+        helperText: rejectedRows.length > 0
+          ? `${rejectedRows.length} payout${rejectedRows.length === 1 ? "" : "s"} on hold`
+          : "Risk management hold",
+        icon: Shield,
+      },
+      {
+        id: "total",
+        label: "Total Paid Out",
+        value: safeCurrency(totalPaidOut),
+        helperText: payouts.length > 0
+          ? `${payouts.length} payout${payouts.length === 1 ? "" : "s"} loaded`
+          : "Lifetime earnings",
+        icon: Landmark,
+      },
+    ];
+  }, [payouts, payoutSummary]);
 
   const filteredRows = useMemo(() => {
-    return payoutRows.filter((row) => {
+    return payouts.filter((row) => {
       const matchesSearch =
         row.shootId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         row.creatorName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -208,7 +232,77 @@ export default function AdminPayoutsPage() {
       const matchesType = typeFilter === "All" || row.paymentMethod === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
     });
-  }, [searchQuery, statusFilter, typeFilter]);
+  }, [payouts,searchQuery, statusFilter, typeFilter]);
+
+  const fetchPayoutData = async () => {
+    setLoading(true);
+    try {
+      const response = await adminApi.getPayoutsScreen();
+      if (!response?.success) {
+        throw new Error(response?.error || "Failed to fetch payout data");
+      }
+
+      const responseSummary = (() => {
+        const source = response.data as {
+          summary?: PayoutScreenSummary;
+          overview?: PayoutScreenSummary;
+          data?: { summary?: PayoutScreenSummary; overview?: PayoutScreenSummary };
+        } | null;
+
+        return source?.summary || source?.overview || source?.data?.summary || source?.data?.overview || null;
+      })();
+
+      setPayoutSummary(responseSummary);
+
+      const payoutItems = getPayoutItems(response.data);
+      const mappedRows: PayoutHistoryRow[] = payoutItems.map((item, index) => {
+        const creatorName = item.creator_name || "Unknown";
+        const initials = creatorName
+          .split(" ")
+          .filter(Boolean)
+          .map((name) => name[0])
+          .join("")
+          .toUpperCase() || "U";
+
+        return {
+          id: String(item.id ?? item.booking_id ?? item.project_id ?? `payout-${index}`),
+          shootId: `#${item.booking_id || item.project_id || "N/A"}`,
+          creatorName,
+          date: item.created_at
+            ? new Date(item.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "Unknown date",
+          serviceType: item.role || "Creative",
+          netPayout: safeCurrency(item.amount),
+          paymentMethod: normalizePaymentMethod(item.payment_method),
+          status: normalizePayoutStatus(item.status),
+          initials,
+          avatarColor: "#E2E2E2",
+          avatarImage: item.creator_image || undefined,
+          breakdown: {
+            earnings: safeCurrency(item.total_amount),
+            fee: safeNegativeCurrency(item.fee_amount),
+            net: safeCurrency(item.amount),
+          },
+          invoiceIds: Array.isArray(item.invoices)
+            ? item.invoices.map((invoice) => String(invoice))
+            : [],
+        };
+      });
+
+      setPayouts(mappedRows);
+    } catch (error) {
+      console.error("Failed to load payout data:", error);
+      toast.error("Failed to load payout data");
+      setPayouts([]);
+      setPayoutSummary(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>

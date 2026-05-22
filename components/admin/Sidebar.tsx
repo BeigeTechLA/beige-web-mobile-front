@@ -58,8 +58,8 @@ const menuItems = [
   },
   { name: 'Finances', icon: DollarSign, 
     children: [
-      // { name: 'Payouts', link: '/admin/finances/payouts' },
-      // { name: 'Transactions', link: '/admin/finances/transactions' },
+      { name: 'Payouts', link: '/admin/finances/payouts' },
+      { name: 'Transactions', link: '/admin/finances/transactions' },
       // { name: 'Disputes', link: '/admin/finances/disputes' },
       { name: 'Beige credit points', link: '/admin/finances/creditPoints' },
 

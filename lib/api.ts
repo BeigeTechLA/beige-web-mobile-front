@@ -2077,6 +2077,45 @@ export const adminApi = {
       };
     }
   },
+  getPayoutsScreen: async () => {
+    try {
+      const response = await api.get('finance/admin/payouts-screen');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Payouts Screen Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch payout data',
+      };
+    }
+  },
+  getFinanceTransactions: async (params: { date_on?: string } = {}) => {
+    try {
+      const response = await api.get('finance/transactions', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Finance Transactions Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch transactions',
+      };
+    }
+  },
+  getFinanceShoots: async (params: { date_on?: string } = {}) => {
+    try {
+      const response = await api.get('finance/shoots', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Finance Shoots Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch shoots',
+      };
+    }
+  },
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {
