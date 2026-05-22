@@ -177,6 +177,7 @@ type QuoteActionMenuProps = {
   allowEdit?: boolean;
   mobile?: boolean;
   disabled?: boolean;
+  isDark?: boolean;
 };
 
 type QuoteActionMenuButtonProps = {
@@ -184,6 +185,7 @@ type QuoteActionMenuButtonProps = {
   label: string;
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
   variant?: "default" | "danger";
+  isDark?: boolean;
 };
 
 const AVATAR_COLORS = [
@@ -203,16 +205,29 @@ const QuoteActionMenuButton = ({
   label,
   onClick,
   variant = "default",
+  isDark = true,
 }: QuoteActionMenuButtonProps) => (
   <button
     type="button"
     onClick={onClick}
     className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-[14px] font-medium transition-colors lg:text-[15px] ${variant === "danger"
       ? "text-[#F04438] hover:bg-[#F04438]/10"
-      : "text-white hover:bg-white/5"
+      : isDark
+        ? "text-white hover:bg-white/5"
+        : "text-[#000000] hover:bg-[#000000]/5"
       }`}
   >
-    <span className={variant === "danger" ? "text-[#F04438]" : "text-white/70"}>{icon}</span>
+    <span
+      className={
+        variant === "danger"
+          ? "text-[#F04438]"
+          : isDark
+            ? "text-white/70"
+            : "text-[#000000]/60"
+      }
+    >
+      {icon}
+    </span>
     {label}
   </button>
 );
@@ -228,8 +243,8 @@ const QuoteActionMenu = ({
   allowEdit = true,
   mobile = false,
   disabled = false,
+  isDark = true,
 }: QuoteActionMenuProps) => {
-
   const handleAction = (action: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     action();
@@ -249,8 +264,12 @@ const QuoteActionMenu = ({
             e.stopPropagation();
           }}
           className={`flex transition-colors outline-none ${mobile
-            ? "items-end justify-end text-[#E8D1AB] w-full"
-            : "items-center justify-center text-[#E8D1AB] hover:text-white"
+            ? isDark
+              ? "items-end justify-end text-[#E8D1AB] w-full"
+              : "items-end justify-end text-[#8E826A] w-full"
+            : isDark
+              ? "items-center justify-center text-[#E8D1AB] hover:text-white"
+              : "items-center justify-center text-[#8E826A] hover:text-[#000000]"
             } ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
           aria-label="Quote actions"
         >
@@ -263,37 +282,48 @@ const QuoteActionMenu = ({
         side="top"
         sideOffset={15}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="z-[999] w-[220px] rounded-[20px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_80px_rgba(0,0,0,0.55)]"
+        className={`z-[999] w-[220px] rounded-[20px] border p-0 shadow-[0_28px_80px_rgba(0,0,0,0.55)] transition-colors ${isDark
+          ? "border-white/10 bg-[#0A0A0A] text-white"
+          : "border-[#000000]/10 bg-white text-[#000000]"
+          }`}
       >
         <div className="flex flex-col p-1.5" onClick={(e) => e.stopPropagation()}>
           <QuoteActionMenuButton
             icon={<FileText size={18} />}
             label="View Details"
             onClick={handleAction(onViewDetails)}
+            isDark={isDark}
           />
           <QuoteActionMenuButton
             icon={<Copy size={18} />}
             label="Duplicate"
             onClick={handleAction(onDuplicate)}
+            isDark={isDark}
           />
           {allowEdit && (
             <QuoteActionMenuButton
               icon={<SquarePen size={18} />}
               label="Edit"
               onClick={handleAction(onEdit)}
+              isDark={isDark}
             />
           )}
           <QuoteActionMenuButton
             icon={<DollarSign size={18} />}
             label="Record Payment"
             onClick={handleAction(onPaymentTransaction)}
+            isDark={isDark}
           />
-          <div className="my-1 h-[1px] w-full bg-white/10" />
+
+          {/* Divider line using theme opacity logic */}
+          <div className={`my-1 h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#000000]/10"}`} />
+
           <QuoteActionMenuButton
             icon={<XCircle size={18} />}
             label="Reject Quote"
             onClick={handleAction(onReject)}
             variant="danger"
+            isDark={isDark}
           />
         </div>
       </PopoverContent>
@@ -1885,7 +1915,8 @@ export default function QuotesDashboardPage({
                                 onReject={() => {
                                   void handleRejectQuote(quote.id, quote.statusKey);
                                 }}
-                                allowEdit={quote.statusKey !== "expired"} 
+                                allowEdit={quote.statusKey !== "expired"}
+                                isDark={isDark}
                               />
                             </td>
                           </tr>
@@ -1932,7 +1963,8 @@ export default function QuotesDashboardPage({
                                         onReject={() => {
                                           void handleRejectQuote(quote.id, quote.statusKey);
                                         }}
-                                        allowEdit={quote.statusKey !== "expired"} 
+                                        allowEdit={quote.statusKey !== "expired"}
+                                        isDark={isDark}
                                       />
                                     </div>
                                   </div>
@@ -1951,10 +1983,10 @@ export default function QuotesDashboardPage({
                 {/* 1. Integrated Pagination Row */}
                 {filteredQuotesData.length > 0 && totalListPages > 1 && (
                   <tfoot>
-                    <tr className={isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}>
+                    <tr className={isDark ? "bg-[#101010]" : "bg-[#fff]"}>
                       <td colSpan={7} className="px-4 py-4 md:px-6">
                         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                          <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+                          <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-[#999]"}`}>
                             Showing {listStartIndex + 1} to {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of {totalFilteredQuotes}
                           </div>
 
@@ -1962,16 +1994,22 @@ export default function QuotesDashboardPage({
                             <button
                               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                               disabled={safeCurrentPage === 1}
-                              className={`px-3 py-2 disabled:opacity-30 text-[#6D6D6D]`}
+                              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
+                                ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                                : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                                }`}
                             >
-                              <ChevronLeft size={20} />
+                              <ChevronLeft size={24} />
                             </button>
                             <div className="flex items-center gap-1">
                               {paginationItems.map((item, idx) => (
                                 <button
                                   key={idx}
                                   onClick={() => typeof item === 'number' && setCurrentPage(item)}
-                                  className={`w-8 h-8 rounded-lg text-sm ${safeCurrentPage === item ? (isDark ? "bg-[#202020] text-[#E8D1AB] border border-[#E8D1AB]" : "bg-[#EFEFEF] text-black border border-[#6D6D6D]") : "text-[#6D6D6D]"}`}
+                                  className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all  ${safeCurrentPage === item ? ("bg-[#E5D5B8] text-black") : isDark
+                                    ? "text-white/60 hover:bg-white/5"
+                                    : "text-[#666] hover:bg-black/5"
+                                    }`}
                                 >
                                   {item}
                                 </button>
@@ -1980,9 +2018,9 @@ export default function QuotesDashboardPage({
                             <button
                               onClick={() => setCurrentPage(p => Math.min(totalListPages, p + 1))}
                               disabled={safeCurrentPage === totalListPages}
-                              className={`px-3 py-2 disabled:opacity-30 text-[#6D6D6D]`}
+                              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"}`}
                             >
-                              <ChevronRight size={20} />
+                              <ChevronRight size={24} />
                             </button>
                           </div>
                         </div>
