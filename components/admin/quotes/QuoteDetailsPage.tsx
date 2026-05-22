@@ -16,6 +16,12 @@ import {
   Scissors,
   Video,
   XCircle,
+  Wallet,
+  ChevronDown,
+  Download,
+  CheckCircle2,
+  Image as ImageIcon,
+  Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -1943,94 +1949,127 @@ export default function QuoteDetailsPage({
               <SectionShell title="Payment">
                 <div className="space-y-4" ref={paymentSectionRef}>
                   {quoteLeadId ? (
-                    <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4">
-                      <h3 className="text-base font-semibold text-white">Manual Payment Update</h3>
-                      {latestManualPaymentEntry?.createdAt ? (
-                        <p className="mt-1 text-xs text-white/55">
-                          Last updated {formatQuoteDate(latestManualPaymentEntry.createdAt)}
-                        </p>
-                      ) : null}
-                      <p className="mt-2 text-xs text-white/70">
-                        Paid: <span className="text-emerald-400">{formatQuoteCurrency(paidAmount)}</span>
-                        {" · "}
-                        Pending:{" "}
-                        <span className={pendingAmount < 0 ? "text-red-400" : "text-amber-400"}>
-                          {pendingAmount < 0 ? "-" : ""}
-                          {formatQuoteCurrency(Math.abs(pendingAmount))}
-                        </span>
-                        {pendingAmount < 0 && (
-                          <span className="ml-1 text-[10px] text-golden italic">
-                            (This reduced amount will be added as Beige Credits after approval)
-                          </span>
-                        )}
-                      </p>
-                      {hasFullPayment ? (
-                        <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-                          Full payment already completed. New payment entry is locked.
+                    <div className="space-y-6">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-12 w-12 lg:h-14 lg:w-14 items-center justify-center rounded-full bg-[#E8D1AB]">
+                            <Banknote size={24} className="text-black" />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-semibold text-white">Manual Payment Update</h3>
+                            <p className="mt-1 text-sm text-[#8F8F95]">
+                              Paid : <span className="text-emerald-400 font-medium">{formatQuoteCurrency(paidAmount)}</span>
+                              {" · "}
+                              Pending : <span className={pendingAmount < 0 ? "text-red-400 font-medium" : "text-amber-400 font-medium"}>
+                                {pendingAmount < 0 ? "-" : ""}
+                                {formatQuoteCurrency(Math.abs(pendingAmount))}
+                              </span>
+                            </p>
+                          </div>
                         </div>
-                      ) : null}
 
-                      {canTakeManualPayment ? (
-                        <>
-                          <div className="mt-3 grid grid-cols-2 gap-2">
-                            {(["full", "partial"] as const).map((type) => (
-                              <button
-                                key={type}
-                                type="button"
-                                onClick={() => setManualPaymentType(type)}
-                                disabled={hasFullPayment}
-                                className={`h-10 rounded-lg border text-sm font-medium ${manualPaymentType === type
-                                  ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                                  : "border-white/20 text-white/70"
-                                  }`}
-                              >
-                                {type === "full" ? "Full Payment" : "Partial Payment"}
-                              </button>
-                            ))}
+                        {hasFullPayment ? (
+                          <div className="flex h-fit items-center gap-2 rounded-full bg-[#DCFCE7] px-4 py-1.5 text-xs font-semibold text-[#166534] border border-[#86EFAC]/20">
+                            Full Paid (Manual)
+                          </div>
+                        ) : isPartiallyPaid ? (
+                          <div className="flex h-fit items-center gap-2 rounded-full bg-[#FFF6E9] px-4 py-1.5 text-xs font-semibold text-[#D4A017] border border-[#E8D1AB]/20">
+                            Partially Paid (Manual)
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {canTakeManualPayment && (
+                        <div className="space-y-5">
+                          {/* Payment Type Tabs */}
+                          <div className="flex rounded-lg border border-[#2B2B2B] bg-[#111111] p-1">
+                            <button
+                              type="button"
+                              onClick={() => setManualPaymentType("full")}
+                              disabled={hasFullPayment}
+                              className={`flex-1 flex h-10 items-center justify-center rounded-md text-sm font-semibold transition-all ${
+                                manualPaymentType === "full"
+                                  ? "bg-[#343434] text-white border border-[#444444]"
+                                  : "text-[#8F8F95] hover:text-white"
+                              }`}
+                            >
+                              Full Payment
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setManualPaymentType("partial")}
+                              disabled={hasFullPayment}
+                              className={`flex-1 flex h-10 items-center justify-center rounded-md text-sm font-semibold transition-all ${
+                                manualPaymentType === "partial"
+                                  ? "bg-[#343434] text-white border border-[#444444]"
+                                  : "text-[#8F8F95] hover:text-white"
+                              }`}
+                            >
+                              Partial Payment
+                            </button>
                           </div>
 
-                          {manualPaymentType === "partial" ? (
-                            <input
-                              type="number"
-                              value={manualPaymentAmount}
-                              onChange={(event) => setManualPaymentAmount(event.target.value)}
-                              placeholder="Enter partial amount"
-                              className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
-                            />
-                          ) : null}
-
-                          <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
-                            <SelectTrigger className="mt-3 h-11 rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white">
-                              <SelectValue placeholder="Select payment mode" />
-                            </SelectTrigger>
-                            <SelectContent className="border-[#333333] bg-[#111111] text-white">
-                              <SelectItem value="cash">Cash</SelectItem>
-                              <SelectItem value="wire">Wire</SelectItem>
-                              <SelectItem value="ach">ACH</SelectItem>
-                              <SelectItem value="zelle">Zelle</SelectItem>
-                              <SelectItem value="venmo">Venmo</SelectItem>
-                              <SelectItem value="cashapp">CashApp</SelectItem>
-                              <SelectItem value="applepay">ApplePay</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-
-                          {manualPaymentMode === "other" ? (
-                            <input
-                              type="text"
-                              value={manualPaymentOtherMode}
-                              onChange={(event) => setManualPaymentOtherMode(event.target.value)}
-                              placeholder="Enter payment mode"
-                              className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
-                            />
-                          ) : null}
-
-                          <div className="mt-3 rounded-lg border border-white/20 p-3">
-                            <label className="mb-2 block text-xs text-[#71717B]">Proof Upload (Required)</label>
-                            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 text-sm text-white">
-                              <ArrowUpToLine size={14} />
-                              {isUploadingManualProof ? "Uploading..." : "Choose File"}
+                          {manualPaymentType === "partial" && (
+                            <div className="relative">
+                              <label className="absolute -top-2.5 left-3 bg-[#171717] px-1 text-xs text-[#8F8F95]">
+                                Enter Remaining Amount
+                              </label>
                               <input
+                                type="number"
+                                value={manualPaymentAmount}
+                                onChange={(event) => setManualPaymentAmount(event.target.value)}
+                                placeholder={`Enter Amount (Max ${formatQuoteCurrency(pendingAmount)})`}
+                                className="h-12 w-full rounded-lg border border-[#2B2B2B] bg-transparent px-4 text-sm text-white outline-none focus:border-[#E8D1AB]/50 transition-colors"
+                              />
+                            </div>
+                          )}
+
+                          {/* Payment Method Select */}
+                          <div className="relative">
+                            <label className="absolute -top-2.5 left-3 z-10 bg-[#171717] px-1 text-xs text-[#8F8F95]">
+                              Select Payment Method
+                            </label>
+                            <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
+                              <SelectTrigger className="h-12 rounded-lg border border-[#2B2B2B] bg-transparent px-4 text-sm text-white focus:ring-0 focus:ring-offset-0">
+                                <SelectValue placeholder="Eg : Cash, Bank Transfer, Credit Card and Others..." />
+                              </SelectTrigger>
+                              <SelectContent className="border-[#2B2B2B] bg-[#111111] text-white">
+                                <SelectItem value="cash">Cash</SelectItem>
+                                <SelectItem value="wire">Wire</SelectItem>
+                                <SelectItem value="ach">ACH</SelectItem>
+                                <SelectItem value="zelle">Zelle</SelectItem>
+                                <SelectItem value="venmo">Venmo</SelectItem>
+                                <SelectItem value="cashapp">CashApp</SelectItem>
+                                <SelectItem value="applepay">ApplePay</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {manualPaymentMode === "other" && (
+                            <div className="relative mt-3">
+                              <label className="absolute -top-2.5 left-3 bg-[#171717] px-1 text-xs text-[#8F8F95]">
+                                Enter Payment Mode
+                              </label>
+                              <input
+                                type="text"
+                                value={manualPaymentOtherMode}
+                                onChange={(event) => setManualPaymentOtherMode(event.target.value)}
+                                placeholder="e.g. PayPal"
+                                className="h-12 w-full rounded-lg border border-[#2B2B2B] bg-transparent px-4 text-sm text-white outline-none focus:border-[#E8D1AB]/50"
+                              />
+                            </div>
+                          )}
+
+                          {/* Proof Upload Area */}
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-[#D8BC87]">Proof Upload (Required)</label>
+                            <div 
+                              className="relative flex min-h-[120px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#2B2B2B] bg-[#111111]/30 p-6 transition-colors hover:bg-[#111111]/50"
+                              onClick={() => document.getElementById("manual-proof-input")?.click()}
+                            >
+                              <input
+                                id="manual-proof-input"
                                 type="file"
                                 accept="image/*,application/pdf"
                                 className="hidden"
@@ -2039,77 +2078,136 @@ export default function QuoteDetailsPage({
                                   void handleManualProofUpload(file);
                                 }}
                               />
-                            </label>
-                            {manualPaymentProofFileName ? (
-                              <p className="mt-2 text-xs text-[#71717B]">{manualPaymentProofFileName}</p>
-                            ) : null}
+                              <p className="text-sm text-[#8F8F95]">
+                                {isUploadingManualProof ? "Uploading..." : (
+                                  <>
+                                    Drag & Drop Your File Here Or <span className="font-semibold text-[#E8D1AB] underline underline-offset-4">Upload</span>
+                                  </>
+                                )}
+                              </p>
+                            </div>
                           </div>
 
-                          <textarea
-                            value={manualPaymentNotes}
-                            onChange={(event) => setManualPaymentNotes(event.target.value)}
-                            placeholder="Add notes"
-                            className="mt-3 min-h-[84px] w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm text-white outline-none"
-                          />
+                          {/* Add Notes */}
+                          <div className="relative">
+                            <label className="absolute -top-2.5 left-3 bg-[#171717] px-1 text-xs text-[#8F8F95]">
+                              Add Notes
+                            </label>
+                            <textarea
+                              value={manualPaymentNotes}
+                              onChange={(event) => setManualPaymentNotes(event.target.value)}
+                              placeholder="Any additional information..."
+                              className="min-h-[100px] w-full rounded-lg border border-[#2B2B2B] bg-transparent px-4 py-3 text-sm text-white outline-none focus:border-[#E8D1AB]/50 transition-colors"
+                            />
+                          </div>
 
-                          <div className="mt-3 flex justify-end">
+                          <div className="flex justify-start">
                             <Button
                               type="button"
                               onClick={() => {
                                 void handleManualPaymentSubmit();
                               }}
                               disabled={isSubmittingManualPayment || isUploadingManualProof || hasFullPayment}
-                              className="h-11 rounded-lg lg:rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90 w-full lg:w-auto flex items-center gap-2 justify-center"
+                              className="h-12 min-w-[200px] rounded-lg bg-[#F3D9A7] px-8 font-semibold text-black hover:bg-[#F3D9A7]/90 active:scale-95 transition-all flex items-center gap-2"
                             >
-                              {isSubmittingManualPayment ? <Loader2 size={16} className="animate-spin" /> : null}
+                              {isSubmittingManualPayment ? <Loader2 size={18} className="animate-spin" /> : null}
                               {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
                             </Button>
                           </div>
-                        </>
-                      ) : null}
-
-                      {manualPaymentEntries.length > 0 ? (
-                        <div className="mt-3 rounded-lg border border-white/15 bg-white/[0.02] p-3">
-                          <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
-                            Uploaded Payment Proofs
-                          </p>
-                          <div className="space-y-2">
-                            {manualPaymentEntries.map((entry, index) => {
-                              const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
-                              const paidMode = entry.data.payment_mode
-                                ? String(entry.data.payment_mode).replace(/_/g, " ")
-                                : "manual";
-
-                              return (
-                                <div
-                                  key={`${entry.createdAt || "entry"}-${index}`}
-                                  className="rounded-md border border-white/10 px-3 py-2 text-xs"
-                                >
-                                  <p className="text-white/80">
-                                    {entry.data.payment_type === "partial"
-                                      ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
-                                      : "Full payment marked"}{" "}
-                                    via {paidMode}
-                                  </p>
-                                  <p className="mt-1 text-white/45">
-                                    {entry.createdAt ? formatQuoteDate(entry.createdAt) : "Date unavailable"}
-                                  </p>
-                                  {proofUrl ? (
-                                    <a
-                                      href={proofUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
-                                    >
-                                      Download Proof
-                                    </a>
-                                  ) : null}
-                                </div>
-                              );
-                            })}
-                          </div>
                         </div>
-                      ) : null}
+                      )}
+                      {(manualPaymentProofUrl || manualPaymentEntries.length > 0) && (
+                        <div className="mt-8 space-y-3">
+                          {manualPaymentProofUrl && (
+                            <div className="flex flex-col gap-4 rounded-xl border border-[#2B2B2B] bg-[#111111] overflow-hidden sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex items-center gap-4 p-4">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#222222] border border-[#333333] shrink-0">
+                                  <div className="flex flex-col items-center">
+                                    <ImageIcon size={14} className="text-[#8F8F95]" />
+                                    <span className="text-[8px] font-bold text-[#8F8F95]">
+                                      {manualPaymentProofFileName.split('.').pop()?.toUpperCase() || 'FILE'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-[15px] font-semibold text-white">
+                                    {manualPaymentProofFileName}
+                                  </p>
+                                  <p className="mt-0.5 text-[13px] text-[#8F8F95]">
+                                    {formatQuoteDate(new Date().toISOString())}
+                                  </p>
+                                </div>
+                              </div>
+                              <a
+                                href={manualPaymentProofUrl}
+                                download={manualPaymentProofFileName}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 bg-[#F3D9A7] px-6 py-4 text-[13px] font-bold text-black transition-colors hover:bg-[#F3D9A7]/90 sm:h-full sm:min-h-[72px] sm:py-0"
+                              >
+                                Download Proof
+                                <Download size={16} />
+                              </a>
+                            </div>
+                          )}
+
+                          {manualPaymentEntries.map((entry, index) => {
+                            const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
+                            const paidMode = entry.data.payment_mode
+                              ? String(entry.data.payment_mode).replace(/_/g, " ")
+                              : "manual";
+                            const entryAmount = Number(entry.data.amount || 0);
+                            const isPdf = entry.data.proof_url?.toLowerCase().endsWith(".pdf");
+
+                            return (
+                              <div
+                                key={`${entry.createdAt || "entry"}-${index}`}
+                                className="flex flex-col gap-4 rounded-xl border border-[#2B2B2B] bg-[#111111] overflow-hidden sm:flex-row sm:items-center sm:justify-between"
+                              >
+                                <div className="flex items-center gap-4 p-4">
+                                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#222222] border border-[#333333] shrink-0">
+                                    {isPdf ? (
+                                      <div className="flex flex-col items-center">
+                                        <ImageIcon size={14} className="text-[#8F8F95]" />
+                                        <span className="text-[8px] font-bold text-[#8F8F95]">PDF</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col items-center">
+                                        <ImageIcon size={14} className="text-[#8F8F95]" />
+                                        <span className="text-[8px] font-bold text-[#8F8F95]">PNG</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-[15px] font-semibold text-white">
+                                      {entry.data.payment_type === "partial"
+                                        ? `Partial paid ${formatQuoteCurrency(entryAmount)}`
+                                        : `Full Paid ${formatQuoteCurrency(entryAmount)}`}{" "}
+                                      via {paidMode}
+                                    </p>
+                                    <p className="mt-0.5 text-[13px] text-[#8F8F95]">
+                                      {entry.createdAt ? formatQuoteDate(entry.createdAt) : "Date unavailable"}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                {proofUrl && (
+                                  <a
+                                    href={proofUrl}
+                                    download={`${(entry.data.payment_type || "payment")}_proof`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 bg-[#F3D9A7] px-6 py-4 text-[13px] font-bold text-black transition-colors hover:bg-[#F3D9A7]/90 sm:h-full sm:min-h-[72px] sm:py-0"
+                                  >
+                                    Download Proof
+                                    <Download size={16} />
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ) : isConvertedToBooking ? (
                     <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
