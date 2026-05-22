@@ -588,6 +588,10 @@ export default function ExternalChatView({
       return explicitSocketUrl.replace(/\/+$/, "");
     }
 
+    if (typeof window !== "undefined" && /dev\.beige\.app$/i.test(window.location.hostname)) {
+      return "https://api2.dev.beige.app";
+    }
+
     const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
     if (apiEndpoint) {
       const normalized = apiEndpoint.replace(/\/v1\/?$/i, "").replace(/\/+$/, "");
