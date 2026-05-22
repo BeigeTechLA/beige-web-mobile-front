@@ -1,5 +1,24 @@
 import type { SelectedStudio } from "./studioData";
 
+export type LocationDetails = {
+  coordinates?: {
+    lat?: number;
+    lng?: number;
+  };
+  lat?: number;
+  lng?: number;
+  center?: [number, number];
+  context?: Array<{
+    id?: string;
+    text?: string;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+} | null;
+
+export type CrewRole = "video" | "photo";
+export type SelectedCrewRoles = Record<number, CrewRole>;
+
 export type BookingDataV3 = {
   bookingId?: number;
   bookingType?: 'single_day' | 'multi_day';
@@ -30,13 +49,14 @@ export type BookingDataV3 = {
   addTeamMembers: boolean;
   crewCount: number; // Total number of crew members (base + extra)
   location: string;
-  locationDetails: any; // Mapbox object
+  locationDetails: LocationDetails;
   specialInstructions: string;
   referenceLinks: string[];
   
   // Step 3 & 4
   matchingMethod: 'ai_matchmaker' | 'manual';
   selectedCrewIds: number[];
+  selectedCrewRoles?: SelectedCrewRoles;
   selectedStudioIds?: string[];
   selectedStudios?: SelectedStudio[];
 
@@ -79,6 +99,7 @@ export const initialDataV3: BookingDataV3 = {
   referenceLinks: [],
   matchingMethod: 'ai_matchmaker',
   selectedCrewIds: [],
+  selectedCrewRoles: {},
   selectedStudioIds: [],
   selectedStudios: [],
   fullName: "",

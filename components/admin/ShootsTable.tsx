@@ -32,7 +32,8 @@ import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { meetingsApi } from "@/lib/meetingsApi";
-import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
+// import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
+import { useDebounce } from "@/hooks/use-debounce";
 
 type ShootStatus =
   | "Booked"
@@ -267,6 +268,7 @@ export const ShootsTable = ({
   const [openCardActionId, setOpenCardActionId] = useState<string | null>(null);
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   // Filtering states
   const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
@@ -389,6 +391,10 @@ export const ShootsTable = ({
       setRange("all");
     }
   }, [externalSelectedDate]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -541,10 +547,11 @@ export const ShootsTable = ({
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
     // 1. Filter
+    const normalizedSearchQuery = debouncedSearchQuery.toLowerCase();
     let result = shoots.filter((shoot) => {
       const matchesSearch =
-        shoot.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        shoot.id.toLowerCase().includes(searchQuery.toLowerCase());
+        shoot.customerName.toLowerCase().includes(normalizedSearchQuery) ||
+        shoot.id.toLowerCase().includes(normalizedSearchQuery);
       if (!matchesSearch) return false;
 
       if (statusFilter === "all") return true;
@@ -600,7 +607,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
+  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -1057,7 +1064,7 @@ export const ShootsTable = ({
             <div className="relative block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-16 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden pb-6 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
@@ -1243,6 +1250,7 @@ export const ShootsTable = ({
                   ))}
                 </div>
               </div>
+              {/*
               <BoardMiniMapNavigator
                   boardRef={gridScrollRef}
                   segmentCount={kanbanColumns.length}
@@ -1250,6 +1258,7 @@ export const ShootsTable = ({
                   visible={activeViewMode === "grid"}
                   syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
               />
+              */}
             </div>
           ) : (
             <div className="hidden lg:block w-full overflow-x-auto">

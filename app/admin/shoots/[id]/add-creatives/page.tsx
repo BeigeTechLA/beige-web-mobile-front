@@ -156,9 +156,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                   key={btn.type}
                   onClick={() => setRoleType(btn.type)}
                   className={`h-12 flex items-center justify-center lg:justify-start gap-2 border px-4 py-2 rounded-lg text-sm cursor-pointer transition-all duration-300 ${roleType === btn.type
-                    // ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]'
-                    ? (isDark ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#E8D1AB]/40 border-[#E8D1AB] text-black/70')
-                    : (isDark ? 'bg-[#1A1A1A] border-white/10 text-white/70' : 'bg-gray-50 border-[#D8D8D8] text-black/70')
+                    ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                    : (isDark ? 'bg-[#1A1A1A] border-white/10 text-white/70' : 'bg-[#F0F0F0] border-[#E3E3E3] text-black')
                     }`}
                 >
                   <btn.icon size={16} />
@@ -170,7 +169,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             <Button
               onClick={handleAssign}
               disabled={isLoading || selectedCreativeIds.length === 0}
-              className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black disabled:opacity-50"
+              className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
             >
               {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
             </Button>
@@ -186,10 +185,12 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans">
+      <div className={`min-h-screen overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
         <Button
           onClick={() => router.back()}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${
+            isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"
+          }`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back to Shoot Details</span>
@@ -203,6 +204,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           currentLocation={projectLocation}
           targets={reqCounts}
           roleType={roleType}
+          isDark={isDark}
         />
       </div>
     </>

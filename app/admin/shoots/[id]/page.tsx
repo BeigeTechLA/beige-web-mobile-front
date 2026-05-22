@@ -354,6 +354,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     projectName={project?.project_name}
                     salesRepName={project?.lead_details?.assigned_sales_rep?.name || null}
                     clientName={project?.project?.client?.name || project?.client?.name || null}
+                    isDark={isDark}
                   />
                 </div>
               )}

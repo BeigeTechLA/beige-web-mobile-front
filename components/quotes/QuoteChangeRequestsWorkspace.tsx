@@ -56,6 +56,22 @@ type QuoteChangeRequestState = {
 
 type PaginationItem = number | "...";
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [delay, value]);
+
+  return debouncedValue;
+}
+
 const extractRequestState = (
   data: QuoteChangeRequestsResponse["data"]
 ): QuoteChangeRequestState => {
@@ -713,7 +729,6 @@ export default function QuoteChangeRequestsWorkspace({
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [approvalStatusFilter, setApprovalStatusFilter] = useState("all");
   const [requestTypeFilter, setRequestTypeFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState<QuoteChangeRequestItem | null>(null);
@@ -721,6 +736,7 @@ export default function QuoteChangeRequestsWorkspace({
   const [expandedRowId, setExpandedRowId] = useState<string | number | null>(null);
 
   const isDark = !mounted || theme === "dark";
+  const searchQuery = useDebounce(searchInput.trim(), 300);
 
   useEffect(() => {
     setMounted(true);
@@ -729,16 +745,6 @@ export default function QuoteChangeRequestsWorkspace({
   useEffect(() => {
     setPage(1);
   }, [approvalStatusFilter, requestTypeFilter, searchQuery]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setSearchQuery(searchInput.trim());
-    }, 300);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [searchInput]);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);

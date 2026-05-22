@@ -256,25 +256,36 @@ export const externalChatApi = {
     return response.data || null;
   },
 
-  async editMessage(messageId: string, content: string, sender?: ExternalChatUser | null) {
+  async editMessage(messageId: string, content: string, sender?: ExternalChatUser | null, roomId?: string | null) {
     const response = await apiClient.post<MessageResponse>(`external-chat/messages/${messageId}/edit`, {
       content,
+      roomId: roomId || undefined,
       sender,
     });
     return response.data || null;
   },
 
-  async deleteMessage(messageId: string, sender?: ExternalChatUser | null) {
+  async deleteMessage(messageId: string, sender?: ExternalChatUser | null, roomId?: string | null) {
     const response = await apiClient.post<MessageResponse>(`external-chat/messages/${messageId}/delete`, {
+      roomId: roomId || undefined,
       sender,
     });
     return response.data || null;
   },
 
-  async reactToMessage(messageId: string, emoji: string, sender?: ExternalChatUser | null) {
+  async reactToMessage(messageId: string, emoji: string, sender?: ExternalChatUser | null, roomId?: string | null) {
     const response = await apiClient.post<MessageResponse>(`external-chat/messages/${messageId}/reaction`, {
       emoji,
+      roomId: roomId || undefined,
       sender,
+    });
+    return response.data || null;
+  },
+
+  async markRoomAsRead(roomId: string, sender?: ExternalChatUser | null) {
+    const response = await apiClient.patch<SendMessageResponse>(`external-chat/room/${roomId}/mark-read`, {
+      sender,
+      userId: sender?.id != null ? String(sender.id) : undefined,
     });
     return response.data || null;
   },
