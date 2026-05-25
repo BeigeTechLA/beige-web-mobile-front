@@ -13,7 +13,6 @@ import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
-import { StatusBadge } from "@/components/admin/StatusBadge";
 import { toast } from "sonner";
 import { adminApi, salesApi as salesService } from "@/lib/api";
 import { useAppSelector } from "@/lib/redux/hooks";
@@ -36,6 +35,20 @@ import Topbar from "@/components/admin/Topbar";
 
 type TabType = "Booking" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
+
+const CreativePartnerStatusBadge = ({ status }: { status: "Approved" | "Pending" | "Rejected" }) => {
+  const styles = {
+    Approved: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
+    Pending: "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
+    Rejected: "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20",
+  };
+
+  return (
+    <span className={`px-4 py-1 lg:px-5 lg:py-2 rounded-full text-xs lg:text-sm font-semibold border h-fit ${styles[status]}`}>
+      {status}
+    </span>
+  );
+};
 
 interface UserData {
   id: string;
@@ -932,14 +945,25 @@ export default function AdminSaleRepManagerPage() {
           setUsersTotalPages(Math.ceil(currentCount / usersLimit) || 1);
         }
       } else if (activeTab === "Creative Partner") {
-        const creativeRes = await adminApi.getPendingCP(params);
-        const creativePayload = creativeRes?.data?.data || creativeRes?.data || {};
-        const creativeList = Array.isArray(creativePayload) ? creativePayload : (creativePayload.items || []);
+        const creativePageSize = 200;
+        const fetchCreativePartnerPage = async (page: number) => {
+          const res = await adminApi.getCrewMembers({ ...params, page, limit: creativePageSize });
+          const payload = res?.data?.data || res?.data || {};
+          const list = Array.isArray(payload) ? payload : (payload.items || []);
+          const pagination = res?.pagination || res?.data?.pagination || payload.pagination || {};
+          return { list, pagination };
+        };
 
+        const firstPage = await fetchCreativePartnerPage(1);
+        const creativePages = Number(firstPage.pagination?.total_pages || firstPage.pagination?.totalPages || 1);
+        const creativeItems = [...firstPage.list];
 
-        console.log("Fetched CP Count:", creativeRes?.data?.length);
+        for (let page = 2; page <= creativePages; page += 1) {
+          const nextPage = await fetchCreativePartnerPage(page);
+          creativeItems.push(...nextPage.list);
+        }
 
-        allUsers = creativeList.map((member: any) => {
+        allUsers = creativeItems.map((member: any) => {
           const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
           const profilePhoto = member.crew_member_files?.find((file: any) => file.file_type === 'profile_photo');
           return {
@@ -957,26 +981,10 @@ export default function AdminSaleRepManagerPage() {
           };
         });
 
-        // Handle Creative Pagination
-        const pag = creativeRes?.pagination || creativeRes?.data?.pagination || creativePayload.pagination;
+        const total = Number(firstPage.pagination?.total_records || firstPage.pagination?.totalRecords || allUsers.length);
         setUsers(allUsers);
-        if (pag) {
-          // const total = Number(pag.total_records || pag.total || allUsers.length);
-          // // const pages = Number(pag.total_pages || pag.totalPages || 1);
-
-          // setUsersTotalRecords(total);
-          // setUsersTotalPages(Math.ceil(allUsers.length / usersLimit) || 1);
-          const total = allUsers.length;
-          setUsersTotalRecords(total);
-
-          const calculatedPages = Math.ceil(total / usersLimit);
-          setUsersTotalPages(calculatedPages || 1);
-        } else {
-          const currentCount = allUsers.length || 0;
-
-          setUsersTotalRecords(currentCount);
-          setUsersTotalPages(Math.ceil(currentCount / usersLimit) || 1);
-        }
+        setUsersTotalRecords(total || allUsers.length);
+        setUsersTotalPages(Math.ceil((total || allUsers.length) / usersLimit) || 1);
       }
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -1139,8 +1147,8 @@ export default function AdminSaleRepManagerPage() {
               onChange={(tab) => {
                 setActiveTab(tab);
                 if (tab === "Creative Partner") {
-                  setViewMode("list");
-                  setLeadsViewMode("list");
+                  // setViewMode("list");
+                  // setLeadsViewMode("list");
                 }
                 setUsersCurrentPage(1);
                 setLeadsCurrentPage(1);
@@ -1175,9 +1183,7 @@ export default function AdminSaleRepManagerPage() {
                   </Button>
                 )}
 
-                 {
-                  activeTab !== "Creative Partner" && (
-                    <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+                    {/* <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                       <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
                         <div
                           className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
@@ -1217,9 +1223,7 @@ export default function AdminSaleRepManagerPage() {
                           <Grid2x2 size={16} />
                         </button>
                       </div>
-                    </div>
-                  )
-                } 
+                    </div> */}
               </div>
             </div >
 
@@ -1381,7 +1385,7 @@ export default function AdminSaleRepManagerPage() {
               headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
               onPageChange={(page) => setUsersCurrentPage(page)}
               enableKanbanView
-              kanbanStatuses={[...BOOKING_STATUS_OPTIONS, "Approved", "Rejected", "Pending", "Unknown"]}
+              kanbanStatuses={activeTab === "Creative Partner" ? ["Approved", "Rejected", "Pending"] : [...BOOKING_STATUS_OPTIONS, "Unknown"]}
               getItemId={(user) => user.id}
               getItemStatus={(user) => user.bookingStatus || user.status}
               viewMode={leadsViewMode}
@@ -1449,7 +1453,11 @@ export default function AdminSaleRepManagerPage() {
                   {/* 5. STATUS (Mobile & Desktop) */}
                   <td className={`p-5 border-b text-right md:text-left ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
                     <div className="flex justify-end md:justify-start">
-                      <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
+                      {activeTab === "Creative Partner" ? (
+                        <CreativePartnerStatusBadge status={user.status as "Approved" | "Pending" | "Rejected"} />
+                      ) : (
+                        <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
+                      )}
                     </div>
                   </td>
 
@@ -1542,7 +1550,11 @@ export default function AdminSaleRepManagerPage() {
 
                   {/* 3. FOOTER: Status Badge */}
                   <div className="flex items-center p-5">
-                    <LeadsStatusBadge status={user.bookingStatus || "Unknown"} />
+                    {activeTab === "Creative Partner" ? (
+                      <CreativePartnerStatusBadge status={user.status as "Approved" | "Pending" | "Rejected"} />
+                    ) : (
+                      <LeadsStatusBadge status={user.bookingStatus || "Unknown"} />
+                    )}
                   </div>
                 </div>
               )}

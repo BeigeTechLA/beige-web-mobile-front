@@ -18,7 +18,7 @@ const VIEW_OPTIONS: Array<{
 }> = [
   { mode: "grid", label: "Grid View", icon: Grid3X3 },
   { mode: "list", label: "List View", icon: List },
-  { mode: "board", label: "Board View", icon: LayoutDashboard },
+  // { mode: "board", label: "Board View", icon: LayoutDashboard },
 ];
 
 export function FileManagerViewToggle({
