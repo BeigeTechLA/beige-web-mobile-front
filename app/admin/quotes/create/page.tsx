@@ -1230,6 +1230,8 @@ export default function CreateQuotePage() {
   );
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [shouldRedirectToSummaryAfterPreviewClose, setShouldRedirectToSummaryAfterPreviewClose] =
+    useState(false);
   const [isQuoteSaved, setIsQuoteSaved] = useState(false);
   const [hasUnsavedQuoteChanges, setHasUnsavedQuoteChanges] = useState(false);
   const [isViewingInvoice, setIsViewingInvoice] = useState(false);
@@ -3117,8 +3119,7 @@ export default function CreateQuotePage() {
   const showQuoteRevisionSummary = Boolean(
     isEditMode &&
     quoteToEdit &&
-    additionalPaymentDetails &&
-    Math.abs(additionalPaymentDetails.totalDelta) > 0.009
+    additionalPaymentDetails
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -3659,6 +3660,7 @@ export default function CreateQuotePage() {
     }
 
     if (isEditMode) {
+      setShouldRedirectToSummaryAfterPreviewClose(false);
       const previewSnapshot = getQuoteSummarySnapshot();
       setPreviewQuote(buildPreviewQuoteFromSummary(previewSnapshot));
       setPreviewQuoteId(effectiveQuoteId);
@@ -3667,6 +3669,7 @@ export default function CreateQuotePage() {
     }
 
     if (!hasUnsavedQuoteChanges && (previewQuote || quoteToEdit)) {
+      setShouldRedirectToSummaryAfterPreviewClose(false);
       if (!previewQuote && quoteToEdit) {
         setPreviewQuote(quoteToEdit);
         setPreviewQuoteId(effectiveQuoteId);
@@ -3690,11 +3693,6 @@ export default function CreateQuotePage() {
   const handleOpenReviewChangesModal = () => {
     if (!quoteReviewValidation.isValid) {
       toast.error(getQuoteValidationMessage(quoteReviewValidation));
-      return;
-    }
-
-    if (quoteVersionNumber === null || quoteVersionNumber <= 1) {
-      toast.error("Review Changes is available only after the first saved version.");
       return;
     }
 
@@ -3722,6 +3720,15 @@ export default function CreateQuotePage() {
       versionNotes: reviewChangeReason,
       showVersionSuccess: true,
     });
+  };
+
+  const handleConfirmReviewChanges = async () => {
+    if (quoteVersionNumber !== null && quoteVersionNumber > 1) {
+      await handleSaveAsNewVersion();
+      return;
+    }
+
+    await saveQuoteDraft("save");
   };
 
   const handleSaveCurrentEditStep = async () => {
@@ -3786,9 +3793,7 @@ export default function CreateQuotePage() {
     isEditMode &&
     isFullEditFlow &&
     !isDuplicateFlow &&
-    view === "tax" &&
-    quoteVersionNumber !== null &&
-    quoteVersionNumber > 1;
+    view === "tax";
 
   const primaryActionLabel = isEditMode
     ? isFullEditFlow
@@ -3943,13 +3948,94 @@ export default function CreateQuotePage() {
     await sendQuoteInvoiceRequest();
   };
 
+  const getBlockedQuotePaymentChangeMessage = React.useCallback(
+    (quoteDetail: SalesQuoteDetailData | null | undefined) => {
+      if (!quoteDetail) {
+        return null;
+      }
+
+      const additionalPayment =
+        (quoteDetail as { additional_payment?: Record<string, unknown> | null }).additional_payment ??
+        (quoteDetail as { partial_payment?: Record<string, unknown> | null }).partial_payment ??
+        null;
+      const reducedPayment =
+        (quoteDetail as { reduced_payment?: Record<string, unknown> | null }).reduced_payment ?? null;
+      const change = additionalPayment ?? reducedPayment;
+
+      if (!change) {
+        return null;
+      }
+
+      const approvalStatus = String(change.approval_status ?? "").toLowerCase();
+      const additionalAmount = Number(change.outstanding_amount ?? change.additional_amount ?? 0);
+      const reducedAmount = Number(change.reduced_amount ?? change.refund_pending_amount ?? 0);
+      const hasOpenChange = additionalAmount > 0 || reducedAmount > 0;
+
+      if (!hasOpenChange || approvalStatus === "approved") {
+        return null;
+      }
+
+      const changeType = additionalAmount > 0 ? "increase" : "decrease";
+      return approvalStatus === "rejected"
+        ? `This paid quote ${changeType} request was rejected, so it cannot be sent to the client.`
+        : `This paid quote ${changeType} request is pending admin approval. Approve it before sending the quote or payment link to the client.`;
+    },
+    [],
+  );
+
   const handleBeforeSendQuoteFromPreview = React.useCallback(async () => {
-    if (!isEditMode || !hasUnsavedQuoteChanges) {
+    if (isEditMode && hasUnsavedQuoteChanges) {
+      const didSave = await saveQuoteDraft("save", { suppressRedirect: true });
+      if (!didSave) {
+        return false;
+      }
+      setShouldRedirectToSummaryAfterPreviewClose(true);
+    }
+
+    const quoteIdToValidate = effectiveQuoteId;
+    if (!quoteIdToValidate) {
       return true;
     }
 
-    return saveQuoteDraft("save", { suppressRedirect: true });
-  }, [hasUnsavedQuoteChanges, isEditMode, saveQuoteDraft]);
+    try {
+      const detailResponse = await salesApi.getQuoteDetail(quoteIdToValidate);
+      if (detailResponse?.error || detailResponse?.success === false) {
+        return true;
+      }
+
+      const latestQuoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+      const blockMessage = getBlockedQuotePaymentChangeMessage(latestQuoteDetail);
+      if (blockMessage) {
+        toast.error(blockMessage);
+        return false;
+      }
+    } catch (error) {
+      console.error("Failed to validate quote approval before send/copy", error);
+    }
+
+    return true;
+  }, [
+    effectiveQuoteId,
+    getBlockedQuotePaymentChangeMessage,
+    hasUnsavedQuoteChanges,
+    isEditMode,
+    saveQuoteDraft,
+  ]);
+
+  const handleClosePreviewModal = React.useCallback(() => {
+    setIsPreviewModalOpen(false);
+
+    if (!shouldRedirectToSummaryAfterPreviewClose) {
+      return;
+    }
+
+    setShouldRedirectToSummaryAfterPreviewClose(false);
+    const targetId = effectiveQuoteId || previewQuoteId;
+    const targetUrl = targetId
+      ? `/admin/quotes/${encodeURIComponent(String(targetId))}/summary?returnTo=${encodeURIComponent("/admin/quotes")}`
+      : "/admin/quotes";
+    router.push(targetUrl);
+  }, [effectiveQuoteId, previewQuoteId, router, shouldRedirectToSummaryAfterPreviewClose]);
 
   const handleConvertToBooking = () => {
     if (!resolvedInvoiceQuoteId) {
@@ -7174,7 +7260,7 @@ export default function CreateQuotePage() {
                         {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
                           <div className="flex justify-between items-center">
                             <span className="text-sm lg:text-base text-[#9F9FA9]">
-                              Previously Paid
+                              Total Paid
                             </span>
                             <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
                               {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
@@ -7820,7 +7906,7 @@ export default function CreateQuotePage() {
           </div>
         ) : showPreviewAction ? (
           <div className="flex flex-col lg:flex-row gap-2">
-            {(showReviewChangesAction && showInvoiceActions) ? (
+            {showReviewChangesAction ? (
               <Button
                 variant="default"
                 onClick={handleOpenReviewChangesModal}
@@ -7949,8 +8035,14 @@ export default function CreateQuotePage() {
         reviewChangeReason={reviewChangeReason}
         onReviewChangeReason={setReviewChangeReason}
         onConfirm={() => {
-          void handleSaveAsNewVersion();
+          void handleConfirmReviewChanges();
         }}
+        requireReason={quoteVersionNumber !== null && quoteVersionNumber > 1}
+        confirmLabel={
+          quoteVersionNumber !== null && quoteVersionNumber > 1
+            ? "Save as New Version"
+            : "Save Quote"
+        }
         isSaving={isCreatingQuoteDraft && activeQuoteAction === "save"}
       />
       <AnimatePresence>
@@ -8114,10 +8206,11 @@ export default function CreateQuotePage() {
       />
       <QuotePreviewModal
         open={isPreviewModalOpen}
-        onClose={() => setIsPreviewModalOpen(false)}
+        onClose={handleClosePreviewModal}
         quote={previewQuote}
         quoteId={previewQuoteId}
         isLoading={isPreviewLoading}
+        onBeforeCopy={handleBeforeSendQuoteFromPreview}
         onBeforeSend={handleBeforeSendQuoteFromPreview}
         paymentSummaryOverrides={
           showQuoteRevisionSummary

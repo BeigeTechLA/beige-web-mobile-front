@@ -29,6 +29,8 @@ type QuoteReviewChangesModalProps = {
   onReviewChangeReason: (value: string) => void;
   onConfirm: () => void;
   isSaving: boolean;
+  confirmLabel?: string;
+  requireReason?: boolean;
 };
 
 const formatCurrency = (value: number) =>
@@ -45,6 +47,8 @@ export default function QuoteReviewChangesModal({
   onReviewChangeReason,
   onConfirm,
   isSaving,
+  confirmLabel = "Save as New Version",
+  requireReason = true,
 }: QuoteReviewChangesModalProps) {
   const fieldChanges = reviewChangesData.fieldChanges.map((item) => ({
     id: item.id,
@@ -209,12 +213,16 @@ export default function QuoteReviewChangesModal({
 
           <div className="mt-7">
             <label className="mb-3 block text-[15px] font-medium text-[#9D9DA4]">
-              Reason for Change*
+              {requireReason ? "Reason for Change*" : "Reason for Change"}
             </label>
             <Textarea
               value={reviewChangeReason}
               onChange={(event) => onReviewChangeReason(event.target.value)}
-              placeholder="Explain why these changes are being made..."
+              placeholder={
+                requireReason
+                  ? "Explain why these changes are being made..."
+                  : "Optional: explain why these changes are being made..."
+              }
               className="min-h-[136px] rounded-[14px] border border-[#2E2E33] bg-black px-5 py-4 text-[15px] text-white placeholder:text-[#5F5F65]"
             />
           </div>
@@ -233,10 +241,10 @@ export default function QuoteReviewChangesModal({
           <Button
             type="button"
             onClick={onConfirm}
-            disabled={isSaving || !reviewChangeReason.trim()}
+            disabled={isSaving || (requireReason && !reviewChangeReason.trim())}
             className="h-[50px] min-w-[230px] rounded-[12px] bg-[#E7D0A4] text-black hover:bg-[#E7D0A4]/90 sm:min-w-[230px]"
           >
-            {isSaving ? "Saving..." : "Save as New Version"}
+            {isSaving ? "Saving..." : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

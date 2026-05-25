@@ -712,7 +712,7 @@ const RequestDetailsModal = ({
 export default function QuoteChangeRequestsWorkspace({
   TopbarComponent,
   title = "Quote Change Request",
-  description = "Dynamic list from 'sales/dashboard/quote-change-requests'. Click any request to open its details popup.",
+  description = "Click any request to open its details popup.",
   detailsHrefBase,
 }: QuoteChangeRequestsWorkspaceProps) {
   const pathname = usePathname();

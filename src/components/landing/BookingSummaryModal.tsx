@@ -124,6 +124,11 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
   const creditAppliedAmount = Math.max(toNumber(data?.pricing?.credit_applied), 0);
   const cardPaidAmount = Math.max(toNumber(data?.pricing?.total_paid ?? data?.pricing?.total), 0);
   const combinedPaidAmount = Math.max(cardPaidAmount + creditAppliedAmount, 0);
+  const displayTotalAmount = toNumber(
+    data?.pricing?.payment_summary?.quote_total ??
+    data?.pricing?.total_before_discounts ??
+    data?.pricing?.total
+  );
   const paymentMethodLabel =
     creditAppliedAmount > 0 && cardPaidAmount > 0
       ? "Paid via Card + Account Credit"
@@ -380,7 +385,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                    <div className="flex justify-between text-sm">
                      <span className="text-white/40 print:text-gray-500">Total Amount</span>
                      <span className="text-white font-medium print:text-black">
-                       {formatCurrency(data.pricing.total_before_discounts ?? data.pricing.total)}
+                       {formatCurrency(displayTotalAmount)}
                      </span>
                    </div>
                    {data.pricing.discount_code && (
