@@ -71,6 +71,8 @@ const BOOKING_STATUS_STYLES: Record<
   "Cancelled": { bg: "bg-[#FFB9B9]", text: "text-[#F03434]" },
 
   // --- Fallback ---
+  "Approved": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
+  "Rejected": { bg: "bg-[#FFB9B9]", text: "text-[#F03434]" },
   "Unknown": { bg: "bg-gray-200", text: "text-gray-600" },
 };
 

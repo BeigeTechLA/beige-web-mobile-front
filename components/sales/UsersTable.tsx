@@ -96,6 +96,7 @@ interface Props<T> {
   getItemStatus?: (item: T) => string | undefined;
   renderKanbanCard?: (item: T) => React.ReactNode;
   viewMode?: "list" | "grid";
+  onRowClick?: (item: T) => void;
 }
 
 const normalizeKanbanStatus = (value?: string) => {
@@ -134,6 +135,7 @@ export default function UsersTable<T>({
   getItemStatus,
   renderKanbanCard,
   viewMode = "list",
+  onRowClick,
 }: Props<T>) {
   const { theme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark" || theme === "dark";
@@ -232,6 +234,10 @@ export default function UsersTable<T>({
     "Proposal Sent",
     "Ready for Payment",
     "Payment/Invoice Sent",
+
+    "Approved",
+    "Rejected",
+    "Pending",
 
     "Closed - Lost",
     "Unknown"
@@ -378,7 +384,7 @@ export default function UsersTable<T>({
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"}`}
+                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"}`}
                     >
                       <div className={`flex items-center justify-between w-full px-5 py-4 sticky top-[-1px] z-20 rounded-t-[22px] border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8D1AB] bg-[#FBF7EF]"
                         }`}>
@@ -488,7 +494,10 @@ export default function UsersTable<T>({
                       return (
                         <React.Fragment key={id}>
                           <tr
-                            onClick={() => setExpandedRowId(isExpanded ? null : id)}
+                            onClick={() => {
+                              setExpandedRowId(isExpanded ? null : id);
+                              onRowClick?.(item);
+                            }}
                             className={`group transition-colors cursor-pointer ${isDark ? "bg-[#171717] hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"} ${isExpanded && isDark ? "bg-[#202020]" : ""}`}
                           >
                             {/* This td renders the custom renderRow content but logic wraps it for mobile toggle */}
