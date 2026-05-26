@@ -1383,7 +1383,103 @@ export const DeleteProfileFile = async (crewFilesId: string | number, payload: a
   }
 };
 
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  return axios.isAxiosError<{ message?: string }>(error)
+    ? error.response?.data?.message || fallback
+    : fallback;
+};
+
+const getApiErrorLog = (error: unknown) => {
+  return axios.isAxiosError(error) ? error.response?.data || error.message : error;
+};
+
+const notificationBasePaths = ['admin/notifications', 'notifications', 'notification'];
+
+const requestNotificationApi = async <T>(requester: (basePath: string) => Promise<T>): Promise<T> => {
+  let fallbackError: unknown = null;
+
+  for (const basePath of notificationBasePaths) {
+    try {
+      return await requester(basePath);
+    } catch (error) {
+      fallbackError = error;
+      const status = axios.isAxiosError(error) ? error.response?.status : null;
+      if (status !== 404) break;
+    }
+  }
+
+  throw fallbackError;
+};
+
 export const adminApi = {
+  getNotifications: async (params: {
+    page?: number;
+    limit?: number;
+    is_read?: 0 | 1 | boolean;
+    type?: string;
+  } = {}) => {
+    try {
+      const response = await requestNotificationApi((basePath) => api.get(basePath, { params }));
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Get Notifications Error:', getApiErrorLog(error));
+      return {
+        error: true,
+        data: [],
+        pagination: null,
+        message: getApiErrorMessage(error, 'Failed to fetch notifications'),
+      };
+    }
+  },
+  getUnreadNotificationCount: async () => {
+    try {
+      const response = await requestNotificationApi((basePath) => api.get(`${basePath}/unread-count`));
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Get Unread Notification Count Error:', getApiErrorLog(error));
+      return {
+        error: true,
+        unread_count: 0,
+        message: getApiErrorMessage(error, 'Failed to fetch unread notifications'),
+      };
+    }
+  },
+  markAllNotificationsRead: async () => {
+    try {
+      const response = await requestNotificationApi((basePath) => api.put(`${basePath}/mark-all-read`));
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Mark All Notifications Read Error:', getApiErrorLog(error));
+      return {
+        error: true,
+        message: getApiErrorMessage(error, 'Failed to mark notifications as read'),
+      };
+    }
+  },
+  markNotificationRead: async (notificationId: string | number) => {
+    try {
+      const response = await requestNotificationApi((basePath) => api.put(`${basePath}/${notificationId}/read`));
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Mark Notification Read Error:', getApiErrorLog(error));
+      return {
+        error: true,
+        message: getApiErrorMessage(error, 'Failed to update notification'),
+      };
+    }
+  },
+  deleteNotification: async (notificationId: string | number) => {
+    try {
+      const response = await requestNotificationApi((basePath) => api.delete(`${basePath}/${notificationId}`));
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Delete Notification Error:', getApiErrorLog(error));
+      return {
+        error: true,
+        message: getApiErrorMessage(error, 'Failed to delete notification'),
+      };
+    }
+  },
   createInternalCredential: async (payload: {
     name: string;
     email: string;

@@ -9,6 +9,9 @@ interface DeleteConfirmationModalProps {
     title?: string;
     description?: string;
     isLoading?: boolean;
+    cancelLabel?: string;
+    confirmLabel?: string;
+    loadingLabel?: string;
 }
 
 export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
@@ -18,11 +21,14 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
     title = "Delete Record",
     description = "Are you sure you want to delete this record? This action cannot be undone.",
     isLoading = false,
+    cancelLabel = "Cancel",
+    confirmLabel = "Delete",
+    loadingLabel = "Deleting...",
 }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="w-full max-w-md bg-[#111111] border border-[#222222] rounded-2xl p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
                 {/* Close Button */}
                 <button
@@ -51,14 +57,14 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                             disabled={isLoading}
                             className="flex-1 bg-[#1A1A1A] border-[#222222] text-white hover:bg-[#222222] h-11 rounded-xl"
                         >
-                            Cancel
+                            {cancelLabel}
                         </Button>
                         <Button
                             onClick={onConfirm}
                             disabled={isLoading}
                             className="flex-1 bg-red-600 text-white hover:bg-red-700 h-11 rounded-xl font-medium shadow-lg shadow-red-600/10"
                         >
-                            {isLoading ? "Deleting..." : "Delete"}
+                            {isLoading ? loadingLabel : confirmLabel}
                         </Button>
                     </div>
                 </div>
