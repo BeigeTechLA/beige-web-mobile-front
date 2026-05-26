@@ -6,6 +6,9 @@ type FileManagerBoardColumn<T> = {
   id: string;
   title: string;
   items: T[];
+  totalCount?: number;
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
 };
 
 type FileManagerBoardProps<T> = {
@@ -13,6 +16,7 @@ type FileManagerBoardProps<T> = {
   emptyMessage: string;
   getItemId: (item: T) => string;
   renderCard: (item: T) => React.ReactNode;
+  onColumnEndReached?: (columnId: string) => void;
 };
 
 export function FileManagerBoard<T>({
@@ -20,6 +24,7 @@ export function FileManagerBoard<T>({
   emptyMessage,
   getItemId,
   renderCard,
+  onColumnEndReached,
 }: FileManagerBoardProps<T>) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const panStateRef = useRef({ startX: 0, scrollLeft: 0, isActive: false });
@@ -145,7 +150,7 @@ export function FileManagerBoard<T>({
   return (
     <div
       ref={boardRef}
-      className={`overflow-x-auto overflow-y-hidden pb-6 snap-x snap-mandatory ${
+      className={`overflow-x-auto overflow-y-hidden pb-6 ${
         isPanning ? "cursor-grabbing select-none" : "cursor-grab"
       }`}
       onMouseDown={handleMouseDown}
@@ -157,15 +162,23 @@ export function FileManagerBoard<T>({
         {orderedColumns.map((column) => (
           <div
             key={column.id}
-            className="w-[calc(100vw-56px)] md:w-[320px] shrink-0 rounded-3xl border h-full min-h-[620px] snap-center bg-[#0A0A0A] border-[#FFFFFF33] flex flex-col"
+            className="w-[calc(100vw-56px)] md:w-[320px] shrink-0 rounded-3xl border h-full min-h-[620px] bg-[#0A0A0A] border-[#FFFFFF33] flex flex-col"
           >
             <div className="flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b border-white/5 bg-[#202020]">
               <h4 className="text-sm font-medium text-[#E8D1AB]">{column.title}</h4>
-              <span className="text-sm font-medium text-white/70">{column.items.length}</span>
+              <span className="text-sm font-medium text-white/70">{column.totalCount ?? column.items.length}</span>
             </div>
 
             <div
               className="flex-1 min-h-0 max-h-[620px] overflow-y-auto no-scrollbar px-4 py-4 space-y-3"
+              onScroll={(event) => {
+                if (!onColumnEndReached || !column.hasMore || column.isLoadingMore) return;
+                const target = event.currentTarget;
+                const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+                if (remaining <= 140) {
+                  onColumnEndReached(column.id);
+                }
+              }}
               onDragOver={(event) => {
                 if (draggedColumnId !== column.id) return;
                 event.preventDefault();
@@ -220,6 +233,11 @@ export function FileManagerBoard<T>({
                   );
                 })
               )}
+              {column.isLoadingMore ? (
+                <div className="rounded-2xl border border-white/10 px-4 py-3 text-center text-xs text-white/50">
+                  Loading more...
+                </div>
+              ) : null}
             </div>
           </div>
         ))}

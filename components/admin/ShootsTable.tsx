@@ -51,8 +51,11 @@ type ShootStatus =
 interface ShootRecord {
   id: string;
   customerName: string;
+  email: string;
+  phone: string;
   initials: string;
   date: string;
+  location: string;
   rawDate: number; // Added for correct chronological sorting
   category: string;
   price: string;
@@ -192,6 +195,17 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   5: "Completed",
   6: "Assets Delivered",
   7: "Cancelled",
+};
+
+const extractPhoneNumber = (project: any) => {
+  const directPhone = project?.phone || project?.Phone;
+  if (typeof directPhone === "string" && directPhone.trim()) {
+    return directPhone.trim().replace(/[^\d+]/g, "");
+  }
+
+  const description = typeof project?.description === "string" ? project.description : "";
+  const phoneMatch = description.match(/Phone:\s*([+\d][\d\s()-]*)/i);
+  return phoneMatch ? phoneMatch[1].replace(/[^\d+]/g, "") : "";
 };
 
 interface ShootsTableProps {
@@ -431,6 +445,7 @@ export const ShootsTable = ({
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as ShootStatus;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+          const extractedPhone = extractPhoneNumber(project);
 
           // Sorting Helpers
           const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
@@ -451,8 +466,11 @@ export const ShootsTable = ({
           return {
             id: `#${project.stream_project_booking_id}`,
             customerName,
+            email: project.guest_email || "", 
+            phone: extractedPhone,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            location: project.event_location || project.location || "",
             rawDate: dateObj.getTime(),
             category: getShootCategoryLabel(project),
             price: resolvedPriceSource
@@ -548,10 +566,14 @@ export const ShootsTable = ({
   const processedShoots = useMemo(() => {
     // 1. Filter
     const normalizedSearchQuery = debouncedSearchQuery.toLowerCase();
+    const normalizedPhoneQuery = normalizedSearchQuery.replace(/[^\d+]/g, "");
     let result = shoots.filter((shoot) => {
+      const normalizedPhone = shoot.phone.toLowerCase();
       const matchesSearch =
         shoot.customerName.toLowerCase().includes(normalizedSearchQuery) ||
-        shoot.id.toLowerCase().includes(normalizedSearchQuery);
+        shoot.id.toLowerCase().includes(normalizedSearchQuery) || 
+        shoot.email.toLowerCase().includes(normalizedSearchQuery) ||
+        (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery)); 
       if (!matchesSearch) return false;
 
       if (statusFilter === "all") return true;
@@ -1064,7 +1086,7 @@ export const ShootsTable = ({
             <div className="relative block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden pb-6 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden pb-6 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
@@ -1074,7 +1096,7 @@ export const ShootsTable = ({
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
+                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
                       <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
@@ -1240,8 +1262,13 @@ export const ShootsTable = ({
                             <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
                             {/* FOOTER */}
-                            <div className="flex items-center p-5">
+                            <div className="flex items-center justify-between p-5">
                               <StatusBadge status={shoot.status} />
+                              {(!shoot.date || shoot.date === "No Date" || !shoot.location) && (
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
+                                  Missing Info
+                                </span>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1307,14 +1334,12 @@ export const ShootsTable = ({
                       </td>
                       <td className="py-5 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {canDelete && (
-                            <button
-                              onClick={(e) => handleDeleteClick(e, shoot.id)}
-                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          )}
+                          <button
+                            onClick={(e) => handleDeleteClick(e, shoot.id)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
+                          >
+                            <Trash2 size={18} />
+                          </button>
                           <ChevronRight size={20} className={isDark ? "text-[#666666]" : "text-[#999]"} />
                         </div>
                       </td>

@@ -25,6 +25,7 @@ type QuotePreviewModalProps = {
   quoteId?: string | null;
   isLoading?: boolean;
   onBeforeSend?: () => Promise<boolean> | boolean;
+  onBeforeCopy?: () => Promise<boolean> | boolean;
   paymentSummaryOverrides?: {
     previousTotal?: number;
     previouslyPaid?: number;
@@ -55,6 +56,7 @@ export default function QuotePreviewModal({
   quoteId,
   isLoading = false,
   onBeforeSend,
+  onBeforeCopy,
   paymentSummaryOverrides,
 }: QuotePreviewModalProps) {
   const { isDark } = useResolvedTheme();
@@ -114,6 +116,13 @@ export default function QuotePreviewModal({
     }
 
     try {
+      if (onBeforeCopy) {
+        const canContinue = await onBeforeCopy();
+        if (!canContinue) {
+          return;
+        }
+      }
+
       let shareValue = copyQuoteUrl;
 
       if (!shareValue) {

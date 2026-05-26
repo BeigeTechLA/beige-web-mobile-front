@@ -563,10 +563,12 @@ export default function ExternalChatView({
   const [localUnreadCounts, setLocalUnreadCounts] = useState<Record<string, number>>({});
   const [activeThreadUnreadCount, setActiveThreadUnreadCount] = useState(0);
   const [isNearBottom, setIsNearBottom] = useState(true);
+  const [pendingInitialScroll, setPendingInitialScroll] = useState<"bottom" | "unread" | null>(null);
   const [accessRevokedNotice, setAccessRevokedNotice] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const socketRefreshTimerRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const unreadMarkerRef = useRef<HTMLDivElement | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottomRef = useRef(true);
   const composerEmojiRef = useRef<HTMLDivElement | null>(null);
@@ -939,7 +941,10 @@ export default function ExternalChatView({
 
     if (!options?.silent) {
       setActiveThreadUnreadCount(unreadSnapshot);
-      setIsNearBottom(true);
+      const shouldStartAtBottom = unreadSnapshot <= 0;
+      shouldStickToBottomRef.current = shouldStartAtBottom;
+      setIsNearBottom(shouldStartAtBottom);
+      setPendingInitialScroll(shouldStartAtBottom ? "bottom" : "unread");
     }
 
     if (!options?.silent) {
@@ -962,9 +967,22 @@ export default function ExternalChatView({
 
       setMessages(sortedMessages);
       syncRoomSnapshot(roomWithClearedUnread, sortedMessages);
+      const latestSeenTimestamp = getLatestSeenTimestamp(sortedMessages);
       await externalChatApi.markRoomAsRead(roomId, currentSender).catch(() => undefined);
+      if (latestSeenTimestamp) {
+        const nextRoomLastSeenAt = {
+          ...roomLastSeenAtRef.current,
+          [roomId]: latestSeenTimestamp,
+        };
+        roomLastSeenAtRef.current = nextRoomLastSeenAt;
+        setLocalUnreadCounts((current) => {
+          const next = { ...current };
+          delete next[roomId];
+          persistUnreadState(next, nextRoomLastSeenAt);
+          return next;
+        });
+      }
       if (!options?.preserveRoomUnread && (!options?.silent || shouldStickToBottomRef.current)) {
-        const latestSeenTimestamp = getLatestSeenTimestamp(sortedMessages);
         if (latestSeenTimestamp) {
           const nextRoomLastSeenAt = {
             ...roomLastSeenAtRef.current,
@@ -1263,6 +1281,23 @@ export default function ExternalChatView({
     if (!shouldStickToBottomRef.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [messages, selectedRoom?.id, selectedRoom?._id]);
+
+  useEffect(() => {
+    if (!pendingInitialScroll || loadingRoomData) return;
+
+    if (pendingInitialScroll === "unread" && unreadMarkerRef.current) {
+      shouldStickToBottomRef.current = false;
+      setIsNearBottom(false);
+      unreadMarkerRef.current.scrollIntoView({ behavior: "auto", block: "start" });
+      setPendingInitialScroll(null);
+      return;
+    }
+
+    shouldStickToBottomRef.current = true;
+    setIsNearBottom(true);
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    setPendingInitialScroll(null);
+  }, [pendingInitialScroll, loadingRoomData, unreadBoundaryMessageId]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -1887,7 +1922,7 @@ export default function ExternalChatView({
                           return (
                             <React.Fragment key={message.id || message._id || `${message.createdAt}-${message.message}`}>
                               {unreadBoundaryMessageId === messageId ? (
-                                <div className="flex items-center gap-3 py-1">
+                                <div ref={unreadMarkerRef} className="flex items-center gap-3 py-1">
                                   <div className={`h-px flex-1 ${isDark ? "bg-[#E5D5B8]/25" : "bg-zinc-300"}`} />
                                   <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${isDark
                                       ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/12 text-[#E5D5B8]"
@@ -1911,7 +1946,7 @@ export default function ExternalChatView({
                         return (
                           <React.Fragment key={messageId || `${message.createdAt}-${message.message}`}>
                             {unreadBoundaryMessageId === messageId ? (
-                              <div className="flex items-center gap-3 py-1">
+                              <div ref={unreadMarkerRef} className="flex items-center gap-3 py-1">
                                 <div className={`h-px flex-1 ${isDark ? "bg-[#E5D5B8]/25" : "bg-zinc-300"}`} />
                                 <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${isDark
                                     ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/12 text-[#E5D5B8]"
