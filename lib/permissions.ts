@@ -10,6 +10,8 @@ type AdminRouteRule = {
   permissionKeys?: string[];
 };
 
+type PortalKey = "admin" | "affiliate" | "sales" | "production-manager";
+
 const MODULE_ALIASES: Record<string, string[]> = {
   availability: ["availability"],
   dashboard: ["dashboard"],
@@ -38,10 +40,43 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/availability", permissionKeys: ["availability"] },
   { prefix: "/admin/sales-representative", permissionKeys: ["sales_representative"] },
   { prefix: "/admin/invoice", permissionKeys: ["invoices"] },
-  { prefix: "/admin/roles-permissions", permissionKeys: ["settings"] },
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
-  { prefix: "/admin/users", permissionKeys: ["profile"] },
-  { prefix: "/admin/quotes", permissionKeys: ["sales"] },
+  { prefix: "/admin/users", permissionKeys: ["users"] },
+  { prefix: "/admin/quotes", permissionKeys: ["quotes"] },
+];
+
+const AFFILIATE_ROUTE_RULES: AdminRouteRule[] = [
+  { prefix: "/affiliate/dashboard", permissionKeys: ["dashboard"] },
+  { prefix: "/affiliate/overview", permissionKeys: ["users"] },
+  { prefix: "/affiliate/file-manager", permissionKeys: ["file_manager"] },
+  { prefix: "/affiliate/find-yourself", permissionKeys: ["shoots"] },
+  { prefix: "/affiliate/meetings", permissionKeys: ["meetings"] },
+  { prefix: "/affiliate/messages", permissionKeys: ["messages"] },
+  { prefix: "/affiliate/shoots", permissionKeys: ["shoots"] },
+  { prefix: "/affiliate/quotes", permissionKeys: ["quotes"] },
+  { prefix: "/affiliate/finances", permissionKeys: ["invoices"] },
+  { prefix: "/affiliate/profile", permissionKeys: ["settings"] },
+];
+
+const SALES_ROUTE_RULES: AdminRouteRule[] = [
+  { prefix: "/sales/dashboard", permissionKeys: ["dashboard"] },
+  { prefix: "/sales/availability", permissionKeys: ["availability"] },
+  { prefix: "/sales/shoots", permissionKeys: ["shoots"] },
+  { prefix: "/sales/file-manager", permissionKeys: ["file_manager"] },
+  { prefix: "/sales/meetings", permissionKeys: ["meetings"] },
+  { prefix: "/sales/messages", permissionKeys: ["messages"] },
+  { prefix: "/sales/quotes", permissionKeys: ["quotes"] },
+  { prefix: "/sales/invoice", permissionKeys: ["invoices"] },
+];
+
+const PRODUCTION_MANAGER_ROUTE_RULES: AdminRouteRule[] = [
+  { prefix: "/production-manager/dashboard", permissionKeys: ["dashboard"] },
+  { prefix: "/production-manager/creative-partners", permissionKeys: ["users"] },
+  { prefix: "/production-manager/shoots", permissionKeys: ["shoots"] },
+  { prefix: "/production-manager/file-manager", permissionKeys: ["file_manager"] },
+  { prefix: "/production-manager/meetings", permissionKeys: ["meetings"] },
+  { prefix: "/production-manager/messages", permissionKeys: ["messages"] },
+  { prefix: "/production-manager/availability", permissionKeys: ["availability"] },
 ];
 
 const DASHBOARD_FALLBACK_PATHS = [
@@ -58,6 +93,56 @@ const DASHBOARD_FALLBACK_PATHS = [
   "/admin/users/all",
   "/admin/quotes",
 ];
+
+const PORTAL_ROUTE_RULES: Record<PortalKey, AdminRouteRule[]> = {
+  admin: ADMIN_ROUTE_RULES,
+  affiliate: AFFILIATE_ROUTE_RULES,
+  sales: SALES_ROUTE_RULES,
+  "production-manager": PRODUCTION_MANAGER_ROUTE_RULES,
+};
+
+const PORTAL_FALLBACK_PATHS: Record<PortalKey, string[]> = {
+  admin: DASHBOARD_FALLBACK_PATHS,
+  affiliate: [
+    "/affiliate/dashboard",
+    "/affiliate/overview",
+    "/affiliate/file-manager",
+    "/affiliate/find-yourself",
+    "/affiliate/meetings",
+    "/affiliate/messages",
+    "/affiliate/shoots",
+    "/affiliate/quotes",
+    "/affiliate/finances",
+    "/affiliate/profile",
+  ],
+  sales: [
+    "/sales/dashboard",
+    "/sales/availability",
+    "/sales/shoots",
+    "/sales/file-manager",
+    "/sales/meetings",
+    "/sales/messages",
+    "/sales/quotes",
+    "/sales/invoice",
+  ],
+  "production-manager": [
+    "/production-manager/dashboard",
+    "/production-manager/creative-partners",
+    "/production-manager/shoots",
+    "/production-manager/file-manager",
+    "/production-manager/meetings",
+    "/production-manager/messages",
+    "/production-manager/availability",
+  ],
+};
+
+const getPortalForPathname = (pathname: string): PortalKey | null => {
+  if (pathname.startsWith("/admin")) return "admin";
+  if (pathname.startsWith("/affiliate")) return "affiliate";
+  if (pathname.startsWith("/sales")) return "sales";
+  if (pathname.startsWith("/production-manager")) return "production-manager";
+  return null;
+};
 
 const normalizeKey = (value: string) => value.trim().toLowerCase().replace(/-/g, "_");
 
@@ -161,17 +246,45 @@ export const getFirstAllowedAdminPath = (permissions: PermissionsMap | null | un
   return null;
 };
 
+export const getFirstAllowedPortalPath = (
+  portal: PortalKey,
+  permissions: PermissionsMap | null | undefined,
+) => {
+  if (!permissions) return null;
+
+  if (hasAnyPermission(permissions)) {
+    for (const path of PORTAL_FALLBACK_PATHS[portal]) {
+      if (canAccessPortalPath(path, permissions)) {
+        return path;
+      }
+    }
+  }
+
+  return null;
+};
+
 export const canAccessAdminPath = (
   pathname: string,
   permissions: PermissionsMap | null | undefined,
 ) => {
-  if (!pathname.startsWith("/admin")) return true;
+  return canAccessPortalPath(pathname, permissions);
+};
 
-  if (pathname === "/admin" || pathname === "/admin/dashboard") {
+export const canAccessPortalPath = (
+  pathname: string,
+  permissions: PermissionsMap | null | undefined,
+) => {
+  const portal = getPortalForPathname(pathname);
+  if (!portal) return true;
+
+  if (
+    pathname === `/${portal}` ||
+    pathname === `/${portal}/dashboard`
+  ) {
     return hasAnyPermission(permissions);
   }
 
-  const matchedRule = ADMIN_ROUTE_RULES.find((rule) => pathname.startsWith(rule.prefix));
+  const matchedRule = PORTAL_ROUTE_RULES[portal].find((rule) => pathname.startsWith(rule.prefix));
   if (!matchedRule?.permissionKeys?.length) {
     return true;
   }

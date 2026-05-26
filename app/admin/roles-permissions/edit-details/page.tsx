@@ -27,6 +27,7 @@ import {
 import { normalizePermissionsPayload } from "@/lib/permissions";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { setPermissions } from "@/lib/redux/features/auth/authSlice";
+import { PermissionGuard } from "@/components/common/PermissionGuard";
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -74,6 +75,15 @@ export default function AdminRoleEditDetailsRoute() {
   const roleId = searchParams.get("role_id");
   const userId = searchParams.get("user_id");
   const mode = roleId ? "role" : "user";
+
+  useEffect(() => {
+    console.log("AdminRoleEditDetailsRoute: route params", {
+      pathname,
+      roleId,
+      userId,
+      mode,
+    });
+  }, [mode, pathname, roleId, userId]);
 
   const dispatch = useAppDispatch();
   const loggedInUser = useAppSelector((state) => state.auth.user);
@@ -458,7 +468,7 @@ export default function AdminRoleEditDetailsRoute() {
   }, [isSaving, mode]);
 
   return (
-    <>
+    <PermissionGuard module="roles_permissions" action="edit">
       <Topbar
         pathname={pathname}
         breadcrumbOverrides={{
@@ -528,7 +538,10 @@ export default function AdminRoleEditDetailsRoute() {
 
       <RoleUpdatedSuccessModal
         isOpen={isSuccessModalOpen}
-        onClose={() => setIsSuccessModalOpen(false)}
+        onClose={() => {
+          setIsSuccessModalOpen(false);
+          window.location.reload();
+        }}
         title={successTitle}
         description={successDescription}
       />
@@ -553,6 +566,6 @@ export default function AdminRoleEditDetailsRoute() {
         confirmLabel="Close"
         hideCancel
       />
-    </>
+    </PermissionGuard>
   );
 }

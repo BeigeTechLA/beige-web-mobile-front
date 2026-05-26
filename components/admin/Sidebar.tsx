@@ -78,7 +78,7 @@ const menuItems = [
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
-  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions', permissionKeys: ['settings'] },
+  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions' },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,

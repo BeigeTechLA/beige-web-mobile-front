@@ -14,7 +14,7 @@ import { isSalesRouteAllowedWhileInactive } from '@/lib/sales-status';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import { setPermissions } from '@/lib/redux/features/auth/authSlice';
 import { adminApi } from '@/lib/api';
-import { normalizePermissionsPayload } from '@/lib/permissions';
+import { canAccessPortalPath, getFirstAllowedPortalPath, normalizePermissionsPayload } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -77,6 +77,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
     router.replace("/sales/dashboard");
   }, [router, shouldBlockCurrentRoute]);
+
+  useEffect(() => {
+    if (!mounted || !permissions || shouldBlockCurrentRoute) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("sales", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, router, shouldBlockCurrentRoute]);
 
   return (
     <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${

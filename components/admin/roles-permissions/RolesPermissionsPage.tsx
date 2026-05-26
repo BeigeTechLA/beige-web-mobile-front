@@ -96,7 +96,7 @@ const mapUserToPermissionUser = (
   subtitle: user.email,
   role: user.role_name || "Unassigned",
   created: formatDateTime(user.created_at),
-  updated: formatDateTime(user.created_at),
+  updated: formatDateTime(user.updated_at),
   status: user.status_label,
   badge: getInitials(user.name),
   badgeTone: USER_BADGE_TONES[index % USER_BADGE_TONES.length],
@@ -106,7 +106,7 @@ export function RolesPermissionsPage({
   searchQuery = "",
 }: RolesPermissionsPageProps) {
   const router = useRouter();
-  const { canCreate, canEdit, canDelete } = usePermissions("settings");
+  const { canCreate, canEdit, canDelete } = usePermissions("roles_permissions");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [roles, setRoles] = useState<RoleCardData[]>([]);
   const [users, setUsers] = useState<PermissionUser[]>([]);
@@ -182,6 +182,16 @@ export function RolesPermissionsPage({
   const handleOpenDeleteModal = (user: PermissionUser) => {
     setSelectedUser(user);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleOpenUserDetails = (user: PermissionUser) => {
+    const targetUrl = `/admin/roles-permissions/edit-details?user_id=${user.id}`;
+    console.log("RolesPermissionsPage: opening user details", {
+      userId: user.id,
+      userName: user.name,
+      targetUrl,
+    });
+    router.push(targetUrl);
   };
 
   const handleConfirmDelete = async () => {
@@ -297,8 +307,8 @@ export function RolesPermissionsPage({
               users={users}
               isLoading={isLoadingUsers}
               error={usersError}
-              onEdit={canEdit ? (user) => router.push(`/admin/roles-permissions/edit-details?user_id=${user.id}`) : undefined}
-              onRowClick={canEdit ? (user) => router.push(`/admin/roles-permissions/edit-details?user_id=${user.id}`) : undefined}
+              onEdit={handleOpenUserDetails}
+              onRowClick={handleOpenUserDetails}
               onDelete={canDelete ? handleOpenDeleteModal : undefined}
             />
           </div>

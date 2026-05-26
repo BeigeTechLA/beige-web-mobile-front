@@ -63,6 +63,7 @@ import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -664,6 +665,7 @@ export default function QuoteDetailsPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuoteDetailsPageProps) {
   const dispatch = useAppDispatch();
+  const { canEdit } = usePermissions("quotes");
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1063,6 +1065,7 @@ export default function QuoteDetailsPage({
     return selectedVersionNumber === latestVersionNumber;
   }, [latestVersionMeta, selectedVersionId, selectedVersionMeta, versions.length]);
   const canEditSelectedVersion =
+    canEdit &&
     isSelectedCurrentVersion &&
     !["rejected", "cancelled","expired"].includes(normalizedQuoteStatus);
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;

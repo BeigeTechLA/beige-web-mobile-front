@@ -116,6 +116,7 @@ export function PermissionUsersTable({
   const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
+  const canOpenUser = Boolean(onEdit || onRowClick);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -265,7 +266,9 @@ export function PermissionUsersTable({
               paginatedUsers.map((user) => (
               <tr
                 key={user.id}
-                className="group cursor-pointer text-white transition-colors hover:bg-white/[0.02]"
+                className={`group text-white transition-colors hover:bg-white/[0.02] ${
+                  canOpenUser ? "cursor-pointer" : "cursor-default"
+                }`}
                 onClick={() => onRowClick?.(user)}
               >
                 <td className="px-6 py-6">
@@ -316,7 +319,8 @@ export function PermissionUsersTable({
                   <div className="flex items-center justify-end gap-4">
                     <button
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
+                      disabled={!onEdit}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
                         onEdit?.(user);
@@ -326,7 +330,8 @@ export function PermissionUsersTable({
                     </button>
                     <button
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400"
+                      disabled={!onDelete}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
                         onDelete?.(user);
@@ -336,10 +341,15 @@ export function PermissionUsersTable({
                     </button>
                     <button
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
+                      disabled={!canOpenUser}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
-                        onEdit?.(user);
+                        if (onEdit) {
+                          onEdit(user);
+                          return;
+                        }
+                        onRowClick?.(user);
                       }}
                     >
                       <ChevronRight size={20} />

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu } from "lucide-react";
 
@@ -13,7 +13,7 @@ import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import { setPermissions } from '@/lib/redux/features/auth/authSlice';
 import { adminApi } from '@/lib/api';
-import { normalizePermissionsPayload } from '@/lib/permissions';
+import { canAccessPortalPath, getFirstAllowedPortalPath, normalizePermissionsPayload } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
@@ -74,8 +74,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function ProdManagerLayout({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, permissions } = useAppSelector((state) => state.auth);
   const pathname = usePathname();
+  const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -100,6 +101,17 @@ export default function ProdManagerLayout({ children }: { children: React.ReactN
       fetchPermissions();
     }
   }, [user?.id, pathname, mounted, dispatch]);
+
+  useEffect(() => {
+    if (!mounted || !permissions) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("production-manager", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, router]);
 
   const isDark = !mounted || theme === "dark";
 

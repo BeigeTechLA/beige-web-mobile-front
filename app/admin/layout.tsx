@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes"; // Integrated theme hook
 
@@ -10,7 +10,7 @@ import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import { adminApi } from '@/lib/api';
 import { setPermissions } from '@/lib/redux/features/auth/authSlice';
-import { normalizePermissionsPayload } from '@/lib/permissions';
+import { canAccessPortalPath, getFirstAllowedPortalPath, normalizePermissionsPayload } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
@@ -62,8 +62,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, permissions } = useAppSelector((state) => state.auth);
   const pathname = usePathname();
+  const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -97,6 +98,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       fetchPermissions();
     }
   }, [user?.id, pathname, mounted, dispatch]);
+
+  useEffect(() => {
+    if (!mounted || !permissions) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("admin", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, router]);
 
   const isDark = !mounted || theme === "dark";
 
