@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpToLine, BadgeDollarSign, Coins, Plus, Users } from "lucide-react";
+import { ArrowUpToLine, BadgeDollarSign, Coins, Plus, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
@@ -236,6 +236,7 @@ export default function AdminFinancesPage() {
   const [metricRange, setMetricRange] = useState("Month");
   const [historyMonth, setHistoryMonth] = useState("Month");
   const [historyStatus, setHistoryStatus] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [dashboardMetrics, setDashboardMetrics] = useState<Record<string, unknown>>({});
   const [creditHistoryRows, setCreditHistoryRows] = useState<CreditHistoryRow[]>([]);
   const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false);
@@ -327,6 +328,8 @@ export default function AdminFinancesPage() {
   const isDark = !mounted || theme === "dark";
 
   const filteredRows = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
     return creditHistoryRows.filter((row) => {
       const rowHasUsedPoints = row.usedPoints.startsWith("-");
 
@@ -346,9 +349,24 @@ export default function AdminFinancesPage() {
         }
       }
 
+      if (normalizedSearch) {
+        const searchableValue = [
+          row.clientName,
+          row.email,
+          row.userId ? String(row.userId) : "",
+          row.guestEmail || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (!searchableValue.includes(normalizedSearch)) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [creditHistoryRows, historyMonth, historyStatus, selectedDate]);
+  }, [creditHistoryRows, historyMonth, historyStatus, searchQuery, selectedDate]);
 
   const metrics = useMemo(
     () => [
@@ -569,13 +587,13 @@ export default function AdminFinancesPage() {
               <Plus size={18} />
               Add Credit Points
             </Button> 
-            <Button
+            {/* <Button
               type="button"
               className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
             >
               <ArrowUpToLine size={18} />
               Export
-            </Button>
+            </Button> */}
           </div>
         }
       />
@@ -616,6 +634,26 @@ export default function AdminFinancesPage() {
           dropdownOptions={metricDropdownOptions}
           onDropdownChange={setMetricRange}
         /> */}
+
+        <div className="relative flex w-full items-center lg:w-[420px] xl:w-[500px]">
+          <Search
+            className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+              isDark ? "text-[#666]" : "text-[#999]"
+            }`}
+            size={18}
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search by client name, email, or user id..."
+            className={`h-12 w-full rounded-lg border pl-10 pr-4 text-sm transition-colors focus:outline-none ${
+              isDark
+                ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
+                : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+            }`}
+          />
+        </div>
 
         <CreditHistoryTable
           rows={filteredRows}

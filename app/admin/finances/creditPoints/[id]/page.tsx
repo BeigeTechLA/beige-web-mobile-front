@@ -7,6 +7,7 @@ import { ArrowLeft, CalendarDays, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,8 @@ type CreditActivityItem = {
   date: string;
   reference: string;
   amount: string;
+  status?: string;
+  isExpired?: boolean;
   shootId?: string;
   invoiceId?: string;
 };
@@ -100,6 +103,16 @@ const getInitials = (name: string) =>
     .map((part) => part[0]?.toUpperCase() || "")
     .join("") || "NA";
 
+const isTruthyFlag = (value: unknown) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "1" || normalized === "yes";
+  }
+  return false;
+};
+
 const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetails => {
   const root = asRecord(payload) || {};
   const data = asRecord(pickFirstValue(root, ["data"])) || root;
@@ -121,13 +134,6 @@ const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetail
     pickFirstString(summary, ["email", "client_email", "guest_email"]) ||
     "-";
 
-  const totalCreditPoints = pickFirstNumber(summary, [
-    "total_credit_points",
-    "total_credits_available",
-    "total_available_credits",
-    "credited_total",
-  ]);
-
   const currentBalance = pickFirstNumber(summary, [
     "current_balance",
     "available_balance",
@@ -142,6 +148,33 @@ const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetail
     "total_used_credits",
     "used_total",
   ]);
+
+  const nonExpiredTotalFromLedger = activitiesRaw.reduce((total, item) => {
+    const isExpired =
+      isTruthyFlag(item.is_expired) ||
+      pickFirstString(item, ["status"]).toLowerCase() === "expired";
+    if (isExpired) return total;
+
+    const status = pickFirstString(item, ["status"]).toLowerCase();
+    if (status && status !== "approved") return total;
+
+    const direction = pickFirstString(item, ["direction"]).toLowerCase();
+    if (direction && direction !== "credit") return total;
+
+    const creditedAmount = pickFirstNumber(item, ["credited_amount", "amount"]);
+    const usedAmount = pickFirstNumber(item, ["used_amount"]);
+    const remainingBalance = pickFirstNumber(item, ["remaining_balance"]);
+
+    if (creditedAmount > 0) return total + creditedAmount;
+    if (remainingBalance > 0 || usedAmount > 0) return total + remainingBalance + usedAmount;
+
+    return total;
+  }, 0);
+
+  const totalCreditPoints =
+    nonExpiredTotalFromLedger > 0
+      ? nonExpiredTotalFromLedger
+      : currentBalance + totalUsed;
 
   const activities: CreditActivityItem[] = activitiesRaw.map((item, index) => {
     const amountNumber = pickFirstNumber(item, ["amount", "used_amount", "credited_amount"]);
@@ -158,6 +191,10 @@ const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetail
         pickFirstString(item, ["reference", "source_quote_number", "entry_type"]) ||
         `CR-${index + 1}`,
       amount: `${isDebit ? "-" : "+"}${formatNumber(Math.abs(amountNumber))}`,
+      status: pickFirstString(item, ["status"]) || undefined,
+      isExpired:
+        isTruthyFlag(item.is_expired) ||
+        pickFirstString(item, ["status"]).toLowerCase() === "expired",
       shootId: pickFirstString(item, ["source_booking_id"]) || undefined,
       invoiceId: pickFirstString(item, ["invoice_number", "invoice_id"]) || undefined,
     };
@@ -340,7 +377,13 @@ export default function AdminCreditPointDetailsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:min-w-[600px]">
-                  <MetricCard label="Total Credit Points" value={userDetails?.totalCreditPoints || "0"} isDark={isDark} accent />
+                  <MetricCard
+                    label="Total Credit Points"
+                    value={userDetails?.totalCreditPoints || "0"}
+                    isDark={isDark}
+                    accent
+                    helperTooltip="Excluding expired credits. Only approved and used (non-expired) credits are included in this total."
+                  />
                   <MetricCard label="Current Balance" value={userDetails?.currentBalance || "0"} isDark={isDark} accent />
                   <MetricCard label="Total Used" value={userDetails?.totalUsed || "0"} isDark={isDark} />
                 </div>
@@ -403,6 +446,17 @@ export default function AdminCreditPointDetailsPage() {
                               {activity.date}
                             </span>
                             <span>{activity.reference}</span>
+                            {activity.isExpired ? (
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                                  isDark
+                                    ? "border-red-400/35 bg-red-500/10 text-red-300"
+                                    : "border-red-200 bg-red-50 text-red-600"
+                                }`}
+                              >
+                                Expired
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         <p className={`text-[18px] font-semibold ${activity.amount.startsWith("-") ? "text-[#FF8A80]" : "text-[#00C48C]"}`}>
@@ -454,11 +508,13 @@ function MetricCard({
   value,
   isDark,
   accent = false,
+  helperTooltip,
 }: {
   label: string;
   value: string;
   isDark: boolean;
   accent?: boolean;
+  helperTooltip?: string;
 }) {
   return (
     <div
@@ -466,7 +522,10 @@ function MetricCard({
         isDark ? "border-[#1F1F1F] bg-[#151515]" : "border-[#E8DEC9] bg-[rgba(255,255,255,0.75)] backdrop-blur"
       }`}
     >
-      <p className={`text-sm ${isDark ? "text-white/55" : "text-[#7A6A52]"}`}>{label}</p>
+      <div className="flex items-center gap-2">
+        <p className={`text-sm ${isDark ? "text-white/55" : "text-[#7A6A52]"}`}>{label}</p>
+        {helperTooltip ? <InfoTooltip message={helperTooltip} isDark={isDark} align="right" /> : null}
+      </div>
       <p className={`mt-2 text-[22px] font-semibold ${accent ? (isDark ? "text-[#E5D5B8]" : "text-[#A27B3A]") : isDark ? "text-white" : "text-[#171717]"}`}>
         {value}
       </p>
