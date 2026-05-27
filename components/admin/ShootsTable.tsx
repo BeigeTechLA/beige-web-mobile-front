@@ -1359,7 +1359,6 @@ export const ShootsTable = ({
                               onClick={(e) => e.stopPropagation()}
                             >
                               <StatusBadge status={shoot.status} />
-                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
                               {shoot.needsAttention?.required && (
                                 <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
                                   Missing Info
@@ -1431,7 +1430,6 @@ export const ShootsTable = ({
                     const hasMissingFields = missingFields.length > 0;
                     const isMissingLocation = !shoot.location;
                     const isMissingInfo = isMissingDate || isMissingLocation || Boolean(needsAttention);
-
                     const borderClass = isDark ? "border-[#333333]" : "border-[#E5E5E5]";
                     const rowBgClass = isDark ? "hover:bg-white/[0.02]" : "hover:bg-zinc-50";
 
@@ -1639,54 +1637,111 @@ export const ShootsTable = ({
 
 
 // Quick reactions for emoji picker
-const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢"] as const;
+const EMOJI_TO_REACTION: Record<string, string> = {
+  "👍": "like",
+  "❤️": "love",
+  "😂": "laugh",
+  "😮": "wow",
+  "😢": "sad",
+};
+const REACTION_TO_EMOJI: Record<string, string> = {
+  like: "👍",
+  love: "❤️",
+  laugh: "😂",
+  wow: "😮",
+  sad: "😢",
+};
 
-// Mock Data
-const NOTES_DATA = [
-  {
-    id: 1,
-    user: {
-      name: 'Terry L Sprague',
-      avatar: 'https://i.pravatar.cc/150?img=11'
-    },
-    timestamp: { date: 'Jan 13, 2026', time: '10:24 AM' },
-    message: "Looks great! The Lightning in the second set is perfect. Can we also get a few close-up shots of the product?",
-    likes: 2,
-    replies: [
-      {
-        id: 11,
-        user: {
-          name: 'Emily Jinshan',
-          avatar: 'https://i.pravatar.cc/150?img=5'
-        },
-        timestamp: { date: 'Jan 13, 2026', time: '10:24 AM' },
-        message: "Sure ! We'll add close-up shots to the shot list. Will share an update shortly"
-      }
-    ]
-  },
-  {
-    id: 2,
-    user: {
-      name: 'John R Smith',
-      avatar: 'https://i.pravatar.cc/150?img=3'
-    },
-    timestamp: { date: 'Jan 10, 2026', time: '10:24 AM' },
-    message: "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
-    likes: 0,
-    replies: []
-  },
-  {
-    id: 3,
-    user: {
-      name: 'Priya Johnson',
-      avatar: 'https://i.pravatar.cc/150?img=9'
-    },
-    timestamp: { date: 'Jan 10, 2026', time: '10:24 AM' },
-    message: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s",
-    likes: 0,
-    replies: []
+type NoteUiItem = {
+  id: number;
+  user: { name: string; avatar: string };
+  timestamp: { date: string; time: string };
+  message: string;
+  likes: number;
+  likedByMe: boolean;
+  myReactions: string[];
+  reactionCounts: Record<string, number>;
+  replies: Array<{
+    id: number;
+    user: { name: string; avatar: string };
+    timestamp: { date: string; time: string };
+    message: string;
+  }>;
+};
+
+const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
+
+const formatNoteTimestamp = (value: unknown) => {
+  try {
+    const parsed = typeof value === "string" ? new Date(value) : new Date();
+    if (Number.isNaN(parsed.getTime())) {
+      return { date: "Unknown date", time: "" };
+    }
+    return {
+      date: format(parsed, "MMM d, yyyy"),
+      time: format(parsed, "hh:mm a"),
+    };
+  } catch {
+    return { date: "Unknown date", time: "" };
   }
-];
+};
+
+const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.notes)
+      ? payload.notes
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+
+  return list.map((note: any) => {
+    const ts = formatNoteTimestamp(note?.created_at || note?.createdAt);
+    const replies = Array.isArray(note?.replies) ? note.replies : [];
+    const reactions = Array.isArray(note?.reactions) ? note.reactions : [];
+    const reactionCounts: Record<string, number> = {};
+    reactions.forEach((r: any) => {
+      const key = String(r?.reaction || "").toLowerCase().trim();
+      if (!key) return;
+      reactionCounts[key] = (reactionCounts[key] || 0) + 1;
+    });
+    if (!reactionCounts.like && Number(note?.like_count || 0) > 0) {
+      reactionCounts.like = Number(note.like_count);
+    }
+    const likes = Number(reactionCounts.like || 0);
+    const myReactions = Array.isArray(note?.my_reactions)
+      ? note.my_reactions.map((x: any) => String(x || "").toLowerCase()).filter(Boolean)
+      : [];
+
+    return {
+      id: Number(note?.note_id || note?.id || 0),
+      user: {
+        name: note?.user?.name || note?.created_by?.name || "Unknown User",
+        avatar: note?.user?.avatar || note?.created_by?.avatar || FALLBACK_AVATAR,
+      },
+      timestamp: ts,
+      message: note?.message || note?.note || "",
+      likes,
+      likedByMe: myReactions.includes("like") || Boolean(note?.reacted_by_me),
+      myReactions: myReactions || [],
+      reactionCounts: reactionCounts || {},
+      replies: replies.map((reply: any) => {
+        const replyTs = formatNoteTimestamp(reply?.created_at || reply?.createdAt);
+        return {
+          id: Number(reply?.note_id || reply?.id || 0),
+          user: {
+            name: reply?.user?.name || reply?.created_by?.name || "Unknown User",
+            avatar: reply?.user?.avatar || reply?.created_by?.avatar || FALLBACK_AVATAR,
+          },
+          timestamp: replyTs,
+          message: reply?.message || reply?.note || "",
+        };
+      }),
+    };
+  });
+};
+
 
 // Main Notes Drawer Component
 export default function NotesDrawer({
@@ -1700,15 +1755,36 @@ export default function NotesDrawer({
   shootId?: string;
   isDark?: boolean;
 }) {
-  console.log("opened for shoot ID:", shootId);
-
-  const [notes, setNotes] = useState(NOTES_DATA);
+  const [notes, setNotes] = useState<NoteUiItem[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showComposerEmojis, setShowComposerEmojis] = useState(false);
   const [showReactionPickerId, setShowReactionPickerId] = useState<string | null>(null);
   const composerEmojiRef = useRef<HTMLDivElement | null>(null);
   const reactionPickerRef = useRef<HTMLDivElement | null>(null);
+  const bookingId = String(shootId || "").replace("#", "");
+
+  const fetchNotes = async () => {
+    if (!bookingId) return;
+    setLoadingNotes(true);
+    const response = await adminApi.getShootNotes(bookingId);
+    if (!response?.success) {
+      toast.error(response?.error || "Failed to fetch notes");
+      setLoadingNotes(false);
+      return;
+    }
+    setNotes(mapShootNotesToUi(response?.data));
+    setLoadingNotes(false);
+  };
+
+  useEffect(() => {
+    if (isOpen && bookingId) {
+      fetchNotes();
+    }
+  }, [isOpen, bookingId]);
 
   // Click outside to close composer emoji picker
   useEffect(() => {
@@ -1765,11 +1841,25 @@ export default function NotesDrawer({
     return () => document.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
-  const handleSubmit = () => {
-    if (inputValue.trim()) {
-      // Add logic to submit note
-      setInputValue('');
+  const handleSubmit = async () => {
+    const noteText = inputValue.trim();
+    if (!noteText || !bookingId) return;
+
+    setIsSubmitting(true);
+    const response = replyingToId
+      ? await adminApi.replyToShootNote(bookingId, replyingToId, { note: noteText })
+      : await adminApi.addShootNote(bookingId, { note: noteText });
+
+    if (!response?.success) {
+      toast.error(response?.error || (replyingToId ? "Failed to add reply" : "Failed to add note"));
+      setIsSubmitting(false);
+      return;
     }
+
+    setInputValue('');
+    setReplyingToId(null);
+    await fetchNotes();
+    setIsSubmitting(false);
   };
 
   const appendEmojiToDraft = (emoji: string) => {
@@ -1780,15 +1870,28 @@ export default function NotesDrawer({
     appendEmojiToDraft(emojiData.emoji);
   };
 
-  const handleReaction = (messageId: string, emoji: string) => {
-    // Add your reaction logic here
-    console.log(`Reacted with ${emoji} to message ${messageId}`);
-    setNotes(prev => prev.map(note =>
-      note.id.toString() === messageId
-        ? { ...note, likes: (note.likes || 0) + 1 }
-        : note
-    ));
+  const handleReaction = async (messageId: string, emoji: string) => {
+    if (!bookingId) return;
+    const reaction = EMOJI_TO_REACTION[emoji] || "like";
+    const response = await adminApi.reactToShootNote(bookingId, messageId, { reaction });
+    if (!response?.success) {
+      toast.error(response?.error || "Reaction not supported by backend");
+      setShowReactionPickerId(null);
+      return;
+    }
+    await fetchNotes();
     setShowReactionPickerId(null);
+  };
+
+  const handleDeleteNote = async (noteId: number) => {
+    if (!bookingId) return;
+    const response = await adminApi.deleteShootNote(bookingId, noteId);
+    if (!response?.success) {
+      toast.error(response?.error || "Failed to delete note");
+      return;
+    }
+    toast.success("Note deleted");
+    await fetchNotes();
   };
 
   return (
@@ -1826,12 +1929,17 @@ export default function NotesDrawer({
 
             {/* Scrollable Body */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              {loadingNotes ? (
+                <div className="py-8 flex items-center justify-center text-white/60 text-sm">Loading notes...</div>
+              ) : null}
               {notes.map((note) => (
                 <NoteCard
                   key={note.id}
                   note={note}
                   isDark={isDark}
                   onReact={handleReaction}
+                  onReply={(id) => setReplyingToId(id)}
+                  onDelete={handleDeleteNote}
                   showReactionPickerId={showReactionPickerId}
                   setShowReactionPickerId={setShowReactionPickerId}
                   reactionPickerRef={reactionPickerRef}
@@ -1841,6 +1949,12 @@ export default function NotesDrawer({
 
             {/* Bottom Composer */}
             <div className="sticky bottom-0 bg-[#0a0a0a] px-6 py-5 border-t border-white/10">
+              {replyingToId ? (
+                <div className="mb-2 flex items-center justify-between text-xs text-white/60">
+                  <span>Replying to note #{replyingToId}</span>
+                  <button className="text-white/70 hover:text-white" onClick={() => setReplyingToId(null)}>Cancel</button>
+                </div>
+              ) : null}
               <div className="flex items-center gap-3 bg-[#161616] rounded-full px-5 py-3.5 border border-white/5 focus-within:border-white/10 transition-colors relative">
                 <button
                   className="text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
@@ -1863,7 +1977,7 @@ export default function NotesDrawer({
                     ? 'text-[#E8D1AB] hover:text-[#dccaa9]'
                     : 'text-white/30 cursor-not-allowed'
                     }`}
-                  disabled={!inputValue.trim()}
+                  disabled={!inputValue.trim() || isSubmitting}
                 >
                   <Send size={16} />
                 </button>
@@ -1898,13 +2012,17 @@ function NoteCard({
   note,
   isDark = true,
   onReact,
+  onReply,
+  onDelete,
   showReactionPickerId,
   setShowReactionPickerId,
   reactionPickerRef
 }: {
-  note: typeof NOTES_DATA[0];
+  note: NoteUiItem;
   isDark?: boolean;
   onReact?: (messageId: string, emoji: string) => void;
+  onReply?: (noteId: number) => void;
+  onDelete?: (noteId: number) => void;
   showReactionPickerId: string | null;
   setShowReactionPickerId: (id: string | null) => void;
   reactionPickerRef: React.RefObject<HTMLDivElement>;
@@ -1928,7 +2046,10 @@ function NoteCard({
                 {note.timestamp.date} • {note.timestamp.time}
               </span>
             </div>
-            <button className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 -mr-1 p-1">
+            <button
+              className="text-white/30 hover:text-red-400 transition-colors flex-shrink-0 -mr-1 p-1"
+              onClick={() => onDelete?.(note.id)}
+            >
               <MoreHorizontal size={16} />
             </button>
           </div>
@@ -1939,13 +2060,23 @@ function NoteCard({
 
           {/* Action Row */}
           <div className="flex items-center gap-1 relative">
-            <button className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${note.likes > 0 ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white/70'
-              }`}>
-              <ThumbsUp size={14} strokeWidth={2} />
+            <button
+              className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${note.likedByMe || note.likes > 0 ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white/70'
+                }`}
+              onClick={() => onReact?.(note.id.toString(), "👍")}
+            >
+              <ThumbsUp
+                size={14}
+                strokeWidth={2}
+                className={note.likedByMe ? "fill-current" : ""}
+              />
               {note.likes > 0 ? note.likes : 'Like'}
             </button>
             <span className="w-px h-3 bg-white/10" />
-            <button className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
+            <button
+              className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
+              onClick={() => onReply?.(note.id)}
+            >
               Reply
             </button>
             <span className="w-px h-3 bg-white/10" />
@@ -1980,6 +2111,28 @@ function NoteCard({
               </div>
             )}
           </div>
+          {Object.keys(note.reactionCounts || {}).length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {Object.entries(note.reactionCounts || {}).map(([reaction, count]) => {
+                const emoji = REACTION_TO_EMOJI[reaction] || "🙂";
+                const reactedByMe = note.myReactions.includes(reaction);
+                return (
+                  <button
+                    key={`${note.id}-${reaction}`}
+                    type="button"
+                    onClick={() => onReact?.(note.id.toString(), emoji)}
+                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+                      reactedByMe
+                        ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                        : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                    }`}
+                  >
+                    {emoji} {count}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -2000,7 +2153,7 @@ function NoteReply({
   reply,
   isDark = true
 }: {
-  reply: typeof NOTES_DATA[0]['replies'][0];
+  reply: NoteUiItem["replies"][0];
   isDark?: boolean;
 }) {
   return (

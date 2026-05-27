@@ -1575,6 +1575,71 @@ export const adminApi = {
       };
     }
   },
+  getShootNotes: async (bookingId: string | number) => {
+    try {
+      const response = await api.get(`admin/shoots/${bookingId}/notes`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Notes Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.message || 'Failed to fetch shoot notes',
+      };
+    }
+  },
+  addShootNote: async (bookingId: string | number, payload: { note: string }) => {
+    try {
+      const response = await api.post(`admin/shoots/${bookingId}/notes`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Add Shoot Note Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to add shoot note',
+      };
+    }
+  },
+  replyToShootNote: async (bookingId: string | number, noteId: string | number, payload: { note: string }) => {
+    try {
+      const response = await api.post(`admin/shoots/${bookingId}/notes/${noteId}/replies`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Reply Shoot Note Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to reply on shoot note',
+      };
+    }
+  },
+  reactToShootNote: async (bookingId: string | number, noteId: string | number, payload: { reaction: string }) => {
+    try {
+      const response = await api.post(`admin/shoots/${bookingId}/notes/${noteId}/reactions`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('React Shoot Note Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to react on shoot note',
+      };
+    }
+  },
+  deleteShootNote: async (bookingId: string | number, noteId: string | number) => {
+    try {
+      const response = await api.delete(`admin/shoots/${bookingId}/notes/${noteId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Shoot Note Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete shoot note',
+      };
+    }
+  },
   getCrewForShoot: async (params: {
     project_id: number | string,
     role_type: string,
