@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/src/components/landing/ui/button";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Copy, X, Share2, Mail, Users, CheckCircle2, Globe2, Eye, Download, ChevronDown, History } from "lucide-react";
+import { Trash2, X, Globe2, ChevronDown, History, User, Copy, CheckCircle2, Link, Eye, Download, ChevronUp } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ShareResourceModalProps {
   isOpen: boolean;
@@ -52,7 +54,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
   const [logsLoading, setLogsLoading] = useState(false);
   const [revokingShareId, setRevokingShareId] = useState<number | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
-  const [expandedEmails, setExpandedEmails] = useState<Record<string, boolean>>({});
+  const [expandedEmails, setExpandedEmails] = useState<string[]>([]);
 
   const reset = () => {
     setActiveTab("people");
@@ -62,7 +64,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
     setLoading(false);
     setSharingAnyone(false);
     setCopiedToken(null);
-    setExpandedEmails({});
+    setExpandedEmails([]);
   };
 
   const handleClose = () => {
@@ -223,6 +225,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
       await shareByEmails(emailsToShare);
       setPendingEmails([]);
       setEmailInput("");
+      setShareMessage("");
       await loadSharedItems();
     } catch (error: any) {
       toast.error(error?.message || "Failed to create share link");
@@ -279,17 +282,36 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
     }
   };
 
-  const getInitials = (email: string) => {
-    const name = email.split("@")[0] || "";
-    return name.slice(0, 2).toUpperCase();
-  };
-
   const normalizeActionLabel = (action?: string) => {
     const value = String(action || "").trim().toLowerCase();
     if (value === "view_download") return "View + Download";
     if (value === "content_view") return "View";
     if (value === "download") return "Download";
     return value.replace(/_/g, " ") || "View";
+  };
+
+  const getActionIcon = (action?: string) => {
+    const value = String(action || "").trim().toLowerCase();
+    if (value === "view_download" || value === "download") {
+      return (
+        <div className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-[#3b82f615] text-[#3b82f6]">
+          <Download size={14} />
+          <div className="absolute -left-[25px] h-2 w-2 rounded-full bg-[#3b82f6] shadow-[0_0_8px_rgba(59,130,246,0.5)] border border-white/20" />
+        </div>
+      );
+    }
+    return (
+      <div className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-[#10b98115] text-[#10b981]">
+        <Eye size={14} />
+        <div className="absolute -left-[25px] h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_rgba(16,185,129,0.5)] border border-white/20" />
+      </div>
+    );
+  };
+
+  const toggleExpand = (email: string) => {
+    setExpandedEmails(prev =>
+      prev.includes(email) ? prev.filter(e => e !== email) : [...prev, email]
+    );
   };
 
   const groupedAccessLogs = useMemo(() => {
@@ -306,411 +328,332 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
         const sortedLogs = [...logs].sort(
           (a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
         );
-        const hasView = sortedLogs.some((item) => ["content_view", "view_download"].includes(String(item.action || "").toLowerCase()));
-        const hasDownload = sortedLogs.some((item) => ["download", "view_download"].includes(String(item.action || "").toLowerCase()));
-        const summaryAction = hasView && hasDownload ? "View + Download" : hasDownload ? "Download" : "View";
         return {
           email,
           logs: sortedLogs,
           latestAt: sortedLogs[0]?.createdAt,
-          summaryAction,
         };
       })
       .sort((a, b) => new Date(b.latestAt || "").getTime() - new Date(a.latestAt || "").getTime());
   }, [accessLogs]);
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-md"
-          />
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[calc(100vw-24px)] max-w-[500px] overflow-hidden rounded-[18px] border border-white/20 bg-black p-0 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] [&>button]:hidden">
+        <DialogTitle className="sr-only">Share {resource?.label}</DialogTitle>
 
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            transition={{ type: "spring", duration: 0.5, bounce: 0.15 }}
-            className="relative flex h-[80vh] w-full max-w-[500px] flex-col overflow-hidden rounded-[18px] border border-white/10 bg-[#0A0A0A] shadow-2xl shadow-black/40 sm:h-[640px]"
-          >
-            <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-72 -translate-x-1/2 rounded-full bg-[#E5D5B8]/10 blur-[80px]" />
+        <div className="relative border-b border-white/10 px-6 py-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-[20px] font-bold leading-none text-white">
+                Share <span className="text-[#E8D1AB]">({resource?.label || "Resource"})</span>
+              </h2>
+              <p className="mt-2.5 text-[11px] font-medium leading-[1.4] text-white/40">
+                Note : Recipients Must Verify their Email with and OTP each time they access shared files.
+              </p>
+            </div>
+            <button
+              onClick={handleClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1A1A1A] text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
 
-            <div className="relative flex items-start justify-between border-b border-white/[0.06] p-4 pb-3.5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E5D5B8]/15">
-                  <Share2 className="h-5 w-5 text-[#E5D5B8]" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-white">Share Access</h2>
-                  {/* {resource?.label || "Resource"} */}
-                  <p className="mt-0.5 text-xs text-white/40">Note: Recipients must verify their email with an OTP each time they access shared files.</p>
-                </div>
+        <div className="h-[440px] overflow-y-auto no-scrollbar px-6 py-4">
+          <div className="space-y-3.5 h-full flex flex-col">
+            <div className="flex-1 space-y-3.5">
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <fieldset className="rounded-[8px] border border-white/25 px-4 pb-2.5 pt-1 focus-within:border-[#E8D1AB] transition-colors">
+                  <legend className="px-1 text-[11px] leading-none text-white/55 font-medium">
+                    Add or Invite by Email
+                  </legend>
+                  <input
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addCurrentEmail();
+                      }
+                    }}
+                    placeholder="name@company.com"
+                    className="w-full bg-transparent px-0 py-0.5 text-[14px] text-white placeholder:text-white/25 outline-none focus:ring-0"
+                  />
+                </fieldset>
+
+                {pendingEmails.length > 0 && (
+                  <div className="max-h-[60px] overflow-y-auto no-scrollbar pt-0.5 pr-1">
+                    <div className="flex flex-wrap gap-2">
+                      {pendingEmails.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1 text-[11px] text-white border border-white/5"
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => removePendingEmail(email)}
+                            className="text-white/40 hover:text-white transition-colors"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              <fieldset className="rounded-[8px] border border-white/25 px-4 pb-2.5 pt-1 focus-within:border-[#E8D1AB] transition-colors">
+                <legend className="px-1 text-[11px] leading-none text-white/55 font-medium">
+                  Message (Optional)
+                </legend>
+                <Textarea
+                  value={shareMessage}
+                  onChange={(e) => setShareMessage(e.target.value)}
+                  placeholder="Write a short note..."
+                  className="min-h-[50px] resize-none border-0 bg-transparent p-0 text-[14px] text-white shadow-none placeholder:text-white/25 focus-visible:ring-0"
+                />
+              </fieldset>
+
               <button
-                onClick={handleClose}
-                className="rounded-full bg-white/5 p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                type="button"
+                onClick={addCurrentEmail}
+                disabled={!emailInput.trim()}
+                className="h-[32px] rounded-[6px] bg-[#E8D1AB] px-6 text-[12px] font-bold text-black transition-all hover:bg-[#dcb98a] disabled:opacity-40"
               >
-                <X size={18} />
+                Add
               </button>
             </div>
 
-            <div className="relative flex-1 overflow-y-auto no-scrollbar p-4">
-              <div className="space-y-4">
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Globe2 size={16} className="text-[#E5D5B8]" />
-                      <p className="text-sm font-medium text-white">Anyone with the link</p>
+            <div className="space-y-3 pt-3">
+              <div className="flex items-center justify-between pb-0.5">
+                <button
+                  onClick={() => setActiveTab("people")}
+                  className={`text-[14px] font-bold transition-colors ${activeTab === "people" ? "text-white" : "text-white/40 hover:text-white/60"
+                    }`}
+                >
+                  People Access With
+                </button>
+                <button
+                  onClick={() => setActiveTab("activity")}
+                  className={`text-[13px] font-bold transition-all underline decoration-1 underline-offset-4 ${activeTab === "activity" ? "text-[#E2C799]" : "text-[#E2C799]/70 hover:text-[#E2C799]"
+                    }`}
+                >
+                  View Activity
+                </button>
+              </div>
+
+              {activeTab === "people" ? (
+                <div className="space-y-3">
+                  {listLoading ? (
+                    <div className="flex justify-center py-6">
+                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#E8D1AB]/20 border-t-[#E8D1AB]" />
                     </div>
-                    {anyoneShare ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleCopyByToken(anyoneShare.shareToken)}
-                          className={`rounded-lg p-1.5 transition-colors ${
-                            copiedToken === anyoneShare.shareToken
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : "text-white/50 hover:bg-white/10 hover:text-white"
-                          }`}
-                          title="Copy link"
-                        >
-                          {copiedToken === anyoneShare.shareToken ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRevoke(anyoneShare.shareId)}
-                          disabled={revokingShareId === anyoneShare.shareId}
-                          className="rounded-lg p-1.5 text-white/50 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30"
-                          title="Disable anyone-with-link"
-                        >
-                          {revokingShareId === anyoneShare.shareId ? (
-                            <span className="block h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-400/30 border-t-red-400" />
-                          ) : (
-                            <Trash2 size={14} />
-                          )}
-                        </button>
-                      </div>
-                    ) : (
-                      <Button
-                        type="button"
-                        onClick={handleEnableAnyoneWithLink}
-                        disabled={sharingAnyone}
-                        className="h-7 rounded-lg bg-[#E5D5B8] px-3 text-xs font-semibold text-black hover:bg-[#dcb98a]"
-                      >
-                        {sharingAnyone ? "Enabling..." : "Enable"}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-white/40">
-                    <Mail size={12} />
-                    Invite by Email
-                  </label>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="email"
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addCurrentEmail();
-                        }
-                      }}
-                      placeholder="name@company.com"
-                      className="h-[42px] w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white outline-none transition-all placeholder:text-white/25 focus:border-[#E5D5B8]/50 focus:bg-white/[0.05] focus:ring-2 focus:ring-[#E5D5B8]/15"
-                    />
-                    <Button
-                      type="button"
-                      onClick={addCurrentEmail}
-                      disabled={!emailInput.trim() || loading}
-                      className="h-[42px] rounded-xl bg-white/10 px-4 text-sm font-semibold text-white transition-all hover:bg-white/20 disabled:opacity-40"
-                    >
-                      Add
-                    </Button>
-                  </div>
-
-                  <div className="mt-3 max-h-24 overflow-y-auto">
-                    {pendingEmails.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {pendingEmails.map((email) => (
-                          <span
-                            key={email}
-                            className="inline-flex items-center gap-2 rounded-full border border-[#E5D5B8]/30 bg-[#E5D5B8]/10 px-3 py-1 text-xs text-[#E5D5B8]"
-                          >
-                            {email}
-                            <button
-                              type="button"
-                              onClick={() => removePendingEmail(email)}
-                              className="rounded-full text-[#E5D5B8]/80 hover:text-[#E5D5B8]"
-                              title="Remove"
-                            >
-                              <X size={12} />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3">
-                    <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-white/40">
-                      Message (Optional)
-                    </label>
-                    <textarea
-                      value={shareMessage}
-                      onChange={(e) => setShareMessage(e.target.value.slice(0, 2000))}
-                      placeholder="Write a short note..."
-                      className="min-h-[78px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white outline-none transition-all placeholder:text-white/25 focus:border-[#E5D5B8]/50 focus:bg-white/[0.05] focus:ring-2 focus:ring-[#E5D5B8]/15"
-                    />
-                    <p className="mt-1 text-right text-[11px] text-white/35">{shareMessage.length}/2000</p>
-                  </div>
-
-                  <Button
-                    onClick={handleCreateShare}
-                    disabled={loading || (pendingEmails.length === 0 && !emailInput.trim())}
-                    className="mt-3 h-[42px] w-full rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black transition-all hover:bg-[#dcb98a] disabled:opacity-40"
-                  >
-                    {loading ? (
-                      <span className="flex items-center gap-2">
-                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-                        Sharing...
-                      </span>
-                    ) : (
-                      "Share Access"
-                    )}
-                  </Button>
-                </div>
-
-                <div>
-                  <div className="mb-2 flex items-center justify-center gap-6 border-b border-white/[0.08]">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("people")}
-                      className={`relative border-b-2 px-1 py-2 text-xs font-medium transition-colors ${
-                        activeTab === "people"
-                          ? "border-[#E5D5B8] text-[#E5D5B8]"
-                          : "border-transparent text-white/60 hover:text-white"
-                      }`}
-                    >
-                      Shared With
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("activity")}
-                      className={`relative border-b-2 px-1 py-2 text-xs font-medium transition-colors ${
-                        activeTab === "activity"
-                          ? "border-[#E5D5B8] text-[#E5D5B8]"
-                          : "border-transparent text-white/60 hover:text-white"
-                      }`}
-                    >
-                     Activity
-                    </button>
-                  </div>
-
-                  <div className="h-[220px] overflow-auto no-scrollbar rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                    {activeTab === "people" ? (
-                      listLoading ? (
-                        <div className="flex flex-col items-center justify-center gap-2 px-4 py-12">
-                          <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#E5D5B8]/20 border-t-[#E5D5B8]" />
-                          <span className="text-xs font-medium text-white/40">Loading access list...</span>
-                        </div>
-                      ) : sharedItems.length === 0 ? (
-                        <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.03] border border-white/[0.05]">
-                            <Users size={20} className="text-white/20" />
+                  ) : sharedItems.filter(i => i.accessMode !== "anyone_with_link").length === 0 ? (
+                    <div className="py-3 text-center text-xs text-white/30 italic">No one has access yet.</div>
+                  ) : (
+                    <div className="max-h-[170px] overflow-y-auto pr-3 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-track]:bg-transparent">
+                      {sharedItems
+                        .filter(i => i.accessMode !== "anyone_with_link")
+                        .map((item) => (
+                          <div key={item.shareId} className="flex items-center justify-between gap-3 group">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E8D1AB]/10 border border-[#E8D1AB]/20 text-[#E8D1AB]">
+                                <User size={18} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-bold text-white">
+                                  {item.email}
+                                </p>
+                                <p className="truncate text-[11px] text-white/40">
+                                  Private access
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleCopyByToken(item.shareToken)}
+                                className={`flex items-center gap-2 rounded-[6px] px-3.5 py-2 text-[11px] font-bold transition-all ${copiedToken === item.shareToken ? "bg-emerald-500 text-white" : "bg-[#1A1A1A] text-white hover:bg-white/10"
+                                  }`}
+                              >
+                                {copiedToken === item.shareToken ? (
+                                  <>
+                                    <CheckCircle2 size={14} />
+                                    Copied
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={14} />
+                                    Copy Link
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleRevoke(item.shareId)}
+                                className="p-2 text-white/20 hover:text-red-400 transition-colors"
+                                title="Revoke"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
-                          <p className="text-sm font-medium text-white/30">No one has access yet</p>
+                        ))}
+                    </div>
+                  )}
+
+                  <div className="border-t border-white/10 pt-4">
+                    <h3 className="text-[14px] font-bold text-white/90">General Access</h3>
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1A1A1A]">
+                          <Globe2 size={24} className="text-white/60" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white">Anyone with the link</p>
+                          <p className="text-[11px] text-white/40">Anyone on the Internet with the link can view</p>
+                        </div>
+                      </div>
+                      {anyoneShare ? (
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => handleCopyByToken(anyoneShare.shareToken)}
+                            className={`transition-colors ${copiedToken === anyoneShare.shareToken ? "text-emerald-400" : "text-white/80 hover:text-white"}`}
+                            title="Copy Link"
+                          >
+                            {copiedToken === anyoneShare.shareToken ? <CheckCircle2 size={22} /> : <Link size={22} />}
+                          </button>
+                          <button
+                            onClick={() => handleRevoke(anyoneShare.shareId)}
+                            className="text-[#FF4D4D]/60 hover:text-[#FF4D4D] transition-colors"
+                            title="Revoke Link"
+                          >
+                            <Trash2 size={22} />
+                          </button>
                         </div>
                       ) : (
-                        <div className="divide-y divide-white/[0.04]">
-                          {sharedItems.map((item) => {
-                            const isAnyone = item.accessMode === "anyone_with_link";
-                            const label = isAnyone ? "Anyone with link" : item.email;
-                            return (
-                              <div
-                                key={item.shareId}
-                                className="group flex items-center gap-3 px-4 py-3.5 transition-all hover:bg-white/[0.03]"
-                              >
-                                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br border text-xs font-semibold transition-colors ${
-                                  isAnyone 
-                                    ? "from-emerald-500/20 to-emerald-500/5 border-emerald-500/10 text-emerald-400" 
-                                    : "from-[#E5D5B8]/20 to-[#E5D5B8]/5 border-[#E5D5B8]/10 text-[#E5D5B8]"
-                                }`}>
-                                  {isAnyone ? <Globe2 size={16} /> : getInitials(item.email)}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-[13px] font-medium text-white/90">{label}</p>
-                                  <p className="mt-0.5 text-[10px] text-white/30 font-medium uppercase tracking-wider">
-                                    {isAnyone ? "Public Link access" : "Private access"}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-1.5 opacity-0 transition-all group-hover:opacity-100">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyByToken(item.shareToken)}
-                                    className={`rounded-lg p-2 transition-all ${
-                                      copiedToken === item.shareToken
-                                        ? "bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10"
-                                        : "text-white/40 hover:bg-white/10 hover:text-white"
-                                    }`}
-                                    title="Copy link"
-                                  >
-                                    {copiedToken === item.shareToken ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRevoke(item.shareId)}
-                                    disabled={revokingShareId === item.shareId}
-                                    className="rounded-lg p-2 text-white/30 transition-all hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30"
-                                    title="Remove access"
-                                  >
-                                    {revokingShareId === item.shareId ? (
-                                      <span className="block h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-400/30 border-t-red-400" />
-                                    ) : (
-                                      <Trash2 size={14} />
-                                    )}
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )
-                    ) : logsLoading ? (
-                      <div className="flex flex-col items-center justify-center gap-2 px-4 py-12">
-                        <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#E5D5B8]/20 border-t-[#E5D5B8]" />
-                        <span className="text-xs font-medium text-white/40">Fetching activity logs...</span>
-                      </div>
-                    ) : groupedAccessLogs.length === 0 ? (
-                      <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.03] border border-white/[0.05]">
-                          <History size={20} className="text-white/20" />
-                        </div>
-                        <p className="text-sm font-medium text-white/30">No access activity yet</p>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-white/[0.04]">
-                        {groupedAccessLogs.map((group) => {
-                          const isExpanded = !!expandedEmails[group.email];
-                          return (
-                            <div key={group.email} className="overflow-hidden">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedEmails((prev) => ({ ...prev, [group.email]: !prev[group.email] }))
-                                }
-                                className={`group flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all hover:bg-white/[0.03] ${
-                                  isExpanded ? "bg-white/[0.02]" : ""
-                                }`}
-                              >
-                                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E5D5B8]/20 to-[#E5D5B8]/5 border border-[#E5D5B8]/10 text-xs font-semibold text-[#E5D5B8]">
-                                  {getInitials(group.email)}
-                                  {isExpanded && (
-                                    <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#E5D5B8] border-2 border-[#0A0A0A]" />
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="truncate text-[13px] font-medium text-white/90">{group.email}</p>
-                                    <span className="shrink-0 rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-white/40">
-                                      {group.logs.length} events
-                                    </span>
-                                  </div>
-                                  <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#E5D5B8]/60">
-                                    <span className="h-1 w-1 rounded-full bg-[#E5D5B8]/40" />
-                                    {group.summaryAction}
-                                  </p>
-                                </div>
-                                <div className="flex flex-col items-end gap-1">
-                                  <span className="text-[10px] text-white/30 font-medium">
-                                    {new Date(group.latestAt || "").toLocaleDateString([], { month: "short", day: "numeric" })}
-                                  </span>
-                                  <motion.div
-                                    animate={{ rotate: isExpanded ? 180 : 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="text-white/20 group-hover:text-white/40"
-                                  >
-                                    <ChevronDown size={14} />
-                                  </motion.div>
-                                </div>
-                              </button>
-
-                              <AnimatePresence>
-                                {isExpanded && (
-                                  <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: "auto", opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                                    className="bg-black/40"
-                                  >
-                                    <div className="relative ml-8 mr-4 space-y-0.5 border-l border-white/[0.08] py-2 pl-6">
-                                      {group.logs.map((log, idx) => {
-                                        const action = String(log.action || "").toLowerCase();
-                                        const isDownload = action.includes("download");
-                                        const isView = action.includes("view");
-
-                                        return (
-                                          <div key={log.id} className="group/item relative flex items-center justify-between py-2.5">
-                                            <div className="absolute -left-[25px] flex h-2 w-2 rounded-full bg-white/10 group-hover/item:bg-[#E5D5B8]/40 transition-colors" />
-                                            
-                                            <div className="flex items-center gap-2.5">
-                                              <div className={`flex h-6 w-6 items-center justify-center rounded-lg ${
-                                                isDownload ? "bg-blue-500/10 text-blue-400" : 
-                                                isView ? "bg-emerald-500/10 text-emerald-400" : 
-                                                "bg-white/5 text-white/40"
-                                              }`}>
-                                                {isDownload ? <Download size={12} /> : 
-                                                 isView ? <Eye size={12} /> : 
-                                                 <History size={12} />}
-                                              </div>
-                                              <span className="text-[12px] font-medium text-white/60">
-                                                {normalizeActionLabel(log.action)}
-                                              </span>
-                                            </div>
-                                            
-                                            <div className="flex flex-col items-end">
-                                              <span className="text-[10px] text-white/30 tabular-nums">
-                                                {new Date(log.createdAt || "").toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                        <button
+                          onClick={handleEnableAnyoneWithLink}
+                          disabled={sharingAnyone}
+                          className="h-[44px] rounded-[10px] bg-[#B5A48B] px-8 text-[13px] font-bold text-black transition-all hover:opacity-90 disabled:opacity-40"
+                        >
+                          {sharingAnyone ? "..." : "Enable"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              ) : (
+                <div className="space-y-4">
+                  {logsLoading ? (
+                    <div className="flex justify-center py-8">
+                      <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#E8D1AB]/20 border-t-[#E8D1AB]" />
+                    </div>
+                  ) : groupedAccessLogs.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <History size={32} className="mx-auto mb-2 text-white/10" />
+                      <p className="text-xs text-white/30">No activity logged yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {groupedAccessLogs.map((group) => {
+                        const isExpanded = expandedEmails.includes(group.email);
+                        const initials = group.email.substring(0, 2).toUpperCase();
+                        
+                        return (
+                          <div key={group.email} className="overflow-hidden rounded-xl border border-white/5 bg-white/[0.01]">
+                            <button
+                              onClick={() => toggleExpand(group.email)}
+                              className="w-full text-left px-4 py-3 focus:outline-none transition-colors hover:bg-white/[0.02]"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-white/70">
+                                    {initials}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="truncate text-[13px] font-bold text-white/90">{group.email}</span>
+                                      <span className="rounded-full bg-white/5 px-2 py-0.5 text-[9px] font-bold text-white/30 uppercase tracking-wider">
+                                        {group.logs.length} {group.logs.length === 1 ? 'event' : 'events'}
+                                      </span>
+                                    </div>
+                                    <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-white/40">
+                                      <span className="h-1 w-1 rounded-full bg-white/20" />
+                                      <span className="font-medium">{normalizeActionLabel(group.logs[0]?.action)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-[10px] font-medium text-white/30">
+                                    {new Date(group.latestAt || "").toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                  </span>
+                                  {isExpanded ? <ChevronUp size={14} className="text-white/30" /> : <ChevronDown size={14} className="text-white/30" />}
+                                </div>
+                              </div>
+                            </button>
 
-            <div className="border-t border-white/[0.06] px-4 py-3.5">
-              <button
-                onClick={handleClose}
-                className="w-full rounded-xl bg-white/5 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                Done
-              </button>
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <div className="relative mx-4 mb-4 ml-6 space-y-4 rounded-lg bg-black/40 p-4 pt-5 border-t border-white/5">
+                                    {/* Timeline Line */}
+                                    <div className="absolute left-[11px] top-[24px] bottom-[24px] w-[1px] border-l border-dashed border-white/10" />
+                                    
+                                    {group.logs.map((log, i) => (
+                                      <div key={i} className="relative flex items-center justify-between z-10 pl-4">
+                                        <div className="flex items-center gap-3">
+                                          {getActionIcon(log.action)}
+                                          <span className="text-[11px] font-bold text-white/80">
+                                            {normalizeActionLabel(log.action)}
+                                          </span>
+                                        </div>
+                                        <span className="text-[10px] font-medium text-white/20 tabular-nums">
+                                          {new Date(log.createdAt || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </motion.div>
+          </div>
         </div>
-      )}
-    </AnimatePresence>
+      </div>
+
+        <div className="grid grid-cols-2 gap-3 border-t border-white/10 px-6 py-5 bg-[#050505]">
+          <Button
+            onClick={handleCreateShare}
+            disabled={loading || (pendingEmails.length === 0 && !emailInput.trim())}
+            className="h-[44px] rounded-[8px] bg-[#E8D1AB] text-[13px] font-bold text-black border-0 hover:bg-[#dcb98a]"
+          >
+            {loading ? "Sharing..." : "Share Access"}
+          </Button>
+          <Button
+            onClick={handleClose}
+            className="h-[44px] rounded-[8px] bg-[#1A1A1A] text-[13px] font-bold text-white border border-white/5 hover:bg-white/10"
+          >
+            Done
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

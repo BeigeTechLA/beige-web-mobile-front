@@ -20,7 +20,11 @@ import {
   Send,
   MoreHorizontal,
   ThumbsUp,
+  AlertCircle,
 } from "lucide-react";
+import Lottie from "lottie-react";
+import redAnimation from "@/public/animations/Red.json";
+import yellowAnimation from "@/public/animations/Yellow.json";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
@@ -37,6 +41,7 @@ import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow"
 import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
+import { MissingFieldsModal } from "./MissingFieldsModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { meetingsApi } from "@/lib/meetingsApi";
 // import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
@@ -57,6 +62,7 @@ type ShootStatus =
 
 interface ShootRecord {
   id: string;
+  sourceProject?: Record<string, unknown>;
   customerName: string;
   email: string;
   phone: string;
@@ -69,6 +75,10 @@ interface ShootRecord {
   rawPrice: number; // Added for correct numerical sorting
   status: ShootStatus;
   hasAssignedCp: boolean;
+  needsAttention?: {
+    required: boolean;
+    missing_fields: string[];
+  };
 }
 
 const KANBAN_STATUS_ORDER: ShootStatus[] = [
@@ -403,6 +413,10 @@ export const ShootsTable = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [shootToDelete, setShootToDelete] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState<string | null>(null);
+  const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [selectedShootIdForMissingFields, setSelectedShootIdForMissingFields] = useState<string | null>(null);
+  const [selectedShootDataForMissingFields, setSelectedShootDataForMissingFields] = useState<Record<string, unknown> | null>(null);
+  const [fieldsToShow, setFieldsToShow] = useState<string[]>([]);
 
   // Sync external date with range
   useEffect(() => {
@@ -453,6 +467,21 @@ export const ShootsTable = ({
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
           const extractedPhone = extractPhoneNumber(project);
+          const resolvedLocation =
+            typeof project.event_location === "string"
+              ? project.event_location.trim()
+              : typeof project.location === "string"
+                ? project.location.trim()
+                : project.event_location?.address?.trim?.() || project.location?.address?.trim?.() || "";
+          const missingFields = Array.isArray(project.needs_attention?.missing_fields)
+            ? project.needs_attention.missing_fields.filter((field: string) => {
+                const normalizedField = String(field).toLowerCase();
+                if ((normalizedField === "location" || normalizedField === "event_location") && resolvedLocation) {
+                  return false;
+                }
+                return true;
+              })
+            : [];
 
           // Sorting Helpers
           const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
@@ -472,12 +501,13 @@ export const ShootsTable = ({
 
           return {
             id: `#${project.stream_project_booking_id}`,
+            sourceProject: project,
             customerName,
             email: project.guest_email || "",
             phone: extractedPhone,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            location: project.event_location || project.location || "",
+            location: resolvedLocation,
             rawDate: dateObj.getTime(),
             category: getShootCategoryLabel(project),
             price: resolvedPriceSource
@@ -488,6 +518,10 @@ export const ShootsTable = ({
             rawPrice: priceValue,
             status: statusLabel,
             hasAssignedCp,
+            needsAttention: project.needs_attention ? {
+              required: missingFields.length > 0,
+              missing_fields: missingFields
+            } : undefined
           };
         });
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
@@ -747,6 +781,44 @@ export const ShootsTable = ({
   const handleRowClick = (id: string) => {
     const cleanId = id.replace('#', '');
     router.push(`${detailBasePath}/${cleanId}`);
+  };
+
+  const getApiShootId = (id: string) => id.replace(/^#/, '').trim();
+
+  const handleMissingFieldsSaved = (updated: {
+    shootId: string;
+    location?: string;
+    bookingType: "single_day" | "multi_day";
+    dateLabel?: string;
+    rawDate?: number;
+    startTime?: string;
+    endTime?: string;
+    bookingDays?: Array<{
+      date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+    remainingMissingFields: string[];
+  }) => {
+    setShoots((prev) =>
+      prev.map((shoot) => {
+        const currentId = shoot.id.replace(/^#/, "").trim();
+        if (currentId !== updated.shootId) return shoot;
+
+        return {
+          ...shoot,
+          location: updated.location ?? shoot.location,
+          date: updated.dateLabel ?? shoot.date,
+          rawDate: updated.rawDate ?? shoot.rawDate,
+          needsAttention: updated.remainingMissingFields.length > 0
+            ? {
+                required: true,
+                missing_fields: updated.remainingMissingFields,
+              }
+            : undefined,
+        };
+      })
+    );
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
@@ -1227,6 +1299,22 @@ export const ShootsTable = ({
                                     </button>
                                     <button
                                       type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenCardActionId(null);
+                                        setFieldsToShow(shoot.needsAttention?.missing_fields || []);
+                                        setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                        setIsMissingFieldsModalOpen(true);
+                                      }}
+                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-[#8C6A00] hover:bg-[#F8F4EA]"
+                                        }`}
+                                    >
+                                      <AlertCircle size={16} />
+                                      Actions
+                                    </button>
+
+                                    <button
+                                      type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setOpenCardActionId(null);
@@ -1271,9 +1359,9 @@ export const ShootsTable = ({
                               onClick={(e) => e.stopPropagation()}
                             >
                               <StatusBadge status={shoot.status} />
-                              {(!shoot.date || shoot.date === "No Date" || !shoot.location) && (
-                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"
-                                  }`}>
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
+                              {shoot.needsAttention?.required && (
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
                                   Missing Info
                                 </span>
                               )}
@@ -1315,8 +1403,8 @@ export const ShootsTable = ({
               */}
             </div>
           ) : (
-            <div className="hidden lg:block w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="hidden lg:block w-full">
+              <table className="w-full text-left border-separate border-spacing-0">
                 <thead>
                   <tr className={`text-base font-medium border-b leading-none tracking-normal transition-colors duration-300 ${isDark ? "text-[#E8D1AB] border-[#333333]" : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                     <th
@@ -1338,13 +1426,16 @@ export const ShootsTable = ({
                 <tbody>
                   {currentShoots.map((shoot, idx) => {
                     const isMissingDate = !shoot.date || shoot.date === "No Date";
+                    const needsAttention = shoot.needsAttention?.required;
+                    const missingFields = shoot.needsAttention?.missing_fields || [];
+                    const hasMissingFields = missingFields.length > 0;
                     const isMissingLocation = !shoot.location;
-                    const isMissingInfo = isMissingDate || isMissingLocation;
+                    const isMissingInfo = isMissingDate || isMissingLocation || Boolean(needsAttention);
 
-                    let missingMsg = "";
-                    if (isMissingDate && isMissingLocation) missingMsg = "Date & Location missing";
-                    else if (isMissingDate) missingMsg = "Date missing";
-                    else if (isMissingLocation) missingMsg = "Location missing";
+                    const borderClass = isDark ? "border-[#333333]" : "border-[#E5E5E5]";
+                    const rowBgClass = isDark ? "hover:bg-white/[0.02]" : "hover:bg-zinc-50";
+
+                    const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
 
                     return (
                       <tr
@@ -1352,11 +1443,20 @@ export const ShootsTable = ({
                         onClick={() => handleRowClick(shoot.id)}
                         className={`group border-b transition-colors last:border-0 cursor-pointer relative ${isMissingInfo
                           ? (isDark ? "bg-red-500/[0.03] border-red-500/20 hover:bg-red-500/[0.08]" : "bg-red-50/50 border-red-100 hover:bg-red-50")
-                          : (isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50")
+                          : (isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`)
                           }`}
                       >
-                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
-                        <td className="py-5 px-6 relative">
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+                              {hasMissingFields && (
+                                <Lottie animationData={animationData} loop={true} />
+                              )}
+                            </div>
+                            {shoot.id}
+                          </div>
+                        </td>
+                        <td className={`py-5 px-6 relative border-y ${borderClass}`}>
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                               {shoot.initials}
@@ -1365,29 +1465,79 @@ export const ShootsTable = ({
                               <p className={`font-medium text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#000000]"}`}>{shoot.customerName}</p>
                               <div className="flex items-center gap-2 mt-1.5 ">
                                 <p className={`text-xs ${isDark ? "text-[#666666]" : "text-[#999]"} ${isMissingDate ? "text-red-400 font-medium" : ""}`}>{shoot.date}</p>
-                                {isMissingInfo && (
-                                  <span className={`opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
-                                    {missingMsg}
-                                  </span>
-                                )}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
-                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.price}</td>
-                        <td className="py-5 px-6">
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.price}</td>
+                        <td className={`py-5 px-6 border-y ${borderClass}`}>
                           <StatusBadge status={shoot.status} />
                         </td>
-                        <td className="py-5 px-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className={`py-5 px-6 text-right border-y border-r ${borderClass}`}>
+                          <div className="relative flex justify-end" data-card-actions>
                             <button
-                              onClick={(e) => handleDeleteClick(e, shoot.id)}
-                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
+                              }}
+                              className={`p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                              aria-label="Actions"
                             >
-                              <Trash2 size={18} />
+                              <MoreVertical size={24} />
                             </button>
-                            <ChevronRight size={20} className={isDark ? "text-[#666666]" : "text-[#999]"} />
+
+                            {openCardActionId === shoot.id && (
+                              <div
+                                className={`absolute right-0 top-9 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
+                                  }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenCardActionId(null);
+                                    handleRowClick(shoot.id);
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
+                                    }`}
+                                >
+                                  <ChevronRight size={16} />                                  Open details
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenCardActionId(null);
+                                  setFieldsToShow(missingFields);
+                                  setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                  setSelectedShootDataForMissingFields(shoot.sourceProject || null);
+                                  setIsMissingFieldsModalOpen(true);
+                                }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-[#8C6A00] hover:bg-[#F8F4EA]"}`}
+                                >
+                                  <AlertCircle size={16} />
+                                  Actions
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenCardActionId(null);
+                                    handleDeleteClick(e, shoot.id);
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                    }`}
+                                >
+                                  <Trash2 size={16} />
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1395,10 +1545,24 @@ export const ShootsTable = ({
                   })}
                 </tbody>
               </table>
-            </div >
+            </div>
           )}
         </>
       )}
+
+      <MissingFieldsModal
+        isOpen={isMissingFieldsModalOpen}
+        onClose={() => {
+          setIsMissingFieldsModalOpen(false);
+          setSelectedShootIdForMissingFields(null);
+          setSelectedShootDataForMissingFields(null);
+        }}
+        isDark={isDark}
+        fields={fieldsToShow}
+        shootId={selectedShootIdForMissingFields ?? undefined}
+        initialShootData={selectedShootDataForMissingFields}
+        onSaved={handleMissingFieldsSaved}
+      />
 
       {/* Pagination - Exact Logic Preserved */}
       {
