@@ -660,6 +660,41 @@ export interface SalesLeadUpdateBookingScheduleResponse {
   message?: string;
 }
 
+export type AdminShootUpdateDateLocationSingleDayPayload = {
+  location: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  booking_type: "single_day";
+  time_zone: string;
+  start_date: string;
+  start_time: string;
+  end_time: string;
+};
+
+export type AdminShootUpdateDateLocationMultiDayPayload = {
+  location: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  booking_type: "multi_day";
+  time_zone: string;
+  booking_days: Array<{
+    date: string;
+    start_time: string;
+    end_time: string;
+  }>;
+};
+
+export type AdminShootUpdateDateLocationPayload =
+  | AdminShootUpdateDateLocationSingleDayPayload
+  | AdminShootUpdateDateLocationMultiDayPayload;
+
+export interface AdminShootUpdateDateLocationResponse {
+  success: boolean;
+  data: unknown;
+  error?: string;
+  message?: string;
+}
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
@@ -2074,6 +2109,25 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || error.message || 'Failed to fetch project form details',
+      };
+    }
+  },
+  updateShootDateLocation: async (
+    shootId: string | number,
+    payload: AdminShootUpdateDateLocationPayload
+  ) => {
+    try {
+      const response = await api.put<AdminShootUpdateDateLocationResponse>(
+        `admin/shoots/update-date-location/${shootId}`,
+        payload
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Date Location Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update shoot date and location',
       };
     }
   },

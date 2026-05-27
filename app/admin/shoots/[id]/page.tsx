@@ -13,6 +13,7 @@ import PreProductionTab from "@/components/admin/shoot-details/PreProductionTab"
 import PostProductionTab from "@/components/admin/shoot-details/PostProductionTab";
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
+import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react"; // Added X icon for closing
@@ -41,10 +42,14 @@ type ProjectDetails = {
   payment_status?: string | null;
   payment_id?: string | number | null;
   event_location?: string;
-  location?: string;
+  location?: string | { address?: string } | null;
   city?: string;
   state?: string;
   country?: string;
+  needs_attention?: {
+    required?: boolean;
+    missing_fields?: string[];
+  } | null;
   lead_id?: string | number;
   assignedCrew?: unknown[];
   assigned_crews?: unknown[];
@@ -68,6 +73,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
 
 
   // 3. Helper to update the URL when a tab is clicked
@@ -86,6 +92,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const bookingId =
     project?.booking_id || project?.stream_project_booking_id || id;
+  const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
+    ? project.needs_attention.missing_fields
+    : [];
+  const hasFormDetails = !missingFields.includes("onboarding_form");
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -190,6 +200,67 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleMissingFieldsSaved = (updated: {
+    shootId: string;
+    location?: string;
+    bookingType: "single_day" | "multi_day";
+    dateLabel?: string;
+    rawDate?: number;
+    startTime?: string;
+    endTime?: string;
+    bookingDays?: Array<{
+      date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+    remainingMissingFields: string[];
+  }) => {
+    setProject((prev) => {
+      if (!prev) return prev;
+
+      const next: ProjectDetails = {
+        ...prev,
+        needs_attention:
+          updated.remainingMissingFields.length > 0
+            ? {
+                required: true,
+                missing_fields: updated.remainingMissingFields,
+              }
+            : undefined,
+      };
+
+      if (updated.location) {
+        next.location = updated.location;
+        next.event_location = updated.location;
+      }
+
+      if (updated.bookingType === "single_day" && updated.rawDate) {
+        next.event_date = new Date(updated.rawDate).toISOString().slice(0, 10);
+        next.start_time = updated.startTime || next.start_time;
+        next.end_time = updated.endTime || next.end_time;
+      }
+
+      if (updated.bookingType === "multi_day" && updated.bookingDays?.length) {
+        const firstDay = updated.bookingDays[0];
+        next.event_date = firstDay.date;
+        next.start_time = firstDay.start_time;
+        next.end_time = firstDay.end_time;
+        next.booking_days = updated.bookingDays.map((day) => ({
+          date: day.date,
+          event_date: day.date,
+          start_time: day.start_time,
+          end_time: day.end_time,
+        }));
+      }
+
+      return next;
+    });
+
+    if (updated.remainingMissingFields.length === 0) {
+      setIsMissingFieldsModalOpen(false);
+    }
+  };
+
   const handleViewInvoice = async () => {
     const numericBookingId = Number(bookingId);
 
@@ -291,7 +362,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-4 lg:-m-10 relative">
         {/* Main Content (Left) */}
         <div className="flex-1 p-4 pb-30 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] ">
-          <ShootHeader activeTab={activeTab} project={project} projectId={id} />
+          <ShootHeader
+            activeTab={activeTab}
+            project={project}
+            projectId={id}
+            missingFields={missingFields}
+            hasFormDetails={hasFormDetails}
+            onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
+          />
           <Button
             className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
               ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
@@ -353,6 +431,16 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               )}
             </div>
           </div>
+
+          <MissingFieldsModal
+            isOpen={isMissingFieldsModalOpen}
+            onClose={() => setIsMissingFieldsModalOpen(false)}
+            isDark={isDark}
+            fields={missingFields}
+            shootId={id}
+            initialShootData={project}
+            onSaved={handleMissingFieldsSaved}
+          />
         </div>
 
         {/* Right Sidebar (Timeline) */}
@@ -400,12 +488,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               Edit Shoot
             </Button>
           </div>
-          <Button
-            onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
-            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
-          >
-            <Eye size={18} /> View Form Details
-          </Button>
+          {hasFormDetails ? (
+            <Button
+              onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
+              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
+            >
+              <Eye size={18} /> View Form Details
+            </Button>
+          ) : null}
         </div>
       </div>
     </>
