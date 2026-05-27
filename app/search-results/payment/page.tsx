@@ -1214,7 +1214,7 @@ function StripePaymentFormMulti({
           </label>
           {!isAuthenticated && canUseAccountCredit && (
             <p className="text-[#E8D1AB] text-sm mt-3">
-              Your account credit is available {formatCurrency(availableCreditAmount)}. Please login, then you can use this credit.
+            Hey you have {formatCurrency(availableCreditAmount)} worth of credit points in your account. To avail the credit points please login.
             </p>
           )}
           {canApplyAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
