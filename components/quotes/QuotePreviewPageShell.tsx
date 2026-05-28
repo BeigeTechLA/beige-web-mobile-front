@@ -297,8 +297,10 @@ export default function QuotePreviewPageShell({
   const isZeroOutstanding =
     Number.isFinite(outstandingAmount) && outstandingAmount <= 0 && previouslyPaidAmount > 0;
   const isPublicPaymentAllowedStatus = !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
+  const hasValidPublicQuotePreview =
+    quoteDetailMode === "public" && !loading && Boolean(quote) && !errorMessage;
   const canContinueToPayment =
-    quoteDetailMode === "public" &&
+    hasValidPublicQuotePreview &&
     Boolean(effectivePaymentBookingId) &&
     isPublicPaymentAllowedStatus &&
     !isMarkedFullyPaid &&
@@ -552,7 +554,7 @@ export default function QuotePreviewPageShell({
           {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
         </ActionButton>
       )}
-      {quoteDetailMode === "public" && !isQuoteSigned && (
+      {hasValidPublicQuotePreview && !isQuoteSigned && (
         <ActionButton
           onClick={() => {
             if (!acceptServiceAgreement) {
@@ -623,7 +625,7 @@ export default function QuotePreviewPageShell({
                 {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
               </ActionButton>
             )}
-            {quoteDetailMode === "public" && (
+            {hasValidPublicQuotePreview && (
               !isQuoteSigned ? (
                 <ActionButton
                   onClick={() => {
