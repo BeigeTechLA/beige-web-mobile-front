@@ -411,7 +411,21 @@ function StripePaymentFormMulti({
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
     Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
-  const canApplyAccountCredit = isAuthenticated && canUseAccountCredit;
+  const bookingEmail = String(
+    booking?.guest_email ||
+      booking?.guestEmail ||
+      booking?.client_email ||
+      booking?.user?.email ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  const authenticatedEmail = String(user?.email || "").trim().toLowerCase();
+  const isBookingOwner =
+    Boolean(isAuthenticated && authenticatedEmail && bookingEmail) &&
+    authenticatedEmail === bookingEmail;
+  const canApplyAccountCredit =
+    isAuthenticated && canUseAccountCredit && isBookingOwner;
   const usedCreditAmount =
     canApplyAccountCredit && useAccountCredit ? Math.max(creditAppliedAmount || 0, 0) : 0;
   const remainingCreditAmount = Math.max(availableCreditAmount - usedCreditAmount, 0);
@@ -1304,6 +1318,7 @@ function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
 
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
@@ -1318,6 +1333,40 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
   const [useAccountCredit, setUseAccountCredit] = useState(false);
+  const bookingEmail = React.useMemo(() => {
+    const value =
+      paymentDetails?.booking?.guest_email ||
+      paymentDetails?.booking?.guestEmail ||
+      paymentDetails?.client_email ||
+      summaryData?.client_email ||
+      "";
+    return String(value).trim().toLowerCase();
+  }, [paymentDetails, summaryData]);
+  const loginRedirectTo = React.useMemo(() => {
+    const currentSearch = searchParams.toString();
+    const currentPath = currentSearch ? `/search-results/payment?${currentSearch}` : "/search-results/payment";
+    const baseLogin = `/login?returnTo=${encodeURIComponent(currentPath)}`;
+    return bookingEmail ? `${baseLogin}&bookingEmail=${encodeURIComponent(bookingEmail)}` : baseLogin;
+  }, [bookingEmail, searchParams]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (step !== "success" && bookingEmail) {
+      sessionStorage.setItem("beige_payment_booking_email", bookingEmail);
+    } else {
+      sessionStorage.removeItem("beige_payment_booking_email");
+    }
+
+    return () => {
+      sessionStorage.removeItem("beige_payment_booking_email");
+    };
+  }, [bookingEmail, step]);
+  const isBookingOwner = Boolean(
+    isAuthenticated &&
+      bookingEmail &&
+      String(user?.email || "").trim().toLowerCase() === bookingEmail,
+  );
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -1593,6 +1642,9 @@ function MultiCreatorPaymentContent() {
         }
       );
       await fetchSummaryData();
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("beige_payment_booking_email");
+      }
       setStep("success");
       toast.success("Booking confirmed successfully!");
     } catch (error) {
@@ -1642,7 +1694,7 @@ function MultiCreatorPaymentContent() {
   const accountCredit = paymentDetails?.account_credit || {};
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
-    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
+    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0 && isBookingOwner;
   const creditAppliedAmount =
     isQuoteValid && canUseAccountCredit && useAccountCredit
       ? Math.min(availableCreditAmount, basePayableAmount)
@@ -1754,7 +1806,7 @@ function MultiCreatorPaymentContent() {
           onClose={() => setIsDetailsFormOpen(false)}
           projectId={parseInt(shootId || "0")}
           hideAffiliateStep={true}
-          redirectTo="/login"
+          redirectTo={loginRedirectTo}
         />
       </div>
     );
@@ -1763,7 +1815,7 @@ function MultiCreatorPaymentContent() {
   // Date Time info to manage Multiday shoot format
   const dateTimeInfo = getBookingDetails(booking)
   const handleAccountCreditToggle = async (enabled: boolean) => {
-    const nextValue = Boolean(enabled && canUseAccountCredit);
+    const nextValue = Boolean(enabled && canUseAccountCredit && isBookingOwner);
     setUseAccountCredit(nextValue);
     await refreshPaymentIntent(paymentDetails, nextValue);
   };

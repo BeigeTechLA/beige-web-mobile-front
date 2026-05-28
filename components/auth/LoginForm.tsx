@@ -45,6 +45,14 @@ export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const hasShownAdminOnlyToast = React.useRef(false)
+  const returnTo = React.useMemo(() => {
+    const value = searchParams?.get("returnTo")?.trim() || ""
+    return value.startsWith("/") ? value : ""
+  }, [searchParams])
+  const bookingEmail = React.useMemo(() => {
+    const value = searchParams?.get("bookingEmail")?.trim() || ""
+    return value.toLowerCase()
+  }, [searchParams])
 
   React.useEffect(() => {
     if (hasShownAdminOnlyToast.current) return
@@ -82,6 +90,7 @@ export function LoginForm() {
       const user = result?.user
       const userTypeId = user?.user_type_id
       const userTypeName = userTypeId ? USER_TYPE[userTypeId as keyof typeof USER_TYPE] : "Unknown";
+      const loggedInEmail = String(user?.email || data.email || "").trim().toLowerCase()
 
       pushToDataLayer("login", {
         custom_user_id: user?.id || null,
@@ -95,8 +104,10 @@ export function LoginForm() {
       });
       // ---------------------------
 
-      // Extract user_type_id from the response
-      // const userTypeId = result?.user?.user_type_id
+      if (returnTo && (!bookingEmail || bookingEmail === loggedInEmail)) {
+        router.replace(returnTo)
+        return
+      }
 
       // Logic for conditional redirection
       if (userTypeId === 1) {
