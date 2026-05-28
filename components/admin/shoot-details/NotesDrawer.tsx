@@ -12,6 +12,7 @@ import {
   ThumbsUp,
   Paperclip,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
@@ -691,6 +692,8 @@ function NoteCard({
   setShowReactionPickerId: (id: string | null) => void;
   reactionPickerRef: React.RefObject<HTMLDivElement>;
 }) {
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const hasReplies = note.replies && note.replies.length > 0;
 
   const formatReactionUsers = (reaction: string) => {
@@ -705,6 +708,22 @@ function NoteCard({
     if (users.length <= 3) return users.map((user) => user.name).join(", ");
     return `${users.slice(0, 3).map((user) => user.name).join(", ")} +${users.length - 3}`;
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    };
+
+    if (showActionsMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showActionsMenu]);
 
   return (
     <div className="bg-[#161616] rounded-[22px] p-5 border border-white/5 relative">
@@ -723,13 +742,44 @@ function NoteCard({
                 {note.timestamp.date} • {note.timestamp.time}
               </span>
             </div>
-            <button
-              className="text-white/30 hover:text-red-400 transition-colors flex-shrink-0 -mr-1 p-1"
-              onClick={() => onDelete?.(note.id)}
-              disabled={actionsDisabled}
-            >
-              <MoreHorizontal size={16} />
-            </button>
+            <div ref={actionsMenuRef} className="relative">
+              <button
+                type="button"
+                className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0 -mr-1 p-1"
+                onClick={() => {
+                  if (actionsDisabled) return;
+                  setShowReactionPickerId(null);
+                  setShowActionsMenu((current) => !current);
+                }}
+                disabled={actionsDisabled}
+                aria-haspopup="menu"
+                aria-expanded={showActionsMenu}
+                aria-label="More actions"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+
+              {showActionsMenu ? (
+                <div
+                  className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
+                    isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                  }`}
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                    onClick={() => {
+                      setShowActionsMenu(false);
+                      onDelete?.(note.id);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <p className="text-sm text-white/60 leading-relaxed mb-3">
