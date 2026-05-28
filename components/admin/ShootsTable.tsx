@@ -417,6 +417,8 @@ export const ShootsTable = ({
   const [selectedShootIdForMissingFields, setSelectedShootIdForMissingFields] = useState<string | null>(null);
   const [selectedShootDataForMissingFields, setSelectedShootDataForMissingFields] = useState<Record<string, unknown> | null>(null);
   const [fieldsToShow, setFieldsToShow] = useState<string[]>([]);
+  const [hoveredShootId, setHoveredShootId] = useState<string | null>(null);
+
 
   // Sync external date with range
   useEffect(() => {
@@ -1218,7 +1220,12 @@ export const ShootsTable = ({
                             }`}>
                             No shoots in this stage
                           </div>
-                        ) : column.items.map((shoot, idx) => (
+                        ) : column.items.map((shoot, idx) => {
+                          const missingFields = shoot.needsAttention?.missing_fields || [];
+                          const hasMissingFields = missingFields.length > 0;
+                          const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
+
+                          return (
                           <div
                             key={`${column.status}-${idx}`}
                             onClick={() => handleRowClick(shoot.id)}
@@ -1312,6 +1319,18 @@ export const ShootsTable = ({
                                       <AlertCircle size={16} />
                                       Actions
                                     </button>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenCardActionId(null);
+                                          setChatOpen(shoot.id); 
+                                        }}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                                      >
+                                        <MessageCirclePlus size={16} />
+                                        Notes
+                                      </button>
 
                                     <button
                                       type="button"
@@ -1351,23 +1370,68 @@ export const ShootsTable = ({
 
                             {/* DIVIDER */}
                             <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
-
-                            {/* FOOTER */}
+                            
                             {/* FOOTER */}
                             <div
                               className="flex items-center justify-between p-5"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <StatusBadge status={shoot.status} />
+                              
                               {shoot.needsAttention?.required && (
-                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
-                                  Missing Info
-                                </span>
+                                <div className="relative">
+                                  {/* 1. THE PILL:  */}
+                                  <span 
+                                    onMouseEnter={() => setHoveredShootId(`grid-${shoot.id}`)}
+                                    onMouseLeave={() => setHoveredShootId(null)}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Prevent opening shoot details
+                                      setFieldsToShow(missingFields);
+                                      setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                      setSelectedShootDataForMissingFields(shoot.sourceProject || null);
+                                      setIsMissingFieldsModalOpen(true);
+                                    }}
+                                    className={`cursor-pointer text-[10px] font-medium px-2 py-0.5 rounded-full transition-transform hover:scale-105 ${
+                                      isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"
+                                    }`}
+                                  >
+                                    Missing Info
+                                  </span>
+
+                                  {/* 2. THE TOOLTIP */}
+                                  <AnimatePresence>
+                                    {hoveredShootId === `grid-${shoot.id}` && (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }} 
+                                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                                        transition={{ duration: 0.15, ease: "easeOut" }} 
+                                          className={`absolute bottom-full right-0 mb-2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none ${
+                                          isDark ? "bg-[#222] border border-white/10 text-white" : "bg-white border border-gray-200 text-black"
+                                        }`}
+                                      >                                      
+                                        <div className="flex flex-col gap-1">
+                                          <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1 flex items-center justify-between gap-4">
+                                            Attention Required
+                                          </span>
+                                          {missingFields.map((field, i) => (
+                                            <span key={i} className="flex items-center gap-1.5">
+                                              <span className="w-1 h-1 rounded-full bg-red-500" />
+                                              {toTitleCase(field)}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <div className={`absolute top-full right-4 border-4 border-transparent ${isDark ? "border-t-[#222]" : "border-t-white"}`} />
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
                               )}
+
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setChatOpen(shoot.id); // Store the shoot ID instead of boolean
+                                  setChatOpen(shoot.id);
                                 }}
                                 className="p-2 rounded-full hover:bg-white/5 transition-colors"
                               >
@@ -1378,19 +1442,13 @@ export const ShootsTable = ({
                               </button>
                             </div>
                           </div>
-                        ))}
+                          ); 
+                        })}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              {chatOpen && (
-                <NotesDrawer
-                  isOpen={!!chatOpen}
-                  onClose={() => setChatOpen(null)}
-                  shootId={chatOpen} // Pass the shoot ID
-                />
-              )}
               {/*
               <BoardMiniMapNavigator
                   boardRef={gridScrollRef}
@@ -1439,9 +1497,47 @@ export const ShootsTable = ({
                       >
                         <td className={`py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+                            <div 
+                             className="w-8 h-8 shrink-0 flex items-center justify-center relative"
+                             onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
+                             onMouseLeave={() => setHoveredShootId(null)}>
                               {hasMissingFields && (
+                                <div>
                                 <Lottie animationData={animationData} loop={true} />
+                                {/* Tooltip */}
+                                  <AnimatePresence>
+                                    {hoveredShootId === `list-${shoot.id}` && (
+                                      <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      exit={{ opacity: 0, x: -10 }}
+                                      
+                                      className={`absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none 
+                                        ${isDark 
+                                          ? "bg-[#222] border border-white/10 text-white" 
+                                          : "bg-white border border-gray-200 text-black"
+                                        }`}
+                                    >                                      
+                                      <div className="flex flex-col gap-1">
+                                        <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1">
+                                          Attention Required:
+                                        </span>
+                                        {missingFields.map((field, i) => (
+                                          <span key={i} className="flex items-center gap-1.5">
+                                            <span className="w-1 h-1 rounded-full bg-red-500" /> 
+                                            {toTitleCase(field)}
+                                          </span>
+                                        ))}
+                                      </div>
+
+                                      {/* Tooltip Arrow */}
+                                      <div className={`absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent ${
+                                        isDark ? "border-t-[#222]" : "border-t-white"
+                                      }`} />
+                                    </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
                               )}
                             </div>
                             {shoot.id}
@@ -1513,6 +1609,18 @@ export const ShootsTable = ({
                                   <AlertCircle size={16} />
                                   Actions
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenCardActionId(null);
+                                    setChatOpen(shoot.id); // Triggers the Notes Drawer
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                                >
+                                  <MessageCirclePlus size={16} />
+                                  Notes
+                                </button>
 
                                 <button
                                   type="button"
@@ -1540,6 +1648,13 @@ export const ShootsTable = ({
           )}
         </>
       )}
+
+      <NotesDrawer
+        isOpen={!!chatOpen}
+        onClose={() => setChatOpen(null)}
+        shootId={chatOpen ?? undefined}
+        isDark={isDark}
+      />
 
       <MissingFieldsModal
         isOpen={isMissingFieldsModalOpen}
