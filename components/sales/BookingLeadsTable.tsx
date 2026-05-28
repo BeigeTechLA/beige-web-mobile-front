@@ -6,7 +6,7 @@ import { MoreVertical, Loader2, ChevronDown, MoreHorizontal, ChevronLeft, Chevro
 import { LeadsStatusBadge, BookingStatus } from "@/components/sales/LeadsStatusBadge";
 import { IntentBadge } from "./IntentBadge";
 import { useTheme } from "next-themes";
-import BoardMiniMapNavigator from "../admin/BoardMiniMapNavigator";
+// import BoardMiniMapNavigator from "../admin/BoardMiniMapNavigator";
 
 interface LeadData {
   lead_id: number;
@@ -353,7 +353,7 @@ export default function LeadsTable({
             <div className="relative block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-16 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden pb-6 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
@@ -628,6 +628,7 @@ export default function LeadsTable({
                 </div >
               </div >
 
+              {/*
               <BoardMiniMapNavigator
                 boardRef={gridScrollRef}
                 segmentCount={kanbanColumns.length}
@@ -635,6 +636,7 @@ export default function LeadsTable({
                 visible={currentViewMode === "grid"}
                 syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
               />
+              */}
             </div >
           ) : (
             // <div className="w-full overflow-hidden lg:overflow-x-auto rounded-2xl">

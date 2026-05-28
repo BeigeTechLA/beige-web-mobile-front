@@ -12,6 +12,7 @@ import {
   usePreviewInvoiceMutation,
   useSendInvoiceMutation
 } from "@/lib/redux/features/sales/salesApi";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 interface GeneratePaymentLinkProps {
   leadId?: number;
@@ -211,12 +212,18 @@ const GeneratePaymentLink = ({
       if (response.success) {
         const hostedInvoiceUrl = response.data?.invoiceUrl || null;
         const invoicePdfUrl = response.data?.invoicePdf || null;
-        const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
-        const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${effectiveBookingId}?t=${Date.now()}`;
-        const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${effectiveBookingId}?download=1&t=${Date.now()}`;
         const isManualInvoice =
           String(invoicePdfUrl || "").includes("manual=1") ||
           String(hostedInvoiceUrl || "").includes("manual=1");
+        const brandedPdfUrl = buildBeigeInvoiceUrl(effectiveBookingId, {
+          manual: isManualInvoice,
+          cacheBust: true,
+        });
+        const brandedDownloadUrl = buildBeigeInvoiceUrl(effectiveBookingId, {
+          manual: isManualInvoice,
+          download: true,
+          cacheBust: true,
+        });
 
         if (!hostedInvoiceUrl && !invoicePdfUrl) {
           toast.error("Preview URL not available");
@@ -224,7 +231,7 @@ const GeneratePaymentLink = ({
         }
 
         // Open Stripe invoice page directly.
-        if (hostedInvoiceUrl) {
+        if (hostedInvoiceUrl && !invoicePdfUrl) {
           window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
         }
 
@@ -232,10 +239,10 @@ const GeneratePaymentLink = ({
         // For Manual flow open/view only (no forced download).
         if (invoicePdfUrl) {
           if (isManualInvoice) {
-            window.open(invoicePdfUrl || proxiedPdfUrl, "_blank", "noopener,noreferrer");
+            window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
           } else {
             const link = document.createElement("a");
-            link.href = proxiedDownloadUrl || proxiedPdfUrl;
+            link.href = brandedDownloadUrl;
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             link.click();

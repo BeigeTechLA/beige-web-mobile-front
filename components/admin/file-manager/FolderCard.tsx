@@ -78,10 +78,10 @@ export const FolderCard: React.FC<FolderCardProps> = ({
     <div
       ref={cardRef}
       onClick={handleOpenFolder}
-      className="w-full lg:max-w-[350px] bg-[#18181b] rounded-xl lg:rounded-3xl border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group"
+      className="w-full h-full lg:max-w-[350px] bg-[#18181b] rounded-xl lg:rounded-3xl border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group flex flex-col overflow-hidden"
     >
       {/* Top Section */}
-      <div className="p-5">
+      <div className="p-5 flex-1">
         <div className="flex items-start justify-between">
           <div className="flex gap-3 items-start min-w-0">
             <div>
@@ -108,18 +108,20 @@ export const FolderCard: React.FC<FolderCardProps> = ({
         </div>
 
         {/* Badges */}
-        {(category || isLinked) && (
-          <div className="flex flex-wrap gap-2 mt-4">
-            <span className="px-4 py-1.5 rounded-full bg-black/40 text-white text-xs font-medium border border-white/5">
-              {category}
-            </span>
+        {(category?.trim() || isLinked) && (
+          <div className="mt-4 flex min-w-0 flex-nowrap items-center gap-2">
+            {category?.trim() ? (
+              <span className="min-w-0 max-w-[170px] shrink truncate rounded-full border border-white/5 bg-black/40 px-4 py-1.5 text-xs font-medium text-white">
+                {category}
+              </span>
+            ) : null}
             {isLinked ? (
-              <span className="px-2 py-1.5 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+              <span className="shrink-0 px-2 py-1.5 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5 whitespace-nowrap">
                 <LinkIcon size={16} />
                 Linked
               </span>
             ) : (
-              <span className="px-2 py-1.5 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+              <span className="shrink-0 px-2 py-1.5 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5 whitespace-nowrap">
                 <Unlink size={16} />
                 Unlinked
               </span>
@@ -129,7 +131,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
       </div>
 
       {/* Bottom Section */}
-      <div className="flex items-center border-t border-t-white/50 p-5 gap-3">
+      <div className="mt-auto flex items-center border-t border-t-white/50 p-5 gap-3">
         <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-[#000] text-base">
           {userInitials}
         </div>

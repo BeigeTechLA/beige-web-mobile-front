@@ -20,6 +20,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 type SkillOption = {
   id?: number | string;
@@ -208,28 +209,34 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
-      const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
-      const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${numericBookingId}?t=${Date.now()}`;
-      const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${numericBookingId}?download=1&t=${Date.now()}`;
       const isManualInvoice =
         String(invoicePdfUrl || "").includes("manual=1") ||
         String(hostedInvoiceUrl || "").includes("manual=1");
+      const brandedPdfUrl = buildBeigeInvoiceUrl(numericBookingId, {
+        manual: isManualInvoice,
+        cacheBust: true,
+      });
+      const brandedDownloadUrl = buildBeigeInvoiceUrl(numericBookingId, {
+        manual: isManualInvoice,
+        download: true,
+        cacheBust: true,
+      });
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         toast.error("Preview URL not available");
         return;
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !invoicePdfUrl) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
       if (invoicePdfUrl) {
         if (isManualInvoice) {
-          window.open(invoicePdfUrl || proxiedPdfUrl, "_blank", "noopener,noreferrer");
+          window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
         } else {
           const link = document.createElement("a");
-          link.href = proxiedDownloadUrl || proxiedPdfUrl;
+          link.href = brandedDownloadUrl;
           link.target = "_blank";
           link.rel = "noopener noreferrer";
           link.click();
@@ -276,7 +283,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
                 ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
-                : "bg-white border-[#E5E5E5] text-[#666] hover:bg-zinc-50"
+                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
                 }`}
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
@@ -332,7 +339,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               {activeTab === "Meetings" && (
                 <>
                   <MeetingSchedule orderId={id} />
-                  <div className={`px-5`}>
+                  <div className={`px-5 border-t ${isDark ? "border-t-[#FFFFFF80]" : "border-t-black/40"}`}>
                     <MeetingOverviewChart />
                   </div>
                 </>
@@ -347,6 +354,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     projectName={project?.project_name}
                     salesRepName={project?.lead_details?.assigned_sales_rep?.name || null}
                     clientName={project?.project?.client?.name || project?.client?.name || null}
+                    isDark={isDark}
                   />
                 </div>
               )}

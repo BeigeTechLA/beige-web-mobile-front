@@ -96,7 +96,7 @@ export const FileCard = ({
 
   return (
     <div
-      className={`group w-full cursor-pointer bg-[#111111] rounded-xl border shadow-xl overflow-hidden relative transition-all ${
+      className={`group w-full h-full cursor-pointer bg-[#111111] rounded-xl border shadow-xl overflow-hidden relative transition-all flex flex-col ${
         isSelected ? 'border-[#E8D1AB] ring-1 ring-[#E8D1AB]/50' : 'border-white/30 hover:border-white/40'
       }`}
       onClick={onOpen}
@@ -115,7 +115,7 @@ export const FileCard = ({
           />
         </div>
       )}
-      <div className="p-5 pt-6">
+      <div className="p-5 pt-6 flex-1">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className={`${meta.badgeClass} p-1.5 rounded-md`}>
@@ -207,7 +207,7 @@ export const FileCard = ({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center border-t border-white/50 p-5 gap-3">
+      <div className="mt-auto flex items-center border-t border-white/50 p-5 gap-3">
         <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-black text-sm font-bold">
           {file.userInitials}
         </div>

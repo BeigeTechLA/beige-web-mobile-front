@@ -1875,10 +1875,12 @@ function MultiCreatorPaymentContent() {
                     <span className="text-[#626467]">Shoot Type:</span>
                     <span className="font-medium">{toTitleCase((summaryData.event_type || "").trim())}</span>
                   </div>
-                  <div className="flex flex-col justify-between">
-                    <span className="text-[#626467]">Location:</span>
-                    <span className="truncate">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
-                  </div>
+                  {booking.event_location && (
+                    <div className="flex flex-col justify-between">
+                      <span className="text-[#626467]">Location:</span>
+                      <span className="truncate">{formatLocationForDisplay(booking.event_location)}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="m-6 lg:m-10 rounded-2xl transition-all relative overflow-hidden bg-[#FFFFFF] text-[#000000]">

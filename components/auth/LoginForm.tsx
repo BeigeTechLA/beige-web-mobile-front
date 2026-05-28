@@ -124,13 +124,13 @@ export function LoginForm() {
     <div className="w-full">
       <div className="absolute top-0 left-0 w-screen h-[380px] overflow-hidden lg:hidden -z-10 bg-[#101010]">
         <div className="relative h-full w-full">
-          <Image
+          {/* <Image
             src={mobileEventImgUrl}
             alt="Coachella x Neon Carnival"
             fill
             priority
             className="object-cover object-[80%_0%] -translate-y-14"
-          />
+          /> */}
           <div
             className="absolute inset-x-0 bottom-0 h-20 backdrop-blur-[0.5px]"
             style={{
@@ -143,14 +143,14 @@ export function LoginForm() {
             alt="Beige logo"
             width={68}
             height={14}
-            className="absolute left-4 bottom-[125px] z-10 lg:hidden"
+            className="absolute left-4 top-4 z-20 lg:hidden"
             priority
           />
           <div className="absolute inset-x-0 bottom-0 h-62 bg-gradient-to-t from-[#101010] via-[#101010]/50 to-transparent" />
         </div>
       </div>
 
-      <div className="space-y-6 lg:space-y-8 overflow-x-hidden pt-[250px] lg:pt-0 relative z-10 w-full">
+      <div className="space-y-6 lg:space-y-8 overflow-x-hidden pt-8 lg:pt-0 relative z-10 w-full">
         <div className="space-y-2 text-center lg:mt-15">
           <h1 className="text-[28px] lg:text-4xl font-semibold tracking-tight text-[#E8D1AB] leading-tight">
             Welcome Back

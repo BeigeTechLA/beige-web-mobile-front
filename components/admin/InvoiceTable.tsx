@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { salesApi } from "@/lib/api";
 import apiClient from "@/lib/apiClient";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -487,12 +488,14 @@ export const InvoiceTable = () => {
     if (typeof window === "undefined") return;
 
     const isManualInvoice = typeof invoicePdf === "string" && /[?&]manual=(1|true)\b/i.test(invoicePdf);
-    const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "").replace(/\/$/, "");
-    const dynamicManualDownloadUrl =
-      isManualInvoice && bookingIdValue
-        ? `${apiBase}/sales/invoice-pdf/${bookingIdValue}?manual=1&download=1&t=${Date.now()}`
-        : null;
-    const resolvedUrl = dynamicManualDownloadUrl || invoicePdf;
+    const brandedDownloadUrl = bookingIdValue
+      ? buildBeigeInvoiceUrl(bookingIdValue, {
+          manual: isManualInvoice,
+          download: true,
+          cacheBust: true,
+        })
+      : null;
+    const resolvedUrl = brandedDownloadUrl || invoicePdf;
     if (!resolvedUrl) return;
 
     const link = document.createElement("a");

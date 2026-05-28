@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
   Calendar,
-  Grid3X3,
   History,
   Link,
   LinkIcon,
-  List,
   Loader2,
   MoreVertical,
   Search,
@@ -28,6 +26,8 @@ import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmMod
 import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
+import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
+import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
@@ -42,6 +42,23 @@ import ShareResourceModal from "@/components/admin/file-manager/ShareResourceMod
 const STATUSES = ["Linked", "Unlinked"];
 const PAGE_SIZE = 24;
 const PAGINATION_WINDOW = 1;
+const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [delay, value]);
+
+  return debouncedValue;
+}
 
 const getPageItems = (currentPage: number, totalPages: number) => {
   if (totalPages <= 1) return [1];
@@ -72,10 +89,10 @@ const getPageItems = (currentPage: number, totalPages: number) => {
 export default function AdminFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const [selectedTab, setSelectedTab] = useState("All Files");
+  const [selectedTab, setSelectedTab] = useState("All folders");
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useViewMode();
+  const debouncedSearchTerm = useDebounce(searchTerm.trim(), 350);
+  const [viewMode, setViewMode] = useViewMode(ADMIN_FILE_MANAGER_VIEW_MODE_KEY);
   const [status, setStatus] = useState("");
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -89,7 +106,9 @@ export default function AdminFolderManagerPage() {
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
+  const [boardProjects, setBoardProjects] = useState<UiFolderItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [boardPage, setBoardPage] = useState(1);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: PAGE_SIZE,
@@ -98,8 +117,25 @@ export default function AdminFolderManagerPage() {
     hasNextPage: false,
     hasPreviousPage: false,
   });
+  const [boardPagination, setBoardPagination] = useState({
+    page: 1,
+    limit: PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
   const [loading, setLoading] = useState(true);
+  const [boardLoadingInitial, setBoardLoadingInitial] = useState(false);
+  const [boardLoadingMore, setBoardLoadingMore] = useState(false);
+  const [boardColumnTotals, setBoardColumnTotals] = useState({
+    all: 0,
+    shoot: 0,
+    common: 0,
+    recent: 0,
+  });
   const [error, setError] = useState<string | null>(null);
+  const boardTotalsRequestRef = useRef(0);
 
   const getUpdatedTimestamp = (value?: string) => {
     if (!value) return 0;
@@ -120,9 +156,9 @@ export default function AdminFolderManagerPage() {
   };
 
   const tabs = [
-    { name: "All Files", icon: FolderOpen },
-    { name: "Common Event", icon: Calendar },
-    { name: "Linked to folders", icon: Link },
+    { name: "All folders", icon: FolderOpen },
+    { name: "Shoot folders", icon: Link },
+    { name: "Common events", icon: Calendar },
     { name: "Recent", icon: History },
     // { name: "Shared", icon: Share2 },
     // { name: "Trash", icon: Trash2 },
@@ -150,16 +186,52 @@ export default function AdminFolderManagerPage() {
     }
   };
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm.trim());
-    }, 350);
+  const loadBoardProjects = useCallback(
+    async (page: number = 1, searchQuery: string = debouncedSearchTerm, append = false) => {
+      try {
+        if (append) {
+          setBoardLoadingMore(true);
+        } else {
+          setBoardLoadingInitial(true);
+        }
 
-    return () => clearTimeout(timeout);
-  }, [searchTerm]);
+        const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
+          page,
+          limit: PAGE_SIZE,
+          search: searchQuery,
+        });
+
+        const mapped = workspaces.map((workspace) =>
+          mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")
+        );
+
+        setBoardProjects((prev) => {
+          if (!append) return mapped;
+          const seen = new Set(prev.map((item) => item.id));
+          const next = [...prev];
+          mapped.forEach((item) => {
+            if (!seen.has(item.id)) {
+              next.push(item);
+              seen.add(item.id);
+            }
+          });
+          return next;
+        });
+        setBoardPagination(serverPagination);
+        setBoardPage(serverPagination.page || page);
+      } catch (err: any) {
+        setError(err?.message || "Failed to load file manager projects");
+      } finally {
+        setBoardLoadingInitial(false);
+        setBoardLoadingMore(false);
+      }
+    },
+    [debouncedSearchTerm]
+  );
 
   useEffect(() => {
     setCurrentPage(1);
+    setBoardPage(1);
   }, [debouncedSearchTerm]);
 
   useEffect(() => {
@@ -176,38 +248,176 @@ export default function AdminFolderManagerPage() {
     };
   }, [currentPage, debouncedSearchTerm]);
 
-  const filteredFolders = useMemo(() => {
-    let items = [...projects];
+  useEffect(() => {
+    if (viewMode !== "board") return;
+    let mounted = true;
 
-    if (selectedTab === "Linked to folders") {
-      items = items.filter((item) => item.isLinked);
+    const load = async () => {
+      if (!mounted) return;
+      await loadBoardProjects(1, debouncedSearchTerm, false);
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [viewMode, debouncedSearchTerm, loadBoardProjects]);
+
+  const handleLoadMoreBoardProjects = useCallback(async () => {
+    if (viewMode !== "board") return;
+    if (boardLoadingInitial || boardLoadingMore) return;
+    if (!boardPagination.hasNextPage) return;
+    await loadBoardProjects((boardPagination.page || boardPage) + 1, debouncedSearchTerm, true);
+  }, [
+    viewMode,
+    boardLoadingInitial,
+    boardLoadingMore,
+    boardPagination.hasNextPage,
+    boardPagination.page,
+    boardPage,
+    loadBoardProjects,
+    debouncedSearchTerm,
+  ]);
+
+  const loadBoardColumnTotals = useCallback(
+    async (searchQuery: string = debouncedSearchTerm) => {
+      const requestId = boardTotalsRequestRef.current + 1;
+      boardTotalsRequestRef.current = requestId;
+
+      try {
+        let page = 1;
+        let hasNextPage = true;
+        const allItems: UiFolderItem[] = [];
+
+        while (hasNextPage) {
+          const { workspaces, pagination: pageMeta } = await fileManagerApi.listExternalWorkspacesPaginated({
+            page,
+            limit: PAGE_SIZE,
+            search: searchQuery,
+          });
+
+          const mapped = workspaces.map((workspace) =>
+            mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")
+          );
+          allItems.push(...mapped);
+
+          hasNextPage = Boolean(pageMeta?.hasNextPage);
+          page = Number(pageMeta?.page || page) + 1;
+        }
+
+        if (boardTotalsRequestRef.current !== requestId) return;
+
+        setBoardColumnTotals({
+          all: applySharedFilters(allItems).length,
+          shoot: applySharedFilters(allItems.filter((item) => item.category !== "Common Event")).length,
+          common: applySharedFilters(allItems.filter((item) => item.category === "Common Event")).length,
+          recent: applySharedFilters(
+            allItems.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5))
+          ).length,
+        });
+      } catch {
+        // Keep previous totals if count refresh fails.
+      }
+    },
+    [debouncedSearchTerm, status, selectedDate]
+  );
+
+  const applySharedFilters = (items: UiFolderItem[]) => {
+    let nextItems = [...items];
+
+    if (status === "Linked") {
+      nextItems = nextItems.filter((item) => item.isLinked);
+    } else if (status === "Unlinked") {
+      nextItems = nextItems.filter((item) => !item.isLinked);
+    }
+
+    if (selectedDate) {
+      nextItems = nextItems.filter((item) => isSameCalendarDate(item.updatedAtRaw, selectedDate));
+    }
+
+    nextItems.sort((a, b) => {
+      const diff = getUpdatedTimestamp(b.updatedAtRaw) - getUpdatedTimestamp(a.updatedAtRaw);
+      if (diff !== 0) return diff;
+      return a.title.localeCompare(b.title);
+    });
+
+    return nextItems;
+  };
+
+  useEffect(() => {
+    if (viewMode !== "board") return;
+    loadBoardColumnTotals(debouncedSearchTerm);
+  }, [viewMode, debouncedSearchTerm, status, selectedDate, loadBoardColumnTotals]);
+
+  const filteredFolders = useMemo(() => {
+    const source = viewMode === "board" ? boardProjects : projects;
+    let items = [...source];
+
+    if (selectedTab === "Shoot folders") {
+      items = items.filter((item) => item.category !== "Common Event");
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
-    } else if (selectedTab === "Common Event") {
+    } else if (selectedTab === "Common events") {
       items = items.filter((item) => item.category === "Common Event");
     }
     // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
     //   items = [];
     // }
 
-    if (status === "Linked") {
-      items = items.filter((item) => item.isLinked);
-    } else if (status === "Unlinked") {
-      items = items.filter((item) => !item.isLinked);
-    }
+    return applySharedFilters(items);
+  }, [projects, boardProjects, selectedTab, status, selectedDate, viewMode]);
 
-    if (selectedDate) {
-      items = items.filter((item) => isSameCalendarDate(item.updatedAtRaw, selectedDate));
-    }
-
-    items.sort((a, b) => {
-      const diff = getUpdatedTimestamp(b.updatedAtRaw) - getUpdatedTimestamp(a.updatedAtRaw);
-      if (diff !== 0) return diff;
-      return a.title.localeCompare(b.title);
-    });
-
-    return items;
-  }, [projects, selectedTab, status, selectedDate]);
+  const boardColumns = useMemo(
+    () => [
+      {
+        id: "all-files",
+        title: "All folders",
+        items: applySharedFilters(boardProjects),
+        totalCount: boardColumnTotals.all,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
+      },
+      {
+        id: "shoot-folders",
+        title: "Shoot folders",
+        items: applySharedFilters(boardProjects.filter((folder) => folder.category !== "Common Event")),
+        totalCount: boardColumnTotals.shoot,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
+      },
+      {
+        id: "common-event",
+        title: "Common events",
+        items: applySharedFilters(boardProjects.filter((folder) => folder.category === "Common Event")),
+        totalCount: boardColumnTotals.common,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
+      },
+      {
+        id: "recent",
+        title: "Recent",
+        items: applySharedFilters(
+          boardProjects.filter((folder) => isRecentWithinHours(folder.updatedAtRaw, 24 * 5))
+        ),
+        totalCount: boardColumnTotals.recent,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
+      },
+    ],
+    [
+      boardProjects,
+      boardPagination.total,
+      boardPagination.hasNextPage,
+      boardLoadingMore,
+      boardColumnTotals.all,
+      boardColumnTotals.shoot,
+      boardColumnTotals.common,
+      boardColumnTotals.recent,
+      status,
+      selectedDate,
+    ]
+  );
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -271,13 +481,23 @@ export default function AdminFolderManagerPage() {
     }
   };
 
+  const topbarActions = (
+    <Button
+      onClick={() => setIsCreateCommonEventModalOpen(true)}
+      disabled={isCreatingEvent}
+      className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+    >
+      {isCreatingEvent ? "Creating..." : "Create Common Event"}
+    </Button>
+  );
+
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar pathname={pathname} actions={topbarActions} />
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
         <div className="mb-3 lg:mb-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-center">
+          <div className="flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-start">
             <div className="text-white w-full">
             <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">File Manager</h1>
             <p className="text-xs lg:text-sm text-white/70">
@@ -286,13 +506,6 @@ export default function AdminFolderManagerPage() {
             </div>
 
             <div className="w-full lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <Button
-              onClick={() => setIsCreateCommonEventModalOpen(true)}
-              disabled={isCreatingEvent}
-              className="w-full sm:w-auto bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-            >
-              {isCreatingEvent ? "Creating..." : "Create Common Event"}
-            </Button>
               <SortDateButton
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
@@ -323,7 +536,7 @@ export default function AdminFolderManagerPage() {
           <div className="w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base text-[#8F8F8F] bg-[#171717]/50 px-4 py-2 rounded-lg border border-white/5">
             <span className="whitespace-nowrap">Projects:</span>
             <p className="font-medium">
-              <span className="text-[#E8D1AB]">{pagination.total}</span>
+              <span className="text-[#E8D1AB]">{viewMode === "board" ? boardPagination.total : pagination.total}</span>
               <span className="mx-1">total</span>
             </p>
           </div>
@@ -344,70 +557,16 @@ export default function AdminFolderManagerPage() {
             <div className="flex gap-2 ">
               {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
 
-              <div className="md:hidden relative">
-                <Button
-                  onClick={() => setIsOpen((prev) => !prev)}
-                  className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
-                >
-                  {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
-                </Button>
-
-                {isOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
-                    <button
-                      onClick={() => {
-                        setViewMode("grid");
-                        setIsOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                        viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                      }`}
-                    >
-                      <Grid3X3 size={18} />
-                      Grid View
-                    </button>
-                    <button
-                      onClick={() => {
-                        setViewMode("list");
-                        setIsOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                        viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                      }`}
-                    >
-                      <List size={18} />
-                      List View
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
-                <Button
-                  onClick={() => setViewMode("grid")}
-                  className={`px-5 py-2.5 rounded-l-lg transition-colors ${
-                    viewMode === "grid"
-                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                      : "bg-transparent text-white/40 hover:text-white"
-                  }`}
-                >
-                  <Grid3X3 size={20} />
-                </Button>
-                <Button
-                  onClick={() => setViewMode("list")}
-                  className={`px-5 py-2.5 rounded-r-lg transition-colors ${
-                    viewMode === "list"
-                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                      : "bg-transparent text-white/40 hover:text-white"
-                  }`}
-                >
-                  <List size={20} />
-                </Button>
-              </div>
+              <FileManagerViewToggle
+                isOpen={isOpen}
+                setIsOpen={setIsOpen}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+              />
             </div>
           </div>
 
-          {loading ? (
+          {(viewMode === "board" ? boardLoadingInitial : loading) ? (
              <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
         }`}>
         <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
@@ -455,6 +614,51 @@ export default function AdminFolderManagerPage() {
                 />
               ))}
             </div>
+          ) : viewMode === "board" ? (
+            <FileManagerBoard
+              columns={boardColumns}
+              emptyMessage="No folders in this column"
+              onColumnEndReached={() => {
+                handleLoadMoreBoardProjects();
+              }}
+              getItemId={(folder) => String(folder.id)}
+              renderCard={(folder) => (
+                <FolderCard
+                  title={folder.title}
+                  fileCount={folder.fileCount}
+                  category={folder.category}
+                  isLinked={folder.isLinked}
+                  lastOpened={folder.lastOpened}
+                  userInitials={folder.userInitials}
+                  onOpenLinkModal={() => {
+                    setSelectedFolder(folder);
+                    setIsLinkModalOpen(true);
+                  }}
+                  href={folder.href}
+                  onOpen={() => router.push(folder.href || `${pathname}/${folder.id}`)}
+                  onDownload={async () => {
+                    setSelectedFolder(folder);
+                    try {
+                      const result = await fileManagerApi.getExternalFolderDownloadUrl(folder.id);
+                      if (result?.url) {
+                        window.open(result.url, "_blank", "noopener,noreferrer");
+                      }
+                    } catch (err: any) {
+                      toast.error(err?.message || "Failed to download workspace");
+                    }
+                  }}
+                  onDelete={() => {
+                    setSelectedFolder(folder);
+                    setIsDeleteModalOpen(true);
+                  }}
+                  onShare={() => {
+                    setSelectedFolder(folder);
+                    setIsShareModalOpen(true);
+                  }}
+                  onRename={() => toast.info("Workspace rename will be the next safe step.")}
+                />
+              )}
+            />
           ) : (
             <div className="flex flex-col gap-3">
               <div className="lg:hidden">
@@ -533,7 +737,7 @@ export default function AdminFolderManagerPage() {
             </div>
           )}
 
-          {!loading && !error && pagination.totalPages > 1 && (
+          {!loading && !error && viewMode !== "board" && pagination.totalPages > 1 && (
             <div className="mt-6 flex items-center justify-center">
               <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0E0E0E] p-2">
                 <button

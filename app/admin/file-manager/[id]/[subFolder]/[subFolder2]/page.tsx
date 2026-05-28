@@ -9,9 +9,7 @@ import {
   ArrowLeft,
   Download,
   FileVideo,
-  Grid3X3,
   Image as ImageIcon,
-  List,
   Loader2,
   Play,
   Search,
@@ -36,6 +34,9 @@ import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmMod
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
+import { FileCard } from "@/components/admin/file-manager/FileCard";
+import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
+import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
@@ -48,6 +49,18 @@ import { toast } from "sonner";
 const defaultImgSrc = "/images/misc/Data.png";
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
+const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
+const FILE_BOARD_ORDER = ["image", "video", "pdf", "doc", "ppt", "sheet", "zip", "file"];
+const FILE_BOARD_TITLES: Record<string, string> = {
+  image: "Images",
+  video: "Videos",
+  pdf: "PDFs",
+  doc: "Documents",
+  ppt: "Presentations",
+  sheet: "Sheets",
+  zip: "Archives",
+  file: "Other Files",
+};
 
 const tryDecodeURIComponent = (value: string) => {
   const normalizedValue = String(value || "").replace(/\+/g, " ");
@@ -136,7 +149,7 @@ export default function SubFolderDetailsPage() {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useViewMode();
+  const [viewMode, setViewMode] = useViewMode(ADMIN_FILE_MANAGER_VIEW_MODE_KEY);
 
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("");
@@ -221,6 +234,20 @@ export default function SubFolderDetailsPage() {
     [filteredData, visibleFileCount]
   );
   const hasMoreFiles = filteredData.length > visibleFileCount;
+
+  const fileBoardColumns = useMemo(() => {
+    const labels = Array.from(new Set(filteredData.map((file) => file.label || "file")));
+    const orderedLabels = [
+      ...FILE_BOARD_ORDER.filter((label) => labels.includes(label)),
+      ...labels.filter((label) => !FILE_BOARD_ORDER.includes(label)),
+    ];
+
+    return orderedLabels.map((label) => ({
+      id: label,
+      title: FILE_BOARD_TITLES[label] || `${String(label).charAt(0).toUpperCase()}${String(label).slice(1)} Files`,
+      items: filteredData.filter((file) => (file.label || "file") === label),
+    }));
+  }, [filteredData]);
 
   useEffect(() => {
     setVisibleFileCount(FILES_PAGE_SIZE);
@@ -474,69 +501,51 @@ export default function SubFolderDetailsPage() {
                       </Button>
                    )}
                   {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-                  <div className="md:hidden relative">
-                    <Button
-                      onClick={() => setIsOpen((prev) => !prev)}
-                      className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
-                    >
-                      {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
-                    </Button>
-
-                    {isOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
-                        <button
-                          onClick={() => {
-                            setViewMode("grid");
-                            setIsOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                            viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                          }`}
-                        >
-                          <Grid3X3 size={18} />
-                          Grid View
-                        </button>
-                        <button
-                          onClick={() => {
-                            setViewMode("list");
-                            setIsOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                            viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                          }`}
-                        >
-                          <List size={18} />
-                          List View
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
-                    <Button
-                      onClick={() => setViewMode("grid")}
-                      className={`px-5 py-2.5 rounded-l-lg transition-colors ${
-                        viewMode === "grid"
-                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                          : "bg-transparent text-white/40 hover:text-white"
-                      }`}
-                    >
-                      <Grid3X3 size={20} />
-                    </Button>
-                    <Button
-                      onClick={() => setViewMode("list")}
-                      className={`px-5 py-2.5 rounded-r-lg transition-colors ${
-                        viewMode === "list"
-                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                          : "bg-transparent text-white/40 hover:text-white"
-                      }`}
-                    >
-                      <List size={20} />
-                    </Button>
-                  </div>
+                  <FileManagerViewToggle
+                    isOpen={isOpen}
+                    setIsOpen={setIsOpen}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                  />
                 </div>
               </div>
 
-              {viewMode === "grid" ? (
+              {viewMode === "board" ? (
+                filteredData.length === 0 ? (
+                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                ) : (
+                  <FileManagerBoard
+                    columns={fileBoardColumns}
+                    emptyMessage="No files in this column"
+                    getItemId={(file) => String(file.id)}
+                    renderCard={(file) => (
+                      <FileCard
+                        file={{ ...file, previewUrl: previewUrls[file.id] }}
+                        onOpen={() => handleOpenFile(file)}
+                        onDownload={() => handleDownloadFile(file)}
+                        onDelete={() => {
+                          if (!canDelete) return;
+                          setSelectedFile(file);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        onShare={() => {
+                          setSelectedFile(file);
+                          setShareResource({
+                            resourceType: "file",
+                            externalId: String(projectId || ""),
+                            phase: phaseSlug === "post-production" ? "post" : "pre",
+                            filepath: file.filepath,
+                            label: file.title,
+                          });
+                          setIsShareModalOpen(true);
+                        }}
+                        isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                        onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                      />
+                    )}
+                  />
+                )
+              ) : viewMode === "grid" ? (
                 filteredData.length === 0 ? (
                   <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
