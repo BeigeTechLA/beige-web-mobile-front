@@ -1588,9 +1588,22 @@ export const adminApi = {
       };
     }
   },
-  addShootNote: async (bookingId: string | number, payload: { note: string }) => {
+  addShootNote: async (bookingId: string | number, payload: { note: string; attachments?: File[] }) => {
     try {
-      const response = await api.post(`admin/shoots/${bookingId}/notes`, payload);
+      const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
+      const requestPayload = hasFiles
+        ? (() => {
+            const formData = new FormData();
+            formData.append('note', payload.note || '');
+            payload.attachments?.forEach((file) => formData.append('attachments', file));
+            return formData;
+          })()
+        : { note: payload.note };
+      const response = await api.post(
+        `admin/shoots/${bookingId}/notes`,
+        requestPayload,
+        hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+      );
       return response.data;
     } catch (error: any) {
       console.error('Add Shoot Note Error:', error.response?.data || error.message);
@@ -1601,9 +1614,22 @@ export const adminApi = {
       };
     }
   },
-  replyToShootNote: async (bookingId: string | number, noteId: string | number, payload: { note: string }) => {
+  replyToShootNote: async (bookingId: string | number, noteId: string | number, payload: { note: string; attachments?: File[] }) => {
     try {
-      const response = await api.post(`admin/shoots/${bookingId}/notes/${noteId}/replies`, payload);
+      const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
+      const requestPayload = hasFiles
+        ? (() => {
+            const formData = new FormData();
+            formData.append('note', payload.note || '');
+            payload.attachments?.forEach((file) => formData.append('attachments', file));
+            return formData;
+          })()
+        : { note: payload.note };
+      const response = await api.post(
+        `admin/shoots/${bookingId}/notes/${noteId}/replies`,
+        requestPayload,
+        hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+      );
       return response.data;
     } catch (error: any) {
       console.error('Reply Shoot Note Error:', error.response?.data || error.message);

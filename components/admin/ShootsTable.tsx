@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
@@ -15,11 +15,6 @@ import {
   MoreVertical,
   CirclePlus,
   MessageCirclePlus,
-  X,
-  Smile,
-  Send,
-  MoreHorizontal,
-  ThumbsUp,
   AlertCircle,
 } from "lucide-react";
 import Lottie from "lottie-react";
@@ -29,7 +24,6 @@ import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import {
   Select,
   SelectContent,
@@ -42,6 +36,7 @@ import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { MissingFieldsModal } from "./MissingFieldsModal";
+import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { meetingsApi } from "@/lib/meetingsApi";
 // import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
@@ -75,6 +70,7 @@ interface ShootRecord {
   rawPrice: number; // Added for correct numerical sorting
   status: ShootStatus;
   hasAssignedCp: boolean;
+  notesCount: number;
   needsAttention?: {
     required: boolean;
     missing_fields: string[];
@@ -500,6 +496,7 @@ export const ShootsTable = ({
               ? project.assigned_crews
               : [];
           const hasAssignedCp = assignedCrews.length > 0 || selectedCrewIds.length > 0;
+          const notesCount = Number(project.notes_count || 0);
 
           return {
             id: `#${project.stream_project_booking_id}`,
@@ -520,6 +517,7 @@ export const ShootsTable = ({
             rawPrice: priceValue,
             status: statusLabel,
             hasAssignedCp,
+            notesCount: Number.isFinite(notesCount) ? notesCount : 0,
             needsAttention: project.needs_attention ? {
               required: missingFields.length > 0,
               missing_fields: missingFields
@@ -944,7 +942,7 @@ export const ShootsTable = ({
     <div className={`w-full overflow-hidden transition-all duration-300 ${activeViewMode === "list"
       ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
       : "bg-transparent border-transparent"
-      }`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+      }`}>
       {/* Table Header Controls */}
       {shouldRenderHeaderControls && (
         <div className={`flex flex-col lg:flex-row justify-end lg:items-center px-4 lg:px-6 pt-4 lg:pt-6 pb-0 gap-4`}>
@@ -1061,7 +1059,7 @@ export const ShootsTable = ({
           </div>
         </div>
       ) : processedShoots.length === 0 ? (
-        <div className={`py-20 text-center font-instrument-sans ${isDark ? "text-white/50" : "text-[#999]"}`}>No shoots found.</div>
+        <div className={`py-20 text-center ${isDark ? "text-white/50" : "text-[#999]"}`}>No shoots found.</div>
       ) : (
         <>
           {/* MOBILE ONLY VIEW */}
@@ -1321,7 +1319,7 @@ export const ShootsTable = ({
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={(e) => {
+                                    onClick={(e) => {
                                           e.stopPropagation();
                                           setOpenCardActionId(null);
                                           setChatOpen(shoot.id); 
@@ -1329,7 +1327,7 @@ export const ShootsTable = ({
                                         className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
                                       >
                                         <MessageCirclePlus size={16} />
-                                        Notes
+                                        Notes {shoot.notesCount > 0 ? `(${shoot.notesCount})` : ""}
                                       </button>
 
                                     <button
@@ -1433,12 +1431,24 @@ export const ShootsTable = ({
                                   e.stopPropagation();
                                   setChatOpen(shoot.id);
                                 }}
-                                className="p-2 rounded-full hover:bg-white/5 transition-colors"
+                                className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/5 transition-colors"
                               >
-                                <MessageCirclePlus
-                                  size={20}
-                                  className={`${isDark ? "text-[#888]" : "text-[#666]"} hover:text-white transition-colors`}
-                                />
+                                {shoot.notesCount > 0 ? (
+                                  <>
+                                    <span className={`${isDark ? "text-white" : "text-[#222]"} text-base leading-none`}>
+                                      {shoot.notesCount}
+                                    </span>
+                                    <MessageCirclePlus
+                                      size={18}
+                                      className={`${isDark ? "text-[#CFCFCF]" : "text-[#666]"} transition-colors`}
+                                    />
+                                  </>
+                                ) : (
+                                  <CirclePlus
+                                    size={18}
+                                    className={`${isDark ? "text-[#AFAFAF]" : "text-[#777]"} transition-colors`}
+                                  />
+                                )}
                               </button>
                             </div>
                           </div>
@@ -1734,578 +1744,3 @@ export const ShootsTable = ({
     </div >
   );
 };
-
-
-
-//Types############################################################################################################################################
-
-//import { useState, useRef, useEffect } from 'react';
-
-//import { X, ThumbsUp, Smile, Send, MoreHorizontal } from 'lucide-react';
-
-
-// Quick reactions for emoji picker
-const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢"] as const;
-const EMOJI_TO_REACTION: Record<string, string> = {
-  "👍": "like",
-  "❤️": "love",
-  "😂": "laugh",
-  "😮": "wow",
-  "😢": "sad",
-};
-const REACTION_TO_EMOJI: Record<string, string> = {
-  like: "👍",
-  love: "❤️",
-  laugh: "😂",
-  wow: "😮",
-  sad: "😢",
-};
-
-type NoteUiItem = {
-  id: number;
-  user: { name: string; avatar: string };
-  timestamp: { date: string; time: string };
-  message: string;
-  likes: number;
-  likedByMe: boolean;
-  myReactions: string[];
-  reactionCounts: Record<string, number>;
-  replies: Array<{
-    id: number;
-    user: { name: string; avatar: string };
-    timestamp: { date: string; time: string };
-    message: string;
-  }>;
-};
-
-const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
-
-const formatNoteTimestamp = (value: unknown) => {
-  try {
-    const parsed = typeof value === "string" ? new Date(value) : new Date();
-    if (Number.isNaN(parsed.getTime())) {
-      return { date: "Unknown date", time: "" };
-    }
-    return {
-      date: format(parsed, "MMM d, yyyy"),
-      time: format(parsed, "hh:mm a"),
-    };
-  } catch {
-    return { date: "Unknown date", time: "" };
-  }
-};
-
-const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
-  const list = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.notes)
-      ? payload.notes
-      : Array.isArray(payload?.data)
-        ? payload.data
-        : [];
-
-  return list.map((note: any) => {
-    const ts = formatNoteTimestamp(note?.created_at || note?.createdAt);
-    const replies = Array.isArray(note?.replies) ? note.replies : [];
-    const reactions = Array.isArray(note?.reactions) ? note.reactions : [];
-    const reactionCounts: Record<string, number> = {};
-    reactions.forEach((r: any) => {
-      const key = String(r?.reaction || "").toLowerCase().trim();
-      if (!key) return;
-      reactionCounts[key] = (reactionCounts[key] || 0) + 1;
-    });
-    if (!reactionCounts.like && Number(note?.like_count || 0) > 0) {
-      reactionCounts.like = Number(note.like_count);
-    }
-    const likes = Number(reactionCounts.like || 0);
-    const myReactions = Array.isArray(note?.my_reactions)
-      ? note.my_reactions.map((x: any) => String(x || "").toLowerCase()).filter(Boolean)
-      : [];
-
-    return {
-      id: Number(note?.note_id || note?.id || 0),
-      user: {
-        name: note?.user?.name || note?.created_by?.name || "Unknown User",
-        avatar: note?.user?.avatar || note?.created_by?.avatar || FALLBACK_AVATAR,
-      },
-      timestamp: ts,
-      message: note?.message || note?.note || "",
-      likes,
-      likedByMe: myReactions.includes("like") || Boolean(note?.reacted_by_me),
-      myReactions: myReactions || [],
-      reactionCounts: reactionCounts || {},
-      replies: replies.map((reply: any) => {
-        const replyTs = formatNoteTimestamp(reply?.created_at || reply?.createdAt);
-        return {
-          id: Number(reply?.note_id || reply?.id || 0),
-          user: {
-            name: reply?.user?.name || reply?.created_by?.name || "Unknown User",
-            avatar: reply?.user?.avatar || reply?.created_by?.avatar || FALLBACK_AVATAR,
-          },
-          timestamp: replyTs,
-          message: reply?.message || reply?.note || "",
-        };
-      }),
-    };
-  });
-};
-
-
-// Main Notes Drawer Component
-export default function NotesDrawer({
-  isOpen,
-  onClose,
-  shootId,
-  isDark = true
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  shootId?: string;
-  isDark?: boolean;
-}) {
-  const [notes, setNotes] = useState<NoteUiItem[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [replyingToId, setReplyingToId] = useState<number | null>(null);
-  const [loadingNotes, setLoadingNotes] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [showComposerEmojis, setShowComposerEmojis] = useState(false);
-  const [showReactionPickerId, setShowReactionPickerId] = useState<string | null>(null);
-  const composerEmojiRef = useRef<HTMLDivElement | null>(null);
-  const reactionPickerRef = useRef<HTMLDivElement | null>(null);
-  const bookingId = String(shootId || "").replace("#", "");
-
-  const fetchNotes = async () => {
-    if (!bookingId) return;
-    setLoadingNotes(true);
-    const response = await adminApi.getShootNotes(bookingId);
-    if (!response?.success) {
-      toast.error(response?.error || "Failed to fetch notes");
-      setLoadingNotes(false);
-      return;
-    }
-    setNotes(mapShootNotesToUi(response?.data));
-    setLoadingNotes(false);
-  };
-
-  useEffect(() => {
-    if (isOpen && bookingId) {
-      fetchNotes();
-    }
-  }, [isOpen, bookingId]);
-
-  // Click outside to close composer emoji picker
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (composerEmojiRef.current && !composerEmojiRef.current.contains(event.target as Node)) {
-        setShowComposerEmojis(false);
-      }
-    };
-
-    if (showComposerEmojis) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showComposerEmojis]);
-
-  // Click outside to close reaction picker
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (reactionPickerRef.current && !reactionPickerRef.current.contains(event.target as Node)) {
-        setShowReactionPickerId(null);
-      }
-    };
-
-    if (showReactionPickerId) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showReactionPickerId]);
-
-  // Focus input on open
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      const timer = setTimeout(() => inputRef.current?.focus(), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  // ESC to close
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        setShowComposerEmojis(false);
-        setShowReactionPickerId(null);
-      }
-    };
-    if (isOpen) document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, [isOpen, onClose]);
-
-  const handleSubmit = async () => {
-    const noteText = inputValue.trim();
-    if (!noteText || !bookingId) return;
-
-    setIsSubmitting(true);
-    const response = replyingToId
-      ? await adminApi.replyToShootNote(bookingId, replyingToId, { note: noteText })
-      : await adminApi.addShootNote(bookingId, { note: noteText });
-
-    if (!response?.success) {
-      toast.error(response?.error || (replyingToId ? "Failed to add reply" : "Failed to add note"));
-      setIsSubmitting(false);
-      return;
-    }
-
-    setInputValue('');
-    setReplyingToId(null);
-    await fetchNotes();
-    setIsSubmitting(false);
-  };
-
-  const appendEmojiToDraft = (emoji: string) => {
-    setInputValue((current) => `${current}${emoji}`);
-  };
-
-  const handleComposerEmojiClick = (emojiData: EmojiClickData) => {
-    appendEmojiToDraft(emojiData.emoji);
-  };
-
-  const handleReaction = async (messageId: string, emoji: string) => {
-    if (!bookingId) return;
-    const reaction = EMOJI_TO_REACTION[emoji] || "like";
-    const response = await adminApi.reactToShootNote(bookingId, messageId, { reaction });
-    if (!response?.success) {
-      toast.error(response?.error || "Reaction not supported by backend");
-      setShowReactionPickerId(null);
-      return;
-    }
-    await fetchNotes();
-    setShowReactionPickerId(null);
-  };
-
-  const handleDeleteNote = async (noteId: number) => {
-    if (!bookingId) return;
-    const response = await adminApi.deleteShootNote(bookingId, noteId);
-    if (!response?.success) {
-      toast.error(response?.error || "Failed to delete note");
-      return;
-    }
-    toast.success("Note deleted");
-    await fetchNotes();
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="fixed inset-0 backdrop-blur-[3px] z-40"
-            onClick={onClose}
-          />
-
-          {/* Drawer Panel */}
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full w-full sm:w-[540px] bg-[#0a0a0a] z-50 flex flex-col shadow-2xl"
-          >
-            {/* Header */}
-            <div className="sticky top-0 z-10 bg-[#0a0a0a] px-7 py-6 flex items-center justify-between border-b border-white/10">
-              <h2 className="text-xl font-bold text-white tracking-tight">Notes</h2>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all"
-              >
-                <X size={18} strokeWidth={2.5} />
-              </button>
-            </div>
-
-            {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              {loadingNotes ? (
-                <div className="py-8 flex items-center justify-center text-white/60 text-sm">Loading notes...</div>
-              ) : null}
-              {notes.map((note) => (
-                <NoteCard
-                  key={note.id}
-                  note={note}
-                  isDark={isDark}
-                  onReact={handleReaction}
-                  onReply={(id) => setReplyingToId(id)}
-                  onDelete={handleDeleteNote}
-                  showReactionPickerId={showReactionPickerId}
-                  setShowReactionPickerId={setShowReactionPickerId}
-                  reactionPickerRef={reactionPickerRef}
-                />
-              ))}
-            </div>
-
-            {/* Bottom Composer */}
-            <div className="sticky bottom-0 bg-[#0a0a0a] px-6 py-5 border-t border-white/10">
-              {replyingToId ? (
-                <div className="mb-2 flex items-center justify-between text-xs text-white/60">
-                  <span>Replying to note #{replyingToId}</span>
-                  <button className="text-white/70 hover:text-white" onClick={() => setReplyingToId(null)}>Cancel</button>
-                </div>
-              ) : null}
-              <div className="flex items-center gap-3 bg-[#161616] rounded-full px-5 py-3.5 border border-white/5 focus-within:border-white/10 transition-colors relative">
-                <button
-                  className="text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
-                  onClick={() => setShowComposerEmojis((current) => !current)}
-                >
-                  <Smile size={20} />
-                </button>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                  placeholder="Write a Note.."
-                  className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 outline-none"
-                />
-                <button
-                  onClick={handleSubmit}
-                  className={`flex-shrink-0 transition-colors ${inputValue.trim()
-                    ? 'text-[#E8D1AB] hover:text-[#dccaa9]'
-                    : 'text-white/30 cursor-not-allowed'
-                    }`}
-                  disabled={!inputValue.trim() || isSubmitting}
-                >
-                  <Send size={16} />
-                </button>
-
-                {showComposerEmojis && (
-                  <div
-                    ref={composerEmojiRef}
-                    className={`absolute bottom-[calc(100%+12px)] right-4 z-30 w-[320px] max-w-[calc(100%-2rem)] overflow-hidden rounded-2xl border shadow-2xl lg:right-8 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-white"
-                      }`}
-                  >
-                    <EmojiPicker
-                      onEmojiClick={handleComposerEmojiClick}
-                      theme={isDark ? Theme.DARK : Theme.LIGHT}
-                      width="100%"
-                      height={340}
-                      searchPlaceholder="Search emojis..."
-                      previewConfig={{ showPreview: false }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
-// Note Card Component
-function NoteCard({
-  note,
-  isDark = true,
-  onReact,
-  onReply,
-  onDelete,
-  showReactionPickerId,
-  setShowReactionPickerId,
-  reactionPickerRef
-}: {
-  note: NoteUiItem;
-  isDark?: boolean;
-  onReact?: (messageId: string, emoji: string) => void;
-  onReply?: (noteId: number) => void;
-  onDelete?: (noteId: number) => void;
-  showReactionPickerId: string | null;
-  setShowReactionPickerId: (id: string | null) => void;
-  reactionPickerRef: React.RefObject<HTMLDivElement>;
-}) {
-  const hasReplies = note.replies && note.replies.length > 0;
-
-  return (
-    <div className="bg-[#161616] rounded-[22px] p-5 border border-white/5 relative">
-      {/* Parent Note */}
-      <div className="flex gap-4">
-        <img
-          src={note.user.avatar}
-          alt={note.user.name}
-          className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-sm font-semibold text-white truncate">{note.user.name}</span>
-              <span className="text-xs text-white/30 whitespace-nowrap">
-                {note.timestamp.date} • {note.timestamp.time}
-              </span>
-            </div>
-            <button
-              className="text-white/30 hover:text-red-400 transition-colors flex-shrink-0 -mr-1 p-1"
-              onClick={() => onDelete?.(note.id)}
-            >
-              <MoreHorizontal size={16} />
-            </button>
-          </div>
-
-          <p className="text-sm text-white/60 leading-relaxed mb-3">
-            {note.message}
-          </p>
-
-          {/* Action Row */}
-          <div className="flex items-center gap-1 relative">
-            <button
-              className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${note.likedByMe || note.likes > 0 ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white/70'
-                }`}
-              onClick={() => onReact?.(note.id.toString(), "👍")}
-            >
-              <ThumbsUp
-                size={14}
-                strokeWidth={2}
-                className={note.likedByMe ? "fill-current" : ""}
-              />
-              {note.likes > 0 ? note.likes : 'Like'}
-            </button>
-            <span className="w-px h-3 bg-white/10" />
-            <button
-              className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
-              onClick={() => onReply?.(note.id)}
-            >
-              Reply
-            </button>
-            <span className="w-px h-3 bg-white/10" />
-            <button
-              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5 relative"
-              onClick={() => setShowReactionPickerId((current) => (current === note.id.toString() ? null : note.id.toString()))}
-            >
-              <Smile size={14} strokeWidth={2} />
-              React
-            </button>
-
-            {/* Reaction Picker Popup */}
-            {showReactionPickerId === note.id.toString() && (
-              <div
-                ref={reactionPickerRef}
-                className={`absolute bottom-full left-0 mb-2 z-20 flex items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
-                  }`}
-              >
-                {QUICK_REACTIONS.map((emoji) => (
-                  <button
-                    key={`${note.id}-picker-${emoji}`}
-                    type="button"
-                    onClick={() => {
-                      onReact?.(note.id.toString(), emoji);
-                      setShowReactionPickerId(null);
-                    }}
-                    className="rounded-full px-1.5 text-lg transition hover:scale-110"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {Object.keys(note.reactionCounts || {}).length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {Object.entries(note.reactionCounts || {}).map(([reaction, count]) => {
-                const emoji = REACTION_TO_EMOJI[reaction] || "🙂";
-                const reactedByMe = note.myReactions.includes(reaction);
-                return (
-                  <button
-                    key={`${note.id}-${reaction}`}
-                    type="button"
-                    onClick={() => onReact?.(note.id.toString(), emoji)}
-                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
-                      reactedByMe
-                        ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
-                        : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                    }`}
-                  >
-                    {emoji} {count}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Thread Replies */}
-      {hasReplies && (
-        <div className="mt-4 ml-5 pl-5 border-l border-white/10 space-y-3">
-          {note.replies.map((reply) => (
-            <NoteReply key={reply.id} reply={reply} isDark={isDark} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Thread Reply Component
-function NoteReply({
-  reply,
-  isDark = true
-}: {
-  reply: NoteUiItem["replies"][0];
-  isDark?: boolean;
-}) {
-  return (
-    <div className="bg-[#161616] rounded-[18px] p-4 border border-white/5">
-      <div className="flex gap-3">
-        <img
-          src={reply.user.avatar}
-          alt={reply.user.name}
-          className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-semibold text-white truncate">{reply.user.name}</span>
-              <span className="text-xs text-white/30 whitespace-nowrap">
-                {reply.timestamp.date} • {reply.timestamp.time}
-              </span>
-            </div>
-            <button className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 -mr-1 p-1">
-              <MoreHorizontal size={14} />
-            </button>
-          </div>
-
-          <p className="text-sm text-white/60 leading-relaxed mb-2.5">
-            {reply.message}
-          </p>
-
-          {/* Action Row - Smaller */}
-          <div className="flex items-center gap-1">
-            <button className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
-              Like
-            </button>
-            <span className="w-px h-2.5 bg-white/10" />
-            <button className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
-              Reply
-            </button>
-            <span className="w-px h-2.5 bg-white/10" />
-            <button className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
-              <Smile size={13} strokeWidth={2} />
-              React
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
