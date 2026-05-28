@@ -1932,7 +1932,7 @@ export default function QuoteDetailsPage({
                       {formatStatusLabel(displayStatus)}
                     </span>
                     {signatureBase64 && (
-                      <div className="mt-3 flex flex-col items-end gap-2">
+                      <div className="mt-3 flex flex-col items-center lg:items-end gap-2">
                         <div className="border border-white/10 rounded-lg p-2 bg-white">
                           <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
                         </div>

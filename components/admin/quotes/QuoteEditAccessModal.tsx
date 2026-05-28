@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 export type QuoteEditAccessModalProps = {
   open: boolean;
@@ -87,6 +88,7 @@ export default function QuoteEditAccessModal({
   const [reason, setReason] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const { isDark } = useResolvedTheme();
 
   useEffect(() => {
     if (!open) {
@@ -111,15 +113,20 @@ export default function QuoteEditAccessModal({
 
   return (
     <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/82 p-3 backdrop-blur-md lg:p-5">
-      <div className="relative max-h-[84vh] w-full max-w-[840px] overflow-y-auto rounded-[16px] border border-[rgba(255,255,255,0.22)] bg-[#000000] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]">
-        <div className="flex items-start justify-between gap-5 border-b border-[rgba(255,255,255,0.22)] px-5 py-4 lg:px-7 lg:py-5">
-          <h2 className="pr-4 text-[20px] font-semibold leading-[1.06] text-white lg:text-[28px]">
+      <div className={`relative max-h-[84vh] w-full max-w-[840px] overflow-y-auto rounded-[16px] border transition-colors duration-200 ${isDark
+        ? "border-[#2E2E2E] bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
+        : "border-[#D7D7D7] bg-white text-black shadow-2xl"
+        }`}>
+
+        {/* Header Block Panel */}
+        <div className={`flex items-center justify-between gap-5 border-b px-5 py-4 lg:px-7 lg:py-5 ${isDark ? "border-[#2E2E2E]" : "border-[#D7D7D7]"}`}>
+          <h2 className={`pr-4 text-[20px] font-semibold leading-[1.06] lg:text-[28px] ${isDark ? "text-white" : "text-black"}`}>
             Restricted Quote Edit Access
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="mt-1 flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-[#2E2725] text-white transition-colors hover:bg-[#39312E] lg:h-[54px] lg:w-[54px]"
+            className={`mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors lg:h-[54px] lg:w-[54px] ${isDark ? "bg-[#2E2725] text-white hover:bg-[#39312E]" : "bg-[#F4F5F7] text-black hover:bg-[#E5E7EB]"}`}
             aria-label="Close modal"
           >
             <X size={17} strokeWidth={2.1} className="lg:h-6 lg:w-6" />
@@ -127,22 +134,27 @@ export default function QuoteEditAccessModal({
         </div>
 
         <div className="space-y-4 lg:space-y-6 px-5 py-4 lg:px-7 lg:py-5">
-          <div className="flex items-start gap-4 rounded-[12px] border border-[#E24D4D] bg-[#261010] px-4 py-3.5 lg:px-5 lg:py-4">
-            <div className="mt-1 shrink-0 text-[#FF6B6B]">
+          {/* Operational Critical Risk Notice */}
+          <div className={`flex items-start gap-4 rounded-xl border px-4 py-3.5 lg:px-5 lg:py-4 ${isDark ? "border-[#E24D4D] bg-[#261010]" : "border-red-300 bg-red-50"
+            }`}>
+            <div className={isDark ? "mt-1 shrink-0 text-[#FF6B6B]" : "mt-1 shrink-0 text-red-600"}>
               <AlertTriangle size={22} strokeWidth={1.9} className="lg:h-8 lg:w-8" />
             </div>
             <div className="min-w-0">
-              <p className="text-[16px] font-medium text-white lg:text-[17px]">
+              <p className={`text-base font-medium lg:text-lg ${isDark ? "text-white" : "text-red-950"}`}>
                 Operational Risk Notice
               </p>
-              <p className="mt-1 text-[11px] leading-5 text-[#B9A9A9] lg:text-[12px] lg:leading-5">
+              <p className={`mt-1 text-xs leading-5 lg:text-xs lg:leading-5 ${isDark ? "text-[#B9A9A9]" : "text-red-800"
+                }`}>
                 Any changes can affect shoot execution, assigned creators, logistics, and client
                 communication
               </p>
             </div>
           </div>
 
-          <div className="grid overflow-hidden rounded-[14px] border border-[#373737] bg-[#151515] lg:grid-cols-4">
+          {/* Reference Meta Overview Columns */}
+          <div className={`grid overflow-hidden rounded-2xl border lg:grid-cols-4 ${isDark ? "border-[#373737] bg-[#151515]" : "border-[#D7D7D7] bg-[#FAFAFA]"
+            }`}>
             {[
               { icon: ClipboardList, label: "Quote ID:", value: quoteNumber || "Pending" },
               { icon: UserRound, label: "Client Name:", value: clientName || "Client" },
@@ -156,19 +168,20 @@ export default function QuoteEditAccessModal({
             ].map(({ icon: Icon, label, value, accent }, index) => (
               <div
                 key={label}
-                className={`flex lg:flex-col items-start gap-3 p-4 lg:min-h-[116px] lg:px-5 lg:py-4 ${
-                  index < 3 ? "border-b border-[#373737] lg:border-b-0 lg:border-r" : ""
-                }`}
+                className={`flex lg:flex-col items-start gap-3 p-4 lg:min-h-[116px] lg:px-5 lg:py-4 ${index < 3
+                  ? isDark ? "border-b border-[#373737] lg:border-b-0 lg:border-r" : "border-b border-[#D7D7D7] lg:border-b-0 lg:border-r"
+                  : ""
+                  }`}
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#EED4A7] text-black lg:h-[40px] lg:w-[40px]">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-[8px] lg:h-[40px] lg:w-[40px] ${isDark ? "bg-[#EED4A7] text-black" : "bg-[#FFF7E6] text-[#B38F43] border border-[#EED4A7]"
+                  }`}>
                   <Icon size={16} strokeWidth={1.85} className="lg:h-5 lg:w-5" />
                 </div>
                 <div className="lg:mt-3 min-w-0">
-                  <p className="text-[12px] leading-5 text-[#9E9EA4] lg:text-[13px]">{label}</p>
+                  <p className={`text-xs leading-5 lg:text-sm ${isDark ? "text-[#9E9EA4]" : "text-[#727272]"}`}>{label}</p>
                   <p
-                    className={`mt-1 break-words text-[16px] font-medium leading-[1.18] lg:text-[16px] ${
-                      accent ? "text-[#FF7B86]" : "text-white"
-                    }`}
+                    className={`mt-1 break-words text-base font-medium leading-[1.18] lg:text-base ${accent ? "text-[#FF7B86]" : isDark ? "text-white" : "text-black"
+                      }`}
                   >
                     {value}
                   </p>
@@ -178,20 +191,21 @@ export default function QuoteEditAccessModal({
           </div>
 
           <div
-            className={`rounded-[14px] border bg-[#000000] px-5 pb-4 pt-0 lg:px-6 lg:pb-4 ${
-              reasonError ? "border-[#E24D4D]" : "border-[#5A5A5F]"
-            }`}
+            className={`rounded-2xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${reasonError
+              ? "border-[#E24D4D]"
+              : isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"
+              }`}
           >
-            <div className="-translate-y-3 px-2 text-[13px] text-[#A7A7AD] lg:text-[14px]">
-              <span className="bg-[#000000] px-3">
-                Reason to Edit Quote <span className="text-[#EED4A7]">(Required)</span>
+            <div className="absolute -top-3 left-3 px-2 text-xs lg:text-sm z-10">
+              <span className={`px-2 font-medium ${isDark ? "bg-black text-[#A7A7AD]" : "bg-white text-[#727272]"}`}>
+                Reason to Edit Quote <span className={isDark ? "text-[#EED4A7]" : "text-[#B38F43]"}>*(Required)</span>
               </span>
             </div>
             <textarea
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               placeholder="Enter reason for urgent quote update..."
-              className="min-h-[90px] w-full resize-none border-0 bg-transparent px-0 pt-1 text-[14px] text-white outline-none placeholder:text-[#505057] lg:min-h-[100px] lg:text-[15px]"
+              className={`min-h-[90px] w-full resize-none border-0 bg-transparent px-0 pt-2 text-sm outline-none lg:min-h-[100px] lg:text-base ${isDark ? "text-white placeholder:text-[#505057]" : "text-black placeholder:text-[#9F9FA9]"}`}
             />
           </div>
 
@@ -202,17 +216,18 @@ export default function QuoteEditAccessModal({
             aria-pressed={isConfirmed}
           >
             <span
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border transition-colors lg:h-10 lg:w-10 ${
-                isConfirmed
-                  ? "border-[#C9AE7C] bg-[#111111] text-[#EED4A7]"
-                  : checkboxError
-                    ? "border-[#E24D4D] bg-[#000000] text-transparent"
-                    : "border-[#9C8967] bg-[#000000] text-transparent"
-              }`}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors lg:h-10 lg:w-10 ${isConfirmed
+                ? isDark ? "border-[#C9AE7C] bg-[#111111] text-[#EED4A7]" : "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                : checkboxError
+                  ? "border-[#E24D4D] bg-transparent text-transparent"
+                  : isDark
+                    ? "border-[#9C8967] bg-transparent text-transparent group-hover:border-[#C9AE7C]"
+                    : "border-[#D7D7D7] bg-transparent text-transparent group-hover:border-[#B38F43]"
+                }`}
             >
               {isConfirmed ? <Check size={18} strokeWidth={2.5} /> : null}
             </span>
-            <span className="text-[14px] leading-6 text-[#9F9FA4] lg:text-[16px]">
+            <span className={`text-sm leading-6 lg:text-base ${isDark ? "text-[#9F9FA4]" : "text-[#727272]"}`}>
               I confirm Ops team / CP availability has been reviewed.
             </span>
           </button>
@@ -222,7 +237,10 @@ export default function QuoteEditAccessModal({
               type="button"
               variant="outline"
               onClick={onClose}
-              className="h-[44px] min-w-[140px] rounded-[12px] border-[#4A4A4F] bg-[#141414] px-5 text-[14px] font-semibold text-white hover:bg-[#1A1A1A] lg:h-[46px] lg:min-w-[150px] lg:text-[15px]"
+              className={`h-11 min-w-[140px] rounded-xl border px-5 text-sm font-semibold transition-colors lg:h-[46px] lg:min-w-[150px] lg:text-base ${isDark
+                ? "border-[#4A4A4F] bg-[#141414] text-white hover:bg-[#1A1A1A]"
+                : "border-[#D7D7D7] bg-white text-black hover:bg-[#F4F5F7]"
+                }`}
             >
               Cancel
             </Button>
@@ -240,7 +258,7 @@ export default function QuoteEditAccessModal({
                   opsReviewConfirmed: isConfirmed,
                 });
               }}
-              className="h-[44px] min-w-[190px] rounded-[12px] bg-[#EED4A7] px-5 text-[14px] font-semibold text-black hover:bg-[#EED4A7]/92 lg:h-[46px] lg:min-w-[220px] lg:text-[15px]"
+              className="h-11 min-w-[190px] rounded-xl bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:h-[46px] lg:min-w-[220px] lg:text-base"
             >
               Proceed to Edit Quote
             </Button>
