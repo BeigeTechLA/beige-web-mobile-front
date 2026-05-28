@@ -1424,14 +1424,10 @@ export const ShootsTable = ({
                 </thead>
                 <tbody>
                   {currentShoots.map((shoot, idx) => {
-                    const isMissingDate = !shoot.date || shoot.date === "No Date";
-                    const needsAttention = shoot.needsAttention?.required;
                     const missingFields = shoot.needsAttention?.missing_fields || [];
                     const hasMissingFields = missingFields.length > 0;
-                    const isMissingLocation = !shoot.location;
-                    const isMissingInfo = isMissingDate || isMissingLocation || Boolean(needsAttention);
                     const borderClass = isDark ? "border-[#333333]" : "border-[#E5E5E5]";
-                    const rowBgClass = isDark ? "hover:bg-white/[0.02]" : "hover:bg-zinc-50";
+                    const rowBgClass = isDark ? "bg-[#111111] hover:bg-[#171717]" : "bg-white hover:bg-zinc-50";
 
                     const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
 
@@ -1439,10 +1435,7 @@ export const ShootsTable = ({
                       <tr
                         key={idx}
                         onClick={() => handleRowClick(shoot.id)}
-                        className={`group border-b transition-colors last:border-0 cursor-pointer relative ${isMissingInfo
-                          ? (isDark ? "bg-red-500/[0.03] border-red-500/20 hover:bg-red-500/[0.08]" : "bg-red-50/50 border-red-100 hover:bg-red-50")
-                          : (isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`)
-                          }`}
+                        className={`group border-b transition-colors last:border-0 cursor-pointer relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
                         <td className={`py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                           <div className="flex items-center gap-2">
@@ -1462,7 +1455,7 @@ export const ShootsTable = ({
                             <div>
                               <p className={`font-medium text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#000000]"}`}>{shoot.customerName}</p>
                               <div className="flex items-center gap-2 mt-1.5 ">
-                                <p className={`text-xs ${isDark ? "text-[#666666]" : "text-[#999]"} ${isMissingDate ? "text-red-400 font-medium" : ""}`}>{shoot.date}</p>
+                                <p className={`text-xs ${isDark ? "text-[#666666]" : "text-[#999]"}`}>{shoot.date}</p>
                               </div>
                             </div>
                           </div>
