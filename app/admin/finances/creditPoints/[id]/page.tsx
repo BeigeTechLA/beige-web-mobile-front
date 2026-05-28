@@ -85,8 +85,14 @@ const pickFirstNumber = (source: Record<string, unknown>, keys: string[]) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const formatNumber = (value: number) =>
-  new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+const formatNumber = (value: number) => {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const hasFraction = Math.abs(safeValue % 1) > 0;
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(safeValue);
+};
 
 const formatDisplayDate = (value?: string) => {
   if (!value) return "-";
@@ -234,7 +240,12 @@ export default function AdminCreditPointDetailsPage() {
       try {
         setLoading(true);
 
-        const routeId = decodeURIComponent(params.id || "").trim();
+        let routeId = "";
+        try {
+          routeId = decodeURIComponent(params.id || "").trim();
+        } catch {
+          routeId = String(params.id || "").trim();
+        }
         const queryGuestEmail = (searchParams.get("guest_email") || "").trim();
 
         let response: { error?: string; data?: unknown } | null = null;
@@ -262,7 +273,16 @@ export default function AdminCreditPointDetailsPage() {
         }
 
         setUserDetails(mapUserDetails(response.data, params.id));
-      } catch (error) {
+      } catch (error: any) {
+        const message = String(error?.message || "").toLowerCase();
+        const isAbortLike =
+          error?.name === "AbortError" ||
+          error?.code === "ERR_CANCELED" ||
+          message.includes("aborted") ||
+          message.includes("canceled");
+        if (isAbortLike) {
+          return;
+        }
         console.error("Failed to fetch credit points user details:", error);
         toast.error("Failed to fetch credit points user details");
         setUserDetails(null);

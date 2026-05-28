@@ -73,8 +73,14 @@ const pickFirstNumber = (source: Record<string, unknown>, keys: string[]) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const formatPoints = (value: number) =>
-  `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)} Points`;
+const formatPoints = (value: number) => {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const hasFraction = Math.abs(safeValue % 1) > 0;
+  return `${new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(safeValue)} Points`;
+};
 
 const pickFirstClientValue = (
   ...values: Array<string | number | null | undefined>
