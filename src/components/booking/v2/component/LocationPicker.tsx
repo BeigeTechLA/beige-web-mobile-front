@@ -26,6 +26,24 @@ export const darkThemeColors = {
   buttonSecondaryBgHover: "#ffffff4d",
 };
 
+export const lightThemeColors = {
+  inputBg: "#FFFFFF",
+  inputBorder: "#00000026",          // Clean border color (equivalent to border-[#000000]/15)
+  inputBorderHover: "#0000004d",     // Subtle hover state enhancement
+  labelText: "#00000099",            // Medium contrast text (60% opacity)
+  primaryText: "#171717",            // Deep charcoal for strong readability
+  secondaryText: "#00000080",          // Muted text (50% opacity)
+  paperBg: "#F9F9F9",                // Slightly off-white for structural cards/dropdowns
+  divider: "#0000001a",              // Subtle break line (equivalent to border-[#000000]/10)
+  accent: "#E8D1AB",                 // Preserved brand accent
+  accentHover: "#dcb98a",            // Preserved brand accent hover
+  buttonPrimaryText: "#171717",      // Legible dark text over the warm gold accent
+  buttonPrimaryBg: "#E8D1AB",        // Preserved brand primary CTA
+  buttonPrimaryBgHover: "#dcb98a",   // Preserved brand primary CTA hover
+  buttonSecondaryText: "#171717",    // Dark text for light secondary buttons
+  buttonSecondaryBg: "#0000000d",    // Very light neutral background (5% opacity)
+  buttonSecondaryBgHover: "#0000001a", // Slightly deeper hover state (10% opacity)
+};
 
 export interface LocationPickerColors {
   inputBg: string;

@@ -31,7 +31,8 @@ import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { meetingsApi } from "@/lib/meetingsApi";
-import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
+// import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
+import { useDebounce } from "@/hooks/use-debounce";
 
 type ShootStatus =
   | "Booked"
@@ -49,8 +50,11 @@ type ShootStatus =
 interface ShootRecord {
   id: string;
   customerName: string;
+  email: string;
+  phone: string;
   initials: string;
   date: string;
+  location: string;
   rawDate: number; // Added for correct chronological sorting
   category: string;
   price: string;
@@ -192,6 +196,17 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   7: "Cancelled",
 };
 
+const extractPhoneNumber = (project: any) => {
+  const directPhone = project?.phone || project?.Phone;
+  if (typeof directPhone === "string" && directPhone.trim()) {
+    return directPhone.trim().replace(/[^\d+]/g, "");
+  }
+
+  const description = typeof project?.description === "string" ? project.description : "";
+  const phoneMatch = description.match(/Phone:\s*([+\d][\d\s()-]*)/i);
+  return phoneMatch ? phoneMatch[1].replace(/[^\d+]/g, "") : "";
+};
+
 interface ShootsTableProps {
   externalSelectedDate?: Date | null;
   detailBasePath?: string;
@@ -265,6 +280,7 @@ export const ShootsTable = ({
   const [openCardActionId, setOpenCardActionId] = useState<string | null>(null);
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   // Filtering states
   const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
@@ -389,6 +405,10 @@ export const ShootsTable = ({
   }, [externalSelectedDate]);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery]);
+
+  useEffect(() => {
     let isCancelled = false;
     const fetchId = ++latestFetchIdRef.current;
 
@@ -423,6 +443,7 @@ export const ShootsTable = ({
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as ShootStatus;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+          const extractedPhone = extractPhoneNumber(project);
 
           // Sorting Helpers
           const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
@@ -443,8 +464,11 @@ export const ShootsTable = ({
           return {
             id: `#${project.stream_project_booking_id}`,
             customerName,
+            email: project.guest_email || "", 
+            phone: extractedPhone,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            location: project.event_location || project.location || "",
             rawDate: dateObj.getTime(),
             category: getShootCategoryLabel(project),
             price: resolvedPriceSource
@@ -539,10 +563,15 @@ export const ShootsTable = ({
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
     // 1. Filter
+    const normalizedSearchQuery = debouncedSearchQuery.toLowerCase();
+    const normalizedPhoneQuery = normalizedSearchQuery.replace(/[^\d+]/g, "");
     let result = shoots.filter((shoot) => {
+      const normalizedPhone = shoot.phone.toLowerCase();
       const matchesSearch =
-        shoot.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        shoot.id.toLowerCase().includes(searchQuery.toLowerCase());
+        shoot.customerName.toLowerCase().includes(normalizedSearchQuery) ||
+        shoot.id.toLowerCase().includes(normalizedSearchQuery) || 
+        shoot.email.toLowerCase().includes(normalizedSearchQuery) ||
+        (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery)); 
       if (!matchesSearch) return false;
 
       if (statusFilter === "all") return true;
@@ -598,7 +627,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
+  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -1053,7 +1082,7 @@ export const ShootsTable = ({
             <div className="relative block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden no-scrollbar pb-16 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden pb-6 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
@@ -1063,7 +1092,7 @@ export const ShootsTable = ({
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
+                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
                       <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
@@ -1227,8 +1256,13 @@ export const ShootsTable = ({
                             <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
                             {/* FOOTER */}
-                            <div className="flex items-center p-5">
+                            <div className="flex items-center justify-between p-5">
                               <StatusBadge status={shoot.status} />
+                              {(!shoot.date || shoot.date === "No Date" || !shoot.location) && (
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
+                                  Missing Info
+                                </span>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1237,6 +1271,7 @@ export const ShootsTable = ({
                   ))}
                 </div>
               </div>
+              {/*
               <BoardMiniMapNavigator
                   boardRef={gridScrollRef}
                   segmentCount={kanbanColumns.length}
@@ -1244,6 +1279,7 @@ export const ShootsTable = ({
                   visible={activeViewMode === "grid"}
                   syncKey={kanbanColumns.map((column) => `${column.status}:${column.items.length}`).join("|")}
               />
+              */}
             </div>
           ) : (
             <div className="hidden lg:block w-full overflow-x-auto">
@@ -1266,43 +1302,64 @@ export const ShootsTable = ({
                     <th className="py-5 px-6 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {currentShoots.map((shoot, idx) => (
-                    <tr
-                      key={idx}
-                      onClick={() => handleRowClick(shoot.id)}
-                      className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
-                    >
-                      <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
-                      <td className="py-5 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
-                            {shoot.initials}
+                <tbody>                  {currentShoots.map((shoot, idx) => {
+                    const isMissingDate = !shoot.date || shoot.date === "No Date";
+                    const isMissingLocation = !shoot.location;
+                    const isMissingInfo = isMissingDate || isMissingLocation;
+                    
+                    let missingMsg = "";
+                    if (isMissingDate && isMissingLocation) missingMsg = "Date & Location missing";
+                    else if (isMissingDate) missingMsg = "Date missing";
+                    else if (isMissingLocation) missingMsg = "Location missing";
+
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={() => handleRowClick(shoot.id)}
+                        className={`group border-b transition-colors last:border-0 cursor-pointer relative ${
+                          isMissingInfo 
+                            ? (isDark ? "bg-red-500/[0.03] border-red-500/20 hover:bg-red-500/[0.08]" : "bg-red-50/50 border-red-100 hover:bg-red-50")
+                            : (isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50")
+                        }`}
+                      >
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
+                        <td className="py-5 px-6 relative">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
+                              {shoot.initials}
+                            </div>
+                            <div>
+                              <p className={`font-medium text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#000000]"}`}>{shoot.customerName}</p>
+                              <div className="flex items-center gap-2 mt-1.5 ">
+                                <p className={`text-xs ${isDark ? "text-[#666666]" : "text-[#999]"} ${isMissingDate ? "text-red-400 font-medium" : ""}`}>{shoot.date}</p>
+                                {isMissingInfo && (
+                                  <span className={`opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
+                                    {missingMsg}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <p className={`font-medium text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#000000]"}`}>{shoot.customerName}</p>
-                            <p className={`text-xs mt-1.5 ${isDark ? "text-[#666666]" : "text-[#999]"}`}>{shoot.date}</p>
+                        </td>
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.price}</td>
+                        <td className="py-5 px-6">
+                          <StatusBadge status={shoot.status} />
+                        </td>
+                        <td className="py-5 px-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={(e) => handleDeleteClick(e, shoot.id)}
+                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                            <ChevronRight size={20} className={isDark ? "text-[#666666]" : "text-[#999]"} />
                           </div>
-                        </div>
-                      </td>
-                      <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
-                      <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.price}</td>
-                      <td className="py-5 px-6">
-                        <StatusBadge status={shoot.status} />
-                      </td>
-                      <td className="py-5 px-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={(e) => handleDeleteClick(e, shoot.id)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                          <ChevronRight size={20} className={isDark ? "text-[#666666]" : "text-[#999]"} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div >

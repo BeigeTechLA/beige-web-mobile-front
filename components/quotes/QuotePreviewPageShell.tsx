@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState, useEffect, useRef} from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Check, Copy, Loader2, Send } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -188,10 +188,10 @@ export default function QuotePreviewPageShell({
             ? queryQuoteKey
               ? await fetchQuotePreviewByKey(queryQuoteKey)
               : {
-                  success: false,
-                  error:
-                    "Legacy quote preview links using quoteId are no longer supported. Request a new secure quote link.",
-                }
+                success: false,
+                error:
+                  "Legacy quote preview links using quoteId are no longer supported. Request a new secure quote link.",
+              }
             : await salesApi.getQuoteDetail(queryQuoteId);
 
         if (response?.error || response?.success === false) {
@@ -249,8 +249,8 @@ export default function QuotePreviewPageShell({
   const existingBookingId = React.useMemo(() => {
     const directBookingId = String(
       (quote as Record<string, unknown> | null)?.booking_id ??
-        (quote?.converted_booking_details as Record<string, unknown> | null)?.booking_id ??
-        ""
+      (quote?.converted_booking_details as Record<string, unknown> | null)?.booking_id ??
+      ""
     ).trim();
 
     if (directBookingId) {
@@ -275,6 +275,34 @@ export default function QuotePreviewPageShell({
       ? `${window.location.origin}/quotes/preview?quoteKey=${encodeURIComponent(queryQuoteKey)}`
       : null);
   const effectivePaymentBookingId = String(paymentBookingId || existingBookingId || "").trim();
+  const paymentStatus = String(
+    quote?.additional_payment?.payment_status ||
+    (quote as Record<string, unknown> | null)?.payment_status ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  const normalizedQuoteStatus = String(quote?.quote_status || quote?.status || "")
+    .trim()
+    .toLowerCase();
+  const outstandingAmount = Number(quote?.additional_payment?.outstanding_amount);
+  const previouslyPaidAmount = Number(quote?.additional_payment?.previously_paid_amount);
+  const isMarkedFullyPaid =
+    ["paid", "completed", "success"].includes(paymentStatus) ||
+    ["paid", "completed", "success"].includes(
+      String((quote as Record<string, unknown> | null)?.payment_status || "")
+        .trim()
+        .toLowerCase()
+    );
+  const isZeroOutstanding =
+    Number.isFinite(outstandingAmount) && outstandingAmount <= 0 && previouslyPaidAmount > 0;
+  const isPublicPaymentAllowedStatus = !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
+  const canContinueToPayment =
+    quoteDetailMode === "public" &&
+    Boolean(effectivePaymentBookingId) &&
+    isPublicPaymentAllowedStatus &&
+    !isMarkedFullyPaid &&
+    !isZeroOutstanding;
 
   useEffect(() => {
     if (!paymentStorageKey || typeof window === "undefined") {
@@ -352,7 +380,6 @@ export default function QuotePreviewPageShell({
     }
 
     const isResend = quoteSent;
-
     setIsSending(true);
 
     try {
@@ -465,13 +492,13 @@ export default function QuotePreviewPageShell({
       setQuote((current) =>
         current
           ? ({
-              ...current,
+            ...current,
+            booking_id: bookingId,
+            converted_booking_details: {
+              ...(current.converted_booking_details || {}),
               booking_id: bookingId,
-              converted_booking_details: {
-                ...(current.converted_booking_details || {}),
-                booking_id: bookingId,
-              },
-            } as SalesQuoteDetailData)
+            },
+          } as SalesQuoteDetailData)
           : current
       );
       return bookingId;
@@ -511,19 +538,19 @@ export default function QuotePreviewPageShell({
   const topbarActions = showActionButtons ? (
     <>
       {quoteDetailMode !== "public" && (
-      <ActionButton
-        onClick={() => {
-          void handleCopy();
-        }}
-        disabled={isPreparingLink}
-        className={`h-11 rounded-xl px-4 ${isDark
+        <ActionButton
+          onClick={() => {
+            void handleCopy();
+          }}
+          disabled={isPreparingLink}
+          className={`h-11 rounded-xl px-4 ${isDark
             ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
             : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-          }`}
-      >
-        {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-        {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
-      </ActionButton>
+            }`}
+        >
+          {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+          {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
+        </ActionButton>
       )}
       {quoteDetailMode === "public" && !isQuoteSigned && (
         <ActionButton
@@ -537,13 +564,13 @@ export default function QuotePreviewPageShell({
           disabled={!resolvedQuoteId || loading}
           className={`h-11 rounded-xl px-4 ${isDark
             ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-            : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+            : "border border-[#00000033] bg-[#FFF] text-black hover:bg-[#E5E7EB]"
             }`}
         >
           Sign Quote
         </ActionButton>
       )}
-      {quoteDetailMode === "public" && effectivePaymentBookingId && (
+      {canContinueToPayment && (
         <ActionButton
           onClick={handleContinueToPayment}
           className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -551,32 +578,21 @@ export default function QuotePreviewPageShell({
           Continue to Payment
         </ActionButton>
       )}
-      <ServiceAgreementModal
-        isOpen={isServiceAgreementOpen}
-        initialChecked={acceptServiceAgreement}
-        isAcceptedLocked={isQuoteSigned}
-        onClose={() => setIsServiceAgreementOpen(false)}
-        onAccept={() => {
-          setAcceptServiceAgreement(true);
-          setIsServiceAgreementOpen(false);
-          setShowSignature(true);
-        }}
-      />
       {quoteDetailMode !== "public" && (
-      <ActionButton
-        onClick={() => {
-          void handleSendQuote();
-        }}
-        disabled={!canSendQuote || isSending}
-        className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
-      >
-        {isSending ? (
-          <Loader2 size={18} className="mr-2 animate-spin" />
-        ) : (
-          <Send size={18} className="mr-2" />
-        )}
-        {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
-      </ActionButton>
+        <ActionButton
+          onClick={() => {
+            void handleSendQuote();
+          }}
+          disabled={!canSendQuote || isSending}
+          className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
+        >
+          {isSending ? (
+            <Loader2 size={18} className="mr-2 animate-spin" />
+          ) : (
+            <Send size={18} className="mr-2" />
+          )}
+          {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
+        </ActionButton>
       )}
     </>
   ) : undefined;
@@ -593,19 +609,19 @@ export default function QuotePreviewPageShell({
         {showActionButtons ? (
           <div className="mb-6 flex flex-col gap-2 lg:hidden">
             {quoteDetailMode !== "public" && (
-            <ActionButton
-              onClick={() => {
-                void handleCopy();
-              }}
-              disabled={isPreparingLink}
-              className={`h-11 rounded-xl ${isDark
+              <ActionButton
+                onClick={() => {
+                  void handleCopy();
+                }}
+                disabled={isPreparingLink}
+                className={`h-11 rounded-xl ${isDark
                   ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
                   : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-                }`}
-            >
-              {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-              {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
-            </ActionButton>
+                  }`}
+              >
+                {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+                {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
+              </ActionButton>
             )}
             {quoteDetailMode === "public" && (
               !isQuoteSigned ? (
@@ -620,14 +636,14 @@ export default function QuotePreviewPageShell({
                   disabled={!resolvedQuoteId || loading}
                   className={`h-11 rounded-xl ${isDark
                     ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-                    : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                    : "border border-[#00000033] bg-[#FFF] text-black hover:bg-[#E5E7EB]"
                     }`}
-                  >
-                    Sign Quote
-                  </ActionButton>
+                >
+                  Sign Quote
+                </ActionButton>
               ) : null
             )}
-            {quoteDetailMode === "public" && effectivePaymentBookingId && (
+            {canContinueToPayment && (
               <ActionButton
                 onClick={handleContinueToPayment}
                 className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -652,8 +668,7 @@ export default function QuotePreviewPageShell({
           <button
             type="button"
             onClick={handleBack}
-            className={`mb-6 flex items-center gap-2 text-[15px] transition-colors ${isDark ? "text-[#D4D4D4] hover:text-white" : "text-black/70 hover:text-black"
-              }`}
+            className={`mb-6 flex items-center gap-2 text-[15px] transition-colors ${isDark ? "text-[#D4D4D4] hover:text-white" : "text-black/70 hover:text-black"}`}
           >
             <ArrowLeft size={18} />
             Back
@@ -662,8 +677,7 @@ export default function QuotePreviewPageShell({
 
         {showIntroHeader ? (
           <div
-            className={`mb-6 rounded-[24px] px-5 py-5 lg:mb-8 lg:px-7 lg:py-6 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
-              }`}
+            className={`mb-6 rounded-[24px] px-5 py-5 lg:mb-8 lg:px-7 lg:py-6 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"}`}
           >
             <QuotePreviewBrandBlock />
           </div>
@@ -672,8 +686,8 @@ export default function QuotePreviewPageShell({
         {loading ? (
           <div
             className={`flex min-h-[420px] items-center justify-center rounded-[24px] ${isDark
-                ? "border border-white/10 bg-[#171717] text-[#CFCFD3]"
-                : "border border-[#DFDDDD] bg-white text-[#60646C]"
+              ? "border border-white/10 bg-[#171717] text-[#CFCFD3]"
+              : "border border-[#DFDDDD] bg-white text-[#60646C]"
               }`}
           >
             <Loader2 className="mr-3 h-5 w-5 animate-spin" />
@@ -686,13 +700,15 @@ export default function QuotePreviewPageShell({
             showServiceAgreementAcceptance={quoteDetailMode === "public"}
             acceptServiceAgreement={isQuoteSigned ? true : acceptServiceAgreement}
             onAcceptServiceAgreementChange={setAcceptServiceAgreement}
-            onOpenServiceAgreement={() => setIsServiceAgreementOpen(true)}
+            onOpenServiceAgreement={() => {
+              setIsServiceAgreementOpen(true);
+            }}
           />
         ) : (
           <div
             className={`flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] px-6 text-center ${isDark
-                ? "border border-dashed border-white/10 bg-[#151515]"
-                : "border border-dashed border-[#DFDDDD] bg-white"
+              ? "border border-dashed border-white/10 bg-[#151515]"
+              : "border border-dashed border-[#DFDDDD] bg-white"
               }`}
           >
             <p className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>
@@ -721,6 +737,21 @@ export default function QuotePreviewPageShell({
           </div>
         )}
       </div>
+
+      {/* FIXED: Placed at root layout level so it is always mounted across mobile & desktop viewports */}
+      <ServiceAgreementModal
+        isOpen={isServiceAgreementOpen}
+        initialChecked={acceptServiceAgreement}
+        isAcceptedLocked={isQuoteSigned}
+        onClose={() => setIsServiceAgreementOpen(false)}
+        onAccept={() => {
+          setAcceptServiceAgreement(true);
+          setIsServiceAgreementOpen(false);
+          setShowSignature(true);
+        }}
+        isDark={isDark}
+      />
+
       {showSignature && (
         <SignatureModal
           quoteId={resolvedQuoteId}
@@ -733,18 +764,18 @@ export default function QuotePreviewPageShell({
             setQuote((current) =>
               current
                 ? {
-                    ...current,
-                    signed_at:
-                      (signatureData as Record<string, unknown> | null)?.["signed_at"] as string ??
-                      current.signed_at ??
-                      new Date().toISOString(),
-                    signature_base64:
-                      ((signatureData as Record<string, unknown> | null)?.["signature_base64"] as string | undefined) ??
-                      current.signature_base64,
-                    signature_path:
-                      ((signatureData as Record<string, unknown> | null)?.["signature_path"] as string | undefined) ??
-                      current.signature_path,
-                  }
+                  ...current,
+                  signed_at:
+                    (signatureData as Record<string, unknown> | null)?.["signed_at"] as string ??
+                    current.signed_at ??
+                    new Date().toISOString(),
+                  signature_base64:
+                    ((signatureData as Record<string, unknown> | null)?.["signature_base64"] as string | undefined) ??
+                    current.signature_base64,
+                  signature_path:
+                    ((signatureData as Record<string, unknown> | null)?.["signature_path"] as string | undefined) ??
+                    current.signature_path,
+                }
                 : current
             );
             try {
@@ -773,6 +804,7 @@ export default function QuotePreviewPageShell({
           }}
         />
       )}
+
       {quoteDetailMode === "public" && isConvertingToBooking ? (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50">
           <div className="rounded-xl bg-[#111] px-6 py-4 text-white shadow-xl">

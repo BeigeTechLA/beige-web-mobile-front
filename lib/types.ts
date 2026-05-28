@@ -162,6 +162,12 @@ export interface CreatorSearchParams {
   min_budget?: number;
   max_budget?: number;
   location?: string;
+  latitude?: number;
+  longitude?: number;
+  lat?: number;
+  lng?: number;
+  location_latitude?: number;
+  location_longitude?: number;
   maxDistance?: number;
   skills?: string;
   content_type?: number;

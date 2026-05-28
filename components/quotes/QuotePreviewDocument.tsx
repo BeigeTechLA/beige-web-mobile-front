@@ -324,9 +324,10 @@ export default function QuotePreviewDocument({
 
             <div className={`space-y-1 text-[10px] leading-none lg:leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
               {COMPANY_PROFILE.addressLines.map((line) => (
-                <p key={line} className="leading-none">{line}</p>
+                <p key={line}>{line}</p>
               ))}
-              <p>{COMPANY_PROFILE.email} {COMPANY_PROFILE.phone}</p>
+              <p>{COMPANY_PROFILE.email}</p>
+              <p>{COMPANY_PROFILE.phone}</p>
             </div>
           </div>
 
@@ -501,11 +502,10 @@ export default function QuotePreviewDocument({
               <button
                 type="button"
                 onClick={onOpenServiceAgreement}
-                className="text-[#E8D5B5] underline hover:text-[#f3e4cd] cursor-pointer"
+                className={`underline hover:text-[#f3e4cd] cursor-pointer text-left ${isDark ? "text-[#E8D5B5]" : "text-[#d4a75d]"} `}
               >
-                Service Agreement & Terms of Engagement
+                Service Agreement & Terms of Engagement.
               </button>
-              .
             </p>
           </div>
         ) : null}

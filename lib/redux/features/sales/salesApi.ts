@@ -452,7 +452,7 @@ export const salesApi = createApi({
       }),
       invalidatesTags: ['Lead'], // Invalidating Lead could trigger shoots/projects refresh depending on setup
     }),
-    getCrewForLead: builder.query<any[], { lead_id: number | string; role_type: string; search_query?: string }>({
+    getCrewForLead: builder.query<any[], { lead_id: number | string; role_type: string; search_query?: string; radius?: number; latitude?: number; longitude?: number }>({
       query: (params) => ({
         url: 'admin/get-crew-for-lead',
         params,

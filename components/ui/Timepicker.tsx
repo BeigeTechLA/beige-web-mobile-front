@@ -23,23 +23,50 @@ export interface TimePickerColors {
   paperBackground: string;
   clockNumberColor: string;
   mutedText: string;
+  placeholderColor: string;
+  popperBorder: string;
+  menuItemHover: string;
 }
 
-const defaultColors: TimePickerColors = {
-  inputBackground: "#000000", // Changed from #1A1A1A to match Select
-  inputText: "#FFFFFF",
-  inputBorder: "rgba(255, 255, 255, 0.1)",
-  inputBorderHover: "rgba(255, 255, 255, 0.2)",
-  inputBorderFocus: "#E8D1AB",
-  labelText: "rgba(255, 255, 255, 0.4)", // Updated to match dashboard style
-  iconColor: "#FFFFFF",
-  inputDisabled: "rgba(255, 255, 255, 0.3)",
-  accent: "#E8D1AB",
-  accentText: "#101010",
-  hoverAccent: "#F2E2C6",
-  paperBackground: "#1A1A1A",
-  clockNumberColor: "#FFFFFF",
-  mutedText: "rgba(255, 255, 255, 0.4)",
+const themeColors: { dark: TimePickerColors; light: TimePickerColors } = {
+  dark: {
+    inputBackground: "#000000",
+    inputText: "#FFFFFF",
+    inputBorder: "rgba(255, 255, 255, 0.1)",
+    inputBorderHover: "rgba(255, 255, 255, 0.2)",
+    inputBorderFocus: "#E8D1AB",
+    labelText: "rgba(255, 255, 255, 0.4)",
+    iconColor: "#FFFFFF",
+    inputDisabled: "rgba(255, 255, 255, 0.3)",
+    accent: "#E8D1AB",
+    accentText: "#101010",
+    hoverAccent: "#F2E2C6",
+    paperBackground: "#1A1A1A",
+    clockNumberColor: "#FFFFFF",
+    mutedText: "rgba(255, 255, 255, 0.4)",
+    placeholderColor: "rgba(255, 255, 255, 0.3)",
+    popperBorder: "rgba(255, 255, 255, 0.1)",
+    menuItemHover: "rgba(255, 255, 255, 0.08)",
+  },
+  light: {
+    inputBackground: "#FFFFFF",
+    inputText: "#101010",
+    inputBorder: "rgba(0, 0, 0, 0.15)",
+    inputBorderHover: "rgba(0, 0, 0, 0.3)",
+    inputBorderFocus: "#00000073",
+    labelText: "rgba(0, 0, 0, 0.6)",
+    iconColor: "#101010",
+    inputDisabled: "rgba(0, 0, 0, 0.25)",
+    accent: "#E8D1AB",
+    accentText: "#000000",
+    hoverAccent: "#E8D1AB",
+    paperBackground: "#FFFFFF",
+    clockNumberColor: "#101010",
+    mutedText: "rgba(0, 0, 0, 0.5)",
+    placeholderColor: "rgba(0, 0, 0, 0.35)",
+    popperBorder: "rgba(0, 0, 0, 0.1)",
+    menuItemHover: "rgba(0, 0, 0, 0.04)",
+  },
 };
 
 interface Props {
@@ -49,6 +76,7 @@ interface Props {
   minTime?: Date;
   colors?: Partial<TimePickerColors>;
   disabled?: boolean;
+  isDark?: boolean;
 }
 
 export const TimePicker: React.FC<Props> = ({
@@ -58,8 +86,10 @@ export const TimePicker: React.FC<Props> = ({
   minTime,
   colors: customColors,
   disabled = false,
+  isDark = true,
 }) => {
-  const colors = { ...defaultColors, ...customColors };
+  const baseColors = isDark ? themeColors.dark : themeColors.light;
+  const colors = { ...baseColors, ...customColors };
   const [open, setOpen] = useState(false);
 
   const interiorStyles = {
@@ -75,13 +105,13 @@ export const TimePicker: React.FC<Props> = ({
     },
     "& .MuiClockNumber-root": { color: colors.clockNumberColor },
     "& .MuiClockNumber-root.Mui-selected": { color: colors.accentText },
-    
+
     "& .MuiMenuItem-root.Mui-selected": {
       backgroundColor: `${colors.accent} !important`,
       color: `${colors.accentText} !important`,
     },
     "& .MuiMenuItem-root:hover": {
-      backgroundColor: "rgba(255, 255, 255, 0.08)",
+      backgroundColor: colors.menuItemHover,
     },
   };
 
@@ -96,7 +126,7 @@ export const TimePicker: React.FC<Props> = ({
             mb: 1,
             fontSize: "10px",
             textTransform: "uppercase",
-            letterSpacing: "0.1em"
+            letterSpacing: "0.1em",
           }}
         >
           {label}
@@ -114,7 +144,7 @@ export const TimePicker: React.FC<Props> = ({
             textField: {
               fullWidth: true,
               placeholder: "HH:MM am/pm",
-              onClick: () => setOpen(true),
+              onClick: () => !disabled && setOpen(true),
               sx: {
                 "& .MuiOutlinedInput-root": {
                   height: "48px",
@@ -134,6 +164,10 @@ export const TimePicker: React.FC<Props> = ({
                     borderColor: colors.inputBorderFocus,
                     borderWidth: "1.5px",
                   },
+                  "&.Mui-disabled fieldset": {
+                    borderColor: colors.inputDisabled,
+                    opacity: 0.6,
+                  },
                 },
                 "& .MuiInputBase-input": {
                   color: colors.inputText,
@@ -141,13 +175,18 @@ export const TimePicker: React.FC<Props> = ({
                   padding: "0 14px",
                   height: "100%",
                   "&::placeholder": {
-                    color: "rgba(255, 255, 255, 0.3)",
+                    color: colors.placeholderColor,
                     opacity: 1,
+                  },
+                  "&.Mui-disabled": {
+                    WebkitTextFillColor: colors.inputText,
+                    opacity: 0.5,
                   },
                 },
                 "& .MuiSvgIcon-root": {
                   color: colors.iconColor,
                   fontSize: "20px",
+                  opacity: disabled ? 0.5 : 1,
                 },
               },
             },
@@ -156,19 +195,19 @@ export const TimePicker: React.FC<Props> = ({
                 "& .MuiPaper-root": {
                   backgroundColor: colors.paperBackground,
                   backgroundImage: "none",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#FFFFFF",
+                  border: `1px solid ${colors.popperBorder}`,
+                  color: colors.inputText,
                   marginTop: "8px",
                   ...interiorStyles,
                 },
                 // THE SPECIFIC FIX: Targeting the list sections to hide scrollbars
                 "& .MuiMultiSectionDigitalClockSection-root": {
-                    scrollbarWidth: "none", // Firefox
-                    msOverflowStyle: "none",  // IE
-                    "&::-webkit-scrollbar": {
-                        display: "none", // Chrome/Safari
-                    }
-                }
+                  scrollbarWidth: "none", // Firefox
+                  msOverflowStyle: "none", // IE
+                  "&::-webkit-scrollbar": {
+                    display: "none", // Chrome/Safari
+                  },
+                },
               },
             },
             actionBar: {
@@ -177,6 +216,9 @@ export const TimePicker: React.FC<Props> = ({
                 "& .MuiButton-root": {
                   color: colors.accent,
                   fontWeight: "bold",
+                  "&:hover": {
+                    backgroundColor: colors.menuItemHover,
+                  },
                 },
               },
             },

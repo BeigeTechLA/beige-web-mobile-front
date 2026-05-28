@@ -157,6 +157,7 @@ const normalizeOverviewSection = (section: Record<string, unknown> = {}): Dashbo
   const growth: Partial<Record<string, number | string>> = {};
 
   Object.entries(section).forEach(([key, rawValue]) => {
+    if (key === "growth") return;
     if (isMetricStat(rawValue)) {
       payload[key as keyof DashboardOverviewPayload] = rawValue.value ?? 0;
       growth[key] = rawValue.change_percent ?? 0;
@@ -361,12 +362,12 @@ const PRODUCTION_FILTER_ALLOWED_VALUES = new Set(
   PRODUCTION_FILTER_OPTIONS.map((option) => option.value)
 );
 
-const normalizeProductionFilterValue = (value: unknown): string => {
+const normalizeProductionFilterValue = (value: unknown) => {
   const raw = String(value ?? "").trim();
   if (!raw) return "all";
   const lower = raw.toLowerCase();
   if (lower === "all" || lower === "all production") return "all";
-  return PRODUCTION_FILTER_ALLOWED_VALUES.has(raw) ? raw : "all";
+  return (PRODUCTION_FILTER_ALLOWED_VALUES.has(raw) ? raw : "all") as "all" | "pre_production_file_not_provided" | "pre_production_meeting_not_done" | "post_production_meeting_not_done" | "post_production_file_not_uploaded";
 };
 
 export default function SalesLeadsPage() {
@@ -392,7 +393,7 @@ export default function SalesLeadsPage() {
   const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
   const [leadsViewMode, setLeadsViewMode] = useState<"list" | "grid">("list");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
-  const [productionFilter, setProductionFilter] = useState<string>("all");
+  const [productionFilter, setProductionFilter] = useState<"all" | "pre_production_file_not_provided" | "pre_production_meeting_not_done" | "post_production_meeting_not_done" | "post_production_file_not_uploaded">("all");
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
   // Filters state
@@ -1170,7 +1171,7 @@ export default function SalesLeadsPage() {
                 />
               </div>
 
-              {/* {activeTab === "Booking" && (
+               {/* {activeTab === "Booking" && (
                 <div
                   className={`h-11 shrink-0 flex items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${
                     isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"
@@ -1207,7 +1208,7 @@ export default function SalesLeadsPage() {
                     <Grid3X3 size={14} />
                   </button>
                 </div>
-              )} */}
+              )}  */}
             </div>
 
             {activeTab === "Booking" && leadsViewMode === "grid" && (
@@ -1279,7 +1280,7 @@ export default function SalesLeadsPage() {
                 totalRecords={leadsTotalRecords}
                 limit={leadsLimit}
                 activeStatusFilter={statusFilter}
-                viewMode={leadsViewMode}
+                viewMode={"list"}
                 showViewSwitcher={false}
                 onViewModeChange={setLeadsViewMode}
                 onPageChange={(page) => setLeadsCurrentPage(page)}
@@ -1316,19 +1317,15 @@ export default function SalesLeadsPage() {
             limit={usersLimit}
             headers={["Lead ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
             onPageChange={(page) => setUsersCurrentPage(page)}
+            onRowClick={handleUserRowClick}
             enableKanbanView
             kanbanStatuses={[...BOOKING_STATUS_OPTIONS, "Approved", "Rejected", "Pending", "Unknown"]}
             getItemId={(user) => user.id}
             getItemStatus={(user) => user.bookingStatus || user.status}
             renderRow={(user) => (
-              <tr
-                key={user.id}
-                className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222] hover:bg-white/[0.02]" : "border-[#E5E5E5] hover:bg-black/[0.01]"
-                  }`}
-                onClick={() => handleUserRowClick(user)}
-              >
-                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#888]" : "text-[#666]"}`}>{user.id}</td>
-                <td className="py-5 px-6">
+              <>
+                <td className={`py-5 px-6 border-b text-[14px] transition-colors ${isDark ? "border-[#222] text-[#888]" : "border-[#E5E5E5] text-[#666]"}`}>{user.id}</td>
+                <td className={`py-5 px-6 border-b transition-colors ${isDark ? "border-[#222]" : "border-[#E5E5E5]"}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm transition-colors ${isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
                       }`}>
@@ -1351,14 +1348,14 @@ export default function SalesLeadsPage() {
                     </div>
                   </div>
                 </td>
-                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{user.type}</td>
-                <td className="py-5 px-6">
+                <td className={`py-5 px-6 border-b text-[14px] transition-colors ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#E5E5E5] text-[#333]"}`}>{user.type}</td>
+                <td className={`py-5 px-6 border-b transition-colors ${isDark ? "border-[#222]" : "border-[#E5E5E5]"}`}>
                   <IntentBadge intent={(user.intent as any) || "Warm"} />
                 </td>
-                <td className="py-5 px-6">
+                <td className={`py-5 px-6 border-b transition-colors ${isDark ? "border-[#222]" : "border-[#E5E5E5]"}`}>
                   <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
                 </td>
-                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                <td className={`py-5 px-6 border-b text-[14px] transition-colors ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#E5E5E5] text-[#333]"}`}>
                   <div className="space-y-1 min-w-0">
                     <p>{user.phoneNumber}</p>
                     {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
@@ -1369,10 +1366,11 @@ export default function SalesLeadsPage() {
                     )}
                   </div>
                 </td>
-                <td className="py-5 px-6 text-right">
+                <td className={`py-5 px-6 border-b text-right transition-colors ${isDark ? "border-[#222]" : "border-[#E5E5E5]"}`}>
                   <button
                       className={`transition-colors p-1 ${isDark ? "text-[#666] hover:text-white" : "text-[#999] hover:text-black"}`}
                       onClick={(e) => {
+                        e.stopPropagation();
                         const rawId = user.id.replace('#', '');
                         handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
                       }}
@@ -1380,7 +1378,7 @@ export default function SalesLeadsPage() {
                     <MoreVertical size={20} />
                   </button>
                 </td>
-              </tr>
+              </>
             )}
             renderKanbanCard={(user) => (
               <div
@@ -1502,7 +1500,6 @@ export default function SalesLeadsPage() {
           <ActionMenu
             client={selectedClient}
             leadId={selectedLeadId}
-            bookingStatus={selectedBookingStatus || undefined}
             allowPaymentTransaction={selectedAllowPaymentTransaction}
             isOpen={true}
             onClose={() => setMenuAnchor(null)}

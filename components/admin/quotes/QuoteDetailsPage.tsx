@@ -63,6 +63,7 @@ import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -361,7 +362,7 @@ const getStatusStyles = (status: string) => {
   }
 
   if (["expired"].includes(normalizedStatus)) {
-    return "border border-white/10 bg-[#E5E7EB] text-[#4B5563]";
+    return "border border-white/10 bg-[#FFF6E9] text-[#D4A017]";
   }
 
   return "border border-[#E8D1AB]/20 bg-[#2A2418] text-[#E8D1AB]";
@@ -430,18 +431,30 @@ const SectionShell = ({
   actionLabel,
   onAction,
   children,
+  isDark = true,
 }: {
   title: string;
   actionLabel?: string;
   onAction?: () => void;
   children: React.ReactNode;
+  isDark?: boolean;
 }) => (
-  <section className="rounded-lg lg:rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
+  <section className={`rounded-lg lg:rounded-[26px] border transition-colors ${isDark ? "border-[#2B2B2B] bg-[#171717]" : "border-[#000000]/10 bg-white"}`}>
     <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-7">
-      <h2 className="lg:text-lg font-semibold text-white lg:text-[20px]">{title}</h2>
-      {actionLabel && onAction ? <SectionActionButton label={actionLabel} onClick={onAction} /> : null}
+      <h2 className={`lg:text-lg font-semibold lg:text-xl transition-colors ${isDark ? "text-white" : "text-[#000000AD]"}`}>
+        {title}
+      </h2>
+      {actionLabel && onAction ? (
+        <SectionActionButton
+          label={actionLabel}
+          onClick={onAction}
+        />
+      ) : null}
     </div>
-    <div className="border-t border-dashed border-[#343434]" />
+
+    {/* Dashed Separator Line */}
+    <div className={`border-t transition-colors ${isDark ? "border-[#343434]" : "border-[#2B2B2B]"}`} />
+
     <div className="px-5 py-5 lg:px-8 lg:py-7">{children}</div>
   </section>
 );
@@ -464,7 +477,7 @@ const ServiceLineCard = ({
           </div>
           <div className="min-w-0 flex-1">
             <p
-              className="break-words lg:text-lg font-semibold leading-1 lg:leading-7 text-white"
+              className="break-words lg:text-lg font-semibold leading-5 lg:leading-7 text-white"
               title={detailLabel ? `${item.name} - ${detailLabel}` : item.name}
             >
               {item.name}
@@ -525,12 +538,12 @@ const QuoteTopActions = ({
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
 }) => (
-  <div className="flex flex-wrap items-center gap-3">
+  <div className="flex items-center gap-1 lg:gap-3">
     {versions.length > 0 && (
-      <div className="mr-2 flex items-center gap-2">
+      <div className="mr-1 lg:mr-2 flex items-center gap-1 lg:gap-2">
         <span className="text-sm font-medium text-[#8F8F95]">Version:</span>
         <Select value={selectedVersionId || ""} onValueChange={onVersionChange}>
-          <SelectTrigger className="h-11 w-[140px] rounded-xl border-white/10 bg-[#1B1B1B] text-white">
+          <SelectTrigger className="h-11 w-[120px] md:w-[140px] rounded-xl border-white/10 bg-[#1B1B1B] text-white">
             <SelectValue placeholder="Select version" />
           </SelectTrigger>
           <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
@@ -582,10 +595,16 @@ const QuoteTopActions = ({
   </div>
 );
 
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
+const DetailRow = ({ label, value, isDark = true }: { label: string; value: string; isDark?: boolean; }) => (
   <div className="flex items-start justify-between gap-4 py-2.5 lg:py-4">
-    <p className="shrink-0 text-sm lg:text-base text-[#8F8F95]">{label}</p>
-    <p className="max-w-[65%] break-words text-right text-sm lg:text-base font-semibold text-white">{value}</p>
+    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"
+      }`}>
+      {label}
+    </p>
+    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"
+      }`}>
+      {value}
+    </p>
   </div>
 );
 
@@ -744,17 +763,17 @@ export default function QuoteDetailsPage({
       setQuote((current) =>
         current
           ? ({
-              ...current,
-              signature_base64: normalizedQuoteDetail.signature_base64 ?? current.signature_base64,
-              signature_path: normalizedQuoteDetail.signature_path ?? current.signature_path,
-              signature_url:
-                (normalizedQuoteDetail as Record<string, unknown>)?.signature_url ??
-                (current as Record<string, unknown>)?.signature_url,
-              signed_at: normalizedQuoteDetail.signed_at ?? current.signed_at,
-              signer_name:
-                (normalizedQuoteDetail as Record<string, unknown>)?.signer_name ??
-                (current as Record<string, unknown>)?.signer_name,
-            } as SalesQuoteDetailData)
+            ...current,
+            signature_base64: normalizedQuoteDetail.signature_base64 ?? current.signature_base64,
+            signature_path: normalizedQuoteDetail.signature_path ?? current.signature_path,
+            signature_url:
+              (normalizedQuoteDetail as Record<string, unknown>)?.signature_url ??
+              (current as Record<string, unknown>)?.signature_url,
+            signed_at: normalizedQuoteDetail.signed_at ?? current.signed_at,
+            signer_name:
+              (normalizedQuoteDetail as Record<string, unknown>)?.signer_name ??
+              (current as Record<string, unknown>)?.signer_name,
+          } as SalesQuoteDetailData)
           : normalizedQuoteDetail
       );
       setSignatureBase64(sig);
@@ -1064,7 +1083,7 @@ export default function QuoteDetailsPage({
   }, [latestVersionMeta, selectedVersionId, selectedVersionMeta, versions.length]);
   const canEditSelectedVersion =
     isSelectedCurrentVersion &&
-    !["rejected", "cancelled"].includes(normalizedQuoteStatus);
+    !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -1276,6 +1295,7 @@ export default function QuoteDetailsPage({
     Boolean(signedAt);
   const canSendInvoiceFromDetails =
     isSelectedCurrentVersion &&
+    normalizedQuoteStatus !== "expired" &&
     (
       INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedQuoteStatus) ||
       INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedDisplayStatus) ||
@@ -1500,30 +1520,37 @@ export default function QuoteDetailsPage({
       } else {
         await refreshQuotePrimaryContext();
       }
-      const apiBase = (
-        process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
-      ).replace(/\/$/, "");
-      const proxiedPdfUrl = invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
+      const isManualInvoicePdf =
+        typeof invoicePdfUrl === "string" &&
+        /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
+      const brandedPdfUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+            manual: isManualInvoicePdf,
+            cacheBust: true,
+          })
         : null;
-      const proxiedDownloadUrl = invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
+      const brandedDownloadUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+            manual: isManualInvoicePdf,
+            download: true,
+            cacheBust: true,
+          })
         : null;
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !invoicePdfUrl) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
       if (invoicePdfUrl) {
         const link = document.createElement("a");
-        if (!proxiedDownloadUrl && !proxiedPdfUrl) {
+        if (!brandedDownloadUrl && !brandedPdfUrl) {
           throw new Error("Invoice PDF URL is not available");
         }
-        link.href = proxiedDownloadUrl || proxiedPdfUrl || invoicePdfUrl;
+        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.click();
@@ -1772,12 +1799,7 @@ export default function QuoteDetailsPage({
   const selectedVersionNumber = selectedVersionMeta?.version_number ?? null;
 
   return (
-    <div
-      className={`quote-editor-theme min-h-screen ${isDark
-        ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
-        : "quote-editor-theme-light bg-[#F4F5F7] text-black"
-        }`}
-    >
+    <div className={`quote-editor-theme min-h-screen ${isDark ? "quote-editor-theme-dark bg-[#0f0f0f] text-white" : "quote-editor-theme-light bg-[#F4F5F7] text-black"}`}>
       <TopbarComponent pathname={pathname} actions={topbarActions} breadcrumbOverrides={breadcrumbOverrides} />
 
       <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-14 lg:pt-8">
@@ -1805,7 +1827,7 @@ export default function QuoteDetailsPage({
                   }}
                   disabled={isViewingInvoice || isSendingInvoice || isConverting}
                   variant="outline"
-                  className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-5 text-white hover:bg-[#232323] w-full lg:w-auto"
+                  className={`h-11 rounded-xl border px-5 w-full lg:w-auto ${isDark ? "border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]" : "border-[#0000004D] bg-white text-black hover:bg-[#F4F5F7]"}`}
                 >
                   {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
                   {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
@@ -1829,16 +1851,30 @@ export default function QuoteDetailsPage({
         </div>
 
         {loading ? (
-          <div className="flex min-h-[360px] items-center justify-center rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
-            <div className="flex items-center gap-3 text-base text-[#D4D4D8]">
+          <div className={`flex min-h-[360px] items-center justify-center rounded-[26px] border transition-colors ${isDark
+            ? "border-[#2B2B2B] bg-[#171717]"
+            : "border-[#000000]/10 bg-white"
+            }`}
+          >
+            <div
+              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"
+                }`}
+            >
               <Loader2 size={18} className="animate-spin text-[#E8D1AB]" />
               Loading quote details...
             </div>
           </div>
         ) : !quote ? (
-          <div className="rounded-[26px] border border-[#2B2B2B] bg-[#171717] p-8 text-center">
-            <p className="text-xl font-semibold text-white">Quote details unavailable</p>
-            <p className="mt-3 text-sm text-[#A1A1AA]">
+          <div
+            className={`rounded-[26px] border p-8 text-center transition-colors ${isDark
+              ? "border-[#2B2B2B] bg-[#171717]"
+              : "border-[#000000]/10 bg-white"
+              }`}
+          >
+            <p className={`text-xl font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+              Quote details unavailable
+            </p>
+            <p className={`mt-3 text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
               {errorMessage || "The selected quote could not be loaded."}
             </p>
             <Button
@@ -1855,11 +1891,12 @@ export default function QuoteDetailsPage({
               title="Client Information"
               actionLabel={canEditSelectedVersion ? "Edit Details" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("details") : undefined}
+              isDark={isDark}
             >
               <div className="flex flex-col gap-3 lg:gap-6">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 items-start gap-4">
-                    <div className="flex h-12 w-12 lg:h-[74px] lg:w-[74px] shrink-0 items-center justify-center rounded-xl lg:rounded-[22px] bg-[#F3D9A7] text-lg lg:text-[24px] font-semibold text-black">
+                    <div className="flex h-12 w-12 lg:h-[74px] lg:w-[74px] shrink-0 items-center justify-center rounded-xl lg:rounded-[22px] bg-[#F3D9A7] text-lg lg:text-2xl font-semibold text-black">
                       {getInitials(clientName)}
                     </div>
                     <div className="min-w-0">
@@ -1869,7 +1906,7 @@ export default function QuoteDetailsPage({
                         </p>
                         {selectedVersionNumber && (
                           <div className="flex flex-col items-start gap-1">
-                            <span className="rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
+                            <span className={`text-nowrap rounded-full px-3 py-1 text-xs font-semibold border border-[#E8D1AB]/20 ${isDark ? "text-[#E8D1AB] bg-[#E8D1AB]/10" : "text-[#71717B] bg-[#E8D1AB]/30"}`}>
                               Quote Version {selectedVersionNumber}
                             </span>
                             {quote?.edit_reason && (
@@ -1880,7 +1917,7 @@ export default function QuoteDetailsPage({
                           </div>
                         )}
                       </div>
-                      <p className="mt-1 lg:text-[24px] font-medium text-[#D8BC87]">
+                      <p className="mt-1 lg:text-2xl font-medium text-[#D8BC87]">
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
                       <p className="mt-2 text-xs lg:text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
@@ -1895,7 +1932,7 @@ export default function QuoteDetailsPage({
                       {formatStatusLabel(displayStatus)}
                     </span>
                     {signatureBase64 && (
-                      <div className="mt-3 flex flex-col items-end gap-2">
+                      <div className="mt-3 flex flex-col items-center lg:items-end gap-2">
                         <div className="border border-white/10 rounded-lg p-2 bg-white">
                           <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
                         </div>
@@ -1917,21 +1954,24 @@ export default function QuoteDetailsPage({
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm text-[#9B9BA1]">
+                <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm transition-colors ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
                   <span className="break-all">{`Email ID : ${clientEmail}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
+
                   <span className="break-all">{`Phone Number : ${clientPhone}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
+
                   <span>{`Valid Until : ${validUntil}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
+
                   <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className="break-words text-xs lg:text-sm leading-7 text-[#B3B3B8]">
-                  <span className="text-[#8F8F95]">Project Description :</span> {projectDescription}
+                <p className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
+                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span> {projectDescription}
                 </p>
 
-                <div className="flex items-start gap-2 text-xs lg:text-sm text-[#9B9BA1]">
+                <div className={`flex items-start gap-2 text-xs lg:text-sm ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
                   <span className="break-words">{clientAddress}</span>
                 </div>
@@ -1939,7 +1979,7 @@ export default function QuoteDetailsPage({
             </SectionShell>
 
             {!["rejected", "cancelled"].includes(normalizedQuoteStatus) && (
-              <SectionShell title="Payment">
+              <SectionShell title="Payment" isDark={isDark}>
                 <div className="space-y-4" ref={paymentSectionRef}>
                   {quoteLeadId ? (
                     <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4">
@@ -1972,20 +2012,25 @@ export default function QuoteDetailsPage({
                       {canTakeManualPayment ? (
                         <>
                           <div className="mt-3 grid grid-cols-2 gap-2">
-                            {(["full", "partial"] as const).map((type) => (
-                              <button
-                                key={type}
-                                type="button"
-                                onClick={() => setManualPaymentType(type)}
-                                disabled={hasFullPayment}
-                                className={`h-10 rounded-lg border text-sm font-medium ${manualPaymentType === type
-                                  ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                                  : "border-white/20 text-white/70"
-                                  }`}
-                              >
-                                {type === "full" ? "Full Payment" : "Partial Payment"}
-                              </button>
-                            ))}
+                            {(["full", "partial"] as const).map((type) => {
+                              const isActive = manualPaymentType === type;
+                              return (
+                                <button
+                                  key={type}
+                                  type="button"
+                                  onClick={() => setManualPaymentType(type)}
+                                  disabled={hasFullPayment}
+                                  className={`h-10 rounded-lg border text-sm font-medium transition-colors ${isActive
+                                    ? isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF7E6] text-[#000]"
+                                    : isDark
+                                      ? "border-white/20 text-white/70 hover:bg-white/5"
+                                      : "border-[#000000]/15 text-[#000000]/70 hover:bg-[#000000]/5"
+                                    }`}
+                                >
+                                  {type === "full" ? "Full Payment" : "Partial Payment"}
+                                </button>
+                              )
+                            })}
                           </div>
 
                           {manualPaymentType === "partial" ? (
@@ -1994,15 +2039,23 @@ export default function QuoteDetailsPage({
                               value={manualPaymentAmount}
                               onChange={(event) => setManualPaymentAmount(event.target.value)}
                               placeholder="Enter partial amount"
-                              className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                              className={`mt-3 h-11 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors ${isDark
+                                ? "border-white/20 text-white placeholder:text-white/40"
+                                : "border-[#000000]/15 text-[#000000] placeholder:text-[#000000]/40"
+                                }`}
                             />
                           ) : null}
 
                           <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
-                            <SelectTrigger className="mt-3 h-11 rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white">
+                            <SelectTrigger className={`mt-3 h-11 rounded-lg border bg-transparent px-3 text-sm transition-colors ${isDark ? "border-white/20 text-white" : "border-[#000000]/15 text-[#000000]"}`}>
                               <SelectValue placeholder="Select payment mode" />
                             </SelectTrigger>
-                            <SelectContent className="border-[#333333] bg-[#111111] text-white">
+                            <SelectContent
+                              className={`transition-colors ${isDark
+                                ? "border-[#333333] bg-[#111111] text-white"
+                                : "border-[#000000]/10 bg-white text-[#000000]"
+                                }`}
+                            >
                               <SelectItem value="cash">Cash</SelectItem>
                               <SelectItem value="wire">Wire</SelectItem>
                               <SelectItem value="ach">ACH</SelectItem>
@@ -2020,13 +2073,26 @@ export default function QuoteDetailsPage({
                               value={manualPaymentOtherMode}
                               onChange={(event) => setManualPaymentOtherMode(event.target.value)}
                               placeholder="Enter payment mode"
-                              className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                              className={`mt-3 h-11 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors ${isDark
+                                ? "border-white/20 text-white placeholder:text-white/40"
+                                : "border-[#000000]/15 text-[#000000] placeholder:text-[#000000]/40"
+                                }`}
                             />
                           ) : null}
 
-                          <div className="mt-3 rounded-lg border border-white/20 p-3">
-                            <label className="mb-2 block text-xs text-[#71717B]">Proof Upload (Required)</label>
-                            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 text-sm text-white">
+                          <div
+                            className={`mt-3 rounded-lg border p-3 transition-colors ${isDark ? "border-white/20" : "border-[#000000]/15"
+                              }`}
+                          >
+                            <label className={`mb-2 block text-xs transition-colors ${isDark ? "text-[#71717B]" : "text-[#000000]/50"}`}>
+                              Proof Upload (Required)
+                            </label>
+                            <label
+                              className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition-colors ${isDark
+                                ? "border-white/20 text-white hover:bg-white/5"
+                                : "border-[#000000]/15 text-[#000000] hover:bg-[#000000]/5"
+                                }`}
+                            >
                               <ArrowUpToLine size={14} />
                               {isUploadingManualProof ? "Uploading..." : "Choose File"}
                               <input
@@ -2040,7 +2106,9 @@ export default function QuoteDetailsPage({
                               />
                             </label>
                             {manualPaymentProofFileName ? (
-                              <p className="mt-2 text-xs text-[#71717B]">{manualPaymentProofFileName}</p>
+                              <p className={`mt-2 text-xs transition-colors ${isDark ? "text-[#71717B]" : "text-[#000000]/50"}`}>
+                                {manualPaymentProofFileName}
+                              </p>
                             ) : null}
                           </div>
 
@@ -2048,7 +2116,10 @@ export default function QuoteDetailsPage({
                             value={manualPaymentNotes}
                             onChange={(event) => setManualPaymentNotes(event.target.value)}
                             placeholder="Add notes"
-                            className="mt-3 min-h-[84px] w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm text-white outline-none"
+                            className={`mt-3 min-h-[84px] w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none transition-colors ${isDark
+                              ? "border-white/20 text-white placeholder:text-white/40"
+                              : "border-[#000000]/15 text-[#000000] placeholder:text-[#000000]/40"
+                              }`}
                           />
 
                           <div className="mt-3 flex justify-end">
@@ -2058,7 +2129,7 @@ export default function QuoteDetailsPage({
                                 void handleManualPaymentSubmit();
                               }}
                               disabled={isSubmittingManualPayment || isUploadingManualProof || hasFullPayment}
-                              className="h-11 rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90"
+                              className="h-11 rounded-lg lg:rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90 w-full lg:w-auto flex items-center gap-2 justify-center"
                             >
                               {isSubmittingManualPayment ? <Loader2 size={16} className="animate-spin" /> : null}
                               {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
@@ -2117,7 +2188,7 @@ export default function QuoteDetailsPage({
                         {convertedBookingId ? ` #${convertedBookingId}` : ""}.
                       </p>
                       <p className="mt-1 text-xs text-emerald-300/90">
-                      <Loader2/>
+                        <Loader2 />
                         Lead linkage is unavailable in this response, so manual payment updates from this panel are hidden.
                       </p>
                     </div>
@@ -2132,6 +2203,7 @@ export default function QuoteDetailsPage({
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
               actionLabel={canEditSelectedVersion ? "Edit Services" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("services") : undefined}
+              isDark={isDark}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -2152,6 +2224,7 @@ export default function QuoteDetailsPage({
               title="Add-On Includes"
               actionLabel={canEditSelectedVersion ? "Edit Add ons" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("addons") : undefined}
+              isDark={isDark}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -2159,10 +2232,13 @@ export default function QuoteDetailsPage({
                     <div
                       key={item.id}
                       title={`${item.name} x ${item.quantity}`}
-                      className="min-w-0 max-w-full rounded-lg lg:rounded-[14px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 sm:max-w-[360px]"
+                      className={`min-w-0 max-w-full rounded-lg lg:rounded-[14px] border p-3 lg:px-5 lg:py-4 sm:max-w-[360px] transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111]"
+                        : "border-[#000000]/10 bg-white"
+                        }`}
                     >
                       <p className="truncate text-sm lg:text-lg font-medium text-[#D8BC87]">{item.name}</p>
-                      <p className="mt-1 text-xs lg:text-sm text-[#8F8F95]">Qty: {item.quantity}</p>
+                      <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>Qty: {item.quantity}</p>
                     </div>
                   ))}
                 </div>
@@ -2175,6 +2251,7 @@ export default function QuoteDetailsPage({
               title="Logistics"
               actionLabel={canEditSelectedVersion ? "Edit Logistics" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("logistics") : undefined}
+              isDark={isDark}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -2182,7 +2259,10 @@ export default function QuoteDetailsPage({
                     <div
                       key={item.id}
                       title={item.name}
-                      className="min-w-0 max-w-full rounded-lg lg:rounded-[14px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 text-sm lg:text-lg text-[#9B9BA1] sm:max-w-[360px]"
+                      className={`min-w-0 max-w-full rounded-lg lg:rounded-[14px] border p-3 lg:px-5 lg:py-4 text-sm lg:text-lg sm:max-w-[360px] transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111] text-[#9B9BA1]"
+                        : "border-[#000000]/10 bg-white text-[#000000]/60"
+                        }`}
                     >
                       <p className="truncate">{item.name}</p>
                     </div>
@@ -2197,13 +2277,17 @@ export default function QuoteDetailsPage({
               title="Custom Line Item"
               actionLabel={canEditSelectedVersion ? "Edit Items" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("customlineitems") : undefined}
+              isDark={isDark}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
                   {customItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex flex-col gap-1.5 lg:gap-3 rounded-lg lg:rounded-[18px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 lg:flex-row lg:items-center lg:justify-between"
+                      className={`flex flex-col gap-1.5 lg:gap-3 rounded-lg lg:rounded-[18px] border p-3 lg:px-5 lg:py-4 lg:flex-row lg:items-center lg:justify-between transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111]"
+                        : "border-[#000000]/10 bg-white"
+                        }`}
                     >
                       <span
                         className="min-w-0 flex-1 break-words pr-0 text-sm lg:text-[20px] font-medium text-white lg:pr-6"
@@ -2226,13 +2310,14 @@ export default function QuoteDetailsPage({
               title="Other Details"
               actionLabel={canEditSelectedVersion ? "Edit Tax & Discounts" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("discounts") : undefined}
+              isDark={isDark}
             >
               <div className="space-y-3 lg:space-y-6">
-                <div className="inline-flex rounded-lg lg:rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
+                <div className="inline-flex rounded-lg lg:rounded-2xl border border-[#2B2B2B] bg-[#111111] p-1">
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("discounts")}
-                    className={`rounded-xl lg:rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
+                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2242,7 +2327,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
-                    className={`rounded-xl lg:rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
+                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2252,65 +2337,79 @@ export default function QuoteDetailsPage({
                 </div>
 
                 {otherDetailsTab === "discounts" ? (
-                  <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
+                  <div
+                    className={`rounded-lg lg:rounded-[22px] border px-4 lg:px-5 py-2 transition-colors ${isDark
+                      ? "border-[#2B2B2B] bg-[#111111]"
+                      : "border-[#000000]/10 bg-white"
+                      }`}
+                  >
                     <div className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
-                        <p className="lg:text-[24px] font-semibold text-white">Discount Type</p>
-                        <p className="mt-1 text-xs lg:text-sm text-[#8F8F95]">
+                        <p className={`lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+                          Discount Type
+                        </p>
+                        <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
                           {isFixedDiscount ? "$ off subtotal" : "% off subtotal"}
                         </p>
                       </div>
-                      <div className="inline-flex items-center gap-3 rounded-lg lg:rounded-[16px] bg-[#1A1A1A] px-4 py-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#E8D1AB] text-black">
+
+                      {/* Type Badge Metric Display */}
+                      <div className={`inline-flex items-center gap-3 rounded-lg lg:rounded-2xl px-4 py-3 transition-colors ${isDark ? "bg-[#1A1A1A]" : "bg-[#000000]/[0.02] border border-[#000000]/5"}`}>
+                        <div className={`flex h-11 w-11 items-center justify-center rounded-xl transition-colors bg-[#E8D1AB] text-black`}>
                           {isFixedDiscount ? <DollarSign size={20} /> : <Percent size={20} />}
                         </div>
                         <div>
-                          <p className="lg:text-lg font-semibold text-white">
+                          <p className={`lg:text-lg font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                             {isFixedDiscount ? "Fixed Amount" : "Percentage"}
                           </p>
-                          <p className="text-xs lg:text-sm text-[#8F8F95]">
+                          <p className={`text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
                             {isFixedDiscount ? formatQuoteCurrency(discountValue) : `${discountValue}%`}
                           </p>
                         </div>
                       </div>
                     </div>
-                    <div className="border-t border-[#2B2B2B]" />
+
+                    {/* Row Data Metrics Panels */}
+                    <div className={`border-t transition-colors ${isDark ? "border-[#2B2B2B]" : "border-[#000000]/10"}`} />
                     <DetailRow
                       label="Discount Amount"
                       value={formatQuoteCurrency(discountAmount)}
+                      isDark={isDark}
                     />
-                    <div className="border-t border-[#2B2B2B]" />
+
+                    <div className={`border-t transition-colors ${isDark ? "border-[#2B2B2B]" : "border-[#000000]/10"}`} />
                     <DetailRow
                       label="Total After Discount"
                       value={formatQuoteCurrency(discountedSubtotal)}
+                      isDark={isDark}
                     />
                   </div>
                 ) : (
                   <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
-                    <DetailRow label="Tax Type" value={taxType} />
+                    <DetailRow label="Tax Type" value={taxType} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Tax Rate" value={`${taxRate}%`} />
+                    <DetailRow label="Tax Rate" value={`${taxRate}%`} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} />
+                    <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} isDark={isDark} />
                   </div>
                 )}
 
                 <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
-                  <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} />
+                  <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} isDark={isDark} />
                   {discountAmount > 0 ? (
                     <>
                       <div className="border-t border-[#2B2B2B]" />
-                      <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
+                      <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} isDark={isDark} />
                     </>
                   ) : null}
                   <div className="border-t border-[#2B2B2B]" />
-                  <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} />
+                  <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} isDark={isDark} />
                 </div>
 
                 {terms.length > 0 ? (
                   <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4 lg:p-5">
                     <p className="lg:text-lg font-semibold text-white">Terms & Conditions</p>
-                    <div className="mt-4 space-y-1 lg:space-y-2 text-xs lg:text-sm leading-none lg:leading-7 text-[#B3B3B8]">
+                    <div className={`mt-4 lg:space-y-2 text-xs lg:text-sm leading-4 lg:leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#71717B]"}`}>
                       {terms.map((term, index) => (
                         <p key={`${term}-${index}`}>{term}</p>
                       ))}
@@ -2334,7 +2433,7 @@ export default function QuoteDetailsPage({
               </Button>
               <Button
                 type="button"
-                onClick={() => setIsPreviewOpen(true) }
+                onClick={() => setIsPreviewOpen(true)}
                 disabled={(!quote || loading || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
                 className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
               >

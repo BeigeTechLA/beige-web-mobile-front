@@ -10,6 +10,7 @@ interface ShootRecord {
   customerName: string;
   initials: string;
   date: string;
+  location?: string;
   category: string;
   price: string;
   status: string;
@@ -68,8 +69,14 @@ export const MobileShootRow = ({ shoot, onRowClick }: MobileShootRowProps) => {
 
   if (!mounted) return null;
 
+  const isMissingInfo = (!shoot.date || shoot.date === "No Date" || !shoot.location);
+
   return (
-    <div className={`transition-all duration-300 ${isDark ? ((isExpanded ? "bg-[#202020]" : "bg-[#171717]")) : ((isExpanded ? "bg-[#F9F9F9]" : "bg-white"))}`}>
+    <div className={`transition-all duration-300 ${
+      isMissingInfo 
+        ? (isDark ? "bg-red-500/5 border-l-2 border-l-red-500" : "bg-red-50 border-l-2 border-l-red-500") 
+        : (isDark ? (isExpanded ? "bg-[#202020]" : "bg-[#171717]") : (isExpanded ? "bg-[#F9F9F9]" : "bg-white"))
+    }`}>
       {/* Header - Always Visible */}
       <div
         className="flex items-center justify-between p-5 cursor-pointer gap-2"
@@ -96,7 +103,14 @@ export const MobileShootRow = ({ shoot, onRowClick }: MobileShootRowProps) => {
           </div>
         </div>
 
-        <StatusBadge status={shoot.status} />
+        <div className="flex items-center gap-2">
+          {isMissingInfo && (
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isDark ? "bg-red-500/20 text-red-400 border border-red-500/30" : "bg-red-100 text-red-600 border border-red-200"}`}>
+              MISSING INFO
+            </span>
+          )}
+          <StatusBadge status={shoot.status} />
+        </div>
       </div>
 
       {/* Expandable Details */}
