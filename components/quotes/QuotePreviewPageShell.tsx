@@ -564,7 +564,7 @@ export default function QuotePreviewPageShell({
           disabled={!resolvedQuoteId || loading}
           className={`h-11 rounded-xl px-4 ${isDark
             ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-            : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+            : "border border-[#00000033] bg-[#FFF] text-black hover:bg-[#E5E7EB]"
             }`}
         >
           Sign Quote
@@ -636,7 +636,7 @@ export default function QuotePreviewPageShell({
                   disabled={!resolvedQuoteId || loading}
                   className={`h-11 rounded-xl ${isDark
                     ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-                    : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                    : "border border-[#00000033] bg-[#FFF] text-black hover:bg-[#E5E7EB]"
                     }`}
                 >
                   Sign Quote
@@ -749,6 +749,7 @@ export default function QuotePreviewPageShell({
           setIsServiceAgreementOpen(false);
           setShowSignature(true);
         }}
+        isDark={isDark}
       />
 
       {showSignature && (

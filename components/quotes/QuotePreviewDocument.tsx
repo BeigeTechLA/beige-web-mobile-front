@@ -502,7 +502,7 @@ export default function QuotePreviewDocument({
               <button
                 type="button"
                 onClick={onOpenServiceAgreement}
-                className="text-[#E8D5B5] underline hover:text-[#f3e4cd] cursor-pointer text-left"
+                className={`underline hover:text-[#f3e4cd] cursor-pointer text-left ${isDark ? "text-[#E8D5B5]" : "text-[#d4a75d]"} `}
               >
                 Service Agreement & Terms of Engagement.
               </button>

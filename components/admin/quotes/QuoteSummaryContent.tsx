@@ -71,7 +71,7 @@ const SectionCard = ({
   const total = items.reduce((sum, item) => sum + item.amount, 0);
 
   return (
-    <div className={`rounded-xl p-4 lg:p-6 ${isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"}`}>
+    <div className={`rounded-xl p-4 lg:p-6 ${isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-[#FFFFFF]"}`}>
       <div className="mb-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
@@ -83,7 +83,7 @@ const SectionCard = ({
           </div>
         </div>
 
-        <p className="text-sm font-semibold text-[#E8D1AB] lg:text-base">{formatCurrency(total)}</p>
+        <p className={`text-sm font-semibold lg:text-base ${isDark ? "text-[#E8D1AB]" : "text-[#D4A75D]"}`}>{formatCurrency(total)}</p>
       </div>
 
       <div className="space-y-4">
@@ -134,9 +134,9 @@ const InfoTile = ({
   }
 
   return (
-    <div className={`rounded-xl flex flex-col p-4 lg:border gap-2 ${isDark ? "border-white/10 bg-[#282727]" : " border-[#DFDDDD] bg-white"}`}>
+    <div className={`rounded-xl flex flex-col p-4 lg:border gap-2 ${isDark ? "border-white/10 bg-[#282727]" : " border-[#D7D7D7] bg-[#F4F5F7]"}`}>
       <div className="flex lg:flex-col gap-2 lg:gap-3 items-center lg:items-start">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl text-[#E8D1AB] ${isDark ? "bg-[#2A2A2A]" : "bg-[#F4F5F7]"}`}>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${isDark ? "bg-[#2A2A2A] text-[#E8D1AB]" : "bg-[#FFF] text-[#D4A75D]"}`}>
           {icon}
         </div>
         <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">{label}</p>
@@ -252,7 +252,7 @@ export default function QuoteSummaryContent({
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex flex-col gap-2 ">
                       <div className="flex items-center gap-4">
-                        <div className={`shrink-0 flex h-15 w-15 lg:h-16 lg:w-16 items-center justify-center rounded-full text-xl lg:text-2xl font-medium lg:h-20 lg:w-20 lg:text-2xl ${isDark ? "bg-[#333333] text-[#FFFFFF85]" : "bg-white text-[#00000085]"}`}>
+                        <div className={`shrink-0 flex h-15 w-15 lg:h-16 lg:w-16 items-center justify-center rounded-full text-xl lg:text-2xl font-medium lg:h-20 lg:w-20 lg:text-2xl ${isDark ? "bg-[#333333] text-[#FFFFFF85]" : "bg-[#F4F5F7] text-[#00000085]"}`}>
                           {getInitials(snapshot.clientName || snapshot.clientEmail || snapshot.clientPhone)}
                         </div>
                         <div>
@@ -290,10 +290,8 @@ export default function QuoteSummaryContent({
                         ) : null}
                       </div>
                     </div>
-
-
                     <div
-                      className={`rounded-xl lg:rounded-2xl px-4 py-3 lg:min-w-[260px] flex lg:flex-col items-center justify-between lg:items-start lg:gap-2 ${isDark ? "border border-white/10 bg-[#151515]" : "border border-[#DFDDDD] bg-white"}`}
+                      className={`rounded-xl lg:rounded-2xl px-4 py-3 lg:min-w-[260px] flex lg:flex-col items-center justify-between lg:items-start lg:gap-2 ${isDark ? "border border-white/10 bg-[#151515]" : "border border-[#DFDDDD] bg-[#F4F5F7]"}`}
                     >
                       <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">Generated</p>
                       <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
