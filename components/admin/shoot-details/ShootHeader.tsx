@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, AlertCircle, Eye } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,6 @@ import { fileManagerApi } from "@/lib/fileManagerApi";
 import {
   getProjectDateText,
   getPaymentStatusMeta,
-  getProjectFolderLink,
   getProjectScheduleTimeText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
@@ -40,6 +39,10 @@ type ShootHeaderProject = {
   city?: string;
   state?: string;
   country?: string;
+  needs_attention?: {
+    required?: boolean;
+    missing_fields?: string[];
+  } | null;
   [key: string]: unknown;
 };
 
@@ -52,9 +55,19 @@ interface ShootHeaderProps {
   activeTab?: string;
   project?: ShootHeaderProject;
   projectId?: string;
+  missingFields?: string[];
+  hasFormDetails?: boolean;
+  onOpenMissingFields?: () => void;
 }
 
-export default function ShootHeader({ activeTab = "Overview", project, projectId }: ShootHeaderProps) {
+export default function ShootHeader({
+  activeTab = "Overview",
+  project,
+  projectId,
+  missingFields = [],
+  hasFormDetails = false,
+  onOpenMissingFields,
+}: ShootHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
@@ -67,7 +80,6 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
   const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
@@ -114,7 +126,6 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const pendingAmountValue = hasMeaningfulManualProgress
     ? manualPendingAmount
     : Math.max(finalValue - paidAmountValue, 0);
-  const folderLink = workspaceFolderLink || getProjectFolderLink(project);
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
@@ -139,13 +150,11 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
         const response = await fileManagerApi.getExternalWorkspace(projectId);
         if (!isMounted) return;
 
-        setWorkspaceFolderLink(response.workspace.consoleUrl || "");
         setWorkspaceFileCount(
           typeof response.workspace.fileCount === "number" ? response.workspace.fileCount : null
         );
-      } catch (error) {
+      } catch {
         if (!isMounted) return;
-        setWorkspaceFolderLink("");
         setWorkspaceFileCount(null);
       }
     };
@@ -161,6 +170,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
+  const hasMissingFields = missingFields.length > 0;
 
   const handleDelete = async () => {
     if (!projectId) return;
@@ -186,7 +196,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   if (!mounted) return null;
 
   return (
-    <div>
+    <div data-active-tab={activeTab}>
       <button
         onClick={() => router.back()}
         className={`lg:hidden transition-colors flex items-center gap-2 mb-5 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
@@ -208,13 +218,15 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
         </div>
 
         <div className="flex gap-3">
-          <Button
-            variant="outline"
-            className="bg-[#2C2C2C] border-none text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0] rounded-lg h-10 px-4 gap-2"
-            onClick={() => router.push(`${shootBasePath}/${projectId}/form-details`)}
-          >
-            <Eye className="w-4 h-4" /> View Form Details
-          </Button>
+          {hasFormDetails ? (
+            <Button
+              variant="outline"
+              className="bg-[#2C2C2C] border-none text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0] rounded-lg h-10 px-4 gap-2"
+              onClick={() => router.push(`${shootBasePath}/${projectId}/form-details`)}
+            >
+              <Eye className="w-4 h-4" /> View Form Details
+            </Button>
+          ) : null}
           <Button
             onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
             className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
@@ -240,21 +252,36 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
             }`}>
             {getInitials(project?.project_name)}
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                {project?.project_name || "Untitled Project"}
-                {project?.skills_needed && project.skills_needed !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({project.skills_needed})</span>}
-              </h1>
-              <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
-                {resolvedStatusLabel}
-              </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                    {project?.project_name || "Untitled Project"}
+                    {project?.skills_needed && project.skills_needed !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({project.skills_needed})</span>}
+                  </h1>
+                  <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
+                    {resolvedStatusLabel}
+                  </span>
+                </div>
+                <p className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
+                  {project?.description
+                    ? project.description.replace(/Matching Method:.*$/gm, '').trim()
+                    : "No description available."}
+                </p>
+              </div>
+
+              {hasMissingFields ? (
+                <button
+                  type="button"
+                  onClick={onOpenMissingFields}
+                  className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-[#E8D1AB]/25 bg-[#FFF4DA] px-3 py-2 text-xs font-semibold text-[#7A5A00] transition-colors hover:bg-[#FFEFC5] lg:mt-0 lg:self-start"
+                >
+                  <AlertCircle size={14} />
+                  Attention Needed
+                </button>
+              ) : null}
             </div>
-            <p className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
-              {project?.description
-                ? project.description.replace(/Matching Method:.*$/gm, '').trim()
-                : "No description available."}
-            </p>
           </div>
         </div>
 

@@ -179,7 +179,7 @@ export default function ShootsPage() {
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
               <input
                 type="text"
-                placeholder="Search project name..."
+                placeholder="Search by project name, email, or phone number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full border rounded-lg h-12 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
@@ -198,7 +198,7 @@ export default function ShootsPage() {
               </Button>
 
               {/* View Toggle */}
-               {/* <div className={`hh-12 w-fit flex items-center justify-end border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+              <div className={`hh-12 w-fit flex items-center justify-end border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                 <button
                   type="button"
                   onClick={() => setViewMode("list")}
@@ -223,7 +223,7 @@ export default function ShootsPage() {
                 >
                   <Grid3X3 size={18} />
                 </button>
-              </div>  */}
+              </div>
             </div>
 
           </div>
@@ -326,7 +326,7 @@ export default function ShootsPage() {
           setRange={setRange}
           cpAssignmentFilter={cpAssignmentFilter}
           setCpAssignmentFilter={setCpAssignmentFilter}
-          viewMode={"list"}
+          viewMode={viewMode}
           setViewMode={setViewMode}
           showHeaderControls={true}
           showHeaderFilters={false}
