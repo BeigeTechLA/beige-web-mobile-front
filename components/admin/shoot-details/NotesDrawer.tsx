@@ -18,6 +18,7 @@ import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
+import EmptyNotesState from "./EmptyNotesState";
 
 // Quick reactions for emoji picker
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢"] as const;
@@ -241,6 +242,20 @@ export default function NotesDrawer({
     [pendingAttachments]
   );
 
+  const isEmptyNotesResponse = (response: any) => {
+    if (!response) return true;
+    if (response?.success && Array.isArray(response?.data) && response.data.length === 0) return true;
+    if (response?.success && Array.isArray(response?.data?.notes) && response.data.notes.length === 0) return true;
+
+    const errorText = String(response?.error || response?.message || "").toLowerCase();
+    return (
+      errorText.includes("no notes") ||
+      errorText.includes("note not found") ||
+      errorText.includes("notes not found") ||
+      errorText.includes("not found")
+    );
+  };
+
   useEffect(() => {
     return () => {
       pendingAttachmentPreviews.forEach((item) => URL.revokeObjectURL(item.previewUrl));
@@ -252,6 +267,11 @@ export default function NotesDrawer({
     if (!silent) setLoadingNotes(true);
     const response = await adminApi.getShootNotes(bookingId);
     if (!response?.success) {
+      if (isEmptyNotesResponse(response)) {
+        setNotes([]);
+        if (!silent) setLoadingNotes(false);
+        return;
+      }
       if (!silent) {
         toast.error(response?.error || "Failed to fetch notes");
       }
@@ -264,6 +284,7 @@ export default function NotesDrawer({
 
   useEffect(() => {
     if (isOpen && bookingId) {
+      setNotes([]);
       fetchNotes();
     }
   }, [isOpen, bookingId]);
@@ -542,21 +563,25 @@ export default function NotesDrawer({
                   Updating notes...
                 </div>
               ) : null}
-              {notes.map((note) => (
-                <NoteCard
-                  key={note.id}
-                  note={note}
-                  isDark={isDark}
-                  onReact={handleReaction}
-                  onReply={(id) => setReplyingToId(id)}
-                  onDelete={handleDeleteNote}
-                  onPreviewAttachment={openStoredAttachmentPreview}
-                  actionsDisabled={isApiBusy || reactionPendingNoteIds.has(note.id)}
-                  showReactionPickerId={showReactionPickerId}
-                  setShowReactionPickerId={setShowReactionPickerId}
-                  reactionPickerRef={reactionPickerRef}
-                />
-              ))}
+              {!loadingNotes && notes.length === 0 ? (
+                <EmptyNotesState />
+              ) : (
+                notes.map((note) => (
+                  <NoteCard
+                    key={note.id}
+                    note={note}
+                    isDark={isDark}
+                    onReact={handleReaction}
+                    onReply={(id) => setReplyingToId(id)}
+                    onDelete={handleDeleteNote}
+                    onPreviewAttachment={openStoredAttachmentPreview}
+                    actionsDisabled={isApiBusy || reactionPendingNoteIds.has(note.id)}
+                    showReactionPickerId={showReactionPickerId}
+                    setShowReactionPickerId={setShowReactionPickerId}
+                    reactionPickerRef={reactionPickerRef}
+                  />
+                ))
+              )}
             </div>
 
             {/* Bottom Composer */}
