@@ -21,6 +21,7 @@ import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useTheme } from "next-themes";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 type SkillOption = {
   id?: number | string;
@@ -211,28 +212,34 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
-      const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
-      const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${numericBookingId}?t=${Date.now()}`;
-      const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${numericBookingId}?download=1&t=${Date.now()}`;
       const isManualInvoice =
         String(invoicePdfUrl || "").includes("manual=1") ||
         String(hostedInvoiceUrl || "").includes("manual=1");
+      const brandedPdfUrl = buildBeigeInvoiceUrl(numericBookingId, {
+        manual: isManualInvoice,
+        cacheBust: true,
+      });
+      const brandedDownloadUrl = buildBeigeInvoiceUrl(numericBookingId, {
+        manual: isManualInvoice,
+        download: true,
+        cacheBust: true,
+      });
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         toast.error("Preview URL not available");
         return;
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !invoicePdfUrl) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
       if (invoicePdfUrl) {
         if (isManualInvoice) {
-          window.open(invoicePdfUrl || proxiedPdfUrl, "_blank", "noopener,noreferrer");
+          window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
         } else {
           const link = document.createElement("a");
-          link.href = proxiedDownloadUrl || proxiedPdfUrl;
+          link.href = brandedDownloadUrl;
           link.target = "_blank";
           link.rel = "noopener noreferrer";
           link.click();

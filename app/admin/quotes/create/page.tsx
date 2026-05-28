@@ -102,6 +102,7 @@ import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -3532,6 +3533,7 @@ export default function CreateQuotePage() {
 
       if (action === "save") {
         setIsQuoteSaved(true);
+        setHasUnsavedQuoteChanges(false);
         if (options?.showVersionSuccess) {
           setIsReviewChangesModalOpen(false);
           setIsVersionSaveSuccessOpen(true);
@@ -3728,7 +3730,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    await saveQuoteDraft("save");
+    await saveQuoteDraft("save", { showVersionSuccess: true });
   };
 
   const handleSaveCurrentEditStep = async () => {
@@ -3860,30 +3862,34 @@ export default function CreateQuotePage() {
           String(response.data.booking_id).trim()
           ? String(response.data.booking_id)
           : convertedBookingId;
-      const apiBase = (
-        process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
-      ).replace(/\/$/, "");
-      const proxiedPdfUrl = !isManualInvoicePdf && invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
+      const brandedPdfUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+            manual: isManualInvoicePdf,
+            cacheBust: true,
+          })
         : null;
-      const proxiedDownloadUrl = !isManualInvoicePdf && invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
+      const brandedDownloadUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+            manual: isManualInvoicePdf,
+            download: true,
+            cacheBust: true,
+          })
         : null;
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl && !isManualInvoicePdf) {
+      if (hostedInvoiceUrl && !isManualInvoicePdf && !invoicePdfUrl) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
       if (invoicePdfUrl) {
         const link = document.createElement("a");
-        if (!proxiedDownloadUrl && !proxiedPdfUrl) {
+        if (!brandedDownloadUrl && !brandedPdfUrl) {
           throw new Error("Invoice PDF URL is not available");
         }
-        link.href = proxiedDownloadUrl || proxiedPdfUrl || invoicePdfUrl;
+        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.click();
@@ -7771,7 +7777,7 @@ export default function CreateQuotePage() {
               showReviewChangesAction ? (
                 <Button
                   className="bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all"
-                  disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft}
+                  disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft || hasCurrentSavedQuoteState}
                   onClick={handleOpenReviewChangesModal}
                 >
                   Review Changes
@@ -7910,7 +7916,7 @@ export default function CreateQuotePage() {
               <Button
                 variant="default"
                 onClick={handleOpenReviewChangesModal}
-                disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
+                disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid || hasCurrentSavedQuoteState}
                 className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 Review Changes
@@ -7987,7 +7993,7 @@ export default function CreateQuotePage() {
             showReviewChangesAction ? (
               <Button
                 className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1"
-                disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft}
+                disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft || hasCurrentSavedQuoteState}
                 onClick={handleOpenReviewChangesModal}
               >
                 Review Changes
@@ -8067,10 +8073,10 @@ export default function CreateQuotePage() {
             </div>
 
             <h2 className="mb-2 text-center text-[28px] font-bold leading-tight text-white sm:text-[36px] lg:text-[40px]">
-              New Quote Version Created Successfully
+              Quote Saved Successfully
             </h2>
             <p className="mx-auto mb-10 max-w-[450px] text-center text-[16px] text-[#A1A1AA] sm:text-[18px]">
-              A New Version Of This Quote Has Been Saved <br className="hidden sm:block" /> With Updated Changes.
+              Your quote has been updated successfully.
             </p>
 
             <button
@@ -8085,7 +8091,7 @@ export default function CreateQuotePage() {
               }}
               className="flex h-14 min-w-[240px] items-center justify-center rounded-[12px] bg-[#E7D0A4] px-10 text-[16px] font-semibold text-black transition-colors hover:bg-[#E7D0A4]/90 sm:h-[60px]"
             >
-              View Updated Summary
+              View Quote Summary
             </button>
           </motion.div>
         )}

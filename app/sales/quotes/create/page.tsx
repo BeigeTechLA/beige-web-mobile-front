@@ -101,6 +101,7 @@ import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -3697,30 +3698,37 @@ export default function CreateQuotePage() {
         String(response.data.booking_id).trim()
           ? String(response.data.booking_id)
           : convertedBookingId;
-      const apiBase = (
-        process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
-      ).replace(/\/$/, "");
-      const proxiedPdfUrl = invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
+      const isManualInvoicePdf =
+        typeof invoicePdfUrl === "string" &&
+        /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
+      const brandedPdfUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+            manual: isManualInvoicePdf,
+            cacheBust: true,
+          })
         : null;
-      const proxiedDownloadUrl = invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
+      const brandedDownloadUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+            manual: isManualInvoicePdf,
+            download: true,
+            cacheBust: true,
+          })
         : null;
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !invoicePdfUrl) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
       if (invoicePdfUrl) {
         const link = document.createElement("a");
-        if (!proxiedDownloadUrl && !proxiedPdfUrl) {
+        if (!brandedDownloadUrl && !brandedPdfUrl) {
           throw new Error("Invoice PDF URL is not available");
         }
-        link.href = proxiedDownloadUrl || proxiedPdfUrl || invoicePdfUrl;
+        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.click();
