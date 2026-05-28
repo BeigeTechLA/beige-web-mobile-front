@@ -3,7 +3,7 @@ name: Deploy Frontend Dev
 on:
   push:
     branches:
-      - credit/bug-2705
+      - development
   workflow_dispatch:
 
 concurrency:
