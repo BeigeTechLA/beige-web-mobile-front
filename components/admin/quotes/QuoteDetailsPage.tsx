@@ -1260,7 +1260,13 @@ export default function QuoteDetailsPage({
   // Account for previous payments from lead or quote context
   const leadCollectedAmount = Number(linkedLeadDetails?.collected_amount) || 0;
   const quotePreviouslyPaid = Number(quote?.additional_payment?.previously_paid_amount) || 0;
-  const effectivePreviouslyPaid = leadCollectedAmount || quotePreviouslyPaid;
+  const summaryPaidAmount = Number(quote?.payment_summary?.paid_amount) || 0;
+  const summaryCreditUsedAmount = Number(quote?.payment_summary?.credit_used_amount) || 0;
+  const effectivePreviouslyPaid = Math.max(
+    leadCollectedAmount + summaryCreditUsedAmount,
+    quotePreviouslyPaid + summaryCreditUsedAmount,
+    summaryPaidAmount + summaryCreditUsedAmount
+  );
 
   const hasFullPaymentFromActivity = manualPaymentEntries.some((entry) => entry.data.payment_type === "full");
   const partialPaidFromActivity = manualPaymentEntries.reduce((sum, entry) => {
@@ -2450,6 +2456,7 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+        showShareActions={isSelectedCurrentVersion}
         paymentSummaryOverrides={previewPaymentSummaryOverrides}
       />
       <EditAccessModalComponent
