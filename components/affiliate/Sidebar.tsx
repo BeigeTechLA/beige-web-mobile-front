@@ -50,7 +50,7 @@ const menuItems = [
   { name: 'Shoots', icon: Camera, link: '/affiliate/shoots' },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes' },
   { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot' },
-  { name: 'Finances', icon: DollarSign, link: '/affiliate/finances' },
+  // { name: 'Finances', icon: DollarSign, link: '/affiliate/finances' },
   { name: 'Profile', icon: Settings, link: '/affiliate/profile' },
 ];
 
