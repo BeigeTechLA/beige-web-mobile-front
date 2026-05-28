@@ -5,8 +5,7 @@ import Cookies from 'js-cookie';
 import { setCredentials, logout as logoutAction, setPermissions } from '../redux/features/auth/authSlice';
 import { authApi } from '../redux/features/auth/authApi';
 import { salesApi } from '../redux/features/sales/salesApi';
-import { adminApi } from '../api';
-import { normalizePermissionsPayload } from '../permissions';
+import { fetchEffectiveUserPermissions } from '../effective-permissions';
 import {
   useLoginMutation,
   useRegisterMutation,
@@ -66,10 +65,8 @@ export const useAuth = () => {
       dispatch(setCredentials({ user: result.user, token: result.token }));
 
       try {
-        const permissionsResponse = await adminApi.getUserPermissions(result.user.id);
-        if (permissionsResponse?.success && permissionsResponse.data) {
-          dispatch(setPermissions(normalizePermissionsPayload(permissionsResponse.data)));
-        }
+        const { effectivePermissions } = await fetchEffectiveUserPermissions(result.user.id);
+        dispatch(setPermissions(effectivePermissions));
       } catch (error) {
         console.error("Failed to fetch permissions during login:", error);
       }
