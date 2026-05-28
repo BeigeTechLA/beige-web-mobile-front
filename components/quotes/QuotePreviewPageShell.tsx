@@ -275,6 +275,34 @@ export default function QuotePreviewPageShell({
       ? `${window.location.origin}/quotes/preview?quoteKey=${encodeURIComponent(queryQuoteKey)}`
       : null);
   const effectivePaymentBookingId = String(paymentBookingId || existingBookingId || "").trim();
+  const paymentStatus = String(
+    quote?.additional_payment?.payment_status ||
+    (quote as Record<string, unknown> | null)?.payment_status ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  const normalizedQuoteStatus = String(quote?.quote_status || quote?.status || "")
+    .trim()
+    .toLowerCase();
+  const outstandingAmount = Number(quote?.additional_payment?.outstanding_amount);
+  const previouslyPaidAmount = Number(quote?.additional_payment?.previously_paid_amount);
+  const isMarkedFullyPaid =
+    ["paid", "completed", "success"].includes(paymentStatus) ||
+    ["paid", "completed", "success"].includes(
+      String((quote as Record<string, unknown> | null)?.payment_status || "")
+        .trim()
+        .toLowerCase()
+    );
+  const isZeroOutstanding =
+    Number.isFinite(outstandingAmount) && outstandingAmount <= 0 && previouslyPaidAmount > 0;
+  const isPublicPaymentAllowedStatus = !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
+  const canContinueToPayment =
+    quoteDetailMode === "public" &&
+    Boolean(effectivePaymentBookingId) &&
+    isPublicPaymentAllowedStatus &&
+    !isMarkedFullyPaid &&
+    !isZeroOutstanding;
 
   useEffect(() => {
     if (!paymentStorageKey || typeof window === "undefined") {
@@ -542,7 +570,7 @@ export default function QuotePreviewPageShell({
           Sign Quote
         </ActionButton>
       )}
-      {quoteDetailMode === "public" && effectivePaymentBookingId && (
+      {canContinueToPayment && (
         <ActionButton
           onClick={handleContinueToPayment}
           className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -615,7 +643,7 @@ export default function QuotePreviewPageShell({
                 </ActionButton>
               ) : null
             )}
-            {quoteDetailMode === "public" && effectivePaymentBookingId && (
+            {canContinueToPayment && (
               <ActionButton
                 onClick={handleContinueToPayment}
                 className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"

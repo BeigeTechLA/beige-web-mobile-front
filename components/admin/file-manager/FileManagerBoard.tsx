@@ -150,7 +150,7 @@ export function FileManagerBoard<T>({
   return (
     <div
       ref={boardRef}
-      className={`overflow-x-auto overflow-y-hidden pb-6 snap-x snap-mandatory ${
+      className={`overflow-x-auto overflow-y-hidden pb-6 ${
         isPanning ? "cursor-grabbing select-none" : "cursor-grab"
       }`}
       onMouseDown={handleMouseDown}
@@ -162,7 +162,7 @@ export function FileManagerBoard<T>({
         {orderedColumns.map((column) => (
           <div
             key={column.id}
-            className="w-[calc(100vw-56px)] md:w-[320px] shrink-0 rounded-3xl border h-full min-h-[620px] snap-center bg-[#0A0A0A] border-[#FFFFFF33] flex flex-col"
+            className="w-[calc(100vw-56px)] md:w-[320px] shrink-0 rounded-3xl border h-full min-h-[620px] bg-[#0A0A0A] border-[#FFFFFF33] flex flex-col"
           >
             <div className="flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b border-white/5 bg-[#202020]">
               <h4 className="text-sm font-medium text-[#E8D1AB]">{column.title}</h4>
