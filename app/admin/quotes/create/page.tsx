@@ -52,6 +52,7 @@ import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
 import {
   LocationPicker,
   darkThemeColors,
+  lightThemeColors
 } from "@/src/components/booking/v2/component/LocationPicker";
 import {
   salesApi,
@@ -5827,14 +5828,15 @@ export default function CreateQuotePage() {
               {/* Services Section */}
               <section>
                 <div className="px-5 pt-5 lg:px-8 lg:pt-8">
-                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">
+                  <h2 className={`text-base lg:text-xl font-medium leading-none mb-2 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                     Services
                   </h2>
-                  <p className="text-[#A1A1AA] text-sm font-normal leading-none">
+                  <p className={`text-sm font-normal leading-none transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
                     Select services and configure pricing
                   </p>
                 </div>
-                <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
+
+                <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
 
                 <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 mb-5">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
@@ -5847,43 +5849,55 @@ export default function CreateQuotePage() {
                         const isProtectedService = isProtectedServiceLabel(
                           service.label,
                         );
+                        const isSelected = selectedServices.includes(service.id);
 
                         return (
                           <div key={service.id} className="relative">
                             <button
                               type="button"
                               onClick={() => handleServiceSelect(service.id, service.price)}
-                              className={`group relative grid h-[78px] w-full grid-rows-[auto_auto] content-center items-start overflow-hidden rounded-xl border px-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${selectedServices.includes(service.id)
-                                ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
-                                : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
+                              className={`group relative grid h-[78px] w-full grid-rows-[auto_auto] content-center items-start overflow-hidden rounded-xl border px-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${isSelected
+                                ? isDark
+                                  ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
+                                  : "bg-[#FFF7E6] border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20 shadow-[0_8px_30px_rgba(142,130,106,0.15)]"
+                                : isDark
+                                  ? "bg-[#101010] border-white/30 hover:border-white/80"
+                                  : "bg-[#F4F5F7] border-[#D7D7D7] hover:border-[#000000]/20"
                                 }`}
                             >
                               <div
                                 title={getServiceDisplayLabel(service.label)}
-                                className="w-full truncate pr-2 font-medium leading-normal text-base text-white self-end"
+                                className={`w-full truncate pr-2 font-medium leading-normal text-base self-end transition-colors ${isDark ? "text-white" : "text-[#000]"}`}
                               >
                                 {getServiceDisplayLabel(service.label)}
                               </div>
-                              <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-normal mt-0.5 self-start">
+
+                              <div className={`text-sm font-semibold tracking-tight leading-normal mt-0.5 self-start transition-colors ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"}`}>
                                 ${service.price.toFixed(2)}{" "}
-                                <span className="text-[#71717B] font-medium text-xs lowercase ml-1">
+                                <span className={`font-medium text-xs lowercase ml-1 transition-colors ${isDark ? "text-[#71717B]" : "text-[#71717B]"}`}>
                                   per hour
                                 </span>
                               </div>
-                              {selectedServices.includes(service.id) && (
+
+                              {isSelected && (
                                 <div
-                                  className={`absolute top-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none ${isProtectedService ? "right-16 lg:right-16" : "right-20 lg:right-20"
+                                  className={`absolute top-6 text-xs font-medium px-4 py-1 rounded-[6px] leading-none transition-colors bg-[#0DC752] text-[#09090B] ${isProtectedService ? "right-16 lg:right-16" : "right-20 lg:right-20"
                                     }`}
                                 >
                                   Selected
                                 </div>
                               )}
                             </button>
+
+                            {/* Action Icons Panel */}
                             <div className="absolute top-6 right-6 flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => openEditCatalogItem(service, "service")}
-                                className="text-zinc-500 transition-colors hover:text-[#E8D1AB]"
+                                className={`transition-colors ${isDark
+                                  ? "text-zinc-500 hover:text-[#E8D1AB]"
+                                  : "text-[#000000]/40 hover:text-[#8E826A]"
+                                  }`}
                                 title="Edit service"
                               >
                                 <Pencil size={18} />
@@ -5894,7 +5908,10 @@ export default function CreateQuotePage() {
                                   onClick={() =>
                                     handleDeleteCatalogItem(service.id, "service")
                                   }
-                                  className="text-zinc-500 transition-colors hover:text-red-500"
+                                  className={`transition-colors ${isDark
+                                    ? "text-zinc-500 hover:text-red-500"
+                                    : "text-[#000000]/40 hover:text-red-600"
+                                    }`}
                                   title="Delete service"
                                 >
                                   <Trash2 size={18} />
@@ -5925,9 +5942,10 @@ export default function CreateQuotePage() {
                           className="grid grid-cols-1 md:grid-cols-12 gap-6"
                         >
                           <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
+                            {/* Service Name Input Field */}
                             <div className="flex-1 relative w-full">
-                              <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                <span className="text-xs text-[#8A8A8A] font-normal">
+                              <div className={`absolute -top-3 left-4 z-10 px-3 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                                <span className={`text-xs font-normal transition-colors ${isDark ? "text-[#8A8A8A]" : "text-[#000000]/50"}`}>
                                   Service Name
                                 </span>
                               </div>
@@ -5940,13 +5958,19 @@ export default function CreateQuotePage() {
                                   )
                                 }
                                 maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
-                                className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                                className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-sm lg:text-base transition-all ${isDark
+                                  ? "border-[#4A4A4A] focus:border-[#A78857] text-white placeholder:text-[#666666]"
+                                  : "border-[#000000]/15 focus:border-[#8E826A] text-[#171717] placeholder:text-[#71717B]"
+                                  }`}
                               />
                             </div>
+
+                            {/* Cost Input & Action Button Container */}
                             <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
                               <div className="flex-1 relative">
-                                <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                  <span className="text-xs text-[#8A8A8A] font-normal">
+                                <div className={`absolute -top-3 left-4 z-10 px-3 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                                  <span className={`text-xs font-normal transition-colors ${isDark ? "text-[#8A8A8A]" : "text-[#000000]/50"
+                                    }`}>
                                     Cost
                                   </span>
                                 </div>
@@ -5959,25 +5983,32 @@ export default function CreateQuotePage() {
                                     )
                                   }
                                   inputMode="decimal"
-                                  className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                                  className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-sm lg:text-base transition-all ${isDark
+                                    ? "border-[#4A4A4A] focus:border-[#A78857] text-white placeholder:text-[#666666]"
+                                    : "border-[#000000]/15 focus:border-[#8E826A] text-[#171717] placeholder:text-[#71717B]"
+                                    }`}
                                 />
                               </div>
+
+                              {/* Submit Action Button */}
                               <button
+                                type="button"
                                 onClick={handleCreateService}
                                 disabled={
                                   isSubmittingService ||
                                   !customServiceName ||
                                   !customServiceCost
                                 }
-                                className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingService ||
-                                  !customServiceName ||
-                                  !customServiceCost
-                                  ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
-                                  : "bg-[#101010] text-[#16A34A]"
+                                className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingService || !customServiceName || !customServiceCost
+                                  ? "opacity-40 cursor-not-allowed"
+                                  : "hover:scale-[1.02] active:scale-[0.98]"
+                                  } ${isDark
+                                    ? "bg-[#101010] text-[#16A34A]"
+                                    : "bg-[#F4F5F7] text-[#16A34A]"
                                   }`}
                               >
                                 {isSubmittingService ? (
-                                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                  <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark ? "border-white/20 border-t-white" : "border-black/20 border-t-black"}`} />
                                 ) : (
                                   <Check size={24} strokeWidth={3} />
                                 )}
@@ -6490,34 +6521,49 @@ export default function CreateQuotePage() {
             /* Client Selector View */
             <div>
               <div className="px-7 pt-7 lg:px-8 lg:pt-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">
+                <h2 className={`text-base lg:text-xl font-medium mb-1 transition-colors ${isDark ? "text-white" : "text-[#000000]"
+                  }`}>
                   Client Information
                 </h2>
-                <p className="text-sm text-[#A1A1AA]">
+                <p className={`text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"
+                  }`}>
                   Select an existing client or create a new one
                 </p>
               </div>
 
-              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
+              {/* Section Divider Line */}
+              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"
+                }`} />
 
               <div className="px-7 pb-9 lg:px-8 lg:pb-10">
                 <div className="relative max-w-full">
-                  <div className="absolute -top-3 left-5 z-10 px-3 bg-[#171717]">
-                    <span className="text-sm text-[#A1A1AA] font-normal tracking-[0.01em]">
+                  {/* Floating Field Label Input Frame */}
+                  <div className={`absolute -top-3 left-5 z-10 px-3 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"
+                    }`}>
+                    <span className={`text-sm font-normal tracking-[0.01em] transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"
+                      }`}>
                       Select Client
                     </span>
                   </div>
 
-                  <div className="relative border border-[#4A4A4A] rounded-xl bg-transparent">
+                  {/* Main Select Button Container */}
+                  <div className={`relative border rounded-xl bg-transparent transition-colors ${isDark ? "border-[#4A4A4A]" : "border-[#000000]/15"
+                    }`}>
                     <button
                       onClick={() => {
                         setIsDetailsClientDropdownOpen(false);
                         setIsDropdownOpen(!isDropdownOpen);
                       }}
-                      className={`w-full group bg-transparent rounded-xl px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? "ring-1 ring-[#8E826A]/30" : ""}`}
+                      className={`w-full group bg-transparent rounded-xl px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen
+                        ? isDark
+                          ? "ring-1 ring-[#8E826A]/30"
+                          : "ring-1 ring-[#8E826A]/40 bg-[#000000]/[0.01]"
+                        : ""
+                        }`}
                     >
                       {selectedClient ? (
-                        <span className="flex min-w-0 items-center gap-2 text-white text-[16px] font-normal">
+                        <span className={`flex min-w-0 items-center gap-2 text-[16px] font-normal transition-colors ${isDark ? "text-white" : "text-[#000000]"
+                          }`}>
                           <span className="truncate">
                             {getClientDisplayName(selectedClient)}
                           </span>
@@ -6534,7 +6580,8 @@ export default function CreateQuotePage() {
                       )}
                       <ChevronDown
                         size={20}
-                        className={`text-[#E5E5E5] transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+                        className={`transition-transform duration-300 ${isDark ? "text-[#E5E5E5]" : "text-[#000000]/60"
+                          } ${isDropdownOpen ? "rotate-180" : ""}`}
                       />
                     </button>
 
@@ -7219,27 +7266,34 @@ export default function CreateQuotePage() {
             /* Client Details View */
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="px-5 pt-5 lg:px-8 lg:pt-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">
+                <h2 className={`text-base lg:text-xl font-medium mb-1 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                   Client Information
                 </h2>
-                <p className="text-sm text-[#A1A1AA]">
+                <p className={`text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
                   Select an existing client or create a new one
                 </p>
               </div>
-              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-              <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 lg:pt-2 space-y-6 lg:space-y-8 ">
+              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"
+                }`} />
+
+              <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 lg:pt-2 space-y-6 lg:space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                  {/* Client Name Input Field */}
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#D3D3D3] font-medium">
+                    <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                         Client Name*
                       </span>
                     </div>
                     <Input
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 pr-14 text-sm lg:text-base"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 pr-14 text-sm lg:text-base ${isDark
+                        ? "border-white/50 text-white focus:border-[#E8D1AB]/50"
+                        : "border-[#000000]/15 text-[#000000] focus:border-[#8E826A]"
+                        }`}
                     />
                     <button
                       type="button"
@@ -7247,7 +7301,7 @@ export default function CreateQuotePage() {
                         setIsDropdownOpen(false);
                         setIsDetailsClientDropdownOpen((prev) => !prev);
                       }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[#E5E5E5] transition-colors hover:text-white"
+                      className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${isDark ? "text-[#E5E5E5] hover:text-white" : "text-[#000000]/60 hover:text-[#000000]"}`}
                     >
                       <ChevronDown
                         size={18}
@@ -7262,9 +7316,11 @@ export default function CreateQuotePage() {
                         })}
                     </AnimatePresence>
                   </div>
+
+                  {/* Email ID Input Field */}
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#D3D3D3] font-medium">
+                    <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                         Email ID*
                       </span>
                     </div>
@@ -7273,39 +7329,47 @@ export default function CreateQuotePage() {
                       onChange={(e) => setEmailId(e.target.value)}
                       type="email"
                       inputMode="email"
-                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark
+                        ? "border-white/50 text-white focus:border-[#E8D1AB]/50"
+                        : "border-[#000000]/15 text-[#000000] focus:border-[#8E826A]"
+                        }`}
                     />
                   </div>
+
+                  {/* Phone Number Input Field */}
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#D3D3D3] font-medium">
+                    <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                         Phone Number*
                       </span>
                     </div>
                     <Input
                       value={phoneNumber}
-                      onChange={(e) =>
-                        setPhoneNumber(normalizePhoneNumberInput(e.target.value))
-                      }
+                      onChange={(e) => setPhoneNumber(normalizePhoneNumberInput(e.target.value))}
                       inputMode="numeric"
-                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark
+                        ? "border-white/50 text-white focus:border-[#E8D1AB]/50"
+                        : "border-[#000000]/15 text-[#000000] focus:border-[#8E826A]"
+                        }`}
                     />
                   </div>
                 </div>
 
+                {/* Location Picker Module */}
                 <div className="relative">
                   <LocationPicker
                     value={address}
                     onChange={(selectedAddress) => setAddress(selectedAddress)}
                     placeholder="Search for an address"
                     label="Address*"
-                    colors={isDark ? darkThemeColors : undefined}
+                    colors={isDark ? darkThemeColors : lightThemeColors}
                   />
                 </div>
 
+                {/* Project Description Block */}
                 <div className="relative">
-                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
-                    <span className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"}`}>
+                  <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                       Project Description*
                     </span>
                   </div>
@@ -7316,7 +7380,6 @@ export default function CreateQuotePage() {
                     data-1p-ignore="true"
                     placeholder="Describe the project scope and requirements....."
                     className={`min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base ${isDark
-                      // ? "bg-[#171717] border-[#FFFFFF80] text-white placeholder:text-[#FFFFFF4D] focus:border-[#E8D1AB]/50"
                       ? "!border-[#FFFFFF80] !bg-[#171717] !text-white !placeholder:text-[#FFFFFF4D] !focus:border-[#E8D1AB]/50"
                       : "!bg-white !border-[#D7D7D7] !text-black !placeholder:text-[#71717B] !focus:border-[#E8D1AB] !hover:border-[#C9A86A]"
                       }`}
@@ -7336,7 +7399,7 @@ export default function CreateQuotePage() {
                   />
                 </div> */}
                 <div>
-                  <h3 className="lg:text-xl font-semibold mb-6">
+                  <h3 className={`lg:text-xl font-semibold mb-6 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                     Quote Validity
                   </h3>
                   {(() => {
@@ -7345,23 +7408,36 @@ export default function CreateQuotePage() {
                     return (
                       <>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          {[3, 7, 10].map((days: number) => (
-                            <button
-                              key={days}
-                              onClick={() => handleValiditySelect(days)}
-                              className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === days
-                                ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
-                                : "bg-transparent border-[#FFFFFF80] text-zinc-500 hover:border-zinc-700"
-                                }`}
-                            >
-                              {days} Days
-                            </button>
-                          ))}
+                          {[3, 7, 10].map((days: number) => {
+                            const isSelected = validityDays === days;
+                            return (
+                              <button
+                                key={days}
+                                type="button"
+                                onClick={() => handleValiditySelect(days)}
+                                className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${isSelected
+                                  ? isDark
+                                    ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
+                                    : "bg-[#FFF7E6] border-[#E8D1AB] text-[#000000]"
+                                  : isDark
+                                    ? "bg-transparent border-white/50 text-zinc-500 hover:border-zinc-400"
+                                    : "bg-transparent border-[#DEDEDE] text-[#000000]/60 hover:border-[#000000]/30"
+                                  }`}
+                              >
+                                {days} Days
+                              </button>
+                            );
+                          })}
                           <button
+                            type="button"
                             onClick={() => handleValiditySelect("custom")}
-                            className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === "custom"
-                              ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
-                              : "bg-transparent border-[#FFFFFF80] text-zinc-500 hover:border-zinc-700"
+                            className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${isCustomValiditySelected
+                              ? isDark
+                                ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
+                                : "bg-[#FFF7E6] border-[#E8D1AB] text-[#000000]"
+                              : isDark
+                                ? "bg-transparent border-white/50 text-zinc-500 hover:border-zinc-400"
+                                : "bg-transparent border-[#000000]/50 text-[#000000]/60 hover:border-[#000000]/30"
                               }`}
                           >
                             Add Custom Date
@@ -7369,8 +7445,8 @@ export default function CreateQuotePage() {
                         </div>
 
                         <div className="flex items-center gap-2 text-zinc-400 text-sm">
-                          <Check size={16} className="text-[#E8D1AB]" />
-                          <p className="text-[#E8D1AB]/80 font-medium">
+                          <Check size={16} className={isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"} />
+                          <p className={`${isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"} font-medium`}>
                             This quote is valid for{" "}
                             {validityDays === "custom"
                               ? differenceInDays(
@@ -7379,27 +7455,18 @@ export default function CreateQuotePage() {
                               )
                               : validityDays}{" "}
                             days from today.
-
-                            {
-                              validityDays !== "custom" &&
-                              <span className="ml-2 text-[#E8D1AB]/80 font-medium">
+                            {validityDays !== "custom" && (
+                              <span className={`ml-2 font-medium ${isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"}`}>
                                 Quote valid until <strong>{format(parseISO(validUntil), "MM-dd-yyyy")}</strong>
                               </span>
-                            }
+                            )}
                           </p>
                         </div>
 
-                        {
-                          validityDays === "custom" &&
+                        {isCustomValiditySelected && (
                           <div className="relative mt-8">
-                            <div
-                              className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"
-                                }`}
-                            >
-                              <span
-                                className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"
-                                  }`}
-                              >
+                            <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                              <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                                 Quote Valid Until*
                               </span>
                             </div>
@@ -7413,11 +7480,12 @@ export default function CreateQuotePage() {
                               }}
                               disabled={validityDays !== "custom"}
                               format="MM-dd-yyyy"
+                              isDark={isDark}
                               colors={{
                                 inputBackground: isCustomValiditySelected
                                   ? isDark
                                     ? "#1D1A15"
-                                    : "#FFF7E6"
+                                    : "#FFF"
                                   : "transparent",
                                 inputText: isCustomValiditySelected
                                   ? isDark
@@ -7439,20 +7507,9 @@ export default function CreateQuotePage() {
                                     ? "#E8D1AB"
                                     : "#171717"
                                   : "rgba(113, 113, 122, 1)",
-                                inputBorder: isDark ? "#FFFFFF80" : "#E8D1AB",
-                                inputBorderHover: isDark ? "#FFFFFF" : "#BEBEBE",
-                                // inputBorder: isDark
-                                //     ? "#FFFFFF80"
-                                //     : "#E8D1AB",
-                                //   // : isDark
-                                //   //   ? "rgba(39, 39, 42, 1)"
-                                //   //   : "#D7D7D7",
-                                // inputBorderHover: isCustomValiditySelected
-                                //   ? "#E8D1AB"
-                                //   : isDark
-                                //     ? "rgba(63, 63, 70, 1)"
-                                //     : "#BEBEBE",
-                                inputBorderFocus: "#E8D1AB",
+                                inputBorder: isDark ? "#FFFFFF80" : "#DEDEDE",
+                                inputBorderHover: isDark ? "#FFFFFF" : "#00000080",
+                                inputBorderFocus: isDark ? "#E8D1AB" : "#00000080",
                               }}
                               sx={{
                                 height: "64px", // h-16
@@ -7461,19 +7518,19 @@ export default function CreateQuotePage() {
                                   backgroundColor: isCustomValiditySelected
                                     ? isDark
                                       ? "#1D1A15"
-                                      : "#FFF7E6"
+                                      : "#FFF"
                                     : "transparent",
                                   borderRadius: "12px",
                                   paddingLeft: "10px",
                                   "& fieldset": {
-                                    borderColor: isDark ? "#FFFFFF80 !important" : "#E8D1AB !important",
+                                    borderColor: isDark ? "#FFFFFF80 !important" : "#DEDEDE !important",
                                     borderWidth: "1px !important",
                                   },
                                   "&:hover fieldset": {
-                                    borderColor: isDark ? "#FFFFFF !important" : "#BEBEBE !important",
+                                    borderColor: isDark ? "#FFFFFF !important" : "#DEDEDE !important",
                                   },
                                   "&.Mui-focused fieldset": {
-                                    borderColor: "#E8D1AB !important",
+                                    borderColor: isDark ? "#E8D1AB !important" : "#00000080 !important",
                                     borderWidth: "2px !important",
                                   },
                                 },
@@ -7497,7 +7554,7 @@ export default function CreateQuotePage() {
                                 },
                                 "& .MuiSvgIcon-root": {
                                   color: isCustomValiditySelected
-                                    ? "#E8D1AB"
+                                    ? isDark ? "#E8D1AB" : "#DEDEDE !important"
                                     : isDark
                                       ? "#FFFFFF"
                                       : "#171717",
@@ -7524,7 +7581,7 @@ export default function CreateQuotePage() {
                               }}
                             />
                           </div>
-                        }
+                        )}
 
                         {/* <div className="relative">
                           <div
