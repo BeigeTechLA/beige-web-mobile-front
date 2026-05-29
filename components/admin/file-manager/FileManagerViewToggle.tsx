@@ -17,10 +17,10 @@ const VIEW_OPTIONS: Array<{
   label: string;
   icon: typeof Grid3X3;
 }> = [
-    { mode: "grid", label: "Grid View", icon: Grid3X3 },
-    { mode: "list", label: "List View", icon: List },
-    // { mode: "board", label: "Board View", icon: LayoutDashboard },
-  ];
+  { mode: "grid", label: "Grid View", icon: Grid3X3 },
+  { mode: "list", label: "List View", icon: List },
+  { mode: "board", label: "Board View", icon: LayoutDashboard },
+];
 
 export function FileManagerViewToggle({
   isOpen,

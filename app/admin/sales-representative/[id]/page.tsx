@@ -130,6 +130,7 @@ const getRoleLabel = (roleData: any): string => {
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
+  if (status === "payment_pending") return "Payment Pending";
   if (status === "abandoned") return "Cancelled";
   return "In-Progress";
 };
@@ -318,7 +319,7 @@ export default function LeadDetailPage() {
   const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
-  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other">("cash");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
@@ -969,9 +970,11 @@ export default function LeadDetailPage() {
   }, [lead?.activities]);
 
   const manualPaymentStatusLabel = latestManualPaymentEntry
-    ? latestManualPaymentEntry.data.payment_type === "partial"
-      ? "Partially Paid (Manual)"
-      : "Paid (Manual)"
+    ? String(latestManualPaymentEntry.data.payment_mode || "").toLowerCase() === "net30"
+      ? "Payment Pending (Net30)"
+      : latestManualPaymentEntry.data.payment_type === "partial"
+        ? "Partially Paid (Manual)"
+        : "Paid (Manual)"
     : null;
 
   const effectiveStatusLabel = isRevisionPaymentPending
@@ -2323,9 +2326,14 @@ export default function LeadDetailPage() {
 
                       <Select
                         value={manualPaymentMode}
-                        onValueChange={(value) =>
-                          setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
-                        }
+                        onValueChange={(value) => {
+                          const nextMode = value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
+                          setManualPaymentMode(nextMode);
+                          if (nextMode === "net30") {
+                            setManualPaymentType("full");
+                            setManualPaymentAmount("");
+                          }
+                        }}
                         disabled={isClosedLostLead || effectiveManualPaymentSummary.hasFullPayment}
                       >
                         <SelectTrigger
@@ -2350,6 +2358,7 @@ export default function LeadDetailPage() {
                           <SelectItem value="venmo">Venmo</SelectItem>
                           <SelectItem value="cashapp">CashApp</SelectItem>
                           <SelectItem value="applepay">ApplePay</SelectItem>
+                          <SelectItem value="net30">Net 30</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
@@ -2421,7 +2430,9 @@ export default function LeadDetailPage() {
                         {manualPaymentEntries.map((entry, index) => {
                           const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
                           const paidMode = entry.data.payment_mode
-                            ? String(entry.data.payment_mode).replace(/_/g, " ")
+                            ? String(entry.data.payment_mode).toLowerCase() === "other" && entry.data.other_payment_mode
+                              ? String(entry.data.other_payment_mode)
+                              : String(entry.data.payment_mode).replace(/_/g, " ")
                             : "manual";
                           return (
                             <div
@@ -2429,7 +2440,9 @@ export default function LeadDetailPage() {
                               className={`rounded-md border px-3 py-2 text-xs ${isDark ? "border-white/10" : "border-[#ECECEC]"}`}
                             >
                               <p className={isDark ? "text-white/80" : "text-black/75"}>
-                                {entry.data.payment_type === "partial"
+                                {String(entry.data.payment_mode || "").toLowerCase() === "net30"
+                                  ? "Net 30 initiated"
+                                  : entry.data.payment_type === "partial"
                                   ? `Partial paid ${formatCurrencyValue(entry.data.amount)}`
                                   : "Full payment marked"}{" "}
                                 via {paidMode}

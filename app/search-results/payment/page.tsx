@@ -411,8 +411,23 @@ function StripePaymentFormMulti({
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
     Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
+  const bookingEmail = String(
+    booking?.guest_email ||
+      booking?.guestEmail ||
+      booking?.client_email ||
+      booking?.user?.email ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  const authenticatedEmail = String(user?.email || "").trim().toLowerCase();
+  const isBookingOwner =
+    Boolean(isAuthenticated && authenticatedEmail && bookingEmail) &&
+    authenticatedEmail === bookingEmail;
+  const canApplyAccountCredit =
+    isAuthenticated && canUseAccountCredit && isBookingOwner;
   const usedCreditAmount =
-    canUseAccountCredit && useAccountCredit ? Math.max(creditAppliedAmount || 0, 0) : 0;
+    canApplyAccountCredit && useAccountCredit ? Math.max(creditAppliedAmount || 0, 0) : 0;
   const remainingCreditAmount = Math.max(availableCreditAmount - usedCreditAmount, 0);
   const isReferralLocked =
     isFree && parseFloat(quote?.discount_total || quote?.discount_amount || 0) > 0;
@@ -1173,23 +1188,23 @@ function StripePaymentFormMulti({
         </div>
 
         {/* Account Credit */}
-        {/* <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
+        <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
           <label
             className={`flex items-start justify-between gap-4 rounded-xl transition ${
-              canUseAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+              canApplyAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
             }`}
           >
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
                 className="sr-only"
-                checked={Boolean(useAccountCredit && canUseAccountCredit)}
-                disabled={!canUseAccountCredit}
+                checked={Boolean(useAccountCredit && canApplyAccountCredit)}
+                disabled={!canApplyAccountCredit}
                 onChange={(e) => onToggleAccountCredit(e.target.checked)}
               />
               <div
                 className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
-                  useAccountCredit && canUseAccountCredit
+                  useAccountCredit && canApplyAccountCredit
                     ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
                     : "border-white/40 bg-[#272626] text-transparent"
                 }`}
@@ -1211,7 +1226,12 @@ function StripePaymentFormMulti({
               </span>
             )}
           </label>
-          {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
+          {!isAuthenticated && canUseAccountCredit && (
+            <p className="text-[#E8D1AB] text-sm mt-3">
+            Hey you have {formatCurrency(availableCreditAmount)} worth of credit points in your account. To avail the credit points please login.
+            </p>
+          )}
+          {canApplyAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
             <>
               <div className="mt-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300 flex items-center justify-between">
                 <span>Credit applied</span>
@@ -1233,10 +1253,10 @@ function StripePaymentFormMulti({
               </div>
             </>
           )}
-          {!canUseAccountCredit && (
+          {isAuthenticated && !canUseAccountCredit && (
             <p className="text-white/50 text-sm mt-3">No account credit available for this booking.</p>
           )}
-        </div> */}
+        </div>
 
         {/* Submit Button */}
         <Button
@@ -1298,6 +1318,7 @@ function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
 
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
@@ -1312,6 +1333,40 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
   const [useAccountCredit, setUseAccountCredit] = useState(false);
+  const bookingEmail = React.useMemo(() => {
+    const value =
+      paymentDetails?.booking?.guest_email ||
+      paymentDetails?.booking?.guestEmail ||
+      paymentDetails?.client_email ||
+      summaryData?.client_email ||
+      "";
+    return String(value).trim().toLowerCase();
+  }, [paymentDetails, summaryData]);
+  const loginRedirectTo = React.useMemo(() => {
+    const currentSearch = searchParams.toString();
+    const currentPath = currentSearch ? `/search-results/payment?${currentSearch}` : "/search-results/payment";
+    const baseLogin = `/login?returnTo=${encodeURIComponent(currentPath)}`;
+    return bookingEmail ? `${baseLogin}&bookingEmail=${encodeURIComponent(bookingEmail)}` : baseLogin;
+  }, [bookingEmail, searchParams]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (step !== "success" && bookingEmail) {
+      sessionStorage.setItem("beige_payment_booking_email", bookingEmail);
+    } else {
+      sessionStorage.removeItem("beige_payment_booking_email");
+    }
+
+    return () => {
+      sessionStorage.removeItem("beige_payment_booking_email");
+    };
+  }, [bookingEmail, step]);
+  const isBookingOwner = Boolean(
+    isAuthenticated &&
+      bookingEmail &&
+      String(user?.email || "").trim().toLowerCase() === bookingEmail,
+  );
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -1587,6 +1642,9 @@ function MultiCreatorPaymentContent() {
         }
       );
       await fetchSummaryData();
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("beige_payment_booking_email");
+      }
       setStep("success");
       toast.success("Booking confirmed successfully!");
     } catch (error) {
@@ -1636,7 +1694,7 @@ function MultiCreatorPaymentContent() {
   const accountCredit = paymentDetails?.account_credit || {};
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
-    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
+    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0 && isBookingOwner;
   const creditAppliedAmount =
     isQuoteValid && canUseAccountCredit && useAccountCredit
       ? Math.min(availableCreditAmount, basePayableAmount)
@@ -1748,7 +1806,7 @@ function MultiCreatorPaymentContent() {
           onClose={() => setIsDetailsFormOpen(false)}
           projectId={parseInt(shootId || "0")}
           hideAffiliateStep={true}
-          redirectTo="/login"
+          redirectTo={loginRedirectTo}
         />
       </div>
     );
@@ -1757,7 +1815,7 @@ function MultiCreatorPaymentContent() {
   // Date Time info to manage Multiday shoot format
   const dateTimeInfo = getBookingDetails(booking)
   const handleAccountCreditToggle = async (enabled: boolean) => {
-    const nextValue = Boolean(enabled && canUseAccountCredit);
+    const nextValue = Boolean(enabled && canUseAccountCredit && isBookingOwner);
     setUseAccountCredit(nextValue);
     await refreshPaymentIntent(paymentDetails, nextValue);
   };
