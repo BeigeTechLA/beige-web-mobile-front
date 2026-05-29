@@ -314,6 +314,10 @@ export interface SalesQuoteListItem {
   client_address?: string;
   address?: string;
   location?: string;
+  location_latitude?: number | string | null;
+  location_longitude?: number | string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   project_description?: string;
   project?: string;
   description?: string;
@@ -508,6 +512,10 @@ export interface SalesQuoteDetailData {
     end_time?: string | null;
     duration_hours?: number | string | null;
     location?: string | null;
+    location_latitude?: number | string | null;
+    location_longitude?: number | string | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
     reference_links?: string | null;
     special_instructions?: string | null;
     booking_days?: Array<{
