@@ -15,6 +15,8 @@ export const CreativeProfileSelectorAdd = ({
   leadId,
   projectId,
   currentLocation,
+  currentLatitude,
+  currentLongitude,
   targets,
   disableCrewFetch,
   statsSource = "lead",
@@ -27,6 +29,8 @@ export const CreativeProfileSelectorAdd = ({
   leadId?: number | string,
   projectId?: number | string,
   currentLocation?: string,
+  currentLatitude?: number,
+  currentLongitude?: number,
   targets?: { videographer: number, photographer: number },
   disableCrewFetch?: boolean, // When true, suppresses the get-crew-for-lead API call
   statsSource?: "lead" | "client",
@@ -109,7 +113,9 @@ export const CreativeProfileSelectorAdd = ({
             lead_id: leadId || 0,
             role_type: roleType,
             search_query: debouncedSearch || undefined,
-            radius: appliedFilters.radius
+            radius: appliedFilters.radius,
+            latitude: Number.isFinite(currentLatitude) ? currentLatitude : undefined,
+            longitude: Number.isFinite(currentLongitude) ? currentLongitude : undefined
           });
         }
 
@@ -137,7 +143,7 @@ export const CreativeProfileSelectorAdd = ({
     };
 
     fetchCreatives();
-  }, [leadId, projectId, stats?.location, currentLocation, roleType, debouncedSearch, appliedFilters.radius]);
+  }, [leadId, projectId, stats?.location, currentLocation, currentLatitude, currentLongitude, roleType, debouncedSearch, appliedFilters.radius]);
 
   const selectedIds = externalSelectedIds || internalSelectedIds;
 
@@ -469,5 +475,4 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
     </div>
   );
 };
-
 

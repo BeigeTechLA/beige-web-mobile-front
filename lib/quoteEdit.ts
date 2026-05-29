@@ -82,6 +82,8 @@ export type QuoteEditorHydrationState = {
   emailId: string;
   phoneNumber: string;
   address: string;
+  locationLatitude: number | null;
+  locationLongitude: number | null;
   projectDescription: string;
   validityDays: number | "custom";
   validUntil: string;
@@ -217,6 +219,17 @@ const resolvePositiveIdString = (value: unknown) => {
 
   if (typeof value === "string" && value.trim()) {
     return value.trim();
+  }
+
+  return null;
+};
+
+const toFiniteNumber = (...values: unknown[]) => {
+  for (const value of values) {
+    const numericValue = getQuoteNumber(value);
+    if (numericValue !== undefined && Number.isFinite(numericValue)) {
+      return numericValue;
+    }
   }
 
   return null;
@@ -699,6 +712,18 @@ export const buildQuoteEditorHydrationState = ({
     emailId: getQuoteText(quote.client_email, quote.guest_email, clientUser?.email),
     phoneNumber: getQuoteText(quote.client_phone, clientUser?.phone),
     address: getQuoteText(quote.client_address, quote.address, quote.location),
+    locationLatitude: toFiniteNumber(
+      quote.location_latitude,
+      quote.latitude,
+      quote.converted_booking_details?.location_latitude,
+      quote.converted_booking_details?.latitude
+    ),
+    locationLongitude: toFiniteNumber(
+      quote.location_longitude,
+      quote.longitude,
+      quote.converted_booking_details?.location_longitude,
+      quote.converted_booking_details?.longitude
+    ),
     projectDescription: getQuoteText(quote.project_description),
     validityDays:
       quoteValidityDays && quoteValidityDays > 0 ? quoteValidityDays : "custom",

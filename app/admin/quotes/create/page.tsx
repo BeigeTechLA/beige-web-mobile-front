@@ -1106,6 +1106,8 @@ export default function CreateQuotePage() {
   const [emailId, setEmailId] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
+  const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [validityDays, setValidityDays] = useState<number | "custom">(7);
   const [validUntil, setValidUntil] = useState(
@@ -1309,6 +1311,8 @@ export default function CreateQuotePage() {
         setEmailId("");
         setPhoneNumber("");
         setAddress("");
+        setLocationLatitude(null);
+        setLocationLongitude(null);
         return;
       }
 
@@ -1316,6 +1320,8 @@ export default function CreateQuotePage() {
       setEmailId(getClientEmail(client));
       setPhoneNumber(normalizePhoneNumberInput(getClientPhone(client)));
       setAddress(getClientAddress(client));
+      setLocationLatitude(null);
+      setLocationLongitude(null);
     },
     [],
   );
@@ -1734,6 +1740,8 @@ export default function CreateQuotePage() {
         setEmailId(hydratedState.emailId);
         setPhoneNumber(normalizePhoneNumberInput(hydratedState.phoneNumber));
         setAddress(hydratedState.address);
+        setLocationLatitude(hydratedState.locationLatitude ?? null);
+        setLocationLongitude(hydratedState.locationLongitude ?? null);
         setProjectDescription(hydratedState.projectDescription);
         setValidityDays(hydratedState.validityDays);
         setValidUntil(hydratedState.validUntil);
@@ -3215,6 +3223,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3248,6 +3258,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3282,6 +3294,8 @@ export default function CreateQuotePage() {
         emailId,
         phoneNumber,
         address,
+        locationLatitude,
+        locationLongitude,
         projectDescription,
         validityDays,
         validUntil,
@@ -3316,6 +3330,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3345,6 +3361,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3379,6 +3397,8 @@ export default function CreateQuotePage() {
     });
   }, [
     address,
+    locationLatitude,
+    locationLongitude,
     addons,
     effectiveAddonConfigs,
     effectiveLineItemConfigs,
@@ -7645,7 +7665,23 @@ export default function CreateQuotePage() {
                 <div className="relative">
                   <LocationPicker
                     value={address}
-                    onChange={(selectedAddress) => setAddress(selectedAddress)}
+                    onChange={(selectedAddress, details) => {
+                      setAddress(selectedAddress);
+                      const nextLatitude =
+                        details?.coordinates?.lat ?? details?.lat ?? details?.center?.[1] ?? null;
+                      const nextLongitude =
+                        details?.coordinates?.lng ?? details?.lng ?? details?.center?.[0] ?? null;
+                      setLocationLatitude(
+                        typeof nextLatitude === "number" && Number.isFinite(nextLatitude)
+                          ? nextLatitude
+                          : null
+                      );
+                      setLocationLongitude(
+                        typeof nextLongitude === "number" && Number.isFinite(nextLongitude)
+                          ? nextLongitude
+                          : null
+                      );
+                    }}
                     placeholder="Search for an address"
                     label="Address*"
                     colors={isDark ? darkThemeColors : lightThemeColors}
@@ -8517,5 +8553,4 @@ export default function CreateQuotePage() {
     </div>
   );
 }
-
 
