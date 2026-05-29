@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type FileManagerBoardColumn<T> = {
   id: string;
@@ -32,6 +33,7 @@ export function FileManagerBoard<T>({
   const [columnOrder, setColumnOrder] = useState<Record<string, string[]>>({});
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
+  const { isDark } = useResolvedTheme();
 
   useEffect(() => {
     setColumnOrder((prev) => {
@@ -150,9 +152,8 @@ export function FileManagerBoard<T>({
   return (
     <div
       ref={boardRef}
-      className={`overflow-x-auto overflow-y-hidden pb-6 ${
-        isPanning ? "cursor-grabbing select-none" : "cursor-grab"
-      }`}
+      className={`overflow-x-auto overflow-y-hidden pb-6 ${isPanning ? "cursor-grabbing select-none" : "cursor-grab"
+        }`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseEnd}
@@ -162,13 +163,25 @@ export function FileManagerBoard<T>({
         {orderedColumns.map((column) => (
           <div
             key={column.id}
-            className="w-[calc(100vw-56px)] md:w-[320px] shrink-0 rounded-3xl border h-full min-h-[620px] bg-[#0A0A0A] border-[#FFFFFF33] flex flex-col"
+            className={`w-[calc(100vw-56px)] md:w-[320px] shrink-0 rounded-3xl border h-full min-h-[620px] flex flex-col transition-colors duration-200 ${isDark
+              ? "bg-[#0A0A0A] border-[#FFFFFF33]"
+              : "bg-[#FAFAFA] border-[#D7D7D7] shadow-sm"
+              }`}
           >
-            <div className="flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b border-white/5 bg-[#202020]">
-              <h4 className="text-sm font-medium text-[#E8D1AB]">{column.title}</h4>
-              <span className="text-sm font-medium text-white/70">{column.totalCount ?? column.items.length}</span>
+            {/* Column Header Block */}
+            <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b transition-colors duration-200 ${isDark
+              ? "border-white/5 bg-[#202020]"
+              : "border-[#D7D7D7] bg-[#F4F5F7]"
+              }`}>
+              <h4 className={`text-sm font-medium text-[#E8D1AB]`}>
+                {column.title}
+              </h4>
+              <span className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>
+                {column.totalCount ?? column.items.length}
+              </span>
             </div>
 
+            {/* Column Items Scroll Container */}
             <div
               className="flex-1 min-h-0 max-h-[620px] overflow-y-auto no-scrollbar px-4 py-4 space-y-3"
               onScroll={(event) => {
@@ -194,7 +207,10 @@ export function FileManagerBoard<T>({
               }}
             >
               {column.items.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-white/35">
+                <div className={`rounded-2xl border border-dashed px-4 py-10 text-center text-sm transition-colors duration-200 ${isDark
+                  ? "border-white/10 text-white/35"
+                  : "border-[#D7D7D7] text-[#727272]"
+                  }`}>
                   {emptyMessage}
                 </div>
               ) : (
@@ -226,15 +242,23 @@ export function FileManagerBoard<T>({
                         setDraggedItemId(null);
                         setDraggedColumnId(null);
                       }}
-                      className={`flex h-full ${draggedItemId === itemId ? "opacity-50 scale-95" : "opacity-100"}`}
+                      className={`flex h-full transition-all ${draggedItemId === itemId ? "opacity-50 scale-95" : "opacity-100"
+                        }`}
                     >
-                      {renderCard(item)}
+                      {/* Context passing hook for items rendered inside column */}
+                      {React.isValidElement(renderCard(item))
+                        ? React.cloneElement(renderCard(item) as React.ReactElement<any>, { isDark })
+                        : renderCard(item)}
                     </div>
                   );
                 })
               )}
+
               {column.isLoadingMore ? (
-                <div className="rounded-2xl border border-white/10 px-4 py-3 text-center text-xs text-white/50">
+                <div className={`rounded-2xl border px-4 py-3 text-center text-xs transition-colors duration-200 ${isDark
+                  ? "border-white/10 text-white/50"
+                  : "border-[#D7D7D7] text-[#727272] bg-white"
+                  }`}>
                   Loading more...
                 </div>
               ) : null}
