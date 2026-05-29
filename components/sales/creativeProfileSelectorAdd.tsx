@@ -255,7 +255,7 @@ export const CreativeProfileSelectorAdd = ({
                 }`}
             />
           </div>
-           {/* <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
+            <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
           <button
             onClick={() => setViewMode('list')}
             className={`p-3 transition-colors ${viewMode === 'list' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
@@ -268,7 +268,7 @@ export const CreativeProfileSelectorAdd = ({
           >
             <LayoutGrid size={20} />
           </button>
-        </div> */}
+        </div> 
           {/* FILTER TRIGGER */}
           <button
             onClick={() => setIsFilterOpen(true)}

@@ -1183,7 +1183,7 @@ export default function AdminSaleRepManagerPage() {
                   </Button>
                 )}
 
-                    {/* <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+                    <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                       <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
                         <div
                           className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
@@ -1223,7 +1223,7 @@ export default function AdminSaleRepManagerPage() {
                           <Grid2x2 size={16} />
                         </button>
                       </div>
-                    </div> */}
+                    </div> 
               </div>
             </div >
 
