@@ -91,6 +91,10 @@ export default function SelectCreativesPage() {
   // CHANGED: Get the ID from URL Query Parameter (?id=xxx)
   // Removed hardcoded '136'
   const leadId = searchParams.get('id');
+  const latitudeParam = searchParams.get('lat');
+  const longitudeParam = searchParams.get('lng');
+  const currentLatitude = latitudeParam !== null ? Number(latitudeParam) : undefined;
+  const currentLongitude = longitudeParam !== null ? Number(longitudeParam) : undefined;
 
   const [selectedCreativeIds, setSelectedCreativeIds] = useState<number[]>([]);
   const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
@@ -223,6 +227,8 @@ export default function SelectCreativesPage() {
         {/* Pass the dynamic leadId here as well */}
         <CreativeProfileSelectorAdd
           leadId={leadId || undefined}
+          currentLatitude={Number.isFinite(currentLatitude) ? currentLatitude : undefined}
+          currentLongitude={Number.isFinite(currentLongitude) ? currentLongitude : undefined}
           selectedIds={selectedCreativeIds}
           onChange={setSelectedCreativeIds}
           onSelectionUpdate={setSelectionCounts}

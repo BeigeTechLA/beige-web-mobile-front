@@ -246,6 +246,16 @@ export default function ConversationComposerModal({
     [clients]
   );
 
+  const resetComposerFormState = () => {
+    setMode("project");
+    setSelectedProjectId("");
+    setSelectedClientId("");
+    setProjectDetails(null);
+    setSelectedCpIds([]);
+    setSelectedDirectoryIds([]);
+    setMemberSearch("");
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -323,11 +333,17 @@ export default function ConversationComposerModal({
   useEffect(() => {
     if (!isOpen || !selectedProjectId || mode !== "project") return;
 
+    let isActive = true;
+    const requestProjectId = selectedProjectId;
+
     const loadProject = async () => {
       try {
         const response = await adminApi.getProjectDetails(selectedProjectId);
         const data = response?.data?.project || response?.data || response;
         const assignedCrew = response?.data?.assignedCrew || data?.assignedCrew || data?.assigned_crews || [];
+        if (!isActive || !isOpen || mode !== "project" || requestProjectId !== selectedProjectId) {
+          return;
+        }
         setProjectDetails({
           ...data,
           assignedCrew,
@@ -340,17 +356,18 @@ export default function ConversationComposerModal({
     };
 
     loadProject();
+    return () => {
+      isActive = false;
+    };
   }, [isOpen, mode, selectedProjectId]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setMode("project");
-    setSelectedProjectId("");
-    setSelectedClientId("");
-    setProjectDetails(null);
-    setSelectedCpIds([]);
-    setSelectedDirectoryIds([]);
-    setMemberSearch("");
+    if (!isOpen) {
+      resetComposerFormState();
+      return;
+    }
+
+    resetComposerFormState();
   }, [isOpen]);
 
   useEffect(() => {
@@ -455,7 +472,13 @@ export default function ConversationComposerModal({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={() => {
+          resetComposerFormState();
+          onClose();
+        }}
+      />
       <div className="absolute inset-0 overflow-y-auto">
         <div className="flex min-h-full items-start justify-center p-4 pb-8 sm:p-6 sm:pb-10">
         <div className="my-4 w-full max-w-4xl overflow-hidden rounded-[28px] border border-white/10 bg-[#090909] shadow-2xl sm:my-6">
@@ -464,7 +487,13 @@ export default function ConversationComposerModal({
             <h2 className="text-2xl font-semibold text-white">Start New Conversation</h2>
             <p className="mt-1 text-sm text-white/50">Create a shoot thread or a direct client conversation.</p>
           </div>
-          <button onClick={onClose} className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/15">
+          <button
+            onClick={() => {
+              resetComposerFormState();
+              onClose();
+            }}
+            className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/15"
+          >
             <X size={18} />
           </button>
         </div>
@@ -689,7 +718,10 @@ export default function ConversationComposerModal({
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => {
+                  resetComposerFormState();
+                  onClose();
+                }}
                 className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/70 transition hover:bg-white/5"
               >
                 Cancel
