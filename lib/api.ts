@@ -1007,6 +1007,21 @@ export const affiliateApi = {
     }
   },
 
+  // Get project form status as guest
+  getProjectFormStatusGuest: async (projectId: number) => {
+    try {
+      const response = await api.get(`/client/project-form-status/${projectId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Form Status Guest Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || 'Failed to fetch project form status',
+      };
+    }
+  },
+
 
   // Get project form submission (pending forms)
   getProjectFormSubmission: async (token: string) => {
@@ -3142,7 +3157,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
@@ -3165,7 +3180,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
