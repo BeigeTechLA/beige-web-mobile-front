@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { 
   AlertCircle, 
   CheckCircle2, 
@@ -420,6 +421,7 @@ export const MissingFieldsModal = ({
   onSaved,
   initialShootData
 }: MissingFieldsModalProps) => {
+  const router = useRouter();
   const [location, setLocation] = useState("");
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
   
@@ -446,7 +448,6 @@ export const MissingFieldsModal = ({
   const isDraggingReel = useRef(false);
   const didDragReel = useRef(false);
   const suppressChipClickUntil = useRef(0);
-
   const timeOptions = useMemo(() => {
     const options = [];
     for (let hour = 0; hour < 24; hour++) {
@@ -817,6 +818,19 @@ export const MissingFieldsModal = ({
   );
   const needsLocation = normalizedFields.includes("location");
   const needsDate = normalizedFields.includes("date");
+  const needsOnboardingForm = normalizedFields.includes("onboarding_form");
+  const showOnboardingOnlyActions = needsOnboardingForm && !needsLocation && !needsDate;
+
+  const handleFillManually = () => {
+    const normalizedShootId = String(shootId || "").replace(/^#/, "").trim();
+    if (!normalizedShootId) {
+      toast.error("Missing shoot id. Please reopen the modal from a valid shoot.");
+      return;
+    }
+
+    onClose();
+    router.push(`/admin/shoots/${normalizedShootId}/form-details/edit`);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -884,6 +898,40 @@ export const MissingFieldsModal = ({
                 </div>
               </div>
             </div>
+
+            {needsOnboardingForm ? (
+              <div className={`mt-4 rounded-2xl border p-4 ${isDark ? "border-white/10 bg-black/20" : "border-black/5 bg-white"}`}>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className={`text-sm font-bold ${isDark ? "text-white" : "text-black"}`}>Onboarding form is missing</p>
+                    <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
+                      You can complete it manually now or send an email prompt later.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={handleFillManually}
+                      className="inline-flex items-center justify-center rounded-xl bg-[#E8D1AB] px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-[#ddc79f]"
+                    >
+                      Fill Manually
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      className={`inline-flex items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${
+                        isDark
+                          ? "border-white/10 bg-white/5 text-white/40"
+                          : "border-black/10 bg-black/[0.03] text-black/35"
+                      } cursor-not-allowed`}
+                      title="Coming soon"
+                    >
+                      Auto-Fill via Email
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -1155,35 +1203,58 @@ export const MissingFieldsModal = ({
               {saveError}
             </div>
           ) : null}
-          <div className="flex flex-col sm:flex-row gap-3 justify-end">
-            <button
-              onClick={onClose}
-              disabled={isSaving}
-              className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${isSaving ? "cursor-not-allowed opacity-50" : ""}`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={hasMissingFields ? handleSave : onClose}
-              disabled={isSaving}
-              className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
-                isDark
-                  ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
-                  : "bg-black text-white hover:bg-black/90 shadow-xl"
-              } ${isSaving ? "opacity-70 cursor-not-allowed" : ""}`}
-            >
-              {hasMissingFields
-                ? isSaving
-                  ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 size={16} className="animate-spin" />
-                      Saving...
-                    </span>
-                  )
-                  : "Save Changes"
-                : "Close"}
-            </button>
-          </div>
+          {showOnboardingOnlyActions ? (
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                onClick={onClose}
+                disabled={isSaving}
+                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${isSaving ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                Close
+              </button>
+              <button
+                onClick={handleFillManually}
+                disabled={isSaving}
+                className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
+                  isDark
+                    ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
+                    : "bg-black text-white hover:bg-black/90 shadow-xl"
+                } ${isSaving ? "opacity-70 cursor-not-allowed" : ""}`}
+              >
+                Fill Manually
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                onClick={onClose}
+                disabled={isSaving}
+                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${isSaving ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={hasMissingFields ? handleSave : onClose}
+                disabled={isSaving}
+                className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
+                  isDark
+                    ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
+                    : "bg-black text-white hover:bg-black/90 shadow-xl"
+                } ${isSaving ? "opacity-70 cursor-not-allowed" : ""}`}
+              >
+                {hasMissingFields
+                  ? isSaving
+                    ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 size={16} className="animate-spin" />
+                        Saving...
+                      </span>
+                    )
+                    : "Save Changes"
+                  : "Close"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

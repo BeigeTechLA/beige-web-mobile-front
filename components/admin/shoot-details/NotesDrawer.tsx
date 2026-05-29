@@ -60,6 +60,34 @@ const isPdfAttachment = (name: string, mimeType?: string | null) => {
   return /\.pdf$/i.test(String(name || ""));
 };
 
+const getInitials = (name: string) => {
+  const cleanName = String(name || "").trim();
+  if (!cleanName) return "U";
+
+  const parts = cleanName.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  return cleanName.slice(0, 2).toUpperCase();
+};
+
+const UserNameBox = ({ name, small = false }: { name: string; small?: boolean }) => {
+  const initials = getInitials(name);
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-full bg-[#E5D5B8] text-black font-bold ${
+        small ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm"
+      }`}
+      aria-label={name}
+      title={name}
+    >
+      {initials}
+    </div>
+  );
+};
+
 type NoteUiItem = {
   id: number;
   user: { name: string; avatar: string };
@@ -754,11 +782,7 @@ function NoteCard({
     <div className="bg-[#161616] rounded-[22px] p-5 border border-white/5 relative">
       {/* Parent Note */}
       <div className="flex gap-4">
-        <img
-          src={note.user.avatar}
-          alt={note.user.name}
-          className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5"
-        />
+        <UserNameBox name={note.user.name} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -963,11 +987,7 @@ function NoteReply({
   return (
     <div className="bg-[#161616] rounded-[18px] p-4 border border-white/5">
       <div className="flex gap-3">
-        <img
-          src={reply.user.avatar}
-          alt={reply.user.name}
-          className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5"
-        />
+        <UserNameBox name={reply.user.name} small />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2 min-w-0">

@@ -2222,6 +2222,19 @@ export const adminApi = {
       };
     }
   },
+  updateShootOnboardingForm: async (payload: Record<string, unknown>) => {
+    try {
+      const response = await api.post("admin/shoots/update-onboarding-form", payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Onboarding Form Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update shoot onboarding form',
+      };
+    }
+  },
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {
