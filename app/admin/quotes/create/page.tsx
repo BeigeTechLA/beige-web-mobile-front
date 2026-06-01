@@ -7580,8 +7580,7 @@ export default function CreateQuotePage() {
                 </p>
               </div>
 
-              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"
-                }`} />
+              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
 
               <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 lg:pt-2 space-y-6 lg:space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -7800,6 +7799,7 @@ export default function CreateQuotePage() {
                                   setValidUntil(format(date, "yyyy-MM-dd"));
                                 }
                               }}
+                              minDate={addDays(new Date(), 1)}
                               disabled={validityDays !== "custom"}
                               format="MM-dd-yyyy"
                               isDark={isDark}
@@ -8072,7 +8072,7 @@ export default function CreateQuotePage() {
               ) : (
                 <Button
                   className={`${view === "tax"
-                    ? "bg-white text-[#1B1B1B] hover:bg-[#00000033] border-0 shadow-lg"
+                    ? "bg-white text-[#1B1B1B] hover:bg-white/80 border-0 shadow-lg"
                     : canPrimaryAction
                       ? "bg-[#E8D1AB] text-[#101010]"
                       : isDark

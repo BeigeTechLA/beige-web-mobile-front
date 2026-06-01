@@ -1042,7 +1042,7 @@ export default function AdminSaleRepManagerPage() {
 
   const handleUserRowClick = (user: UserData) => {
     window.sessionStorage.setItem(SALES_REP_PRESERVE_KEY, "true");
-    const rawId = user.id.replace('#', '');
+    const rawId = String(user.id || "").replace('#', '');
     const basePath = activeTab === "Client"
       ? "/admin/sales-representative/client"
       : "/admin/users/creative-partners";
@@ -1183,7 +1183,7 @@ export default function AdminSaleRepManagerPage() {
                   </Button>
                 )}
 
-                {/* <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+                    <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                       <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
                         <div
                           className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
@@ -1223,7 +1223,7 @@ export default function AdminSaleRepManagerPage() {
                           <Grid2x2 size={16} />
                         </button>
                       </div>
-                    </div> */}
+                    </div> 
               </div>
             </div >
 
@@ -1273,7 +1273,7 @@ export default function AdminSaleRepManagerPage() {
                   onChange={(val) => {
                     setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
                   }}
-                  openAlign={"right"}
+                  openAlign={"left"}
                 />
               </div>
             )}
@@ -1389,6 +1389,7 @@ export default function AdminSaleRepManagerPage() {
               getItemId={(user) => user.id}
               getItemStatus={(user) => user.bookingStatus || user.status}
               viewMode={leadsViewMode}
+              onRowClick={handleUserRowClick}
               renderRow={(user, isExpanded) => (
                 <>
                   {/* 1. USER ID (Desktop Only) */}
@@ -1511,7 +1512,11 @@ export default function AdminSaleRepManagerPage() {
                     </div>
                     <button
                       className={`p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
-                      onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rawId = String(user.id || "").replace('#', '');
+                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus as any, false);
+                      }}
                     >
                       <MoreVertical size={24} />
                     </button>
@@ -1589,8 +1594,8 @@ export default function AdminSaleRepManagerPage() {
                       className={`inline-flex items-center justify-center p-1 ${isDark ? "text-white" : "text-black"}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        const rawId = user.id.replace('#', '');
-                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
+                        const rawId = String(user.id || "").replace('#', '');
+                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus as any, false);
                       }}
                     >
                       <MoreHorizontal size={28} />

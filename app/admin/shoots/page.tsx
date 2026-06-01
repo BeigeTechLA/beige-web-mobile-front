@@ -30,6 +30,17 @@ const FILTER_STATUS_OPTIONS = [
   { value: "assetsdelivered", label: "Assets Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
+const RANGE_FILTER_OPTIONS = new Set([
+  "all",
+  "upcoming",
+  "next_7_days",
+  "next_15_days",
+  "in_1_month",
+  "in_2_months",
+  "in_6_months",
+  "in_1_year",
+  "custom",
+]);
 
 export default function ShootsPage() {
   const router = useRouter()
@@ -60,7 +71,9 @@ export default function ShootsPage() {
       if (typeof parsed.categoryFilter === "string") setCategoryFilter(parsed.categoryFilter);
       if (typeof parsed.statusFilter === "string") setStatusFilter(parsed.statusFilter);
       if (typeof parsed.productionFilter === "string") setProductionFilter(parsed.productionFilter);
-      if (typeof parsed.range === "string") setRange(parsed.range);
+      if (typeof parsed.range === "string") {
+        setRange(RANGE_FILTER_OPTIONS.has(parsed.range) ? parsed.range : "all");
+      }
       if (parsed.cpAssignmentFilter === "all" || parsed.cpAssignmentFilter === "assigned" || parsed.cpAssignmentFilter === "not_assigned") {
         setCpAssignmentFilter(parsed.cpAssignmentFilter);
       }
@@ -176,7 +189,7 @@ export default function ShootsPage() {
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
               <input
                 type="text"
-                placeholder="Search project name..."
+                placeholder="Search by project name, email, or phone number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full border rounded-lg h-12 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
@@ -195,7 +208,7 @@ export default function ShootsPage() {
               </Button>
 
               {/* View Toggle */}
-               {/* <div className={`hh-12 w-fit flex items-center justify-end border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+              <div className={`hh-12 w-fit flex items-center justify-end border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                 <button
                   type="button"
                   onClick={() => setViewMode("list")}
@@ -220,7 +233,7 @@ export default function ShootsPage() {
                 >
                   <Grid3X3 size={18} />
                 </button>
-              </div>  */}
+              </div>
             </div>
 
           </div>
@@ -277,11 +290,14 @@ export default function ShootsPage() {
                     <SelectValue placeholder="Range" />
                   </SelectTrigger>
                   <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                    <SelectItem value="all">All time</SelectItem>
-                    <SelectItem value="week">Week</SelectItem>
-                    <SelectItem value="month">Month</SelectItem>
-                    <SelectItem value="year">Year</SelectItem>
-                    {selectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                    <SelectItem value="next_7_days">Next 7 Days</SelectItem>
+                    <SelectItem value="next_15_days">Next 15 Days</SelectItem>
+                    <SelectItem value="in_1_month">In 1 Month</SelectItem>
+                    <SelectItem value="in_2_months">In 2 Months</SelectItem>
+                    <SelectItem value="in_6_months">In 6 Months</SelectItem>
+                    <SelectItem value="in_1_year">In 1 Year</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
@@ -323,7 +339,7 @@ export default function ShootsPage() {
           setRange={setRange}
           cpAssignmentFilter={cpAssignmentFilter}
           setCpAssignmentFilter={setCpAssignmentFilter}
-          viewMode={"list"}
+          viewMode={viewMode}
           setViewMode={setViewMode}
           showHeaderControls={true}
           showHeaderFilters={false}
