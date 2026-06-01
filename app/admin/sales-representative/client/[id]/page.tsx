@@ -334,13 +334,13 @@ export default function LeadDetailPage() {
   const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
   const totalBeforeCredit = Number(
     lead?.pricing_breakdown?.total_before_credit ??
-      lead?.pricing_breakdown?.total ??
-      0
+    lead?.pricing_breakdown?.total ??
+    0
   );
   const total = Number(
     lead?.pricing_breakdown?.total_after_credit ??
-      lead?.pricing_breakdown?.total ??
-      0
+    lead?.pricing_breakdown?.total ??
+    0
   );
 
   const referralInfo = useMemo(() => {
@@ -398,7 +398,7 @@ export default function LeadDetailPage() {
     const outstandingAmount = Number(
       rawAdditionalPayment.outstanding_amount ?? Math.max(revisedTotal - previouslyPaidAmount, 0)
     );
-    
+
     if (
       additionalAmount <= 0 &&
       previouslyPaidAmount <= 0 &&
@@ -523,7 +523,8 @@ export default function LeadDetailPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
+
+      <div className={`overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
         {/* Back Button */}
         <Button
           onClick={() => router.back()}
@@ -542,7 +543,7 @@ export default function LeadDetailPage() {
                 <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Client Details
                 </h2>
-                <div className="flex gap-3">
+                <div className="hidden lg:flex gap-3">
                   {!lead?.booking_id ? (
                     <Button
                       onClick={() => router.push(`/admin/sales-representative/client/${leadId}/create-booking`)}
@@ -554,16 +555,16 @@ export default function LeadDetailPage() {
                     <Button
                       onClick={() => router.push(`/admin/sales-representative/client/${leadId}/edit-details`)}
                       className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
-                    ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
-                    : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
-                    }`}
+                        ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
+                        : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
+                        }`}
                     >
                       Edit Details
                     </Button>
                   )}
                   <Button
                     onClick={() => setIsIntentModalOpen(true)}
-                    className={`h-10 bg-zinc-800 border border-white/10 hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all ${isDark ? "text-[#E8D1AB]":"text-white"}`}
+                    className={`h-10 bg-zinc-800 border border-white/10 hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all ${isDark ? "text-[#E8D1AB]" : "text-white"}`}
                   >
                     Update Intent
                   </Button>
@@ -655,25 +656,24 @@ export default function LeadDetailPage() {
                             </div>
                           ) : (
                             <div className="py-1.5">
-                                {salesRepDropdownOptions.map((option) => {
-                                  const isSelected =
-                                    option.value === ASSIGN_TO_ME_VALUE
-                                      ? Boolean(currentUserId) && currentUserId === String(lead?.assigned_sales_rep?.id || "")
-                                      : option.value === selectedSalesRepId;
-                                  return (
-                                    <button
-                                      key={option.value}
-                                      type="button"
-                                      onClick={() => {
+                              {salesRepDropdownOptions.map((option) => {
+                                const isSelected =
+                                  option.value === ASSIGN_TO_ME_VALUE
+                                    ? Boolean(currentUserId) && currentUserId === String(lead?.assigned_sales_rep?.id || "")
+                                    : option.value === selectedSalesRepId;
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => {
                                       if (isUpdatingSalesRep) return;
                                       setSelectedSalesRepId(option.value);
                                       handleUpdateSalesRep(option.value);
                                     }}
-                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                                      isSelected
-                                        ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-black font-medium")
-                                        : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
-                                    }`}
+                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${isSelected
+                                      ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-black font-medium")
+                                      : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
+                                      }`}
                                   >
                                     <div className="flex flex-col leading-tight">
                                       <span>{option.label}</span>
@@ -697,9 +697,9 @@ export default function LeadDetailPage() {
             </div>
 
             {/* Assigned CPs Section - FLOATING UI & HOVER PILL & ACTIVE METADATA */}
-            <div className={`border rounded-[32px] overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+            <div className={`border rounded-2xl overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 lg:p-9 !pb-0 gap-4">
-                <h2 className={`text-xl lg:text-2xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Assigned CPs ({filteredCPs.length.toString().padStart(2, '0')})
                 </h2>
 
@@ -708,8 +708,7 @@ export default function LeadDetailPage() {
                   <div className="relative">
                     <button
                       onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                      className={`flex items-center justify-between min-w-[140px] border rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D] text-white hover:bg-[#252525]" : "bg-[#F9FAFB] border-[#D8D8D8] text-black hover:bg-[#F3F4F6]"
-                        }`}
+                      className={`flex items-center justify-between h-11 lg:min-w-[140px] border rounded-xl px-2 py-3 lg:px-4 lg:py-2.5 text-sm font-medium transition-all ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D] text-white hover:bg-[#252525]" : "bg-[#F9FAFB] border-[#D8D8D8] text-black hover:bg-[#F3F4F6]"}`}
                     >
                       <span className="capitalize">{statusFilter === "all" ? "All Status" : statusFilter}</span>
                       <ChevronDown size={16} className={`ml-2 transition-transform ${isStatusDropdownOpen ? "rotate-180" : ""}`} />
@@ -717,7 +716,7 @@ export default function LeadDetailPage() {
                     {isStatusDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setIsStatusDropdownOpen(false)}></div>
-                        <div className={`absolute top-full right-0 mt-2 w-44 border rounded-xl shadow-2xl z-40 overflow-hidden ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                        <div className={`absolute top-full left-0 mt-2 w-44 border rounded-xl shadow-2xl z-40 overflow-hidden ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
                           {['all', 'pending', 'accepted', 'rejected'].map((s) => (
                             <button
                               key={s}
@@ -744,7 +743,7 @@ export default function LeadDetailPage() {
                 </div>
               </div>
 
-              <hr className={`border-dashed my-6 lg:my-9 mx-6 lg:mx-9 ${isDark ? "border-[#3D3D3D]" : "border-[#D8D8D8]"}`} />
+              <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
 
               <div className="p-6 lg:p-9 !pt-0">
                 <div className="relative">
@@ -831,7 +830,7 @@ export default function LeadDetailPage() {
                       ))}
                     </Swiper>
                   ) : (
-                    <div className={`h-[300px] flex items-center justify-center border-dashed border rounded-[32px] ${isDark ? "text-white/40 border-[#3D3D3D]" : "text-black/40 border-[#D8D8D8]"}`}>
+                    <div className={`lg:h-[300px] flex items-center justify-center border-dashed border rounded-2xl p-5 text-sm lg:text-base ${isDark ? "text-white/40 border-[#3D3D3D]" : "text-black/40 border-[#D8D8D8]"}`}>
                       No partners found matching this status.
                     </div>
                   )}
@@ -856,7 +855,7 @@ export default function LeadDetailPage() {
 
               <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9">
                 {!booking ? (
-                  <div className={`py-10 text-center border border-dashed rounded-xl ${isDark?"text-white/40 border-[#3D3D3D]":"text-black/40 border-black/30"}`}>
+                  <div className={`py-10 text-center border border-dashed rounded-xl text-sm lg:text-base ${isDark ? "text-white/40 border-[#3D3D3D]" : "text-black/40 border-black/30"}`}>
                     No active booking found for this lead.
                   </div>
                 ) : (
@@ -892,7 +891,7 @@ export default function LeadDetailPage() {
                                 </div>
                                 <div className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-4 min-w-0">
                                   <p className={`text-xs lg:text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}>{dayDate}</p>
-                                   <div className={`hidden lg:block w-[1px] h-4 ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
+                                  <div className={`hidden lg:block w-[1px] h-4 ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                                   <p className={`text-xs flex items-center gap-1.5 ${isDark ? "text-[#8E8E8E]" : "text-[#666666]"}`}>
                                     <Clock size={12} /> {dayTime}
                                   </p>
@@ -920,7 +919,7 @@ export default function LeadDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-start gap-4">
-                           <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
+                          <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                             <Clock size={20} />
                           </div>
                           <div>
@@ -931,7 +930,7 @@ export default function LeadDetailPage() {
                       </>
                     )}
                     <div className="flex items-start gap-4">
-                       <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
+                      <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                         <MapPinned size={20} />
                       </div>
                       <div>
@@ -940,7 +939,7 @@ export default function LeadDetailPage() {
                       </div>
                     </div>
                     <div className="flex items-start gap-4">
-                       <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
+                      <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                         <Camera size={20} />
                       </div>
                       <div>
@@ -953,7 +952,7 @@ export default function LeadDetailPage() {
               </div>
               <hr className={`my-4 lg:my-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="p-4 !pt-0 lg:p-9">
-                <BookingStatusStepper currentStep={lead.booking_step || 1} isDark={isDark}/>
+                <BookingStatusStepper currentStep={lead.booking_step || 1} isDark={isDark} />
               </div>
             </div>
 
@@ -1221,6 +1220,34 @@ export default function LeadDetailPage() {
               </Button> */}
             </div>
           </div>
+        </div>
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          {!lead?.booking_id ? (
+            <Button
+              onClick={() => router.push(`/admin/sales-representative/client/${leadId}/create-booking`)}
+              className={`w-full h-14 rounded-md px-5 text-sm transition-all bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] `}
+            >
+              Create Booking
+            </Button>
+          ) : (
+            <Button
+              onClick={() => router.push(`/admin/sales-representative/client/${leadId}/edit-details`)}
+              className={`w-full h-14 rounded-md border px-5 text-sm transition-all ${isDark
+                ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
+                : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
+                }`}
+            >
+              Edit Details
+            </Button>
+          )}
+          <Button
+            onClick={() => setIsIntentModalOpen(true)}
+            className={`w-full h-14 rounded-md px-5 text-sm bg-zinc-800 border border-white/10 hover:bg-zinc-700 transition-all ${isDark ? "text-[#E8D1AB]" : "text-white"}`}
+          >
+            Update Intent
+          </Button>
         </div>
       </div>
 

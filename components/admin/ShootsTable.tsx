@@ -2,13 +2,14 @@
 
 import React, { useMemo, useEffect, useState } from "react";
 import {
-  ChevronRight,
   Loader2,
   Trash2,
   Search,
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Grid3X3,
   List,
   MoreVertical,
@@ -464,7 +465,7 @@ export const ShootsTable = ({
           return {
             id: `#${project.stream_project_booking_id}`,
             customerName,
-            email: project.guest_email || "", 
+            email: project.guest_email || "",
             phone: extractedPhone,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
@@ -569,9 +570,9 @@ export const ShootsTable = ({
       const normalizedPhone = shoot.phone.toLowerCase();
       const matchesSearch =
         shoot.customerName.toLowerCase().includes(normalizedSearchQuery) ||
-        shoot.id.toLowerCase().includes(normalizedSearchQuery) || 
+        shoot.id.toLowerCase().includes(normalizedSearchQuery) ||
         shoot.email.toLowerCase().includes(normalizedSearchQuery) ||
-        (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery)); 
+        (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery));
       if (!matchesSearch) return false;
 
       if (statusFilter === "all") return true;
@@ -1302,11 +1303,12 @@ export const ShootsTable = ({
                     <th className="py-5 px-6 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody>                  {currentShoots.map((shoot, idx) => {
+                <tbody>
+                  {currentShoots.map((shoot, idx) => {
                     const isMissingDate = !shoot.date || shoot.date === "No Date";
                     const isMissingLocation = !shoot.location;
                     const isMissingInfo = isMissingDate || isMissingLocation;
-                    
+
                     let missingMsg = "";
                     if (isMissingDate && isMissingLocation) missingMsg = "Date & Location missing";
                     else if (isMissingDate) missingMsg = "Date missing";
@@ -1316,11 +1318,10 @@ export const ShootsTable = ({
                       <tr
                         key={idx}
                         onClick={() => handleRowClick(shoot.id)}
-                        className={`group border-b transition-colors last:border-0 cursor-pointer relative ${
-                          isMissingInfo 
-                            ? (isDark ? "bg-red-500/[0.03] border-red-500/20 hover:bg-red-500/[0.08]" : "bg-red-50/50 border-red-100 hover:bg-red-50")
-                            : (isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50")
-                        }`}
+                        className={`group border-b transition-colors last:border-0 cursor-pointer relative ${isMissingInfo
+                          ? (isDark ? "bg-red-500/[0.03] border-red-500/20 hover:bg-red-500/[0.08]" : "bg-red-50/50 border-red-100 hover:bg-red-50")
+                          : (isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50")
+                          }`}
                       >
                         <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
                         <td className="py-5 px-6 relative">
@@ -1367,55 +1368,90 @@ export const ShootsTable = ({
         </>
       )}
 
-      {/* Pagination - Exact Logic Preserved */}
+      {/* Pagination */}
       {
         !loading && !meetingGapLoading && processedShoots.length > 0 && activeViewMode !== "grid" && (
-          <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
-            <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-              {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
-            </div>
-            <div className="flex gap-2 items-center">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}>Previous</button>
-              <div className="flex gap-1">
-                {(() => {
-                  const rangeArr = [];
-                  const delta = 1;
-                  const left = currentPage - delta;
-                  const right = currentPage + delta + 1;
+          <div className={`p-4 lg:p-6 border-t w-full overflow-hidden transition-colors duration-300 min-w-0 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
+            }`}>
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
 
-                  for (let i = 1; i <= totalPages; i++) {
-                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
-                      rangeArr.push(i);
-                    } else if (i === left - 1 || i === right) {
-                      rangeArr.push('...');
-                    }
-                  }
-
-                  return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
-                    page === '...' ? (
-                      <span key={`dots-${index}`} className={`px-2 py-1 text-xs ${isDark ? "text-white/30" : "text-[#999]"}`}>...</span>
-                    ) : (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page as number)}
-                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black") : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")}`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  ));
-                })()}
+              {/* Pagination Entries Info */}
+              <div className={`hidden lg:block text-sm truncate max-w-xs shrink ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
+                {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
               </div>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
-              >
-                Next
-              </button>
+
+              {/* Pagination Controls Wrapper */}
+              <div className="flex gap-2 items-center justify-center sm:justify-end w-full max-w-full min-w-0 overflow-hidden">
+
+                {/* Previous Button: Text on desktop, Icon on mobile */}
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`p-2 lg:w-auto lg:px-4 lg:py-2 text-sm font-medium rounded-lg border transition-all flex items-center justify-center shrink-0 disabled:opacity-30 ${isDark
+                    ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
+                    : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
+                    }`}
+                >
+                  <span className="hidden lg:inline">Previous</span>
+                  <ChevronLeft className="w-4 h-4 lg:hidden" />
+                </button>
+
+                {/* Page Numbers - Flex-1 wrapper eliminates viewport clipping under arrows */}
+                <div className="flex-1 sm:flex-none flex gap-1 items-center justify-center overflow-x-auto no-scrollbar min-w-0 px-1 py-0.5">
+                  {(() => {
+                    const rangeArr = [];
+                    const delta = 1;
+                    const left = currentPage - delta;
+                    const right = currentPage + delta + 1;
+
+                    for (let i = 1; i <= totalPages; i++) {
+                      if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                        rangeArr.push(i);
+                      } else if (i === left - 1 || i === right) {
+                        rangeArr.push('...');
+                      }
+                    }
+
+                    return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                      page === '...' ? (
+                        /* Rendered as an unbonded span node to save space and prevent arrow overlaps */
+                        <span
+                          key={`dots-${index}`}
+                          className={`px-1 text-center text-xs font-semibold select-none shrink-0 min-w-[16px] ${isDark ? "text-white/30" : "text-[#999]"
+                            }`}
+                        >
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page as number)}
+                          className={`w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center text-xs lg:text-sm font-medium rounded-lg transition-all shrink-0 ${currentPage === page
+                            ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")
+                            }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    ));
+                  })()}
+                </div>
+
+                {/* Next Button: Text on desktop, Icon on mobile */}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`p-2 lg:w-auto lg:px-4 lg:py-2 text-sm font-medium rounded-lg border transition-all flex items-center justify-center shrink-0 disabled:opacity-30 ${isDark
+                    ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
+                    : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
+                    }`}
+                >
+                  <span className="hidden lg:inline">Next</span>
+                  <ChevronRight className="w-4 h-4 lg:hidden" />
+                </button>
+
+              </div>
             </div>
           </div>
         )

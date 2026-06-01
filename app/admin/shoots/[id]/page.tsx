@@ -295,10 +295,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         }
       />
 
-      <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-4 lg:-m-10 relative">
-        {/* Main Content (Left) */}
-        <div className="flex-1 p-4 pb-30 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] ">
+      <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
+        {/* Main Content (Left Scroll Window) */}
+        <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
           <ShootHeader activeTab={activeTab} project={project} projectId={id} />
+
           <Button
             className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
               ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
@@ -325,13 +326,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               )}
 
               {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-                <div className={`px-5`}>
+                <div className="px-5">
                   <PreProductionTab projectId={String(bookingId)} />
                 </div>
               )}
 
               {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-                <div className={`px-5`}>
+                <div className="px-5">
                   <PostProductionTab projectId={String(bookingId)} />
                 </div>
               )}
@@ -346,7 +347,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               )}
 
               {activeTab === "Messages" && (
-                <div className={`px-5`}>
+                <div className="px-5">
                   <MessagesTab
                     role="admin"
                     bookingId={project?.booking_id || project?.stream_project_booking_id || id}
@@ -362,57 +363,57 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
 
-        {/* Right Sidebar (Timeline) */}
-        <div className="hidden lg:block h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        {/* Right Sidebar (Timeline Desktop Only) */}
+        <div className="hidden lg:block h-full overflow-y-auto no-scrollbar shrink-0">
           <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
         </div>
 
-        {/* Mobile Timeline Overlay (Conditional) */}
-        {
-          isTimelineOpen && (
-            <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
-              {/* Close Backdrop Click */}
-              <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
-
-              <div className={`relative max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
-                <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
-                  <X size={20} />
-                </button>
-
-                <div className="h-full overflow-y-auto">
-                  <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
-                </div>
+        {/* Mobile Timeline Overlay Drawer */}
+        {isTimelineOpen && (
+          <div className={`lg:hidden fixed inset-0 z-[100] flex justify-end ${isDark ? "bg-black/80" : "bg-white/80"}`}>
+            <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
+            <div className={`relative max-w-sm w-full h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+              <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 z-10 ${isDark ? "text-white/60" : "text-black/60"}`}>
+                <X size={20} />
+              </button>
+              <div className="h-full overflow-y-auto">
+                <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
               </div>
             </div>
-          )
-        }
+          </div>
+        )}
 
-        {/* --- FLOATING MOBILE BUTTONS --- */}
-        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
-          <Button
-            onClick={handleViewInvoice}
-            disabled={isViewingInvoice}
-            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-black text-white hover:bg-black/80 border border-black'}`}
-          >
-            {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
-          </Button>
-          <div className="flex gap-2">
-            <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
-              Cancel Shoot
-            </Button>
+        {/* --- FIXED FLOATING MOBILE BUTTONS BAR --- */}
+        <div className={`lg:hidden fixed bottom-0 left-0 right-0 px-6 pt-4 pb-6 z-[50] transform-gpu transition-colors duration-300 ${isDark
+            ? 'bg-[#0f0f0f]'
+            : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'
+          }`}>
+          <div className="flex flex-col gap-2 max-w-md mx-auto">
             <Button
-              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
-              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
+              onClick={handleViewInvoice}
+              disabled={isViewingInvoice}
+              className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3]' : 'bg-black text-white hover:bg-black/80'}`}
             >
-              Edit Shoot
+              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+            </Button>
+            <div className="flex gap-2">
+              <Button className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
+                Cancel Shoot
+              </Button>
+              <Button
+                onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
+                className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
+              >
+                Edit Shoot
+              </Button>
+            </div>
+            <Button
+              onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
+              className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] border border-white/10' : 'bg-[#F3F3F3] text-zinc-600 border border-[#E3E3E3]'}`}
+            >
+              <Eye size={16} /> View Form Details
             </Button>
           </div>
-          <Button
-            onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
-            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
-          >
-            <Eye size={18} /> View Form Details
-          </Button>
         </div>
       </div>
     </>

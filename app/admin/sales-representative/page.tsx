@@ -1183,7 +1183,7 @@ export default function AdminSaleRepManagerPage() {
                   </Button>
                 )}
 
-                    {/* <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+                {/* <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                       <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
                         <div
                           className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
@@ -1392,10 +1392,10 @@ export default function AdminSaleRepManagerPage() {
               renderRow={(user, isExpanded) => (
                 <>
                   {/* 1. USER ID (Desktop Only) */}
-                  <td className={`hidden md:table-cell py-5 px-6 text-sm transition-colors ${isDark ? "text-[#888]" : "text-[#666]"}`}>{
+                  <td className={`hidden md:table-cell py-5 px-6 text-sm transition-colors border-b ${isDark ? "text-[#888] border-[#222]" : "text-[#666] border-[#F0F0F0]"}`}>{
                     user.id}</td>
                   {/* 2. USER INFO (Visible on Mobile & Desktop) */}
-                  <td className={`p-5 border-b lg:w-auto w-1/2 transition-colors ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                  <td className={`p-5 ${isExpanded ? "" : "border-b"} lg:w-auto w-1/2 transition-colors ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
                     <div className="flex items-start gap-3 min-w-0">
                       {/* Mobile Chevron Toggle */}
                       <div className={`shrink-0 md:hidden h-6 w-6 rounded-full flex items-center justify-center border transition-transform ${isExpanded ? "rotate-180 border-[#E8D1AB] bg-[#E8D1AB]/10" : "border-[#4B4B4B]"
@@ -1451,7 +1451,7 @@ export default function AdminSaleRepManagerPage() {
                   </td>
 
                   {/* 5. STATUS (Mobile & Desktop) */}
-                  <td className={`p-5 border-b text-right md:text-left ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                  <td className={`p-5 ${isExpanded ? "" : "border-b"} text-right md:text-left ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
                     <div className="flex justify-end md:justify-start">
                       {activeTab === "Creative Partner" ? (
                         <CreativePartnerStatusBadge status={user.status as "Approved" | "Pending" | "Rejected"} />
@@ -1585,7 +1585,14 @@ export default function AdminSaleRepManagerPage() {
                   </div>
                   <div className="space-y-1 min-w-0">
                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Action</p>
-                    <button className={`inline-flex items-center justify-center p-1 ${isDark ? "text-white" : "text-black"}`} onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}>
+                    <button
+                      className={`inline-flex items-center justify-center p-1 ${isDark ? "text-white" : "text-black"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rawId = user.id.replace('#', '');
+                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
+                      }}
+                    >
                       <MoreHorizontal size={28} />
                     </button>
                   </div>

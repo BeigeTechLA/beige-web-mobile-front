@@ -1380,7 +1380,8 @@ export default function LeadDetailPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
+
+      <div className={`overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
         {/* Back Button */}
         <Button
           onClick={handleBackNavigation}
@@ -1402,7 +1403,7 @@ export default function LeadDetailPage() {
                 <Button
                   onClick={() => setIsIntentModalOpen(true)}
                   disabled={isClosedLostLead}
-                  className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
+                  className={`hidden lg:block h-10 border px-5 rounded-lg text-sm transition-all ${isDark
                     ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
                     : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
                     }`}
@@ -1570,8 +1571,7 @@ export default function LeadDetailPage() {
                   <div className="relative">
                     <button
                       onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                      className={`flex items-center justify-between min-w-[140px] border rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D] text-white hover:bg-[#252525]" : "bg-[#F9FAFB] border-[#D8D8D8] text-black hover:bg-[#F3F4F6]"
-                        }`}
+                      className={`flex items-center justify-between h-11 lg:min-w-[140px] border rounded-xl px-2 py-3 lg:px-4 lg:py-2.5 text-sm font-medium transition-all ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D] text-white hover:bg-[#252525]" : "bg-[#F9FAFB] border-[#D8D8D8] text-black hover:bg-[#F3F4F6]"}`}
                     >
                       <span className="capitalize">{statusFilter === "all" ? "All Status" : statusFilter}</span>
                       <ChevronDown size={16} className={`ml-2 transition-transform ${isStatusDropdownOpen ? "rotate-180" : ""}`} />
@@ -1579,7 +1579,7 @@ export default function LeadDetailPage() {
                     {isStatusDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setIsStatusDropdownOpen(false)}></div>
-                        <div className={`absolute top-full right-0 mt-2 w-44 border rounded-xl shadow-2xl z-40 overflow-hidden ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                        <div className={`absolute top-full left-0 mt-2 w-44 border rounded-xl shadow-2xl z-40 overflow-hidden ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
                           {['all', 'pending', 'accepted', 'rejected'].map((s) => (
                             <button
                               key={s}
@@ -1698,7 +1698,7 @@ export default function LeadDetailPage() {
                       ))}
                     </Swiper>
                   ) : (
-                    <div className={`h-[300px] flex items-center justify-center border-dashed border rounded-[32px] ${isDark ? "text-white/40 border-[#3D3D3D]" : "text-black/40 border-[#D8D8D8]"}`}>
+                    <div className={`lg:h-[300px] flex items-center justify-center border-dashed border rounded-2xl p-5 text-sm lg:text-base ${isDark ? "text-white/40 border-[#3D3D3D]" : "text-black/40 border-[#D8D8D8]"}`}>
                       No partners found matching this status.
                     </div>
                   )}
@@ -2677,6 +2677,22 @@ export default function LeadDetailPage() {
               </Button> */}
             </div>
           </div>
+        </div>
+
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => setIsIntentModalOpen(true)}
+            disabled={isClosedLostLead}
+            className={`w-full h-14 rounded-md px-5 text-sm border transition-all ${isDark
+              ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
+              : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
+              }`}
+            title={isClosedLostLead ? "Intent updates are disabled for Closed - Lost leads" : undefined}
+          >
+            Update Intent
+          </Button>
         </div>
       </div>
 
