@@ -5,13 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
   Calendar,
+  ChevronLeft,
   History,
   Link,
   LinkIcon,
   Loader2,
   MoreVertical,
   Search,
-
+  ChevronRight,
   Share2,
   Trash2,
   Unlink,
@@ -498,7 +499,7 @@ export default function AdminFolderManagerPage() {
     <>
       <Topbar pathname={pathname} actions={topbarActions} />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
+      <div className="overflow-x-hidden overflow-y-auto p-4 pb-20 lg:px-10 lg:py-9">
         <div className="mb-3 lg:mb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-start">
             <div className={`w-full transition-colors duration-200 ${isDark ? "text-white" : "text-black"}`}>
@@ -510,7 +511,7 @@ export default function AdminFolderManagerPage() {
               </p>
             </div>
 
-            <div className="w-full lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="w-fit lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <SortDateButton
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
@@ -521,11 +522,10 @@ export default function AdminFolderManagerPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-center w-full mb-4 lg:mb-9">
-          {/* Tab Navigation Segment */}
-          <div className={`flex flex-nowrap items-center gap-1.5 lg:gap-3 p-1.5 rounded-xl w-full lg:w-fit overflow-x-auto no-scrollbar scroll-smooth transition-colors duration-200 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+          {/* Tab Navigation Segment — constrained so it never causes horizontal scroll */}
+          <div className={`w-full lg:w-fit overflow-x-auto no-scrollbar scroll-smooth transition-colors duration-200 ${isDark ? "bg-[#171717]" : "bg-white"} flex flex-nowrap items-center gap-1.5 lg:gap-3 p-1.5 rounded-xl`}>
             {tabs.map((tab) => {
               const isActive = selectedTab === tab.name;
-
               return (
                 <Button
                   key={tab.name}
@@ -728,10 +728,7 @@ export default function AdminFolderManagerPage() {
                         {/* Folder Name & Icon Block */}
                         <td className={`py-5 px-6 flex gap-2 items-center min-w-0 {isDark ? "text-white" : "text-black"}`}>
                           <div className={`h-10 w-10 flex items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-transparent"}`}>
-                            <FolderOpen
-                              className={"text-[#E8D1AB] fill-[#E8D1AB]/20"}
-                              size={24}
-                            />
+                            <FolderOpen className={"text-[#E8D1AB] fill-[#E8D1AB]/20"} size={24} />
                           </div>
                           <span className="text-sm font-semibold truncate max-w-[220px]" title={folder.title}>
                             {folder.title}
@@ -740,10 +737,7 @@ export default function AdminFolderManagerPage() {
 
                         {/* Category Field */}
                         <td className="py-5 px-6 text-base">
-                          <span className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-colors ${isDark
-                            ? "bg-[#171717] text-white"
-                            : "bg-[#F4F5F7] text-[#727272]"
-                            }`}>
+                          <span className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-colors ${isDark? "bg-[#171717] text-white": "bg-[#F4F5F7] text-[#727272]"}`}>
                             {folder.category}
                           </span>
                         </td>
@@ -792,19 +786,20 @@ export default function AdminFolderManagerPage() {
           )}
 
           {!loading && !error && viewMode !== "board" && pagination.totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-center">
-              <div className={`flex items-center gap-2 rounded-2xl border transition-colors duration-200 p-2 ${isDark? "border-white/10 bg-[#0E0E0E]": "border-[#D7D7D7] bg-white"}`}>
+            <div className="w-full mt-6 flex items-center justify-center">
+              <div className={`flex flex-wrap items-center justify-center lg:gap-2 rounded-2xl border transition-colors duration-200 p-2 max-w-full ${isDark ? "border-white/10 bg-[#0E0E0E]" : "border-[#D7D7D7] bg-white"}`}>
                 {/* Previous Button */}
                 <button
                   type="button"
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={!pagination.hasPreviousPage}
-                  className={`h-12 min-w-[112px] rounded-xl border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                  className={`h-10 w-10 lg:h-12 lg:min-w-[112px] rounded-xl border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center ${isDark
                     ? "border-white/10 bg-[#131313] text-white/55 hover:border-white/20 hover:text-white"
                     : "border-[#D7D7D7] bg-white text-[#727272] hover:border-black/20 hover:text-black"
                     }`}
                 >
-                  Previous
+                  <span className="hidden lg:block px-4">Previous</span>
+                  <ChevronLeft size={16} className="lg:hidden" />
                 </button>
 
                 {/* Page Number Items */}
@@ -812,7 +807,7 @@ export default function AdminFolderManagerPage() {
                   item === "ellipsis" ? (
                     <span
                       key={`ellipsis-${index}`}
-                      className={`px-2 text-lg transition-colors ${isDark ? "text-white/50" : "text-[#727272]/60"}`}
+                      className={`px-1 lg:px-2 text-lg transition-colors ${isDark ? "text-white/50" : "text-[#727272]/60"}`}
                     >
                       ...
                     </span>
@@ -821,7 +816,7 @@ export default function AdminFolderManagerPage() {
                       key={`page-${item}`}
                       type="button"
                       onClick={() => setCurrentPage(item)}
-                      className={`h-12 min-w-12 rounded-xl px-4 text-sm font-medium transition-all duration-200 ${item === pagination.page
+                      className={`h-10 w-10 lg:h-12 lg:min-w-12 rounded-xl px-2 lg:px-4 text-sm font-medium transition-all duration-200 flex items-center justify-center ${item === pagination.page
                         ? isDark
                           ? "bg-[#E5D5B8] text-black shadow-sm"
                           : "bg-[#E8D1AB] text-black shadow-sm"
@@ -840,12 +835,13 @@ export default function AdminFolderManagerPage() {
                   type="button"
                   onClick={() => setCurrentPage((prev) => prev + 1)}
                   disabled={!pagination.hasNextPage}
-                  className={`h-12 min-w-[112px] rounded-xl border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                  className={`h-10 w-10 lg:h-12 lg:min-w-[112px] rounded-xl border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center ${isDark
                     ? "border-white/10 bg-[#131313] text-[#8CA2C5] hover:border-white/20 hover:text-white"
                     : "border-[#D7D7D7] bg-white text-[#727272] hover:border-black/20 hover:text-black"
                     }`}
                 >
-                  Next
+                  <span className="hidden lg:block px-4">Next</span>
+                  <ChevronRight size={16} className="lg:hidden" />
                 </button>
               </div>
             </div>
@@ -909,6 +905,17 @@ export default function AdminFolderManagerPage() {
               : null
           }
         />
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => setIsCreateCommonEventModalOpen(true)}
+            disabled={isCreatingEvent}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            {isCreatingEvent ? "Creating..." : "Create Common Event"}
+          </Button>
+        </div>
       </div>
     </>
   );
