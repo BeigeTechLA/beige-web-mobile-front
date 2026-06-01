@@ -425,6 +425,8 @@ export const ShootsTable = ({
     }
   }, [externalSelectedDate]);
 
+  const fetchRangeMode = range === "custom" ? "custom" : "all";
+
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearchQuery]);
@@ -432,11 +434,12 @@ export const ShootsTable = ({
   useEffect(() => {
     let isCancelled = false;
     const fetchId = ++latestFetchIdRef.current;
+    const isCustomDateRange = fetchRangeMode === "custom";
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        const params: any = { range };
+        const params: any = { range: fetchRangeMode };
         if (statusFilter !== "all") {
           params.status = statusFilter;
         }
@@ -447,7 +450,7 @@ export const ShootsTable = ({
           params.category = categoryFilter;
         }
 
-        if (externalSelectedDate && range === 'custom') {
+        if (externalSelectedDate && isCustomDateRange) {
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
@@ -542,7 +545,7 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [range, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
 
   useEffect(() => {
     if (!isMeetingGapStatusFilter(productionFilter)) {
@@ -605,10 +608,36 @@ export const ShootsTable = ({
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const next7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).getTime();
+    const next15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15).getTime();
+    const in1Month = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime();
+    const in2Months = new Date(now.getFullYear(), now.getMonth() + 2, now.getDate()).getTime();
+    const in6Months = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate()).getTime();
+    const in1Year = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).getTime();
+
+    const matchesRange = (shoot: ShootRecord) => {
+      if (range === "all" || range === "custom") return true;
+      if (!Number.isFinite(shoot.rawDate) || shoot.rawDate <= 0) return false;
+
+      if (range === "upcoming") return shoot.rawDate >= startOfToday;
+      if (range === "next_7_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next7Days;
+      if (range === "next_15_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next15Days;
+      if (range === "in_1_month") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Month;
+      if (range === "in_2_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in2Months;
+      if (range === "in_6_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in6Months;
+      if (range === "in_1_year") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Year;
+
+      return true;
+    };
+
     // 1. Filter
     const normalizedSearchQuery = debouncedSearchQuery.toLowerCase();
     const normalizedPhoneQuery = normalizedSearchQuery.replace(/[^\d+]/g, "");
     let result = shoots.filter((shoot) => {
+      if (!matchesRange(shoot)) return false;
+
       const normalizedPhone = shoot.phone.toLowerCase();
       const matchesSearch =
         shoot.customerName.toLowerCase().includes(normalizedSearchQuery) ||
@@ -670,7 +699,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
+  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds, range]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -994,14 +1023,18 @@ export const ShootsTable = ({
                     </SelectContent>
                   </Select>
                   <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
-                    <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Range" />
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                      <SelectItem value="all">All time</SelectItem>
-                      <SelectItem value="week">Week</SelectItem>
-                      <SelectItem value="month">Month</SelectItem>
-                      <SelectItem value="year">Year</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="next_7_days">Next 7 Days</SelectItem>
+                      <SelectItem value="next_15_days">Next 15 Days</SelectItem>
+                      <SelectItem value="in_1_month">In 1 Month</SelectItem>
+                      <SelectItem value="in_2_months">In 2 Months</SelectItem>
+                      <SelectItem value="in_6_months">In 6 Months</SelectItem>
+                      <SelectItem value="in_1_year">In 1 Year</SelectItem>
                       {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
                     </SelectContent>
                   </Select>

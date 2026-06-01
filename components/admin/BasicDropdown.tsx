@@ -119,7 +119,7 @@ export const BasicDropdown = ({
 
       {/* Dropdown Menu */}
       {open && (
-        <div className={`absolute top-11 lg:top-14 ${openAlign === "left" ? "left-0" : "right-0"} min-w-[180px] border rounded-[14px] shadow-2xl z-50 py-1.5 overflow-hidden transition-all duration-300 ${isDark
+        <div className={`absolute top-11 lg:top-14 ${openAlign === "left" ? "left-0" : "right-0"} min-w-[180px] border rounded-[14px] shadow-2xl z-[120] py-1.5 overflow-hidden transition-all duration-300 ${isDark
             ? "bg-[#18181b] border-white/10"
             : "bg-white border-black/10"
           }`}>

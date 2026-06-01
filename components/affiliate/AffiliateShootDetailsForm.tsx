@@ -834,7 +834,7 @@ export const AffiliateShootDetailsForm = ({
                               value={project.project_id.toString()}
                               className="focus:bg-[#E8D1AB] focus:text-black cursor-pointer"
                             >
-                              {project.project_name}
+                              {project.project_name} (Project ID: {project.project_id})
                             </SelectItem>
                           ))}
                         </SelectContent>

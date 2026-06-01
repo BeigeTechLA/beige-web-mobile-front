@@ -142,6 +142,12 @@ export default function ShootHeader({
       project?.email ||
       ""
   ).trim();
+  const resolvedClientId = Number(
+    project?.client_id ||
+    project?.client_record_id ||
+    (project?.lead_details as Record<string, unknown> | undefined)?.client_id ||
+    0
+  ) || null;
   const descriptionText = project?.description
     ? project.description.replace(/Matching Method:.*$/gm, "").trim()
     : "";
@@ -230,6 +236,14 @@ export default function ShootHeader({
 
       return <div key={`description-line-${lineIndex}`}>{line}</div>;
     });
+  };
+
+  const handleViewClientDetails = () => {
+    if (resolvedClientId) {
+      router.push(`/admin/users/clients/${resolvedClientId}`);
+      return;
+    }
+    toast.error("This user is not available in our BEIGE members.");
   };
 
   const handleDelete = async () => {
@@ -334,7 +348,7 @@ export default function ShootHeader({
                 </div>
 
                 {guestEmail ? (
-                  <div className="mt-2 max-w-3xl flex items-center gap-1">
+                  <div className="mt-2 max-w-3xl flex items-center gap-1 flex-wrap">
                     <span className={`text-sm leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
                       Email Id :
                     </span>
@@ -346,6 +360,13 @@ export default function ShootHeader({
                     >
                       {guestEmail}
                     </a>
+                    <button
+                      type="button"
+                      onClick={handleViewClientDetails}
+                      className={`text-xs font-medium underline underline-offset-2 ml-1 ${isDark ? "text-[#E8D1AB] hover:text-[#F2E2C2]" : "text-[#7A5A00] hover:text-[#5E4300]"}`}
+                    >
+                      View Client Details
+                    </button>
                   </div>
                 ) : null}
               </div>

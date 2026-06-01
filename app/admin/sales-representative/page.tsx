@@ -1042,7 +1042,7 @@ export default function AdminSaleRepManagerPage() {
 
   const handleUserRowClick = (user: UserData) => {
     window.sessionStorage.setItem(SALES_REP_PRESERVE_KEY, "true");
-    const rawId = user.id.replace('#', '');
+    const rawId = String(user.id || "").replace('#', '');
     const basePath = activeTab === "Client"
       ? "/admin/sales-representative/client"
       : "/admin/users/creative-partners";
@@ -1273,7 +1273,7 @@ export default function AdminSaleRepManagerPage() {
                   onChange={(val) => {
                     setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val));
                   }}
-                  openAlign={"right"}
+                  openAlign={"left"}
                 />
               </div>
             )}
@@ -1389,6 +1389,7 @@ export default function AdminSaleRepManagerPage() {
               getItemId={(user) => user.id}
               getItemStatus={(user) => user.bookingStatus || user.status}
               viewMode={leadsViewMode}
+              onRowClick={handleUserRowClick}
               renderRow={(user, isExpanded) => (
                 <>
                   {/* 1. USER ID (Desktop Only) */}
@@ -1511,7 +1512,11 @@ export default function AdminSaleRepManagerPage() {
                     </div>
                     <button
                       className={`p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
-                      onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rawId = String(user.id || "").replace('#', '');
+                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus as any, false);
+                      }}
                     >
                       <MoreVertical size={24} />
                     </button>
@@ -1585,7 +1590,14 @@ export default function AdminSaleRepManagerPage() {
                   </div>
                   <div className="space-y-1 min-w-0">
                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Action</p>
-                    <button className={`inline-flex items-center justify-center p-1 ${isDark ? "text-white" : "text-black"}`} onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, user.name, user.id as any, user.bookingStatus as any, false); }}>
+                    <button
+                      className={`inline-flex items-center justify-center p-1 ${isDark ? "text-white" : "text-black"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rawId = String(user.id || "").replace('#', '');
+                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus as any, false);
+                      }}
+                    >
                       <MoreHorizontal size={28} />
                     </button>
                   </div>

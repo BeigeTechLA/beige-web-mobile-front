@@ -3,6 +3,9 @@
 import React, { useMemo, useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronRight, Loader2, Trash2, Search, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import Lottie from "lottie-react";
+import redAnimation from "@/public/animations/Red.json";
+import yellowAnimation from "@/public/animations/Yellow.json";
 import Cookies from "js-cookie";
 import { affiliateApi } from "@/lib/api";
 import { format } from "date-fns";
@@ -37,6 +40,10 @@ interface ShootRecord {
   status: Status;
   hasQuote: boolean;
   paymentStatus: "paid" | "pending";
+  needsAttention?: {
+    required: boolean;
+    missing_fields: string[];
+  };
 }
 
 interface AffiliateShootsTableProps {
@@ -96,6 +103,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hoveredShootId, setHoveredShootId] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
   const router = useRouter();
@@ -108,6 +116,12 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   useEffect(() => { setMounted(true); }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
+  const toTitleCase = (value: string) =>
+    String(value || "")
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
 
 
   // Sync external selected date with range
@@ -174,6 +188,14 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
             status: statusLabel as Status,
             hasQuote,
             paymentStatus: project.payment_status === "paid" || !!project.payment_id ? "paid" : "pending",
+            needsAttention: project.needs_attention
+              ? {
+                required: Boolean(project.needs_attention.required),
+                missing_fields: Array.isArray(project.needs_attention.missing_fields)
+                  ? project.needs_attention.missing_fields
+                  : [],
+              }
+              : undefined,
           };
         });
         setShoots(mappedShoots);
@@ -467,14 +489,59 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                   </td>
                 </tr>
               ) : currentShoots.length > 0 ? (
-                currentShoots.map((shoot, idx) => (
-                  <tr
-                    key={idx}
-                    onClick={() => handleRowClick(shoot.id)}
-                    className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
-                  >
+                currentShoots.map((shoot, idx) => {
+                  const missingFields = shoot.needsAttention?.missing_fields || [];
+                  const hasMissingFields = missingFields.length > 0;
+                  const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
+
+                  return (
+                    <tr
+                      key={idx}
+                      onClick={() => handleRowClick(shoot.id)}
+                      className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
+                    >
                     {/* ID */}
-                    <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
+                    <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-8 h-8 shrink-0 flex items-center justify-center relative"
+                          onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
+                          onMouseLeave={() => setHoveredShootId(null)}
+                        >
+                          {hasMissingFields && (
+                            <div>
+                              <Lottie animationData={animationData} loop />
+                              <AnimatePresence>
+                                {hoveredShootId === `list-${shoot.id}` && (
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -10 }}
+                                    className={`absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none ${isDark
+                                        ? "bg-[#222] border border-white/10 text-white"
+                                        : "bg-white border border-gray-200 text-black"
+                                      }`}
+                                  >
+                                    <div className="flex flex-col gap-1">
+                                      <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1">
+                                        Attention Required:
+                                      </span>
+                                      {missingFields.map((field, i) => (
+                                        <span key={i} className="flex items-center gap-1.5">
+                                          <span className="w-1 h-1 rounded-full bg-red-500" />
+                                          {toTitleCase(field)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+                        </div>
+                        <span>{shoot.id}</span>
+                      </div>
+                    </td>
 
                     {/* Customer Info */}
                     <td className="py-5 px-6">
@@ -521,8 +588,9 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                         </button>
                       </div>
                     </td>
-                  </tr>
-                ))
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={7} className="text-center py-10 text-white/50">
