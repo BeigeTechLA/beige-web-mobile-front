@@ -2235,6 +2235,19 @@ export const adminApi = {
       };
     }
   },
+  remindOnboardingForm: async (shootId: string | number) => {
+    try {
+      const response = await api.post(`admin/shoots/remind-onboarding-form/${shootId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Remind Onboarding Form Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to send onboarding reminder',
+      };
+    }
+  },
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {

@@ -439,6 +439,7 @@ export const MissingFieldsModal = ({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
   const [isSaving, setIsSaving] = useState(false);
+  const [isReminderSending, setIsReminderSending] = useState(false);
   const [saveError, setSaveError] = useState("");
   const reelRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -594,6 +595,7 @@ export const MissingFieldsModal = ({
     setMultiDayTimes({});
     setSaveError("");
     setIsSaving(false);
+    setIsReminderSending(false);
     setCurrentCalendarMonth(new Date());
   }, [isOpen]);
 
@@ -832,6 +834,30 @@ export const MissingFieldsModal = ({
     router.push(`/admin/shoots/${normalizedShootId}/form-details/edit`);
   };
 
+  const handleRemindOnboardingForm = async () => {
+    const normalizedShootId = String(shootId || "").replace(/^#/, "").trim();
+    if (!normalizedShootId) {
+      toast.error("Missing shoot id. Please reopen the modal from a valid shoot.");
+      return;
+    }
+
+    try {
+      setIsReminderSending(true);
+      const response = await adminApi.remindOnboardingForm(normalizedShootId);
+
+      if (response?.success) {
+        toast.success(response?.message || "Onboarding reminder has been sent successfully.");
+      } else {
+        toast.error(response?.error || response?.message || "Failed to send onboarding reminder.");
+      }
+    } catch (error) {
+      console.error("Remind onboarding form error:", error);
+      toast.error("Failed to send onboarding reminder.");
+    } finally {
+      setIsReminderSending(false);
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
@@ -905,7 +931,7 @@ export const MissingFieldsModal = ({
                   <div>
                     <p className={`text-sm font-bold ${isDark ? "text-white" : "text-black"}`}>Onboarding form is missing</p>
                     <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
-                      You can complete it manually now or send an email prompt later.
+                      You can complete it manually now or send a reminder email later.
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -918,15 +944,22 @@ export const MissingFieldsModal = ({
                     </button>
                     <button
                       type="button"
-                      disabled
+                      onClick={handleRemindOnboardingForm}
+                      disabled={isReminderSending}
                       className={`inline-flex items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${
                         isDark
-                          ? "border-white/10 bg-white/5 text-white/40"
-                          : "border-black/10 bg-black/[0.03] text-black/35"
-                      } cursor-not-allowed`}
-                      title="Coming soon"
+                          ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                          : "border-black/10 bg-black/[0.03] text-black hover:bg-black/[0.06]"
+                      } ${isReminderSending ? "cursor-not-allowed opacity-70" : ""}`}
                     >
-                      Auto-Fill via Email
+                      {isReminderSending ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 size={16} className="animate-spin" />
+                          Sending...
+                        </span>
+                      ) : (
+                        "Remind Onboarding Form"
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1207,19 +1240,19 @@ export const MissingFieldsModal = ({
             <div className="flex flex-col sm:flex-row gap-3 justify-end">
               <button
                 onClick={onClose}
-                disabled={isSaving}
-                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${isSaving ? "cursor-not-allowed opacity-50" : ""}`}
+                disabled={isSaving || isReminderSending}
+                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
               >
                 Close
               </button>
               <button
                 onClick={handleFillManually}
-                disabled={isSaving}
+                disabled={isSaving || isReminderSending}
                 className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
                   isDark
                     ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
                     : "bg-black text-white hover:bg-black/90 shadow-xl"
-                } ${isSaving ? "opacity-70 cursor-not-allowed" : ""}`}
+                } ${(isSaving || isReminderSending) ? "opacity-70 cursor-not-allowed" : ""}`}
               >
                 Fill Manually
               </button>
@@ -1228,19 +1261,19 @@ export const MissingFieldsModal = ({
             <div className="flex flex-col sm:flex-row gap-3 justify-end">
               <button
                 onClick={onClose}
-                disabled={isSaving}
-                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${isSaving ? "cursor-not-allowed opacity-50" : ""}`}
+                disabled={isSaving || isReminderSending}
+                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
               >
                 Cancel
               </button>
               <button
                 onClick={hasMissingFields ? handleSave : onClose}
-                disabled={isSaving}
+                disabled={isSaving || isReminderSending}
                 className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
                   isDark
                     ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
                     : "bg-black text-white hover:bg-black/90 shadow-xl"
-                } ${isSaving ? "opacity-70 cursor-not-allowed" : ""}`}
+                } ${(isSaving || isReminderSending) ? "opacity-70 cursor-not-allowed" : ""}`}
               >
                 {hasMissingFields
                   ? isSaving
