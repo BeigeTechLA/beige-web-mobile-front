@@ -14,14 +14,16 @@ import PostProductionTab from "@/components/admin/shoot-details/PostProductionTa
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
+import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
-import { adminApi } from "@/lib/api";
+import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
+import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 
 type SkillOption = {
   id?: number | string;
@@ -42,6 +44,7 @@ type ProjectDetails = {
   total_paid_amount?: string | number;
   payment_status?: string | null;
   payment_id?: string | number | null;
+  converted_sales_quote_id?: string | number | null;
   event_location?: string;
   location?: string | { address?: string } | null;
   city?: string;
@@ -55,6 +58,12 @@ type ProjectDetails = {
   assignedCrew?: unknown[];
   assigned_crews?: unknown[];
   assigned_post_production_members?: unknown[];
+  [key: string]: unknown;
+};
+
+type QuoteVersionItem = {
+  version_number?: number | string | null;
+  is_current?: boolean | null;
   [key: string]: unknown;
 };
 
@@ -75,6 +84,9 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [isQuotePreviewOpen, setIsQuotePreviewOpen] = useState(false);
+  const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
+  const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
 
 
   // 3. Helper to update the URL when a tab is clicked
@@ -93,10 +105,55 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const bookingId =
     project?.booking_id || project?.stream_project_booking_id || id;
+  const convertedSalesQuoteId = String(project?.converted_sales_quote_id || "").trim() || null;
   const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
     ? project.needs_attention.missing_fields
     : [];
   const hasFormDetails = !missingFields.includes("onboarding_form");
+  const handlePreviewConvertedQuote = async () => {
+    if (!convertedSalesQuoteId) {
+      toast.error("Converted quote is not available");
+      return;
+    }
+
+    setIsQuotePreviewOpen(true);
+    setIsLoadingQuotePreview(true);
+    setQuotePreviewData(null);
+
+    try {
+      const versionsResponse = await salesApi.getQuoteVersions(convertedSalesQuoteId);
+      const versionsData = Array.isArray(versionsResponse?.data)
+        ? versionsResponse.data
+        : versionsResponse?.data?.versions || [];
+
+      const latestVersion = versionsData.reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
+        const latestNo = Number(latest?.version_number || 0);
+        const candidateNo = Number(candidate?.version_number || 0);
+        return candidateNo > latestNo ? candidate : latest;
+      }, (versionsData.find((version: QuoteVersionItem) => version?.is_current) || versionsData[0] || null) as QuoteVersionItem | null);
+
+      const versionId =
+        latestVersion?.version_number != null ? String(latestVersion.version_number) : null;
+
+      const detailResponse = versionId
+        ? await salesApi.getQuoteVersionDetail(convertedSalesQuoteId, versionId)
+        : await salesApi.getQuoteDetail(convertedSalesQuoteId);
+
+      const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+
+      if (!quoteDetail) {
+        throw new Error("Quote preview data is unavailable");
+      }
+
+      setQuotePreviewData(quoteDetail);
+    } catch (error) {
+      console.error("Failed to load converted quote preview", error);
+      toast.error(error instanceof Error ? error.message : "Failed to load quote preview");
+      setIsQuotePreviewOpen(false);
+    } finally {
+      setIsLoadingQuotePreview(false);
+    }
+  };
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -344,6 +401,15 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             ><FileText size={14} />
               {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
             </Button>
+            {convertedSalesQuoteId ? (
+              <Button
+                onClick={handlePreviewConvertedQuote}
+                className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+              >
+                <Eye size={14} />
+                Preview Quote
+              </Button>
+            ) : null}
             <Button
               className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
               onClick={handleDelete}
@@ -373,6 +439,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             activeTab={activeTab}
             project={project}
             projectId={id}
+            convertedSalesQuoteId={convertedSalesQuoteId}
             missingFields={missingFields}
             hasFormDetails={hasFormDetails}
             onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
@@ -484,6 +551,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           >
             {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
           </Button>
+          {convertedSalesQuoteId ? (
+            <Button
+              onClick={handlePreviewConvertedQuote}
+              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#18321D] text-[#86EFAC] hover:bg-[#1D3B23] border border-[#86EFAC]/20 shadow-[0_8px_30px_rgb(0,0,0,0.35)]' : 'bg-[#F0FFF4] text-[#166534] hover:bg-[#E7F8EC] border border-[#86EFAC]/30'}`}
+            >
+              <Eye size={18} /> Preview Quote
+            </Button>
+          ) : null}
           <div className="flex gap-2">
             <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
               Cancel Shoot
@@ -504,6 +579,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             </Button>
           ) : null}
         </div>
+
+      <QuotePreviewModal
+        open={isQuotePreviewOpen}
+        onClose={() => setIsQuotePreviewOpen(false)}
+        quote={quotePreviewData}
+        quoteId={convertedSalesQuoteId}
+        isLoading={isLoadingQuotePreview}
+      />
       </div>
     </>
   );

@@ -1456,11 +1456,25 @@ export default function LeadDetailPage() {
                 </div>
                 <div className={`flex flex-col lg:flex-row flex-wrap gap-2 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
                   <p>
-                    Email ID : <span className={isDark ? "text-white" : "text-black"}>{email}</span>
+                    Email ID :{" "}
+                    <a
+                      href={`mailto:${lead?.guest_email || ""}`}
+                      title="Email ID"
+                      className={`${isDark ? "text-white" : "text-black"} transition-colors hover:opacity-80`}
+                    >
+                      {email}
+                    </a>
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Phone Number : <span className={isDark ? "text-white" : "text-black"}>{phone}</span>
+                    Phone Number :{" "}
+                    <a
+                      href={`tel:${String(phone).replace(/[^\d+]/g, "")}`}
+                      title="Phone Number"
+                      className={`${isDark ? "text-white" : "text-black"} transition-colors hover:opacity-80`}
+                    >
+                      {phone}
+                    </a>
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>

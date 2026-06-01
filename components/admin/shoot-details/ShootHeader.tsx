@@ -55,6 +55,7 @@ interface ShootHeaderProps {
   activeTab?: string;
   project?: ShootHeaderProject;
   projectId?: string;
+  convertedSalesQuoteId?: string | null;
   missingFields?: string[];
   hasFormDetails?: boolean;
   onOpenMissingFields?: () => void;
@@ -64,6 +65,7 @@ export default function ShootHeader({
   activeTab = "Overview",
   project,
   projectId,
+  convertedSalesQuoteId = null,
   missingFields = [],
   hasFormDetails = false,
   onOpenMissingFields,
@@ -134,6 +136,15 @@ export default function ShootHeader({
     project?.event_location ||
     [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") ||
     "No location specified";
+  const guestEmail = String(
+    project?.guest_email ||
+      (project?.lead_details as Record<string, unknown> | undefined)?.guest_email ||
+      project?.email ||
+      ""
+  ).trim();
+  const descriptionText = project?.description
+    ? project.description.replace(/Matching Method:.*$/gm, "").trim()
+    : "";
   const totalValueText = `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const totalReductionText = `$${totalReductionValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const finalValueText = `$${finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -171,6 +182,55 @@ export default function ShootHeader({
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
   const hasMissingFields = missingFields.length > 0;
+  const renderDescription = (text: string) => {
+    if (!text) return <span>No description available.</span>;
+
+    const lines = text.split(/\r?\n/);
+
+    return lines.map((line, lineIndex) => {
+      const phoneMatch = line.match(/^(\s*Phone\s*:\s*)(.+)$/i);
+      const emailMatch = line.match(/^(\s*Email\s*:\s*)(.+)$/i);
+
+      if (phoneMatch) {
+        const phoneValue = phoneMatch[2].trim();
+        const telValue = phoneValue.replace(/[^\d+]/g, "");
+
+        return (
+          <div key={`description-line-${lineIndex}`} className="flex items-center gap-2">
+            <span>{phoneMatch[1]}</span>
+            <a
+              href={`tel:${telValue}`}
+              className="break-all transition-colors hover:opacity-80"
+              title={`Call ${phoneValue}`}
+              aria-label={`Call ${phoneValue}`}
+            >
+              {phoneValue}
+            </a>
+          </div>
+        );
+      }
+
+      if (emailMatch) {
+        const emailValue = emailMatch[2].trim();
+
+        return (
+          <div key={`description-line-${lineIndex}`} className="flex items-center gap-2">
+            <span>{emailMatch[1]}</span>
+            <a
+              href={`mailto:${emailValue}`}
+              className="break-all transition-colors hover:opacity-80"
+              title="Email ID"
+              aria-label={`Email ${emailValue}`}
+            >
+              {emailValue}
+            </a>
+          </div>
+        );
+      }
+
+      return <div key={`description-line-${lineIndex}`}>{line}</div>;
+    });
+  };
 
   const handleDelete = async () => {
     if (!projectId) return;
@@ -263,12 +323,31 @@ export default function ShootHeader({
                   <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
                     {resolvedStatusLabel}
                   </span>
+                  {convertedSalesQuoteId ? (
+                    <span className="border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534] text-xs font-semibold px-3 py-1 rounded-full">
+                      Converted to Booking
+                    </span>
+                  ) : null}
                 </div>
-                <p className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
-                  {project?.description
-                    ? project.description.replace(/Matching Method:.*$/gm, '').trim()
-                    : "No description available."}
-                </p>
+                <div className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
+                  {renderDescription(descriptionText)}
+                </div>
+
+                {guestEmail ? (
+                  <div className="mt-2 max-w-3xl flex items-center gap-1">
+                    <span className={`text-sm leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
+                      Email Id :
+                    </span>
+                    <a
+                      href={`mailto:${guestEmail}`}
+                      className={`text-sm leading-relaxed break-all transition-colors hover:opacity-80 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}
+                      title="Email ID"
+                      aria-label={`Email ${guestEmail}`}
+                    >
+                      {guestEmail}
+                    </a>
+                  </div>
+                ) : null}
               </div>
 
               {hasMissingFields ? (

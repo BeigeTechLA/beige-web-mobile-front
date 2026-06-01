@@ -1034,7 +1034,7 @@ export default function QuoteDetailsPage({
 
   const clientName = getQuoteText(quote?.client_name, "Client");
   const clientEmail = getQuoteText(quote?.client_email, quote?.guest_email, "N/A") || "N/A";
-  const clientPhone = getQuoteText(quote?.client_phone, "N/A") || "N/A";
+  const clientPhone = getQuoteText(quote?.client_phone, quote?.phone, "N/A") || "N/A";
   const clientAddress =
     getQuoteText(quote?.client_address, quote?.address, quote?.location, "Address not available") ||
     "Address not available";
@@ -1961,10 +1961,28 @@ export default function QuoteDetailsPage({
                 ) : null}
 
                 <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm transition-colors ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
-                  <span className="break-all">{`Email ID : ${clientEmail}`}</span>
+                  <span>
+                    Email ID :{" "}
+                    <a
+                      href={`mailto:${clientEmail}`}
+                      title="Email ID"
+                      className="break-all text-white transition-colors hover:opacity-80"
+                    >
+                      {clientEmail}
+                    </a>
+                  </span>
                   <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
 
-                  <span className="break-all">{`Phone Number : ${clientPhone}`}</span>
+                  <span>
+                    Phone Number :{" "}
+                    <a
+                      href={`tel:${String(clientPhone).replace(/[^\d+]/g, "")}`}
+                      title="Phone Number"
+                      className="break-all text-white transition-colors hover:opacity-80"
+                    >
+                      {clientPhone}
+                    </a>
+                  </span>
                   <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
 
                   <span>{`Valid Until : ${validUntil}`}</span>
