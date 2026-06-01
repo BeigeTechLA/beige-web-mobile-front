@@ -477,6 +477,19 @@ export default function AdminCreditPointDetailsPage() {
                                 Expired
                               </span>
                             ) : null}
+                            {["pending", "approval_pending", "awaiting_approval"].includes(
+                              (activity.status || "").toLowerCase()
+                            ) ? (
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                                  isDark
+                                    ? "border-amber-400/35 bg-amber-500/10 text-amber-300"
+                                    : "border-amber-200 bg-amber-50 text-amber-700"
+                                }`}
+                              >
+                                Approval Pending
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         <p className={`text-[18px] font-semibold ${activity.amount.startsWith("-") ? "text-[#FF8A80]" : "text-[#00C48C]"}`}>
