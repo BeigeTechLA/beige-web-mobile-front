@@ -1393,10 +1393,10 @@ export default function AdminSaleRepManagerPage() {
               renderRow={(user, isExpanded) => (
                 <>
                   {/* 1. USER ID (Desktop Only) */}
-                  <td className={`hidden md:table-cell py-5 px-6 text-sm transition-colors ${isDark ? "text-[#888]" : "text-[#666]"}`}>{
+                  <td className={`hidden md:table-cell py-5 px-6 text-sm transition-colors border-b ${isDark ? "text-[#888] border-[#222]" : "text-[#666] border-[#F0F0F0]"}`}>{
                     user.id}</td>
                   {/* 2. USER INFO (Visible on Mobile & Desktop) */}
-                  <td className={`p-5 border-b lg:w-auto w-1/2 transition-colors ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                  <td className={`p-5 ${isExpanded ? "" : "border-b"} lg:w-auto w-1/2 transition-colors ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
                     <div className="flex items-start gap-3 min-w-0">
                       {/* Mobile Chevron Toggle */}
                       <div className={`shrink-0 md:hidden h-6 w-6 rounded-full flex items-center justify-center border transition-transform ${isExpanded ? "rotate-180 border-[#E8D1AB] bg-[#E8D1AB]/10" : "border-[#4B4B4B]"
@@ -1452,7 +1452,7 @@ export default function AdminSaleRepManagerPage() {
                   </td>
 
                   {/* 5. STATUS (Mobile & Desktop) */}
-                  <td className={`p-5 border-b text-right md:text-left ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                  <td className={`p-5 ${isExpanded ? "" : "border-b"} text-right md:text-left ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
                     <div className="flex justify-end md:justify-start">
                       {activeTab === "Creative Partner" ? (
                         <CreativePartnerStatusBadge status={user.status as "Approved" | "Pending" | "Rejected"} />
