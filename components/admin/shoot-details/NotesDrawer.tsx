@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { useAppSelector } from "@/lib/redux/hooks";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -90,7 +91,7 @@ const UserNameBox = ({ name, small = false }: { name: string; small?: boolean })
 
 type NoteUiItem = {
   id: number;
-  user: { name: string; avatar: string };
+  user: { id: string; name: string; avatar: string };
   timestamp: { date: string; time: string };
   message: string;
   likes: number;
@@ -113,6 +114,50 @@ const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
 
 const countNotesWithReplies = (items: NoteUiItem[]): number =>
   items.reduce((total, note) => total + 1 + countNotesWithReplies(note.replies || []), 0);
+
+const normalizeId = (value: unknown) => {
+  if (value == null) return "";
+  return String(value).trim();
+};
+
+const getStoredCurrentUserId = () => {
+  if (typeof window === "undefined") return "";
+
+  const storageKeys = ["revure_user"];
+
+  for (const key of storageKeys) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const userId = parsed?.id ?? parsed?.user?.id ?? parsed?.user_id ?? parsed?.user?.user_id;
+      if (userId) return normalizeId(userId);
+    } catch (error) {
+      console.error("Failed to read logged in user from localStorage:", error);
+    }
+  }
+
+  return "";
+};
+
+const resolveNoteUserId = (note: any) =>
+  normalizeId(
+    note?.user?.id ??
+      note?.user?.user_id ??
+      note?.created_by?.id ??
+      note?.created_by?.user_id ??
+      note?.created_by_id ??
+      note?.user_id
+  );
+
+const findNoteById = (items: NoteUiItem[], noteId: number): NoteUiItem | null => {
+  for (const note of items) {
+    if (Number(note.id) === Number(noteId)) return note;
+    const reply = findNoteById(note.replies || [], noteId);
+    if (reply) return reply;
+  }
+  return null;
+};
 
 const formatNoteTimestamp = (value: unknown) => {
   try {
@@ -174,6 +219,7 @@ const mapSingleShootNoteToUi = (note: any): NoteUiItem => {
     return {
       id: Number(note?.note_id || note?.id || 0),
       user: {
+        id: resolveNoteUserId(note),
         name: note?.user?.name || note?.created_by?.name || "Unknown User",
         avatar: note?.user?.avatar || note?.created_by?.avatar || FALLBACK_AVATAR,
       },
@@ -283,7 +329,9 @@ export default function NotesDrawer({
   isDark?: boolean;
   onNotesCountChange?: (shootId: string, count: number) => void;
 }) {
+  const authUserId = useAppSelector((state) => state.auth.user?.id);
   const [notes, setNotes] = useState<NoteUiItem[]>([]);
+  const [storedCurrentUserId, setStoredCurrentUserId] = useState("");
   const [inputValue, setInputValue] = useState('');
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [loadingNotes, setLoadingNotes] = useState(false);
@@ -301,6 +349,14 @@ export default function NotesDrawer({
   const reactionPickerRef = useRef<HTMLDivElement | null>(null);
   const bookingId = String(shootId || "").replace("#", "");
   const isApiBusy = isSubmitting || isActionLoading;
+  const currentUserId = normalizeId(authUserId) || storedCurrentUserId;
+
+  useEffect(() => {
+    setStoredCurrentUserId(getStoredCurrentUserId());
+  }, []);
+
+  const canDeleteNote = (note: NoteUiItem) =>
+    Boolean(currentUserId && note.user.id && normalizeId(note.user.id) === currentUserId);
 
   const pendingAttachmentPreviews = useMemo(
     () => pendingAttachments.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
@@ -526,6 +582,12 @@ export default function NotesDrawer({
 
   const handleDeleteNote = async (noteId: number) => {
     if (!bookingId || isApiBusy) return;
+    const noteToDelete = findNoteById(notes, noteId);
+    if (!noteToDelete || !canDeleteNote(noteToDelete)) {
+      toast.error("You can only delete your own note");
+      return;
+    }
+
     setIsActionLoading(true);
     try {
       const response = await adminApi.deleteShootNote(bookingId, noteId);
@@ -595,6 +657,7 @@ export default function NotesDrawer({
                     onReact={handleReaction}
                     onReply={(id) => setReplyingToId(id)}
                     onDelete={handleDeleteNote}
+                    canDeleteNote={canDeleteNote}
                     onPreviewAttachment={openStoredAttachmentPreview}
                     actionsDisabled={isApiBusy}
                     isNoteActionDisabled={(noteId) => reactionPendingNoteIds.has(noteId)}
@@ -722,6 +785,7 @@ function NoteCard({
   onReact,
   onReply,
   onDelete,
+  canDeleteNote,
   onPreviewAttachment,
   actionsDisabled = false,
   isNoteActionDisabled,
@@ -734,6 +798,7 @@ function NoteCard({
   onReact?: (messageId: string, emoji: string) => void;
   onReply?: (noteId: number) => void;
   onDelete?: (noteId: number) => void;
+  canDeleteNote?: (note: NoteUiItem) => boolean;
   onPreviewAttachment?: (attachment: { fileName: string; filePath: string; mimeType?: string | null }) => void;
   actionsDisabled?: boolean;
   isNoteActionDisabled?: (noteId: number) => boolean;
@@ -745,6 +810,7 @@ function NoteCard({
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const hasReplies = note.replies && note.replies.length > 0;
   const isCurrentNoteDisabled = actionsDisabled || Boolean(isNoteActionDisabled?.(note.id));
+  const canDeleteCurrentNote = Boolean(canDeleteNote?.(note));
 
   const formatReactionUsers = (reaction: string) => {
     const users = note.reactionUsersByType?.[reaction] || [];
@@ -788,44 +854,46 @@ function NoteCard({
                 {note.timestamp.date} • {note.timestamp.time}
               </span>
             </div>
-            <div ref={actionsMenuRef} className="relative">
-              <button
-                type="button"
-                className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0 -mr-1 p-1"
-                onClick={() => {
-                  if (isCurrentNoteDisabled) return;
-                  setShowReactionPickerId(null);
-                  setShowActionsMenu((current) => !current);
-                }}
-                disabled={isCurrentNoteDisabled}
-                aria-haspopup="menu"
-                aria-expanded={showActionsMenu}
-                aria-label="More actions"
-              >
-                <MoreHorizontal size={16} />
-              </button>
-
-              {showActionsMenu ? (
-                <div
-                  className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
-                    isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
-                  }`}
-                  role="menu"
+            {canDeleteCurrentNote ? (
+              <div ref={actionsMenuRef} className="relative">
+                <button
+                  type="button"
+                  className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0 -mr-1 p-1"
+                  onClick={() => {
+                    if (isCurrentNoteDisabled) return;
+                    setShowReactionPickerId(null);
+                    setShowActionsMenu((current) => !current);
+                  }}
+                  disabled={isCurrentNoteDisabled}
+                  aria-haspopup="menu"
+                  aria-expanded={showActionsMenu}
+                  aria-label="More actions"
                 >
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
-                    onClick={() => {
-                      setShowActionsMenu(false);
-                      onDelete?.(note.id);
-                    }}
+                  <MoreHorizontal size={16} />
+                </button>
+
+                {showActionsMenu ? (
+                  <div
+                    className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
+                      isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                    }`}
+                    role="menu"
                   >
-                    <Trash2 size={14} />
-                    Delete
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        onDelete?.(note.id);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <p className="text-sm text-white/60 leading-relaxed mb-3">
@@ -972,6 +1040,7 @@ function NoteCard({
               onReact={onReact}
               onReply={onReply}
               onDelete={onDelete}
+              canDeleteNote={canDeleteNote}
               onPreviewAttachment={onPreviewAttachment}
               actionsDisabled={actionsDisabled}
               isNoteActionDisabled={isNoteActionDisabled}
@@ -993,6 +1062,7 @@ function NoteReply({
   onReact,
   onReply,
   onDelete,
+  canDeleteNote,
   onPreviewAttachment,
   actionsDisabled = false,
   isNoteActionDisabled,
@@ -1005,6 +1075,7 @@ function NoteReply({
   onReact?: (messageId: string, emoji: string) => void;
   onReply?: (noteId: number) => void;
   onDelete?: (noteId: number) => void;
+  canDeleteNote?: (note: NoteUiItem) => boolean;
   onPreviewAttachment?: (attachment: { fileName: string; filePath: string; mimeType?: string | null }) => void;
   actionsDisabled?: boolean;
   isNoteActionDisabled?: (noteId: number) => boolean;
@@ -1016,6 +1087,7 @@ function NoteReply({
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const hasReplies = reply.replies && reply.replies.length > 0;
   const isCurrentReplyDisabled = actionsDisabled || Boolean(isNoteActionDisabled?.(reply.id));
+  const canDeleteCurrentReply = Boolean(canDeleteNote?.(reply));
 
   const formatReactionUsers = (reaction: string) => {
     const users = reply.reactionUsersByType?.[reaction] || [];
@@ -1058,44 +1130,46 @@ function NoteReply({
                 {reply.timestamp.date} • {reply.timestamp.time}
               </span>
             </div>
-            <div ref={actionsMenuRef} className="relative">
-              <button
-                type="button"
-                className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 -mr-1 p-1"
-                onClick={() => {
-                  if (isCurrentReplyDisabled) return;
-                  setShowReactionPickerId(null);
-                  setShowActionsMenu((current) => !current);
-                }}
-                disabled={isCurrentReplyDisabled}
-                aria-haspopup="menu"
-                aria-expanded={showActionsMenu}
-                aria-label="More reply actions"
-              >
-                <MoreHorizontal size={14} />
-              </button>
-
-              {showActionsMenu ? (
-                <div
-                  className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
-                    isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
-                  }`}
-                  role="menu"
+            {canDeleteCurrentReply ? (
+              <div ref={actionsMenuRef} className="relative">
+                <button
+                  type="button"
+                  className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 -mr-1 p-1"
+                  onClick={() => {
+                    if (isCurrentReplyDisabled) return;
+                    setShowReactionPickerId(null);
+                    setShowActionsMenu((current) => !current);
+                  }}
+                  disabled={isCurrentReplyDisabled}
+                  aria-haspopup="menu"
+                  aria-expanded={showActionsMenu}
+                  aria-label="More reply actions"
                 >
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
-                    onClick={() => {
-                      setShowActionsMenu(false);
-                      onDelete?.(reply.id);
-                    }}
+                  <MoreHorizontal size={14} />
+                </button>
+
+                {showActionsMenu ? (
+                  <div
+                    className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
+                      isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                    }`}
+                    role="menu"
                   >
-                    <Trash2 size={14} />
-                    Delete
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        onDelete?.(reply.id);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <p className="text-sm text-white/60 leading-relaxed mb-2.5">
@@ -1237,6 +1311,7 @@ function NoteReply({
                   onReact={onReact}
                   onReply={onReply}
                   onDelete={onDelete}
+                  canDeleteNote={canDeleteNote}
                   onPreviewAttachment={onPreviewAttachment}
                   actionsDisabled={actionsDisabled}
                   isNoteActionDisabled={isNoteActionDisabled}

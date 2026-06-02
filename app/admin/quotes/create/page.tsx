@@ -97,6 +97,7 @@ import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
 } from "@/lib/salesQuotePreview";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
@@ -3990,41 +3991,6 @@ export default function CreateQuotePage() {
     await sendQuoteInvoiceRequest();
   };
 
-  const getBlockedQuotePaymentChangeMessage = React.useCallback(
-    (quoteDetail: SalesQuoteDetailData | null | undefined) => {
-      if (!quoteDetail) {
-        return null;
-      }
-
-      const additionalPayment =
-        (quoteDetail as { additional_payment?: Record<string, unknown> | null }).additional_payment ??
-        (quoteDetail as { partial_payment?: Record<string, unknown> | null }).partial_payment ??
-        null;
-      const reducedPayment =
-        (quoteDetail as { reduced_payment?: Record<string, unknown> | null }).reduced_payment ?? null;
-      const change = additionalPayment ?? reducedPayment;
-
-      if (!change) {
-        return null;
-      }
-
-      const approvalStatus = String(change.approval_status ?? "").toLowerCase();
-      const additionalAmount = Number(change.outstanding_amount ?? change.additional_amount ?? 0);
-      const reducedAmount = Number(change.reduced_amount ?? change.refund_pending_amount ?? 0);
-      const hasOpenChange = additionalAmount > 0 || reducedAmount > 0;
-
-      if (!hasOpenChange || approvalStatus === "approved") {
-        return null;
-      }
-
-      const changeType = additionalAmount > 0 ? "increase" : "decrease";
-      return approvalStatus === "rejected"
-        ? `This paid quote ${changeType} request was rejected, so it cannot be sent to the client.`
-        : `This paid quote ${changeType} request is pending admin approval. Approve it before sending the quote or payment link to the client.`;
-    },
-    [],
-  );
-
   const handleBeforeSendQuoteFromPreview = React.useCallback(async () => {
     if (isEditMode && hasUnsavedQuoteChanges) {
       const didSave = await saveQuoteDraft("save", { suppressRedirect: true });
@@ -4039,28 +4005,23 @@ export default function CreateQuotePage() {
       return true;
     }
 
-    try {
-      const detailResponse = await salesApi.getQuoteDetail(quoteIdToValidate);
-      if (detailResponse?.error || detailResponse?.success === false) {
-        return true;
-      }
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote: quoteToEdit ?? previewQuote,
+      quoteId: quoteIdToValidate,
+    });
 
-      const latestQuoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
-      const blockMessage = getBlockedQuotePaymentChangeMessage(latestQuoteDetail);
-      if (blockMessage) {
-        toast.error(blockMessage);
-        return false;
-      }
-    } catch (error) {
-      console.error("Failed to validate quote approval before send/copy", error);
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
     }
 
     return true;
   }, [
     effectiveQuoteId,
-    getBlockedQuotePaymentChangeMessage,
     hasUnsavedQuoteChanges,
     isEditMode,
+    previewQuote,
+    quoteToEdit,
     saveQuoteDraft,
   ]);
 
@@ -8553,4 +8514,3 @@ export default function CreateQuotePage() {
     </div>
   );
 }
-

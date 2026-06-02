@@ -60,6 +60,7 @@ import {
 } from "@/lib/quoteDetail";
 import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
@@ -1777,6 +1778,20 @@ export default function QuoteDetailsPage({
     }
   };
 
+  const handleBeforeShareQuote = useCallback(async () => {
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote,
+      quoteId,
+    });
+
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
+    }
+
+    return true;
+  }, [quote, quoteId]);
+
   const topbarActions = (
     <QuoteTopActions
       onReject={() => {
@@ -2474,6 +2489,8 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+        onBeforeCopy={handleBeforeShareQuote}
+        onBeforeSend={handleBeforeShareQuote}
         showShareActions={isSelectedCurrentVersion}
         paymentSummaryOverrides={previewPaymentSummaryOverrides}
       />
