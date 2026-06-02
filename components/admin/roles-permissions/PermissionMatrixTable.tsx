@@ -23,6 +23,9 @@ const accessColumns: { key: PermissionColumnKey; label: string }[] = [
   { key: "delete", label: "Delete Access" },
 ];
 
+const getActionsToToggle = (row: PermissionMatrixRow) =>
+  row.allowedActions?.length ? row.allowedActions : accessColumns.map((column) => column.key);
+
 export function PermissionMatrixTable({
   rows,
   onChange,
@@ -38,10 +41,9 @@ export function PermissionMatrixTable({
       rows.map((row) => {
         if (row.id === rowId) {
           const newAccess = { ...row.access };
-          // Only toggle actions that are allowed for this module
-          const actionsToToggle = row.allowedActions || accessColumns.map(c => c.key);
-          
-          actionsToToggle.forEach(action => {
+          const actionsToToggle = getActionsToToggle(row);
+
+          actionsToToggle.forEach((action) => {
             newAccess[action] = checked;
           });
 
@@ -78,10 +80,8 @@ export function PermissionMatrixTable({
       rows.map((row) => {
         if (row.id === rowId) {
           const updatedAccess = { ...row.access, [key]: checked };
-          const actionsToCheck = row.allowedActions || accessColumns.map(c => c.key);
-          
-          // Row is 'selected' only if ALL its allowed actions are checked
-          const allAllowedChecked = actionsToCheck.every(action => updatedAccess[action]);
+          const actionsToCheck = getActionsToToggle(row);
+          const allAllowedChecked = actionsToCheck.every((action) => updatedAccess[action]);
 
           return {
             ...row,
@@ -98,7 +98,22 @@ export function PermissionMatrixTable({
 
   const toggleAllRows = (checked: boolean) => {
     if (readOnly) return;
-    onChange?.(rows.map((row) => ({ ...row, selected: checked })));
+    onChange?.(
+      rows.map((row) => {
+        const updatedAccess = { ...row.access };
+        const actionsToToggle = getActionsToToggle(row);
+
+        actionsToToggle.forEach((action) => {
+          updatedAccess[action] = checked;
+        });
+
+        return {
+          ...row,
+          selected: checked,
+          access: updatedAccess,
+        };
+      }),
+    );
   };
 
   return (

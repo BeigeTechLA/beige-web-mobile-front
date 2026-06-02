@@ -15,6 +15,9 @@ type RolePermissionsMap = Record<string, Partial<Record<PermissionColumnKey, boo
 
 const ALL_ACTIONS: PermissionColumnKey[] = ["view", "create", "edit", "delete"];
 
+const getAllowedActions = (row: PermissionMatrixRow) =>
+  row.allowedActions?.length ? row.allowedActions : ALL_ACTIONS;
+
 export const normalizeModuleKeyToRowId = (moduleKey: string) =>
   moduleKey.replace(/_/g, "-");
 
@@ -53,6 +56,7 @@ export const buildPermissionRows = (
       label: formatModuleLabel(module.module_key),
       selected: false,
       access,
+      allowedActions: ALL_ACTIONS.filter((action) => supportedActions.has(action)),
     };
   });
 };
@@ -79,7 +83,7 @@ export const applyPermissionsToRows = (
     return {
       ...row,
       access,
-      selected: Object.values(access).some(Boolean),
+      selected: getAllowedActions(row).every((action) => access[action]),
     };
   });
 
