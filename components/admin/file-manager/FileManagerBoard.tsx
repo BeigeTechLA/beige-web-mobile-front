@@ -165,13 +165,13 @@ export function FileManagerBoard<T>({
             key={column.id}
             className={`w-[calc(100vw-56px)] md:w-[320px] shrink-0 rounded-3xl border h-full min-h-[620px] flex flex-col transition-colors duration-200 ${isDark
               ? "bg-[#0A0A0A] border-[#FFFFFF33]"
-              : "bg-[#FAFAFA] border-[#D7D7D7] shadow-sm"
+              : "bg-[#F4F5F7] border-[#D7D7D7] shadow-sm"
               }`}
           >
             {/* Column Header Block */}
             <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b transition-colors duration-200 ${isDark
               ? "border-white/5 bg-[#202020]"
-              : "border-[#D7D7D7] bg-[#F4F5F7]"
+              : "border-[#D7D7D7] bg-white"
               }`}>
               <h4 className={`text-sm font-medium text-[#E8D1AB]`}>
                 {column.title}

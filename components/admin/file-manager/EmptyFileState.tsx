@@ -21,10 +21,7 @@ export default function EmptyFileState({
 }: EmptyFileStateProps) {
   return (
     <div
-      className={`flex min-h-[260px] w-full flex-col items-center justify-center  px-6 py-10 text-center transition-colors
-        ${isDark ? "bg-[#111111]" : "bg-white shadow-sm"}
-      `}
-    >
+      className={`flex min-h-[260px] w-full flex-col items-center justify-center rounded-xl px-6 py-10 text-center transition-colors ${isDark ? "bg-[#111111]" : "bg-white shadow-sm"}`}>
       <Image
         src="/images/file-manager-empty-state.png"
         alt="No file uploaded"
