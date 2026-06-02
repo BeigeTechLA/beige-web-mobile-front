@@ -27,7 +27,7 @@ const formatExpiryDate = (value?: string) => {
   if (!value) return "-";
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
-  return format(parsed, "dd/MM/yyyy");
+  return format(parsed, "MMM d, yyyy");
 };
 
 

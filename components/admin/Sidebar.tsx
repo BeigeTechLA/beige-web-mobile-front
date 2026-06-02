@@ -87,6 +87,8 @@ const menuItems = [
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice' },
 ];
 
+const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
+
 type MenuItem = {
   name: string;
   icon: LucideIcon;
@@ -141,6 +143,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
     if (link && link !== "#") {
+      if (link === "/admin/dashboard") {
+        try {
+          window.localStorage.removeItem(SHOOTS_CURRENT_PAGE_KEY);
+        } catch (error) {
+          console.error("Failed to clear shoots current page state:", error);
+        }
+      }
+
       router.push(link);
     }
   };
