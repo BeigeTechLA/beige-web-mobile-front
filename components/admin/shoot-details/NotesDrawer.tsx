@@ -104,26 +104,15 @@ type NoteUiItem = {
     filePath: string;
     mimeType?: string | null;
   }>;
-  replies: Array<{
-    id: number;
-    user: { name: string; avatar: string };
-    timestamp: { date: string; time: string };
-    message: string;
-    attachments: Array<{
-      id: number;
-      fileName: string;
-      filePath: string;
-      mimeType?: string | null;
-    }>;
-  }>;
+  replies: NoteUiItem[];
 };
 
 const OPTIMISTIC_REACTION_USER = { userId: -1, name: "You" };
 
 const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
 
-const countNotesWithReplies = (items: NoteUiItem[]) =>
-  items.reduce((total, note) => total + 1 + (Array.isArray(note.replies) ? note.replies.length : 0), 0);
+const countNotesWithReplies = (items: NoteUiItem[]): number =>
+  items.reduce((total, note) => total + 1 + countNotesWithReplies(note.replies || []), 0);
 
 const formatNoteTimestamp = (value: unknown) => {
   try {
@@ -140,16 +129,7 @@ const formatNoteTimestamp = (value: unknown) => {
   }
 };
 
-const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
-  const list = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.notes)
-      ? payload.notes
-      : Array.isArray(payload?.data)
-        ? payload.data
-        : [];
-
-  return list.map((note: any) => {
+const mapSingleShootNoteToUi = (note: any): NoteUiItem => {
     const ts = formatNoteTimestamp(note?.created_at || note?.createdAt);
     const replies = Array.isArray(note?.replies) ? note.replies : [];
     const reactions = Array.isArray(note?.reactions) ? note.reactions : [];
@@ -212,28 +192,80 @@ const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
             mimeType: file?.mime_type || null,
           }))
         : [],
-      replies: replies.map((reply: any) => {
-        const replyTs = formatNoteTimestamp(reply?.created_at || reply?.createdAt);
-        return {
-          id: Number(reply?.note_id || reply?.id || 0),
-          user: {
-            name: reply?.user?.name || reply?.created_by?.name || "Unknown User",
-            avatar: reply?.user?.avatar || reply?.created_by?.avatar || FALLBACK_AVATAR,
-          },
-          timestamp: replyTs,
-          message: reply?.message || reply?.note || "",
-          attachments: Array.isArray(reply?.attachments)
-            ? reply.attachments.map((file: any) => ({
-                id: Number(file?.attachment_id || 0),
-                fileName: file?.file_name || "Attachment",
-                filePath: file?.file_path || "",
-                mimeType: file?.mime_type || null,
-              }))
-            : [],
-        };
-      }),
+      replies: replies.map(mapSingleShootNoteToUi),
     };
+};
+
+const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.notes)
+      ? payload.notes
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+
+  return list.map(mapSingleShootNoteToUi);
+};
+
+const updateNoteById = (
+  items: NoteUiItem[],
+  noteId: number,
+  updater: (note: NoteUiItem) => NoteUiItem
+): NoteUiItem[] =>
+  items.map((note) => {
+    const updatedReplies = note.replies?.length
+      ? updateNoteById(note.replies, noteId, updater)
+      : note.replies;
+
+    if (Number(note.id) === noteId) {
+      return updater({ ...note, replies: updatedReplies || [] });
+    }
+
+    return updatedReplies !== note.replies
+      ? { ...note, replies: updatedReplies || [] }
+      : note;
   });
+
+const applyOptimisticReaction = (note: NoteUiItem, reaction: string): NoteUiItem => {
+  const existingMyReactions = Array.isArray(note.myReactions) ? note.myReactions : [];
+  const isTogglingSameReaction = existingMyReactions.includes(reaction);
+  const nextMyReactions = isTogglingSameReaction ? [] : [reaction];
+
+  const nextReactionCounts = { ...note.reactionCounts };
+  existingMyReactions.forEach((existingReaction) => {
+    if (!nextReactionCounts[existingReaction]) return;
+    nextReactionCounts[existingReaction] = Math.max(0, Number(nextReactionCounts[existingReaction]) - 1);
+    if (nextReactionCounts[existingReaction] <= 0) delete nextReactionCounts[existingReaction];
+  });
+
+  if (!isTogglingSameReaction) {
+    nextReactionCounts[reaction] = (Number(nextReactionCounts[reaction] || 0) || 0) + 1;
+  }
+
+  const nextReactionUsersByType: Record<string, Array<{ userId: number; name: string }>> = {};
+  Object.entries(note.reactionUsersByType || {}).forEach(([key, users]) => {
+    nextReactionUsersByType[key] = (Array.isArray(users) ? users : []).filter(
+      (user) => Number(user.userId) !== OPTIMISTIC_REACTION_USER.userId && user.name !== OPTIMISTIC_REACTION_USER.name
+    );
+  });
+
+  if (!isTogglingSameReaction) {
+    if (!nextReactionUsersByType[reaction]) nextReactionUsersByType[reaction] = [];
+    nextReactionUsersByType[reaction] = [
+      ...nextReactionUsersByType[reaction],
+      OPTIMISTIC_REACTION_USER,
+    ];
+  }
+
+  return {
+    ...note,
+    myReactions: nextMyReactions,
+    likedByMe: nextMyReactions.includes("like"),
+    likes: Number(nextReactionCounts.like || 0),
+    reactionCounts: nextReactionCounts,
+    reactionUsersByType: nextReactionUsersByType,
+  };
 };
 
 
@@ -459,7 +491,7 @@ export default function NotesDrawer({
     if (reactionPendingNoteIds.has(noteId)) return;
 
     const reaction = EMOJI_TO_REACTION[emoji] || "like";
-    const previousNoteSnapshot = notes.find((note) => Number(note.id) === noteId);
+    const previousNotesSnapshot = notes;
 
     setReactionPendingNoteIds((current) => {
       const next = new Set(current);
@@ -468,50 +500,7 @@ export default function NotesDrawer({
     });
 
     // Optimistic update for smoother UX.
-    setNotes((currentNotes) =>
-      currentNotes.map((note) => {
-        if (Number(note.id) !== noteId) return note;
-
-        const existingMyReactions = Array.isArray(note.myReactions) ? note.myReactions : [];
-        const isTogglingSameReaction = existingMyReactions.includes(reaction);
-        const nextMyReactions = isTogglingSameReaction ? [] : [reaction];
-
-        const nextReactionCounts = { ...note.reactionCounts };
-        existingMyReactions.forEach((existingReaction) => {
-          if (!nextReactionCounts[existingReaction]) return;
-          nextReactionCounts[existingReaction] = Math.max(0, Number(nextReactionCounts[existingReaction]) - 1);
-          if (nextReactionCounts[existingReaction] <= 0) delete nextReactionCounts[existingReaction];
-        });
-
-        if (!isTogglingSameReaction) {
-          nextReactionCounts[reaction] = (Number(nextReactionCounts[reaction] || 0) || 0) + 1;
-        }
-
-        const nextReactionUsersByType: Record<string, Array<{ userId: number; name: string }>> = {};
-        Object.entries(note.reactionUsersByType || {}).forEach(([key, users]) => {
-          nextReactionUsersByType[key] = (Array.isArray(users) ? users : []).filter(
-            (user) => Number(user.userId) !== OPTIMISTIC_REACTION_USER.userId && user.name !== OPTIMISTIC_REACTION_USER.name
-          );
-        });
-
-        if (!isTogglingSameReaction) {
-          if (!nextReactionUsersByType[reaction]) nextReactionUsersByType[reaction] = [];
-          nextReactionUsersByType[reaction] = [
-            ...nextReactionUsersByType[reaction],
-            OPTIMISTIC_REACTION_USER,
-          ];
-        }
-
-        return {
-          ...note,
-          myReactions: nextMyReactions,
-          likedByMe: nextMyReactions.includes("like"),
-          likes: Number(nextReactionCounts.like || 0),
-          reactionCounts: nextReactionCounts,
-          reactionUsersByType: nextReactionUsersByType,
-        };
-      })
-    );
+    setNotes((currentNotes) => updateNoteById(currentNotes, noteId, (note) => applyOptimisticReaction(note, reaction)));
 
     setShowReactionPickerId(null);
 
@@ -524,11 +513,7 @@ export default function NotesDrawer({
       // Silent sync with server truth without showing loader flicker.
       await fetchNotes({ silent: true });
     } catch (error: any) {
-      if (previousNoteSnapshot) {
-        setNotes((currentNotes) =>
-          currentNotes.map((note) => (Number(note.id) === noteId ? previousNoteSnapshot : note))
-        );
-      }
+      setNotes(previousNotesSnapshot);
       toast.error(error?.message || "Reaction not supported by backend");
     } finally {
       setReactionPendingNoteIds((current) => {
@@ -611,7 +596,8 @@ export default function NotesDrawer({
                     onReply={(id) => setReplyingToId(id)}
                     onDelete={handleDeleteNote}
                     onPreviewAttachment={openStoredAttachmentPreview}
-                    actionsDisabled={isApiBusy || reactionPendingNoteIds.has(note.id)}
+                    actionsDisabled={isApiBusy}
+                    isNoteActionDisabled={(noteId) => reactionPendingNoteIds.has(noteId)}
                     showReactionPickerId={showReactionPickerId}
                     setShowReactionPickerId={setShowReactionPickerId}
                     reactionPickerRef={reactionPickerRef}
@@ -738,6 +724,7 @@ function NoteCard({
   onDelete,
   onPreviewAttachment,
   actionsDisabled = false,
+  isNoteActionDisabled,
   showReactionPickerId,
   setShowReactionPickerId,
   reactionPickerRef
@@ -749,6 +736,7 @@ function NoteCard({
   onDelete?: (noteId: number) => void;
   onPreviewAttachment?: (attachment: { fileName: string; filePath: string; mimeType?: string | null }) => void;
   actionsDisabled?: boolean;
+  isNoteActionDisabled?: (noteId: number) => boolean;
   showReactionPickerId: string | null;
   setShowReactionPickerId: (id: string | null) => void;
   reactionPickerRef: React.RefObject<HTMLDivElement>;
@@ -756,6 +744,7 @@ function NoteCard({
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const hasReplies = note.replies && note.replies.length > 0;
+  const isCurrentNoteDisabled = actionsDisabled || Boolean(isNoteActionDisabled?.(note.id));
 
   const formatReactionUsers = (reaction: string) => {
     const users = note.reactionUsersByType?.[reaction] || [];
@@ -804,11 +793,11 @@ function NoteCard({
                 type="button"
                 className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0 -mr-1 p-1"
                 onClick={() => {
-                  if (actionsDisabled) return;
+                  if (isCurrentNoteDisabled) return;
                   setShowReactionPickerId(null);
                   setShowActionsMenu((current) => !current);
                 }}
-                disabled={actionsDisabled}
+                disabled={isCurrentNoteDisabled}
                 aria-haspopup="menu"
                 aria-expanded={showActionsMenu}
                 aria-label="More actions"
@@ -879,7 +868,7 @@ function NoteCard({
               className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${note.likedByMe || note.likes > 0 ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white/70'
                 }`}
               onClick={() => onReact?.(note.id.toString(), "👍")}
-              disabled={actionsDisabled}
+              disabled={isCurrentNoteDisabled}
               title={formatReactionUsers("like") || undefined}
             >
               <ThumbsUp
@@ -893,14 +882,14 @@ function NoteCard({
             <button
               className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
               onClick={() => onReply?.(note.id)}
-              disabled={actionsDisabled}
+              disabled={isCurrentNoteDisabled}
             >
               Reply
             </button>
             <span className="w-px h-3 bg-white/10" />
             <button
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5 relative"
-              disabled={actionsDisabled}
+              disabled={isCurrentNoteDisabled}
               onClick={() => setShowReactionPickerId((current) => (current === note.id.toString() ? null : note.id.toString()))}
             >
               <Smile size={14} strokeWidth={2} />
@@ -918,7 +907,7 @@ function NoteCard({
                   <button
                     key={`${note.id}-picker-${emoji}`}
                     type="button"
-                    disabled={actionsDisabled}
+                    disabled={isCurrentNoteDisabled}
                     onClick={() => {
                       onReact?.(note.id.toString(), emoji);
                       setShowReactionPickerId(null);
@@ -940,7 +929,7 @@ function NoteCard({
                   <button
                     key={`${note.id}-${reaction}`}
                     type="button"
-                    disabled={actionsDisabled}
+                    disabled={isCurrentNoteDisabled}
                     onClick={() => onReact?.(note.id.toString(), emoji)}
                     title={formatReactionUsers(reaction) || undefined}
                     className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
@@ -976,7 +965,20 @@ function NoteCard({
       {hasReplies && (
         <div className="mt-4 ml-5 pl-5 border-l border-white/10 space-y-3">
           {note.replies.map((reply) => (
-            <NoteReply key={reply.id} reply={reply} onPreviewAttachment={onPreviewAttachment} />
+            <NoteReply
+              key={reply.id}
+              reply={reply}
+              isDark={isDark}
+              onReact={onReact}
+              onReply={onReply}
+              onDelete={onDelete}
+              onPreviewAttachment={onPreviewAttachment}
+              actionsDisabled={actionsDisabled}
+              isNoteActionDisabled={isNoteActionDisabled}
+              showReactionPickerId={showReactionPickerId}
+              setShowReactionPickerId={setShowReactionPickerId}
+              reactionPickerRef={reactionPickerRef}
+            />
           ))}
         </div>
       )}
@@ -987,11 +989,63 @@ function NoteCard({
 // Thread Reply Component
 function NoteReply({
   reply,
-  onPreviewAttachment
+  isDark = true,
+  onReact,
+  onReply,
+  onDelete,
+  onPreviewAttachment,
+  actionsDisabled = false,
+  isNoteActionDisabled,
+  showReactionPickerId,
+  setShowReactionPickerId,
+  reactionPickerRef,
 }: {
-  reply: NoteUiItem["replies"][0];
+  reply: NoteUiItem;
+  isDark?: boolean;
+  onReact?: (messageId: string, emoji: string) => void;
+  onReply?: (noteId: number) => void;
+  onDelete?: (noteId: number) => void;
   onPreviewAttachment?: (attachment: { fileName: string; filePath: string; mimeType?: string | null }) => void;
+  actionsDisabled?: boolean;
+  isNoteActionDisabled?: (noteId: number) => boolean;
+  showReactionPickerId: string | null;
+  setShowReactionPickerId: (id: string | null) => void;
+  reactionPickerRef: React.RefObject<HTMLDivElement>;
 }) {
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+  const hasReplies = reply.replies && reply.replies.length > 0;
+  const isCurrentReplyDisabled = actionsDisabled || Boolean(isNoteActionDisabled?.(reply.id));
+
+  const formatReactionUsers = (reaction: string) => {
+    const users = reply.reactionUsersByType?.[reaction] || [];
+    if (!users.length) return "";
+    return users.map((user) => user.name).join(", ");
+  };
+
+  const formatReactionUsersShort = (reaction: string) => {
+    const users = reply.reactionUsersByType?.[reaction] || [];
+    if (!users.length) return "";
+    if (users.length <= 3) return users.map((user) => user.name).join(", ");
+    return `${users.slice(0, 3).map((user) => user.name).join(", ")} +${users.length - 3}`;
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    };
+
+    if (showActionsMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showActionsMenu]);
+
   return (
     <div className="bg-[#161616] rounded-[18px] p-4 border border-white/5">
       <div className="flex gap-3">
@@ -1004,9 +1058,44 @@ function NoteReply({
                 {reply.timestamp.date} • {reply.timestamp.time}
               </span>
             </div>
-            <button className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 -mr-1 p-1">
-              <MoreHorizontal size={14} />
-            </button>
+            <div ref={actionsMenuRef} className="relative">
+              <button
+                type="button"
+                className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 -mr-1 p-1"
+                onClick={() => {
+                  if (isCurrentReplyDisabled) return;
+                  setShowReactionPickerId(null);
+                  setShowActionsMenu((current) => !current);
+                }}
+                disabled={isCurrentReplyDisabled}
+                aria-haspopup="menu"
+                aria-expanded={showActionsMenu}
+                aria-label="More reply actions"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+
+              {showActionsMenu ? (
+                <div
+                  className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
+                    isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                  }`}
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                    onClick={() => {
+                      setShowActionsMenu(false);
+                      onDelete?.(reply.id);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <p className="text-sm text-white/60 leading-relaxed mb-2.5">
@@ -1044,20 +1133,120 @@ function NoteReply({
           ) : null}
 
           {/* Action Row - Smaller */}
-          <div className="flex items-center gap-1">
-            <button className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
-              Like
+          <div className="flex items-center gap-1 relative">
+            <button
+              className={`text-xs font-medium transition-colors px-0.5 ${
+                reply.likedByMe || reply.likes > 0 ? "text-[#E8D1AB]" : "text-white/40 hover:text-white/70"
+              }`}
+              onClick={() => onReact?.(reply.id.toString(), "👍")}
+              disabled={isCurrentReplyDisabled}
+              title={formatReactionUsers("like") || undefined}
+            >
+              {reply.likes > 0 ? reply.likes : "Like"}
             </button>
             <span className="w-px h-2.5 bg-white/10" />
-            <button className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
+            <button
+              className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
+              onClick={() => onReply?.(reply.id)}
+              disabled={isCurrentReplyDisabled}
+            >
               Reply
             </button>
             <span className="w-px h-2.5 bg-white/10" />
-            <button className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
+            <button
+              className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
+              disabled={isCurrentReplyDisabled}
+              onClick={() => setShowReactionPickerId((current) => (current === reply.id.toString() ? null : reply.id.toString()))}
+            >
               <Smile size={13} strokeWidth={2} />
               React
             </button>
+
+            {showReactionPickerId === reply.id.toString() && (
+              <div
+                ref={reactionPickerRef}
+                className={`absolute bottom-full left-0 mb-2 z-20 flex items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${
+                  isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                }`}
+              >
+                {QUICK_REACTIONS.map((emoji) => (
+                  <button
+                    key={`${reply.id}-picker-${emoji}`}
+                    type="button"
+                    disabled={isCurrentReplyDisabled}
+                    onClick={() => {
+                      onReact?.(reply.id.toString(), emoji);
+                      setShowReactionPickerId(null);
+                    }}
+                    className="rounded-full px-1.5 text-lg transition hover:scale-110"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {Object.keys(reply.reactionCounts || {}).length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {Object.entries(reply.reactionCounts || {}).map(([reaction, count]) => {
+                const emoji = REACTION_TO_EMOJI[reaction] || "🙂";
+                const reactedByMe = reply.myReactions.includes(reaction);
+                return (
+                  <button
+                    key={`${reply.id}-${reaction}`}
+                    type="button"
+                    disabled={isCurrentReplyDisabled}
+                    onClick={() => onReact?.(reply.id.toString(), emoji)}
+                    title={formatReactionUsers(reaction) || undefined}
+                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+                      reactedByMe
+                        ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                        : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                    }`}
+                  >
+                    {emoji} {count}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {Object.keys(reply.reactionCounts || {}).length > 0 ? (
+            <div className="mt-1.5 space-y-1">
+              {Object.entries(reply.reactionCounts || {}).map(([reaction]) => {
+                const usersText = formatReactionUsersShort(reaction);
+                if (!usersText) return null;
+                const emoji = REACTION_TO_EMOJI[reaction] || "🙂";
+                return (
+                  <p key={`${reply.id}-reaction-users-${reaction}`} className="text-[11px] text-white/45" title={formatReactionUsers(reaction)}>
+                    {emoji} {usersText}
+                  </p>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {hasReplies ? (
+            <div className="mt-3 ml-3 pl-4 border-l border-white/10 space-y-3">
+              {reply.replies.map((childReply) => (
+                <NoteReply
+                  key={childReply.id}
+                  reply={childReply}
+                  isDark={isDark}
+                  onReact={onReact}
+                  onReply={onReply}
+                  onDelete={onDelete}
+                  onPreviewAttachment={onPreviewAttachment}
+                  actionsDisabled={actionsDisabled}
+                  isNoteActionDisabled={isNoteActionDisabled}
+                  showReactionPickerId={showReactionPickerId}
+                  setShowReactionPickerId={setShowReactionPickerId}
+                  reactionPickerRef={reactionPickerRef}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

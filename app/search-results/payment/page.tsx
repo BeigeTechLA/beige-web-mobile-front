@@ -347,6 +347,101 @@ const isAdditionalPaymentFlow = (details: any) => {
   return outstandingAmount > 0 && additionalStatus !== 'paid';
 };
 
+const toPaymentNumber = (value: unknown) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const pickPaymentNumber = (...values: unknown[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue)) return numericValue;
+  }
+  return 0;
+};
+
+const mergeBookingSummaryPaymentData = (
+  summary: unknown,
+  paymentContext: {
+    creditAppliedAmount?: number;
+    cardPaidAmount?: number;
+    totalBeforeCredit?: number;
+    paymentIntentId?: string;
+  } = {},
+) => {
+  if (!summary) return summary;
+
+  const summaryRecord = summary as Record<string, unknown>;
+  const pricing = (summaryRecord.pricing || {}) as Record<string, unknown>;
+  const paymentSummary = (pricing.payment_summary || {}) as Record<string, unknown>;
+  const creditAppliedAmount = Math.max(
+    pickPaymentNumber(
+      paymentContext.creditAppliedAmount,
+      pricing.credit_applied,
+      pricing.credit_used_amount,
+      pricing.account_credit_applied,
+      paymentSummary.credit_applied,
+      paymentSummary.credit_used_amount,
+    ),
+    0,
+  );
+  const cardPaidAmount = Math.max(
+    pickPaymentNumber(
+      paymentContext.cardPaidAmount,
+      pricing.card_paid_amount,
+      pricing.card_paid,
+      pricing.stripe_paid_amount,
+      paymentSummary.card_paid_amount,
+      paymentSummary.card_paid,
+      pricing.total_paid,
+      paymentSummary.paid_amount,
+    ),
+    0,
+  );
+  const totalBeforeCredit = Math.max(
+    pickPaymentNumber(
+      paymentContext.totalBeforeCredit,
+      pricing.total_before_credit,
+      pricing.total_before_discounts,
+      paymentSummary.quote_total,
+      pricing.total,
+    ),
+    0,
+  );
+  const combinedPaidAmount = cardPaidAmount + creditAppliedAmount;
+  const paymentMethod =
+    creditAppliedAmount > 0 && cardPaidAmount > 0
+      ? "card_and_account_credit"
+      : creditAppliedAmount > 0
+        ? "account_credit"
+        : "card";
+
+  return {
+    ...summaryRecord,
+    pricing: {
+      ...pricing,
+      credit_applied: creditAppliedAmount,
+      credit_used_amount: creditAppliedAmount,
+      card_paid_amount: cardPaidAmount,
+      total_paid: cardPaidAmount,
+      total_paid_with_credit: combinedPaidAmount,
+      total_before_credit: totalBeforeCredit,
+      payment_method: paymentMethod,
+      payment_intent_id: paymentContext.paymentIntentId ?? pricing.payment_intent_id,
+      payment_summary: {
+        ...paymentSummary,
+        credit_used_amount: creditAppliedAmount,
+        card_paid_amount: cardPaidAmount,
+        paid_amount: cardPaidAmount,
+        total_paid_with_credit: combinedPaidAmount,
+        quote_total: totalBeforeCredit || paymentSummary.quote_total,
+        payment_method: paymentMethod,
+      },
+    },
+  };
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -1550,7 +1645,9 @@ function MultiCreatorPaymentContent() {
     setIsUpdatingIntent(false);
   };
 
-  const fetchSummaryData = async () => {
+  const fetchSummaryData = async (
+    paymentContext?: Parameters<typeof mergeBookingSummaryPaymentData>[1],
+  ) => {
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/")
         .replace(/\/$/, "") + "/";
@@ -1558,12 +1655,19 @@ function MultiCreatorPaymentContent() {
       const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
 
       if (response.data.success) {
-        setSummaryData(response.data.data);
+        const nextSummaryData = mergeBookingSummaryPaymentData(
+          response.data.data,
+          paymentContext,
+        );
+        setSummaryData(nextSummaryData);
+        return nextSummaryData;
       }
     } catch (err) {
       toast.error("Failed to load summary details");
       console.error("Fetch error:", err);
     }
+
+    return null;
   };
 
   useEffect(() => {
@@ -1641,7 +1745,16 @@ function MultiCreatorPaymentContent() {
           headers: getAuthHeaders(),
         }
       );
-      await fetchSummaryData();
+      const paymentContext = {
+        creditAppliedAmount,
+        cardPaidAmount: payableTotal,
+        totalBeforeCredit: basePayableAmount,
+        paymentIntentId,
+      };
+      setSummaryData((currentSummary: unknown) =>
+        mergeBookingSummaryPaymentData(currentSummary, paymentContext),
+      );
+      await fetchSummaryData(paymentContext);
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("beige_payment_booking_email");
       }
@@ -1759,7 +1872,12 @@ function MultiCreatorPaymentContent() {
       return booking?.event_type?.toLowerCase().includes("wedding") ? weddingFormUrl : generalFormUrl;
     };
 
-    const paidAmount = payableTotal || summaryData?.pricing?.total_paid ?? quoteTotal;
+    const paidAmount = pickPaymentNumber(
+      summaryData?.pricing?.total_paid_with_credit,
+      toPaymentNumber(payableTotal) + toPaymentNumber(creditAppliedAmount),
+      summaryData?.pricing?.total_paid,
+      quoteTotal,
+    );
 
     return (
       <div className="pt-20 lg:pt-32 pb-20">
@@ -2243,4 +2361,3 @@ export default function MultiCreatorPaymentPage() {
     </main>
   );
 }
-
