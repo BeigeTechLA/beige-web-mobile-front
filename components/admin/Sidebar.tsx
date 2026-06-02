@@ -53,7 +53,7 @@ const menuItems = [
     link: '/admin/sales-representative',
     children: [
       { name: 'Dashboard', link: '/admin/sales-representative' },
-      { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
+      // { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
   // { name: 'Finances', icon: DollarSign, 
