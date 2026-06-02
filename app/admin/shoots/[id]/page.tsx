@@ -281,9 +281,9 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         needs_attention:
           updated.remainingMissingFields.length > 0
             ? {
-                required: true,
-                missing_fields: updated.remainingMissingFields,
-              }
+              required: true,
+              missing_fields: updated.remainingMissingFields,
+            }
             : undefined,
       };
 
@@ -432,7 +432,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         }
       />
 
-     <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
+      <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
         {/* Main Content (Left Scroll Window) */}
         <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
           <ShootHeader
@@ -534,7 +534,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
               </div>
             </div>
-          )
+          </div>
+        )
         }
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
@@ -586,13 +587,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           ) : null}
         </div>
 
-      <QuotePreviewModal
-        open={isQuotePreviewOpen}
-        onClose={() => setIsQuotePreviewOpen(false)}
-        quote={quotePreviewData}
-        quoteId={convertedSalesQuoteId}
-        isLoading={isLoadingQuotePreview}
-      />
+        <QuotePreviewModal
+          open={isQuotePreviewOpen}
+          onClose={() => setIsQuotePreviewOpen(false)}
+          quote={quotePreviewData}
+          quoteId={convertedSalesQuoteId}
+          isLoading={isLoadingQuotePreview}
+        />
       </div>
     </>
   );
