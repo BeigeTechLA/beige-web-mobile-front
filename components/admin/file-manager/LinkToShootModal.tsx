@@ -37,24 +37,23 @@ const LinkToShootModal: React.FC<LinkToShootModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className={`w-full max-w-[540px] border rounded-[24px] overflow-hidden shadow-2xl transition-colors duration-200 ${isDark ? "bg-black border-white/10" : "bg-white border-[#D7D7D7]"
-        }`}>
+      <div className={`w-[92vw] lg:w-full max-w-[540px] border rounded-[24px] overflow-hidden shadow-2xl transition-colors duration-200 ${isDark ? "bg-black border-white/10" : "bg-white border-[#D7D7D7]"}`}>
 
         {/* Header */}
         <div className={`flex items-start justify-between p-3 lg:p-5 border-b transition-colors duration-200 ${isDark ? "border-b-white/30" : "border-b-[#D7D7D7]"
           }`}>
           <div>
-            <h2 className={`text-lg font-semibold mb-2 ${isDark ? "text-white" : "text-black"}`}>
+            <h2 className={`text-lg font-semibold mb-2 truncate ${isDark ? "text-white" : "text-black"}`}>
               Link Folder to Shoots
             </h2>
-            <p className={`text-sm mt-1 ${isDark ? "text-white/60" : "text-[#727272]"}`}>
+            <p className={`text-xs lg:text-sm mt-1 truncate ${isDark ? "text-white/60" : "text-black/50"}`}>
               Link "{folderName}" to a booked shoot
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className={`p-2 rounded-full transition-colors ${isDark ? "bg-white/5 text-white/60 hover:text-white" : "bg-black/5 text-black/60 hover:text-black"
+            className={`p-1.5 lg:p-2 rounded-full transition-colors shrink-0 ${isDark ? "bg-white/5 text-white/60 hover:text-white" : "bg-black/5 text-black/60 hover:text-black"
               }`}
           >
             <X size={20} />
@@ -72,7 +71,7 @@ const LinkToShootModal: React.FC<LinkToShootModalProps> = ({
                 placeholder="Search shoots..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full border rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-1 transition-all ${isDark
+                className={`w-full border rounded-xl py-2 lg:py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-1 transition-all ${isDark
                     ? "bg-[#1A1A1A] border-white/10 text-white placeholder:text-[#979797] focus:ring-[#E8D1AB]/50"
                     : "bg-[#F4F5F7] border-[#D7D7D7] text-black placeholder:text-[#9F9FA9] focus:ring-[#B38F43]/50"
                   }`}
@@ -80,7 +79,7 @@ const LinkToShootModal: React.FC<LinkToShootModalProps> = ({
             </div>
 
             {/* Shoot List */}
-            <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+            <div className="space-y-3 max-h-[260px] lg:max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
               {shoots.map((shoot) => {
                 const isSelected = selectedShootId === shoot.id;
                 return (
@@ -96,7 +95,7 @@ const LinkToShootModal: React.FC<LinkToShootModalProps> = ({
                           : "bg-transparent border-[#D7D7D7] hover:border-black/20"
                       }`}
                   >
-                    <h4 className={`font-semibold lg:text-lg transition-colors ${isDark ? "text-white" : "text-black"
+                    <h4 className={`font-semibold lg:text-lg transition-colors truncate ${isDark ? "text-white" : "text-black"
                       }`}>
                       {shoot.name}
                     </h4>
@@ -128,11 +127,11 @@ const LinkToShootModal: React.FC<LinkToShootModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex justify-start gap-3 mt-4 lg:mt-8">
+          <div className="flex justify-end gap-3 mt-4 lg:mt-8">
             <Button
               type="button"
               onClick={onClose}
-              className={`rounded-lg h-9 font-medium transition-colors ${isDark
+              className={`rounded-lg h-9 w-full lg:w-auto font-medium transition-colors ${isDark
                   ? "bg-white text-black hover:bg-white/90"
                   : "bg-[#F4F5F7] text-black hover:bg-[#E4E5E7]"
                 }`}
@@ -142,7 +141,7 @@ const LinkToShootModal: React.FC<LinkToShootModalProps> = ({
             <Button
               type="button"
               disabled={!selectedShootId}
-              className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90 rounded-lg h-9 disabled:opacity-50"
+              className={`rounded-lg h-9 w-full lg:w-auto font-medium transition-colors disabled:opacity-50 bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90`}
             >
               Link Shoots
             </Button>

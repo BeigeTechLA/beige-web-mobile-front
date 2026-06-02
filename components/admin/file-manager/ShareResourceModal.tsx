@@ -342,19 +342,17 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className={`w-[calc(100vw-24px)] max-w-[500px] overflow-hidden rounded-[18px] border p-0 shadow-[0_18px_60px_rgba(0,0,0,0.55)] transition-colors duration-200 [&>button]:hidden ${isDark
-          ? "border-white/20 bg-black text-white"
-          : "border-[#D7D7D7] bg-white text-black"
-          }`}
+        className={`w-[calc(100vw-24px)] max-w-[500px] max-h-[90vh] lg:max-h-none overflow-y-auto lg:overflow-hidden rounded-lg lg:rounded-2xl border p-0 shadow-[0_18px_60px_rgba(0,0,0,0.55)] transition-all duration-200 [&>button]:hidden no-scrollbar ${isDark? "border-white/20 bg-black text-white": "border-white/10 bg-white text-black"}`}
       >
         <DialogTitle className="sr-only">Share {resource?.label}</DialogTitle>
 
         {/* Header Section */}
-        <div className={`relative border-b px-6 py-5 transition-colors ${isDark ? "border-white/10" : "border-[#D7D7D7]"}`}>
+        <div className={`relative border-b p-3 lg:px-6 lg:py-5 transition-colors sticky top-0 z-50 ${isDark ? "border-white/10 bg-black" : "border-[#D7D7D7] bg-white"
+          }`}>
           <div className="flex items-start justify-between">
-            <div>
-              <h2 className={`text-xl font-bold leading-none ${isDark ? "text-white" : "text-black"}`}>
-                Share <span className={"text-[#E8D1AB]"}>({resource?.label || "Resource"})</span>
+            <div className="min-w-0 flex-1 pr-4">
+              <h2 className={`text-base lg:text-xl font-bold leading-none truncate ${isDark ? "text-white" : "text-black"}`}>
+                Share <span className="text-[#E8D1AB]">({resource?.label || "Resource"})</span>
               </h2>
               <p className={`mt-2.5 text-xs font-medium leading-[1.4] transition-colors ${isDark ? "text-white/40" : "text-[#727272]"}`}>
                 Note : Recipients Must Verify their Email with and OTP each time they access shared files.
@@ -364,8 +362,8 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
               type="button"
               onClick={handleClose}
               className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors shrink-0 ${isDark
-                ? "bg-[#1A1A1A] text-white/60 hover:bg-white/10 hover:text-white"
-                : "bg-[#F4F5F7] text-black/60 hover:bg-black/10 hover:text-black"
+                  ? "bg-[#1A1A1A] text-white/60 hover:bg-white/10 hover:text-white"
+                  : "bg-[#F4F5F7] text-black/60 hover:bg-black/10 hover:text-black"
                 }`}
             >
               <X size={20} />
@@ -373,15 +371,15 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           </div>
         </div>
 
-        <div className="h-[440px] overflow-y-auto no-scrollbar px-6 py-4">
+        <div className="h-auto lg:h-[440px] overflow-y-auto no-scrollbar px-3 py-2 lg:px-6 lg:py-4">
           <div className="space-y-3.5 h-full flex flex-col">
             <div className="flex-1 space-y-3.5">
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   {/* Email Entry Fieldset */}
                   <fieldset className={`rounded-lg border px-4 pb-2.5 pt-1 transition-colors ${isDark
-                    ? "border-white/25 focus-within:border-[#E8D1AB]"
-                    : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"
+                      ? "border-white/25 focus-within:border-[#E8D1AB]"
+                      : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"
                     }`}>
                     <legend className={`legend-reset px-1 text-xs leading-none font-medium transition-colors ${isDark ? "text-white/55" : "text-[#727272]"}`}>
                       Add or Invite by Email
@@ -428,8 +426,8 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
 
                 {/* Optional Note Textarea Fieldset */}
                 <fieldset className={`rounded-lg border px-4 pb-2.5 pt-1 transition-colors ${isDark
-                  ? "border-white/25 focus-within:border-[#E8D1AB]"
-                  : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"
+                    ? "border-white/25 focus-within:border-[#E8D1AB]"
+                    : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"
                   }`}>
                   <legend className={`legend-reset px-1 text-xs leading-none font-medium transition-colors ${isDark ? "text-white/55" : "text-[#727272]"}`}>
                     Message (Optional)
@@ -447,7 +445,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                   type="button"
                   onClick={addCurrentEmail}
                   disabled={!emailInput.trim()}
-                  className={`h-[32px] rounded-[6px] px-6 text-[12px] font-bold transition-all disabled:opacity-40 bg-[#E8D1AB] text-black hover:bg-[#dcb98a]`}
+                  className="h-[32px] rounded-[6px] px-6 text-[12px] font-bold transition-all disabled:opacity-40 bg-[#E8D1AB] text-black hover:bg-[#dcb98a]"
                 >
                   Add
                 </button>
@@ -459,8 +457,8 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                     type="button"
                     onClick={() => setActiveTab("people")}
                     className={`text-sm font-bold transition-colors ${activeTab === "people"
-                      ? isDark ? "text-white" : "text-black"
-                      : isDark ? "text-white/40 hover:text-white/60" : "text-[#727272] hover:text-black"
+                        ? isDark ? "text-white" : "text-black"
+                        : isDark ? "text-white/40 hover:text-white/60" : "text-[#727272] hover:text-black"
                       }`}
                   >
                     People Access With
@@ -469,8 +467,8 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                     type="button"
                     onClick={() => setActiveTab("activity")}
                     className={`text-sm font-bold transition-all underline decoration-1 underline-offset-4 ${activeTab === "activity"
-                      ? isDark ? "text-[#E2C799]" : "text-[#B38F43]"
-                      : isDark ? "text-[#E2C799]/70 hover:text-[#E2C799]" : "text-[#B38F43]/70 hover:text-[#B38F43]"
+                        ? isDark ? "text-[#E2C799]" : "text-[#B38F43]"
+                        : isDark ? "text-[#E2C799]/70 hover:text-[#E2C799]" : "text-[#B38F43]/70 hover:text-[#B38F43]"
                       }`}
                   >
                     View Activity
@@ -512,8 +510,8 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                                   type="button"
                                   onClick={() => handleCopyByToken(item.shareToken)}
                                   className={`flex items-center gap-2 rounded-[6px] px-3.5 py-2 text-xs font-bold transition-all ${copiedToken === item.shareToken
-                                    ? "bg-emerald-500 text-white"
-                                    : isDark ? "bg-[#1A1A1A] text-white hover:bg-white/10" : "bg-[#F4F5F7] text-black hover:bg-black/5"
+                                      ? "bg-emerald-500 text-white"
+                                      : isDark ? "bg-[#1A1A1A] text-white hover:bg-white/10" : "bg-[#F4F5F7] text-black hover:bg-black/5"
                                     }`}
                                 >
                                   {copiedToken === item.shareToken ? (
@@ -545,9 +543,9 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                     {/* General Link Access Toggle Section */}
                     <div className={`border-t pt-4 transition-colors ${isDark ? "border-white/10" : "border-[#D7D7D7]"}`}>
                       <h3 className={`text-sm font-bold ${isDark ? "text-white/90" : "text-black/90"}`}>General Access</h3>
-                      <div className="mt-4 flex items-center justify-between">
+                      <div className="mt-4 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-12 w-12 items-center justify-center rounded-full ${isDark ? "bg-[#1A1A1A]" : "bg-[#F4F5F7]"}`}>
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-full shrink-0 ${isDark ? "bg-[#1A1A1A]" : "bg-[#F4F5F7]"}`}>
                             <Globe2 size={24} className={isDark ? "text-white/60" : "text-black/60"} />
                           </div>
                           <div>
@@ -556,7 +554,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                           </div>
                         </div>
                         {anyoneShare ? (
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-4 ml-auto sm:ml-0">
                             <button
                               type="button"
                               onClick={() => handleCopyByToken(anyoneShare.shareToken)}
@@ -579,7 +577,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                             type="button"
                             onClick={handleEnableAnyoneWithLink}
                             disabled={sharingAnyone}
-                            className="h-[44px] rounded-[10px] bg-[#B5A48B] px-8 text-[13px] font-bold text-black transition-all hover:opacity-90 disabled:opacity-40"
+                            className="h-[44px] w-full sm:w-auto rounded-[10px] bg-[#B5A48B] px-8 text-[13px] font-bold text-black transition-all hover:opacity-90 disabled:opacity-40"
                           >
                             {sharingAnyone ? "..." : "Enable"}
                           </button>
@@ -612,13 +610,13 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                                 className={`w-full text-left px-4 py-3 focus:outline-none transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
                               >
                                 <div className="flex items-start justify-between">
-                                  <div className="flex items-center gap-2.5">
+                                  <div className="flex items-center gap-2.5 min-w-0">
                                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold transition-colors ${isDark ? "bg-white/5 border-white/10 text-white/70" : "bg-black/5 border-[#D7D7D7] text-black/70"
                                       }`}>
                                       {initials}
                                     </div>
                                     <div className="min-w-0">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex flex-wrap items-center gap-2">
                                         <span className={`truncate text-sm font-bold ${isDark ? "text-white/90" : "text-black/90"}`}>{group.email}</span>
                                         <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${isDark ? "bg-white/5 text-white/30" : "bg-black/5 text-black/40"}`}>
                                           {group.logs.length} {group.logs.length === 1 ? 'event' : 'events'}
@@ -626,11 +624,11 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                                       </div>
                                       <div className={`mt-0.5 flex items-center gap-1.5 text-[10px] ${isDark ? "text-white/40" : "text-[#727272]"}`}>
                                         <span className={`h-1 w-1 rounded-full ${isDark ? "bg-white/20" : "bg-black/20"}`} />
-                                        <span className="font-medium">{normalizeActionLabel(group.logs[0]?.action)}</span>
+                                        <span className="font-medium truncate">{normalizeActionLabel(group.logs[0]?.action)}</span>
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="flex flex-col items-end gap-1">
+                                  <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
                                     <span className={`text-[10px] font-medium ${isDark ? "text-white/30" : "text-[#727272]"}`}>
                                       {new Date(group.latestAt || "").toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                     </span>
@@ -653,14 +651,14 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                                       <div className={`absolute left-[11px] top-[24px] bottom-[24px] w-[1px] border-l border-dashed ${isDark ? "border-white/10" : "border-black/10"}`} />
 
                                       {group.logs.map((log, i) => (
-                                        <div key={i} className="relative flex items-center justify-between z-10 pl-4">
-                                          <div className="flex items-center gap-3">
+                                        <div key={i} className="relative flex items-center justify-between z-10 pl-4 gap-2">
+                                          <div className="flex items-center gap-3 min-w-0">
                                             {getActionIcon(log.action)}
-                                            <span className={`text-xs font-bold ${isDark ? "text-white/80" : "text-black/80"}`}>
+                                            <span className={`text-xs font-bold truncate ${isDark ? "text-white/80" : "text-black/80"}`}>
                                               {normalizeActionLabel(log.action)}
                                             </span>
                                           </div>
-                                          <span className={`text-[10px] font-medium tabular-nums ${isDark ? "text-white/20" : "text-black/30"}`}>
+                                          <span className={`text-[10px] font-medium tabular-nums shrink-0 ${isDark ? "text-white/20" : "text-black/30"}`}>
                                             {new Date(log.createdAt || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                           </span>
                                         </div>
@@ -683,7 +681,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
         </div>
 
         {/* Action Panel Footer Row */}
-        <div className={`grid grid-cols-2 gap-3 border-t px-6 py-5 transition-colors ${isDark ? "border-white/10 bg-[#050505]" : "border-[#D7D7D7] bg-[#FAFAFA]"
+        <div className={`grid grid-cols-2 gap-3 border-t px-6 py-5 transition-colors sticky bottom-0 z-50 ${isDark ? "border-white/10 bg-[#050505]" : "border-[#D7D7D7] bg-[#FAFAFA]"
           }`}>
           <Button
             onClick={handleCreateShare}
@@ -696,8 +694,8 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           <Button
             onClick={handleClose}
             className={`h-[44px] rounded-lg text-sm font-bold transition-colors ${isDark
-              ? "bg-[#1A1A1A] text-white border border-white/5 hover:bg-white/10"
-              : "bg-[#F4F5F7] text-black border border-[#D7D7D7] hover:bg-black/5"
+                ? "bg-[#1A1A1A] text-white border border-white/5 hover:bg-white/10"
+                : "bg-[#F4F5F7] text-black border border-[#D7D7D7] hover:bg-black/5"
               }`}
           >
             Done

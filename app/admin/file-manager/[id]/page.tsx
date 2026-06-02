@@ -190,7 +190,7 @@ export default function AdminFolderDetailsPage() {
     <>
       <Topbar pathname={pathname} />
 
-      <div className="overflow-x-hidden overflow-y-auto p-4 pb-20 lg:px-10 lg:py-9">
+      <div className="overflow-x-hidden overflow-y-auto p-4 pb-10 lg:px-10 lg:py-9">
         <Button onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
@@ -229,7 +229,7 @@ export default function AdminFolderDetailsPage() {
                       <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                         {workspaceName}
                       </h1>
-                      <span className="px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
+                      <span className="hidden lg:block px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
                         Active Project
                       </span>
                     </div>
@@ -239,6 +239,10 @@ export default function AdminFolderDetailsPage() {
                       <span className={isDark ? "text-[#AAA7A7]" : "text-gray-400"}>Project Code: </span>
                       {workspaceCode}
                     </p>
+
+                    <span className="mt-2 block lg:hidden px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
+                      Active Project
+                    </span>
                     {/* {workspaceConsoleUrl ? (
                     <a
                       href={workspaceConsoleUrl}
@@ -268,7 +272,7 @@ export default function AdminFolderDetailsPage() {
               ) : null} */}
               </div>
 
-              <div className="pb-20 lg:pb-0">
+              <div >
                 <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
                   <div className="relative flex-1 max-w-xl">
                     <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
@@ -415,7 +419,7 @@ export default function AdminFolderDetailsPage() {
                                 router.push(folder.href || `${pathname}/${folder.id}`);
                               }}
                             >
-                              <td className={`py-5 px-6 flex gap-2 items-center min-w-0 {isDark ? "text-white" : "text-black"}`}>
+                              <td className={`py-5 px-6 flex gap-2 items-center min-w-0 ${isDark ? "text-white" : "text-black"}`}>
                                 <div className={`h-10 w-10 flex items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-transparent"}`}>
                                   <FolderOpen className={"text-[#E8D1AB] fill-[#E8D1AB]/20"} size={24} />
                                 </div>
@@ -465,6 +469,7 @@ export default function AdminFolderDetailsPage() {
             }}
             onDelete={() => setIsDeleteModalOpen(true)}
             onRename={() => toast.info("Folder rename is the next safe step.")}
+            isDark={isDark}
           />
         )}
 

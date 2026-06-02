@@ -38,7 +38,8 @@ const getFileExtension = (title?: string) => {
   return parts.length > 1 ? parts.pop() || "" : "";
 };
 
-const getFileMeta = (contentType?: string, title?: string) => {
+// Updated metadata mapping function to handle dynamic theme accents correctly
+const getFileMeta = (contentType?: string, title?: string, isDark: boolean = true) => {
   const extension = getFileExtension(title);
 
   if (isImageFile(contentType, title)) {
@@ -69,7 +70,12 @@ const getFileMeta = (contentType?: string, title?: string) => {
     return { icon: FileArchive, label: extension || "zip", accentClass: "text-[#A855F7]", badgeClass: "bg-[#A855F7]/15" };
   }
 
-  return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
+  return {
+    icon: FileText,
+    label: extension || "file",
+    accentClass: isDark ? "text-white/80" : "text-[#333333]",
+    badgeClass: isDark ? "bg-white/10" : "bg-black/5"
+  };
 };
 
 export const FileCard = ({
@@ -81,6 +87,7 @@ export const FileCard = ({
   onShare,
   isSelected,
   onSelect,
+  isDark = true
 }: {
   file: any,
   onMenuTrigger?: (e: React.MouseEvent<HTMLButtonElement>) => void,
@@ -90,26 +97,28 @@ export const FileCard = ({
   onShare?: () => void,
   isSelected?: boolean,
   onSelect?: (selected: boolean) => void,
+  isDark?: boolean
 }) => {
   const meta = getFileMeta(file.contentType, file.title);
   const FileIcon = meta.icon;
 
+  // Selected State Highlights
+  const activeBorder = isDark ? "border-[#E5D5B8] ring-1 ring-[#E5D5B8]/50" : "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/50";
+  const inactiveBorder = isDark ? "border-white/20 hover:border-white/40" : "border-[#E5E5E5] hover:border-zinc-300";
+
   return (
     <div
-      className={`group w-full h-full cursor-pointer bg-[#111111] rounded-xl border shadow-xl overflow-hidden relative transition-all flex flex-col ${
-        isSelected ? 'border-[#E8D1AB] ring-1 ring-[#E8D1AB]/50' : 'border-white/30 hover:border-white/40'
-      }`}
+      className={`group w-full h-full cursor-pointer rounded-xl border shadow-md overflow-hidden relative transition-all flex flex-col ${isDark ? 'bg-[#111111]' : 'bg-white'} ${isSelected ? activeBorder : inactiveBorder}`}
       onClick={onOpen}
     >
       {onSelect && (
-        <div 
-          className={`absolute top-3 left-3 z-10 transition-opacity ${
-            isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-          }`}
+        <div
+          className={`absolute top-3 left-3 z-10 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <Checkbox 
-            checked={isSelected} 
+          <Checkbox
+            checked={isSelected}
             onCheckedChange={(checked) => onSelect(!!checked)}
             className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
           />
@@ -117,17 +126,21 @@ export const FileCard = ({
       )}
       <div className="p-5 pt-6 flex-1">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className={`${meta.badgeClass} p-1.5 rounded-md`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={`${meta.badgeClass} p-1.5 rounded-md shrink-0`}>
               <FileIcon className={meta.accentClass} size={16} />
             </div>
-            <span className="text-white font-medium text-sm truncate max-w-[180px]">{file.title}</span>
+            <span className={`font-medium text-sm truncate ${isDark ? 'text-white' : 'text-black'}`}>
+              {file.title}
+            </span>
           </div>
-          <div className="flex items-center gap-1">
+
+          {/* Action Control Trigger Icons Group */}
+          <div className="flex items-center gap-1 shrink-0">
             {onDownload ? (
               <Button
                 variant="ghost"
-                className="text-white/60 hover:text-white p-0 h-auto"
+                className={`p-0 h-auto ${isDark ? 'text-white/60 hover:text-white' : 'text-[#666666] hover:text-black'}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDownload();
@@ -139,7 +152,7 @@ export const FileCard = ({
             {onDelete ? (
               <Button
                 variant="ghost"
-                className="text-white/60 hover:text-[#F04438] p-0 h-auto"
+                className={`p-0 h-auto ${isDark ? 'text-white/60 hover:text-[#F04438]' : 'text-[#666666] hover:text-[#D32F2F]'}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete();
@@ -151,7 +164,7 @@ export const FileCard = ({
             {onShare ? (
               <Button
                 variant="ghost"
-                className="text-white/60 hover:text-white p-0 h-auto"
+                className={`p-0 h-auto ${isDark ? 'text-white/60 hover:text-white' : 'text-[#666666] hover:text-black'}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onShare();
@@ -163,7 +176,7 @@ export const FileCard = ({
             {onMenuTrigger ? (
               <Button
                 variant="ghost"
-                className="text-white hover:text-white/90 p-0 h-auto"
+                className={`p-0 h-auto ${isDark ? 'text-white/90 hover:text-white' : 'text-[#333333] hover:text-black'}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onMenuTrigger(e);
@@ -175,8 +188,8 @@ export const FileCard = ({
           </div>
         </div>
 
-        {/* File Preview Area */}
-        <div className="aspect-23/18 bg-[#202020] rounded-md flex items-center justify-center">
+        {/* File Graphic/Preview Sandbox Track */}
+        <div className={`aspect-23/18 rounded-md flex items-center justify-center ${isDark ? 'bg-[#202020]' : 'bg-[#F9F9F9] border border-[#EEEEEE]'}`}>
           {file.previewUrl && isImageFile(file.contentType, file.title) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={file.previewUrl} alt={file.title} className="h-full w-full object-cover rounded-md" />
@@ -200,18 +213,22 @@ export const FileCard = ({
               <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${meta.badgeClass}`}>
                 <FileIcon size={34} className={meta.accentClass} />
               </div>
-              <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-wide text-white/70">{meta.label}</span>
+              <span className={`rounded-full border px-3 py-1 text-xs uppercase tracking-wider ${isDark ? 'border-white/10 text-white/70' : 'border-black/5 text-[#666666]'}`}>
+                {meta.label}
+              </span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-auto flex items-center border-t border-white/50 p-5 gap-3">
-        <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-black text-sm font-bold">
+      {/* Card Base Layer Footer */}
+      <div className={`mt-auto flex items-center p-5 gap-3 border-t ${isDark ? 'border-white/50' : 'border-[#F0F0F0]'}`}>
+        <div className="h-9 w-9 rounded-full bg-[#C8E1FF] flex items-center justify-center text-black text-sm font-bold shrink-0">
           {file.userInitials}
         </div>
-        <span className="text-[#CDC5C5] text-sm">Updated {file.lastOpened}</span>
+        <span className={`text-sm truncate ${isDark ? 'text-[#CDC5C5]' : 'text-[#666666]'}`}>
+          Updated {file.lastOpened}
+        </span>
       </div>
     </div>
   );
