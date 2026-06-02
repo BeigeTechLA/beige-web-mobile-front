@@ -13,6 +13,7 @@ import {
   salesApi,
   type SalesQuoteDetailData,
 } from "@/lib/api";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -26,6 +27,7 @@ import {
   normalizeQuoteLineItems,
 } from "@/lib/quoteDetail";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { getInitials } from "@/lib/utils";
 import Topbar from "@/components/admin/Topbar";
@@ -69,6 +71,20 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
   const [versions, setVersions] = useState<any[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState<string>("");
+
+  const handleBeforeShareQuote = React.useCallback(async () => {
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote,
+      quoteId,
+    });
+
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
+    }
+
+    return true;
+  }, [quote, quoteId]);
 
   const fetchQuoteData = async (id: string, versionId?: string) => {
     setIsLoading(true);
@@ -476,6 +492,8 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+        onBeforeCopy={handleBeforeShareQuote}
+        onBeforeSend={handleBeforeShareQuote}
       />
     </div>
   );

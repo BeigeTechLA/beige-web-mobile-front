@@ -18,6 +18,7 @@ import {
   buildPreviewQuoteFromSummary,
   readQuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import SignatureModal from "@/components/signature/SignatureModal";
@@ -336,6 +337,20 @@ export default function QuotePreviewPageShell({
     router.push(baseHref || fallbackHref);
   };
 
+  const validateBeforeShareQuote = async () => {
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote,
+      quoteId: resolvedQuoteId,
+    });
+
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleCopy = async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       toast.error("Copy is not supported in this browser");
@@ -343,6 +358,11 @@ export default function QuotePreviewPageShell({
     }
 
     try {
+      const canContinue = await validateBeforeShareQuote();
+      if (!canContinue) {
+        return;
+      }
+
       let shareValue = copyQuoteUrl;
 
       if (!shareValue) {
@@ -378,6 +398,11 @@ export default function QuotePreviewPageShell({
   const handleSendQuote = async () => {
     if (!resolvedQuoteId) {
       toast.error("Save the quote before sending it.");
+      return;
+    }
+
+    const canContinue = await validateBeforeShareQuote();
+    if (!canContinue) {
       return;
     }
 
