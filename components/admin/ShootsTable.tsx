@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useCallback, useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2,
@@ -415,6 +415,17 @@ export const ShootsTable = ({
   const [selectedShootDataForMissingFields, setSelectedShootDataForMissingFields] = useState<Record<string, unknown> | null>(null);
   const [fieldsToShow, setFieldsToShow] = useState<string[]>([]);
   const [hoveredShootId, setHoveredShootId] = useState<string | null>(null);
+
+  const handleNotesCountChange = useCallback((shootId: string, count: number) => {
+    const nextCount = Number.isFinite(count) ? Math.max(0, count) : 0;
+    setShoots((currentShoots) =>
+      currentShoots.map((shoot) =>
+        shoot.id === shootId
+          ? { ...shoot, notesCount: nextCount }
+          : shoot
+      )
+    );
+  }, []);
 
 
   // Sync external date with range
@@ -1698,6 +1709,7 @@ export const ShootsTable = ({
         onClose={() => setChatOpen(null)}
         shootId={chatOpen ?? undefined}
         isDark={isDark}
+        onNotesCountChange={handleNotesCountChange}
       />
 
       <MissingFieldsModal

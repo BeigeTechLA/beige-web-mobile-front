@@ -131,10 +131,25 @@ const getInitials = (name: string) =>
 
 const toCreditTypeApiValue = (value: string) => value.trim().toLowerCase();
 
+const normalizeRestrictionContext = (value: string) => {
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "_");
+  const aliases: Record<string, string> = {
+    booking_payment: "shoot_payment",
+    payment: "shoot_payment",
+    shoot: "shoot_payment",
+    shoot_payment_credit_used: "shoot_payment",
+    manual_credits_usage: "shoot_payment",
+    manual_credit_usage: "shoot_payment",
+    manual_credits: "shoot_payment",
+  };
+
+  return aliases[normalized] || normalized;
+};
+
 const parseRestrictionContexts = (value: string) =>
   value
     .split(",")
-    .map((item) => item.trim())
+    .map((item) => normalizeRestrictionContext(item))
     .filter(Boolean);
 
 const matchesRange = (value: string, range: string) => {
