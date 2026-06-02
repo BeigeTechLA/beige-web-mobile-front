@@ -330,6 +330,7 @@ export default function ShootsPage() {
         {/* <DottedDivider className="my-0" />  */}
         <ShootsTable
           externalSelectedDate={selectedDate}
+          filtersReady={hasRestoredFilters}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           categoryFilter={categoryFilter}

@@ -225,6 +225,7 @@ interface ShootsTableProps {
   externalSelectedDate?: Date | null;
   detailBasePath?: string;
   enablePriceSort?: boolean;
+  filtersReady?: boolean;
   searchQuery: string;
   setSearchQuery: (v: string) => void;
   categoryFilter: string;
@@ -265,8 +266,11 @@ export const ShootsTable = ({
   showHeaderControls = true,
   showHeaderFilters = true,
   showViewToggle = true,
+  filtersReady = true,
 }: ShootsTableProps) => {
   const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
+  const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
+  const SHOOTS_RESTORE_PAGE_KEY = "admin-shoots-restore-page-on-return-v1";
   const router = useRouter();
   const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
   const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
@@ -286,6 +290,7 @@ export const ShootsTable = ({
   const [meetingGapLoading, setMeetingGapLoading] = useState(false);
   const [meetingGapBookingIds, setMeetingGapBookingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [hasRestoredCurrentPage, setHasRestoredCurrentPage] = useState(false);
   const [internalViewMode, setInternalViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
   const [kanbanOrder, setKanbanOrder] = useState<Record<ShootStatus, string[]>>({} as Record<ShootStatus, string[]>);
@@ -295,6 +300,7 @@ export const ShootsTable = ({
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const hasInitializedSearchResetRef = React.useRef(false);
 
   // Filtering states
   const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
@@ -311,6 +317,24 @@ export const ShootsTable = ({
   });
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    try {
+      const shouldRestorePage = window.localStorage.getItem(SHOOTS_RESTORE_PAGE_KEY) === "1";
+      if (shouldRestorePage) {
+        const savedPage = window.localStorage.getItem(SHOOTS_CURRENT_PAGE_KEY);
+        const parsedPage = savedPage ? Number(savedPage) : 1;
+        if (Number.isFinite(parsedPage) && parsedPage >= 1) {
+          setCurrentPage(Math.floor(parsedPage));
+        }
+      }
+      window.localStorage.removeItem(SHOOTS_RESTORE_PAGE_KEY);
+    } catch (error) {
+      console.error("Failed to restore shoots current page:", error);
+    } finally {
+      setHasRestoredCurrentPage(true);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -439,8 +463,22 @@ export const ShootsTable = ({
   const fetchRangeMode = range === "custom" ? "custom" : "all";
 
   useEffect(() => {
+    if (!filtersReady) return;
+    if (!hasInitializedSearchResetRef.current) {
+      hasInitializedSearchResetRef.current = true;
+      return;
+    }
     setCurrentPage(1);
-  }, [debouncedSearchQuery]);
+  }, [debouncedSearchQuery, filtersReady]);
+
+  useEffect(() => {
+    if (!hasRestoredCurrentPage) return;
+    try {
+      window.localStorage.setItem(SHOOTS_CURRENT_PAGE_KEY, String(currentPage));
+    } catch (error) {
+      console.error("Failed to persist shoots current page:", error);
+    }
+  }, [currentPage, hasRestoredCurrentPage]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -806,11 +844,12 @@ export const ShootsTable = ({
   const totalPages = listTotalPages;
 
   useEffect(() => {
+    if (loading) return;
     const nextPage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
     if (nextPage !== currentPage) {
       setCurrentPage(nextPage);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, totalPages, loading]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -820,6 +859,11 @@ export const ShootsTable = ({
 
   const handleRowClick = (id: string) => {
     const cleanId = id.replace('#', '');
+    try {
+      window.localStorage.setItem(SHOOTS_RESTORE_PAGE_KEY, "1");
+    } catch (error) {
+      console.error("Failed to mark shoots page for restoration:", error);
+    }
     router.push(`${detailBasePath}/${cleanId}`);
   };
 
@@ -1217,7 +1261,7 @@ export const ShootsTable = ({
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
+                      className={`w-[calc(100vw-48px)] md:w-[340px] lg:w-[360px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
                       <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
