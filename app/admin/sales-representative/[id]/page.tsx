@@ -246,6 +246,22 @@ type QuoteTaxDetailsLike = {
   tax_amount?: number | string | null;
 };
 
+type ConvertedQuoteLike = QuoteTaxDetailsLike & {
+  sales_quote_id?: number | string | null;
+  custom_quote_id?: number | string | null;
+  pricing_mode?: string | null;
+  shoot_hours?: number | string | null;
+  subtotal?: number | string | null;
+  discount?: number | string | null;
+  discount_amount?: number | string | null;
+  price_after_discount?: number | string | null;
+  total?: number | string | null;
+  expires_at?: string | null;
+  status?: string | null;
+  line_items?: QuoteLineItemLike[];
+  items?: QuoteLineItemLike[];
+};
+
 type BookingDayLike = {
   event_date?: string | null;
   start_time?: string | null;
@@ -427,9 +443,6 @@ export default function LeadDetailPage() {
           Number.isFinite(actuallyPaidAmount) && actuallyPaidAmount > 0
             ? actuallyPaidAmount
             : undefined,
-        previousTotalOverride:
-          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
-          undefined,
       }
     );
 
@@ -481,7 +494,6 @@ export default function LeadDetailPage() {
     lead?.activities,
     lead?.custom_quote,
     lead?.pricing_breakdown?.total,
-    lead?.pricing_breakdown?.total_amount,
     lead?.pricing_breakdown?.total_paid,
     normalizedAdditionalPaymentStatus,
     normalizedLeadPaymentStatus,
@@ -516,23 +528,33 @@ export default function LeadDetailPage() {
   const quotePricingDetails = useMemo(() => {
     if (!isQuoteConvertedLead) return null;
 
+    const convertedQuote = (lead?.custom_quote ?? null) as ConvertedQuoteLike | null;
     const projectedQuote = lead?.projected_quote;
-    const quoteTaxDetails = primaryQuote as QuoteTaxDetailsLike | undefined;
-    const primaryQuoteLineItems = primaryQuote?.line_items || [];
-    const lineItemsSource =
-      projectedQuote?.line_items?.length
+    const quoteTaxDetails = (convertedQuote ?? primaryQuote) as QuoteTaxDetailsLike | undefined;
+    const canUseOtherQuoteFallback = !convertedQuote;
+    const primaryQuoteLineItems = canUseOtherQuoteFallback ? primaryQuote?.line_items || [] : [];
+    const convertedQuoteLineItems = Array.isArray(convertedQuote?.line_items)
+      ? convertedQuote.line_items
+      : Array.isArray(convertedQuote?.items)
+        ? convertedQuote.items
+        : [];
+    const lineItemsSource = convertedQuote
+      ? convertedQuoteLineItems
+      : canUseOtherQuoteFallback && projectedQuote?.line_items?.length
         ? projectedQuote.line_items
         : primaryQuote?.line_items || [];
 
     const lineItems = lineItemsSource.map((item: QuoteLineItemLike, index: number) => {
       const fallbackPrimaryQuoteItem =
-        primaryQuoteLineItems[index] ||
-        primaryQuoteLineItems.find((primaryItem: QuoteLineItemLike) => {
-          const currentItemName = String(item?.name || item?.item_name || "").trim().toLowerCase();
-          const primaryItemName = String(primaryItem?.name || primaryItem?.item_name || "").trim().toLowerCase();
+        canUseOtherQuoteFallback
+          ? primaryQuoteLineItems[index] ||
+            primaryQuoteLineItems.find((primaryItem: QuoteLineItemLike) => {
+              const currentItemName = String(item?.name || item?.item_name || "").trim().toLowerCase();
+              const primaryItemName = String(primaryItem?.name || primaryItem?.item_name || "").trim().toLowerCase();
 
-          return Boolean(currentItemName) && currentItemName === primaryItemName;
-        });
+              return Boolean(currentItemName) && currentItemName === primaryItemName;
+            })
+          : null;
 
       return {
         id: item?.line_item_id ?? `${item?.item_id ?? item?.name ?? item?.item_name ?? "item"}-${index}`,
@@ -544,28 +566,51 @@ export default function LeadDetailPage() {
       };
     });
 
+    const subtotal = Number(
+      convertedQuote
+        ? convertedQuote.subtotal ?? 0
+        : projectedQuote?.subtotal ?? primaryQuote?.subtotal ?? 0
+    );
+    const discountAmount = Number(
+      convertedQuote
+        ? convertedQuote.discount_amount ?? convertedQuote.discount ?? 0
+        : projectedQuote?.discount_amount ?? primaryQuote?.discount_amount ?? 0
+    );
+    const total = Number(
+      convertedQuote
+        ? convertedQuote.total ?? additionalPaymentDetails?.revisedTotal ?? 0
+        : primaryQuote?.total ?? projectedQuote?.total ?? lead?.pricing_breakdown?.total ?? 0
+    );
+    const explicitTaxAmount = quoteTaxDetails?.tax_amount;
+    const taxAmount = Number(explicitTaxAmount ?? Math.max(0, total - Math.max(0, subtotal - discountAmount)));
+    const priceAfterDiscount = Number(
+      convertedQuote
+        ? convertedQuote.price_after_discount ?? Math.max(0, subtotal - discountAmount)
+        : primaryQuote?.price_after_discount ?? Math.max(0, subtotal - discountAmount)
+    );
+
     return {
-      source: projectedQuote?.source || "database",
-      quoteId: projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id || null,
+      source: convertedQuote ? "custom_quote" : projectedQuote?.source || "database",
+      quoteId: convertedQuote?.sales_quote_id || convertedQuote?.custom_quote_id || projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id || null,
       quoteDisplayNumber: lead?.custom_quote_number
         ? String(lead.custom_quote_number).trim()
         : projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id
           ? `#${projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id}`
           : "N/A",
-      pricingMode: primaryQuote?.pricing_mode || null,
-      shootHours: projectedQuote?.shoot_hours || primaryQuote?.shoot_hours || null,
-      subtotal: Number(projectedQuote?.subtotal ?? primaryQuote?.subtotal ?? 0),
-      discountAmount: Number(projectedQuote?.discount_amount ?? primaryQuote?.discount_amount ?? 0),
+      pricingMode: convertedQuote?.pricing_mode || (canUseOtherQuoteFallback ? primaryQuote?.pricing_mode : null) || null,
+      shootHours: convertedQuote?.shoot_hours || (canUseOtherQuoteFallback ? projectedQuote?.shoot_hours || primaryQuote?.shoot_hours : null) || null,
+      subtotal,
+      discountAmount,
       taxType: quoteTaxDetails?.tax_type || null,
-      taxRate: Number(quoteTaxDetails?.tax_rate ?? 0),
-      taxAmount: Number(quoteTaxDetails?.tax_amount ?? 0),
-      priceAfterDiscount: Number(primaryQuote?.price_after_discount ?? 0),
-      total: Number(primaryQuote?.total ?? projectedQuote?.total ?? lead?.pricing_breakdown?.total ?? 0),
-      expiresAt: primaryQuote?.expires_at || null,
-      status: primaryQuote?.status || null,
+      taxRate: Number(quoteTaxDetails?.tax_rate ?? (subtotal > 0 && taxAmount > 0 ? (taxAmount / Math.max(1, subtotal - discountAmount)) * 100 : 0)),
+      taxAmount,
+      priceAfterDiscount,
+      total,
+      expiresAt: convertedQuote?.expires_at || (canUseOtherQuoteFallback ? primaryQuote?.expires_at : null) || null,
+      status: convertedQuote?.status || (canUseOtherQuoteFallback ? primaryQuote?.status : null) || null,
       lineItems,
     };
-  }, [booking?.quote_id, isQuoteConvertedLead, lead?.pricing_breakdown?.total, lead?.projected_quote, primaryQuote]);
+  }, [booking?.quote_id, isQuoteConvertedLead, lead?.custom_quote, lead?.custom_quote_number, lead?.pricing_breakdown?.total, lead?.projected_quote, primaryQuote]);
 
   const customQuoteId =
     lead?.custom_quote_id ?? (lead as any)?.customQuoteId ?? null;
@@ -2636,7 +2681,11 @@ export default function LeadDetailPage() {
                     <div className="flex items-center justify-between">
                       <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Quote Line Items</p>
                       <p className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                        {quotePricingDetails.source === "database" ? "Saved quote data" : "Projected quote"}
+                        {quotePricingDetails.source === "custom_quote"
+                          ? "Converted quote data"
+                          : quotePricingDetails.source === "database"
+                            ? "Saved quote data"
+                            : "Projected quote"}
                       </p>
                     </div>
 

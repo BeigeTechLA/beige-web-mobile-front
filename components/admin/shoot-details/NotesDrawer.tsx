@@ -122,6 +122,9 @@ const OPTIMISTIC_REACTION_USER = { userId: -1, name: "You" };
 
 const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
 
+const countNotesWithReplies = (items: NoteUiItem[]) =>
+  items.reduce((total, note) => total + 1 + (Array.isArray(note.replies) ? note.replies.length : 0), 0);
+
 const formatNoteTimestamp = (value: unknown) => {
   try {
     const parsed = typeof value === "string" ? new Date(value) : new Date();
@@ -239,12 +242,14 @@ export default function NotesDrawer({
   isOpen,
   onClose,
   shootId,
-  isDark = true
+  isDark = true,
+  onNotesCountChange,
 }: {
   isOpen: boolean;
   onClose: () => void;
   shootId?: string;
   isDark?: boolean;
+  onNotesCountChange?: (shootId: string, count: number) => void;
 }) {
   const [notes, setNotes] = useState<NoteUiItem[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -297,6 +302,7 @@ export default function NotesDrawer({
     if (!response?.success) {
       if (isEmptyNotesResponse(response)) {
         setNotes([]);
+        onNotesCountChange?.(String(shootId || ""), 0);
         if (!silent) setLoadingNotes(false);
         return;
       }
@@ -306,7 +312,9 @@ export default function NotesDrawer({
       if (!silent) setLoadingNotes(false);
       return;
     }
-    setNotes(mapShootNotesToUi(response?.data));
+    const nextNotes = mapShootNotesToUi(response?.data);
+    setNotes(nextNotes);
+    onNotesCountChange?.(String(shootId || ""), countNotesWithReplies(nextNotes));
     if (!silent) setLoadingNotes(false);
   };
 

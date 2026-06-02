@@ -737,21 +737,26 @@ export const getQuoteAdditionalPaymentDetails = (
 
   const metadataExtraAmount = getQuoteNumber(latestPaymentMetadata?.extra_amount);
   const metadataReducedAmount = getQuoteNumber(latestPaymentMetadata?.reduced_amount);
+  const explicitAdditionalAmount = getQuoteNumber(
+    additionalPayment?.additional_amount,
+    latestAmountSummary?.total_delta,
+    latestPaymentMetadata?.total_delta
+  );
   const paymentStatus = getQuoteText(
     latestPaymentMetadata?.payment_status,
     additionalPayment?.payment_status
   ).toLowerCase();
 
-  let effectiveMetadataAmount = metadataExtraAmount;
+  let effectiveMetadataAmount = explicitAdditionalAmount ?? metadataExtraAmount;
   if (
     metadataReducedAmount !== undefined &&
     metadataReducedAmount > 0 &&
-    (metadataExtraAmount === undefined || metadataExtraAmount === 0)
+    (effectiveMetadataAmount === undefined || effectiveMetadataAmount === 0)
   ) {
     effectiveMetadataAmount = -metadataReducedAmount;
   }
 
-  const additionalAmount = derivedAdditionalAmount;
+  const additionalAmount = effectiveMetadataAmount ?? derivedAdditionalAmount;
   const outstandingAmount = Math.max(0, derivedOutstandingAmount);
   const displayAmount = Math.abs(additionalAmount);
   const isDecrease = additionalAmount < -0.009;
