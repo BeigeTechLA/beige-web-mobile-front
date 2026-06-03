@@ -113,7 +113,13 @@ export default function PayoutHistoryTable({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [currentPage, setCurrentPage] = useState(1);
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(rows[0]?.id ?? null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (rows.length > 0 && !expandedRowId) {
+      setExpandedRowId(rows[0].id);
+    }
+  }, [rows]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -151,7 +157,7 @@ export default function PayoutHistoryTable({
                   Service Earnings
                 </span>
                 <span className={isDark ? "text-white" : "text-[#171717]"}>
-                  {row.breakdown?.earnings}
+                  {row.breakdown?.earnings || "$0.00"}
                 </span>
               </div>
               <div className="flex justify-between text-lg">
@@ -159,12 +165,12 @@ export default function PayoutHistoryTable({
                   Platform Fee (12%)
                 </span>
                 <span className={isDark ? "text-white" : "text-[#171717]"}>
-                  {row.breakdown?.fee}
+                  {row.breakdown?.fee || "$0.00"}
                 </span>
               </div>
               <div className={`border-t pt-4 flex justify-between text-[18px] ${isDark ? "border-[#2A2A2A]" : "border-[#E5E5E5]"}`}>
                 <span className={isDark ? "text-white" : "text-[#171717]"}>Net Payout</span>
-                <span className="text-[#00C48C] font-semibold">{row.breakdown?.net}</span>
+                <span className="text-[#00C48C] font-semibold">{row.breakdown?.net || "$0.00"}</span>
               </div>
             </div>
           </div>
@@ -317,7 +323,7 @@ export default function PayoutHistoryTable({
                           {row.avatarImage ? (
                             <Image src={row.avatarImage} alt={row.creatorName} fill className="object-cover" />
                           ) : (
-                            row.initials
+                           row.initials || "U"
                           )}
                         </div>
                         <div>
