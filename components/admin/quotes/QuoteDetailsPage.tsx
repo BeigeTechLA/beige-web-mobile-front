@@ -1277,20 +1277,62 @@ export default function QuoteDetailsPage({
   const quotePaymentStatus = String(quote?.additional_payment?.payment_status || "").toLowerCase();
   const quoteOutstandingAmount = Number(quote?.additional_payment?.outstanding_amount) || 0;
 
-  const hasFullPayment =
-    (hasFullPaymentFromActivity || ["paid", "success", "completed"].includes(leadPaymentStatus)) &&
-    quotePaymentStatus !== "pending" &&
-    quoteOutstandingAmount <= 0;
-  const paidAmount = hasFullPayment ? totalPaymentAmount : (effectivePreviouslyPaid || partialPaidFromActivity);
-  const pendingAmount = totalPaymentAmount - paidAmount;
-  const isPartiallyPaid = !hasFullPayment && paidAmount > 0 && pendingAmount > 0;
+  // const hasFullPayment =
+  //   (hasFullPaymentFromActivity || ["paid", "success", "completed"].includes(leadPaymentStatus)) &&
+  //   quotePaymentStatus !== "pending" &&
+  //   quoteOutstandingAmount <= 0;
+  // const paidAmount = hasFullPayment ? totalPaymentAmount : (effectivePreviouslyPaid || partialPaidFromActivity);
+  // const pendingAmount = totalPaymentAmount - paidAmount;
+  // const isPartiallyPaid = !hasFullPayment && paidAmount > 0 && pendingAmount > 0;
+  const paymentSummary = quote?.manual_payment_summary;
+
+  const paidAmount =
+    Number(
+      paymentSummary?.paidAmount ??
+      paymentSummary?.paid_amount ??
+      quote?.payment_summary?.paid_amount ??
+      0
+    );
+
+  const pendingAmount =
+    Number(
+      paymentSummary?.pendingAmount ??
+      paymentSummary?.pending_amount ??
+      quote?.payment_summary?.due_amount ??
+      quote?.outstanding_amount ??
+      0
+    );
+
+  const hasFullPayment = pendingAmount <= 0;
+
+  const isPartiallyPaid =
+    paidAmount > 0 && pendingAmount > 0;
+
   const latestManualPaymentEntry = manualPaymentEntries[0] || null;
   const canTakeManualPayment = !hasFullPayment && pendingAmount > 0;
-  const displayStatus = hasFullPayment
-    ? "Paid"
-    : isPartiallyPaid
-      ? "Partially Paid"
-      : quoteStatus;
+  // const displayStatus = hasFullPayment
+  //   ? "Paid"
+  //   : isPartiallyPaid
+  //     ? "Partially Paid"
+  //     : quoteStatus;
+  const paymentStatus =
+    String(
+      paymentSummary?.payment_status ||
+      quote?.payment_status ||
+      ""
+    ).toLowerCase();
+
+  const displayStatus =
+    hasFullPayment
+      ? "Paid"
+      : (
+        isPartiallyPaid ||
+        paymentStatus.includes("partial") ||
+        paymentStatus.includes("approval_pending")
+      )
+        ? "Partially Paid"
+        : quoteStatus;
+
   const normalizedDisplayStatus = displayStatus.trim().toLowerCase();
   const hasInvoiceablePaymentContext =
     effectivePreviouslyPaid > 0 ||
@@ -1531,16 +1573,16 @@ export default function QuoteDetailsPage({
         /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
       const brandedPdfUrl = invoiceBookingId
         ? buildBeigeInvoiceUrl(invoiceBookingId, {
-            manual: isManualInvoicePdf,
-            cacheBust: true,
-          })
+          manual: isManualInvoicePdf,
+          cacheBust: true,
+        })
         : null;
       const brandedDownloadUrl = invoiceBookingId
         ? buildBeigeInvoiceUrl(invoiceBookingId, {
-            manual: isManualInvoicePdf,
-            download: true,
-            cacheBust: true,
-          })
+          manual: isManualInvoicePdf,
+          download: true,
+          cacheBust: true,
+        })
         : null;
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {

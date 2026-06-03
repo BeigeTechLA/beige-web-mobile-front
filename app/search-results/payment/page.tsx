@@ -413,10 +413,10 @@ function StripePaymentFormMulti({
     Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
   const bookingEmail = String(
     booking?.guest_email ||
-      booking?.guestEmail ||
-      booking?.client_email ||
-      booking?.user?.email ||
-      ""
+    booking?.guestEmail ||
+    booking?.client_email ||
+    booking?.user?.email ||
+    ""
   )
     .trim()
     .toLowerCase();
@@ -1190,9 +1190,8 @@ function StripePaymentFormMulti({
         {/* Account Credit */}
         <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
           <label
-            className={`flex items-start justify-between gap-4 rounded-xl transition ${
-              canApplyAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
-            }`}
+            className={`flex items-start justify-between gap-4 rounded-xl transition ${canApplyAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+              }`}
           >
             <div className="flex items-start gap-3">
               <input
@@ -1203,11 +1202,10 @@ function StripePaymentFormMulti({
                 onChange={(e) => onToggleAccountCredit(e.target.checked)}
               />
               <div
-                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
-                  useAccountCredit && canApplyAccountCredit
-                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
-                    : "border-white/40 bg-[#272626] text-transparent"
-                }`}
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${useAccountCredit && canApplyAccountCredit
+                  ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
+                  : "border-white/40 bg-[#272626] text-transparent"
+                  }`}
               >
                 <Check className="h-3.5 w-3.5" />
               </div>
@@ -1228,7 +1226,7 @@ function StripePaymentFormMulti({
           </label>
           {!isAuthenticated && canUseAccountCredit && (
             <p className="text-[#E8D1AB] text-sm mt-3">
-            Hey you have {formatCurrency(availableCreditAmount)} worth of credit points in your account. To avail the credit points please login.
+              Hey you have {formatCurrency(availableCreditAmount)} worth of credit points in your account. To avail the credit points please login.
             </p>
           )}
           {canApplyAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
@@ -1342,6 +1340,15 @@ function MultiCreatorPaymentContent() {
       "";
     return String(value).trim().toLowerCase();
   }, [paymentDetails, summaryData]);
+
+  const pendingAmount =
+    parseFloat(
+      paymentDetails?.quote?.additional_payment?.outstanding_amount ||
+      paymentDetails?.quote?.partial_payment?.outstanding_amount ||
+      0
+    );
+
+  const isPaymentCompleted = pendingAmount <= 0;
   const loginRedirectTo = React.useMemo(() => {
     const currentSearch = searchParams.toString();
     const currentPath = currentSearch ? `/search-results/payment?${currentSearch}` : "/search-results/payment";
@@ -1364,8 +1371,8 @@ function MultiCreatorPaymentContent() {
   }, [bookingEmail, step]);
   const isBookingOwner = Boolean(
     isAuthenticated &&
-      bookingEmail &&
-      String(user?.email || "").trim().toLowerCase() === bookingEmail,
+    bookingEmail &&
+    String(user?.email || "").trim().toLowerCase() === bookingEmail,
   );
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
@@ -1590,6 +1597,19 @@ function MultiCreatorPaymentContent() {
 
         const data = response.data.data;
         setPaymentDetails(data);
+        const pendingAmount =
+          parseFloat(
+            data?.quote?.additional_payment?.outstanding_amount ||
+            data?.quote?.partial_payment?.outstanding_amount ||
+            0
+          );
+
+        if (pendingAmount <= 0) {
+          setStep("success");
+          setIsLoading(false);
+          return;
+        }
+
         await fetchIntent(data);
         setStep("payment");
         setIsLoading(false);
@@ -1778,7 +1798,9 @@ function MultiCreatorPaymentContent() {
                 />
               </div>
             </div>
-            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
+            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">
+              {payableTotal === 0 ? "Your payment completed" : "Booking Confirmed"}
+            </h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(paidAmount)}</p>
             <div className="w-full max-w-2xl mb-6">
               <button
@@ -1854,23 +1876,38 @@ function MultiCreatorPaymentContent() {
                   )}
                 </AnimatePresence>
 
-                <Elements stripe={stripePromise}>
-                  <StripePaymentFormMulti
-                    clientSecret={clientSecret}
-                    amount={payableTotal || 0}
-                    onSuccess={handlePaymentSuccess}
-                    onError={handlePaymentError}
-                    shootId={shootId}
-                    booking={booking}
-                    quote={quote}
-                    accountCredit={accountCredit}
-                    useAccountCredit={useAccountCredit}
-                    creditAppliedAmount={creditAppliedAmount}
-                    onToggleAccountCredit={handleAccountCreditToggle}
-                    setPaymentDetails={setPaymentDetails}
-                    refreshPaymentIntent={refreshPaymentIntent}
-                  />
-                </Elements>
+                {!isPaymentCompleted && (
+                  <Elements stripe={stripePromise}>
+                    <StripePaymentFormMulti
+                      clientSecret={clientSecret}
+                      amount={payableTotal || 0}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                      shootId={shootId}
+                      booking={booking}
+                      quote={quote}
+                      accountCredit={accountCredit}
+                      useAccountCredit={useAccountCredit}
+                      creditAppliedAmount={creditAppliedAmount}
+                      onToggleAccountCredit={handleAccountCreditToggle}
+                      setPaymentDetails={setPaymentDetails}
+                      refreshPaymentIntent={refreshPaymentIntent}
+                    />
+                  </Elements>
+                )}
+                {isPaymentCompleted ? (
+                  // Show completed message when amount is 0
+                  <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10 text-center">
+                    <Check className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                    <p className="text-white text-xl font-medium">Your payment completed</p>
+                  </div>
+                ) : (
+                  // Loading state
+                  <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10 flex flex-col items-center justify-center min-h-[400px]">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB] mb-4"></div>
+                    <p className="text-white/60">Initializing payment details...</p>
+                  </div>
+                )}
 
                 {/* Beige Gaurantee */}
                 <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#E8D1AB] text-[#1B1B1B] p-4 mt-2 lg:mt-4 flex items-start gap-4 ">
@@ -1902,31 +1939,31 @@ function MultiCreatorPaymentContent() {
                 </div>
                 <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
                   <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 gap-2">
-                  {summaryData?.shoot_type && summaryData.shoot_type.trim() !== "" && (
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Shoot Category:</span>
-                      <span className="font-medium">{toTitleCase((summaryData.shoot_type || "").trim())}</span>
-                    </div>
-                  )}
-                  {dateTimeInfo.summaryDateText && !dateTimeInfo.summaryDateText.toLowerCase().includes("not set") && (
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Shoot Date:</span>
-                      {/* <span className="font-medium">{formatShortDate(booking.event_date)} </span> */}
-                      <span className="font-medium whitespace-pre-line">{dateTimeInfo.summaryDateText} </span>
-                    </div>
-                  )}
+                    {summaryData?.shoot_type && summaryData.shoot_type.trim() !== "" && (
+                      <div className="flex flex-col justify-between">
+                        <span className="text-[#626467]">Shoot Category:</span>
+                        <span className="font-medium">{toTitleCase((summaryData.shoot_type || "").trim())}</span>
+                      </div>
+                    )}
+                    {dateTimeInfo.summaryDateText && !dateTimeInfo.summaryDateText.toLowerCase().includes("not set") && (
+                      <div className="flex flex-col justify-between">
+                        <span className="text-[#626467]">Shoot Date:</span>
+                        {/* <span className="font-medium">{formatShortDate(booking.event_date)} </span> */}
+                        <span className="font-medium whitespace-pre-line">{dateTimeInfo.summaryDateText} </span>
+                      </div>
+                    )}
                     {parseFloat(booking.duration_hours) > 0 && !dateTimeInfo.displayTimeText?.toLowerCase().includes("not set") && (
 
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Duration:</span>
-                      <span className="font-medium">
-                        <span className="block">{formatDurationHours(booking.duration_hours)} Hours</span>
-                        {/* {getTimeRange(booking) ? (
+                      <div className="flex flex-col justify-between">
+                        <span className="text-[#626467]">Duration:</span>
+                        <span className="font-medium">
+                          <span className="block">{formatDurationHours(booking.duration_hours)} Hours</span>
+                          {/* {getTimeRange(booking) ? (
                           <span className="block">{getTimeRange(booking)}</span>
                         ) : null} */}
-                        <span className="block">{dateTimeInfo.displayTimeText}</span>
-                      </span>
-                    </div>
+                          <span className="block">{dateTimeInfo.displayTimeText}</span>
+                        </span>
+                      </div>
                     )}
                   </div>
                   <div className="flex flex-col justify-between mb-4">
@@ -2243,4 +2280,3 @@ export default function MultiCreatorPaymentPage() {
     </main>
   );
 }
-
