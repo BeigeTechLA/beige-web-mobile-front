@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, User, ChevronDown, LayoutDashboard, Image as PhotoIcon, Film, Briefcase, PartyPopper, ChevronRight, Megaphone, Package, CirclePlay, Podcast, Gem, Clapperboard, Handshake, Utensils, Binoculars, UsersRound, LogOut, MicVocal } from "lucide-react";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { Separator } from "./Separator";
@@ -152,6 +152,7 @@ export const Navbar = () => {
 
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { logout } = useAuth();
   const portfolioRef = useRef<HTMLDivElement>(null);
 
@@ -281,6 +282,26 @@ export const Navbar = () => {
 
   const handleLogin = () => {
     setMobileOpen(false);
+    const isPaymentRoute =
+      pathname === "/search-results/payment" ||
+      pathname?.startsWith("/search-results/") && pathname?.endsWith("/payment");
+
+    if (isPaymentRoute) {
+      const search = searchParams.toString();
+      const currentPath = search ? `${pathname}?${search}` : pathname;
+      const bookingEmail =
+        typeof window !== "undefined"
+          ? window.sessionStorage.getItem("beige_payment_booking_email") || ""
+          : "";
+      const loginUrl = `/login?returnTo=${encodeURIComponent(currentPath)}`;
+      router.push(
+        bookingEmail
+          ? `${loginUrl}&bookingEmail=${encodeURIComponent(bookingEmail)}`
+          : loginUrl,
+      );
+      return;
+    }
+
     router.push("/login");
   };
 

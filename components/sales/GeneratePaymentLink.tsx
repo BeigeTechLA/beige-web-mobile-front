@@ -118,15 +118,16 @@ const GeneratePaymentLink = ({
   const effectiveLeadId = resolvedLeadId ?? leadId;
 
   const isPaidBooking = String(bookingStatus || "").toLowerCase() === "paid";
+  const isPaymentPendingBooking = String(bookingStatus || "").toLowerCase().includes("payment pending");
   const hasPendingAdditionalPayment =
     Number(additionalPaymentOutstandingAmount ?? 0) > 0 &&
     !["paid", "success", "completed"].includes(
       String(additionalPaymentStatus || "").trim().toLowerCase()
     );
   const showInvoiceActions =
-    (!!paymentData && !paymentData.isExpired) || isPaidBooking || hasPendingAdditionalPayment;
+    (!!paymentData && !paymentData.isExpired) || isPaidBooking || isPaymentPendingBooking || hasPendingAdditionalPayment;
   const showGenerateSection =
-    !isPaidBooking && (!paymentData || (paymentData.isExpired && !activeLink));
+    !isPaidBooking && !isPaymentPendingBooking && (!paymentData || (paymentData.isExpired && !activeLink));
   const shouldAttachDiscount =
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
@@ -472,6 +473,17 @@ const GeneratePaymentLink = ({
                 </button>
               </div>
             )}
+          </div>
+        ) : isPaymentPendingBooking ? (
+          <div className={`mt-4 rounded-xl border p-4 transition-colors ${
+            isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E7D7BC] bg-[#FFF8EA]"
+            }`}>
+            <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+              Payment is pending under Net 30 terms.
+            </p>
+            <p className={`text-xs mt-1 ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
+              Use the buttons above to view the invoice or send it to the client.
+            </p>
           </div>
         ) : hasPendingAdditionalPayment ? (
           <div className={`mt-4 rounded-xl border p-4 transition-colors ${

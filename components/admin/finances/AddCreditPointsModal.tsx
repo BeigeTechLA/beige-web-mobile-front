@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { format, isValid } from "date-fns";
+import { format, isValid, addDays, startOfDay } from "date-fns";
 import { X } from "lucide-react";
 
 
@@ -134,6 +134,8 @@ export default function AddCreditPointsModal({
   onSubmit,
 }: AddCreditPointsModalProps) {
   const clientSuggestionRef = useRef<HTMLFieldSetElement | null>(null);
+
+  const tomorrow = startOfDay(addDays(new Date(), 1));
 
   const handleExpiryDateChange = (date: Date | null) => {
     if (!date || !isValid(date)) {
@@ -336,7 +338,7 @@ export default function AddCreditPointsModal({
                   label=""
                   value={parseExpiryDate(form.expiryDate)}
                   onChange={handleExpiryDateChange}
-                  minDate={new Date()}
+                  minDate={tomorrow}
                   format="MM/dd/yyyy"
                   disablePortal
                   colors={{

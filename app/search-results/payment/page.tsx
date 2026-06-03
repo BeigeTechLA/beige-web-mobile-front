@@ -347,6 +347,101 @@ const isAdditionalPaymentFlow = (details: any) => {
   return outstandingAmount > 0 && additionalStatus !== 'paid';
 };
 
+const toPaymentNumber = (value: unknown) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const pickPaymentNumber = (...values: unknown[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue)) return numericValue;
+  }
+  return 0;
+};
+
+const mergeBookingSummaryPaymentData = (
+  summary: unknown,
+  paymentContext: {
+    creditAppliedAmount?: number;
+    cardPaidAmount?: number;
+    totalBeforeCredit?: number;
+    paymentIntentId?: string;
+  } = {},
+) => {
+  if (!summary) return summary;
+
+  const summaryRecord = summary as Record<string, unknown>;
+  const pricing = (summaryRecord.pricing || {}) as Record<string, unknown>;
+  const paymentSummary = (pricing.payment_summary || {}) as Record<string, unknown>;
+  const creditAppliedAmount = Math.max(
+    pickPaymentNumber(
+      paymentContext.creditAppliedAmount,
+      pricing.credit_applied,
+      pricing.credit_used_amount,
+      pricing.account_credit_applied,
+      paymentSummary.credit_applied,
+      paymentSummary.credit_used_amount,
+    ),
+    0,
+  );
+  const cardPaidAmount = Math.max(
+    pickPaymentNumber(
+      paymentContext.cardPaidAmount,
+      pricing.card_paid_amount,
+      pricing.card_paid,
+      pricing.stripe_paid_amount,
+      paymentSummary.card_paid_amount,
+      paymentSummary.card_paid,
+      pricing.total_paid,
+      paymentSummary.paid_amount,
+    ),
+    0,
+  );
+  const totalBeforeCredit = Math.max(
+    pickPaymentNumber(
+      paymentContext.totalBeforeCredit,
+      pricing.total_before_credit,
+      pricing.total_before_discounts,
+      paymentSummary.quote_total,
+      pricing.total,
+    ),
+    0,
+  );
+  const combinedPaidAmount = cardPaidAmount + creditAppliedAmount;
+  const paymentMethod =
+    creditAppliedAmount > 0 && cardPaidAmount > 0
+      ? "card_and_account_credit"
+      : creditAppliedAmount > 0
+        ? "account_credit"
+        : "card";
+
+  return {
+    ...summaryRecord,
+    pricing: {
+      ...pricing,
+      credit_applied: creditAppliedAmount,
+      credit_used_amount: creditAppliedAmount,
+      card_paid_amount: cardPaidAmount,
+      total_paid: cardPaidAmount,
+      total_paid_with_credit: combinedPaidAmount,
+      total_before_credit: totalBeforeCredit,
+      payment_method: paymentMethod,
+      payment_intent_id: paymentContext.paymentIntentId ?? pricing.payment_intent_id,
+      payment_summary: {
+        ...paymentSummary,
+        credit_used_amount: creditAppliedAmount,
+        card_paid_amount: cardPaidAmount,
+        paid_amount: cardPaidAmount,
+        total_paid_with_credit: combinedPaidAmount,
+        quote_total: totalBeforeCredit || paymentSummary.quote_total,
+        payment_method: paymentMethod,
+      },
+    },
+  };
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -411,8 +506,23 @@ function StripePaymentFormMulti({
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
     Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
+  const bookingEmail = String(
+    booking?.guest_email ||
+      booking?.guestEmail ||
+      booking?.client_email ||
+      booking?.user?.email ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  const authenticatedEmail = String(user?.email || "").trim().toLowerCase();
+  const isBookingOwner =
+    Boolean(isAuthenticated && authenticatedEmail && bookingEmail) &&
+    authenticatedEmail === bookingEmail;
+  const canApplyAccountCredit =
+    isAuthenticated && canUseAccountCredit && isBookingOwner;
   const usedCreditAmount =
-    canUseAccountCredit && useAccountCredit ? Math.max(creditAppliedAmount || 0, 0) : 0;
+    canApplyAccountCredit && useAccountCredit ? Math.max(creditAppliedAmount || 0, 0) : 0;
   const remainingCreditAmount = Math.max(availableCreditAmount - usedCreditAmount, 0);
   const isReferralLocked =
     isFree && parseFloat(quote?.discount_total || quote?.discount_amount || 0) > 0;
@@ -1173,23 +1283,23 @@ function StripePaymentFormMulti({
         </div>
 
         {/* Account Credit */}
-        {/* <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
+        <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
           <label
             className={`flex items-start justify-between gap-4 rounded-xl transition ${
-              canUseAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+              canApplyAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
             }`}
           >
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
                 className="sr-only"
-                checked={Boolean(useAccountCredit && canUseAccountCredit)}
-                disabled={!canUseAccountCredit}
+                checked={Boolean(useAccountCredit && canApplyAccountCredit)}
+                disabled={!canApplyAccountCredit}
                 onChange={(e) => onToggleAccountCredit(e.target.checked)}
               />
               <div
                 className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
-                  useAccountCredit && canUseAccountCredit
+                  useAccountCredit && canApplyAccountCredit
                     ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
                     : "border-white/40 bg-[#272626] text-transparent"
                 }`}
@@ -1211,7 +1321,12 @@ function StripePaymentFormMulti({
               </span>
             )}
           </label>
-          {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
+          {!isAuthenticated && canUseAccountCredit && (
+            <p className="text-[#E8D1AB] text-sm mt-3">
+            Hey you have {formatCurrency(availableCreditAmount)} worth of credit points in your account. To avail the credit points please login.
+            </p>
+          )}
+          {canApplyAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
             <>
               <div className="mt-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300 flex items-center justify-between">
                 <span>Credit applied</span>
@@ -1233,10 +1348,10 @@ function StripePaymentFormMulti({
               </div>
             </>
           )}
-          {!canUseAccountCredit && (
+          {isAuthenticated && !canUseAccountCredit && (
             <p className="text-white/50 text-sm mt-3">No account credit available for this booking.</p>
           )}
-        </div> */}
+        </div>
 
         {/* Submit Button */}
         <Button
@@ -1298,6 +1413,7 @@ function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
 
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
@@ -1312,6 +1428,40 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
   const [useAccountCredit, setUseAccountCredit] = useState(false);
+  const bookingEmail = React.useMemo(() => {
+    const value =
+      paymentDetails?.booking?.guest_email ||
+      paymentDetails?.booking?.guestEmail ||
+      paymentDetails?.client_email ||
+      summaryData?.client_email ||
+      "";
+    return String(value).trim().toLowerCase();
+  }, [paymentDetails, summaryData]);
+  const loginRedirectTo = React.useMemo(() => {
+    const currentSearch = searchParams.toString();
+    const currentPath = currentSearch ? `/search-results/payment?${currentSearch}` : "/search-results/payment";
+    const baseLogin = `/login?returnTo=${encodeURIComponent(currentPath)}`;
+    return bookingEmail ? `${baseLogin}&bookingEmail=${encodeURIComponent(bookingEmail)}` : baseLogin;
+  }, [bookingEmail, searchParams]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (step !== "success" && bookingEmail) {
+      sessionStorage.setItem("beige_payment_booking_email", bookingEmail);
+    } else {
+      sessionStorage.removeItem("beige_payment_booking_email");
+    }
+
+    return () => {
+      sessionStorage.removeItem("beige_payment_booking_email");
+    };
+  }, [bookingEmail, step]);
+  const isBookingOwner = Boolean(
+    isAuthenticated &&
+      bookingEmail &&
+      String(user?.email || "").trim().toLowerCase() === bookingEmail,
+  );
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -1495,7 +1645,9 @@ function MultiCreatorPaymentContent() {
     setIsUpdatingIntent(false);
   };
 
-  const fetchSummaryData = async () => {
+  const fetchSummaryData = async (
+    paymentContext?: Parameters<typeof mergeBookingSummaryPaymentData>[1],
+  ) => {
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/")
         .replace(/\/$/, "") + "/";
@@ -1503,12 +1655,19 @@ function MultiCreatorPaymentContent() {
       const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
 
       if (response.data.success) {
-        setSummaryData(response.data.data);
+        const nextSummaryData = mergeBookingSummaryPaymentData(
+          response.data.data,
+          paymentContext,
+        );
+        setSummaryData(nextSummaryData);
+        return nextSummaryData;
       }
     } catch (err) {
       toast.error("Failed to load summary details");
       console.error("Fetch error:", err);
     }
+
+    return null;
   };
 
   useEffect(() => {
@@ -1586,7 +1745,19 @@ function MultiCreatorPaymentContent() {
           headers: getAuthHeaders(),
         }
       );
-      await fetchSummaryData();
+      const paymentContext = {
+        creditAppliedAmount,
+        cardPaidAmount: payableTotal,
+        totalBeforeCredit: basePayableAmount,
+        paymentIntentId,
+      };
+      setSummaryData((currentSummary: unknown) =>
+        mergeBookingSummaryPaymentData(currentSummary, paymentContext),
+      );
+      await fetchSummaryData(paymentContext);
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("beige_payment_booking_email");
+      }
       setStep("success");
       toast.success("Booking confirmed successfully!");
     } catch (error) {
@@ -1636,7 +1807,7 @@ function MultiCreatorPaymentContent() {
   const accountCredit = paymentDetails?.account_credit || {};
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
-    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
+    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0 && isBookingOwner;
   const creditAppliedAmount =
     isQuoteValid && canUseAccountCredit && useAccountCredit
       ? Math.min(availableCreditAmount, basePayableAmount)
@@ -1701,7 +1872,12 @@ function MultiCreatorPaymentContent() {
       return booking?.event_type?.toLowerCase().includes("wedding") ? weddingFormUrl : generalFormUrl;
     };
 
-    const paidAmount = payableTotal || summaryData?.pricing?.total_paid ?? quoteTotal;
+    const paidAmount = pickPaymentNumber(
+      summaryData?.pricing?.total_paid_with_credit,
+      toPaymentNumber(payableTotal) + toPaymentNumber(creditAppliedAmount),
+      summaryData?.pricing?.total_paid,
+      quoteTotal,
+    );
 
     return (
       <div className="pt-20 lg:pt-32 pb-20">
@@ -1748,7 +1924,7 @@ function MultiCreatorPaymentContent() {
           onClose={() => setIsDetailsFormOpen(false)}
           projectId={parseInt(shootId || "0")}
           hideAffiliateStep={true}
-          redirectTo="/login"
+          redirectTo={loginRedirectTo}
         />
       </div>
     );
@@ -1757,7 +1933,7 @@ function MultiCreatorPaymentContent() {
   // Date Time info to manage Multiday shoot format
   const dateTimeInfo = getBookingDetails(booking)
   const handleAccountCreditToggle = async (enabled: boolean) => {
-    const nextValue = Boolean(enabled && canUseAccountCredit);
+    const nextValue = Boolean(enabled && canUseAccountCredit && isBookingOwner);
     setUseAccountCredit(nextValue);
     await refreshPaymentIntent(paymentDetails, nextValue);
   };
@@ -1875,12 +2051,24 @@ function MultiCreatorPaymentContent() {
                     <span className="text-[#626467]">Shoot Type:</span>
                     <span className="font-medium">{toTitleCase((summaryData.event_type || "").trim())}</span>
                   </div>
-                  {booking.event_location && (
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Location:</span>
-                      <span className="truncate">{formatLocationForDisplay(booking.event_location)}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const rawLocation = String(booking?.event_location || "").trim();
+                    const displayLocation = formatLocationForDisplay(rawLocation).trim();
+                    const shouldShowLocation =
+                      rawLocation.length > 0 &&
+                      rawLocation.toLowerCase() !== "null" &&
+                      displayLocation.length > 0 &&
+                      !displayLocation.toLowerCase().includes("not specified");
+
+                    if (!shouldShowLocation) return null;
+
+                    return (
+                      <div className="flex flex-col justify-between">
+                        <span className="text-[#626467]">Location:</span>
+                        <span className="truncate">{displayLocation}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="m-6 lg:m-10 rounded-2xl transition-all relative overflow-hidden bg-[#FFFFFF] text-[#000000]">
@@ -2173,4 +2361,3 @@ export default function MultiCreatorPaymentPage() {
     </main>
   );
 }
-

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -35,6 +35,22 @@ export function UserSignupForm() {
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
   const { register: registerUser, isRegisterLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnTo = React.useMemo(() => {
+    const value = searchParams?.get("returnTo")?.trim() || ""
+    return value.startsWith("/") ? value : ""
+  }, [searchParams])
+  const bookingEmail = React.useMemo(() => {
+    const value = searchParams?.get("bookingEmail")?.trim() || ""
+    return value.toLowerCase()
+  }, [searchParams])
+  const loginHref = React.useMemo(() => {
+    const params = new URLSearchParams()
+    if (returnTo) params.set("returnTo", returnTo)
+    if (bookingEmail) params.set("bookingEmail", bookingEmail)
+    const query = params.toString()
+    return query ? `/login?${query}` : "/login"
+  }, [returnTo, bookingEmail])
 
   const form = useForm<UserSignupFormValues>({
     resolver: zodResolver(userSignupSchema),
@@ -80,8 +96,10 @@ export function UserSignupForm() {
       });
       // ---------------------------
 
-      // Redirect to verify email page
-      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`)
+      const verifyParams = new URLSearchParams({ email: data.email })
+      if (returnTo) verifyParams.set("returnTo", returnTo)
+      if (bookingEmail) verifyParams.set("bookingEmail", bookingEmail)
+      router.push(`/verify-email?${verifyParams.toString()}`)
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Registration failed. Please try again."
       toast.error(errorMessage)
@@ -233,7 +251,7 @@ export function UserSignupForm() {
             </defs>
           </svg>
           <div className="shrink-0 gap-1 flex">
-            Already have an account? <Link className="font-normal" href="/login">Login</Link>
+            Already have an account? <Link className="font-normal" href={loginHref}>Login</Link>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="221" height="1" viewBox="0 0 221 1" fill="none">
             <path d="M221 0.25C211.109 0.25 69.5455 0.25 6.19888e-06 0.25" stroke="url(#paint0_linear_1780_5630)" strokeWidth="0.5" />

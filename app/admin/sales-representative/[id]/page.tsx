@@ -130,6 +130,7 @@ const getRoleLabel = (roleData: any): string => {
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
+  if (status === "payment_pending") return "Payment Pending";
   if (status === "abandoned") return "Cancelled";
   return "In-Progress";
 };
@@ -245,6 +246,22 @@ type QuoteTaxDetailsLike = {
   tax_amount?: number | string | null;
 };
 
+type ConvertedQuoteLike = QuoteTaxDetailsLike & {
+  sales_quote_id?: number | string | null;
+  custom_quote_id?: number | string | null;
+  pricing_mode?: string | null;
+  shoot_hours?: number | string | null;
+  subtotal?: number | string | null;
+  discount?: number | string | null;
+  discount_amount?: number | string | null;
+  price_after_discount?: number | string | null;
+  total?: number | string | null;
+  expires_at?: string | null;
+  status?: string | null;
+  line_items?: QuoteLineItemLike[];
+  items?: QuoteLineItemLike[];
+};
+
 type BookingDayLike = {
   event_date?: string | null;
   start_time?: string | null;
@@ -318,7 +335,7 @@ export default function LeadDetailPage() {
   const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
-  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other">("cash");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
@@ -426,9 +443,6 @@ export default function LeadDetailPage() {
           Number.isFinite(actuallyPaidAmount) && actuallyPaidAmount > 0
             ? actuallyPaidAmount
             : undefined,
-        previousTotalOverride:
-          Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
-          undefined,
       }
     );
 
@@ -480,7 +494,6 @@ export default function LeadDetailPage() {
     lead?.activities,
     lead?.custom_quote,
     lead?.pricing_breakdown?.total,
-    lead?.pricing_breakdown?.total_amount,
     lead?.pricing_breakdown?.total_paid,
     normalizedAdditionalPaymentStatus,
     normalizedLeadPaymentStatus,
@@ -515,23 +528,33 @@ export default function LeadDetailPage() {
   const quotePricingDetails = useMemo(() => {
     if (!isQuoteConvertedLead) return null;
 
+    const convertedQuote = (lead?.custom_quote ?? null) as ConvertedQuoteLike | null;
     const projectedQuote = lead?.projected_quote;
-    const quoteTaxDetails = primaryQuote as QuoteTaxDetailsLike | undefined;
-    const primaryQuoteLineItems = primaryQuote?.line_items || [];
-    const lineItemsSource =
-      projectedQuote?.line_items?.length
+    const quoteTaxDetails = (convertedQuote ?? primaryQuote) as QuoteTaxDetailsLike | undefined;
+    const canUseOtherQuoteFallback = !convertedQuote;
+    const primaryQuoteLineItems = canUseOtherQuoteFallback ? primaryQuote?.line_items || [] : [];
+    const convertedQuoteLineItems = Array.isArray(convertedQuote?.line_items)
+      ? convertedQuote.line_items
+      : Array.isArray(convertedQuote?.items)
+        ? convertedQuote.items
+        : [];
+    const lineItemsSource = convertedQuote
+      ? convertedQuoteLineItems
+      : canUseOtherQuoteFallback && projectedQuote?.line_items?.length
         ? projectedQuote.line_items
         : primaryQuote?.line_items || [];
 
     const lineItems = lineItemsSource.map((item: QuoteLineItemLike, index: number) => {
       const fallbackPrimaryQuoteItem =
-        primaryQuoteLineItems[index] ||
-        primaryQuoteLineItems.find((primaryItem: QuoteLineItemLike) => {
-          const currentItemName = String(item?.name || item?.item_name || "").trim().toLowerCase();
-          const primaryItemName = String(primaryItem?.name || primaryItem?.item_name || "").trim().toLowerCase();
+        canUseOtherQuoteFallback
+          ? primaryQuoteLineItems[index] ||
+            primaryQuoteLineItems.find((primaryItem: QuoteLineItemLike) => {
+              const currentItemName = String(item?.name || item?.item_name || "").trim().toLowerCase();
+              const primaryItemName = String(primaryItem?.name || primaryItem?.item_name || "").trim().toLowerCase();
 
-          return Boolean(currentItemName) && currentItemName === primaryItemName;
-        });
+              return Boolean(currentItemName) && currentItemName === primaryItemName;
+            })
+          : null;
 
       return {
         id: item?.line_item_id ?? `${item?.item_id ?? item?.name ?? item?.item_name ?? "item"}-${index}`,
@@ -543,28 +566,51 @@ export default function LeadDetailPage() {
       };
     });
 
+    const subtotal = Number(
+      convertedQuote
+        ? convertedQuote.subtotal ?? 0
+        : projectedQuote?.subtotal ?? primaryQuote?.subtotal ?? 0
+    );
+    const discountAmount = Number(
+      convertedQuote
+        ? convertedQuote.discount_amount ?? convertedQuote.discount ?? 0
+        : projectedQuote?.discount_amount ?? primaryQuote?.discount_amount ?? 0
+    );
+    const total = Number(
+      convertedQuote
+        ? convertedQuote.total ?? additionalPaymentDetails?.revisedTotal ?? 0
+        : primaryQuote?.total ?? projectedQuote?.total ?? lead?.pricing_breakdown?.total ?? 0
+    );
+    const explicitTaxAmount = quoteTaxDetails?.tax_amount;
+    const taxAmount = Number(explicitTaxAmount ?? Math.max(0, total - Math.max(0, subtotal - discountAmount)));
+    const priceAfterDiscount = Number(
+      convertedQuote
+        ? convertedQuote.price_after_discount ?? Math.max(0, subtotal - discountAmount)
+        : primaryQuote?.price_after_discount ?? Math.max(0, subtotal - discountAmount)
+    );
+
     return {
-      source: projectedQuote?.source || "database",
-      quoteId: projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id || null,
+      source: convertedQuote ? "custom_quote" : projectedQuote?.source || "database",
+      quoteId: convertedQuote?.sales_quote_id || convertedQuote?.custom_quote_id || projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id || null,
       quoteDisplayNumber: lead?.custom_quote_number
         ? String(lead.custom_quote_number).trim()
         : projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id
           ? `#${projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id}`
           : "N/A",
-      pricingMode: primaryQuote?.pricing_mode || null,
-      shootHours: projectedQuote?.shoot_hours || primaryQuote?.shoot_hours || null,
-      subtotal: Number(projectedQuote?.subtotal ?? primaryQuote?.subtotal ?? 0),
-      discountAmount: Number(projectedQuote?.discount_amount ?? primaryQuote?.discount_amount ?? 0),
+      pricingMode: convertedQuote?.pricing_mode || (canUseOtherQuoteFallback ? primaryQuote?.pricing_mode : null) || null,
+      shootHours: convertedQuote?.shoot_hours || (canUseOtherQuoteFallback ? projectedQuote?.shoot_hours || primaryQuote?.shoot_hours : null) || null,
+      subtotal,
+      discountAmount,
       taxType: quoteTaxDetails?.tax_type || null,
-      taxRate: Number(quoteTaxDetails?.tax_rate ?? 0),
-      taxAmount: Number(quoteTaxDetails?.tax_amount ?? 0),
-      priceAfterDiscount: Number(primaryQuote?.price_after_discount ?? 0),
-      total: Number(primaryQuote?.total ?? projectedQuote?.total ?? lead?.pricing_breakdown?.total ?? 0),
-      expiresAt: primaryQuote?.expires_at || null,
-      status: primaryQuote?.status || null,
+      taxRate: Number(quoteTaxDetails?.tax_rate ?? (subtotal > 0 && taxAmount > 0 ? (taxAmount / Math.max(1, subtotal - discountAmount)) * 100 : 0)),
+      taxAmount,
+      priceAfterDiscount,
+      total,
+      expiresAt: convertedQuote?.expires_at || (canUseOtherQuoteFallback ? primaryQuote?.expires_at : null) || null,
+      status: convertedQuote?.status || (canUseOtherQuoteFallback ? primaryQuote?.status : null) || null,
       lineItems,
     };
-  }, [booking?.quote_id, isQuoteConvertedLead, lead?.pricing_breakdown?.total, lead?.projected_quote, primaryQuote]);
+  }, [booking?.quote_id, isQuoteConvertedLead, lead?.custom_quote, lead?.custom_quote_number, lead?.pricing_breakdown?.total, lead?.projected_quote, primaryQuote]);
 
   const customQuoteId =
     lead?.custom_quote_id ?? (lead as any)?.customQuoteId ?? null;
@@ -969,9 +1015,11 @@ export default function LeadDetailPage() {
   }, [lead?.activities]);
 
   const manualPaymentStatusLabel = latestManualPaymentEntry
-    ? latestManualPaymentEntry.data.payment_type === "partial"
-      ? "Partially Paid (Manual)"
-      : "Paid (Manual)"
+    ? String(latestManualPaymentEntry.data.payment_mode || "").toLowerCase() === "net30"
+      ? "Payment Pending (Net30)"
+      : latestManualPaymentEntry.data.payment_type === "partial"
+        ? "Partially Paid (Manual)"
+        : "Paid (Manual)"
     : null;
 
   const effectiveStatusLabel = isRevisionPaymentPending
@@ -1380,7 +1428,8 @@ export default function LeadDetailPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
+
+      <div className={`overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
         {/* Back Button */}
         <Button
           onClick={handleBackNavigation}
@@ -1402,7 +1451,7 @@ export default function LeadDetailPage() {
                 <Button
                   onClick={() => setIsIntentModalOpen(true)}
                   disabled={isClosedLostLead}
-                  className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
+                  className={`hidden lg:block h-10 border px-5 rounded-lg text-sm transition-all ${isDark
                     ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
                     : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
                     }`}
@@ -1453,11 +1502,25 @@ export default function LeadDetailPage() {
                 </div>
                 <div className={`flex flex-col lg:flex-row flex-wrap gap-2 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
                   <p>
-                    Email ID : <span className={isDark ? "text-white" : "text-black"}>{email}</span>
+                    Email ID :{" "}
+                    <a
+                      href={`mailto:${lead?.guest_email || ""}`}
+                      title="Email ID"
+                      className={`${isDark ? "text-white" : "text-black"} transition-colors hover:opacity-80`}
+                    >
+                      {email}
+                    </a>
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Phone Number : <span className={isDark ? "text-white" : "text-black"}>{phone}</span>
+                    Phone Number :{" "}
+                    <a
+                      href={`tel:${String(phone).replace(/[^\d+]/g, "")}`}
+                      title="Phone Number"
+                      className={`${isDark ? "text-white" : "text-black"} transition-colors hover:opacity-80`}
+                    >
+                      {phone}
+                    </a>
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
@@ -1570,8 +1633,7 @@ export default function LeadDetailPage() {
                   <div className="relative">
                     <button
                       onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                      className={`flex items-center justify-between min-w-[140px] border rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D] text-white hover:bg-[#252525]" : "bg-[#F9FAFB] border-[#D8D8D8] text-black hover:bg-[#F3F4F6]"
-                        }`}
+                      className={`flex items-center justify-between h-11 lg:min-w-[140px] border rounded-xl px-2 py-3 lg:px-4 lg:py-2.5 text-sm font-medium transition-all ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D] text-white hover:bg-[#252525]" : "bg-[#F9FAFB] border-[#D8D8D8] text-black hover:bg-[#F3F4F6]"}`}
                     >
                       <span className="capitalize">{statusFilter === "all" ? "All Status" : statusFilter}</span>
                       <ChevronDown size={16} className={`ml-2 transition-transform ${isStatusDropdownOpen ? "rotate-180" : ""}`} />
@@ -1579,7 +1641,7 @@ export default function LeadDetailPage() {
                     {isStatusDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setIsStatusDropdownOpen(false)}></div>
-                        <div className={`absolute top-full right-0 mt-2 w-44 border rounded-xl shadow-2xl z-40 overflow-hidden ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                        <div className={`absolute top-full left-0 mt-2 w-44 border rounded-xl shadow-2xl z-40 overflow-hidden ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
                           {['all', 'pending', 'accepted', 'rejected'].map((s) => (
                             <button
                               key={s}
@@ -1698,7 +1760,7 @@ export default function LeadDetailPage() {
                       ))}
                     </Swiper>
                   ) : (
-                    <div className={`h-[300px] flex items-center justify-center border-dashed border rounded-[32px] ${isDark ? "text-white/40 border-[#3D3D3D]" : "text-black/40 border-[#D8D8D8]"}`}>
+                    <div className={`lg:h-[300px] flex items-center justify-center border-dashed border rounded-2xl p-5 text-sm lg:text-base ${isDark ? "text-white/40 border-[#3D3D3D]" : "text-black/40 border-[#D8D8D8]"}`}>
                       No partners found matching this status.
                     </div>
                   )}
@@ -2323,9 +2385,14 @@ export default function LeadDetailPage() {
 
                       <Select
                         value={manualPaymentMode}
-                        onValueChange={(value) =>
-                          setManualPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")
-                        }
+                        onValueChange={(value) => {
+                          const nextMode = value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
+                          setManualPaymentMode(nextMode);
+                          if (nextMode === "net30") {
+                            setManualPaymentType("full");
+                            setManualPaymentAmount("");
+                          }
+                        }}
                         disabled={isClosedLostLead || effectiveManualPaymentSummary.hasFullPayment}
                       >
                         <SelectTrigger
@@ -2350,6 +2417,7 @@ export default function LeadDetailPage() {
                           <SelectItem value="venmo">Venmo</SelectItem>
                           <SelectItem value="cashapp">CashApp</SelectItem>
                           <SelectItem value="applepay">ApplePay</SelectItem>
+                          <SelectItem value="net30">Net 30</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
@@ -2421,7 +2489,9 @@ export default function LeadDetailPage() {
                         {manualPaymentEntries.map((entry, index) => {
                           const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
                           const paidMode = entry.data.payment_mode
-                            ? String(entry.data.payment_mode).replace(/_/g, " ")
+                            ? String(entry.data.payment_mode).toLowerCase() === "other" && entry.data.other_payment_mode
+                              ? String(entry.data.other_payment_mode)
+                              : String(entry.data.payment_mode).replace(/_/g, " ")
                             : "manual";
                           return (
                             <div
@@ -2429,7 +2499,9 @@ export default function LeadDetailPage() {
                               className={`rounded-md border px-3 py-2 text-xs ${isDark ? "border-white/10" : "border-[#ECECEC]"}`}
                             >
                               <p className={isDark ? "text-white/80" : "text-black/75"}>
-                                {entry.data.payment_type === "partial"
+                                {String(entry.data.payment_mode || "").toLowerCase() === "net30"
+                                  ? "Net 30 initiated"
+                                  : entry.data.payment_type === "partial"
                                   ? `Partial paid ${formatCurrencyValue(entry.data.amount)}`
                                   : "Full payment marked"}{" "}
                                 via {paidMode}
@@ -2609,7 +2681,11 @@ export default function LeadDetailPage() {
                     <div className="flex items-center justify-between">
                       <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Quote Line Items</p>
                       <p className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                        {quotePricingDetails.source === "database" ? "Saved quote data" : "Projected quote"}
+                        {quotePricingDetails.source === "custom_quote"
+                          ? "Converted quote data"
+                          : quotePricingDetails.source === "database"
+                            ? "Saved quote data"
+                            : "Projected quote"}
                       </p>
                     </div>
 
@@ -2677,6 +2753,22 @@ export default function LeadDetailPage() {
               </Button> */}
             </div>
           </div>
+        </div>
+
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => setIsIntentModalOpen(true)}
+            disabled={isClosedLostLead}
+            className={`w-full h-14 rounded-md px-5 text-sm border transition-all ${isDark
+              ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
+              : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
+              }`}
+            title={isClosedLostLead ? "Intent updates are disabled for Closed - Lost leads" : undefined}
+          >
+            Update Intent
+          </Button>
         </div>
       </div>
 
