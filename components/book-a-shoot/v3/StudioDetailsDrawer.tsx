@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { X, Share, Heart, Home, Star, CalendarDays, ChevronDown, MapPin, Search } from "lucide-react";
+import { X, Home, Star, CalendarDays, ChevronDown, MapPin, ChevronLeft, ChevronRight, Images } from "lucide-react";
 import Map, { Marker } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import type { StudioCatalogItem } from "./studioData";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+const STUDIO_IMAGE_FALLBACK = "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
 
 interface StudioDetailsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  studio: any;
+  studio: StudioCatalogItem | null;
 }
 
 export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
@@ -21,6 +23,30 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
   studio,
 }) => {
   const [mounted, setMounted] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const galleryImages = useMemo(() => {
+    const imageSet = new Set<string>();
+    [studio?.image, ...(studio?.images || [])].forEach((image) => {
+      if (image) imageSet.add(image);
+    });
+    if (imageSet.size === 0) imageSet.add(STUDIO_IMAGE_FALLBACK);
+    return Array.from(imageSet);
+  }, [studio]);
+  const amenities = Array.isArray(studio?.amenities) && studio.amenities.length
+    ? studio.amenities
+    : ["Natural light", "High-speed WiFi", "Production-friendly layout", "Furniture and decor included"];
+  const rules = Array.isArray(studio?.rules) && studio.rules.length
+    ? studio.rules
+    : ["Minimum booking is 2 hours", "Setup and breakdown must be included in the reservation", "Guests must respect the property"];
+  const studioMeta = [
+    studio?.beds ? `${studio.beds} bedroom${studio.beds > 1 ? "s" : ""}` : null,
+    studio?.baths ? `${studio.baths} bath${studio.baths > 1 ? "s" : ""}` : null,
+    studio?.size,
+    studio?.poolType,
+  ].filter(Boolean);
+  const ratingText = studio?.rating
+    ? `${studio.rating} Stars${studio.reviews ? ` (${studio.reviews} ${studio.reviews === 1 ? "Rating" : "Ratings"})` : ""}`
+    : null;
 
   useEffect(() => {
     setMounted(true);
@@ -28,13 +54,51 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "auto";
+      setActiveImageIndex(null);
     }
     return () => {
       document.body.style.overflow = "auto";
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (activeImageIndex === null) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActiveImageIndex(null);
+      }
+
+      if (event.key === "ArrowLeft") {
+        setActiveImageIndex((current) =>
+          current === null ? current : (current - 1 + galleryImages.length) % galleryImages.length,
+        );
+      }
+
+      if (event.key === "ArrowRight") {
+        setActiveImageIndex((current) =>
+          current === null ? current : (current + 1) % galleryImages.length,
+        );
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeImageIndex, galleryImages.length]);
+
   if (!mounted || !isOpen) return null;
+
+  const showPreviousImage = () => {
+    setActiveImageIndex((current) =>
+      current === null ? current : (current - 1 + galleryImages.length) % galleryImages.length,
+    );
+  };
+
+  const showNextImage = () => {
+    setActiveImageIndex((current) =>
+      current === null ? current : (current + 1) % galleryImages.length,
+    );
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-[99999999] flex justify-end">
@@ -65,65 +129,51 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
             <div>
               <h1 className="text-2xl lg:text-[32px] font-bold text-[#E8D1AB] mb-2 leading-tight">
                 {studio?.name || "Beige Palm Desert Golf"} 
-                <span className="text-white/60 font-normal"> ({studio?.beds || 4} Bed / {studio?.baths || 3} Bath - {studio?.poolType || "Large Pool"})</span>
+                {studioMeta.length > 0 && (
+                  <span className="text-white/60 font-normal"> ({studioMeta.join(" / ")})</span>
+                )}
               </h1>
               <p className="text-white/60 text-sm underline decoration-white/30 underline-offset-4">{studio?.location || "Woodland Hills, Los Angeles, CA"}</p>
-            </div>
-            <div className="flex items-center gap-5 pt-2">
-              <button className="flex items-center gap-2 text-white/70 hover:text-white text-sm font-bold transition-colors underline decoration-transparent hover:decoration-white underline-offset-4">
-                <Share size={16} /> Share
-              </button>
-              <button className="flex items-center gap-2 text-white/70 hover:text-white text-sm font-bold transition-colors underline decoration-transparent hover:decoration-white underline-offset-4">
-                <Heart size={16} /> Save
-              </button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-[24px] overflow-hidden mb-12 h-[350px] lg:h-[400px]">
-            <div className="relative h-full w-full bg-white/5 hover:opacity-90 transition-opacity cursor-pointer">
-               <Image src={studio?.image || "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg"} alt="Main" fill className="object-cover" />
-            </div>
+            <button
+              type="button"
+              onClick={() => setActiveImageIndex(0)}
+              className="relative h-full w-full bg-white/5 hover:opacity-90 transition-opacity cursor-pointer"
+            >
+               <Image src={galleryImages[0]} alt={`${studio?.name || "Studio"} photo 1`} fill className="object-cover" />
+            </button>
             <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full relative border-l-2 border-[#0A0A0A]">
-               <div className="relative w-full h-full bg-white/5 hover:opacity-90 transition-opacity cursor-pointer">
-                 <Image src={studio?.images?.[0] || "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg"} alt="1" fill className="object-cover" />
-               </div>
-               <div className="relative w-full h-full bg-white/5 hover:opacity-90 transition-opacity cursor-pointer">
-                 <Image src={studio?.images?.[1] || "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg"} alt="2" fill className="object-cover" />
-               </div>
-               <div className="relative w-full h-full bg-white/5 hover:opacity-90 transition-opacity cursor-pointer">
-                 <Image src={studio?.images?.[2] || "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg"} alt="3" fill className="object-cover" />
-               </div>
-               <div className="relative w-full h-full bg-white/5 hover:opacity-90 transition-opacity cursor-pointer">
-                 <Image src={studio?.images?.[3] || studio?.image || "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg"} alt="4" fill className="object-cover" />
-                 <button className="absolute bottom-4 right-4 bg-white text-black px-4 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-2xl hover:bg-white/90 transition-colors">
-                   <Home size={16} /> Show all photos
+               {[1, 2, 3, 4].map((imageIndex) => (
+                 <button
+                   key={imageIndex}
+                   type="button"
+                   onClick={() => setActiveImageIndex(Math.min(imageIndex, galleryImages.length - 1))}
+                   className="relative w-full h-full bg-white/5 hover:opacity-90 transition-opacity cursor-pointer"
+                 >
+                   <Image
+                     src={galleryImages[imageIndex] || galleryImages[0]}
+                     alt={`${studio?.name || "Studio"} photo ${imageIndex + 1}`}
+                     fill
+                     className="object-cover"
+                   />
+                   {imageIndex === 4 && (
+                     <div className="absolute bottom-4 right-4 bg-white text-black px-4 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-2xl">
+                       <Images size={16} /> {galleryImages.length} photos
+                     </div>
+                   )}
                  </button>
-               </div>
-            </div>
-          </div>
-
-          {/* Host Info */}
-          <div className="flex justify-between items-start border-b border-white/10 pb-8 mb-8">
-            <div className="pr-4">
-              <h2 className="text-xl font-bold text-white mb-2">Entire rental unit hosted by Ghazal</h2>
-              <div className="flex flex-wrap items-center gap-y-2 gap-x-3 text-white/70 text-sm">
-                <span>{studio?.beds ? studio.beds * 2 : 8} guests</span> <span className="w-1 h-1 rounded-full bg-white/40" />
-                <span>{studio?.beds || 4} bedroom</span> <span className="w-1 h-1 rounded-full bg-white/40" />
-                <span>{studio?.beds || 4} beds</span> <span className="w-1 h-1 rounded-full bg-white/40" />
-                <span>{studio?.baths || 3} bath</span>
-              </div>
-            </div>
-            <div className="w-14 h-14 rounded-full overflow-hidden bg-white/10 flex-shrink-0 relative border border-white/20">
-               <Image src="https://d2jhn32fsulyac.cloudfront.net/assets/creators/avatar-1.jpg" alt="Host" fill className="object-cover" />
+               ))}
             </div>
           </div>
 
           <div className="flex flex-col gap-6 border-b border-white/10 pb-8 mb-8">
             {[
-              { icon: Home, title: "Entire home", desc: "You'll have the apartment to yourself" },
-              { icon: Star, title: "Enhanced Clean", desc: "This Host committed to Airbnb's 5-step enhanced cleaning process. Show more", highlight: true },
-              { icon: Home, title: "Self check-in", desc: "Check yourself in with the keypad." },
-              { icon: CalendarDays, title: "Free cancellation before Feb 14", desc: "" }
+              { icon: Home, title: "Private production space", desc: "Reserved for your approved booking window." },
+              { icon: Star, title: ratingText || "Production-ready", desc: ratingText ? "Reviews / Ratings from the studio details document." : "Designed for shoots, content creation, campaigns, and meetings." },
+              { icon: CalendarDays, title: "Hourly booking", desc: `${studio?.minimumBookingHours || 2}-hour minimum booking${studio?.operatingHours ? ` • ${studio.operatingHours}` : ""}` }
             ].map((amenity, i) => (
               <div key={i} className="flex gap-5 items-start">
                  <amenity.icon size={26} strokeWidth={1.5} className="text-white shrink-0 mt-0.5" />
@@ -132,7 +182,7 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
                    {amenity.desc && (
                      <p className="text-white/60 text-[15px] mt-1 leading-relaxed">
                        {amenity.title === "Enhanced Clean" ? (
-                         <>This Host committed to Beige's 5-step enhanced cleaning process. <button className="font-bold underline text-white hover:text-[#E8D1AB] transition-colors ml-1">Show more</button></>
+                         <>This Host committed to Beige&apos;s 5-step enhanced cleaning process. <button className="font-bold underline text-white hover:text-[#E8D1AB] transition-colors ml-1">Show more</button></>
                        ) : amenity.desc}
                      </p>
                    )}
@@ -143,51 +193,102 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
 
           <div className="border-b border-white/10 pb-8 mb-8">
             <p className="text-white/70 leading-relaxed text-[15px]">
-              A fully equipped production studio in Los Angeles, ideal for photo, video, podcast, and product shoots. The space offers professional lighting, flexible shooting setups, and comfortable crew areas to ensure smooth and efficient production. Features elegant decor, open-plan spaces, and all the functional requirements to bring your creative vision to life.
+              {studio?.description || "A fully equipped Beige studio ideal for photo, video, podcast, product, campaign, and social content shoots."}
             </p>
-            <button className="text-white font-bold underline mt-4 text-sm flex items-center gap-1 hover:text-[#E8D1AB] transition-colors">
-              Show more <ChevronDown size={14} className="rotate-[-90deg]" />
-            </button>
+            {studio?.highlights && studio.highlights.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-bold text-white mb-4">What makes it unique</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {studio.highlights.map((highlight) => (
+                    <div key={highlight} className="flex items-start gap-3 text-sm text-white/75">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E8D1AB]" />
+                      <span>{highlight}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+
+          {studio?.pricingOptions && studio.pricingOptions.length > 0 && (
+            <div className="border-b border-white/10 pb-10 mb-8">
+              <h3 className="text-2xl font-bold text-white mb-6">Pricing</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {studio.pricingOptions.map((option) => (
+                  <div key={option.key} className="rounded-2xl border border-white/10 bg-[#151515] p-5">
+                    <div className="text-white font-bold">{option.label}</div>
+                    <div className="mt-2 text-2xl font-bold text-[#E8D1AB]">${option.hourlyRate.toLocaleString()}/hour</div>
+                    <div className="mt-2 text-xs text-white/55">
+                      {option.minimumHours}-hour minimum{option.cleaningFee ? ` • $${option.cleaningFee.toLocaleString()} cleaning fee` : ""}
+                    </div>
+                    {option.startingAt && (
+                      <div className="mt-2 text-xs font-semibold text-white/70">Starting at ${option.startingAt.toLocaleString()}</div>
+                    )}
+                    {option.includes && option.includes.length > 0 && (
+                      <div className="mt-4 border-t border-white/10 pt-4">
+                        <div className="text-xs font-bold uppercase text-white/40">Includes</div>
+                        <div className="mt-2 space-y-1.5">
+                          {option.includes.map((item) => (
+                            <div key={item} className="text-xs text-white/65">{item}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-4 border-t border-white/10 pt-4">
+                      <div className="text-xs font-bold uppercase text-white/40">Ideal for</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {option.idealFor.map((item) => (
+                          <span key={item} className="rounded-md bg-white/5 px-2 py-1 text-[11px] text-white/60">{item}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {studio?.bestFor && studio.bestFor.length > 0 && (
+            <div className="border-b border-white/10 pb-10 mb-8">
+              <h3 className="text-2xl font-bold text-white mb-6">Best Suited For</h3>
+              <div className="flex flex-wrap gap-2">
+                {studio.bestFor.map((item) => (
+                  <span key={item} className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">{item}</span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* What this place offers */}
           <div className="border-b border-white/10 pb-10 mb-8">
             <h3 className="text-2xl font-bold text-white mb-6">What this place offers</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-8 mb-10">
-              {[
-                { name: 'Garden view', icon: MapPin }, 
-                { name: 'Kitchen', icon: MapPin }, 
-                { name: 'Wifi', icon: Search }, 
-                { name: 'Pets allowed', icon: Heart }, 
-                { name: 'Free washer - in building', icon: Home }, 
-                { name: 'Dryer', icon: Home }, 
-                { name: 'Central air conditioning', icon: Home }, 
-                { name: 'Security cameras on property', icon: Star }, 
-                { name: 'Refrigerator', icon: Home }, 
-                { name: 'Bicycles', icon: Search }
-              ].map((feature, i) => (
+              {amenities.map((name, i) => (
                  <div key={i} className="flex items-center gap-4 text-white/80 text-[15px]">
-                   <feature.icon size={22} strokeWidth={1.5} className="text-white/70 shrink-0" />
-                   <span>{feature.name}</span>
+                   <Home size={22} strokeWidth={1.5} className="text-white/70 shrink-0" />
+                   <span>{name}</span>
                  </div>
               ))}
             </div>
-            <button className="bg-[#E8D1AB] text-black px-6 py-3 rounded-lg font-bold text-[15px] hover:bg-[#dcb98a] transition-colors">
-              Show all 37 amenities
-            </button>
           </div>
 
           {/* Operating Hours */}
           <div className="border-b border-white/10 pb-12 mb-8">
             <h3 className="text-2xl font-bold text-white mb-6">Operating Hours</h3>
             <div className="bg-[#151515] rounded-[24px] p-6 lg:p-8 max-w-md border border-white/5 shadow-xl">
-              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                <div key={day} className="flex justify-between items-center mb-4 last:mb-0 pb-4 last:pb-0 border-white/5 border-b last:border-b-0">
+              {['Operating Hours', 'Weekly Schedule', 'Minimum Booking Hours'].map((label) => (
+                <div key={label} className="flex justify-between items-center mb-4 last:mb-0 pb-4 last:pb-0 border-white/5 border-b last:border-b-0 gap-6">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-[#34C759]" />
-                    <span className="text-white font-medium text-[15px]">{day}</span>
+                    <span className="text-white font-medium text-[15px]">{label}</span>
                   </div>
-                  <span className="text-white/60 text-sm font-medium">10:00 am - 10:00 pm</span>
+                  <span className="text-white/60 text-sm font-medium text-right">
+                    {label === "Operating Hours"
+                      ? studio?.operatingHours || "Available by booking"
+                      : label === "Weekly Schedule"
+                        ? studio?.weeklySchedule || "Available by booking"
+                        : `${studio?.minimumBookingHours || 2} Hours`}
+                  </span>
                 </div>
               ))}
             </div>
@@ -195,7 +296,7 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
 
           {/* Where you'll be */}
           <div className="border-b border-white/10 pb-10 mb-8">
-            <h3 className="text-2xl font-bold text-white mb-6">Where you'll be</h3>
+            <h3 className="text-2xl font-bold text-white mb-6">Where you&apos;ll be</h3>
             <div className="w-full h-[350px] bg-[#111111] rounded-3xl relative overflow-hidden mb-6 flex items-center justify-center border border-white/10 group cursor-pointer">
                {MAPBOX_TOKEN ? (
                  <Map
@@ -230,88 +331,95 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
                  </>
                )}
             </div>
-            <h4 className="text-white font-bold text-lg mb-2">Woodland Hills, Los Angeles, CA</h4>
+            <h4 className="text-white font-bold text-lg mb-2">{studio?.location || "Los Angeles, CA"}</h4>
             <p className="text-white/60 text-[15px] leading-relaxed mb-4">
-              Very dynamic and appreciated district by the people of Bordeaux thanks to rue St James and place Fernand Lafargue. Home to many historical monuments such as the Grosse Cloche, the Porte de Bourgogne and the Porte Cailhau, and cultural sites such as the Aquitaine Museum.
+              Studio address and arrival details are confirmed with the booking.
             </p>
             <button className="text-white font-bold underline text-[15px] flex items-center gap-1 hover:text-[#E8D1AB] transition-colors">
               Show more <ChevronDown size={14} className="rotate-[-90deg]" />
             </button>
           </div>
 
-          {/* Reviews */}
           <div className="border-b border-white/10 pb-10 mb-8">
             <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-2">
-              <Star className="text-[#E8D1AB] fill-[#E8D1AB]" size={24} /> {studio?.rating || "5.0"} • {studio?.reviews || 120} reviews
+              <Star className="text-[#E8D1AB] fill-[#E8D1AB]" size={24} /> House Rules
             </h3>
             
-            <div className="max-w-md flex flex-col gap-4 mb-10">
-              {[
-                { label: 'Cleanliness', score: 5.0 },
-                { label: 'Communication', score: 5.0 },
-                { label: 'Check-in', score: 5.0 }
-              ].map(stat => (
-                <div key={stat.label} className="flex justify-between items-center group">
-                  <span className="text-white/80 text-[15px] min-w-[120px]">{stat.label}</span>
-                  <div className="flex-1 max-w-[200px] h-[5px] bg-white/10 rounded-full mx-4 overflow-hidden relative">
-                    <div className="absolute inset-y-0 left-0 w-full bg-white rounded-full translate-x-0 group-hover:bg-[#E8D1AB] transition-colors" />
-                  </div>
-                  <span className="text-white font-bold text-sm w-6 text-right">{stat.score.toFixed(1)}</span>
+            <div className="max-w-2xl flex flex-col gap-4 mb-10">
+              {rules.map((rule) => (
+                <div key={rule} className="flex items-start gap-3 text-white/75 text-[15px]">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-[#E8D1AB] shrink-0" />
+                  <span>{rule}</span>
                 </div>
               ))}
             </div>
-
-            <div className="flex flex-col gap-8 mb-8">
-               <div className="flex gap-4 flex-col">
-                 <div className="flex gap-3 items-center">
-                   <div className="w-12 h-12 rounded-full overflow-hidden relative border border-white/10">
-                      <Image src="https://d2jhn32fsulyac.cloudfront.net/assets/creators/avatar-2.jpg" alt="Reviewer" fill className="object-cover" />
-                   </div>
-                   <div>
-                     <h5 className="text-white font-bold text-base">Jose</h5>
-                     <span className="text-white/50 text-sm font-medium">December 2021</span>
-                   </div>
-                 </div>
-                 <p className="text-white/80 text-[15px] leading-relaxed">Host was very attentive.</p>
-               </div>
-               
-               <div className="flex gap-4 flex-col">
-                 <div className="flex gap-3 items-center">
-                   <div className="w-12 h-12 rounded-full overflow-hidden relative border border-white/10">
-                      <Image src="https://d2jhn32fsulyac.cloudfront.net/assets/creators/avatar-3.jpg" alt="Reviewer" fill className="object-cover" />
-                   </div>
-                   <div>
-                     <h5 className="text-white font-bold text-base">Shayna</h5>
-                     <span className="text-white/50 text-sm font-medium">December 2021</span>
-                   </div>
-                 </div>
-                 <p className="text-white/80 text-[15px] leading-relaxed">Wonderful neighborhood, easy access to restaurants and the subway, cozy studio apartment with a super comfortable bed. Great host, super helpful and responsive. Cool murphy bed...</p>
-                 <button className="text-white font-bold underline text-[15px] w-fit hover:text-[#E8D1AB] transition-colors flex items-center gap-1">
-                   Show more <ChevronDown size={14} className="rotate-[-90deg]" />
-                 </button>
-               </div>
+          </div>
+        </div>
+      </div>
+      {activeImageIndex !== null && (
+        <div className="fixed inset-0 z-[100000000] bg-black/95 flex flex-col">
+          <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4 lg:px-6">
+            <div className="text-sm font-semibold text-white/80">
+              {activeImageIndex + 1} / {galleryImages.length}
             </div>
-
-            <button className="bg-[#E8D1AB] text-black px-6 py-3 rounded-lg font-bold text-[15px] hover:bg-[#dcb98a] transition-colors">
-              Show all 12 reviews
+            <button
+              type="button"
+              onClick={() => setActiveImageIndex(null)}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/15 text-white transition-colors"
+              aria-label="Close gallery"
+            >
+              <X size={22} />
             </button>
           </div>
 
-          {/* Rules & Health Safety Measures */}
-          <div className="pb-8">
-            <h3 className="text-2xl font-bold text-white mb-6">Rules & Health Safety Measures</h3>
-            <div className="flex flex-col rounded-[24px] overflow-hidden bg-[#151515] border border-white/5">
-              {['Host Rules', 'Cleaning Protocol', 'Protective Gears', 'Physical Distance', 'Signage', 'Cancellation Policy'].map((rule, i, arr) => (
-                <button key={rule} className={`flex justify-between items-center p-6 hover:bg-white/5 text-left text-white/70 hover:text-white transition-colors ${i !== arr.length - 1 ? 'border-b border-white/5' : ''}`}>
-                  <span className="text-[15px] font-medium">{rule}</span>
-                  <ChevronDown className="rotate-[-90deg] text-white/40" size={18} />
+          <div className="relative flex-1">
+            <Image
+              src={galleryImages[activeImageIndex]}
+              alt={`${studio?.name || "Studio"} photo ${activeImageIndex + 1}`}
+              fill
+              className="object-contain"
+              sizes="100vw"
+            />
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={showPreviousImage}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur hover:bg-white/20 lg:left-6"
+                  aria-label="Previous photo"
+                >
+                  <ChevronLeft size={28} />
+                </button>
+                <button
+                  type="button"
+                  onClick={showNextImage}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur hover:bg-white/20 lg:right-6"
+                  aria-label="Next photo"
+                >
+                  <ChevronRight size={28} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {galleryImages.length > 1 && (
+            <div className="flex h-24 shrink-0 gap-2 overflow-x-auto border-t border-white/10 p-3">
+              {galleryImages.map((image, index) => (
+                <button
+                  key={`${image}-${index}`}
+                  type="button"
+                  onClick={() => setActiveImageIndex(index)}
+                  className={`relative h-full w-24 shrink-0 overflow-hidden rounded-md border transition-colors ${
+                    activeImageIndex === index ? "border-[#E8D1AB]" : "border-white/10 hover:border-white/30"
+                  }`}
+                >
+                  <Image src={image} alt={`${studio?.name || "Studio"} thumbnail ${index + 1}`} fill className="object-cover" />
                 </button>
               ))}
             </div>
-          </div>
-
+          )}
         </div>
-      </div>
+      )}
     </div>,
     document.body
   )

@@ -30,7 +30,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { buildEditTypeCounts } from "./utils";
-import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
+import { getSelectedStudiosTotal, normalizeSelectedStudios, serializeStudioMeta } from "./studioData";
 
 const V3_STEPS = [
   { label: "Choose Service" },
@@ -59,7 +59,6 @@ interface FormFields {
 }
 
 export const BookAShootV3 = () => {
-  const COACHELLA_DEFAULT_LOCATION = "Indio, California, United States";
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
@@ -81,7 +80,7 @@ export const BookAShootV3 = () => {
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
   const isSubmitting = isBookingLoading || isQuoteLoading || isUpdatingBooking;
-  const shouldShowStudiosStep = formData.shootType === "coachella";
+  const shouldShowStudiosStep = formData.shootType === "studio";
 
   // const updateData = (newData: Partial<BookingDataV3>) => {
   //   setFormData((prev) => ({ ...prev, ...newData }));
@@ -126,18 +125,6 @@ export const BookAShootV3 = () => {
     leadTracked,
     trackEarlyInterest,
   ]);
-
-  useEffect(() => {
-    if (
-      formData.shootType === "coachella" &&
-      formData.location !== COACHELLA_DEFAULT_LOCATION
-    ) {
-      updateData({
-        location: COACHELLA_DEFAULT_LOCATION,
-        locationDetails: null,
-      });
-    }
-  }, [formData.shootType, formData.location, updateData]);
 
   const nextStep = async () => {
     // Track lead when moving from step 1 to 2 (if not already tracked)
@@ -389,10 +376,21 @@ export const BookAShootV3 = () => {
       const shootHours = isEditingOnly ? 0 : calculateDurationHours();
       const selectedStudios = normalizeSelectedStudios(formData);
       const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
-      const isCoachellaEvent = formData.shootType === "coachella";
+      const isStudioBooking = formData.shootType === "studio";
       const useContentHouseInclusivePricing =
-        isCoachellaEvent && selectedStudios.length > 0;
+        isStudioBooking && selectedStudios.length > 0;
       const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
+      const primaryStudio = selectedStudios[0];
+      const studioStartDateTime = primaryStudio?.selectedDate && primaryStudio?.startTime
+        ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
+        : "";
+      const studioEndDateTime = primaryStudio?.selectedDate && primaryStudio?.endTime
+        ? `${primaryStudio.selectedDate}T${primaryStudio.endTime}:00`
+        : "";
+      const studioMeta = serializeStudioMeta(selectedStudios);
+      const finalSpecialInstructions = [formData.specialInstructions, studioMeta]
+        .filter((entry) => String(entry || "").trim())
+        .join("\n\n");
 
       // 2. Map Database Item IDs based on your SQL structure
       const ITEM_IDS = {
@@ -406,7 +404,7 @@ export const BookAShootV3 = () => {
         gaffer: 48, // Crew Gaffer
       };
 
-      let quoteItems: Array<{ item_id: number; quantity: number }> = [];
+      const quoteItems: Array<{ item_id: number; quantity: number }> = [];
 
       // 3. Add Base Crew (Calculated in Step 2 from roleCounts)
       if (!useContentHouseInclusivePricing && formData.roleCounts) {
@@ -517,16 +515,24 @@ export const BookAShootV3 = () => {
         content_type: isEditingOnly ? "ai editing" : formData.contentType.join(","),
         shoot_type: formData.shootType,
         booking_type: formData.bookingType,
-        booking_days: bookingDaysPayload,
-        start_date: startDate,
-        start_time: startTime,
-        end_time: endTime,
+        booking_days: primaryStudio
+          ? [{
+              date: primaryStudio.selectedDate,
+              start_time: primaryStudio.startTime,
+              end_time: primaryStudio.endTime,
+              duration_hours: primaryStudio.quantity,
+              time_zone: browserTimeZone,
+            }]
+          : bookingDaysPayload,
+        start_date: primaryStudio?.selectedDate || startDate,
+        start_time: primaryStudio?.startTime || startTime,
+        end_time: primaryStudio?.endTime || endTime,
         time_zone: browserTimeZone,
         estimated_delivery_date: isEditingOnly ? estimatedDeliveryDate : undefined,
         // start_date_time: formData.startDate,
         // end_time: formData.endDate,
-        duration_hours: shootHours,
-        location: formData.location,
+        duration_hours: primaryStudio?.quantity || shootHours,
+        location: primaryStudio?.location || formData.location,
         location_latitude:
           formData.locationDetails?.coordinates?.lat ??
           formData.locationDetails?.lat ??
@@ -554,8 +560,10 @@ export const BookAShootV3 = () => {
         selected_crew_ids: formData.selectedCrewIds || [],
 
         // Project Scope
-        special_instructions: formData.specialInstructions || undefined,
+        special_instructions: finalSpecialInstructions || undefined,
         reference_links: formData.referenceLinks,
+        start_date_time: studioStartDateTime || undefined,
+        end_date_time: studioEndDateTime || undefined,
         is_draft: false, // Marking as final booking
       };
 
@@ -746,7 +754,7 @@ const LeaveConfirmationModal = ({
       <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl">
         <h3 className="text-2xl font-semibold text-white mb-4">Abandon Booking?</h3>
         <p className="text-white/60 mb-8 leading-relaxed">
-          You've filled in details on this page. Moving back will lose all details. Do you wish to continue?
+          You&apos;ve filled in details on this page. Moving back will lose all details. Do you wish to continue?
         </p>
         <div className="flex gap-4">
           <button
