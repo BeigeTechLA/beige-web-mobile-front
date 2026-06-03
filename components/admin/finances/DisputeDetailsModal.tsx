@@ -18,6 +18,7 @@ import {
   type DisputeHistoryItem,
 } from "@/components/admin/finances/DisputeHistoryList";
 import ResolveDisputeModal from "@/components/admin/finances/ResolveDisputeModal";
+import RejectDisputeModal from "@/components/admin/finances/RejectDisputeModal";
 
 type DisputeTimelineEvent = {
   title: string;
@@ -99,6 +100,7 @@ export default function DisputeDetailsModal({
   dispute,
 }: DisputeDetailsModalProps) {
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
   if (!isOpen || !dispute) return null;
 
@@ -228,6 +230,7 @@ export default function DisputeDetailsModal({
             </button>
             <button
               type="button"
+              onClick={() => setIsRejectModalOpen(true)}
               className="rounded-lg bg-[#FF4D4F] px-3 py-3 text-xs font-medium text-white transition-colors hover:bg-[#eb3e40]"
             >
               Reject &amp; Refund Client
@@ -248,6 +251,12 @@ export default function DisputeDetailsModal({
         disputeId={dispute.id}
         shootId={dispute.shootId}
         amount={dispute.disputedAmount}
+      />
+
+      <RejectDisputeModal
+        isOpen={isRejectModalOpen}
+        onClose={() => setIsRejectModalOpen(false)}
+        disputeId={dispute.id}
       />
     </>
   );

@@ -62,7 +62,7 @@ const menuItems = [
       { name: 'Transactions', link: '/admin/finances/transactions' },
       { name: 'Disputes', link: '/admin/finances/disputes' },
       { name: 'Beige credit points', link: '/admin/finances/creditPoints' },
-
+      { name: 'CP Compensation', link: '/admin/finances/cp-compensation' },
     ] },
 
   {
@@ -124,6 +124,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       if (pathname?.startsWith("/admin/quotes") && !next.includes("Quotes")) {
         next.push("Quotes");
+      }
+
+      if (pathname?.startsWith("/admin/finances") && !next.includes("Finances")) {
+        next.push("Finances");
       }
 
       return next;

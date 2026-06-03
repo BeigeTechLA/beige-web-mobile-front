@@ -32,6 +32,9 @@ export default function ResolveDisputeModal({
   const [resolutionType, setResolutionType] = useState<ResolutionType>("stripe");
   const [amountType, setAmountType] = useState<PaymentAmountType>("full");
   const [partialAmount, setPartialAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [transactionId, setTransactionId] = useState("");
+  const [recipient, setRecipient] = useState("Client");
   const [isConfirming, setIsConfirming] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -94,10 +97,13 @@ export default function ResolveDisputeModal({
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[13px] text-white/35">Amount</span>
+                <span className="text-[13px] text-white/35">
+                  {resolutionType === "credits" ? "Credit Amount" : "Amount"}
+                </span>
                 <span className="text-[14px] font-bold text-[#17D8A2]">
-                  {amountType === "full" ? amount : `$${partialAmount || "0"}`}
-                  {resolutionType === "credits" && " credits"}
+                  {resolutionType === "credits" 
+                    ? `${partialAmount || "0"} Points` 
+                    : (amountType === "full" ? amount : `$${partialAmount || "0"}`)}
                 </span>
               </div>
             </div>
@@ -208,19 +214,33 @@ export default function ResolveDisputeModal({
                     {/* Select Payment Method */}
                     <div className="relative flex h-11 items-center rounded-xl border border-white/20 px-4">
                       <span className="absolute -top-2 left-3 bg-[#141414] px-1 text-[10px] tracking-wider text-white/40">Select Payment Method*</span>
-                      <div className="flex w-full items-center justify-between">
-                        <span className="text-[13px] text-white/35 truncate">Eg : UPI, Cash, Bank Transfer, Credit Card and Others...</span>
-                        <ChevronDown size={16} className="text-white/40" />
-                      </div>
+                      <select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="w-full bg-transparent text-[13px] text-white/90 outline-none appearance-none cursor-pointer"
+                      >
+                        <option value="" disabled className="bg-black text-white/35">Select Payment Method...</option>
+                        <option value="UPI" className="bg-black text-white">UPI</option>
+                        <option value="Cash" className="bg-black text-white">Cash</option>
+                        <option value="Bank Transfer" className="bg-black text-white">Bank Transfer</option>
+                        <option value="Credit Card" className="bg-black text-white">Credit Card</option>
+                      </select>
+                      <ChevronDown size={16} className="pointer-events-none absolute right-4 text-white/40" />
                     </div>
 
                     {/* Select Recipient */}
                     <div className="relative flex h-11 items-center rounded-xl border border-white/20 px-4">
                       <span className="absolute -top-2 left-3 bg-[#141414] px-1 text-[10px] tracking-wider text-white/40">Select Recipient</span>
-                      <div className="flex w-full items-center justify-between">
-                        <span className="text-[13px] text-white/90">Select...</span>
-                        <ChevronDown size={16} className="text-white/40" />
-                      </div>
+                      <select
+                        value={recipient}
+                        onChange={(e) => setRecipient(e.target.value)}
+                        className="w-full bg-transparent text-[13px] text-white/90 outline-none appearance-none cursor-pointer"
+                      >
+                        <option value="Client" className="bg-black text-white">Client</option>
+                        <option value="Creative Partner" className="bg-black text-white">Creative Partner</option>
+                        <option value="Admin" className="bg-black text-white">Admin</option>
+                      </select>
+                      <ChevronDown size={16} className="pointer-events-none absolute right-4 text-white/40" />
                     </div>
 
                     {/* Transaction ID */}
@@ -229,6 +249,8 @@ export default function ResolveDisputeModal({
                       <input
                         type="text"
                         placeholder="Enter Transaction ID"
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value)}
                         className="w-full bg-transparent text-[13px] text-white/90 outline-none placeholder:text-white/20"
                       />
                     </div>
@@ -319,10 +341,16 @@ export default function ResolveDisputeModal({
                     <div className="mb-5 mt-5">
                       <div className="relative flex h-11 items-center rounded-xl border border-white/20 px-4">
                         <span className="absolute -top-2 left-3 bg-[#141414] px-1 text-[10px] tracking-wider text-white/40">Select Recipient</span>
-                        <div className="flex w-full items-center justify-between">
-                          <span className="text-[13px] text-white/90">Select...</span>
-                          <ChevronDown size={16} className="text-white/40" />
-                        </div>
+                        <select
+                          value={recipient}
+                          onChange={(e) => setRecipient(e.target.value)}
+                          className="w-full bg-transparent text-[13px] text-white/90 outline-none appearance-none cursor-pointer"
+                        >
+                          <option value="Client" className="bg-black text-white">Client</option>
+                          <option value="Creative Partner" className="bg-black text-white">Creative Partner</option>
+                          <option value="Admin" className="bg-black text-white">Admin</option>
+                        </select>
+                        <ChevronDown size={16} className="pointer-events-none absolute right-4 text-white/40" />
                       </div>
                     </div>
 
@@ -387,39 +415,51 @@ export default function ResolveDisputeModal({
                   </span>
                 </div>
 
-                {resolutionType === "manual" ? (
+                {resolutionType === "stripe" && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-white/35">Amount</span>
+                      <span className="text-[13px] font-medium text-white">
+                        {amountType === "full" ? amount : `$${partialAmount || "0"}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-white/35">Recipient</span>
+                      <span className="text-[13px] font-medium text-white">{recipient}</span>
+                    </div>
+                  </>
+                )}
+
+                {resolutionType === "credits" && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-white/35">Recipient</span>
+                      <span className="text-[13px] font-medium text-white">{recipient}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-white/35">Credit Amount</span>
+                      <span className="text-[13px] font-medium text-[#E8D1AB]">
+                        {partialAmount || "0"} credits
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                {resolutionType === "manual" && (
                   <>
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] text-white/35">Payment Method</span>
-                      <span className="text-[13px] font-medium text-white">UPI</span>
+                      <span className="text-[13px] font-medium text-white">{paymentMethod || "UPI"}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] text-white/35">Transaction ID</span>
-                      <span className="text-[13px] font-medium text-white">TXN-2026-458921</span>
+                      <span className="text-[13px] font-medium text-white">{transactionId || "TXN-2026-458921"}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-white/35">Recipient</span>
+                      <span className="text-[13px] font-medium text-white">{recipient}</span>
                     </div>
                   </>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-white/35">Recipient</span>
-                    <span className="text-[13px] font-medium text-white">Client</span>
-                  </div>
-                )}
-
-                {resolutionType !== "manual" ? (
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-white/35">
-                      {resolutionType === "credits" ? "Credit Amount" : "Amount"}
-                    </span>
-                    <span className={`text-[13px] font-medium ${resolutionType === "credits" ? "text-[#E8D1AB]" : "text-white"}`}>
-                      {amountType === "full" ? amount : `$${partialAmount || "0"}`}
-                      {resolutionType === "credits" && " credits"}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-white/35">Recipient</span>
-                    <span className="text-[13px] font-medium text-white">Client</span>
-                  </div>
                 )}
               </div>
             </div>
