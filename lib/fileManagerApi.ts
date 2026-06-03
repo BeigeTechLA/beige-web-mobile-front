@@ -98,6 +98,12 @@ interface ExternalWorkspaceFile {
   isPublic?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  uploadedBy?: string;
+  uploadedByName?: string;
+  uploaded_by?: {
+    name?: string;
+    user_id?: string | number;
+  } | null;
 }
 interface ExternalShareCreateResponse {
   success: boolean;
@@ -293,6 +299,57 @@ interface FaceScanIndexStatusResponse {
 
 type ExternalFileUrlData = { url: string; duration: number };
 type ExternalFileUrlResponse = { success: boolean; data: ExternalFileUrlData };
+interface SendForEditsResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    movedCount: number;
+    failedCount: number;
+    moved: Array<{ oldPath: string; newPath: string; fileMetaUpdated?: boolean }>;
+    failed: Array<{ path: string; reason: string }>;
+    editedFootagePath?: string | null;
+  };
+}
+
+interface ApproveFilesResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    approved?: {
+      movedCount: number;
+      failedCount: number;
+      moved: Array<{ oldPath: string; newPath: string; fileMetaUpdated?: boolean }>;
+      failed: Array<{ path: string; reason: string }>;
+      finalDeliverablesFolderPath?: string | null;
+    };
+    revision?: {
+      nextVersion: number | null;
+      movedCount: number;
+      failedCount: number;
+      moved: Array<{ oldPath: string; newPath: string; fileMetaUpdated?: boolean; version?: number }>;
+      failed: Array<{ path: string; reason: string }>;
+      nextRevisionFolderPath?: string | null;
+    } | null;
+    summary?: {
+      totalFiles: number;
+      approvedCount: number;
+      remainingCount: number;
+      allApproved: boolean;
+    };
+  };
+}
+
+interface ApproveAllFilesResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    movedCount: number;
+    failedCount: number;
+    moved: Array<{ oldPath: string; newPath: string; fileMetaUpdated?: boolean }>;
+    failed: Array<{ path: string; reason: string }>;
+    finalDeliverablesFolderPath?: string | null;
+  };
+}
 
 const getApiOriginForExternalLinks = (): string | null => {
   const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
@@ -736,7 +793,7 @@ export const fileManagerApi = {
     });
   },
 
-  async getExternalFileViewUrl(filepath: string) {
+  async getExternalFileViewUrl(filepath: string, options?: { silent?: boolean }) {
     const normalizedPath = String(filepath || "").trim();
     if (!normalizedPath) {
       throw new Error("filepath is required");
@@ -753,10 +810,16 @@ export const fileManagerApi = {
     }
 
     const request = runFileViewUrlTask(async () => {
-      const response = await apiClient.post<ExternalFileUrlResponse>(
-        "external-file-manager/file-view-url",
-        { filepath: normalizedPath }
-      );
+      const response = options?.silent
+        ? await apiClient.getInstance().post<ExternalFileUrlResponse>(
+            "external-file-manager/file-view-url",
+            { filepath: normalizedPath },
+            { headers: { "x-silent-error": "true" } }
+          ).then((res) => res.data)
+        : await apiClient.post<ExternalFileUrlResponse>(
+            "external-file-manager/file-view-url",
+            { filepath: normalizedPath }
+          );
       setCachedFileViewUrl(normalizedPath, response.data);
       return response.data;
     }).finally(() => {
@@ -798,6 +861,32 @@ export const fileManagerApi = {
 
   async deleteExternalEntry(filepath: string) {
     return apiClient.post("external-file-manager/delete", { filepath });
+  },
+
+  async sendExternalFilesForEdits(payload: { filePaths: string[]; externalId: string | number }) {
+    return apiClient.post<SendForEditsResponse>("external-file-manager/send-for-edits", {
+      filePaths: payload.filePaths,
+      externalId: String(payload.externalId),
+    });
+  },
+
+  async approveExternalFiles(payload: {
+    approvedFilePaths: string[];
+    allFilePaths: string[];
+    externalId: string | number;
+  }) {
+    return apiClient.post<ApproveFilesResponse>("external-file-manager/approve-files", {
+      approvedFilePaths: payload.approvedFilePaths,
+      allFilePaths: payload.allFilePaths,
+      externalId: String(payload.externalId),
+    });
+  },
+
+  async approveAllExternalFiles(payload: { filePaths: string[]; externalId: string | number }) {
+    return apiClient.post<ApproveAllFilesResponse>("external-file-manager/approve-all-files", {
+      filePaths: payload.filePaths,
+      externalId: String(payload.externalId),
+    });
   },
 
   async createExternalFolder(

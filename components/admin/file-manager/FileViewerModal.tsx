@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Clock3, Loader2, MessageSquare, Reply, Send, Trash2 } from "lucide-react";
+import { Clock3, Loader2, MessageSquare, Reply, Send, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { fileManagerApi, type FileCommentItem } from "@/lib/fileManagerApi";
@@ -14,6 +14,11 @@ interface FileViewerModalProps {
   fileUrl?: string | null;
   contentType?: string;
   fileMetaId?: string | null;
+  uploadAction?: {
+    label: string;
+    onClick: () => Promise<void> | void;
+    disabled?: boolean;
+  };
 }
 
 const isImage = (contentType?: string, fileName?: string) => {
@@ -200,6 +205,7 @@ export default function FileViewerModal({
   fileUrl,
   contentType,
   fileMetaId,
+  uploadAction,
 }: FileViewerModalProps) {
   const { user } = useAuth();
   const currentUserId = user?.id != null ? String(user.id) : null;
@@ -210,6 +216,7 @@ export default function FileViewerModal({
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState<FileCommentItem | null>(null);
   const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
+  const [runningUploadAction, setRunningUploadAction] = useState(false);
   const videoFile = useMemo(() => isVideo(contentType, fileName), [contentType, fileName]);
 
   const canComment = useMemo(() => Boolean(fileMetaId && currentUserId), [fileMetaId, currentUserId]);
@@ -300,6 +307,17 @@ export default function FileViewerModal({
     }
   };
 
+  const handleUploadAction = async () => {
+    if (!uploadAction || uploadAction.disabled || runningUploadAction) return;
+
+    setRunningUploadAction(true);
+    try {
+      await uploadAction.onClick();
+    } finally {
+      setRunningUploadAction(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-7xl w-[96vw] border-white/10 bg-[#101010] p-0 text-white">
@@ -375,6 +393,18 @@ export default function FileViewerModal({
             </div>
 
             <div className="border-t border-white/10 px-5 py-4">
+              {uploadAction ? (
+                <button
+                  type="button"
+                  onClick={handleUploadAction}
+                  disabled={uploadAction.disabled || runningUploadAction}
+                  className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E5D5B8]/30 bg-[#E5D5B8] px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#d8c49e] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {runningUploadAction ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {uploadAction.label}
+                </button>
+              ) : null}
+
               {replyingTo ? (
                 <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#E5D5B8]/20 bg-[#E5D5B8]/10 px-3 py-2 text-xs text-[#E5D5B8]">
                   <span className="truncate">Replying to: {replyingTo.comment}</span>

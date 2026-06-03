@@ -7,21 +7,25 @@ import { useViewMode } from "@/hooks/useViewMode";
 import Image from "next/image";
 import {
   ArrowLeft,
+  CalendarDays,
   Download,
   FileVideo,
+  FolderOpen,
   Image as ImageIcon,
   Loader2,
+  MoreVertical,
   Play,
+  Plus,
   Search,
   Trash2,
   Upload,
+  Link as LinkIcon,
   FileArchive,
   FileImage,
   FileSpreadsheet,
   FileText,
   Presentation,
   CheckSquare,
-  Square,
   X as CloseIcon,
   Download as DownloadIcon,
   Trash2 as TrashIcon
@@ -62,6 +66,28 @@ const FILE_BOARD_TITLES: Record<string, string> = {
   file: "Other Files",
 };
 
+type AdminUiFile = {
+  id: string;
+  title: string;
+  filepath?: string;
+  contentType?: string;
+  label?: string;
+  size?: number;
+  fileSizeBytes?: number;
+  updatedAt?: string;
+  lastOpened?: string;
+  userInitials?: string;
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
+  accentClass?: string;
+  badgeClass?: string;
+};
+
+type RevisionFolderMeta = {
+  name?: string;
+  fileCount?: number;
+  [key: string]: unknown;
+};
+
 const tryDecodeURIComponent = (value: string) => {
   const normalizedValue = String(value || "").replace(/\+/g, " ");
   try {
@@ -88,9 +114,59 @@ const normalizeRelativeFolderPath = (value: string, phaseSlug: string) => {
   return normalized;
 };
 
-  const getFileExtension = (title?: string) => {
+const normalizePathToken = (value?: string) =>
+  String(value || "").toLowerCase().replace(/[\s_-]+/g, "");
+
+const isSelectedForEditsPath = (path?: string) =>
+  normalizePathToken(path) === "editedfootage/selectedforedits" ||
+  normalizePathToken(path) === "editedfootages/selectedforedits";
+
+const isFinalDeliverablesPath = (path?: string) =>
+  normalizePathToken(path) === "finaldeliverables";
+
+const isVersionFolderName = (name?: string) =>
+  /^v(?:ersion)?[\s_-]*\d+$/i.test(String(name || "").trim());
+
+const getFinalDeliverablesVersionPath = (folder: { name?: string; path?: string }) => {
+  const normalizedPath = String(folder?.path || "").replace(/\\/g, "/");
+  const finalDeliverablesMatch = normalizedPath.match(/(?:^|\/)(Final Deliverables\/.+)$/i);
+  if (finalDeliverablesMatch?.[1]) return finalDeliverablesMatch[1];
+  return `Final Deliverables/${folder.name || ""}`;
+};
+
+const formatShortDateTime = (value?: string) => {
+  if (!value) return "10 Jan, 2026 - 10:00 AM";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "10 Jan, 2026 - 10:00 AM";
+  return date.toLocaleString("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatFileSize = (size?: number) => {
+  if (!size || Number.isNaN(size)) return "4.5 MB";
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const getFileExtension = (title?: string) => {
   const parts = (title || "").toLowerCase().split(".");
   return parts.length > 1 ? parts.pop() || "" : "";
+};
+
+const isPreviewableFile = (file: any) => {
+  const extension = getFileExtension(file?.title || file?.name);
+  const contentType = String(file?.contentType || "");
+  return (
+    contentType.startsWith("image/") ||
+    contentType.startsWith("video/") ||
+    ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif", "mp4", "mov", "avi", "mkv", "webm"].includes(extension) ||
+    file?.label === "image" ||
+    file?.label === "video"
+  );
 };
 
 const getFileMeta = (file: any) => {
@@ -129,6 +205,13 @@ export default function SubFolderDetailsPage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
+  const editView = searchParams.get("editView") || "";
+  const isEditedFootageRoot = phaseSlug === "post-production" && nestedSlug === "edited-footage" && !editView;
+  const isSelectedForEditsView = editView === "selected-for-edits";
+  const isRevisionsView = editView === "revisions";
+  const revisionVersionMatch = editView.match(/^revision-version-(\d+)$/);
+  const activeRevisionVersion = revisionVersionMatch ? Number(revisionVersionMatch[1]) : 1;
+  const isRevisionVersionView = Boolean(revisionVersionMatch);
   const canUpload = true;
   const canDelete = phaseSlug !== "post-production";
   const folderPath = useMemo(() => {
@@ -142,11 +225,40 @@ export default function SubFolderDetailsPage() {
     const fallbackFromPath = folderPath.split("/").filter(Boolean).pop();
     return fallbackFromPath || slugToWorkspaceName(nestedSlug);
   }, [folderPath, nestedSlug, searchParams]);
+  const activeFolderPath = useMemo(() => {
+    if (phaseSlug === "post-production" && nestedSlug === "edited-footage") {
+      if (isSelectedForEditsView) return "Edited Footage/Selected for Edits";
+      if (isRevisionsView) return "Edited Footage/Revisions";
+      if (isRevisionVersionView) {
+        return activeRevisionVersion <= 1 ? "Edited Footage" : `Edited Footage/V${activeRevisionVersion}`;
+      }
+    }
+
+    return folderPath;
+  }, [activeRevisionVersion, folderPath, isRevisionVersionView, isRevisionsView, isSelectedForEditsView, nestedSlug, phaseSlug]);
+  const activeRevisionUploadVersion = useMemo(() => {
+    if (phaseSlug !== "post-production") return null;
+    const isEditedFootageVersionPath = /(?:^|\/)Edited Footages?\/V\d+$/i.test(activeFolderPath);
+    if (nestedSlug !== "edited-footage" && !isEditedFootageVersionPath) return null;
+    if (isRevisionVersionView) return activeRevisionVersion;
+
+    const versionPathMatch = activeFolderPath.match(/(?:^|\/)V(\d+)$/i);
+    if (versionPathMatch) return Number(versionPathMatch[1]);
+
+    const versionNameMatch = folderName.match(/^V(?:ersion\s*)?(\d+)$/i);
+    if (versionNameMatch) return Number(versionNameMatch[1]);
+
+    return null;
+  }, [activeFolderPath, activeRevisionVersion, folderName, isRevisionVersionView, nestedSlug, phaseSlug]);
+  const canUploadRevisionFromCurrentView = activeRevisionUploadVersion != null;
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
   const [files, setFiles] = useState<any[]>([]);
+  const [revisionFolders, setRevisionFolders] = useState<RevisionFolderMeta[]>([]);
+  const [selectedForEditsCount, setSelectedForEditsCount] = useState(0);
+  const [revisionVersionCounts, setRevisionVersionCounts] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useViewMode(ADMIN_FILE_MANAGER_VIEW_MODE_KEY);
@@ -155,6 +267,10 @@ export default function SubFolderDetailsPage() {
   const [status, setStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadPathOverride, setUploadPathOverride] = useState<string | null>(null);
+  const [uploadFolderNameOverride, setUploadFolderNameOverride] = useState<string | null>(null);
+  const [uploadTargetEditView, setUploadTargetEditView] = useState<string | null>(null);
+  const [newVersionComment, setNewVersionComment] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [openingFileId, setOpeningFileId] = useState<string | null>(null);
@@ -179,17 +295,125 @@ export default function SubFolderDetailsPage() {
     try {
       setLoading(true);
       setError(null);
-      const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
+      const phase = phaseSlug === "post-production" ? "post" : "pre";
+      const candidatePaths =
+        phaseSlug === "post-production" && nestedSlug === "raw-footage"
+          ? Array.from(new Set([activeFolderPath, "Raw Footages", "Raw Footage"].filter(Boolean)))
+          : phaseSlug === "post-production" && isSelectedForEditsPath(activeFolderPath)
+            ? Array.from(
+                new Set(
+                  [
+                    activeFolderPath,
+                    "Edited Footage/Selected for Edits",
+                    "Edited Footages/Selected for Edits",
+                    "Edited Footage/Selected For Edits",
+                    "Edited Footages/Selected For Edits",
+                    "Selected for Edits",
+                    "Selected For Edits",
+                    "Edited Footage",
+                    "Edited Footages",
+                  ].filter(Boolean)
+                )
+              )
+          : isRevisionVersionView && activeRevisionVersion <= 1
+            ? Array.from(new Set(["Edited Footage", "Edited Footages"].filter(Boolean)))
+            : isRevisionVersionView
+              ? Array.from(
+                  new Set(
+                    [
+                      activeFolderPath,
+                      `Edited Footage/V${activeRevisionVersion}`,
+                      `Edited Footages/V${activeRevisionVersion}`,
+                    ].filter(Boolean)
+                  )
+                )
+              : [activeFolderPath];
+
+      let workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
         projectId,
-        phaseSlug === "post-production" ? "post" : "pre",
-        folderPath
+        phase,
+        candidatePaths[0]
       );
+
+      for (const candidatePath of candidatePaths.slice(1)) {
+        if ((workspaceData.files || []).length > 0) break;
+        workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
+          projectId,
+          phase,
+          candidatePath
+        );
+      }
+
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
-      setFiles(workspaceData.files);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load files");
+      let nextFiles = workspaceData.files || [];
+      let nextFolders = workspaceData.folders || [];
+
+      if (phaseSlug === "post-production" && isFinalDeliverablesPath(activeFolderPath)) {
+        const versionFolders = nextFolders.filter((folder: RevisionFolderMeta) => isVersionFolderName(folder?.name));
+        if (versionFolders.length > 0) {
+          const versionFileGroups = await Promise.all(
+            versionFolders.map((folder: RevisionFolderMeta) =>
+              fileManagerApi
+                .getExternalWorkspaceFiles(projectId, phase, getFinalDeliverablesVersionPath(folder))
+                .then((data) => data.files || [])
+                .catch(() => [])
+            )
+          );
+          nextFiles = [...nextFiles, ...versionFileGroups.flat()];
+          nextFolders = nextFolders.filter((folder: RevisionFolderMeta) => !isVersionFolderName(folder?.name));
+        }
+      }
+
+      setFiles(nextFiles);
+      setRevisionFolders(nextFolders);
+
+      if (phaseSlug === "post-production" && nestedSlug === "edited-footage") {
+        const [selectedData, revisionRootData] = await Promise.all([
+          fileManagerApi.getExternalWorkspaceFiles(projectId, phase, "Edited Footage/Selected for Edits").catch(() => null),
+          fileManagerApi.getExternalWorkspaceFiles(projectId, phase, "Edited Footage").catch(() => null),
+        ]);
+
+        setSelectedForEditsCount(selectedData?.files?.length || revisionRootData?.files?.length || 0);
+
+        const nextVersionCounts: Record<number, number> = {
+          1: revisionRootData?.files?.length || 0,
+        };
+        const versionFolders = ((revisionRootData?.folders || []) as RevisionFolderMeta[]).filter((folder) =>
+          /^V\d+$/i.test(String(folder?.name || ""))
+        );
+        const versionCountEntries = await Promise.all(
+          versionFolders.map(async (folder) => {
+            const version = Number(String(folder.name).replace(/\D/g, ""));
+            if (version <= 1) return null;
+            const versionData = await fileManagerApi
+              .getExternalWorkspaceFiles(projectId, phase, `Edited Footage/V${version}`)
+              .catch(() => null);
+            return [version, versionData?.files?.length ?? Number(folder.fileCount || 0)] as const;
+          })
+        );
+        versionCountEntries.forEach((entry) => {
+          if (!entry) return;
+          const [version, count] = entry;
+          nextVersionCounts[version] = count;
+        });
+        if (isRevisionVersionView && activeRevisionVersion > 1 && nextVersionCounts[activeRevisionVersion] === undefined) {
+          nextVersionCounts[activeRevisionVersion] = workspaceData.files?.length || 0;
+        }
+        versionFolders.forEach((folder) => {
+          const version = Number(String(folder.name).replace(/\D/g, ""));
+          if (version > 1 && nextVersionCounts[version] === undefined) {
+            nextVersionCounts[version] = Number(folder.fileCount || 0);
+          }
+        });
+        setRevisionVersionCounts(nextVersionCounts);
+        if (isRevisionsView || isEditedFootageRoot) {
+          setRevisionFolders(versionFolders);
+        }
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load files");
     } finally {
       setLoading(false);
     }
@@ -207,14 +431,17 @@ export default function SubFolderDetailsPage() {
     return () => {
       mounted = false;
     };
-  }, [folderPath, phaseSlug, projectId]);
+  }, [activeFolderPath, activeRevisionVersion, isEditedFootageRoot, isRevisionVersionView, isRevisionsView, phaseSlug, projectId]);
 
   const folderTitle = useMemo(() => {
+    if (isSelectedForEditsView) return "Selected for Edits";
+    if (isRevisionsView) return "Revision";
+    if (isRevisionVersionView) return `Revision Version ${activeRevisionVersion}`;
     if (nestedSlug === "raw-footage") return "Raw Footages";
     if (nestedSlug === "edited-footage") return "Edited Footages";
     if (nestedSlug === "final-deliverables") return "Final Deliverables";
     return folderName || "Files";
-  }, [folderName, nestedSlug]);
+  }, [activeRevisionVersion, folderName, isRevisionVersionView, isRevisionsView, isSelectedForEditsView, nestedSlug]);
 
   const folderFiles = useMemo(() => {
     return mapExternalFilesToUi(files).map((file) => ({
@@ -234,6 +461,26 @@ export default function SubFolderDetailsPage() {
     [filteredData, visibleFileCount]
   );
   const hasMoreFiles = filteredData.length > visibleFileCount;
+  const allVisibleFilesSelected = useMemo(
+    () =>
+      visibleFiles.length > 0 &&
+      visibleFiles.every((file) => selectedFilePaths.includes(file.filepath || "")),
+    [selectedFilePaths, visibleFiles]
+  );
+  const revisionVersions = useMemo(() => {
+    const versions = new Set<number>([1]);
+    Object.keys(revisionVersionCounts).forEach((version) => versions.add(Number(version)));
+    revisionFolders.forEach((folder) => {
+      const match = String(folder?.name || "").match(/^V(\d+)$/i);
+      if (match) versions.add(Number(match[1]));
+    });
+    if (activeRevisionVersion > 1) versions.add(activeRevisionVersion);
+    return Array.from(versions).filter((version) => Number.isFinite(version) && version > 0).sort((a, b) => a - b);
+  }, [activeRevisionVersion, revisionFolders, revisionVersionCounts]);
+  const nextRevisionVersion = useMemo(
+    () => Math.max(1, ...revisionVersions) + 1,
+    [revisionVersions]
+  );
 
   const fileBoardColumns = useMemo(() => {
     const labels = Array.from(new Set(filteredData.map((file) => file.label || "file")));
@@ -249,15 +496,320 @@ export default function SubFolderDetailsPage() {
     }));
   }, [filteredData]);
 
+  const openEditView = (view: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("editView", view);
+    router.push(`${pathname}?${next.toString()}`);
+  };
+
+  const openUploadModal = (options?: {
+    pathOverride?: string;
+    folderNameOverride?: string;
+    targetEditView?: string;
+  }) => {
+    setUploadPathOverride(options?.pathOverride || null);
+    setUploadFolderNameOverride(options?.folderNameOverride || null);
+    setUploadTargetEditView(options?.targetEditView || null);
+    setNewVersionComment("");
+    setIsUploadModalOpen(true);
+  };
+
+  const ensureRevisionVersionFolder = async (version: number) => {
+    if (phaseSlug !== "post-production") return true;
+    try {
+      await fileManagerApi.createExternalFolder(projectId, `V${version}`, {
+        phase: "post",
+        path: "Edited Footage",
+      });
+      return true;
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : `Failed to prepare Version ${version} folder`);
+      return false;
+    }
+  };
+
+  const openCreateNewVersionUpload = async () => {
+    const version = nextRevisionVersion;
+    const folderReady = await ensureRevisionVersionFolder(version);
+    if (!folderReady) return;
+    openUploadModal({
+      pathOverride: `Edited Footage/V${version}`,
+      folderNameOverride: `Version ${version}`,
+      targetEditView: `revision-version-${version}`,
+    });
+  };
+
+  const openRevisionUploadFromFile = async (file: AdminUiFile) => {
+    if (!canUploadRevisionFromCurrentView || activeRevisionUploadVersion == null) return false;
+    if (!isPreviewableFile(file)) return false;
+
+    const targetVersion = activeRevisionUploadVersion + 1;
+    const folderReady = await ensureRevisionVersionFolder(targetVersion);
+    if (!folderReady) return true;
+    setUploadPathOverride(`Edited Footage/V${targetVersion}`);
+    setUploadFolderNameOverride(`Version ${targetVersion}`);
+    setUploadTargetEditView(`revision-version-${targetVersion}`);
+    setNewVersionComment(`Revision upload for ${file.title}`);
+    setIsUploadModalOpen(true);
+    return true;
+  };
+
+  const renderLinkedPanelHeader = (title: string, countLabel: string, action?: React.ReactNode) => (
+    <div className="rounded-xl border border-white/10 bg-[#101010] p-4">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+            <FolderOpen className="h-4 w-4 text-[#E8D1AB]" />
+          </div>
+          <h2 className="text-sm font-semibold text-[#E8D1AB]">
+            {title} <span className="text-white">({countLabel})</span>
+          </h2>
+        </div>
+        {action}
+      </div>
+      <div className="flex items-center gap-3 rounded-md border border-white/15 bg-[#171717] px-4 py-3 text-xs text-white/80">
+        <span className="flex h-7 w-7 items-center justify-center rounded bg-white text-[#19437D]">
+          <LinkIcon size={15} />
+        </span>
+        <div>
+          <p>Linked to: Corporate Event 2026</p>
+          <p className="mt-0.5 flex items-center gap-1 text-white/65">
+            <CalendarDays size={12} /> Jan 15, 2024
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEditToolbar = (showVersion = false) => (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="relative w-full max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" />
+        <input
+          type="text"
+          placeholder="Search"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className="h-9 w-full rounded-md border border-white/10 bg-[#202020] pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/35"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        {showVersion ? (
+          <BasicDropdown
+            label="Version"
+            value={`Version ${activeRevisionVersion}`}
+            onChange={(value) => {
+              const version = Number(String(value).replace(/\D/g, ""));
+              if (version > 0) openEditView(`revision-version-${version}`);
+            }}
+            options={revisionVersions.map((version) => `Version ${version}`)}
+          />
+        ) : null}
+        <BasicDropdown label="Status" value="" onChange={() => {}} options={STATUSES} />
+        <FileManagerViewToggle
+          isOpen={isOpen}
+          setIsOpen={setIsOpen}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+        />
+      </div>
+    </div>
+  );
+
+  const renderEditFolderTile = (
+    title: string,
+    fileCount: number,
+    onOpen: () => void,
+    centered = false
+  ) => (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-white/15 bg-[#18181b] text-left shadow-xl transition hover:border-white/25 hover:bg-[#1c1c20]"
+    >
+      <div className="flex h-full flex-col">
+        <div className={`flex flex-1 px-7 py-7 ${centered ? "items-center justify-center text-center" : "items-start justify-between gap-3"}`}>
+          {centered ? (
+            <div>
+              <span className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
+                <Plus size={24} />
+              </span>
+              <p className="text-base font-semibold text-[#E8D1AB]">{title}</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start gap-4">
+                <FolderOpen className="mt-0.5 h-7 w-7 fill-[#E8D1AB]/20 text-[#E8D1AB]" />
+                <div>
+                  <p className="text-lg font-semibold text-white">{title}</p>
+                  <p className="mt-2 text-lg text-[#E8D1AB]">
+                    {String(fileCount).padStart(2, "0")} Files
+                  </p>
+                </div>
+              </div>
+              <MoreVertical className="h-6 w-6 text-white/70" />
+              <div className="absolute mt-24 flex gap-3">
+                <span className="rounded-full bg-black px-5 py-2 text-sm font-semibold text-white">Folder</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#D4FFE4] px-4 py-2 text-sm font-medium text-[#16A34A]">
+                  <LinkIcon size={16} />
+                  Linked
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+        {!centered ? (
+          <div className="flex items-center gap-5 border-t border-white/20 px-7 py-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#C8E1FF] text-lg font-medium text-black">
+              {getDisplayInitials(title)}
+            </div>
+            <div className="min-w-0 text-lg">
+              <p className="truncate text-white/90">Updated 3 mins ago</p>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </button>
+  );
+
+  const renderEditFileCard = (file: AdminUiFile) => (
+    <div
+      key={file.id}
+      onClick={() => handleOpenFile(file)}
+      className={`group overflow-hidden rounded-lg border bg-[#171717] outline-none transition hover:border-white/25 cursor-pointer ${
+        selectedFilePaths.includes(file.filepath || "") ? "border-[#22C55E] ring-1 ring-[#22C55E]/40" : "border-white/10"
+      }`}
+    >
+      <div className="p-3">
+        <div className="mb-3 flex items-center justify-between text-xs text-white">
+          <div className="flex items-center gap-2">
+            <span className="h-4 w-4 rounded border border-white/20" />
+            <span>ID : #12345</span>
+          </div>
+          <span>{formatFileSize(file.size ?? file.fileSizeBytes)}</span>
+        </div>
+        <div className="flex aspect-[1.15] items-center justify-center overflow-hidden rounded bg-[#232323]">
+          {previewUrls[file.id] && file.label === "image" ? (
+            <img src={previewUrls[file.id]} alt={file.title} className="h-full w-full object-cover" />
+          ) : previewUrls[file.id] && file.label === "video" ? (
+            <video src={previewUrls[file.id]} className="h-full w-full object-cover" muted playsInline />
+          ) : (
+            <Download className="h-12 w-12 rounded-2xl bg-white/40 p-3 text-white" />
+          )}
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <p className="truncate text-xs text-white">
+            {file.title}{isRevisionVersionView ? ` - V${activeRevisionVersion}` : " - RAW_V1"}
+          </p>
+          <span className="rounded border border-white/10 bg-[#252525] px-2 py-0.5 text-[10px] text-[#32D174]">
+            V{isRevisionVersionView ? activeRevisionVersion : 1} Latest
+          </span>
+        </div>
+        <span className="mt-2 inline-flex rounded-full bg-[#6F2DBD]/35 px-2 py-1 text-[10px] text-[#D8B4FE]">
+          {isRevisionVersionView ? `Revision V${activeRevisionVersion}` : "File Selected For Edits"}
+        </span>
+      </div>
+      <div className="flex items-center justify-between border-t border-white/10 px-3 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C8E1FF] text-xs font-semibold text-black">
+            {file.userInitials || getDisplayInitials(workspaceName)}
+          </div>
+          <div className="text-xs">
+            <p className="text-white/80">Uploaded by {workspaceName || "Unknown"}</p>
+            <p className="text-[10px] text-white/45">{formatShortDateTime(file.updatedAt || file.lastOpened)}</p>
+          </div>
+        </div>
+        <MoreVertical className="h-5 w-5 text-white/70" />
+      </div>
+    </div>
+  );
+
+  const renderEditedFootageVirtualView = () => {
+    if (isEditedFootageRoot) {
+      const revisionFilesCount = Object.values(revisionVersionCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+      return (
+        <div className="space-y-5">
+          {renderLinkedPanelHeader("Edits", "2 Folders")}
+          {renderEditToolbar()}
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+            {renderEditFolderTile("Selected for Edits", selectedForEditsCount, () => openEditView("selected-for-edits"))}
+            {renderEditFolderTile("Revisions", revisionFilesCount, () => openEditView("revisions"))}
+          </div>
+        </div>
+      );
+    }
+
+    if (isRevisionsView) {
+      const availableVersions = revisionVersions.length ? revisionVersions : [1];
+      return (
+        <div className="space-y-5">
+          {renderLinkedPanelHeader("Revision", `${availableVersions.length} Folder${availableVersions.length === 1 ? "" : "s"}`)}
+          {renderEditToolbar(true)}
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+            {availableVersions.map((version) => (
+              <React.Fragment key={`revision-version-${version}`}>
+                {renderEditFolderTile(
+                  `Version ${version}`,
+                  revisionVersionCounts[version] || 0,
+                  () => openEditView(`revision-version-${version}`)
+                )}
+              </React.Fragment>
+            ))}
+            <React.Fragment key="revision-create-new-version">
+              {renderEditFolderTile("Create New Version", 0, openCreateNewVersionUpload, true)}
+            </React.Fragment>
+          </div>
+        </div>
+      );
+    }
+
+    if (isSelectedForEditsView || isRevisionVersionView) {
+      const title = isRevisionVersionView ? `Revision Version ${activeRevisionVersion}` : "Selected for Edits";
+      return (
+        <div className="space-y-5">
+          {renderLinkedPanelHeader(
+            title,
+            `${filteredData.length} Files`,
+            null
+          )}
+          {renderEditToolbar(isRevisionVersionView)}
+          {filteredData.length === 0 ? (
+            <EmptyFileState actionLabel={undefined} />
+          ) : (
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+              {visibleFiles.map((file) => renderEditFileCard(file as AdminUiFile))}
+            </div>
+          )}
+          {hasMoreFiles ? (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+              >
+                View More
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     setVisibleFileCount(FILES_PAGE_SIZE);
-  }, [folderPath, phaseSlug, projectId, searchTerm, folderFiles.length]);
+  }, [activeFolderPath, phaseSlug, projectId, searchTerm, folderFiles.length]);
+
+  useEffect(() => {
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
+  }, [activeFolderPath, phaseSlug, projectId]);
 
   useEffect(() => {
     const previewableFiles = visibleFiles.filter(
-      (file: any) =>
-        file.filepath &&
-        (file.contentType?.startsWith("image/") || file.contentType?.startsWith("video/"))
+      (file: any) => file.filepath && isPreviewableFile(file)
     );
     if (!previewableFiles.length) return;
 
@@ -510,7 +1062,9 @@ export default function SubFolderDetailsPage() {
                 </div>
               </div>
 
-              {viewMode === "board" ? (
+              {isEditedFootageRoot || isSelectedForEditsView || isRevisionsView || isRevisionVersionView ? (
+                renderEditedFootageVirtualView()
+              ) : viewMode === "board" ? (
                 filteredData.length === 0 ? (
                   <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
@@ -784,14 +1338,33 @@ export default function SubFolderDetailsPage() {
 
         <UploadModal
           isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-          folderName={folderTitle}
+          onClose={() => {
+            setIsUploadModalOpen(false);
+            setUploadPathOverride(null);
+            setUploadFolderNameOverride(null);
+            setUploadTargetEditView(null);
+            setNewVersionComment("");
+          }}
+          folderName={uploadFolderNameOverride || folderTitle}
+          requireVersionComment={Boolean(uploadTargetEditView)}
+          versionComment={newVersionComment}
+          onVersionCommentChange={setNewVersionComment}
           uploadPath={
             workspaceName
-              ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${folderPath}`
+              ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${uploadPathOverride || activeFolderPath}`
               : undefined
           }
-          onUploadComplete={loadFiles}
+          onUploadComplete={async () => {
+            await loadFiles();
+            if (uploadTargetEditView) {
+              toast.success(`${uploadFolderNameOverride || "New version"} created`);
+              openEditView(uploadTargetEditView);
+            }
+            setUploadPathOverride(null);
+            setUploadFolderNameOverride(null);
+            setUploadTargetEditView(null);
+            setNewVersionComment("");
+          }}
         />
 
         <DeleteConfirmModal
@@ -819,6 +1392,21 @@ export default function SubFolderDetailsPage() {
           fileUrl={viewerUrl}
           contentType={viewerFile?.contentType}
           fileMetaId={viewerFile?.filepath || null}
+          uploadAction={
+            viewerFile &&
+            canUploadRevisionFromCurrentView &&
+            isPreviewableFile(viewerFile)
+              ? {
+                  label: "Upload Files",
+                  onClick: async () => {
+                    const file = viewerFile;
+                    setViewerFile(null);
+                    setViewerUrl(null);
+                    await openRevisionUploadFromFile(file);
+                  },
+                }
+              : undefined
+          }
         />
 
         <ShareResourceModal

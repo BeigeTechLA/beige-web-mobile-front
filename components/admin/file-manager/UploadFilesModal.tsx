@@ -11,6 +11,9 @@ interface UploadModalProps {
   uploadPath?: string;
   onUploadComplete?: () => Promise<void> | void;
   isDark?: boolean;
+  versionComment?: string;
+  onVersionCommentChange?: (value: string) => void;
+  requireVersionComment?: boolean;
 }
 
 type UploadStatus = "queued" | "uploading" | "uploaded" | "failed";
@@ -46,6 +49,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
   uploadPath,
   onUploadComplete,
   isDark = true,
+  versionComment = "",
+  onVersionCommentChange,
+  requireVersionComment = false,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<UploadQueueItem[]>([]);
@@ -256,6 +262,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
     if (!selectedFiles.length) {
       setStatusMessage("Select at least one file.");
+      return;
+    }
+
+    if (requireVersionComment && !versionComment.trim()) {
+      setStatusMessage("Add a comment before creating the new version.");
       return;
     }
 
@@ -580,6 +591,24 @@ const UploadModal: React.FC<UploadModalProps> = ({
           ) : (
             <p className={`mt-1 text-xs ${isDark ? "text-red-300" : "text-red-500"}`}>Open a folder before uploading files.</p>
           )}
+          {requireVersionComment && (
+            <div className="mt-4">
+              <label className={`mb-1.5 block text-xs font-medium ${isDark ? "text-white/65" : "text-zinc-600"}`}>
+                Version comment
+              </label>
+              <textarea
+                value={versionComment}
+                onChange={(event) => onVersionCommentChange?.(event.target.value)}
+                disabled={isUploading}
+                placeholder="Add what changed in this version..."
+                className={`min-h-[78px] w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                  isDark
+                    ? "border-white/10 bg-[#202020] text-white placeholder:text-white/35 focus:border-[#E8D1AB]/60"
+                    : "border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400"
+                }`}
+              />
+            </div>
+          )}
           {selectedFiles.length > 0 && (
             <div className={`mt-3 space-y-2 rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/5" : "border-zinc-200 bg-zinc-50"
               }`}>
@@ -718,7 +747,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
           </button>
           <button
             onClick={handleUpload}
-            disabled={isUploading || !uploadPath}
+            disabled={isUploading || !uploadPath || (requireVersionComment && !versionComment.trim())}
             className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[110px] ${isDark ? "bg-[#E8D1AB] text-[#101010]" : "bg-black text-white"
               }`}
           >

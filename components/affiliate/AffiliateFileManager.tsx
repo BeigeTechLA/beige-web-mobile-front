@@ -5,6 +5,9 @@ import Cookies from "js-cookie";
 import {
   ArrowLeft,
   Camera,
+  CalendarDays,
+  Check,
+  CheckCircle2,
   CheckSquare,
   Download,
   ExternalLink,
@@ -15,16 +18,20 @@ import {
   LinkIcon,
   List,
   Loader2,
+  MoreVertical,
+  Plus,
   Search,
+  SendHorizontal,
+  Share2,
   Upload,
   X as CloseIcon,
 } from "lucide-react";
 import { useViewMode } from "@/hooks/useViewMode";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { SortDateButton } from "@/components/admin/SortDateButton";
-import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
@@ -63,6 +70,9 @@ interface BrowserFile {
   contentType?: string;
   lastOpened: string;
   userInitials: string;
+  uploadedBy?: string;
+  uploadedAt?: string;
+  size?: number;
 }
 
 interface FaceMatchItem {
@@ -89,6 +99,57 @@ const prettifyFolderName = (name?: string) => {
   if (normalized === "Post-Production") return "Post Production";
   if (normalized === "Raw Footage") return "Raw Footages";
   return normalized.replace(/-/g, " ");
+};
+
+const isRawFootagePath = (path?: string) => {
+  const lastSegment = String(path || "")
+    .split("/")
+    .filter(Boolean)
+    .pop()
+    ?.toLowerCase()
+    .replace(/[\s_-]+/g, "");
+
+  return lastSegment === "rawfootage" || lastSegment === "rawfootages";
+};
+
+const normalizePathToken = (value?: string) =>
+  String(value || "").toLowerCase().replace(/[\s_-]+/g, "");
+
+const isSelectedForEditsPath = (path?: string) =>
+  normalizePathToken(path) === "editedfootage/selectedforedits" ||
+  normalizePathToken(path) === "editedfootages/selectedforedits";
+
+const isFinalDeliverablesPath = (path?: string) =>
+  normalizePathToken(path) === "finaldeliverables";
+
+const isVersionFolderName = (name?: string) =>
+  /^v(?:ersion)?[\s_-]*\d+$/i.test(String(name || "").trim());
+
+const getFinalDeliverablesVersionPath = (folder: { name?: string; path?: string }) => {
+  const normalizedPath = String(folder?.path || "").replace(/\\/g, "/");
+  const finalDeliverablesMatch = normalizedPath.match(/(?:^|\/)(Final Deliverables\/.+)$/i);
+  if (finalDeliverablesMatch?.[1]) return finalDeliverablesMatch[1];
+  return `Final Deliverables/${folder.name || ""}`;
+};
+
+const getRevisionVersionFromPath = (path?: string) => {
+  const match = String(path || "").match(/revisions\/version\s*(\d+)/i);
+  return match ? Number(match[1]) : null;
+};
+
+const getFileExtension = (title?: string) => {
+  const parts = String(title || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() || "" : "";
+};
+
+const isPreviewableFile = (file: BrowserFile) => {
+  const extension = getFileExtension(file.title);
+  const contentType = String(file.contentType || "");
+  return (
+    contentType.startsWith("image/") ||
+    contentType.startsWith("video/") ||
+    ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif", "mp4", "mov", "avi", "mkv", "webm"].includes(extension)
+  );
 };
 
 const getInitials = (name?: string | null) => {
@@ -122,11 +183,30 @@ const formatRelativeTime = (value?: string) => {
   return date.toLocaleDateString();
 };
 
+const formatShortDateTime = (value?: string) => {
+  if (!value) return "10 Jan, 2026 - 10:00 AM";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "10 Jan, 2026 - 10:00 AM";
+  return date.toLocaleString("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatFileSize = (size?: number) => {
+  if (!size || Number.isNaN(size)) return "4.5 MB";
+  const mb = size / (1024 * 1024);
+  return `${mb >= 10 ? mb.toFixed(1) : mb.toFixed(1)} MB`;
+};
+
 export default function AffiliateFileManager() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
-  const [status, setStatus] = useState("");
+  const status = "";
   const [viewMode, setViewMode] = useViewMode();
 
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
@@ -145,13 +225,20 @@ export default function AffiliateFileManager() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
+  const [selectedEditFiles, setSelectedEditFiles] = useState<BrowserFile[]>([]);
+  const [selectedForEditsCount, setSelectedForEditsCount] = useState(0);
+  const [revisionVersionCounts, setRevisionVersionCounts] = useState<Record<number, number>>({});
+  const rawFootageSnapshotRef = useRef<BrowserFile[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isSendingForEdits, setIsSendingForEdits] = useState(false);
+  const [isApprovingFiles, setIsApprovingFiles] = useState(false);
+  const [showEditsSuccess, setShowEditsSuccess] = useState(false);
 
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerFile, setViewerFile] = useState<BrowserFile | null>(null);
   const [viewerName, setViewerName] = useState("");
   const [viewerType, setViewerType] = useState("");
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
-  const [viewerMetaId, setViewerMetaId] = useState<string | null>(null);
   const [isFaceScanning, setIsFaceScanning] = useState(false);
   const [faceMatches, setFaceMatches] = useState<FaceMatchItem[]>([]);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -226,7 +313,7 @@ export default function AffiliateFileManager() {
     }
   };
 
-  const loadPhase = async (
+  const loadPhase = useCallback(async (
     workspace: WorkspaceCard,
     phase: "pre" | "post",
     path = ""
@@ -234,14 +321,82 @@ export default function AffiliateFileManager() {
     try {
       setIsPhaseLoading(true);
       setError(null);
-      const response = await fileManagerApi.getExternalWorkspaceFiles(
+      const shouldLoadSelectedForEditsFiles = phase === "post" && isSelectedForEditsPath(path);
+      const revisionVersion = phase === "post" ? getRevisionVersionFromPath(path) : null;
+      const candidatePaths =
+        phase === "post" && isRawFootagePath(path)
+          ? Array.from(new Set([path, "Raw Footages", "Raw Footage"].filter(Boolean)))
+          : shouldLoadSelectedForEditsFiles
+            ? Array.from(
+                new Set(
+                  [
+                    path,
+                    "Edited Footage/Selected for Edits",
+                    "Edited Footages/Selected for Edits",
+                    "Edited Footage/Selected For Edits",
+                    "Edited Footages/Selected For Edits",
+                    "Selected for Edits",
+                    "Selected For Edits",
+                    "Edited Footage",
+                    "Edited Footages",
+                  ].filter(Boolean)
+                )
+              )
+          : revisionVersion
+            ? Array.from(
+                new Set(
+                  revisionVersion <= 1
+                    ? [
+                        "Edited Footage",
+                        "Edited Footages",
+                      ].filter(Boolean)
+                    : [
+                        `Edited Footage/V${revisionVersion}`,
+                        `Edited Footages/V${revisionVersion}`,
+                      ].filter(Boolean)
+                )
+              )
+          : [path];
+
+      let response = await fileManagerApi.getExternalWorkspaceFiles(
         workspace.externalId,
         phase,
-        path || undefined
+        candidatePaths[0] || undefined
       );
 
+      for (const candidatePath of candidatePaths.slice(1)) {
+        if (
+          (response.files || []).length > 0 ||
+          (!shouldLoadSelectedForEditsFiles && (response.folders || []).length > 0)
+        ) break;
+        response = await fileManagerApi.getExternalWorkspaceFiles(
+          workspace.externalId,
+          phase,
+          candidatePath || undefined
+        );
+      }
+
+      let nextFolders = response.folders || [];
+      let nextFiles = response.files || [];
+
+      if (phase === "post" && isFinalDeliverablesPath(path)) {
+        const versionFolders = nextFolders.filter((folder) => isVersionFolderName(folder?.name));
+        if (versionFolders.length > 0) {
+          const versionFileGroups = await Promise.all(
+            versionFolders.map((folder) =>
+              fileManagerApi
+                .getExternalWorkspaceFiles(workspace.externalId, phase, getFinalDeliverablesVersionPath(folder))
+                .then((data) => data.files || [])
+                .catch(() => [])
+            )
+          );
+          nextFiles = [...nextFiles, ...versionFileGroups.flat()];
+          nextFolders = nextFolders.filter((folder) => !isVersionFolderName(folder?.name));
+        }
+      }
+
       setPhaseFolders(
-        (response.folders || []).map((folder) => ({
+        nextFolders.map((folder) => ({
           name: folder.name,
           title: prettifyFolderName(folder.name),
           fileCount: Number(folder.fileCount || 0),
@@ -249,22 +404,73 @@ export default function AffiliateFileManager() {
         }))
       );
 
-      setPhaseFiles(
-        (response.files || []).map((file) => ({
+      const mappedFiles = nextFiles.map((file) => ({
           id: file.id,
           title: file.name,
           filepath: file.path,
           contentType: file.contentType,
           lastOpened: file.updatedAt || file.createdAt || "",
-          userInitials: getInitials(file.name),
-        }))
-      );
+          userInitials: getInitials(
+            file.uploadedByName || file.uploadedBy || file.uploaded_by?.name || file.name
+          ),
+          uploadedBy:
+            file.uploadedByName ||
+            file.uploadedBy ||
+            file.uploaded_by?.name ||
+            workspace.title ||
+            "Unknown",
+          uploadedAt: file.updatedAt || file.createdAt || "",
+          size: file.size,
+        }));
+
+      const shouldKeepRawSnapshot =
+        phase === "post" &&
+        isRawFootagePath(path) &&
+        mappedFiles.length === 0 &&
+        rawFootageSnapshotRef.current.length > 0;
+
+      setPhaseFiles(shouldKeepRawSnapshot ? rawFootageSnapshotRef.current : mappedFiles);
+      if (phase === "post" && isRawFootagePath(path) && mappedFiles.length > 0) {
+        rawFootageSnapshotRef.current = mappedFiles;
+      }
+
+      if (phase === "post" && normalizePathToken(path).startsWith("editedfootage")) {
+        const [selectedData, revisionRootData] = await Promise.all([
+          fileManagerApi.getExternalWorkspaceFiles(workspace.externalId, phase, "Edited Footage/Selected for Edits").catch(() => null),
+          fileManagerApi.getExternalWorkspaceFiles(workspace.externalId, phase, "Edited Footage").catch(() => null),
+        ]);
+
+        setSelectedForEditsCount(selectedData?.files?.length || revisionRootData?.files?.length || 0);
+
+        const nextVersionCounts: Record<number, number> = {
+          1: revisionRootData?.files?.length || 0,
+        };
+        const versionFolders = (revisionRootData?.folders || []).filter((folder) =>
+          /^V\d+$/i.test(String(folder?.name || ""))
+        );
+        const versionCountEntries = await Promise.all(
+          versionFolders.map(async (folder) => {
+            const version = Number(String(folder.name).replace(/\D/g, ""));
+            if (version <= 1) return null;
+            const versionData = await fileManagerApi
+              .getExternalWorkspaceFiles(workspace.externalId, phase, `Edited Footage/V${version}`)
+              .catch(() => null);
+            return [version, versionData?.files?.length ?? Number(folder.fileCount || 0)] as const;
+          })
+        );
+        versionCountEntries.forEach((entry) => {
+          if (!entry) return;
+          const [version, count] = entry;
+          nextVersionCounts[version] = count;
+        });
+        setRevisionVersionCounts(nextVersionCounts);
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to load folder contents"));
     } finally {
       setIsPhaseLoading(false);
     }
-  };
+  }, []);
 
   const openWorkspace = async (workspace: WorkspaceCard) => {
     try {
@@ -298,7 +504,7 @@ export default function AffiliateFileManager() {
     if (selectedWorkspace && selectedPhase) {
       loadPhase(selectedWorkspace, selectedPhase, selectedPath);
     }
-  }, [selectedWorkspace, selectedPhase, selectedPath]);
+  }, [loadPhase, selectedWorkspace, selectedPhase, selectedPath]);
 
   useEffect(() => {
     setSelectedFilePaths([]);
@@ -308,12 +514,7 @@ export default function AffiliateFileManager() {
   useEffect(() => {
     const previewableFiles = phaseFiles
       .slice(0, visibleFileCount)
-      .filter(
-        (file) =>
-          file.filepath &&
-          (file.contentType?.startsWith("image/") ||
-            file.contentType?.startsWith("video/"))
-      );
+      .filter((file) => file.filepath && isPreviewableFile(file));
 
     if (!previewableFiles.length) return;
 
@@ -370,16 +571,25 @@ export default function AffiliateFileManager() {
   }, [stopCamera]);
 
   const handleOpenFile = async (file: BrowserFile) => {
+    setViewerFile(file);
+    setViewerOpen(true);
+    setViewerName(file.title);
+    setViewerType(file.contentType || "");
+
+    const cachedPreviewUrl = previewUrls[file.id];
+    if (cachedPreviewUrl) {
+      setViewerUrl(cachedPreviewUrl);
+      return;
+    }
+
+    setViewerUrl(null);
     try {
-      setViewerOpen(true);
-      setViewerName(file.title);
-      setViewerType(file.contentType || "");
-      setViewerMetaId(file.filepath || null);
-      setViewerUrl(null);
-      const response = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+      const response = await fileManagerApi.getExternalFileViewUrl(file.filepath, {
+        silent: true,
+      });
       setViewerUrl(response.url || null);
     } catch {
-      setViewerOpen(false);
+      setViewerUrl("");
     }
   };
 
@@ -418,6 +628,137 @@ export default function AffiliateFileManager() {
         ? prev.filter((path) => path !== filepath)
         : [...prev, filepath]
     );
+  };
+
+  const toggleSelectAllVisibleFiles = () => {
+    const visiblePaths = visibleFiles.map((file) => file.filepath).filter(Boolean);
+    if (!visiblePaths.length) return;
+
+    setIsSelectionMode(true);
+    setSelectedFilePaths((prev) => {
+      const allVisibleSelected = visiblePaths.every((path) => prev.includes(path));
+      if (allVisibleSelected) {
+        return prev.filter((path) => !visiblePaths.includes(path));
+      }
+
+      return Array.from(new Set([...prev, ...visiblePaths]));
+    });
+  };
+
+  const toggleSelectAllApprovalFiles = () => {
+    const approvalPaths = getCurrentApprovalFilePaths();
+    if (!approvalPaths.length) return;
+
+    setIsSelectionMode(true);
+    setSelectedFilePaths((prev) => {
+      const allApprovalSelected = approvalPaths.every((path) => prev.includes(path));
+      if (allApprovalSelected) {
+        return prev.filter((path) => !approvalPaths.includes(path));
+      }
+
+      return Array.from(new Set([...prev, ...approvalPaths]));
+    });
+  };
+
+  const handleSendForEdits = async () => {
+    if (!selectedWorkspace || selectedFilePaths.length === 0) return;
+
+    try {
+      setIsSendingForEdits(true);
+      const selectedPaths = new Set(selectedFilePaths);
+      const nextSelectedEditFiles = phaseFiles.filter((file) =>
+        selectedPaths.has(file.filepath || "")
+      );
+      if (isRawFootageFolder && phaseFiles.length > 0) {
+        rawFootageSnapshotRef.current = phaseFiles;
+      }
+      const response = await fileManagerApi.sendExternalFilesForEdits({
+        externalId: selectedWorkspace.externalId,
+        filePaths: selectedFilePaths,
+      });
+      const movedByOldPath = new Map(
+        (response?.data?.moved || []).map((item) => [item.oldPath, item.newPath])
+      );
+      setSelectedEditFiles(
+        nextSelectedEditFiles.map((file) => ({
+          ...file,
+          filepath: movedByOldPath.get(file.filepath) || file.filepath,
+        }))
+      );
+      setSelectedForEditsCount(nextSelectedEditFiles.length);
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+      setShowEditsSuccess(true);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to send files for edits");
+    } finally {
+      setIsSendingForEdits(false);
+    }
+  };
+
+  const openEditedFootageFolder = () => {
+    setShowEditsSuccess(false);
+    setSelectedPhase("post");
+    setSelectedPath("Edited Footage");
+    setSearchTerm("");
+  };
+
+  const getCurrentApprovalFilePaths = () =>
+    phaseFiles.map((file) => file.filepath).filter(Boolean);
+
+  const getSelectedApprovalFilePaths = () => {
+    const currentPaths = new Set(getCurrentApprovalFilePaths());
+    return selectedFilePaths.filter((path) => currentPaths.has(path));
+  };
+
+  const handleApproveSelectedFiles = async () => {
+    if (!selectedWorkspace || !isRevisionVersionFolder || selectedFilePaths.length === 0) return;
+    const approvedFilePaths = getSelectedApprovalFilePaths();
+    if (!approvedFilePaths.length) return;
+
+    try {
+      setIsApprovingFiles(true);
+      const response = await fileManagerApi.approveExternalFiles({
+        externalId: selectedWorkspace.externalId,
+        approvedFilePaths,
+        allFilePaths: approvedFilePaths,
+      });
+      toast.success(response?.message || "Selected files approved");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+      await loadPhase(selectedWorkspace, "post", selectedPath);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve selected files");
+    } finally {
+      setIsApprovingFiles(false);
+    }
+  };
+
+  const handleApproveAllFiles = async () => {
+    if (!selectedWorkspace || !isRevisionVersionFolder) return;
+    const filePaths = getCurrentApprovalFilePaths();
+    if (!filePaths.length) return;
+    const allFilesSelected = filePaths.every((path) => selectedFilePaths.includes(path));
+    if (!allFilesSelected) {
+      toast.error("Please select all files before using Approve All");
+      return;
+    }
+
+    try {
+      setIsApprovingFiles(true);
+      const response = await fileManagerApi.approveAllExternalFiles({
+        externalId: selectedWorkspace.externalId,
+        filePaths,
+      });
+      toast.success(response?.message || "All files approved");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+      await loadPhase(selectedWorkspace, "post", selectedPath);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve all files");
+    } finally {
+      setIsApprovingFiles(false);
+    }
   };
 
   const handleBatchDownload = async () => {
@@ -633,7 +974,6 @@ export default function AffiliateFileManager() {
     setViewerOpen(true);
     setViewerName(match.path.split("/").pop() || "Matched Image");
     setViewerType("image/*");
-    setViewerMetaId(match.path);
     setViewerUrl(match.url);
   };
 
@@ -740,6 +1080,38 @@ export default function AffiliateFileManager() {
   const canUploadInSelectedPhase = Boolean(
     selectedWorkspace && selectedPhase === "pre" && !isSelectedWorkspaceCommonEvent
   );
+  const isRawFootageFolder = selectedPhase === "post" && isRawFootagePath(selectedPath);
+  const normalizedSelectedPath = normalizePathToken(selectedPath);
+  const isEditsFolder = selectedPhase === "post" && normalizedSelectedPath === "editedfootage";
+  const isSelectedForEditsFolder =
+    selectedPhase === "post" && normalizedSelectedPath === "editedfootage/selectedforedits";
+  const isRevisionsFolder =
+    selectedPhase === "post" && normalizedSelectedPath === "editedfootage/revisions";
+  const isRevisionVersionFolder =
+    selectedPhase === "post" && normalizedSelectedPath.startsWith("editedfootage/revisions/version");
+  const currentApprovalVersion = getRevisionVersionFromPath(selectedPath) || 1;
+  const revisionVersions = useMemo(() => {
+    const versions = new Set<number>([1]);
+    Object.keys(revisionVersionCounts).forEach((version) => {
+      const numericVersion = Number(version);
+      if (Number.isFinite(numericVersion) && numericVersion > 0) versions.add(numericVersion);
+    });
+    if (currentApprovalVersion > 1) versions.add(currentApprovalVersion);
+    return Array.from(versions).sort((a, b) => a - b);
+  }, [currentApprovalVersion, revisionVersionCounts]);
+  const visibleFilePaths = visibleFiles.map((file) => file.filepath).filter(Boolean);
+  const areAllVisibleFilesSelected =
+    visibleFilePaths.length > 0 &&
+    visibleFilePaths.every((path) => selectedFilePaths.includes(path));
+  const approvalFilePaths = isRevisionVersionFolder
+    ? phaseFiles.map((file) => file.filepath).filter(Boolean)
+    : [];
+  const selectedApprovalFileCount = selectedFilePaths.filter((path) =>
+    approvalFilePaths.includes(path)
+  ).length;
+  const areAllApprovalFilesSelected =
+    approvalFilePaths.length > 0 &&
+    approvalFilePaths.every((path) => selectedFilePaths.includes(path));
   const uploadPath = useMemo(() => {
     if (!selectedWorkspace || !canUploadInSelectedPhase) return undefined;
     const basePath = `${selectedWorkspace.title}/Pre-Production`;
@@ -1101,6 +1473,405 @@ export default function AffiliateFileManager() {
     );
   };
 
+  const renderLinkedPanelHeader = (title: string, countLabel: string) => (
+    <div className="rounded-xl border border-white/10 bg-[#101010] p-4">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+          <FolderOpen className="h-4 w-4 text-[#E8D1AB]" />
+        </div>
+        <h2 className="text-sm font-semibold text-[#E8D1AB]">
+          {title} <span className="text-white">({countLabel})</span>
+        </h2>
+        {isEditsFolder ? (
+          <span className="rounded-full border border-[#23C55E]/20 bg-[#12351f] px-2 py-0.5 text-[10px] text-[#33D17A]">
+            V1 Latest
+          </span>
+        ) : null}
+      </div>
+      <div className="flex items-center gap-3 rounded-md border border-white/15 bg-[#171717] px-4 py-3 text-xs text-white/80">
+        <span className="flex h-7 w-7 items-center justify-center rounded bg-white text-[#19437D]">
+          <LinkIcon size={15} />
+        </span>
+        <div>
+          <p>Linked to: Corporate Event 2026</p>
+          <p className="mt-0.5 flex items-center gap-1 text-white/65">
+            <CalendarDays size={12} /> Jan 15, 2024
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderFolderTile = (
+    title: string,
+    fileCount: number,
+    onOpen: () => void,
+    extra?: React.ReactNode,
+    options?: { centered?: boolean }
+  ) => (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-white/15 bg-[#18181b] text-left shadow-xl transition hover:border-white/25 hover:bg-[#1c1c20]"
+    >
+      <div className="flex h-full flex-col">
+        <div className={`flex flex-1 gap-3 px-7 py-7 ${options?.centered ? "items-center justify-center text-center" : "items-start justify-between"}`}>
+          <div className="flex items-start gap-4">
+            {options?.centered ? null : (
+              <FolderOpen className="mt-0.5 h-7 w-7 fill-[#E8D1AB]/20 text-[#E8D1AB]" />
+            )}
+            <div>
+              {options?.centered ? (
+                <span className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
+                  <Plus size={24} />
+                </span>
+              ) : null}
+              <p className="text-lg font-semibold text-white">{title}</p>
+              {!options?.centered ? (
+                <p className="mt-2 text-lg text-[#E8D1AB]">
+                {String(fileCount).padStart(2, "0")} Files
+                </p>
+              ) : null}
+            </div>
+          </div>
+          {options?.centered ? null : extra || <MoreVertical className="h-6 w-6 text-white/70" />}
+          {!options?.centered ? (
+            <div className="absolute mt-24 flex gap-3">
+              <span className="rounded-full bg-black px-5 py-2 text-sm font-semibold text-white">Folder</span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#D4FFE4] px-4 py-2 text-sm font-medium text-[#16A34A]">
+                <LinkIcon size={16} />
+                Linked
+              </span>
+            </div>
+          ) : null}
+        </div>
+        {!options?.centered ? <div className="flex items-center gap-5 border-t border-white/20 px-7 py-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#C8E1FF] text-lg font-medium text-black">
+            {getInitials(title)}
+          </div>
+          <div className="min-w-0 text-lg">
+            <p className="truncate text-white/90">Updated {formatRelativeTime(selectedWorkspace?.lastOpened)}</p>
+          </div>
+        </div> : null}
+      </div>
+    </button>
+  );
+
+  const renderEditToolbar = (showVersion = false) => (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="relative w-full max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" />
+        <input
+          type="text"
+          placeholder="Search"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className="h-9 w-full rounded-md border border-white/10 bg-[#202020] pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/35"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        {showVersion ? (
+          <BasicDropdown
+            label="Version"
+            value={`Version ${currentApprovalVersion}`}
+            onChange={(value) => {
+              const version = Number(String(value).replace(/\D/g, ""));
+              if (version > 0) setSelectedPath(`Edited Footage/Revisions/Version ${version}`);
+            }}
+            options={revisionVersions.map((version) => `Version ${version}`)}
+          />
+        ) : null}
+        <BasicDropdown
+          label="Status"
+          value=""
+          onChange={() => {}}
+          options={["Latest", "Approved", "Pending"]}
+        />
+        <div className="flex overflow-hidden rounded-md border border-white/10 bg-[#202020]">
+          <Button onClick={() => setViewMode("grid")} className={`h-9 rounded-none px-4 ${viewMode === "grid" ? "bg-[#E8D1AB] text-black" : "bg-transparent text-white/60"}`}>
+            <Grid3X3 size={15} />
+          </Button>
+          <Button onClick={() => setViewMode("list")} className={`h-9 rounded-none px-4 ${viewMode === "list" ? "bg-[#E8D1AB] text-black" : "bg-transparent text-white/60"}`}>
+            <List size={15} />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEditFileCard = (file: BrowserFile, badge = "File Selected For Edits") => {
+    const previewUrl = previewUrls[file.id];
+    const selected = selectedFilePaths.includes(file.filepath || "");
+    const uploadedBy = file.uploadedBy || selectedWorkspace?.title || "Unknown";
+    const uploadedAt = formatShortDateTime(file.uploadedAt || file.lastOpened);
+
+    return (
+      <div
+        key={file.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => handleOpenFile(file)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") handleOpenFile(file);
+        }}
+        className="group overflow-hidden rounded-lg border border-white/10 bg-[#171717] outline-none transition hover:border-white/25"
+      >
+        <div className="p-3">
+          <div className="mb-3 flex items-center justify-between text-xs text-white">
+            <div className="flex items-center gap-2">
+              {isRawFootageFolder || isRevisionVersionFolder ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleFileSelection(file.filepath || "");
+                  }}
+                  className={`flex h-4 w-4 items-center justify-center rounded border ${selected ? "border-[#E8D1AB] bg-[#E8D1AB] text-black" : "border-white/20"}`}
+                >
+                  {selected ? <Check size={12} /> : null}
+                </button>
+              ) : (
+                <span className="h-4 w-4 rounded border border-white/20" />
+              )}
+              <span>ID : #12345</span>
+            </div>
+            <span>{formatFileSize(file.size)}</span>
+          </div>
+          <div className="flex aspect-[1.15] items-center justify-center overflow-hidden rounded bg-[#232323]">
+            {previewUrl && file.contentType?.startsWith("image/") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt={file.title} className="h-full w-full object-cover" />
+            ) : previewUrl && file.contentType?.startsWith("video/") ? (
+              <video src={previewUrl} className="h-full w-full object-cover" muted playsInline />
+            ) : (
+              <Download className="h-12 w-12 rounded-2xl bg-white/40 p-3 text-white" />
+            )}
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <p className="truncate text-xs text-white">
+              {file.title} - {isRevisionVersionFolder ? `V${currentApprovalVersion}` : "RAW_V1"}
+            </p>
+            <span className="rounded border border-white/10 bg-[#252525] px-2 py-0.5 text-[10px] text-[#32D174]">
+              V{isRevisionVersionFolder ? currentApprovalVersion : 1} Latest
+            </span>
+          </div>
+          <span className="mt-2 inline-flex rounded-full bg-[#6F2DBD]/35 px-2 py-1 text-[10px] text-[#D8B4FE]">
+            {badge}
+          </span>
+        </div>
+        <div className="flex items-center justify-between border-t border-white/10 px-3 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C8E1FF] text-xs font-semibold text-black">
+              {getInitials(uploadedBy)}
+            </div>
+            <div className="text-xs">
+              <p className="text-white/80">Uploaded by {uploadedBy}</p>
+              <p className="text-[10px] text-white/45">{uploadedAt}</p>
+            </div>
+          </div>
+          <MoreVertical className="h-5 w-5 text-white/70" />
+        </div>
+      </div>
+    );
+  };
+
+  const renderEditsFolder = () => (
+    <div className="space-y-5">
+      {renderLinkedPanelHeader("Edits", "2 Folders")}
+      {renderEditToolbar()}
+      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+        {renderFolderTile("Selected for Edits", selectedForEditsCount || selectedEditFiles.length, () =>
+          setSelectedPath("Edited Footage/Selected for Edits")
+        )}
+        {renderFolderTile("Revisions", Object.values(revisionVersionCounts).reduce((sum, count) => sum + Number(count || 0), 0), () =>
+          setSelectedPath("Edited Footage/Revisions")
+        )}
+      </div>
+    </div>
+  );
+
+  const renderSelectedForEdits = () => {
+    const files = phaseFiles;
+    const filtered = files.filter((file) =>
+      file.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+      <div className="space-y-5">
+        {renderLinkedPanelHeader("Selected for Edits", `${files.length} Files`)}
+        {renderEditToolbar()}
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((file) => renderEditFileCard(file))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRevisions = () => {
+    const availableVersions = revisionVersions.length ? revisionVersions : [1];
+
+    return (
+      <div className="space-y-5">
+        {renderLinkedPanelHeader("Revision", `${availableVersions.length} Folder${availableVersions.length === 1 ? "" : "s"}`)}
+        {renderEditToolbar(true)}
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+          {availableVersions.map((version) => (
+            <React.Fragment key={`revision-version-${version}`}>
+              {renderFolderTile(`Version ${version}`, revisionVersionCounts[version] || 0, () =>
+                setSelectedPath(`Edited Footage/Revisions/Version ${version}`)
+              )}
+            </React.Fragment>
+          ))}
+          <React.Fragment key="revision-create-new-version">
+            {renderFolderTile(
+              "Create New Version",
+              0,
+              () => {},
+              undefined,
+              { centered: true }
+            )}
+          </React.Fragment>
+        </div>
+      </div>
+    );
+  };
+
+  const renderRevisionVersion = () => {
+    const files = phaseFiles;
+    const filtered = files.filter((file) =>
+      file.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+      <div className="space-y-5">
+        <div className="rounded-xl border border-white/10 bg-[#101010] p-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                <FolderOpen className="h-4 w-4 text-[#E8D1AB]" />
+              </div>
+              <h2 className="text-sm font-semibold text-[#E8D1AB]">
+                Revision Version {currentApprovalVersion} <span className="text-white">({files.length} Files)</span>
+              </h2>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                onClick={toggleSelectAllApprovalFiles}
+                disabled={!filtered.length || isApprovingFiles}
+                className="h-9 rounded-md border border-white/15 bg-[#202020] px-4 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+              >
+                <CheckSquare size={14} />
+                Select All
+              </Button>
+              <Button
+                type="button"
+                onClick={handleApproveSelectedFiles}
+                disabled={!selectedApprovalFileCount || areAllApprovalFilesSelected || isApprovingFiles}
+                className="h-9 rounded-md bg-[#22C55E] px-4 text-xs font-semibold text-white hover:bg-[#16A34A] disabled:opacity-50"
+              >
+                {isApprovingFiles ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                Approve {selectedApprovalFileCount > 0 ? `(${selectedApprovalFileCount})` : ""}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleApproveAllFiles}
+                disabled={!areAllApprovalFilesSelected || isApprovingFiles}
+                className="h-9 rounded-md bg-[#22C55E] px-4 text-xs font-semibold text-white hover:bg-[#16A34A] disabled:opacity-50"
+              >
+                {isApprovingFiles ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                Approve All
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-md border border-white/15 bg-[#171717] px-4 py-3 text-xs text-white/80">
+            <span className="flex h-7 w-7 items-center justify-center rounded bg-white text-[#19437D]">
+              <LinkIcon size={15} />
+            </span>
+            <div>
+              <p>Linked to: Corporate Event 2026</p>
+              <p className="mt-0.5 flex items-center gap-1 text-white/65">
+                <CalendarDays size={12} /> Jan 15, 2024
+              </p>
+            </div>
+          </div>
+        </div>
+        {renderEditToolbar(true)}
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((file) => renderEditFileCard(file, "File Selected For Edits"))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSelectionActionBar = () => {
+    if (selectedFilePaths.length === 0) return null;
+
+    return (
+      <div className="mt-3 w-full border border-[#E8D1AB]/30 bg-[#1B1915] px-4 py-3 shadow-xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
+              {selectedFilePaths.length}
+            </div>
+            <span className="font-medium text-white">
+              {selectedFilePaths.length} File{selectedFilePaths.length === 1 ? "" : "s"} Selected
+              {isRawFootageFolder ? " for Edits" : ""}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              className="h-9 gap-2 text-white/70 underline underline-offset-4 hover:text-white"
+              onClick={() => {
+                setSelectedFilePaths([]);
+                setIsSelectionMode(false);
+              }}
+            >
+              Clear Selection
+            </Button>
+
+            <div className="mx-1 h-6 w-[1px] bg-white/10" />
+
+            {isRawFootageFolder ? (
+              <Button
+                className="h-9 gap-2 border border-[#E8D1AB]/50 bg-black text-[#E8D1AB] hover:bg-black/80"
+                onClick={handleSendForEdits}
+                disabled={isSendingForEdits}
+              >
+                {isSendingForEdits ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <SendHorizontal size={16} />
+                )}
+                Send For Edits
+              </Button>
+            ) : (
+              <Button
+                className="h-9 gap-2 border border-white/10 bg-white/10 text-white hover:bg-white/20"
+                onClick={handleBatchDownload}
+              >
+                <Download size={18} />
+                Download
+              </Button>
+            )}
+
+            <button
+              onClick={() => {
+                setSelectedFilePaths([]);
+                setIsSelectionMode(false);
+              }}
+              className="text-white/40 hover:text-white"
+            >
+              <CloseIcon size={20} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderPhaseBrowser = () => {
     if (isPhaseLoading) {
       return (
@@ -1108,6 +1879,22 @@ export default function AffiliateFileManager() {
           <Loader2 className="animate-spin text-white/50" size={28} />
         </div>
       );
+    }
+
+    if (isEditsFolder) {
+      return <div className="pb-20 lg:pb-0">{renderEditsFolder()}</div>;
+    }
+
+    if (isSelectedForEditsFolder) {
+      return <div className="pb-20 lg:pb-0">{renderSelectedForEdits()}</div>;
+    }
+
+    if (isRevisionsFolder) {
+      return <div className="pb-20 lg:pb-0">{renderRevisions()}</div>;
+    }
+
+    if (isRevisionVersionFolder) {
+      return <div className="pb-20 lg:pb-0">{renderRevisionVersion()}</div>;
     }
 
     return (
@@ -1161,22 +1948,44 @@ export default function AffiliateFileManager() {
         </div>
 
         {filteredFiles.length > 0 ? (
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                const nextMode = !isSelectionMode;
-                setIsSelectionMode(nextMode);
-                if (!nextMode) setSelectedFilePaths([]);
-              }}
-              className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
-                ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
-                : "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
-                }`}
-            >
-              <CheckSquare size={18} />
-              <span>{isSelectionMode ? "Cancel" : "Select"}</span>
-            </Button>
+          <div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {isRawFootageFolder ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={toggleSelectAllVisibleFiles}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      toggleSelectAllVisibleFiles();
+                    }
+                  }}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#202020] px-4 text-sm text-white/80 transition hover:border-white/20 hover:text-white"
+                >
+                  <Checkbox
+                    checked={areAllVisibleFilesSelected}
+                    className="pointer-events-none h-4 w-4 border-white/50 data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                  />
+                  <span>Select All</span>
+                </div>
+              ) : null}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  const nextMode = !isSelectionMode;
+                  setIsSelectionMode(nextMode);
+                  if (!nextMode) setSelectedFilePaths([]);
+                }}
+                className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
+                  ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                  : "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                  }`}
+              >
+                <CheckSquare size={18} />
+                <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+              </Button>
+            </div>
           </div>
         ) : null}
 
@@ -1269,7 +2078,13 @@ export default function AffiliateFileManager() {
                         previewUrl: previewUrls[file.id],
                         lastOpened: formatRelativeTime(file.lastOpened),
                       }}
-                      onOpen={() => handleOpenFile(file)}
+                      onOpen={() => {
+                        if (isSelectionMode) {
+                          toggleFileSelection(file.filepath || "");
+                          return;
+                        }
+                        handleOpenFile(file);
+                      }}
                       onDownload={() => handleDownloadFile(file)}
                       isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                       onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
@@ -1302,6 +2117,125 @@ export default function AffiliateFileManager() {
     );
   };
 
+  const renderAffiliateFileDrawer = () => {
+    if (!viewerOpen) return null;
+
+    const isImage = viewerType.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/i.test(viewerName);
+    const isVideo = viewerType.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(viewerName);
+    const uploadedBy = viewerFile?.uploadedBy || selectedWorkspace?.title || "Unknown";
+    const updatedAt = formatShortDateTime(viewerFile?.uploadedAt || viewerFile?.lastOpened);
+
+    return (
+      <div
+        className="fixed inset-0 z-[120] bg-black/65 backdrop-blur-[2px]"
+        onClick={() => {
+          setViewerOpen(false);
+          setViewerFile(null);
+        }}
+      >
+        <aside
+          className="ml-auto flex h-full w-full max-w-[560px] flex-col border-l border-white/10 bg-black text-white shadow-[0_24px_90px_rgba(0,0,0,0.65)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
+            <div className="min-w-0 pt-1">
+              <h3 className="truncate text-xl font-bold leading-7 text-white">{viewerName || "File"}</h3>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[#32D174]/20 bg-[#12351f] px-2.5 py-1 text-[11px] font-medium text-[#32D174]">
+                  V1 Latest
+                </span>
+                <span className="rounded-full border border-[#0B4E8A]/40 bg-[#0B4E8A] px-2.5 py-1 text-[11px] font-medium text-[#9DD1FF]">
+                  Raw Files Uploaded
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setViewerOpen(false);
+                setViewerFile(null);
+              }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#242424] text-white/75 transition hover:bg-white/15 hover:text-white"
+              aria-label="Close file details"
+            >
+              <CloseIcon size={20} />
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="mb-4 flex flex-wrap items-center gap-2.5">
+              <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E8D1AB]/30 bg-[#E8D1AB]/10 px-3.5 text-xs font-semibold text-[#E8D1AB] transition hover:bg-[#E8D1AB]/15">
+                <Check size={14} />
+                Request Revision
+              </button>
+              <button
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-[#171717] px-3.5 text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+                onClick={() => viewerFile && handleDownloadFile(viewerFile)}
+              >
+                <Download size={14} /> Download
+              </button>
+              <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-[#171717] px-3.5 text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white">
+                <Share2 size={14} /> Share
+              </button>
+            </div>
+
+            <div className="flex h-[360px] items-center justify-center overflow-hidden rounded-xl bg-white md:h-[420px]">
+              {viewerUrl === null ? (
+                <div className="flex h-full w-full items-center justify-center bg-[#171717] text-sm text-white/55">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading preview...
+                </div>
+              ) : viewerUrl && isImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={viewerUrl} alt={viewerName} className="h-full w-full object-contain" />
+              ) : viewerUrl && isVideo ? (
+                <video src={viewerUrl} controls className="h-full w-full bg-black object-contain" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-[#171717] text-sm text-white/55">
+                  Preview unavailable
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-x-8 gap-y-5 rounded-xl bg-[#1B1B1B] px-5 py-4 text-xs">
+              <div>
+                <p className="text-[11px] text-white/40">Uploaded by</p>
+                <p className="mt-1.5 font-medium text-white/85">{uploadedBy}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-white/40">Last updated</p>
+                <p className="mt-1.5 font-medium text-white/85">{updatedAt}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-white/40">File type</p>
+                <p className="mt-1.5 font-medium text-white/85">{isVideo ? "Video" : "Image"}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-white/40">Current version</p>
+                <p className="mt-1.5 font-medium text-white/85">Version 1</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl bg-[#1B1B1B] p-5">
+              <h4 className="text-sm font-semibold text-white">Comments</h4>
+              <div className="flex min-h-[110px] items-center justify-center text-center text-xs text-white/35">
+                No comments yet. Be the first to comment!
+              </div>
+              <input
+                type="text"
+                placeholder="Add a comment..."
+                className="h-11 w-full rounded-lg border border-white/10 bg-[#202020] px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#E8D1AB]/40"
+              />
+              <button className="mt-3 inline-flex h-9 items-center rounded-lg bg-[#A69A83] px-4 text-xs font-semibold text-black transition hover:bg-[#c9b68e]">
+                Post Comment
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    );
+  };
+
   return (
     <div
       className="space-y-4 lg:space-y-8"
@@ -1320,13 +2254,16 @@ export default function AffiliateFileManager() {
       </div>
 
       {(selectedWorkspace || selectedPhase) && (
-        <button
-          onClick={handleBack}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2"
-        >
-          <ArrowLeft size={18} />
-          <span className="text-sm font-medium">Back</span>
-        </button>
+        <div className="space-y-3">
+          <button
+            onClick={handleBack}
+            className="text-white hover:text-white/80 transition-colors flex items-center gap-2"
+          >
+            <ArrowLeft size={18} />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+          {renderSelectionActionBar()}
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2 text-sm text-white/60">
@@ -1460,7 +2397,7 @@ export default function AffiliateFileManager() {
         </>
       )}
 
-      {selectedWorkspace && (
+      {selectedWorkspace && !isEditsFolder && !isSelectedForEditsFolder && !isRevisionsFolder && !isRevisionVersionFolder && (
         <div className="relative max-w-xl">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
           <input
@@ -1481,48 +2418,27 @@ export default function AffiliateFileManager() {
         renderRoot()
       )}
 
-      {selectedFilePaths.length > 0 ? (
-        <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8D1AB]/50 bg-[#171717] p-4 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
-                {selectedFilePaths.length}
+      {showEditsSuccess ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[6px]">
+          <div className="w-[calc(100vw-24px)] max-w-[440px] overflow-hidden rounded-[22px] border border-white/20 bg-black px-5 py-6 text-center text-white shadow-[0_30px_90px_rgba(0,0,0,0.6)] sm:max-w-[460px] sm:px-7 sm:py-7">
+            <div className="mx-auto max-w-[372px]">
+              <div className="mx-auto mb-4 flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[#E8D1AB] text-black">
+                <CheckCircle2 className="h-[31px] w-[31px] stroke-[1.75]" />
               </div>
-              <span className="font-medium text-white">Files selected</span>
+              <h3 className="text-[25px] font-medium leading-tight text-white">
+                Edits Request Sent Successfully
+              </h3>
+              <p className="mx-auto mt-2.5 max-w-[340px] text-[15px] leading-[1.45] text-white/55">
+                Your selected files have been sent for edits. The assigned team will review and start the requested changes shortly.
+              </p>
             </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                className="gap-2 text-white/70 hover:text-white"
-                onClick={() => {
-                  setSelectedFilePaths([]);
-                  setIsSelectionMode(false);
-                }}
-              >
-                Clear
-              </Button>
-
-              <div className="mx-1 h-6 w-[1px] bg-white/10" />
-
-              <Button
-                className="gap-2 border border-white/10 bg-white/10 text-white hover:bg-white/20"
-                onClick={handleBatchDownload}
-              >
-                <Download size={18} />
-                Download
-              </Button>
-            </div>
-
-            <button
-              onClick={() => {
-                setSelectedFilePaths([]);
-                setIsSelectionMode(false);
-              }}
-              className="text-white/40 hover:text-white"
+            <Button
+              type="button"
+              onClick={openEditedFootageFolder}
+              className="mx-auto mt-5 flex h-[46px] w-full max-w-[372px] rounded-[12px] bg-[#E8D1AB] text-[15px] font-semibold text-black hover:bg-[#d8c196]"
             >
-              <CloseIcon size={20} />
-            </button>
+              Open Edit Folder
+            </Button>
           </div>
         </div>
       ) : null}
@@ -1601,17 +2517,7 @@ export default function AffiliateFileManager() {
         }}
       />
 
-      <FileViewerModal
-        isOpen={viewerOpen}
-        onClose={() => {
-          setViewerOpen(false);
-          setViewerMetaId(null);
-        }}
-        fileName={viewerName}
-        fileUrl={viewerUrl}
-        contentType={viewerType}
-        fileMetaId={viewerMetaId}
-      />
+      {renderAffiliateFileDrawer()}
     </div>
   );
 }

@@ -1302,7 +1302,7 @@ export const ShootsTable = ({
                     <th className="py-5 px-6 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody>                  {currentShoots.map((shoot, idx) => {
+                <tbody>{currentShoots.map((shoot, idx) => {
                     const isMissingDate = !shoot.date || shoot.date === "No Date";
                     const isMissingLocation = !shoot.location;
                     const isMissingInfo = isMissingDate || isMissingLocation;

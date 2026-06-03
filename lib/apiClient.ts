@@ -51,33 +51,35 @@ class ApiClient {
       (error: AxiosError<ApiError>) => {
         if (error.response) {
           const { status, data } = error.response;
-
+          const isSilentError = error.config?.headers?.["x-silent-error"] === "true";
           // Handle specific status codes
-          switch (status) {
-            case 401: {
-              const requestUrl = String(error.config?.url || '').toLowerCase();
-              const isExternalShareRequest = requestUrl.includes('external-file-manager/share/');
-              // For shared-link OTP/token endpoints, do not clear the logged-in session cookies.
-              if (!isExternalShareRequest) {
-                Cookies.remove('revure_token');
-                Cookies.remove('revure_user');
+          if (!isSilentError) {
+            switch (status) {
+              case 401: {
+                const requestUrl = String(error.config?.url || '').toLowerCase();
+                const isExternalShareRequest = requestUrl.includes('external-file-manager/share/');
+                // For shared-link OTP/token endpoints, do not clear the logged-in session cookies.
+                if (!isExternalShareRequest) {
+                  Cookies.remove('revure_token');
+                  Cookies.remove('revure_user');
+                }
+                if (typeof window !== 'undefined') {
+                  console.error('Unauthorized: Token expired or invalid');
+                }
+                break;
               }
-              if (typeof window !== 'undefined') {
-                console.error('Unauthorized: Token expired or invalid');
-              }
-              break;
+              case 403:
+                console.error('Forbidden: Insufficient permissions');
+                break;
+              case 404:
+                console.error('Not found:', data?.message || 'Resource not found');
+                break;
+              case 500:
+                console.error('Server error:', data?.message || 'Internal server error');
+                break;
+              default:
+                console.error('API Error:', data?.message || 'Unknown error');
             }
-            case 403:
-              console.error('Forbidden: Insufficient permissions');
-              break;
-            case 404:
-              console.error('Not found:', data?.message || 'Resource not found');
-              break;
-            case 500:
-              console.error('Server error:', data?.message || 'Internal server error');
-              break;
-            default:
-              console.error('API Error:', data?.message || 'Unknown error');
           }
 
           const apiError: ApiClientError = new Error(data?.message || 'An error occurred');
