@@ -421,6 +421,9 @@ const isRejectedVersion = (version: unknown) =>
 const isPendingVersion = (version: unknown) =>
   ["pending", "pending_approval", "in_review", "review"].includes(normalizeVersionStatus(version));
 
+const isUsableVersion = (version: unknown) =>
+  !normalizeVersionStatus(version) || normalizeVersionStatus(version) === "approved";
+
 const getVersionDropdownLabel = (version: unknown, fallbackNumber: number) => {
   const versionMeta = getVersionMeta(version);
   const versionNumber = versionMeta?.version_number ?? fallbackNumber;
@@ -1024,9 +1027,9 @@ export default function QuoteDetailsPage({
           setVersions(resolvedVersions);
           // Set initial selected version to the current one if found
           const currentVersion =
-            resolvedVersions.find((version) => isCurrentVersionMeta(version) && !isRejectedVersion(version)) ||
+            resolvedVersions.find((version) => isCurrentVersionMeta(version) && isUsableVersion(version)) ||
             [...resolvedVersions]
-              .filter((version) => getRawVersionNumber(version) != null && !isRejectedVersion(version))
+              .filter((version) => getRawVersionNumber(version) != null && isUsableVersion(version))
               .sort((a, b) => getVersionNumberValue(b) - getVersionNumberValue(a))[0] ||
             resolvedVersions.find((version) => getRawVersionNumber(version) != null);
           const currentVersionNumber = getRawVersionNumber(currentVersion);
@@ -1262,10 +1265,10 @@ export default function QuoteDetailsPage({
     if (versions.length === 0) return null;
 
     const currentApprovedVersion =
-      versions.find((version) => isCurrentVersionMeta(version) && !isRejectedVersion(version)) || null;
+      versions.find((version) => isCurrentVersionMeta(version) && isUsableVersion(version)) || null;
     if (currentApprovedVersion) return currentApprovedVersion;
 
-    const usableVersions = versions.filter((version) => !isRejectedVersion(version));
+    const usableVersions = versions.filter((version) => isUsableVersion(version));
     if (usableVersions.length === 0) return null;
 
     return usableVersions.reduce((latest, candidate) => {
