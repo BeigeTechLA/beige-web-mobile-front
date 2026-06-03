@@ -97,6 +97,7 @@ import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
 } from "@/lib/salesQuotePreview";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
@@ -1057,6 +1058,7 @@ export default function CreateQuotePage() {
   const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
   const editQuoteId = searchParams.get("quoteId");
+  const editVersionId = searchParams.get("editVersion");
   const isEditMode = Boolean(editQuoteId);
   const editModeParam = searchParams.get("editMode");
   const isFullEditFlow = isEditMode && editModeParam === "full";
@@ -1106,6 +1108,8 @@ export default function CreateQuotePage() {
   const [emailId, setEmailId] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
+  const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [validityDays, setValidityDays] = useState<number | "custom">(7);
   const [validUntil, setValidUntil] = useState(
@@ -1309,6 +1313,8 @@ export default function CreateQuotePage() {
         setEmailId("");
         setPhoneNumber("");
         setAddress("");
+        setLocationLatitude(null);
+        setLocationLongitude(null);
         return;
       }
 
@@ -1316,6 +1322,8 @@ export default function CreateQuotePage() {
       setEmailId(getClientEmail(client));
       setPhoneNumber(normalizePhoneNumberInput(getClientPhone(client)));
       setAddress(getClientAddress(client));
+      setLocationLatitude(null);
+      setLocationLongitude(null);
     },
     [],
   );
@@ -1392,6 +1400,13 @@ export default function CreateQuotePage() {
             : [];
 
         const currentVersion =
+          (editVersionId
+            ? versionsData.find(
+              (version) =>
+                version?.version_number != null &&
+                String(version.version_number) === editVersionId,
+            )
+            : null) ||
           versionsData.find((version) => version?.is_current && version?.version_number != null) ||
           versionsData.find((version) => version?.version_number != null);
         const versionNumber = Number(currentVersion?.version_number);
@@ -1415,7 +1430,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [effectiveQuoteId]);
+  }, [editVersionId, effectiveQuoteId]);
 
   React.useEffect(() => {
     servicesRef.current = services;
@@ -1628,7 +1643,9 @@ export default function CreateQuotePage() {
 
     const fetchQuoteToEdit = async () => {
       try {
-        const response = await salesApi.getQuoteDetail(editQuoteId);
+        const response = editVersionId
+          ? await salesApi.getQuoteVersionDetail(editQuoteId, editVersionId)
+          : await salesApi.getQuoteDetail(editQuoteId);
 
         if (response?.error || response?.success === false) {
           throw new Error(
@@ -1673,7 +1690,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [editQuoteId, router]);
+  }, [editQuoteId, editVersionId, router]);
 
   React.useEffect(() => {
     if (!editQuoteId) {
@@ -1734,6 +1751,8 @@ export default function CreateQuotePage() {
         setEmailId(hydratedState.emailId);
         setPhoneNumber(normalizePhoneNumberInput(hydratedState.phoneNumber));
         setAddress(hydratedState.address);
+        setLocationLatitude(hydratedState.locationLatitude ?? null);
+        setLocationLongitude(hydratedState.locationLongitude ?? null);
         setProjectDescription(hydratedState.projectDescription);
         setValidityDays(hydratedState.validityDays);
         setValidUntil(hydratedState.validUntil);
@@ -2641,12 +2660,6 @@ export default function CreateQuotePage() {
     }
   };
 
-  const formattedValidUntil = (() => {
-    if (!validUntil) return "";
-    const parsedDate = parseISO(validUntil);
-    return isValid(parsedDate) ? format(parsedDate, "dd-MM-yyyy") : validUntil;
-  })();
-
   const progressValue =
     view === "selection"
       ? 0
@@ -3215,6 +3228,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3248,6 +3263,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3282,6 +3299,8 @@ export default function CreateQuotePage() {
         emailId,
         phoneNumber,
         address,
+        locationLatitude,
+        locationLongitude,
         projectDescription,
         validityDays,
         validUntil,
@@ -3316,6 +3335,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3345,6 +3366,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3379,6 +3402,8 @@ export default function CreateQuotePage() {
     });
   }, [
     address,
+    locationLatitude,
+    locationLongitude,
     addons,
     effectiveAddonConfigs,
     effectiveLineItemConfigs,
@@ -3970,41 +3995,6 @@ export default function CreateQuotePage() {
     await sendQuoteInvoiceRequest();
   };
 
-  const getBlockedQuotePaymentChangeMessage = React.useCallback(
-    (quoteDetail: SalesQuoteDetailData | null | undefined) => {
-      if (!quoteDetail) {
-        return null;
-      }
-
-      const additionalPayment =
-        (quoteDetail as { additional_payment?: Record<string, unknown> | null }).additional_payment ??
-        (quoteDetail as { partial_payment?: Record<string, unknown> | null }).partial_payment ??
-        null;
-      const reducedPayment =
-        (quoteDetail as { reduced_payment?: Record<string, unknown> | null }).reduced_payment ?? null;
-      const change = additionalPayment ?? reducedPayment;
-
-      if (!change) {
-        return null;
-      }
-
-      const approvalStatus = String(change.approval_status ?? "").toLowerCase();
-      const additionalAmount = Number(change.outstanding_amount ?? change.additional_amount ?? 0);
-      const reducedAmount = Number(change.reduced_amount ?? change.refund_pending_amount ?? 0);
-      const hasOpenChange = additionalAmount > 0 || reducedAmount > 0;
-
-      if (!hasOpenChange || approvalStatus === "approved") {
-        return null;
-      }
-
-      const changeType = additionalAmount > 0 ? "increase" : "decrease";
-      return approvalStatus === "rejected"
-        ? `This paid quote ${changeType} request was rejected, so it cannot be sent to the client.`
-        : `This paid quote ${changeType} request is pending admin approval. Approve it before sending the quote or payment link to the client.`;
-    },
-    [],
-  );
-
   const handleBeforeSendQuoteFromPreview = React.useCallback(async () => {
     if (isEditMode && hasUnsavedQuoteChanges) {
       const didSave = await saveQuoteDraft("save", { suppressRedirect: true });
@@ -4019,28 +4009,23 @@ export default function CreateQuotePage() {
       return true;
     }
 
-    try {
-      const detailResponse = await salesApi.getQuoteDetail(quoteIdToValidate);
-      if (detailResponse?.error || detailResponse?.success === false) {
-        return true;
-      }
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote: quoteToEdit ?? previewQuote,
+      quoteId: quoteIdToValidate,
+    });
 
-      const latestQuoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
-      const blockMessage = getBlockedQuotePaymentChangeMessage(latestQuoteDetail);
-      if (blockMessage) {
-        toast.error(blockMessage);
-        return false;
-      }
-    } catch (error) {
-      console.error("Failed to validate quote approval before send/copy", error);
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
     }
 
     return true;
   }, [
     effectiveQuoteId,
-    getBlockedQuotePaymentChangeMessage,
     hasUnsavedQuoteChanges,
     isEditMode,
+    previewQuote,
+    quoteToEdit,
     saveQuoteDraft,
   ]);
 
@@ -7560,8 +7545,7 @@ export default function CreateQuotePage() {
                 </p>
               </div>
 
-              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"
-                }`} />
+              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
 
               <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 lg:pt-2 space-y-6 lg:space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -7645,7 +7629,23 @@ export default function CreateQuotePage() {
                 <div className="relative">
                   <LocationPicker
                     value={address}
-                    onChange={(selectedAddress) => setAddress(selectedAddress)}
+                    onChange={(selectedAddress, details) => {
+                      setAddress(selectedAddress);
+                      const nextLatitude =
+                        details?.coordinates?.lat ?? details?.lat ?? details?.center?.[1] ?? null;
+                      const nextLongitude =
+                        details?.coordinates?.lng ?? details?.lng ?? details?.center?.[0] ?? null;
+                      setLocationLatitude(
+                        typeof nextLatitude === "number" && Number.isFinite(nextLatitude)
+                          ? nextLatitude
+                          : null
+                      );
+                      setLocationLongitude(
+                        typeof nextLongitude === "number" && Number.isFinite(nextLongitude)
+                          ? nextLongitude
+                          : null
+                      );
+                    }}
                     placeholder="Search for an address"
                     label="Address*"
                     colors={isDark ? darkThemeColors : lightThemeColors}
@@ -7743,7 +7743,7 @@ export default function CreateQuotePage() {
                             days from today.
                             {validityDays !== "custom" && (
                               <span className={`ml-2 font-medium ${isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"}`}>
-                                Quote valid until <strong>{format(parseISO(validUntil), "MM-dd-yyyy")}</strong>
+                                Quote valid until <strong>{format(parseISO(validUntil), "MMM d, yyyy")}</strong>
                               </span>
                             )}
                           </p>
@@ -7764,8 +7764,9 @@ export default function CreateQuotePage() {
                                   setValidUntil(format(date, "yyyy-MM-dd"));
                                 }
                               }}
+                              minDate={addDays(new Date(), 1)}
                               disabled={validityDays !== "custom"}
-                              format="MM-dd-yyyy"
+                              format="MMM d, yyyy"
                               isDark={isDark}
                               colors={{
                                 inputBackground: isCustomValiditySelected
@@ -7890,7 +7891,7 @@ export default function CreateQuotePage() {
                               }
                             }}
                             disabled={validityDays !== "custom"}
-                            format="MM-dd-yyyy"
+                            format="MMM d, yyyy"
                             colors={{
                               inputBackground: isCustomValiditySelected
                                 ? isDark
@@ -8036,7 +8037,7 @@ export default function CreateQuotePage() {
               ) : (
                 <Button
                   className={`${view === "tax"
-                    ? "bg-white text-[#1B1B1B] hover:bg-[#00000033] border-0 shadow-lg"
+                    ? "bg-white text-[#1B1B1B] hover:bg-white/80 border-0 shadow-lg"
                     : canPrimaryAction
                       ? "bg-[#E8D1AB] text-[#101010]"
                       : isDark
@@ -8517,5 +8518,3 @@ export default function CreateQuotePage() {
     </div>
   );
 }
-
-

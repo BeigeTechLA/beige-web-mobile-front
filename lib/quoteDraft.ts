@@ -59,6 +59,8 @@ export interface QuoteDraftPayload {
   client_email?: string;
   client_phone?: string;
   client_address?: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   project_description?: string;
   video_shoot_type?: string;
   quote_validity_days?: number;
@@ -96,6 +98,8 @@ export interface BuildQuoteDraftPayloadInput {
   emailId: string;
   phoneNumber: string;
   address: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
   projectDescription: string;
   validityDays: number | "custom";
   validUntil: string;
@@ -196,6 +200,8 @@ export function buildQuoteDraftPayload(
 
   if (includeDetails) {
     payload.client_address = input.address.trim();
+    payload.location_latitude = input.locationLatitude ?? null;
+    payload.location_longitude = input.locationLongitude ?? null;
     payload.project_description = input.projectDescription.trim();
     payload.quote_validity_days = resolveQuoteValidityDays(input.validityDays, input.validUntil);
   }
@@ -258,6 +264,8 @@ export function buildQuoteStepUpdatePayload(
       client_email: input.emailId.trim() || input.selectedClient?.email?.trim() || "",
       client_phone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
       client_address: input.address.trim(),
+      location_latitude: input.locationLatitude ?? null,
+      location_longitude: input.locationLongitude ?? null,
       project_description: input.projectDescription.trim(),
       quote_validity_days: resolveQuoteValidityDays(input.validityDays, input.validUntil),
     };

@@ -263,6 +263,7 @@ export const DatePicker: React.FC<Props> = ({
             popper: {
               disablePortal,
               sx: {
+                zIndex: 1700,
                 "& .MuiPaper-root": {
                   backgroundColor: colors.paperBackground,
                   border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",

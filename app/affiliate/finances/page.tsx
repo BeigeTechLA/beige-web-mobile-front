@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Button } from "@/src/components/landing/ui/button";
 import { affiliateApi } from "@/lib/api";
 
@@ -176,7 +177,7 @@ export default function AffiliateFinancesPage() {
       id: "available",
       label: "Available Credits",
       value: formatCurrency(creditSummary?.available_credit_amount || 0),
-      helperText: "Admin approed credits",
+      helperText: "Admin approved credits",
       icon: Coins,
       iconWrapClass: "bg-[#1D1A14] text-[#E8D1AB]",
     },
@@ -195,7 +196,8 @@ export default function AffiliateFinancesPage() {
         (Number(creditSummary?.available_credit_amount || 0) || 0) +
           (Number(creditSummary?.used_credit_amount || 0) || 0)
       ),
-      helperText: "Approved + used credits",
+      helperText: "Approved + Used credits",
+      helperTooltip: "Excluding expired credits. Only approved and used (non-expired) credits are included in this total.",
       icon: Wallet,
       iconWrapClass: "bg-[#141A1A] text-[#79C8BD]",
     },
@@ -205,12 +207,7 @@ export default function AffiliateFinancesPage() {
     <>
       <Topbar
         pathname={pathname}
-        actions={
-          <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
-            <ArrowUpToLine size={18} />
-            Export
-          </Button>
-        }
+        actions={null}
       />
 
       <div
@@ -278,11 +275,18 @@ export default function AffiliateFinancesPage() {
               const isActive = activeMetricId === metric.id;
 
               return (
-                <button
+                <div
                   key={metric.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setActiveMetricId(metric.id)}
-                  className={`rounded-2xl border p-5 lg:p-6 text-left transition-all min-h-[182px] ${
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setActiveMetricId(metric.id);
+                    }
+                  }}
+                  className={`rounded-2xl border p-5 lg:p-6 text-left transition-all min-h-[182px] cursor-pointer ${
                     isActive
                       ? isDark
                         ? "border-[#AE936A] bg-[#E5D1AA] text-[#171717]"
@@ -304,10 +308,19 @@ export default function AffiliateFinancesPage() {
                   <p className={`mt-8 text-[48px] leading-none tracking-[-0.03em] font-semibold ${isActive ? "text-[#171717]" : isDark ? "text-white" : "text-[#171717]"}`}>
                     {metric.value}
                   </p>
-                  <p className={`mt-4 text-sm ${isActive ? "text-[#171717]/75" : isDark ? "text-[#A5A5A5]" : "text-[#6F6F6F]"}`}>
-                    {metric.helperText}
-                  </p>
-                </button>
+                  <div className="mt-4 flex items-center gap-2">
+                    <p className={`text-sm ${isActive ? "text-[#171717]/75" : isDark ? "text-[#A5A5A5]" : "text-[#6F6F6F]"}`}>
+                      {metric.helperText}
+                    </p>
+                    {metric.helperTooltip ? (
+                      <InfoTooltip
+                        message={metric.helperTooltip}
+                        isDark={!isActive && isDark}
+                        align="right"
+                      />
+                    ) : null}
+                  </div>
+                </div>
               );
             })}
           </div>

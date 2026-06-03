@@ -49,6 +49,7 @@ import {
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
@@ -143,6 +144,7 @@ export default function AdminFileManagerPhasePage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const isPreProduction = phaseSlug !== "post-production";
+  const { isDark } = useResolvedTheme();
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -552,56 +554,58 @@ export default function AdminFileManagerPhasePage() {
         pathname={pathname}
         actions={
           <>
-            <>
-              <Button onClick={() => setIsUploadModalOpen(true)} className="bg-[#202020] border border-white/20 text-white hover:bg-white/10">
-                <Upload /> Upload Files
+            <Button onClick={() => setIsUploadModalOpen(true)} className="bg-[#202020] border border-white/20 text-white hover:bg-white/10">
+              <Upload size={18} /> Upload Files
+            </Button>
+            {isPreProduction ? (
+              <Button onClick={() => setIsCreateFolderModalOpen(true)} className="bg-[#E5D5B8] text-black">
+                Create Folder
               </Button>
-              {isPreProduction ? (
-                <Button onClick={() => setIsCreateFolderModalOpen(true)} className="bg-[#E5D5B8] text-black">
-                  Create Folder
-                </Button>
-              ) : null}
-            </>
+            ) : null}
           </>
         }
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
-        <Button onClick={() => router.back()} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0">
+      <div className="overflow-x-hidden overflow-y-auto p-4 pb-20 lg:px-10 lg:py-9">
+        <Button onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
 
         {loading ? (
-          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
-        }`}>
-            <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-gray-200 bg-gray-50"}`}>
+            <Loader2 className={`animate-spin text-[#E8D1AB]`} size={40} />
           </div>
         ) : error ? (
-          <div className="text-red-300 text-sm">{error || "Folder not found"}</div>
+          <div className={`text-sm ${isDark ? "text-red-300" : "text-red-600"}`}>
+            {error || "Folder not found"}
+          </div>
         ) : (
           <>
             <div>
               <div className="flex items-start gap-5 mb-2 lg:mb-6">
-                <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
+                <div className={`h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl flex items-center justify-center text-lg lg:text-[30px] font-medium transition-colors duration-300 ${isDark
+                  ? "bg-[#C8E1FF] text-[#000]"
+                  : "bg-blue-100 text-blue-900"
+                  }`}>
                   {getDisplayInitials(workspaceName)}
                 </div>
-                <div className="min-w-0 text-white max-w-3xl flex-1">
-                  <div className="flex flex-row lg:items-center gap-2">
+                <div className={`min-w-0 ${isDark ? "text-white" : "text-black"} max-w-3xl flex-1`}>
+                  <div className="flex flex-row lg:items-center gap-0.5 lg:gap-2">
                     <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                       {workspaceName}
                     </h1>
-                    <span className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border border-white/5 flex items-center gap-1.5 h-fit w-fit ${phaseSlug === "post-production"
-                      ? "bg-[#E8D2FB] text-[#540B94]"
-                      : "bg-[#FDF4FF] text-[#C026D3]"
-                      }`}>
+                    <span className={`hidden lg:block px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border border-white/5 flex items-center gap-1.5 h-fit w-fit ${phaseSlug === "post-production" ? "bg-[#E8D2FB] text-[#540B94]" : "bg-[#FDF4FF] text-[#C026D3]"}`}>
                       {viewState.title}
                     </span>
                   </div>
-                  <p className="text-xs lg:text-sm text-[#D0D0D0]">
-                    <span className="text-[#AAA7A7]">Project Code: </span>
+                  <p className={`text-xs lg:text-sm transition-colors duration-300 ${isDark ? "text-[#D0D0D0]" : "text-gray-600"}`}>
+                    <span className={isDark ? "text-[#AAA7A7]" : "text-gray-400"}>Project Code: </span>
                     {workspaceCode}
                   </p>
+                  <span className={`mt-2 block lg:hidden px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border border-white/5 flex items-center gap-1.5 h-fit w-fit ${phaseSlug === "post-production" ? "bg-[#E8D2FB] text-[#540B94]" : "bg-[#FDF4FF] text-[#C026D3]"}`}>
+                    {viewState.title}
+                  </span>
                   {/* {workspaceConsoleUrl ? (
                     <a
                       href={workspaceConsoleUrl}
@@ -633,12 +637,15 @@ export default function AdminFileManagerPhasePage() {
             <div className="pb-20 lg:pb-0">
               <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
                 <div className="relative flex-1 max-w-xl">
-                  <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+                  <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
                   <input
                     type="text"
                     placeholder={viewState.kind === "folders" ? "Search folders..." : "Search files..."}
                     value={searchTerm}
-                    className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                    className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                      ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                      : "bg-white border-[#E3E3E3] text-black placeholder:text-[#9F9FA9] focus:ring-[#D7D7D7] focus:border-[#D7D7D7]"
+                      }`}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
@@ -651,9 +658,11 @@ export default function AdminFileManagerPhasePage() {
                         setIsSelectionMode(nextMode);
                         if (!nextMode) setSelectedFilePaths([]);
                       }}
-                      className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
-                          ? 'bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90'
-                          : 'bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20'
+                      className={`gap-2 h-8 lg:h-10 px-4 rounded-lg border transition-all ${isSelectionMode
+                        ? 'bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90'
+                        : isDark
+                          ? 'bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20'
+                          : 'bg-white text-[#333333] border-[#E5E5E5] hover:bg-zinc-50 hover:text-black'
                         }`}
                     >
                       <CheckSquare size={18} />
@@ -666,6 +675,7 @@ export default function AdminFileManagerPhasePage() {
                     setIsOpen={setIsOpen}
                     viewMode={viewMode}
                     setViewMode={setViewMode}
+                    isDark={isDark}
                   />
                 </div>
               </div>
@@ -757,12 +767,13 @@ export default function AdminFileManagerPhasePage() {
                             }}
                             isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                             onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                            isDark={isDark}
                           />
                         )}
                       />
                     </div>
                   ) : filteredFolders.length === 0 ? (
-                    <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                    <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" isDark={isDark} />
                   ) : null}
                 </div>
               ) : viewState.kind === "folders" ? (
@@ -825,6 +836,7 @@ export default function AdminFileManagerPhasePage() {
                           key={folder.id}
                           folder={folder}
                           handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                          isDark={isDark}
                         />
                       ))}
                     </div>
@@ -832,37 +844,39 @@ export default function AdminFileManagerPhasePage() {
                     <div className="hidden lg:block overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                          <tr className={`text-sm font-normal cursor-pointer transition-colors duration-200 rounded-xl ${isDark ? "bg-[#202020] text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"}`}>
                             <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
                             <th className="py-5 px-6 text-center font-medium">Files</th>
                             <th className="py-5 px-6 text-center font-medium">Last Updated</th>
                             <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className={`${isDark ? "bg-[#171717]" : "bg-white"} transition-colors duration-200`}>
                           {filteredFolders.map((item) => (
                             <tr
                               key={item.id}
-                              className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                              className={`items-center cursor-pointer transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
                               onClick={(e) => {
                                 if ((e.target as HTMLElement).closest("button")) return;
                                 router.push(item.href || `${pathname}/${item.id}`);
                               }}
                             >
-                              <td className="py-5 px-6">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-                                    <FolderOpen className="text-[#E8D1AB]" size={20} />
-                                  </div>
-                                  <span className="text-white text-sm font-medium">{item.title}</span>
+                              <td className={`py-5 px-6 flex gap-3 items-center min-w-0 `}>
+                                <div className={`p-2 rounded-lg border transition-colors ${isDark ? "bg-white/10 border-white/5 " : "bg-transparent border-[#D7D7D7]"}`}>
+                                  <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={20} />
                                 </div>
+                                <span className={`${isDark ? "text-white" : "text-black"} text-sm font-medium`}>{item.title}</span>
                               </td>
-                              <td className="py-5 px-6 text-center text-white/60 text-sm">
+                              <td className={`py-5 px-6 text-center text-sm ${isDark ? "text-white/60" : "text-black/40"}`}>
                                 {String(item.fileCount).padStart(2, "0")}
                               </td>
-                              <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                              <td className={`py-5 px-6 text-center text-sm ${isDark ? "text-[#8F8F8F]" : "text-black/40"}`}>{item.lastOpened}</td>
                               <td className="py-5 px-6 text-right">
-                                <Button variant="ghost" className="h-10 w-10 rounded-full p-0 text-white/40 hover:bg-white/10 hover:text-white" onClick={(e) => handleOpenMenu(e, item)}>
+                                <Button
+                                  variant="ghost"
+                                  className={`h-10 w-10 rounded-full p-0 transition-colors ${isDark ? "text-white hover:bg-white/10 hover:text-white/90" : "text-black bg-transparent hover:bg-black/5 hover:text-black/90"}`}
+                                  onClick={(e) => handleOpenMenu(e, item)}
+                                >
                                   <MoreVertical size={20} />
                                 </Button>
                               </td>
@@ -967,6 +981,7 @@ export default function AdminFileManagerPhasePage() {
                                   }}
                                   isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                                   onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                                  isDark={isDark}
                                 />
                               ))}
                             </div>
@@ -1000,6 +1015,7 @@ export default function AdminFileManagerPhasePage() {
                                 key={folder.id}
                                 folder={folder}
                                 handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                                isDark={isDark}
                               />
                             ))}
                           </div>
@@ -1007,18 +1023,18 @@ export default function AdminFileManagerPhasePage() {
                           <div className="hidden lg:block overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                               <thead>
-                                <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                                <tr className={`text-sm font-normal cursor-pointer transition-colors duration-200 ${isDark ? "bg-[#202020] text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"}`}>
                                   <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
                                   <th className="py-5 px-6 text-center font-medium">Files</th>
                                   <th className="py-5 px-6 text-center font-medium">Last Updated</th>
                                   <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
                                 </tr>
                               </thead>
-                              <tbody>
+                              <tbody className={`${isDark ? "bg-[#171717]" : "bg-white"} transition-colors duration-200`}>
                                 {filteredFolders.map((item) => (
                                   <tr
                                     key={item.id}
-                                    className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                                    className={`items-center cursor-pointer transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
                                     onClick={(e) => {
                                       if ((e.target as HTMLElement).closest("button")) return;
                                       router.push(item.href || `${pathname}/${item.id}`);
@@ -1208,6 +1224,7 @@ export default function AdminFileManagerPhasePage() {
                           }}
                           isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                           onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                          isDark={isDark}
                         />
                       ))}
                     </div>
@@ -1372,6 +1389,7 @@ export default function AdminFileManagerPhasePage() {
             }}
             onDelete={() => setIsDeleteModalOpen(true)}
             onRename={() => toast.info("Folder rename is the next safe step.")}
+            isDark={isDark}
           />
         )}
 
@@ -1391,6 +1409,7 @@ export default function AdminFileManagerPhasePage() {
           folderName={uploadFolderLabel || selectedFolder?.title || viewState.title}
           uploadPath={uploadPathOverride || defaultUploadPath}
           onUploadComplete={loadPhase}
+          isDark={isDark}
         />
 
         {isPreProduction ? (
@@ -1399,6 +1418,7 @@ export default function AdminFileManagerPhasePage() {
             onClose={() => setIsCreateFolderModalOpen(false)}
             onCreate={handleCreateFolder}
             description={`Create a folder inside ${viewState.title}`}
+            isDark={isDark}
           />
         ) : null}
 
@@ -1423,6 +1443,7 @@ export default function AdminFileManagerPhasePage() {
           }
           itemType={selectedFile || selectedFilePaths.length > 0 ? "file" : "folder"}
           isDeleting={isDeleting}
+          isDark={isDark}
         />
 
         <FileViewerModal
@@ -1435,6 +1456,7 @@ export default function AdminFileManagerPhasePage() {
           fileUrl={viewerUrl}
           contentType={viewerFile?.contentType}
           fileMetaId={viewerFile?.filepath || null}
+          isDark={isDark}
         />
 
         <ShareResourceModal
@@ -1449,28 +1471,34 @@ export default function AdminFileManagerPhasePage() {
         {/* Batch Action Toolbar */}
         {selectedFilePaths.length > 0 && (
           <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-xl px-4">
-            <div className="bg-[#171717] border border-[#E8D1AB]/50 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4">
+            <div className={`border rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 transition-colors duration-200 ${isDark ? "bg-[#171717]  border-[#E8D1AB]/50" : "bg-white border-black/10 "}`}>
               <div className="flex items-center gap-3">
                 <div className="bg-[#E8D1AB] text-black h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm">
                   {selectedFilePaths.length}
                 </div>
-                <span className="text-white font-medium">Files selected</span>
+                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>Files selected</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
-                  className="text-white/70 hover:text-white gap-2"
                   onClick={() => setSelectedFilePaths([])}
+                  className={`gap-2 transition-colors ${isDark
+                    ? "text-white/70 hover:text-white hover:bg-white/5"
+                    : "text-black/60 hover:text-black hover:bg-black/5"
+                    }`}
                 >
                   Clear
                 </Button>
 
-                <div className="h-6 w-[1px] bg-white/10 mx-1" />
+                <div className={`h-6 w-[1px] mx-1 transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
 
                 <Button
-                  className="bg-white/10 text-white hover:bg-white/20 gap-2 border border-white/10"
                   onClick={handleBatchDownload}
+                  className={`flex-1 lg:flex-none gap-2 border transition-colors ${isDark
+                    ? "bg-white/10 text-white border-white/10 hover:bg-white/20"
+                    : "bg-black/[0.04] text-black border-black/5 hover:bg-black/[0.08]"
+                    }`}
                 >
                   <DownloadIcon size={18} />
                   Download
@@ -1478,8 +1506,8 @@ export default function AdminFileManagerPhasePage() {
 
                 {isPreProduction && (
                   <Button
-                    className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2"
                     onClick={() => setIsDeleteModalOpen(true)}
+                    className="flex-1 lg:flex-none bg-[#F04438] text-white hover:bg-[#d7372d] gap-2"
                   >
                     <TrashIcon size={18} />
                     Delete
@@ -1497,7 +1525,8 @@ export default function AdminFileManagerPhasePage() {
           </div>
         )}
 
-        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex gap-2 items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
             onClick={() => setIsUploadModalOpen(true)}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"

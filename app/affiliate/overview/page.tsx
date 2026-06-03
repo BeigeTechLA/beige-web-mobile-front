@@ -312,7 +312,7 @@ export default function AffiliateOverviewPage() {
 
         <>
           {/* Google Forms CTA Banner */}
-          {pendingCount > 0 && (
+          {/* {pendingCount > 0 && (
             <div className={`border rounded-lg lg:rounded-xl p-4 lg:p-8 transition-colors ${isDark
               ? "bg-gradient-to-r from-[#E8D1AB]/10 to-[#E8D1AB]/5 border-[#E8D1AB]/20"
               : "bg-white border-[#E8D1AB]/30 shadow-sm"
@@ -326,6 +326,9 @@ export default function AffiliateOverviewPage() {
                     Help us prepare better by filling out detailed
                     information about your upcoming shoot
                   </p>
+                  <p className={`text-xs lg:text-sm mt-2 font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A2A]"}`}>
+                    Pending projects: {pendingCount}
+                  </p>
                 </div>
                 <Button
                   onClick={() => setIsShootFormOpen(true)}
@@ -335,7 +338,7 @@ export default function AffiliateOverviewPage() {
                 </Button>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -117,24 +117,72 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
 
   const bookingDays = Array.isArray(data?.booking_days) ? data.booking_days : [];
   const hasMultipleBookingDays = bookingDays.length > 1;
+  const pricing = data?.pricing || {};
+  const paymentSummary = pricing?.payment_summary || {};
   const toNumber = (value: unknown) => {
     const num = Number(value);
     return Number.isFinite(num) ? num : 0;
   };
-  const creditAppliedAmount = Math.max(toNumber(data?.pricing?.credit_applied), 0);
-  const cardPaidAmount = Math.max(toNumber(data?.pricing?.total_paid ?? data?.pricing?.total), 0);
-  const combinedPaidAmount = Math.max(cardPaidAmount + creditAppliedAmount, 0);
+  const pickNumber = (...values: unknown[]) => {
+    for (const value of values) {
+      if (value === null || value === undefined || value === "") continue;
+      const num = Number(value);
+      if (Number.isFinite(num)) return num;
+    }
+    return 0;
+  };
+  const pickOptionalNumber = (...values: unknown[]) => {
+    for (const value of values) {
+      if (value === null || value === undefined || value === "") continue;
+      const num = Number(value);
+      if (Number.isFinite(num)) return num;
+    }
+    return null;
+  };
+  const creditAppliedAmount = Math.max(
+    pickNumber(
+      pricing.credit_applied,
+      pricing.credit_used_amount,
+      pricing.account_credit_applied,
+      paymentSummary.credit_applied,
+      paymentSummary.credit_used_amount,
+    ),
+    0,
+  );
+  const explicitCardPaidAmount = pickOptionalNumber(
+    pricing.card_paid_amount,
+    pricing.card_paid,
+    pricing.stripe_paid_amount,
+    paymentSummary.card_paid_amount,
+    paymentSummary.card_paid,
+  );
+  const totalPaidWithCredit = pickOptionalNumber(
+    pricing.total_paid_with_credit,
+    paymentSummary.total_paid_with_credit,
+  );
+  const cardPaidAmount = Math.max(
+    explicitCardPaidAmount ??
+      pickNumber(pricing.total_paid, paymentSummary.paid_amount, pricing.total),
+    0,
+  );
+  const combinedPaidAmount = Math.max(
+    totalPaidWithCredit ?? cardPaidAmount + creditAppliedAmount,
+    0,
+  );
   const displayTotalAmount = toNumber(
-    data?.pricing?.payment_summary?.quote_total ??
-    data?.pricing?.total_before_discounts ??
-    data?.pricing?.total
+    paymentSummary.quote_total ??
+    pricing.total_before_credit ??
+    pricing.total_before_discounts ??
+    pricing.total
   );
   const paymentMethodLabel =
-    creditAppliedAmount > 0 && cardPaidAmount > 0
+    pricing.payment_method_label ||
+    paymentSummary.payment_method_label ||
+    (creditAppliedAmount > 0 && cardPaidAmount > 0
       ? "Paid via Card + Account Credit"
       : creditAppliedAmount > 0
         ? "Paid via Account Credit"
-        : "Paid via Card";
+        : "Paid via Card");
 
   return (
     <div 
@@ -388,34 +436,34 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                        {formatCurrency(displayTotalAmount)}
                      </span>
                    </div>
-                   {data.pricing.discount_code && (
+                   {pricing.discount_code && (
                      <div className="flex justify-between text-sm text-white/60 print:text-gray-600">
                         <span>Discount Code</span>
-                        <span className="font-medium">{data.pricing.discount_code}</span>
+                        <span className="font-medium">{pricing.discount_code}</span>
                      </div>
                    )}
-                   {data.pricing.discount_code_discount > 0 && (
+                   {toNumber(pricing.discount_code_discount) > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
                         <span>Discount</span>
-                        <span>-{formatCurrency(data.pricing.discount_code_discount)}</span>
+                        <span>-{formatCurrency(toNumber(pricing.discount_code_discount))}</span>
                      </div>
                    )}
-                   {data.pricing.referral_code && (
+                   {pricing.referral_code && (
                      <div className="flex justify-between text-sm text-white/60 print:text-gray-600">
                         <span>Referral Code</span>
-                        <span className="font-medium">{data.pricing.referral_code}</span>
+                        <span className="font-medium">{pricing.referral_code}</span>
                      </div>
                    )}
-                   {data.pricing.referral_discount > 0 && (
+                   {toNumber(pricing.referral_discount) > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
                         <span>Referral Code Discount</span>
-                        <span>-{formatCurrency(data.pricing.referral_discount)}</span>
+                        <span>-{formatCurrency(toNumber(pricing.referral_discount))}</span>
                      </div>
                    )}
-	                   {data.pricing.credit_applied > 0 && (
+	                   {creditAppliedAmount > 0 && (
 	                     <div className="flex justify-between text-sm text-green-500 font-medium">
 	                        <span>Account Credit</span>
-	                        <span>-{formatCurrency(data.pricing.credit_applied)}</span>
+	                        <span>-{formatCurrency(creditAppliedAmount)}</span>
 	                     </div>
 	                   )}
                    
