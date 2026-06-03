@@ -78,8 +78,8 @@ const UserNameBox = ({ name, small = false }: { name: string; small?: boolean })
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full bg-[#E5D5B8] text-black font-bold ${
-        small ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm"
+      className={`flex shrink-0 items-center justify-center rounded-full bg-[#E5D5B8] text-black font-bold shadow-inner ${
+        small ? "h-8 w-8 text-[10px]" : "h-10 w-10 text-xs"
       }`}
       aria-label={name}
       title={name}
@@ -636,8 +636,9 @@ export default function NotesDrawer({
             </div>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              {loadingNotes ? (
+            <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              <div className="w-fit min-w-full px-6 py-5 space-y-6">
+                {loadingNotes ? (
                 <div className="py-8 flex items-center justify-center text-white/60 text-sm">Loading notes...</div>
               ) : null}
               {isActionLoading ? (
@@ -665,8 +666,10 @@ export default function NotesDrawer({
                     setShowReactionPickerId={setShowReactionPickerId}
                     reactionPickerRef={reactionPickerRef}
                   />
-                ))
-              )}
+                  ))
+                )
+              }
+              </div>
             </div>
 
             {/* Bottom Composer */}
@@ -842,12 +845,17 @@ function NoteCard({
   }, [showActionsMenu]);
 
   return (
-    <div className="bg-[#161616] rounded-[22px] p-5 border border-white/5 relative">
+    <div className="bg-[#161616] rounded-[22px] py-4 px-5 border border-white/5 relative w-fit max-w-none">
       {/* Parent Note */}
       <div className="flex gap-4">
-        <UserNameBox name={note.user.name} />
+        <div className="relative flex flex-col items-center">
+          <UserNameBox name={note.user.name} />
+          {hasReplies && (
+            <div className="w-px flex-1 bg-white/10 mt-3 mb-[-16px]" />
+          )}
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3 mb-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="text-sm font-semibold text-white truncate">{note.user.name}</span>
               <span className="text-xs text-white/30 whitespace-nowrap">
@@ -896,7 +904,7 @@ function NoteCard({
             ) : null}
           </div>
 
-          <p className="text-sm text-white/60 leading-relaxed mb-3">
+          <p className="text-sm text-white/60 leading-relaxed mb-3 max-w-[440px]">
             {note.message}
           </p>
           {note.attachments.length > 0 ? (
@@ -958,7 +966,7 @@ function NoteCard({
             <button
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5 relative"
               disabled={isCurrentNoteDisabled}
-              onClick={() => setShowReactionPickerId((current) => (current === note.id.toString() ? null : note.id.toString()))}
+              onClick={() => setShowReactionPickerId(showReactionPickerId === note.id.toString() ? null : note.id.toString())}
             >
               <Smile size={14} strokeWidth={2} />
               React
@@ -1031,11 +1039,13 @@ function NoteCard({
 
       {/* Thread Replies */}
       {hasReplies && (
-        <div className="mt-4 ml-5 pl-5 border-l border-white/10 space-y-3">
+        <div className="mt-5 ml-[19px] pl-6 border-l border-white/10 space-y-7 w-fit pr-4">
           {note.replies.map((reply) => (
             <NoteReply
               key={reply.id}
               reply={reply}
+              depth={1}
+              parentUserName={note.user.name}
               isDark={isDark}
               onReact={onReact}
               onReply={onReply}
@@ -1058,6 +1068,8 @@ function NoteCard({
 // Thread Reply Component
 function NoteReply({
   reply,
+  depth = 1,
+  parentUserName,
   isDark = true,
   onReact,
   onReply,
@@ -1071,6 +1083,8 @@ function NoteReply({
   reactionPickerRef,
 }: {
   reply: NoteUiItem;
+  depth?: number;
+  parentUserName?: string;
   isDark?: boolean;
   onReact?: (messageId: string, emoji: string) => void;
   onReply?: (noteId: number) => void;
@@ -1119,14 +1133,21 @@ function NoteReply({
   }, [showActionsMenu]);
 
   return (
-    <div className="bg-[#161616] rounded-[18px] p-4 border border-white/5">
+    <div className="relative group">
       <div className="flex gap-3">
-        <UserNameBox name={reply.user.name} small />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="relative flex flex-col items-center">
+          <UserNameBox name={reply.user.name} small />
+          {hasReplies && (
+             <div className="w-px flex-1 bg-white/10 mt-2" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0 pb-1">
+          <div className="flex items-center gap-3 mb-1">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-semibold text-white truncate">{reply.user.name}</span>
-              <span className="text-xs text-white/30 whitespace-nowrap">
+              <div className="flex flex-col max-w-[280px]">
+                <span className="text-sm font-semibold text-white/90 truncate">{reply.user.name}</span>
+              </div>
+              <span className="text-[10px] text-white/25 whitespace-nowrap self-start mt-0.5">
                 {reply.timestamp.date} • {reply.timestamp.time}
               </span>
             </div>
@@ -1134,7 +1155,7 @@ function NoteReply({
               <div ref={actionsMenuRef} className="relative">
                 <button
                   type="button"
-                  className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 -mr-1 p-1"
+                  className="text-white/20 hover:text-white/50 transition-colors flex-shrink-0 -mr-1 p-1"
                   onClick={() => {
                     if (isCurrentReplyDisabled) return;
                     setShowReactionPickerId(null);
@@ -1172,17 +1193,17 @@ function NoteReply({
             ) : null}
           </div>
 
-          <p className="text-sm text-white/60 leading-relaxed mb-2.5">
+          <p className="text-sm text-white/50 leading-relaxed mb-2 max-w-[400px]">
             {reply.message}
           </p>
           {reply.attachments.length > 0 ? (
-            <div className="mb-2.5 flex flex-wrap gap-2">
+            <div className="mb-2 flex flex-wrap gap-2">
               {reply.attachments.map((file) => (
                 <div
                   key={`${reply.id}-attachment-${file.id}`}
-                  className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full bg-white/10 text-[#E8D1AB]"
+                  className="inline-flex items-center gap-2 text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-[#E8D1AB]/80 border border-white/5"
                 >
-                  <span className="max-w-[160px] truncate">{file.fileName}</span>
+                  <span className="max-w-[140px] truncate">{file.fileName}</span>
                   <button
                     type="button"
                     className="hover:text-white"
@@ -1207,10 +1228,10 @@ function NoteReply({
           ) : null}
 
           {/* Action Row - Smaller */}
-          <div className="flex items-center gap-1 relative">
+          <div className="flex items-center gap-1.5 relative">
             <button
-              className={`text-xs font-medium transition-colors px-0.5 ${
-                reply.likedByMe || reply.likes > 0 ? "text-[#E8D1AB]" : "text-white/40 hover:text-white/70"
+              className={`text-[11px] font-medium transition-colors px-0.5 ${
+                reply.likedByMe || reply.likes > 0 ? "text-[#E8D1AB]" : "text-white/30 hover:text-white/60"
               }`}
               onClick={() => onReact?.(reply.id.toString(), "👍")}
               disabled={isCurrentReplyDisabled}
@@ -1218,19 +1239,19 @@ function NoteReply({
             >
               {reply.likes > 0 ? reply.likes : "Like"}
             </button>
-            <span className="w-px h-2.5 bg-white/10" />
+            <span className="w-px h-2.5 bg-white/5" />
             <button
-              className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
+              className="text-[11px] text-white/30 hover:text-white/60 font-medium transition-colors px-0.5"
               onClick={() => onReply?.(reply.id)}
               disabled={isCurrentReplyDisabled}
             >
               Reply
             </button>
-            <span className="w-px h-2.5 bg-white/10" />
+            <span className="w-px h-2.5 bg-white/5" />
             <button
-              className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
+              className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/60 font-medium transition-colors px-0.5"
               disabled={isCurrentReplyDisabled}
-              onClick={() => setShowReactionPickerId((current) => (current === reply.id.toString() ? null : reply.id.toString()))}
+              onClick={() => setShowReactionPickerId(showReactionPickerId === reply.id.toString() ? null : reply.id.toString())}
             >
               <Smile size={13} strokeWidth={2} />
               React
@@ -1262,7 +1283,7 @@ function NoteReply({
           </div>
 
           {Object.keys(reply.reactionCounts || {}).length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-1.5 flex flex-wrap gap-1">
               {Object.entries(reply.reactionCounts || {}).map(([reaction, count]) => {
                 const emoji = REACTION_TO_EMOJI[reaction] || "🙂";
                 const reactedByMe = reply.myReactions.includes(reaction);
@@ -1273,10 +1294,10 @@ function NoteReply({
                     disabled={isCurrentReplyDisabled}
                     onClick={() => onReact?.(reply.id.toString(), emoji)}
                     title={formatReactionUsers(reaction) || undefined}
-                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+                    className={`rounded-full border px-1.5 py-0 text-[10px] transition-colors ${
                       reactedByMe
                         ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
-                        : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                        : "border-white/5 bg-white/5 text-white/50 hover:bg-white/10"
                     }`}
                   >
                     {emoji} {count}
@@ -1286,27 +1307,14 @@ function NoteReply({
             </div>
           ) : null}
 
-          {Object.keys(reply.reactionCounts || {}).length > 0 ? (
-            <div className="mt-1.5 space-y-1">
-              {Object.entries(reply.reactionCounts || {}).map(([reaction]) => {
-                const usersText = formatReactionUsersShort(reaction);
-                if (!usersText) return null;
-                const emoji = REACTION_TO_EMOJI[reaction] || "🙂";
-                return (
-                  <p key={`${reply.id}-reaction-users-${reaction}`} className="text-[11px] text-white/45" title={formatReactionUsers(reaction)}>
-                    {emoji} {usersText}
-                  </p>
-                );
-              })}
-            </div>
-          ) : null}
-
           {hasReplies ? (
-            <div className="mt-3 ml-3 pl-4 border-l border-white/10 space-y-3">
+            <div className="mt-6 ml-[15px] pl-5 border-l border-white/10 space-y-7 w-fit pr-2">
               {reply.replies.map((childReply) => (
                 <NoteReply
                   key={childReply.id}
                   reply={childReply}
+                  depth={depth + 1}
+                  parentUserName={reply.user.name}
                   isDark={isDark}
                   onReact={onReact}
                   onReply={onReply}
