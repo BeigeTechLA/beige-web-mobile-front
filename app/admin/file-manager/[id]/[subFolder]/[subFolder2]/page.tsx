@@ -30,6 +30,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
+import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
@@ -47,7 +48,6 @@ import {
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { MobileFileRow } from "@/components/admin/file-manager/MobileRow";
 
 const defaultImgSrc = "/images/misc/Data.png";
@@ -151,6 +151,7 @@ export default function SubFolderDetailsPage() {
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
+  const [folders, setFolders] = useState<any[]>([]);
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,6 +193,7 @@ export default function SubFolderDetailsPage() {
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
+      setFolders(workspaceData.folders || []);
       setFiles(workspaceData.files);
     } catch (err: any) {
       setError(err?.message || "Failed to load files");
@@ -216,7 +218,7 @@ export default function SubFolderDetailsPage() {
 
   const folderTitle = useMemo(() => {
     if (nestedSlug === "raw-footage") return "Raw Footages";
-    if (nestedSlug === "edited-footage") return "Edited Footages";
+    if (nestedSlug === "edits" || nestedSlug === "edited-footage") return "Edits";
     if (nestedSlug === "final-deliverables") return "Final Deliverables";
     return folderName || "Files";
   }, [folderName, nestedSlug]);
@@ -229,11 +231,38 @@ export default function SubFolderDetailsPage() {
     }));
   }, [files]);
 
+  const folderItems = useMemo(
+    () =>
+      (folders || []).map((folder) => {
+        const folderName = String(folder?.name || "").trim();
+        const nextPath = [folderPath, folderName].filter(Boolean).join("/");
+        const slug = String(folderName || "folder").toLowerCase().replace(/\s+/g, "-");
+        return {
+          id: String(folder?.path || nextPath || folderName),
+          title: folderName || "Folder",
+          fileCount: Number(folder?.fileCount || 0),
+          category: String(folder?.folderType || "folder"),
+          isLinked: true,
+          lastOpened: folder?.updatedAt || folder?.createdAt || "recently",
+          userInitials: getDisplayInitials(folderName || "Folder"),
+          resourcePath: String(folder?.path || nextPath),
+          href: `/admin/file-manager/${projectId}/${phaseSlug}/${slug}?path=${encodeURIComponent(nextPath)}&name=${encodeURIComponent(folderName || "Folder")}`,
+        };
+      }),
+    [folderPath, folders, phaseSlug, projectId]
+  );
+
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return folderFiles;
     const query = searchTerm.toLowerCase();
     return folderFiles.filter((item) => item.title.toLowerCase().includes(query));
   }, [folderFiles, searchTerm]);
+  const filteredFolders = useMemo(() => {
+    if (!searchTerm.trim()) return folderItems;
+    const query = searchTerm.toLowerCase();
+    return folderItems.filter((item) => item.title.toLowerCase().includes(query));
+  }, [folderItems, searchTerm]);
+  const totalVisibleItems = filteredFolders.length + filteredData.length;
   const visibleFiles = useMemo(
     () => filteredData.slice(0, visibleFileCount),
     [filteredData, visibleFileCount]
@@ -443,7 +472,7 @@ export default function SubFolderDetailsPage() {
                     {getDisplayInitials(workspaceName)}
                   </div>
                   <h1 className={`text-sm lg:text-base font-semibold truncate ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"} `}>
-                    {folderTitle} ({filteredData.length} Items)
+                    {folderTitle} ({totalVisibleItems} Items)
                   </h1>
                 </div>
               </div>
@@ -519,45 +548,87 @@ export default function SubFolderDetailsPage() {
               </div>
 
               {viewMode === "board" ? (
-                filteredData.length === 0 ? (
+                totalVisibleItems === 0 ? (
                   <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
-                  <FileManagerBoard
-                    columns={fileBoardColumns}
-                    emptyMessage="No files in this column"
-                    getItemId={(file) => String(file.id)}
-                    renderCard={(file) => (
-                      <FileCard
-                        file={{ ...file, previewUrl: previewUrls[file.id] }}
-                        onOpen={() => handleOpenFile(file)}
-                        onDownload={() => handleDownloadFile(file)}
-                        onDelete={() => {
-                          if (!canDelete) return;
-                          setSelectedFile(file);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        onShare={() => {
-                          setSelectedFile(file);
-                          setShareResource({
-                            resourceType: "file",
-                            externalId: String(projectId || ""),
-                            phase: phaseSlug === "post-production" ? "post" : "pre",
-                            filepath: file.filepath,
-                            label: file.title,
-                          });
-                          setIsShareModalOpen(true);
-                        }}
-                        isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
-                        onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                  <div className="space-y-5">
+                    {filteredFolders.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {filteredFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            title={folder.title}
+                            fileCount={folder.fileCount}
+                            category={folder.category}
+                            isLinked={folder.isLinked}
+                            lastOpened={folder.lastOpened}
+                            userInitials={folder.userInitials}
+                            href={folder.href}
+                            onOpen={() => router.push(folder.href)}
+                            onOpenLinkModal={() => {}}
+                            showMenu={false}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                    {filteredData.length > 0 ? (
+                      <FileManagerBoard
+                        columns={fileBoardColumns}
+                        emptyMessage="No files in this column"
+                        getItemId={(file) => String(file.id)}
+                        renderCard={(file) => (
+                          <FileCard
+                            file={{ ...file, previewUrl: previewUrls[file.id] }}
+                            onOpen={() => handleOpenFile(file)}
+                            onDownload={() => handleDownloadFile(file)}
+                            onDelete={() => {
+                              if (!canDelete) return;
+                              setSelectedFile(file);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            onShare={() => {
+                              setSelectedFile(file);
+                              setShareResource({
+                                resourceType: "file",
+                                externalId: String(projectId || ""),
+                                phase: phaseSlug === "post-production" ? "post" : "pre",
+                                filepath: file.filepath,
+                                label: file.title,
+                              });
+                              setIsShareModalOpen(true);
+                            }}
+                            isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                            onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                          />
+                        )}
                       />
-                    )}
-                  />
+                    ) : null}
+                  </div>
                 )
               ) : viewMode === "grid" ? (
-                filteredData.length === 0 ? (
+                totalVisibleItems === 0 ? (
                   <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
                   <div className="space-y-4">
+                    {filteredFolders.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {filteredFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            title={folder.title}
+                            fileCount={folder.fileCount}
+                            category={folder.category}
+                            isLinked={folder.isLinked}
+                            lastOpened={folder.lastOpened}
+                            userInitials={folder.userInitials}
+                            href={folder.href}
+                            onOpen={() => router.push(folder.href)}
+                            onOpenLinkModal={() => {}}
+                            showMenu={false}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                       {visibleFiles.map((file) => (
                         <div
@@ -660,13 +731,92 @@ export default function SubFolderDetailsPage() {
                   </div>
                 )
               ) : (
-                filteredData.length === 0 ? (
+                totalVisibleItems === 0 ? (
                   <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
                 ) : (
                   <>
                     {/* Main Display Fragment Block Container Layout */}
                     <div className="space-y-4">
+                      {filteredFolders.length > 0 ? (
+                        <div className={`lg:hidden border rounded-xl overflow-hidden transition-colors duration-200 setup-beta-tag shadow-sm ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
+                          <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
+                            <span>Folder Name</span>
+                          </div>
+                          <div className="flex flex-col">
+                            {filteredFolders.map((folder) => (
+                              <button
+                                key={folder.id}
+                                type="button"
+                                onClick={() => router.push(folder.href)}
+                                className={`flex w-full items-center justify-between gap-3 p-4 text-left transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"}`}
+                              >
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <div className={`h-10 w-10 flex items-center justify-center rounded-lg transition-colors ${isDark ? "bg-white/5" : "bg-[#F4F5F7]"}`}>
+                                    <FileArchive size={20} className="text-[#E8D1AB]" />
+                                  </div>
+                                  <span className={`truncate text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                    {folder.title}
+                                  </span>
+                                </div>
+                                <span className={`text-xs font-medium ${isDark ? "text-white/50" : "text-black/50"}`}>
+                                  {folder.fileCount} Files
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {filteredFolders.length > 0 ? (
+                        <div className="hidden lg:block overflow-x-auto">
+                          <table className={`w-full text-left border-collapse text-sm transition-colors border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#E5E5E5]"}`}>
+                            <thead>
+                              <tr className={`text-sm font-normal transition-colors duration-200 ${isDark ? "bg-[#202020] text-[#E8D1AB]" : "bg-[#FFFCF6] text-black"}`}>
+                                <th className="rounded-l-xl py-5 px-6 font-medium">Folder title</th>
+                                <th className="py-5 px-6 font-medium">Type</th>
+                                <th className="py-5 px-6 font-medium">Files</th>
+                                <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody className={`${isDark ? "bg-[#171717]" : "bg-white"} transition-colors duration-200`}>
+                              {filteredFolders.map((folder) => (
+                                <tr
+                                  key={folder.id}
+                                  className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
+                                  onClick={() => router.push(folder.href)}
+                                >
+                                  <td className="py-5 px-6 whitespace-nowrap">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-9 h-9 lg:w-10 lg:h-10 rounded-lg overflow-hidden flex-shrink-0 relative border flex items-center justify-center transition-colors ${isDark ? "border-white/5 bg-[#1A1A1A]" : "border-black/5 bg-black/[0.03]"}`}>
+                                        <FileArchive size={20} className={isDark ? "text-[#E8D1AB]" : "text-black/70"} />
+                                      </div>
+                                      <span className={`font-medium truncate max-w-[220px] ${isDark ? "text-white" : "text-black"}`}>
+                                        {folder.title}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className={`py-5 px-6 whitespace-nowrap text-xs font-medium ${isDark ? "text-white/60" : "text-black/60"}`}>{folder.category}</td>
+                                  <td className={`py-5 px-6 whitespace-nowrap text-xs font-medium ${isDark ? "text-white/60" : "text-black/60"}`}>{folder.fileCount}</td>
+                                  <td className="py-5 px-6 whitespace-nowrap text-right">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      className={isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        router.push(folder.href);
+                                      }}
+                                    >
+                                      Open
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null}
                       {/* Mobile Specific List View (lg:hidden) */}
+                      {filteredData.length > 0 ? (
                       <div className={`lg:hidden border rounded-xl overflow-hidden transition-colors duration-200 setup-beta-tag shadow-sm ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
                         <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
                           <span>File Name</span>
@@ -709,8 +859,10 @@ export default function SubFolderDetailsPage() {
                           ))}
                         </div>
                       </div>
+                      ) : null}
 
                       {/* Regular Desktop Table View Layout (hidden lg:block) */}
+                      {filteredData.length > 0 ? (
                       <div className="hidden lg:block overflow-x-auto">
                         <table className={`w-full text-left border-collapse text-sm transition-colors border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#E5E5E5]"
                           }`}>
@@ -834,6 +986,7 @@ export default function SubFolderDetailsPage() {
                           </tbody>
                         </table>
                       </div>
+                      ) : null}
 
                       {/* Pagination Control Area */}
                       {hasMoreFiles && (

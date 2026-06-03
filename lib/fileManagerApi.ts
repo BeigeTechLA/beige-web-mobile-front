@@ -1028,12 +1028,12 @@ export const buildPostProductionFolders = (
     },
     {
       id: `${projectId}-edited`,
-      title: "Edited Footages",
+      title: "Edits",
       fileCount: byCategories(files, EDITED_FOOTAGE_CATEGORIES).length,
       lastOpened,
       userInitials,
-      type: "edited-footage",
-      href: `${projectPath}/post-production/edited-footage`,
+      type: "edits",
+      href: `${projectPath}/post-production/edits`,
     },
     {
       id: `${projectId}-final`,
@@ -1070,7 +1070,7 @@ export const getFilesForFolderView = (
     return byCategories(files, RAW_FOOTAGE_CATEGORIES);
   }
 
-  if (phaseSlug === "post-production" && nestedSlug === "edited-footage") {
+  if (phaseSlug === "post-production" && (nestedSlug === "edits" || nestedSlug === "edited-footage")) {
     return byCategories(files, EDITED_FOOTAGE_CATEGORIES);
   }
 
@@ -1084,7 +1084,7 @@ export const getFilesForFolderView = (
 export const slugToWorkspaceName = (slug?: string) => {
   if (!slug) return "";
   if (slug === "raw-footage") return "Raw Footage";
-  if (slug === "edited-footage") return "Edited Footage";
+  if (slug === "edits" || slug === "edited-footage") return "Edits";
   if (slug === "final-deliverables") return "Final Deliverables";
   if (slug === "pre-production") return "Pre-Production";
   if (slug === "post-production") return "Post-Production";
