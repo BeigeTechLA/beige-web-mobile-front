@@ -20,6 +20,7 @@ import {
   UserPlus,
   Users,
   X,
+  ChevronLeft,
 } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { toast } from "sonner";
@@ -1174,13 +1175,13 @@ export default function ExternalChatView({
         current.map((room) =>
           getRoomId(room) === roomIdFromPayload
             ? {
-                ...room,
-                last_message: {
-                  ...(room.last_message || {}),
-                  message: String(payload?.message || room.last_message?.message || "New update"),
-                },
-                updatedAt: new Date().toISOString(),
-              }
+              ...room,
+              last_message: {
+                ...(room.last_message || {}),
+                message: String(payload?.message || room.last_message?.message || "New update"),
+              },
+              updatedAt: new Date().toISOString(),
+            }
             : room
         )
       );
@@ -1194,11 +1195,11 @@ export default function ExternalChatView({
         current.map((item) =>
           getMessageId(item) === messageId
             ? {
-                ...item,
-                message: String(payload?.content || item.message || ""),
-                is_edited: true,
-                updatedAt: payload?.updatedAt || item.updatedAt,
-              }
+              ...item,
+              message: String(payload?.content || item.message || ""),
+              is_edited: true,
+              updatedAt: payload?.updatedAt || item.updatedAt,
+            }
             : item
         )
       );
@@ -1212,11 +1213,11 @@ export default function ExternalChatView({
         current.map((item) =>
           getMessageId(item) === messageId
             ? {
-                ...item,
-                is_deleted: true,
-                message: "This message was deleted",
-                updatedAt: payload?.updatedAt || item.updatedAt,
-              }
+              ...item,
+              is_deleted: true,
+              message: "This message was deleted",
+              updatedAt: payload?.updatedAt || item.updatedAt,
+            }
             : item
         )
       );
@@ -1473,10 +1474,10 @@ export default function ExternalChatView({
       <div className="flex min-h-0 flex-1 flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3 px-1">
           <div>
-            <h2 className={`text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+            <h2 className={`text-lg lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>
               {heading}
             </h2>
-            <p className={`mt-1 text-sm transition-colors ${isDark ? "text-white/55" : "text-black/60"}`}>
+            <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/55" : "text-black/60"}`}>
               {description}
             </p>
           </div>
@@ -1485,7 +1486,7 @@ export default function ExternalChatView({
             <button
               type="button"
               onClick={() => setRoomSortOrder((current) => (current === "latest" ? "oldest" : "latest"))}
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-3 text-sm transition-colors ${isDark
+              className={`inline-flex items-center gap-2 rounded-full border py-2 px-3 lg:px-4 lg:py-3 text-xs lg:text-sm transition-colors ${isDark
                 ? "border-white/10 bg-[#111111] text-white/70 hover:bg-white/5"
                 : "border-[#E5E5E5] bg-white text-black/70 hover:bg-zinc-50 shadow-sm"
                 }`}
@@ -1499,7 +1500,7 @@ export default function ExternalChatView({
               <button
                 type="button"
                 onClick={() => setIsComposerOpen(true)}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold transition-colors ${isDark
+                className={`rounded-lg lg:rounded-xl py-2 px-3 lg:px-4 lg:py-3 text-xs lg:text-sm font-semibold transition-colors ${isDark
                   ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]"
                   : "bg-black text-white hover:bg-zinc-800"
                   }`}
@@ -1510,28 +1511,31 @@ export default function ExternalChatView({
           </div>
         </div>
 
-        <div className={`flex min-h-0 flex-1 overflow-hidden rounded-[32px] border transition-colors ${isDark
+        <div className={`flex min-h-0 flex-1 overflow-hidden rounded-2xl lg:rounded-4xl border transition-colors ${isDark
           ? "border-white/10 bg-[radial-gradient(circle_at_top,#181818,transparent_35%),#0b0b0b] shadow-[0_30px_80px_rgba(0,0,0,0.55)]"
           : "border-[#E5E5E5] bg-[radial-gradient(circle_at_top,#F9F9F9,transparent_35%),#FFFFFF] shadow-[0_20px_50px_rgba(0,0,0,0.06)]"
           }`}>
-          <div className="grid min-h-0 flex-1 lg:grid-cols-[420px_minmax(0,1fr)]">
+          <div className="grid w-full min-w-0 min-h-0 flex-1 lg:grid-cols-[420px_minmax(0,1fr)]">
 
-            {/* Sidebar Track Container */}
-            <div className={`flex min-h-0 flex-col border-b lg:border-b-0 lg:border-r transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#FAFAFA]"
-              }`}>
+            {/* PART 1: SIDEBAR TRACK CONTAINER (Responsive: hidden on mobile if a room is selected) */}
+            <div className={`w-full max-w-full min-w-0 min-h-0 flex-col border-b lg:border-b-0 lg:border-r transition-colors ${selectedRoom ? "hidden lg:flex" : "flex"} ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
 
               {/* Sidebar Header & Search View */}
-              <div className={`border-b p-6 transition-colors ${isDark ? "border-white/5" : "border-[#E3E3E3]"}`}>
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <h3 className={`text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>Messages</h3>
-                    <p className={`mt-1 text-xs transition-colors ${isDark ? "text-white/35" : "text-black/50"}`}>Browse all conversations in one place.</p>
+              <div className={`border-b p-4 lg:p-6 transition-colors ${isDark ? "border-white/5" : "border-[#E3E3E3]"}`}>
+                <div className="mb-4 flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h3 className={`text-lg lg:text-2xl font-semibold transition-colors truncate ${isDark ? "text-white" : "text-black"}`}>
+                      Messages
+                    </h3>
+                    <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/35" : "text-black/50"}`}>
+                      Browse all conversations in one place.
+                    </p>
                   </div>
                   <Button
                     type="button"
                     onClick={loadRooms}
                     variant="outline"
-                    className={`h-11 w-11 rounded-full p-0 transition-colors ${isDark
+                    className={`h-10 w-10 lg:h-11 lg:w-11 shrink-0 rounded-full p-0 transition-colors ${isDark
                       ? "border-white/10 bg-[#202020] text-white/70 hover:bg-[#262626]"
                       : "border-[#E5E5E5] bg-white text-black/70 hover:bg-zinc-100"
                       }`}
@@ -1540,14 +1544,14 @@ export default function ExternalChatView({
                   </Button>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="relative flex-1">
+                <div className="flex items-center gap-2 lg:gap-3">
+                  <div className="relative flex-1 min-w-0">
                     <Search className={`absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isDark ? "text-white/35" : "text-black/40"}`} />
                     <Input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search Conversation"
-                      className={`h-14 rounded-full border-0 pl-12 pr-4 text-[15px] transition-colors ${isDark
+                      className={`h-10 lg:h-14 w-full rounded-full border-0 pl-12 pr-4 text-sm lg:text-base transition-colors ${isDark
                         ? "bg-[#202020] text-white placeholder:text-white/40"
                         : "bg-[#F0F0F0] text-black placeholder:text-black/40"
                         }`}
@@ -1557,26 +1561,23 @@ export default function ExternalChatView({
                     <button
                       type="button"
                       onClick={() => setIsComposerOpen(true)}
-                      className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"
-                        }`}
+                      className={`flex h-10 w-10 lg:h-14 lg:w-14 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
                     >
-                      <span className="text-[34px] font-light leading-none -mt-1">+</span>
+                      <span className="text-xl lg:text-4xl font-light leading-none -mt-0.5 lg:-mt-1">+</span>
                     </button>
                   ) : null}
                 </div>
               </div>
 
               {/* Dynamic Conversational Rooms List view */}
-              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4 lg:px-4 lg:py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {loading ? (
-                  <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"
-                    }`}>
+                  <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
                     <Loader2 className="animate-spin text-[#BFA780]" size={40} />
                   </div>
                 ) : filteredRooms.length === 0 ? (
-                  <div className={`rounded-3xl border border-dashed p-5 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F9F9F9]"
-                    }`}>
-                    <p className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>No active conversation yet</p>
+                  <div className={`rounded-3xl border border-dashed p-3 lg:p-5 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}>
+                    <p className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>No active conversation yet</p>
                     <p className={`mt-2 text-sm ${isDark ? "text-white/45" : "text-black/50"}`}>
                       {bookingId ? "This shoot does not have a chat room yet." : "No chat rooms were returned for this view."}
                     </p>
@@ -1605,19 +1606,18 @@ export default function ExternalChatView({
                         type="button"
                         key={roomId || `${room.chat_id}-${room.name}`}
                         onClick={() => loadRoomDetails(room)}
-                        className={`w-full rounded-[28px] px-3 py-4 text-left transition-all ${isSelected
+                        className={`w-full rounded-2xl lg:rounded-[28px] px-3 py-4 text-left transition-all ${isSelected
                           ? isDark ? "bg-[#202020]" : "bg-zinc-200/70 shadow-sm"
                           : roomUnreadCount > 0
                             ? isDark ? "bg-[#171717] ring-1 ring-[#E5D5B8]/18 hover:bg-white/[0.03]" : "bg-white ring-1 ring-black/5 shadow-sm hover:bg-zinc-50"
                             : isDark ? "bg-transparent hover:bg-white/[0.03]" : "bg-transparent hover:bg-zinc-100/50"
                           }`}
                       >
-                        <div className="flex items-start gap-4">
-                          <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0] text-lg font-semibold text-[#222]">
+                        <div className="flex items-start gap-2 lg:gap-4">
+                          <div className="relative flex h-11 w-11 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0] text-sm lg:text-lg font-semibold text-[#222]">
                             {getInitials(room.name)}
                             {roomUnreadCount > 0 ? (
-                              <span className={`absolute bottom-0 right-0 flex h-7 min-w-7 items-center justify-center rounded-full border-2 px-1 text-xs font-semibold ${isDark ? "border-[#171717] bg-[#E5D5B8] text-black" : "border-white bg-black text-white"
-                                }`}>
+                              <span className={`absolute bottom-0 right-0 flex h-7 min-w-7 items-center justify-center rounded-full border-2 px-1 text-xs font-semibold ${isDark ? "border-[#171717] bg-[#E5D5B8] text-black" : "border-white bg-black text-white"}`}>
                                 {Math.min(roomUnreadCount, 99)}
                               </span>
                             ) : null}
@@ -1625,21 +1625,21 @@ export default function ExternalChatView({
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <p className={`break-words pr-2 text-[15px] font-semibold leading-5 transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                                <p className={`break-words pr-2 text-sm lg:text-base font-semibold leading-5 transition-colors ${isDark ? "text-white" : "text-black"}`}>
                                   {room.name || `Chat ${room.chat_id || ""}`}
                                 </p>
-                                <p className={`mt-2 truncate text-[15px] transition-colors ${roomUnreadCount > 0
+                                <p className={`mt-2 truncate text-sm lg:text-base transition-colors ${roomUnreadCount > 0
                                   ? isDark ? "font-medium text-white/82" : "font-semibold text-black"
                                   : isDark ? "text-white/42" : "text-black/55"
                                   }`}>
                                   {previewSender ? `${previewSender}: ` : ""}
                                   {previewText}
                                 </p>
-                                <p className={`mt-2 truncate text-[12px] transition-colors ${isDark ? "text-white/28" : "text-black/40"}`}>
+                                <p className={`mt-2 truncate text-xs transition-colors ${isDark ? "text-white/28" : "text-black/40"}`}>
                                   {`${roomParticipantCount || 1} ${(roomParticipantCount || 1) === 1 ? "participant" : "participants"}`}
                                 </p>
                               </div>
-                              <div className={`flex shrink-0 flex-col items-end gap-2 pt-0.5 text-[12px] transition-colors ${isDark ? "text-white/32" : "text-black/40"}`}>
+                              <div className={`flex shrink-0 flex-col items-end gap-2 pt-0.5 text-xs transition-colors ${isDark ? "text-white/32" : "text-black/40"}`}>
                                 <div className="flex items-center gap-1.5">
                                   <Users className="h-3.5 w-3.5" />
                                   <span>{roomParticipantCount || 1}</span>
@@ -1649,14 +1649,13 @@ export default function ExternalChatView({
                                   </span>
                                 </div>
                                 {roomUnreadCount > 0 ? (
-                                  <span className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"
-                                    }`}>
+                                  <span className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"}`}>
                                     {roomUnreadCount > 9 ? "9+" : roomUnreadCount}
                                   </span>
                                 ) : null}
                               </div>
                             </div>
-                            <div className={`mt-3 flex items-center justify-between text-[11px] transition-colors ${isDark ? "text-white/24" : "text-black/35"}`}>
+                            <div className={`mt-3 flex items-center justify-between text-xs transition-colors ${isDark ? "text-white/24" : "text-black/35"}`}>
                               <span>#{room.chat_id || "room"}</span>
                               <span className="inline-flex items-center gap-1">
                                 {getStatusIcon(room.status)}
@@ -1672,11 +1671,31 @@ export default function ExternalChatView({
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col">
+            {/* THREAD CONTAINER SIDE (Responsive: hidden on mobile if no conversation is open) */}
+            <div className={`min-h-0 flex-1 flex-col ${selectedRoom ? "flex" : "hidden lg:flex"}`}>
               {/* Top Conversation Header Panel */}
               <div className={`border-b p-4 lg:px-8 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
                   <div className="flex items-center gap-3">
+                    {/* Mobile Back Chevron Navigation Trigger Button */}
+                    {selectedRoom && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Clears room to fall back to rooms sidebar layout tracking on small viewports
+                          if (typeof setSelectedRoom === "function") {
+                            setSelectedRoom(null);
+                          }
+                        }}
+                        className={`lg:hidden p-2 rounded-full border mr-1 transition-colors ${isDark
+                          ? "border-white/10 bg-[#161616] text-white/70 hover:bg-[#1d1d1d]"
+                          : "border-[#E5E5E5] bg-white text-black/70 hover:bg-zinc-50"
+                          }`}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                    )}
+
                     <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#E5D5B8]/15 text-[#E5D5B8]" : "bg-zinc-100 text-black"}`}>
                       <Users className="h-5 w-5" />
                     </div>
@@ -1781,8 +1800,7 @@ export default function ExternalChatView({
                                 setIsThreadSearchOpen(false);
                                 setThreadSearch("");
                               }}
-                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"
-                                }`}
+                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"}`}
                             >
                               <X className="h-4 w-4" />
                               Clear search
@@ -1810,22 +1828,19 @@ export default function ExternalChatView({
 
                 {/* Thread Inline Filter Input Bar */}
                 {isThreadSearchOpen ? (
-                  <div className={`mt-4 flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"
-                    }`}>
+                  <div className={`mt-4 flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"}`}>
                     <Search className={`h-4 w-4 ${isDark ? "text-white/45" : "text-black/40"}`} />
                     <input
                       value={threadSearch}
                       onChange={(event) => setThreadSearch(event.target.value)}
                       placeholder="Search in this conversation"
-                      className={`w-full bg-transparent text-sm outline-none transition-colors ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/40"
-                        }`}
+                      className={`w-full bg-transparent text-sm outline-none transition-colors ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/40"}`}
                     />
                     {threadSearch ? (
                       <button
                         type="button"
                         onClick={() => setThreadSearch("")}
-                        className={`rounded-full p-1 transition-colors ${isDark ? "text-white/45 hover:bg-white/5 hover:text-white" : "text-black/45 hover:bg-zinc-200 hover:text-black"
-                          }`}
+                        className={`rounded-full p-1 transition-colors ${isDark ? "text-white/45 hover:bg-white/5 hover:text-white" : "text-black/45 hover:bg-zinc-200 hover:text-black"}`}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -1834,24 +1849,24 @@ export default function ExternalChatView({
                 ) : null}
               </div>
 
+              {/* PART 2: MAIN VIEWPORT CHAT BODY AREA */}
               <div className="relative min-h-0 flex-1">
                 <div
                   ref={messageViewportRef}
                   onScroll={updateScrollIntent}
-                  className={`min-h-0 h-full overflow-y-auto px-5 py-6 lg:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-zinc-50"
-                    }`}
+                  className={`min-h-0 h-full overflow-y-auto px-5 py-6 lg:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-zinc-50"}`}
                 >
                   {loadingRoomData ? (
                     <div className={`text-sm ${isDark ? "text-white/45" : "text-zinc-400"}`}>Loading messages...</div>
                   ) : !selectedRoom ? (
                     <div className="flex h-full items-center justify-center">
-                      <div className={`mx-auto flex max-w-md flex-col items-center rounded-[32px] border px-8 py-12 text-center shadow-[0_25px_60px_rgba(0,0,0,0.28)] ${isDark
-                          ? "border-[#E5D5B8]/12 bg-[linear-gradient(180deg,rgba(27,24,21,0.92),rgba(16,15,13,0.96))]"
-                          : "border-zinc-200 bg-white"
+                      <div className={`mx-auto flex max-w-md flex-col items-center rounded-4xl border px-8 py-12 text-center shadow-[0_25px_60px_rgba(0,0,0,0.28)] ${isDark
+                        ? "border-[#E5D5B8]/12 bg-[linear-gradient(180deg,rgba(27,24,21,0.92),rgba(16,15,13,0.96))]"
+                        : "border-zinc-200 bg-white"
                         }`}>
                         <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-[26px] ${isDark
-                            ? "bg-[linear-gradient(135deg,rgba(229,213,184,0.18),rgba(188,216,240,0.14))] text-[#E5D5B8]"
-                            : "bg-zinc-100 text-zinc-900"
+                          ? "bg-[linear-gradient(135deg,rgba(229,213,184,0.18),rgba(188,216,240,0.14))] text-[#E5D5B8]"
+                          : "bg-zinc-100 text-zinc-900"
                           }`}>
                           <MessageCircle className="h-9 w-9" />
                         </div>
@@ -1865,13 +1880,11 @@ export default function ExternalChatView({
                       </div>
                     </div>
                   ) : messages.length === 0 ? (
-                    <EmptyChatState />
+                    <EmptyChatState isDark={isDark} />
                   ) : visibleMessages.length === 0 ? (
                     <div className="flex h-full items-center justify-center">
-                      <div className={`rounded-[30px] border px-8 py-10 text-center ${isDark ? "border-white/10 bg-[#171411]" : "border-zinc-200 bg-zinc-50"
-                        }`}>
-                        <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] ${isDark ? "bg-[#E5D5B8]/12 text-[#E5D5B8]" : "bg-zinc-200 text-zinc-700"
-                          }`}>
+                      <div className={`rounded-[30px] border px-8 py-10 text-center ${isDark ? "border-white/10 bg-[#171411]" : "border-zinc-200 bg-zinc-50"}`}>
+                        <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] ${isDark ? "bg-[#E5D5B8]/12 text-[#E5D5B8]" : "bg-zinc-200 text-zinc-700"}`}>
                           <Search className="h-7 w-7" />
                         </div>
                         <p className={`text-sm ${isDark ? "text-white/45" : "text-zinc-500"}`}>No messages matched your search.</p>
@@ -1881,8 +1894,7 @@ export default function ExternalChatView({
                     <div className="space-y-5">
                       <div className="flex items-center gap-3">
                         <div className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
-                        <span className={`rounded-xl px-3 py-1 text-xs font-medium ${isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"
-                          }`}>
+                        <span className={`rounded-xl px-3 py-1 text-xs font-medium ${isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"}`}>
                           {formatDayLabel(latestDate)}
                         </span>
                         <div className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
@@ -1924,9 +1936,9 @@ export default function ExternalChatView({
                               {unreadBoundaryMessageId === messageId ? (
                                 <div ref={unreadMarkerRef} className="flex items-center gap-3 py-1">
                                   <div className={`h-px flex-1 ${isDark ? "bg-[#E5D5B8]/25" : "bg-zinc-300"}`} />
-                                  <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${isDark
-                                      ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/12 text-[#E5D5B8]"
-                                      : "border-zinc-300 bg-zinc-100 text-zinc-800"
+                                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${isDark
+                                    ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/12 text-[#E5D5B8]"
+                                    : "border-zinc-300 bg-zinc-100 text-zinc-800"
                                     }`}>
                                     {activeThreadUnreadCount} unread {activeThreadUnreadCount === 1 ? "message" : "messages"}
                                   </span>
@@ -1934,8 +1946,7 @@ export default function ExternalChatView({
                                 </div>
                               ) : null}
                               <div className="flex justify-center">
-                                <span className={`rounded-full border px-4 py-2 text-[11px] italic ${isDark ? "border-white/10 bg-white/5 text-white/35" : "border-zinc-200 bg-zinc-100 text-zinc-500"
-                                  }`}>
+                                <span className={`rounded-full border px-4 py-2 text-xs italic ${isDark ? "border-white/10 bg-white/5 text-white/35" : "border-zinc-200 bg-zinc-100 text-zinc-500"}`}>
                                   {getMessageText(message)}
                                 </span>
                               </div>
@@ -1948,21 +1959,18 @@ export default function ExternalChatView({
                             {unreadBoundaryMessageId === messageId ? (
                               <div ref={unreadMarkerRef} className="flex items-center gap-3 py-1">
                                 <div className={`h-px flex-1 ${isDark ? "bg-[#E5D5B8]/25" : "bg-zinc-300"}`} />
-                                <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${isDark
-                                    ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/12 text-[#E5D5B8]"
-                                    : "border-zinc-300 bg-zinc-100 text-zinc-800"
+                                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${isDark
+                                  ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/12 text-[#E5D5B8]"
+                                  : "border-zinc-300 bg-zinc-100 text-zinc-800"
                                   }`}>
                                   {activeThreadUnreadCount} unread {activeThreadUnreadCount === 1 ? "message" : "messages"}
                                 </span>
                                 <div className={`h-px flex-1 ${isDark ? "bg-[#E5D5B8]/25" : "bg-zinc-300"}`} />
                               </div>
                             ) : null}
-                            <div
-                              className={`group flex items-end gap-3 ${isOwn ? "justify-end" : "justify-start"}`}
-                            >
+                            <div className={`group flex items-end gap-3 ${isOwn ? "justify-end" : "justify-start"}`}>
                               {!isOwn ? (
-                                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ${isDark ? "bg-[#E5D5B8]/20 text-[#E5D5B8]" : "bg-zinc-100 text-zinc-800"
-                                  }`}>
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ${isDark ? "bg-[#E5D5B8]/20 text-[#E5D5B8]" : "bg-zinc-100 text-zinc-800"}`}>
                                   {getInitials(sender?.name)}
                                 </div>
                               ) : null}
@@ -1970,8 +1978,7 @@ export default function ExternalChatView({
                                 <div className="relative">
                                   <div
                                     data-message-action-area="true"
-                                    className={`absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-2 transition ${openMessageMenuId === messageId ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                                      } ${isOwn ? "left-0 -translate-x-[calc(100%+12px)]" : "right-0 translate-x-[calc(100%+12px)]"}`}
+                                    className={`absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-2 transition ${openMessageMenuId === messageId ? "opacity-100" : "opacity-0 group-hover:opacity-100"} ${isOwn ? "left-0 -translate-x-[calc(100%+12px)]" : "right-0 translate-x-[calc(100%+12px)]"}`}
                                   >
                                     <div className="relative">
                                       <button
@@ -1981,15 +1988,14 @@ export default function ExternalChatView({
                                           setOpenMessageMenuId(null);
                                         }}
                                         className={`rounded-full border p-2 transition ${isDark
-                                            ? "border-white/10 bg-[#151515] text-white/65 hover:bg-[#202020] hover:text-white"
-                                            : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                                          ? "border-white/10 bg-[#151515] text-white/65 hover:bg-[#202020] hover:text-white"
+                                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                                           }`}
                                       >
                                         <Smile className="h-4 w-4" />
                                       </button>
                                       {showReactionPickerId === messageId ? (
-                                        <div className={`absolute top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
-                                          } ${isOwn ? "right-[calc(100%+8px)]" : "left-[calc(100%+8px)]"}`}>
+                                        <div className={`absolute top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"} ${isOwn ? "right-[calc(100%+8px)]" : "left-[calc(100%+8px)]"}`}>
                                           {QUICK_REACTIONS.map((emoji) => (
                                             <button
                                               key={`${messageId}-picker-${emoji}`}
@@ -2011,8 +2017,8 @@ export default function ExternalChatView({
                                         setShowReactionPickerId(null);
                                       }}
                                       className={`rounded-full border p-2 transition ${isDark
-                                          ? "border-white/10 bg-[#151515] text-white/65 hover:bg-[#202020] hover:text-white"
-                                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                                        ? "border-white/10 bg-[#151515] text-white/65 hover:bg-[#202020] hover:text-white"
+                                        : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                                         }`}
                                     >
                                       <Reply className="h-4 w-4" />
@@ -2026,20 +2032,18 @@ export default function ExternalChatView({
                                             setShowReactionPickerId(null);
                                           }}
                                           className={`rounded-full border p-2 transition ${isDark
-                                              ? "border-white/10 bg-[#151515] text-white/65 hover:bg-[#202020] hover:text-white"
-                                              : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                                            ? "border-white/10 bg-[#151515] text-white/65 hover:bg-[#202020] hover:text-white"
+                                            : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                                             }`}
                                         >
                                           <MoreVertical className="h-4 w-4" />
                                         </button>
                                         {openMessageMenuId === messageId ? (
-                                          <div className={`absolute top-1/2 z-20 min-w-[150px] -translate-y-1/2 rounded-2xl border p-2 shadow-2xl right-[calc(100%+8px)] ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"
-                                            }`}>
+                                          <div className={`absolute top-1/2 z-20 min-w-[150px] -translate-y-1/2 rounded-2xl border p-2 shadow-2xl right-[calc(100%+8px)] ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
                                             <button
                                               type="button"
                                               onClick={() => startEditingMessage(message)}
-                                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${isDark ? "text-white/80 hover:bg-white/5" : "text-zinc-700 hover:bg-zinc-50"
-                                                }`}
+                                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${isDark ? "text-white/80 hover:bg-white/5" : "text-zinc-700 hover:bg-zinc-50"}`}
                                             >
                                               <Pencil className="h-4 w-4" />
                                               Edit
@@ -2050,8 +2054,7 @@ export default function ExternalChatView({
                                                 setMessagePendingDelete(message);
                                                 setOpenMessageMenuId(null);
                                               }}
-                                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${isDark ? "text-[#ff7d7d] hover:bg-white/5" : "text-red-600 hover:bg-red-50"
-                                                }`}
+                                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${isDark ? "text-[#ff7d7d] hover:bg-white/5" : "text-red-600 hover:bg-red-50"}`}
                                             >
                                               <Trash2 className="h-4 w-4" />
                                               Delete
@@ -2062,18 +2065,15 @@ export default function ExternalChatView({
                                     ) : null}
                                   </div>
 
-                                  <div
-                                    className={`rounded-[24px] px-4 py-3 ${isOwn
-                                        ? `rounded-br-md ${isDark ? "bg-[#1D1D1D] text-white" : "bg-zinc-100 text-zinc-900"}`
-                                        : `rounded-bl-md ${isDark ? "bg-[#191919] text-white" : "bg-white border border-zinc-200 text-zinc-900"}`
-                                      }`}
-                                  >
+                                  <div className={`rounded-3xl px-4 py-3 ${isOwn
+                                    ? `rounded-br-md ${isDark ? "bg-[#1D1D1D] text-white" : "bg-zinc-100 text-zinc-900"}`
+                                    : `rounded-bl-md ${isDark ? "bg-[#191919] text-white" : "bg-white border border-zinc-200 text-zinc-900"}`
+                                    }`}>
                                     <div className="mb-1 flex items-center gap-2">
-                                      <p className={`text-[11px] uppercase tracking-[0.14em] ${isDark ? "text-white/35" : "text-zinc-400"}`}>
+                                      <p className={`text-xs uppercase tracking-[0.14em] ${isDark ? "text-white/35" : "text-zinc-400"}`}>
                                         {sender?.name || "Participant"}
                                       </p>
-                                      <span className={`rounded-full border px-2 py-0.5 text-[10px] ${isDark ? "border-white/10 bg-white/5 text-white/45" : "border-zinc-200 bg-zinc-50 text-zinc-600"
-                                        }`}>
+                                      <span className={`rounded-full border px-2 py-0.5 text-[10px] ${isDark ? "border-white/10 bg-white/5 text-white/45" : "border-zinc-200 bg-zinc-50 text-zinc-600"}`}>
                                         {getRoleLabel(senderRole)}
                                       </span>
                                       {message.is_edited ? (
@@ -2081,8 +2081,7 @@ export default function ExternalChatView({
                                       ) : null}
                                     </div>
                                     {typeof message.reply_to === "object" && message.reply_to ? (
-                                      <div className={`mb-3 rounded-2xl border px-3 py-2 text-xs ${isDark ? "border-white/10 bg-black/15 text-white/55" : "border-zinc-200 bg-zinc-50 text-zinc-600"
-                                        }`}>
+                                      <div className={`mb-3 rounded-2xl border px-3 py-2 text-xs ${isDark ? "border-white/10 bg-black/15 text-white/55" : "border-zinc-200 bg-zinc-50 text-zinc-600"}`}>
                                         <p className={`mb-1 truncate font-medium ${isDark ? "text-white/75" : "text-zinc-900"}`}>
                                           {normalizeUser(message.reply_to.sent_by)?.name || "Reply"}
                                         </p>
@@ -2096,8 +2095,8 @@ export default function ExternalChatView({
                                           onChange={(e) => setEditingText(e.target.value)}
                                           rows={3}
                                           className={`w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none ${isDark
-                                              ? "border-white/10 bg-black/10 text-white focus:border-[#E5D5B8]/40"
-                                              : "border-zinc-200 bg-white text-zinc-900 focus:border-black"
+                                            ? "border-white/10 bg-black/10 text-white focus:border-[#E5D5B8]/40"
+                                            : "border-zinc-200 bg-white text-zinc-900 focus:border-black"
                                             }`}
                                           onKeyDown={(e) => {
                                             if (e.key === "Enter" && !e.shiftKey) {
@@ -2113,16 +2112,14 @@ export default function ExternalChatView({
                                               setEditingMessageId(null);
                                               setEditingText("");
                                             }}
-                                            className={`rounded-full border px-3 py-1 text-xs ${isDark ? "border-white/10 text-white/70" : "border-zinc-200 text-zinc-600"
-                                              }`}
+                                            className={`rounded-full border px-3 py-1 text-xs ${isDark ? "border-white/10 text-white/70" : "border-zinc-200 text-zinc-600"}`}
                                           >
                                             Cancel
                                           </button>
                                           <button
                                             type="button"
                                             onClick={submitEditMessage}
-                                            className={`rounded-full px-3 py-1 text-xs font-semibold ${isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"
-                                              }`}
+                                            className={`rounded-full px-3 py-1 text-xs font-semibold ${isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"}`}
                                           >
                                             Save
                                           </button>
@@ -2147,20 +2144,19 @@ export default function ExternalChatView({
                                             )
                                           }
                                           className={`rounded-full border px-2.5 py-1 text-xs ${reaction.reactedByCurrentUser
-                                              ? isDark
-                                                ? "border-[#E5D5B8]/40 bg-[#E5D5B8]/12 text-[#E5D5B8]"
-                                                : "border-black bg-zinc-100 text-black"
-                                              : isDark
-                                                ? "border-white/10 bg-[#171717] text-white/75"
-                                                : "border-zinc-200 bg-white text-zinc-700"
+                                            ? isDark
+                                              ? "border-[#E5D5B8]/40 bg-[#E5D5B8]/12 text-[#E5D5B8]"
+                                              : "border-black bg-zinc-100 text-black"
+                                            : isDark
+                                              ? "border-white/10 bg-[#171717] text-white/75"
+                                              : "border-zinc-200 bg-white text-zinc-700"
                                             }`}
                                           title={reaction.users.join(", ")}
                                         >
                                           {reaction.emoji} {reaction.count}
                                         </button>
                                         {openReactionDetails?.messageId === messageId && openReactionDetails?.emoji === reaction.emoji ? (
-                                          <div className={`absolute z-20 mt-2 min-w-[180px] rounded-2xl border p-3 shadow-2xl ${isOwn ? "right-0" : "left-0"} ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"
-                                            }`}>
+                                          <div className={`absolute z-20 mt-2 min-w-[180px] rounded-2xl border p-3 shadow-2xl ${isOwn ? "right-0" : "left-0"} ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
                                             <p className={`mb-2 text-xs font-semibold ${isDark ? "text-white/85" : "text-zinc-900"}`}>
                                               {reaction.emoji} Reactions
                                             </p>
@@ -2182,8 +2178,7 @@ export default function ExternalChatView({
                                 </span>
                               </div>
                               {isOwn ? (
-                                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ${isDark ? "bg-[#E5D5B8]/20 text-[#E5D5B8]" : "bg-black text-white"
-                                  }`}>
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-semibold ${isDark ? "bg-[#E5D5B8]/20 text-[#E5D5B8]" : "bg-black text-white"}`}>
                                   {getInitials(sender?.name || effectiveUser?.name)}
                                 </div>
                               ) : null}
@@ -2195,6 +2190,8 @@ export default function ExternalChatView({
                     </div>
                   )}
                 </div>
+
+                {/* PART 3: ACTION FLOATING TOASTS & DRAFT COMPOSER AREA */}
                 {hasUnreadMarker && !isNearBottom ? (
                   <button
                     type="button"
@@ -2205,8 +2202,8 @@ export default function ExternalChatView({
                       messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
                     }}
                     className={`absolute bottom-5 right-5 rounded-full px-4 py-2 text-xs font-semibold shadow-[0_12px_30px_rgba(0,0,0,0.35)] transition border ${isDark
-                        ? "border-[#E5D5B8]/20 bg-[#E5D5B8] text-black hover:bg-[#d8c49e]"
-                        : "border-zinc-200 bg-black text-white hover:bg-zinc-800"
+                      ? "border-[#E5D5B8]/20 bg-[#E5D5B8] text-black hover:bg-[#d8c49e]"
+                      : "border-zinc-200 bg-black text-white hover:bg-zinc-800"
                       }`}
                   >
                     {activeThreadUnreadCount} new {activeThreadUnreadCount === 1 ? "message" : "messages"}
@@ -2216,8 +2213,7 @@ export default function ExternalChatView({
 
               <div className={`relative border-t p-4 lg:px-8 ${isDark ? "bg-[#111111] border-white/10" : "bg-white border-[#E5E5E5]"}`}>
                 {replyTarget ? (
-                  <div className={`mb-3 flex items-center justify-between rounded-2xl border px-4 py-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"
-                    }`}>
+                  <div className={`mb-3 flex items-center justify-between rounded-2xl border px-4 py-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"}`}>
                     <div className="min-w-0">
                       <p className={`text-xs uppercase tracking-[0.14em] font-semibold ${isDark ? "text-[#E5D5B8]" : "text-zinc-600"}`}>
                         Replying To
@@ -2275,8 +2271,7 @@ export default function ExternalChatView({
                     disabled={!selectedRoom || sending}
                     placeholder={selectedRoom ? "Message" : "Select a room to start messaging"}
                     rows={1}
-                    className={`max-h-32 min-h-[24px] flex-1 resize-none border-0 bg-transparent py-1 outline-none transition-colors ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/40"
-                      }`}
+                    className={`max-h-32 min-h-[24px] flex-1 resize-none border-0 bg-transparent py-1 outline-none transition-colors ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/40"}`}
                   />
                   <button
                     type="button"
@@ -2288,8 +2283,7 @@ export default function ExternalChatView({
                   <button
                     onClick={sendMessage}
                     disabled={!selectedRoom || !draftMessage.trim() || sending}
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"
-                      }`}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
                   >
                     <Send className="h-4 w-4" />
                   </button>
