@@ -19,26 +19,6 @@ interface Order {
   name: string;
 }
 
-interface MeetingData {
-  id: string | number | undefined;
-  meeting_status: string;
-  meeting_date_time: string;
-  meeting_end_time: string;
-  meeting_type: string;
-  meeting_title: string;
-  description: string;
-  meetLink: string;
-  duration: number;
-  order: Order;
-  client: UserProfile | null;
-  admin: UserProfile | null;
-  cps: UserProfile[] | null;
-  participants: UserProfile[];
-  created_by: UserProfile;
-  participant_responses: any[];
-  change_request: any | null;
-}
-
 interface ParticipantAvatarStackProps {
   meeting: MeetingItem;
   isDark?: boolean;
