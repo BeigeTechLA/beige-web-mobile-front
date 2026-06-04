@@ -54,6 +54,20 @@ const formatDisplayTime = (value?: string) => {
   const parsed = parseValidDate(value);
   return parsed ? format(parsed, "h:mm a").toUpperCase() : value;
 };
+  const getCoords = async (address: string) => {
+    try {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${token}&limit=1`);
+      const json = await res.json();
+      if (json.features?.[0]) {
+        const [lng, lat] = json.features[0].center;
+        return { lat, lng };
+      }
+    } catch (e) {
+      console.error("Geocoding error", e);
+    }
+    return null;
+  };
 
 const HourlyStudioCard = ({
   studio,
@@ -393,8 +407,10 @@ export const V3Step5Studios: React.FC<Props> = ({
   const [selectedDetailsStudio, setSelectedDetailsStudio] = useState<StudioCatalogItem | null>(null);
   const [hourlyDraftSelections, setHourlyDraftSelections] = useState<Record<string, { selectedDate: string; startTime: string; endTime: string; pricingKey?: string }>>({});
 
-  const syncStudios = (next: SelectedStudio[]) => {
+  const syncStudios = async(next: SelectedStudio[]) => {
     const primaryStudio = next[0];
+    const coords = primaryStudio ? await getCoords(primaryStudio.location) : null;
+
     const studioStartDateTime = primaryStudio?.selectedDate && primaryStudio?.startTime
       ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
       : "";
@@ -408,7 +424,11 @@ export const V3Step5Studios: React.FC<Props> = ({
       startDate: studioStartDateTime,
       endDate: studioEndDateTime,
       location: primaryStudio?.location || "",
-      locationDetails: null,
+      locationDetails: coords ? { 
+            address: primaryStudio.location, 
+            lat: coords.lat, 
+            lng: coords.lng 
+          } : null,
       bookingDays: primaryStudio
         ? [{
             date: primaryStudio.selectedDate || "",
@@ -430,7 +450,7 @@ export const V3Step5Studios: React.FC<Props> = ({
       });
   }, [searchQuery, sortBy]);
 
-  const confirmHourlyDetails = (
+  const confirmHourlyDetails = async(
     studio: StudioCatalogItem,
     details: { selectedDate: string; startTime: string; endTime: string; pricingKey?: string },
   ) => {
@@ -439,21 +459,21 @@ export const V3Step5Studios: React.FC<Props> = ({
     if (selectedStudioSet.has(studio.id)) {
       const updatedSelection = buildHourlyStudioSelection(studio, details);
       const nextStudios = upsertSelectedStudio(selectedStudios, updatedSelection);
-      syncStudios(nextStudios);
+      await syncStudios(nextStudios);
     }
   };
 
-  const toggleHourlyStudio = (studio: StudioCatalogItem) => {
+  const toggleHourlyStudio = async(studio: StudioCatalogItem) => {
     const existing = selectedStudios.find((item) => item.studioId === studio.id);
 
     if (existing) {
-      syncStudios(removeSelectedStudio(selectedStudios, studio.id));
+      await syncStudios(removeSelectedStudio(selectedStudios, studio.id));
       return;
     }
 
     const draft = hourlyDraftSelections[studio.id];
     if (draft) {
-      syncStudios(upsertSelectedStudio(selectedStudios, buildHourlyStudioSelection(studio, draft)));
+      await syncStudios(upsertSelectedStudio(selectedStudios, buildHourlyStudioSelection(studio, draft)));
       return;
     }
 

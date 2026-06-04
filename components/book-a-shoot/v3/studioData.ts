@@ -18,6 +18,8 @@ export type SelectedStudio = {
   selectedDate?: string;
   startTime?: string;
   endTime?: string;
+  lat?: number;
+  lng?: number;
 };
 
 export type StudioPricingOption = {
@@ -800,6 +802,8 @@ export const parseStudioMeta = (text?: string | null): SelectedStudio[] => {
         selectedDate: studio.selectedDate ? String(studio.selectedDate) : undefined,
         startTime: studio.startTime ? String(studio.startTime) : undefined,
         endTime: studio.endTime ? String(studio.endTime) : undefined,
+        lat: studio.lat ? safeNumber(studio.lat) : undefined,
+        lng: studio.lng ? safeNumber(studio.lng) : undefined,
       }));
   } catch {
     return [];
