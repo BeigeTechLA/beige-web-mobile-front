@@ -22,6 +22,7 @@ import {
 } from "@/src/components/landing/ui/tooltip"
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import ParticipantAvatarStack from "./AvatarStack";
+import MeetingsStructure from "./MeetingsTable";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -169,7 +170,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   );
 
   return (
-    <div className={`flex h-[calc(100vh-120px)] min-h-0 flex-col overflow-hidden p-4 lg:px-10 lg:py-9 transition-colors duration-200`}>
+    <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
 
       {/* Top Actions Panel */}
       <div className="mb-3 lg:mb-6 flex flex-col gap-4">
@@ -230,160 +231,45 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
       </div>
 
       {/* Main Meetings Stream Container */}
-      <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border p-4 lg:p-5 transition-colors ${isDark ? "border-[#222222] bg-black" : "border-zinc-200 bg-white"}`}>
-        {loading ? (
-          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-zinc-200 bg-white"}`}>
-            <Loader2 className="animate-spin text-[#BFA780]" size={40} />
-          </div>
-        ) : error ? (
+      {loading ? (
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-zinc-200 bg-white"}`}>
+          <Loader2 className="animate-spin text-[#BFA780]" size={40} />
+        </div>
+      ) : error ? (
+        <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border p-4 lg:p-5 transition-colors ${isDark ? "border-[#222222] bg-black" : "border-zinc-200 bg-white"}`}>
           <div className="py-16 text-center text-xs lg:text-sm font-medium text-[#ff8e8e]">{error}</div>
-        ) : filteredMeetings.length === 0 ? (
+        </div>
+      ) : filteredMeetings.length === 0 ? (
+        <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border p-4 lg:p-5 transition-colors ${isDark ? "border-[#222222] bg-black" : "border-zinc-200 bg-white"}`}>
           <div className={`py-16 text-center text-xs lg:text-sm ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
             {search.trim() ? "No meetings match your search." : <EmptyMeetingState />}
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredMeetings.map((meeting) => {
-              const shootLink = getShootLink(role, meeting);
-              const effectiveStatus = getEffectiveMeetingStatus(meeting);
-              const isCompleted = effectiveStatus === "completed";
-              const isCancelled = String(effectiveStatus || "").toLowerCase() === "cancelled";
-              const currentResponse = getParticipantResponse(meeting, currentUserId);
-              const createdById = getIdentityId(meeting.created_by?.id);
-              const isClientCreatedBySelf =
-                role === "client" &&
-                !!currentUserId &&
-                !!createdById &&
-                String(currentUserId) === createdById;
-              const canRespond =
-                !!meeting.id &&
-                !!currentUserId &&
-                !isAdminView &&
-                !isClientCreatedBySelf &&
-                !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
-              const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
-              const isResponding = respondingMeetingId === String(meeting.id || "");
-
-              return (
-                <div
-                  key={String(meeting.id || Math.random())}
-                  className={`roundex-lg lg:rounded-2xl border p-3 lg:p-5 transition-colors ${isDark? "border-[#3D3D3D] bg-[#171717] hover:border-white/20": "border-gray-200 bg-[#F4F5F7] shadow-sm hover:border-gray-300"}`}
-                >
-                  <div className="grid grid-cols-1 gap-3 lg:gap-5 lg:grid-cols-12 lg:items-center">
-
-                    <div className="min-w-0 col-span-6">
-                      <div className="flex flex-nowrap items-center gap-3">
-                        <TruncatedMeetingTitle
-                          title={meeting.meeting_title || meeting.order?.name || "Meeting"}
-                          isDark={isDark}
-                        />
-                        <span className={cn("shrink-0 rounded-full border px-3 py-1 text-xs font-medium", getMeetingStatusClasses(effectiveStatus))}>
-                          {formatMeetingStatusLabel(effectiveStatus)}
-                        </span>
-                      </div>
-
-                      <div className={`mt-2 flex flex-wrap items-center gap-4 text-sm ${isDark ? "text-white/55" : "text-gray-500"}`}>
-                        <span className="inline-flex items-center gap-2">
-                          <CalendarClock size={14} />
-                          {formatDateTime(meeting.meeting_date_time)}
-                        </span>
-                        {/* {meeting.order?.name ? <span>Order: {meeting.order.name}</span> : null} */}
-                        {canRespond ? (
-                          <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-medium capitalize text-amber-300">
-                            Your response: {formatInvitationResponse(currentResponse)}
-                          </span>
-                        ) : null}
-                      </div>
-                      {meeting.description ? (
-                        <p className={`mt-3 line-clamp-2 text-sm ${isDark ? "text-white/65" : "text-gray-600"}`}>
-                          {meeting.description}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="min-w-0 w-full lg:col-span-2 lg:flex lg:justify-center">
-                      <ParticipantAvatarStack meeting={meeting} isDark={isDark} />
-                    </div>
-
-                    <div className="flex flex-wrap lg:grid lg:grid-cols-2 gap-3 lg:col-span-4">
-                      {canRespond && currentResponse !== "accepted" ? (
-                        <Button
-                          type="button"
-                          onClick={() => handleRespond(meeting.id as string | number, "accepted")}
-                          disabled={isResponding}
-                          className="bg-emerald-500 text-white hover:bg-emerald-600 text-center"
-                        >
-                          {isResponding ? <RefreshCw size={14} className="animate-spin" /> : null}
-                          Accept
-                        </Button>
-                      ) : null}
-                      {canRespond && currentResponse !== "declined" ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleRespond(meeting.id as string | number, "declined")}
-                          disabled={isResponding}
-                          className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 text-center"
-                        >
-                          Reject
-                        </Button>
-                      ) : null}
-                      {meeting.meetLink ? (
-                        <a
-                          href={meeting.meetLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-disabled={isCompleted || isCancelled}
-                          onClick={(event) => {
-                            if (isCompleted || isCancelled) {
-                              event.preventDefault();
-                            }
-                          }}
-                          className={cn(
-                            "inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium justify-center",
-                            isCompleted || isCancelled
-                              ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/30"
-                              : "border-white/20 bg-[#202020] text-white hover:bg-[#222222]"
-                          )}
-                        >
-                          <span className="hidden lg:block">Join Meeting</span>
-                          <ExternalLink className="shrink-0 w-5 h-5 lg:w-4 lg:h-4" />
-                        </a>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedMeeting(meeting)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-[#202020] px-4 py-2 text-sm font-medium text-white hover:bg-[#222222] justify-center"
-                      >
-                        <SquarePen className="shrink-0 w-5 h-5 lg:w-4 lg:h-4" />
-                        <span className="hidden lg:block">{isAdminView ? "Edit/Reschedule" : "View Details"}</span>
-                      </button>
-                      {shootLink ? (
-                        <Link
-                          href={shootLink}
-                          className="inline-flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-4 py-2 text-sm font-semibold text-black hover:bg-[#d9c5a0] justify-center"
-                        >
-                          Open Shoot
-                        </Link>
-                      ) : null}
-                      {canDeleteThisMeeting ? (
-                        <button
-                          type="button"
-                          onClick={() => setMeetingPendingDelete(meeting)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[#FFC3C3] bg-[#FFC3C3] px-4 py-2 text-sm font-medium text-[#BD1010] hover:bg-[#FFC3C3]/80 justify-center"
-                        >
-                          <Trash2 className="shrink-0 w-5 h-5 lg:w-4 lg:h-4" />
-                          <span className="hidden lg:block">Delete</span>
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          <MeetingsStructure
+            filteredMeetings={filteredMeetings}
+            getShootLink={getShootLink}
+            getEffectiveMeetingStatus={getEffectiveMeetingStatus}
+            getParticipantResponse={getParticipantResponse}
+            getIdentityId={getIdentityId}
+            currentUserId={currentUserId}
+            role={role}
+            isAdminView={isAdminView}
+            canDeleteMeeting={canDeleteMeeting}
+            respondingMeetingId={respondingMeetingId}
+            handleRespond={handleRespond}
+            setSelectedMeeting={setSelectedMeeting}
+            setMeetingPendingDelete={setMeetingPendingDelete}
+            formatMeetingStatusLabel={formatMeetingStatusLabel}
+            getMeetingStatusClasses={getMeetingStatusClasses}
+            formatDateTime={formatDateTime}
+            formatInvitationResponse={formatInvitationResponse}
+            isDark={isDark}
+          />
+        </>
+      )}
+      {/* </div> */}
 
       <CreateMeetingModal
         isOpen={isCreateModalOpen}
