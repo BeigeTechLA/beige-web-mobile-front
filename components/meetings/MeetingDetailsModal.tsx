@@ -39,6 +39,7 @@ interface MeetingDetailsModalProps {
   currentUserId?: string | number;
   currentUserEmail?: string;
   onUpdated?: () => void;
+  isDark?: boolean;
 }
 
 const formatDate = (value?: string) => {
@@ -163,6 +164,7 @@ export default function MeetingDetailsModal({
   currentUserId,
   currentUserEmail,
   onUpdated,
+  isDark=true
 }: MeetingDetailsModalProps) {
   const [meetingData, setMeetingData] = useState<MeetingItem | null>(meeting);
   const [directoryLoading, setDirectoryLoading] = useState(false);
