@@ -7,6 +7,18 @@ type QuotePreviewLinkOptions = {
 
 type UnknownRecord = Record<string, unknown>;
 
+export const QUOTE_PREVIEW_SUPERSEDED_REASON = "QUOTE_PREVIEW_SUPERSEDED";
+
+export class QuotePreviewFetchError extends Error {
+  reasonCode: string | null;
+
+  constructor(message: string, reasonCode?: string | null) {
+    super(message);
+    this.name = "QuotePreviewFetchError";
+    this.reasonCode = reasonCode || null;
+  }
+}
+
 const QUOTE_PREVIEW_KEY_FIELDS = [
   "public_quote_key",
   "publicQuoteKey",
@@ -63,6 +75,28 @@ const getNormalizedString = (value: unknown) => {
 
   const normalized = String(value).trim();
   return normalized ? normalized : null;
+};
+
+const getQuotePreviewErrorReasonCode = (value: unknown) => {
+  const record = asRecord(value);
+  const dataRecord = asRecord(record?.data);
+  return (
+    getNormalizedString(record?.reason_code) ||
+    getNormalizedString(record?.reasonCode) ||
+    getNormalizedString(record?.code) ||
+    getNormalizedString(dataRecord?.reason_code) ||
+    getNormalizedString(dataRecord?.reasonCode) ||
+    getNormalizedString(dataRecord?.code)
+  );
+};
+
+const getQuotePreviewErrorMessage = (value: unknown) => {
+  const record = asRecord(value);
+  return (
+    getNormalizedString(record?.error) ||
+    getNormalizedString(record?.message) ||
+    "Failed to fetch quote preview."
+  );
 };
 
 const isOpaqueQuotePreviewKey = (value: string | null) => {
@@ -334,10 +368,9 @@ export const fetchQuotePreviewByKey = async (quoteKey?: string | null) => {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(
-      typeof data?.error === "string"
-        ? data.error
-        : "Failed to fetch quote preview."
+    throw new QuotePreviewFetchError(
+      getQuotePreviewErrorMessage(data),
+      getQuotePreviewErrorReasonCode(data)
     );
   }
 

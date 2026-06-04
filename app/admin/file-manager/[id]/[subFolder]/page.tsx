@@ -398,7 +398,6 @@ export default function AdminFileManagerPhasePage() {
   };
 
   const handleDeleteSelectedFolder = async () => {
-    if (!isPreProduction) return;
     if (!selectedFolder?.resourcePath) return;
 
     try {
@@ -462,7 +461,6 @@ export default function AdminFileManagerPhasePage() {
   };
 
   const handleDeleteFile = async (file: any) => {
-    if (!isPreProduction) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -524,7 +522,6 @@ export default function AdminFileManagerPhasePage() {
 
   const handleBatchDelete = async () => {
     if (selectedFilePaths.length === 0) return;
-    if (!isPreProduction) return;
 
     try {
       setIsDeleting(true);
@@ -749,7 +746,6 @@ export default function AdminFileManagerPhasePage() {
                             onOpen={() => handleOpenFile(file)}
                             onDownload={() => handleDownloadFile(file)}
                             onDelete={() => {
-                              if (!isPreProduction) return;
                               setSelectedFile(file);
                               setSelectedFolder(null);
                               setIsDeleteModalOpen(true);
@@ -808,7 +804,6 @@ export default function AdminFileManagerPhasePage() {
                           }
                         }}
                         onDelete={() => {
-                          if (!isPreProduction) return;
                           setSelectedFolder(folder);
                           setSelectedFile(null);
                           setIsDeleteModalOpen(true);
@@ -925,7 +920,6 @@ export default function AdminFileManagerPhasePage() {
                                 }
                               }}
                               onDelete={() => {
-                                if (!isPreProduction) return;
                                 setSelectedFolder(folder);
                                 setSelectedFile(null);
                                 setIsDeleteModalOpen(true);
@@ -963,7 +957,6 @@ export default function AdminFileManagerPhasePage() {
                                   onOpen={() => handleOpenFile(file)}
                                   onDownload={() => handleDownloadFile(file)}
                                   onDelete={() => {
-                                    if (!isPreProduction) return;
                                     setSelectedFile(file);
                                     setSelectedFolder(null);
                                     setIsDeleteModalOpen(true);
@@ -1165,7 +1158,7 @@ export default function AdminFileManagerPhasePage() {
                                             e.stopPropagation();
                                             setSelectedFile(item);
                                             setSelectedFolder(null);
-                                            if (isPreProduction) setIsDeleteModalOpen(true);
+                                            setIsDeleteModalOpen(true);
                                           }}>
                                             Delete
                                           </Button>
@@ -1206,7 +1199,6 @@ export default function AdminFileManagerPhasePage() {
                           onOpen={() => handleOpenFile(file)}
                           onDownload={() => handleDownloadFile(file)}
                           onDelete={() => {
-                            if (!isPreProduction) return;
                             setSelectedFile(file);
                             setSelectedFolder(null);
                             setIsDeleteModalOpen(true);
@@ -1338,7 +1330,7 @@ export default function AdminFileManagerPhasePage() {
                                     e.stopPropagation();
                                     setSelectedFile(item);
                                     setSelectedFolder(null);
-                                    if (isPreProduction) setIsDeleteModalOpen(true);
+                                    setIsDeleteModalOpen(true);
                                   }}>
                                     Delete
                                   </Button>
@@ -1504,15 +1496,13 @@ export default function AdminFileManagerPhasePage() {
                   Download
                 </Button>
 
-                {isPreProduction && (
-                  <Button
-                    onClick={() => setIsDeleteModalOpen(true)}
-                    className="flex-1 lg:flex-none bg-[#F04438] text-white hover:bg-[#d7372d] gap-2"
-                  >
-                    <TrashIcon size={18} />
-                    Delete
-                  </Button>
-                )}
+                <Button
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="flex-1 lg:flex-none bg-[#F04438] text-white hover:bg-[#d7372d] gap-2"
+                >
+                  <TrashIcon size={18} />
+                  Delete
+                </Button>
               </div>
 
               <button

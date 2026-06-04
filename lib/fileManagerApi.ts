@@ -720,7 +720,8 @@ export const fileManagerApi = {
   async uploadExternalFile(
     uploadPolicy: { url: string; fields: Record<string, string> },
     file: File,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    signal?: AbortSignal
   ) {
     const data = new FormData();
     Object.entries(uploadPolicy.fields || {}).forEach(([key, value]) => {
@@ -729,6 +730,7 @@ export const fileManagerApi = {
     data.append("file", file);
 
     await axios.post(uploadPolicy.url, data, {
+      signal,
       onUploadProgress: (event) => {
         if (!onProgress || !event.total) return;
         onProgress(event.loaded / event.total);
