@@ -96,6 +96,7 @@ interface ExternalWorkspaceFile {
   size?: number;
   contentType?: string;
   isPublic?: boolean;
+  metadata?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -358,6 +359,7 @@ export interface UiFileItem {
   fileSizeBytes: number;
   filepath?: string;
   contentType?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface FileCommentUser {
@@ -449,6 +451,7 @@ const prettifyExternalFolderName = (name?: string) => {
   if (normalized === "Pre-Production") return "Pre Production";
   if (normalized === "Post-Production") return "Post Production";
   if (normalized === "Raw Footage") return "Raw Footages";
+  if (normalized === "Revisions") return "Revision";
   return normalized.replace(/-/g, " ");
 };
 
@@ -817,6 +820,62 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async copyExternalFiles(payload: {
+    externalId: string | number;
+    phase: "pre" | "post";
+    targetPath: string;
+    sourcePaths: string[];
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        total: number;
+        successCount: number;
+        failureCount: number;
+        targetPath: string;
+        items: Array<{
+          sourcePath: string;
+          destinationPath?: string;
+          success: boolean;
+          error?: string;
+          code?: number;
+        }>;
+      };
+    }>("external-file-manager/copy-files", {
+      externalId: String(payload.externalId),
+      phase: payload.phase,
+      targetPath: payload.targetPath,
+      sourcePaths: payload.sourcePaths,
+    });
+    return response.data;
+  },
+
+  async reviewRevisionFile(payload: {
+    externalId: string | number;
+    filepath: string;
+    action: "approve" | "request_revision";
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        action: "approve" | "request_revision";
+        versionNumber?: number;
+        nextVersionNumber?: number;
+        nextVersionPath?: string;
+        finalDeliverable?: {
+          id: string;
+          path: string;
+          name: string;
+        };
+      };
+    }>("external-file-manager/revision-file/review", {
+      externalId: String(payload.externalId),
+      filepath: payload.filepath,
+      action: payload.action,
+    });
+    return response.data;
+  },
+
   async createExternalShare(payload: {
     resourceType: "workspace" | "folder" | "file";
     externalId: string;
@@ -1140,4 +1199,5 @@ export const mapExternalFilesToUi = (files: ExternalWorkspaceFile[]): UiFileItem
     fileSizeBytes: file.size || 0,
     filepath: file.path,
     contentType: file.contentType || "application/octet-stream",
+    metadata: file.metadata || {},
   }));

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 
@@ -90,6 +90,7 @@ export default function CreatorSubFolderDetailsPage() {
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
   const [folders, setFolders] = useState<Array<Record<string, unknown>>>([]);
   const [files, setFiles] = useState<Array<Record<string, unknown>>>([]);
+  const [revisionFiles, setRevisionFiles] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useViewMode();
@@ -110,6 +111,9 @@ export default function CreatorSubFolderDetailsPage() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedUploadVersion, setSelectedUploadVersion] = useState<number | null>(null);
+  const [isEnsuringFirstRevisionVersion, setIsEnsuringFirstRevisionVersion] = useState(false);
+  const preparedVersionOnePathsRef = useRef<Set<string>>(new Set());
 
   const isOnOrAfterShootDay = useCallback((date?: string | null) => {
     if (!date) return false;
@@ -139,6 +143,25 @@ export default function CreatorSubFolderDetailsPage() {
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setFolders(workspaceData.folders || []);
       setFiles(workspaceData.files);
+
+      const normalizedPath = currentFolderPath.trim().toLowerCase().replace(/[_\s]+/g, "-");
+      if (phaseSlug === "post-production" && normalizedPath.endsWith("selected-for-edits")) {
+        try {
+          const revisions = await fileManagerApi.getExternalWorkspaceFiles(projectId, "post", "Edits/Revisions");
+          const nestedFiles = await Promise.all(
+            (revisions.folders || []).map(async (folder) => {
+              const versionPath = ["Edits/Revisions", folder.name].filter(Boolean).join("/");
+              const versionData = await fileManagerApi.getExternalWorkspaceFiles(projectId, "post", versionPath);
+              return versionData.files || [];
+            })
+          );
+          setRevisionFiles(nestedFiles.flat() as unknown as Array<Record<string, unknown>>);
+        } catch {
+          setRevisionFiles([]);
+        }
+      } else {
+        setRevisionFiles([]);
+      }
 
       if (Number.isFinite(Number(projectId))) {
         try {
@@ -225,6 +248,25 @@ export default function CreatorSubFolderDetailsPage() {
     const query = searchTerm.toLowerCase();
     return folderItems.filter((item) => item.title.toLowerCase().includes(query));
   }, [folderItems, searchTerm]);
+
+  const isRevisionRootFolder = useMemo(() => {
+    const normalized = currentFolderPath
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, "-");
+    return phaseSlug === "post-production" && (normalized === "revisions" || normalized.endsWith("/revisions"));
+  }, [currentFolderPath, phaseSlug]);
+
+  const isSelectedForEditsFolder = useMemo(() => {
+    const normalized = currentFolderPath
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, "-");
+    return (
+      phaseSlug === "post-production" &&
+      (normalized === "selected-for-edits" || normalized.endsWith("/selected-for-edits"))
+    );
+  }, [currentFolderPath, phaseSlug]);
 
   const formattedShootDate = useMemo(() => {
     if (!shootDate) return "your shoot day";
@@ -386,10 +428,218 @@ export default function CreatorSubFolderDetailsPage() {
     }
   };
 
+  const getVersionNumberFromPath = (path?: string) => {
+    const match = String(path || "").match(/(?:^|\/)Version(\d+)(?:\/|$)/i);
+    return match?.[1] ? Number(match[1]) : null;
+  };
+
+  const normalizeRevisionMatchKey = (value?: string) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+
+  const getFileBaseName = (value?: string) => normalizeRevisionMatchKey(value).replace(/\.[^.]+$/, "");
+
+  const getSelectedFileRevisionMatches = (file: Record<string, unknown>) => {
+    const fileTitle = normalizeRevisionMatchKey(String(file.title || ""));
+    const fileBaseName = getFileBaseName(String(file.title || ""));
+
+    return revisionFiles
+      .filter((revisionFile) => {
+        const revisionName = normalizeRevisionMatchKey(String(revisionFile.name || revisionFile.title || ""));
+        const revisionBaseName = getFileBaseName(String(revisionFile.name || revisionFile.title || ""));
+        const metadata =
+          revisionFile.metadata && typeof revisionFile.metadata === "object"
+            ? (revisionFile.metadata as Record<string, unknown>)
+            : {};
+        const copiedFromName = normalizeRevisionMatchKey(String(metadata.copiedFrom || "").split("/").pop() || "");
+        const copiedFromBaseName = getFileBaseName(copiedFromName);
+
+        return (
+          revisionName === fileTitle ||
+          revisionBaseName === fileBaseName ||
+          copiedFromName === fileTitle ||
+          copiedFromBaseName === fileBaseName
+        );
+      })
+      .map((revisionFile) => ({
+        file: revisionFile,
+        version:
+          getVersionNumberFromPath(String(revisionFile.path || revisionFile.filepath || "")) ||
+          Number((revisionFile.metadata as Record<string, unknown> | undefined)?.currentVersion || 0),
+      }))
+      .filter((item) => item.version > 0)
+      .sort((a, b) => b.version - a.version);
+  };
+
+  const getSelectedFileRevisionState = (file: Record<string, unknown>) => {
+    const matches = getSelectedFileRevisionMatches(file);
+    const latest = matches[0];
+    if (!latest) {
+      return {
+        currentVersion: 0,
+        nextUploadVersion: 1,
+        status: "pending" as const,
+      };
+    }
+
+    const metadata =
+      latest.file.metadata && typeof latest.file.metadata === "object"
+        ? (latest.file.metadata as Record<string, unknown>)
+        : {};
+    const editStatus = String(metadata.editStatus || "").toLowerCase();
+
+    if (editStatus === "approved") {
+      return {
+        currentVersion: latest.version,
+        nextUploadVersion: null,
+        status: "approved" as const,
+      };
+    }
+
+    if (editStatus === "revision_requested") {
+      const nextVersion = Number(metadata.requestedNextVersion || latest.version + 1);
+      return {
+        currentVersion: latest.version,
+        nextUploadVersion: nextVersion,
+        status: "revision_requested" as const,
+      };
+    }
+
+    return {
+      currentVersion: latest.version,
+      nextUploadVersion: null,
+      status: "uploaded" as const,
+    };
+  };
+
+  const getSelectedFileStatusBadge = (file: Record<string, unknown>) => {
+    if (!isSelectedForEditsFolder) {
+      return null;
+    }
+
+    const revisionState = getSelectedFileRevisionState(file);
+    if (revisionState.status === "pending") {
+      return {
+        label: "Version1 Pending",
+        className: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]",
+      };
+    }
+
+    if (revisionState.status === "approved") {
+      return {
+        label: `Version${revisionState.currentVersion} Approved`,
+        className: "border-[#22C55E]/30 bg-[#22C55E]/15 text-[#22C55E]",
+      };
+    }
+
+    if (revisionState.status === "revision_requested") {
+      return {
+        label: `Revision Requested - Version${revisionState.nextUploadVersion} Pending`,
+        className: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]",
+      };
+    }
+
+    return {
+      label: `Version${revisionState.currentVersion} Uploaded`,
+      className: "border-[#7C3AED]/30 bg-[#7C3AED]/15 text-[#C4B5FD]",
+    };
+  };
+
+  const pendingSelectedFiles = isSelectedForEditsFolder
+    ? folderFiles.filter((file) => getSelectedFileRevisionState(file as unknown as Record<string, unknown>).nextUploadVersion)
+    : [];
+  const nextBulkUploadVersion = pendingSelectedFiles[0]
+    ? getSelectedFileRevisionState(pendingSelectedFiles[0] as unknown as Record<string, unknown>).nextUploadVersion || 1
+    : 1;
+
   const canUpload = isCommonEventWorkspace || (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate));
   const showUploadLockBanner = !isCommonEventWorkspace && phaseSlug === "post-production" && !canUpload;
   const canDeleteFolders = isCommonEventWorkspace;
   const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
+  const uploadFolderPath = useMemo(() => {
+    if (!canUpload || !workspaceName) return undefined;
+    const phaseFolder = phaseSlug === "post-production" ? "Post-Production" : "Pre-Production";
+    const versionToUpload = selectedUploadVersion || nextBulkUploadVersion || 1;
+    let targetPath = currentFolderPath;
+    if (isRevisionRootFolder) {
+      targetPath = `${currentFolderPath.replace(/\/+$/, "")}/Version${versionToUpload}`;
+    } else if (isSelectedForEditsFolder) {
+      const editRoot = currentFolderPath
+        .split("/")
+        .filter(Boolean)
+        .slice(0, -1)
+        .join("/");
+      targetPath = `${editRoot || "Edits"}/Revisions/Version${versionToUpload}`;
+    }
+    return `${workspaceName}/${phaseFolder}/${targetPath}`;
+  }, [
+    canUpload,
+    currentFolderPath,
+    isRevisionRootFolder,
+    isSelectedForEditsFolder,
+    nextBulkUploadVersion,
+    phaseSlug,
+    selectedUploadVersion,
+    workspaceName,
+  ]);
+
+  const uploadModalVersion = selectedUploadVersion || nextBulkUploadVersion || 1;
+  const canUploadSelectedEdits = !isSelectedForEditsFolder || pendingSelectedFiles.length > 0;
+  const openUploadModalForVersion = (version?: number | null) => {
+    setSelectedUploadVersion(version || null);
+    setIsUploadModalOpen(true);
+  };
+
+  useEffect(() => {
+    if ((!isRevisionRootFolder && !isSelectedForEditsFolder) || !canUpload || isEnsuringFirstRevisionVersion) return;
+    const versionParentPath = isSelectedForEditsFolder
+      ? `${currentFolderPath.split("/").filter(Boolean).slice(0, -1).join("/") || "Edits"}/Revisions`
+      : currentFolderPath;
+    const preparedKey = `${projectId}::post::${versionParentPath}`;
+    if (preparedVersionOnePathsRef.current.has(preparedKey)) return;
+
+    const hasVersionOne = folderItems.some((folder) => {
+      const normalized = folder.title.trim().toLowerCase().replace(/\s+/g, "");
+      return normalized === "version1";
+    });
+    if (isRevisionRootFolder && hasVersionOne) {
+      preparedVersionOnePathsRef.current.add(preparedKey);
+      return;
+    }
+
+    let active = true;
+    const ensureVersionOne = async () => {
+      try {
+        setIsEnsuringFirstRevisionVersion(true);
+        await fileManagerApi.createExternalFolder(projectId, "Version1", {
+          phase: "post",
+          path: versionParentPath,
+        });
+        preparedVersionOnePathsRef.current.add(preparedKey);
+        if (active) await loadFiles();
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Failed to prepare revision version folder");
+      } finally {
+        if (active) setIsEnsuringFirstRevisionVersion(false);
+      }
+    };
+
+    ensureVersionOne();
+    return () => {
+      active = false;
+    };
+  }, [
+    canUpload,
+    currentFolderPath,
+    folderItems,
+    isEnsuringFirstRevisionVersion,
+    isRevisionRootFolder,
+    isSelectedForEditsFolder,
+    loadFiles,
+    projectId,
+  ]);
   const allVisibleFilesSelected =
     visibleFiles.length > 0 &&
     visibleFiles.every((file) => selectedFilePaths.includes(file.filepath || ""));
@@ -474,13 +724,15 @@ export default function CreatorSubFolderDetailsPage() {
 	                  Create Folder
 	                </Button>
 	              ) : null}
-	              <Button
-	                onClick={() => setIsUploadModalOpen(true)}
-	                className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
-	              >
-	                <Upload size={18} />
-	                Upload Files
-	              </Button>
+	              {canUploadSelectedEdits ? (
+	                <Button
+	                  onClick={() => openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null)}
+	                  className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
+	                >
+	                  <Upload size={18} />
+	                  {isSelectedForEditsFolder || isRevisionRootFolder ? `Upload Version${uploadModalVersion} Files` : "Upload Files"}
+	                </Button>
+	              ) : null}
 	            </div>
 	          ) : null}
         </div>
@@ -645,6 +897,10 @@ export default function CreatorSubFolderDetailsPage() {
 	              <div className="space-y-4">
 	                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
 	                  {visibleFiles.map((file) => (
+                    (() => {
+                      const statusBadge = getSelectedFileStatusBadge(file as unknown as Record<string, unknown>);
+                      const revisionState = getSelectedFileRevisionState(file as unknown as Record<string, unknown>);
+                      return (
 	                  <div
 	                    key={file.id}
 	                    className={`group relative cursor-pointer rounded-xl border bg-[#111111] p-4 transition-all hover:border-white/20 lg:p-[19px] ${isSelectionMode && selectedFilePaths.includes(file.filepath || "") ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/50" : "border-white/10"}`}
@@ -666,8 +922,8 @@ export default function CreatorSubFolderDetailsPage() {
                           const Icon = meta.icon;
                           return <Icon size={16} className={`shrink-0 ${meta.accentClass}`} />;
                         })()}
-                        <span className="truncate text-sm text-white lg:text-base">{file.title}</span>
-                      </div>
+	                        <span className="truncate text-sm text-white lg:text-base">{file.title}</span>
+	                      </div>
                       <div className="flex items-center gap-1">
                         <button
                           className="text-white/70 hover:text-white"
@@ -676,10 +932,22 @@ export default function CreatorSubFolderDetailsPage() {
                             handleDownloadFile(file as unknown as Record<string, unknown>);
                           }}
                         >
-                          <Download size={16} />
-                        </button>
-                        {canDeleteFiles ? (
-                          <button
+	                          <Download size={16} />
+	                        </button>
+	                        {isSelectedForEditsFolder && revisionState.nextUploadVersion ? (
+	                          <button
+	                            className="text-white/70 hover:text-[#E8D1AB]"
+	                            onClick={(e) => {
+	                              e.stopPropagation();
+	                              openUploadModalForVersion(revisionState.nextUploadVersion);
+	                            }}
+                              title={`Upload Version${revisionState.nextUploadVersion}`}
+	                          >
+	                            <Upload size={16} />
+	                          </button>
+	                        ) : null}
+	                        {canDeleteFiles ? (
+	                          <button
                             className="text-white/70 hover:text-[#F04438]"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -690,10 +958,15 @@ export default function CreatorSubFolderDetailsPage() {
                             <Trash2 size={16} />
                           </button>
                         ) : null}
-                      </div>
-                    </div>
+	                      </div>
+	                    </div>
+                      {statusBadge ? (
+                        <span className={`mb-3 inline-flex w-fit rounded-full border px-2.5 py-1 text-[10px] font-medium leading-none ${statusBadge.className}`}>
+                          {statusBadge.label}
+                        </span>
+                      ) : null}
 
-                    <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-white/5 bg-[#1A1A1A]">
+	                    <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-white/5 bg-[#1A1A1A]">
                       {isImageFile(file.contentType, file.title) && previewUrls[file.id] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -728,8 +1001,10 @@ export default function CreatorSubFolderDetailsPage() {
                           </span>
                         </div>
 		                      )}
-	                    </div>
-	                  </div>
+		                    </div>
+		                  </div>
+                      );
+                    })()
 	                  ))}
 	                </div>
 	                {hasMoreFiles ? (
@@ -842,10 +1117,28 @@ export default function CreatorSubFolderDetailsPage() {
 	                                e.stopPropagation();
 	                                handleDownloadFile(file as unknown as Record<string, unknown>);
 	                              }}
-	                            >
-	                              <Download size={16} />
-	                            </button>
-                            {canDeleteFiles ? (
+		                            >
+		                              <Download size={16} />
+		                            </button>
+	                            {isSelectedForEditsFolder
+                                ? (() => {
+                                    const revisionState = getSelectedFileRevisionState(file as unknown as Record<string, unknown>);
+                                    if (!revisionState.nextUploadVersion) return null;
+                                    return (
+                                      <button
+                                        className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#E8D1AB]"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openUploadModalForVersion(revisionState.nextUploadVersion);
+                                        }}
+                                        title={`Upload Version${revisionState.nextUploadVersion}`}
+                                      >
+                                        <Upload size={16} />
+                                      </button>
+                                    );
+                                  })()
+                                : null}
+	                            {canDeleteFiles ? (
                               <button
                                 className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
                                 onClick={(e) => {
@@ -882,14 +1175,18 @@ export default function CreatorSubFolderDetailsPage() {
 
 	      <UploadModal
 	        isOpen={isUploadModalOpen}
-	        onClose={() => setIsUploadModalOpen(false)}
-	        folderName={folderTitle}
+	        onClose={() => {
+            setIsUploadModalOpen(false);
+            setSelectedUploadVersion(null);
+          }}
+	        folderName={isSelectedForEditsFolder || isRevisionRootFolder ? `Version${uploadModalVersion}` : folderTitle}
 	        uploadPath={
-	          canUpload && workspaceName
-	            ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${currentFolderPath}`
-	            : undefined
+	          uploadFolderPath
 	        }
-	        onUploadComplete={loadFiles}
+	        onUploadComplete={async () => {
+            await loadFiles();
+            setSelectedUploadVersion(null);
+          }}
 	      />
 
 	      <CreateFolderModal
