@@ -134,7 +134,6 @@ export default function SubFolderDetailsPage() {
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
   const canUpload = true;
-  const canDelete = phaseSlug !== "post-production";
   const folderPath = useMemo(() => {
     const queryPath = searchParams.get("path");
     const rawPath = queryPath ? tryDecodeURIComponent(queryPath).trim() : slugToWorkspaceName(nestedSlug);
@@ -338,7 +337,6 @@ export default function SubFolderDetailsPage() {
   };
 
   const handleDeleteFile = async (file: any) => {
-    if (!canDelete) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -384,7 +382,6 @@ export default function SubFolderDetailsPage() {
 
   const handleBatchDelete = async () => {
     if (selectedFilePaths.length === 0) return;
-    if (!canDelete) return;
 
     try {
       setIsDeleting(true);
@@ -532,7 +529,6 @@ export default function SubFolderDetailsPage() {
                         onOpen={() => handleOpenFile(file)}
                         onDownload={() => handleDownloadFile(file)}
                         onDelete={() => {
-                          if (!canDelete) return;
                           setSelectedFile(file);
                           setIsDeleteModalOpen(true);
                         }}
@@ -602,7 +598,6 @@ export default function SubFolderDetailsPage() {
                               </button>
                               <button className="text-white/70 hover:text-[#F04438]" onClick={(e) => {
                                 e.stopPropagation();
-                                if (!canDelete) return;
                                 setSelectedFile(file);
                                 setIsDeleteModalOpen(true);
                               }}>
@@ -700,7 +695,6 @@ export default function SubFolderDetailsPage() {
                               }}
                               onDelete={(e) => {
                                 e.stopPropagation();
-                                if (!canDelete) return;
                                 setSelectedFile(file);
                                 setIsDeleteModalOpen(true);
                               }}
@@ -820,7 +814,6 @@ export default function SubFolderDetailsPage() {
                                       className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 hover:text-[#F04438]" : "hover:bg-black/5 hover:text-[#F04438]"}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (!canDelete) return;
                                         setSelectedFile(file);
                                         setIsDeleteModalOpen(true);
                                       }}
@@ -942,15 +935,13 @@ export default function SubFolderDetailsPage() {
                   <span className="hidden lg:block">Download</span>
                 </Button>
 
-                {canDelete && (
-                  <Button
-                    className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag"
-                    onClick={() => setIsDeleteModalOpen(true)}
-                  >
-                    <TrashIcon size={18} />
-                    <span className="hidden lg:block">Delete</span>
-                  </Button>
-                )}
+                <Button
+                  className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                >
+                  <TrashIcon size={18} />
+                  <span className="hidden lg:block">Delete</span>
+                </Button>
               </div>
 
               <button

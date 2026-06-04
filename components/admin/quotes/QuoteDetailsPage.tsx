@@ -2274,9 +2274,10 @@ export default function QuoteDetailsPage({
                   <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
-                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span> {projectDescription}
-                </p>
+                <div className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
+                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span>
+                  <p className="mt-1 whitespace-pre-wrap">{projectDescription}</p>
+                </div>
 
                 <div className={`flex items-start gap-2 text-xs lg:text-sm ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
