@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -32,6 +32,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { BookingSummaryModal } from "@/src/components/landing/BookingSummaryModal";
 import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
+import { getDashboardPathForUser } from "@/lib/auth-routing";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -345,6 +346,72 @@ const isAdditionalPaymentFlow = (details: any) => {
   const outstandingAmount = parseFloat(additionalPayment?.outstanding_amount || 0);
   const additionalStatus = String(additionalPayment?.payment_status || '').toLowerCase();
   return outstandingAmount > 0 && additionalStatus !== 'paid';
+};
+
+const getPaymentCompletionState = (details: any) => {
+  const quote = details?.quote || {};
+  const booking = details?.booking || {};
+  const additionalPayment = quote?.additional_payment || quote?.partial_payment || null;
+  const status = String(
+    details?.payment_status ||
+      booking?.payment_status ||
+      quote?.payment_status ||
+      additionalPayment?.payment_status ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const outstandingAmount = Math.max(
+    0,
+    parseFloat(
+      additionalPayment?.outstanding_amount ??
+        details?.pending_amount ??
+        details?.outstanding_amount ??
+        details?.remaining_amount ??
+        0
+    ) || 0
+  );
+
+  const paidAmount = Math.max(
+    0,
+    pickPaymentNumber(
+      details?.pricing?.total_paid_with_credit,
+      details?.pricing?.total_paid,
+      details?.pricing?.payment_summary?.paid_amount,
+      quote?.total_paid_amount,
+      quote?.paid_amount,
+      details?.paid_amount,
+      details?.amount_paid
+    )
+  );
+
+  const totalAmount = Math.max(
+    0,
+    pickPaymentNumber(
+      quote?.total,
+      details?.pricing?.payment_summary?.quote_total,
+      details?.pricing?.total_before_credit,
+      details?.pricing?.total
+    )
+  );
+
+  const hasCompletionSignal =
+    ["paid", "success", "completed"].includes(status) ||
+    Boolean(booking?.payment_completed_at || booking?.payment_id || details?.has_full_payment);
+
+  const isSettled =
+    hasCompletionSignal &&
+    outstandingAmount <= 0.009 &&
+    (paidAmount > 0 || totalAmount <= 0.009);
+
+  return {
+    isSettled,
+    status,
+    outstandingAmount,
+    paidAmount,
+    totalAmount,
+  };
 };
 
 const toPaymentNumber = (value: unknown) => {
@@ -1605,6 +1672,11 @@ function MultiCreatorPaymentContent() {
 
   const fetchIntent = async (details: any, useCreditOverride: boolean = useAccountCredit) => {
     if (!details || !shootId) return;
+    const completionState = getPaymentCompletionState(details);
+    if (completionState.isSettled) {
+      setClientSecret("");
+      return;
+    }
     const { booking, quote } = details;
     const basePayableAmount = resolveBasePayableAmount(details);
     const availableCredit = parseFloat(details?.account_credit?.available_credit_amount || 0);
@@ -1839,6 +1911,14 @@ function MultiCreatorPaymentContent() {
     summaryData?.event_type || booking?.event_type,
   );
 
+  const paymentCompletionState = getPaymentCompletionState(paymentDetails);
+  const isSettledPayment = paymentCompletionState.isSettled;
+  const settledPaymentText =
+    paymentCompletionState.status === "paid"
+      ? "This booking is already fully paid. There is no pending amount left."
+      : "This booking has no pending amount left, so payment is not required.";
+  const settledRedirectPath = isAuthenticated ? getDashboardPathForUser(user) : "/";
+
   const compactCustomerName = customerName.replace(/\s+/g, "");
   const headerParts = [
     compactCustomerName,
@@ -1848,30 +1928,7 @@ function MultiCreatorPaymentContent() {
 
   const headerText = headerParts.join("_");
 
-  if (!isQuoteValid) {
-    return (
-      <div className="pt-20 lg:pt-32 pb-20">
-        <div className="container mx-auto px-4 md:px-0 flex items-center justify-center min-h-[60vh]">
-          <div className="flex flex-col items-center gap-6 text-center max-w-md">
-            <div className="text-6xl">⚠️</div>
-            <h2 className="text-3xl font-bold text-white">Quote Data Missing</h2>
-            <p className="text-white/60 text-lg">The pricing information for this booking is missing.</p>
-            <Link href="/book-a-shoot" className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors">
-              Create New Booking
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (step === "success") {
-    const getFormUrl = () => {
-      const weddingFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdg9VNPGWzS0-48TtYCfejktfl2j3Hl4sAD4HSkUoQIMP9WQA/viewform";
-      const generalFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSeYWPQXfFBqzt4FHVy6ccrS4WVbjFLHJQeIu56rj_zEinGGfQ/viewform";
-      return booking?.event_type?.toLowerCase().includes("wedding") ? weddingFormUrl : generalFormUrl;
-    };
-
     const paidAmount = pickPaymentNumber(
       summaryData?.pricing?.total_paid_with_credit,
       toPaymentNumber(payableTotal) + toPaymentNumber(creditAppliedAmount),
@@ -1926,6 +1983,53 @@ function MultiCreatorPaymentContent() {
           hideAffiliateStep={true}
           redirectTo={loginRedirectTo}
         />
+      </div>
+    );
+  }
+
+  if (isSettledPayment) {
+    return (
+      <div className="pt-20 lg:pt-32 pb-20">
+        <div className="container mx-auto px-4 md:px-0">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center">
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-[#E8D1AB]/20 blur-[60px] rounded-full" />
+              <div className="relative w-[220px] h-[220px] lg:w-[320px] lg:h-[320px] flex items-center justify-center rounded-full bg-white/5 border border-[#E8D1AB]/20">
+                <BadgeCheckIcon className="w-20 h-20 lg:w-28 lg:h-28 text-[#E8D1AB]" />
+              </div>
+            </div>
+            <h2 className="text-lg lg:text-4xl font-medium mb-3 lg:mb-5 text-center">Payment Completed</h2>
+            <p className="text-white/70 text-sm lg:text-lg max-w-2xl mb-4 leading-relaxed">
+              {settledPaymentText}
+            </p>
+            <p className="text-[#E8D1AB] text-sm lg:text-base font-medium mb-10">
+              Pending Amount: {formatCurrency(paymentCompletionState.outstandingAmount)}
+            </p>
+            <button
+              onClick={() => router.push(settledRedirectPath)}
+              className="h-12 lg:h-14 px-6 lg:px-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base font-semibold rounded-xl inline-flex items-center justify-center"
+            >
+              {isAuthenticated ? "Go to Dashboard" : "Go Home"}
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isQuoteValid) {
+    return (
+      <div className="pt-20 lg:pt-32 pb-20">
+        <div className="container mx-auto px-4 md:px-0 flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-6 text-center max-w-md">
+            <div className="text-6xl">⚠️</div>
+            <h2 className="text-3xl font-bold text-white">Quote Data Missing</h2>
+            <p className="text-white/60 text-lg">The pricing information for this booking is missing.</p>
+            <Link href="/book-a-shoot" className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors">
+              Create New Booking
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
