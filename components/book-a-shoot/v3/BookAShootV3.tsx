@@ -81,6 +81,12 @@ export const BookAShootV3 = () => {
 
   const isSubmitting = isBookingLoading || isQuoteLoading || isUpdatingBooking;
   const shouldShowStudiosStep = formData.shootType === "studio";
+  const studioStep = shouldShowStudiosStep ? 2 : null;
+  const moreDetailsStep = shouldShowStudiosStep ? 3 : 2;
+  const crewMatchingStep = shouldShowStudiosStep ? 4 : 3;
+  const loadingStep = shouldShowStudiosStep ? 5 : 4;
+  const dreamTeamStep = shouldShowStudiosStep ? 6 : 5;
+  const confirmStep = shouldShowStudiosStep ? 7 : 6;
 
   // const updateData = (newData: Partial<BookingDataV3>) => {
   //   setFormData((prev) => ({ ...prev, ...newData }));
@@ -248,7 +254,7 @@ export const BookAShootV3 = () => {
         toast.error("Progress not saved, but you can continue.");
       }
     }
-    if (internalStep === 3) {
+    if (internalStep === crewMatchingStep) {
       // add GA event on initial load
 
       const formFields = {
@@ -269,7 +275,7 @@ export const BookAShootV3 = () => {
       pushToDataLayer("crew_size_matching", {
         type: "Action Tracking",
         page_name: "Book-a-shoot Page",
-        location_in_website: "book_a_shoot_step3",
+        location_in_website: `book_a_shoot_step${crewMatchingStep}`,
         duration_on_page: performance.now() / 1000,
         user_id: isAuthenticated ? user?.id : "Unknown",
         user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : formData.email,
@@ -280,17 +286,20 @@ export const BookAShootV3 = () => {
       });
 
       // Step 3 -> Loading -> Crew Selection
-      setInternalStep(4); // Loading
+      setInternalStep(loadingStep); // Loading
       setTimeout(() => {
-        setInternalStep(5); // Crew Select
+        setInternalStep(dreamTeamStep); // Crew Select
         setActiveStep(2);
       }, 2500);
     } else {
       const next = internalStep + 1;
       setInternalStep(next);
 
-      if (next === 2) setActiveStep(2);
-      if ((!shouldShowStudiosStep && next === 6) || (shouldShowStudiosStep && next === 7)) {
+      if (next === studioStep) setActiveStep(1);
+      if (next === moreDetailsStep || next === crewMatchingStep || next === loadingStep || next === dreamTeamStep) {
+        setActiveStep(2);
+      }
+      if (next === confirmStep) {
         setActiveStep(3);
       }
     }
@@ -307,27 +316,15 @@ export const BookAShootV3 = () => {
     }
 
     // From Dream Team selection, go back to Crew Matching
-    if (internalStep === 5) {
-      setInternalStep(3);
+    if (internalStep === dreamTeamStep) {
+      setInternalStep(crewMatchingStep);
       setActiveStep(2);
       return;
     }
 
     // From Book & Confirm, go back to Dream Team selection
-    if (internalStep === 6 && !shouldShowStudiosStep) {
-      setInternalStep(5);
-      setActiveStep(2);
-      return;
-    }
-    // From studios step, go back to Dream Team
-    if (internalStep === 6 && shouldShowStudiosStep) {
-      setInternalStep(5);
-      setActiveStep(2);
-      return;
-    }
-    // From Book & Confirm (with studios), go back to studios
-    if (internalStep === 7 && shouldShowStudiosStep) {
-      setInternalStep(6);
+    if (internalStep === confirmStep) {
+      setInternalStep(dreamTeamStep);
       setActiveStep(2);
       return;
     }
@@ -336,8 +333,8 @@ export const BookAShootV3 = () => {
     setInternalStep(prev);
 
     if (prev === 1) setActiveStep(1);
-    if (prev === 2) setActiveStep(2);
-    if (prev === 3) setActiveStep(2);
+    if (prev === studioStep) setActiveStep(1);
+    if (prev === moreDetailsStep || prev === crewMatchingStep) setActiveStep(2);
   };
 
   const handleBookingSubmission = async () => {
@@ -630,23 +627,25 @@ export const BookAShootV3 = () => {
       case 1:
         return <V3Step1ChooseService {...props} />;
       case 2:
-        return <V3Step2MoreDetails {...props} />;
+        return shouldShowStudiosStep ? <V3Step5Studios {...props} /> : <V3Step2MoreDetails {...props} />;
       case 3:
-        return <V3Step3CrewMatching {...props} />;
+        return shouldShowStudiosStep ? <V3Step2MoreDetails {...props} /> : <V3Step3CrewMatching {...props} />;
       case 4:
-        return <V3LoadingFindingCreative />;
+        return shouldShowStudiosStep ? <V3Step3CrewMatching {...props} /> : <V3LoadingFindingCreative />;
       case 5:
-        return (
+        return shouldShowStudiosStep ? <V3LoadingFindingCreative /> : (
           <V3SelectDreamTeam
             {...props}
             bookingId={draftBookingId || undefined}
           />
         );
       case 6:
-        if (shouldShowStudiosStep) {
-          return <V3Step5Studios {...props} />;
-        }
-        return (
+        return shouldShowStudiosStep ? (
+          <V3SelectDreamTeam
+            {...props}
+            bookingId={draftBookingId || undefined}
+          />
+        ) : (
           <V3Step4BookConfirm
             {...props}
             onConfirm={handleBookingSubmission}

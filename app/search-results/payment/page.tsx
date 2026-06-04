@@ -1474,12 +1474,14 @@ function MultiCreatorPaymentContent() {
     mandatoryAddons: Array<{ role: string; cost: number }>;
     editingFees: number;
     studioCost: number;
+    studioName?: string;
   }>({
     shootCost: 0,
     additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
     mandatoryAddons: [],
     editingFees: 0,
     studioCost: 0,
+    studioName: "",
   });
 
   const handleBackClick = (e?: React.MouseEvent) => {
@@ -1590,6 +1592,31 @@ function MultiCreatorPaymentContent() {
       }
     });
 
+    // Parse Studio Meta from description if exists
+    let studioMetaName = "";
+    let studioMetaPrice = 0;
+    const description = paymentDetails?.booking?.description || "";
+    if (description.includes("[BEIGE_STUDIO_META]")) {
+      try {
+        const metaMatch = description.match(/\[BEIGE_STUDIO_META\]\[(.*?)\]/);
+        if (metaMatch && metaMatch[1]) {
+          const metaData = JSON.parse(metaMatch[1]);
+          const studio = Array.isArray(metaData) ? metaData[0] : metaData;
+          if (studio) {
+            studioMetaName = studio.name || "";
+            studioMetaPrice = parseFloat(studio.totalPrice || 0);
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing studio meta:", e);
+      }
+    }
+
+    // If studioCostSum is 0 but we have meta price, use it
+    if (studioCostSum === 0 && studioMetaPrice > 0) {
+      studioCostSum = studioMetaPrice;
+    }
+
     setPricingGroups({
       shootCost: shootCostSum,
       additionalCP: {
@@ -1600,6 +1627,7 @@ function MultiCreatorPaymentContent() {
       mandatoryAddons: mandatoryAddonItems,
       editingFees: editingFeesSum,
       studioCost: studioCostSum,
+      studioName: studioMetaName,
     });
   }, [paymentDetails]);
 
@@ -2223,8 +2251,8 @@ function MultiCreatorPaymentContent() {
                       {pricingGroups.studioCost > 0 && (
                         <div className="flex justify-between mb-3">
                           <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#CCC6C6]">Studio / Resort</span>
-                            <span className=" text-[#787979]">Coachella studio selection</span>
+                            <span className="font-medium text-[#CCC6C6]">{pricingGroups.studioName || "Studio / Resort"}</span>
+                            <span className=" text-[#787979]">Studio selection</span>
                           </div>
                           <span className="font-medium">{formatCurrency(pricingGroups.studioCost)}</span>
                         </div>
