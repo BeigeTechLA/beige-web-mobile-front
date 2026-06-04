@@ -2337,6 +2337,7 @@ export default function ExternalChatView({
               await loadRoomDetails(room);
             }
           }}
+          isDark={isDark}
         />
       ) : null}
 
