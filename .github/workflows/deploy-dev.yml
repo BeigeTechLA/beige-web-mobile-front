@@ -3,7 +3,7 @@ name: Deploy Frontend Dev
 on:
   push:
     branches:
-      - development
+      - feature/book-a-shoot-studio
   workflow_dispatch:
 
 concurrency:
