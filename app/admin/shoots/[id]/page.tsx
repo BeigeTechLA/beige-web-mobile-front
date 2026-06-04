@@ -64,7 +64,21 @@ type ProjectDetails = {
 type QuoteVersionItem = {
   version_number?: number | string | null;
   is_current?: boolean | null;
+  approval_status?: string | null;
+  change_request_status?: string | null;
+  review_status?: string | null;
   [key: string]: unknown;
+};
+
+const isUsableQuoteVersion = (version: QuoteVersionItem) => {
+  const status = String(
+    version.approval_status ||
+    version.change_request_status ||
+    version.review_status ||
+    ""
+  ).trim().toLowerCase();
+
+  return !status || status === "approved";
 };
 
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -126,11 +140,16 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         ? versionsResponse.data
         : versionsResponse?.data?.versions || [];
 
-      const latestVersion = versionsData.reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
-        const latestNo = Number(latest?.version_number || 0);
-        const candidateNo = Number(candidate?.version_number || 0);
-        return candidateNo > latestNo ? candidate : latest;
-      }, (versionsData.find((version: QuoteVersionItem) => version?.is_current) || versionsData[0] || null) as QuoteVersionItem | null);
+      const latestVersion =
+        versionsData.find((version: QuoteVersionItem) => version?.is_current && isUsableQuoteVersion(version)) ||
+        versionsData
+          .filter((version: QuoteVersionItem) => isUsableQuoteVersion(version))
+          .reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
+            const latestNo = Number(latest?.version_number || 0);
+            const candidateNo = Number(candidate?.version_number || 0);
+            return candidateNo > latestNo ? candidate : latest;
+          }, null) ||
+        null;
 
       const versionId =
         latestVersion?.version_number != null ? String(latestVersion.version_number) : null;

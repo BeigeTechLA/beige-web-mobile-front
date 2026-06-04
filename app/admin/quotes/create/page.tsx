@@ -1058,6 +1058,7 @@ export default function CreateQuotePage() {
   const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
   const editQuoteId = searchParams.get("quoteId");
+  const editVersionId = searchParams.get("editVersion");
   const isEditMode = Boolean(editQuoteId);
   const editModeParam = searchParams.get("editMode");
   const isFullEditFlow = isEditMode && editModeParam === "full";
@@ -1399,6 +1400,13 @@ export default function CreateQuotePage() {
             : [];
 
         const currentVersion =
+          (editVersionId
+            ? versionsData.find(
+              (version) =>
+                version?.version_number != null &&
+                String(version.version_number) === editVersionId,
+            )
+            : null) ||
           versionsData.find((version) => version?.is_current && version?.version_number != null) ||
           versionsData.find((version) => version?.version_number != null);
         const versionNumber = Number(currentVersion?.version_number);
@@ -1422,7 +1430,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [effectiveQuoteId]);
+  }, [editVersionId, effectiveQuoteId]);
 
   React.useEffect(() => {
     servicesRef.current = services;
@@ -1635,7 +1643,9 @@ export default function CreateQuotePage() {
 
     const fetchQuoteToEdit = async () => {
       try {
-        const response = await salesApi.getQuoteDetail(editQuoteId);
+        const response = editVersionId
+          ? await salesApi.getQuoteVersionDetail(editQuoteId, editVersionId)
+          : await salesApi.getQuoteDetail(editQuoteId);
 
         if (response?.error || response?.success === false) {
           throw new Error(
@@ -1680,7 +1690,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [editQuoteId, router]);
+  }, [editQuoteId, editVersionId, router]);
 
   React.useEffect(() => {
     if (!editQuoteId) {
@@ -2649,12 +2659,6 @@ export default function CreateQuotePage() {
       setValidUntil(format(newDate, "yyyy-MM-dd"));
     }
   };
-
-  const formattedValidUntil = (() => {
-    if (!validUntil) return "";
-    const parsedDate = parseISO(validUntil);
-    return isValid(parsedDate) ? format(parsedDate, "dd-MM-yyyy") : validUntil;
-  })();
 
   const progressValue =
     view === "selection"
@@ -7739,7 +7743,7 @@ export default function CreateQuotePage() {
                             days from today.
                             {validityDays !== "custom" && (
                               <span className={`ml-2 font-medium ${isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"}`}>
-                                Quote valid until <strong>{format(parseISO(validUntil), "MM-dd-yyyy")}</strong>
+                                Quote valid until <strong>{format(parseISO(validUntil), "MMM d, yyyy")}</strong>
                               </span>
                             )}
                           </p>
@@ -7762,7 +7766,7 @@ export default function CreateQuotePage() {
                               }}
                               minDate={addDays(new Date(), 1)}
                               disabled={validityDays !== "custom"}
-                              format="MM-dd-yyyy"
+                              format="MMM d, yyyy"
                               isDark={isDark}
                               colors={{
                                 inputBackground: isCustomValiditySelected
@@ -7887,7 +7891,7 @@ export default function CreateQuotePage() {
                               }
                             }}
                             disabled={validityDays !== "custom"}
-                            format="MM-dd-yyyy"
+                            format="MMM d, yyyy"
                             colors={{
                               inputBackground: isCustomValiditySelected
                                 ? isDark
