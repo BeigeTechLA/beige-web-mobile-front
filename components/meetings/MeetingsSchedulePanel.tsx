@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import ParticipantAvatarStack from "./AvatarStack";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -297,7 +298,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
         </div>
 
         <div className={`overflow-x-auto `}  >
-          <div className={`hidden grid-cols-[2fr_1fr_1fr_auto] p-5 text-sm font-medium lg:grid border-y ${isDark ? "border-[#3D3D3D] text-[#E8D1AB] bg-[#202020]" : "bg-[#F4F5F7] text-black border-[#E5E5E5]"}`}>
+          <div className={`hidden grid-cols-[3fr_1fr_1fr_2fr] p-5 text-sm font-medium lg:grid border-y ${isDark ? "border-[#3D3D3D] text-[#E8D1AB] bg-[#202020]" : "bg-[#F4F5F7] text-black border-[#E5E5E5]"}`}>
             <span>Date & Time</span>
             <span>Members</span>
             <span>Status</span>
@@ -309,7 +310,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
           </div>
 
           {loading ?
-            <div className={`flex items-center justify-center py-20 border transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]":"border-[#E5E5E5] bg-[#fff]"} `}>
+            <div className={`flex items-center justify-center py-20 border transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E5E5E5] bg-[#fff]"} `}>
               <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
             </div> : error ? (
               <div className="px-2 py-10 text-center text-sm text-[#ff8e8e]">{error}</div>
@@ -341,12 +342,15 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
 
                   return (
                     <React.Fragment key={meetingId}>
-                      <div className={`hidden grid-cols-[2fr_1fr_1fr_auto] items-center border-b px-5 py-4 transition-colors lg:grid ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-white hover:bg-[#F4F5F7]"}`}>
+                      <div className={`hidden grid-cols-[3fr_1fr_1fr_2fr] items-center border-b px-5 py-4 transition-colors lg:grid ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-white hover:bg-[#F4F5F7]"}`}>
                         <div>
                           <div className={`text-base font-medium ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{formatDateTime(meeting.meeting_date_time)}</div>
                           {meeting.meeting_title ? <div className={`mt-1 text-sm ${isDark ? "text-white/45" : "text-black/75"}`}>{meeting.meeting_title}</div> : null}
                         </div>
-                        <MemberStack meeting={meeting} isDark={isDark} />
+                        {/* <MemberStack meeting={meeting} isDark={isDark} /> */}
+                        <div>
+                          <ParticipantAvatarStack meeting={meeting} isDark={isDark} />
+                        </div>
                         <div>
                           <StatusBadge status={effectiveStatus} isDark={isDark} />
                           {canRespond ? (
@@ -398,7 +402,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                           <button
                             type="button"
                             onClick={() => setSelectedMeeting(meeting)}
-                            className={`transition-colors hover:text-white ${isDark ? "text-[#888888]":"text-[#000]"}`}
+                            className={`transition-colors ${isDark ? "text-[#888888] hover:text-white" : "text-[#000] hover:text-[#323232]"}`}
                           >
                             <MoreVertical size={20} />
                           </button>
