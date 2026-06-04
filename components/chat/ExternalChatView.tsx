@@ -578,6 +578,8 @@ export default function ExternalChatView({
   const roomsRef = useRef<ExternalChatRoom[]>([]);
   const selectedRoomRef = useRef<ExternalChatRoom | null>(null);
   const roomLastSeenAtRef = useRef<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const effectiveUser = useMemo(() => ({ ...(storedUser || {}), ...(user || {}) }), [storedUser, user]);
   const userId = effectiveUser?.id != null ? String(effectiveUser.id) : null;
@@ -1395,6 +1397,50 @@ export default function ExternalChatView({
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !selectedRoom) return;
+
+    const roomId = getRoomId(selectedRoom);
+    if (!roomId) return;
+
+    setUploadingFile(true);
+    try {
+      const socket = socketRef.current;
+      if (!socket) {
+        toast.error("Not connected to chat");
+        return;
+      }
+
+      for (const file of files) {
+        const result = await externalChatApi.uploadFile(roomId, file, currentSender);
+        if (!result?.fileUrl) {
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+
+        socket.emit("message", {
+          roomId,
+          userId,
+          message: "",
+          fileUrl: result.fileUrl,
+          fileName: result.fileName,
+          fileType: result.fileType,
+        });
+      }
+
+      shouldStickToBottomRef.current = true;
+      toast.success(`${files.length} file${files.length > 1 ? "s" : ""} sent!`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload file");
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleReaction = async (message: ExternalChatMessage, emoji: string) => {
     const messageId = getMessageId(message);
     const roomId = getRoomId(selectedRoom);
@@ -2128,12 +2174,56 @@ export default function ExternalChatView({
                                           </button>
                                         </div>
                                       </div>
-                                    ) : (
-                                      <p className={`whitespace-pre-wrap text-sm leading-6 ${isDark ? "text-white/85" : "text-zinc-800"}`}>{getMessageText(message)}</p>
-                                    )}
-                                  </div>
-                                </div>
-                                {groupedReactions.length > 0 ? (
+                                   ) : (
+                               <div>
+              {/* File and  Image render */}
+         {!message.is_deleted && message.file_url && (
+         <div className="mb-2">
+        {message.message_type === "image" ||
+         String(message.file_type || "").startsWith("image/") ? (
+          <img
+            src={message.file_url}
+            alt={message.file_name || "Image"}
+            className="max-w-[280px] rounded-2xl cursor-pointer"
+            onClick={() => window.open(message.file_url, "_blank")}
+          />
+            ) : (
+           <a  
+            href={message.file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition ${
+              isDark
+                ? "border-white/10 bg-black/20 text-white/80 hover:bg-black/30"
+                : "border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-zinc-100"
+            }`}
+          >
+            <Paperclip className="h-4 w-4 shrink-0" />
+            <span className="truncate max-w-[200px]">
+              {message.file_name || "Download File"}
+            </span>
+          </a>
+        )}
+      </div>
+    )}
+    {/* Text message */}
+    {!message.is_deleted && message.message && (
+      <p className={`whitespace-pre-wrap text-sm leading-6 ${isDark ? "text-white/85" : "text-zinc-800"}`}>
+        {getMessageText(message)}
+      </p>
+    )}
+    {/* Deleted message */}
+    {message.is_deleted && (
+      <p className={`whitespace-pre-wrap text-sm leading-6 ${isDark ? "text-white/85" : "text-zinc-800"}`}>
+        {getMessageText(message)}
+      </p>
+    )}
+  </div>
+  )}
+
+  </div>
+  </div>
+                                  {groupedReactions.length > 0 ? (
                                   <div className="mt-2 flex flex-wrap gap-2">
                                     {groupedReactions.map((reaction) => (
                                       <div key={`${messageId}-${reaction.emoji}`} className="relative" data-reaction-details="true">
@@ -2256,13 +2346,38 @@ export default function ExternalChatView({
                 <div className={`flex items-center gap-3 rounded-[24px] border p-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"
                   }`}>
                   {/* Attachment support is not ready yet, so hide the button for now */}
-                  {/* <button
-                    type="button"
-                    onClick={() => toast.info("File attachments are not connected to external chat yet")}
-                    className="text-white/45 transition hover:text-white"
-                  >
-                    <Paperclip className="h-5 w-5" />
-                  </button> */}
+                  {/* File input hidden */}
+<input
+  ref={fileInputRef}
+  type="file"
+  className="hidden"
+  onChange={handleFileUpload}
+  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xlsx,.xls,.pptx,.zip,.rar"
+  multiple
+/>
+
+{/* Paperclip button */}
+<button
+  type="button"
+  onClick={() => {
+    if (!selectedRoom) {
+      toast.error("Please select a room first");
+      return;
+    }
+    fileInputRef.current?.click();
+  }}
+  disabled={uploadingFile || !selectedRoom}
+  className={`transition ${
+    isDark
+      ? "text-white/45 hover:text-white disabled:opacity-30"
+      : "text-black/45 hover:text-black disabled:opacity-30"
+  }`}
+>
+  {uploadingFile
+    ? <Loader2 className="h-5 w-5 animate-spin" />
+    : <Paperclip className="h-5 w-5" />
+  }
+</button>
                   <textarea
                     value={draftMessage}
                     onChange={(e) => setDraftMessage(e.target.value)}
