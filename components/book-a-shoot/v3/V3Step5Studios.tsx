@@ -7,7 +7,7 @@ import { BookingDataV3 } from "./types";
 import { MapPin, MoveUpRight, Search, ChevronDown, X, Star } from "lucide-react";
 import DatePicker from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
-import { format } from "date-fns";
+import { format ,isToday, addHours } from "date-fns";
 import { toast } from "sonner";
 import { StudioDetailsDrawer } from "./StudioDetailsDrawer";
 import {
@@ -26,7 +26,7 @@ interface Props {
   onNext: () => void;
   onBack: () => void;
 }
-
+const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 const parseValidDate = (value?: string) => {
   if (!value) return null;
   const parsed = new Date(value);
@@ -54,6 +54,7 @@ const formatDisplayTime = (value?: string) => {
   const parsed = parseValidDate(value);
   return parsed ? format(parsed, "h:mm a").toUpperCase() : value;
 };
+
   const getCoords = async (address: string) => {
     try {
       const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -120,23 +121,47 @@ const HourlyStudioCard = ({
     setTimeOptions(options);
   }, []);
 
-  const timeToMinutes = (timeStr: string) => {
-    if (!timeStr) return 0;
-    const [h, m] = timeStr.split(":").map(Number);
-    return h * 60 + m;
-  };
+    const timeToMinutes = (timeStr: string) => {
+      if (!timeStr) return 0;
+      const [h, m] = timeStr.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    const filteredStartTimeOptions = useMemo(() => {
+    if (!selectedDate) return timeOptions;
+
+    if (isToday(selectedDate)) {
+      const cutoffTime = addHours(new Date(), 2);
+      const cutoffMinutes = cutoffTime.getHours() * 60 + cutoffTime.getMinutes();
+
+      return timeOptions.filter((opt) => timeToMinutes(opt.key) >= cutoffMinutes);
+    }
+
+    return timeOptions;
+  }, [selectedDate, timeOptions]);
+
+  useEffect(() => {
+    if (startTime && selectedDate && isToday(selectedDate)) {
+      const cutoffTime = addHours(new Date(), 2);
+      const cutoffMinutes = cutoffTime.getHours() * 60 + cutoffTime.getMinutes();
+      
+      if (timeToMinutes(startTime) < cutoffMinutes) {
+        setStartTime(""); 
+      }
+    }
+  }, [selectedDate, startTime]);
 
   const endTimeOptions = useMemo(() => {
     return timeOptions.filter((opt) => {
       if (!startTime) return true;
-      return timeToMinutes(opt.key) >= timeToMinutes(startTime) + 60;
+      return timeToMinutes(opt.key) >= timeToMinutes(startTime) + 120;
     });
   }, [timeOptions, startTime]);
 
   useEffect(() => {
     if (startTime && endTime) {
-      if (timeToMinutes(endTime) < timeToMinutes(startTime) + 60) {
-        const targetMinutes = timeToMinutes(startTime) + 60;
+      if (timeToMinutes(endTime) < timeToMinutes(startTime) + 120) {
+        const targetMinutes = timeToMinutes(startTime) + 120;
         const newEndTimeOpt = timeOptions.find((o) => timeToMinutes(o.key) >= targetMinutes);
         if (newEndTimeOpt) setEndTime(newEndTimeOpt.key);
       }
@@ -217,7 +242,7 @@ const HourlyStudioCard = ({
             {metaLabel && <p className="mt-1 text-xs text-white/45">{metaLabel}</p>}
             <div className="mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed text-white/45">
               <MapPin size={14} className="mt-0.5 shrink-0" />
-              <span>{studio.location}</span>
+              <span>{DEFAULT_DISPLAY_ADDRESS}</span>
             </div>
           </div>
 
@@ -348,7 +373,7 @@ const HourlyStudioCard = ({
               <div className="flex-1 w-full flex flex-col gap-5 justify-center">
                 <DropdownSelect
                   title="Start Time"
-                  options={timeOptions}
+                  options={filteredStartTimeOptions}
                   value={startTime}
                   onChange={setStartTime}
                   bgColour="bg-[#1A1A1A]"
@@ -441,14 +466,12 @@ export const V3Step5Studios: React.FC<Props> = ({
   };
 
   const filteredHourlyStudios = useMemo(() => {
-    return HOURLY_STUDIO_LIST.filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      .sort((a, b) => {
-        if (sortBy === "Name") return a.name.localeCompare(b.name);
-        if (sortBy === "Price (Low to High)") return (a.priceValue || 0) - (b.priceValue || 0);
-        if (sortBy === "Price (High to Low)") return (b.priceValue || 0) - (a.priceValue || 0);
-        return 0;
-      });
-  }, [searchQuery, sortBy]);
+    const sourceOrderMap = new Map(HOURLY_STUDIO_LIST.map((studio, index) => [studio.id, index]));
+
+    return HOURLY_STUDIO_LIST
+      .filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => (sourceOrderMap.get(a.id) ?? 0) - (sourceOrderMap.get(b.id) ?? 0));
+  }, [searchQuery]);
 
   const confirmHourlyDetails = async(
     studio: StudioCatalogItem,
@@ -577,7 +600,11 @@ export const V3Step5Studios: React.FC<Props> = ({
       <StudioDetailsDrawer
         isOpen={!!selectedDetailsStudio}
         onClose={() => setSelectedDetailsStudio(null)}
-        studio={selectedDetailsStudio}
+        studio={
+        selectedDetailsStudio 
+          ? { ...selectedDetailsStudio, location: DEFAULT_DISPLAY_ADDRESS } 
+          : null
+      }
       />
     </div>
   );

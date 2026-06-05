@@ -297,7 +297,7 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
           {/* Where you'll be */}
           <div className="border-b border-white/10 pb-10 mb-8">
             <h3 className="text-2xl font-bold text-white mb-6">Where you&apos;ll be</h3>
-            <div className="w-full h-[350px] bg-[#111111] rounded-3xl relative overflow-hidden mb-6 flex items-center justify-center border border-white/10 group cursor-pointer">
+            {/* <div className="w-full h-[350px] bg-[#111111] rounded-3xl relative overflow-hidden mb-6 flex items-center justify-center border border-white/10 group cursor-pointer">
                {MAPBOX_TOKEN ? (
                  <Map
                    initialViewState={{
@@ -330,7 +330,7 @@ export const StudioDetailsDrawer: React.FC<StudioDetailsDrawerProps> = ({
                    <span className="text-white font-bold text-sm text-center bg-white/10 px-6 py-3 rounded-xl relative z-10 backdrop-blur-xl shadow-2xl border border-white/20">Exact location provided after booking</span>
                  </>
                )}
-            </div>
+            </div> */}
             <h4 className="text-white font-bold text-lg mb-2">{studio?.location || "Los Angeles, CA"}</h4>
             <p className="text-white/60 text-[15px] leading-relaxed mb-4">
               Studio address and arrival details are confirmed with the booking.

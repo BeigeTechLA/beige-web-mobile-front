@@ -60,6 +60,7 @@ const USER_TYPE: Record<number, string> = {
   5: "Sales Representative",
   6: "Production Manager"
 }
+const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 
 interface Props {
   data: BookingDataV3;
@@ -775,7 +776,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
-                      {data.location || "Location not set"}
+                      {DEFAULT_DISPLAY_ADDRESS || "Location not set"}
                     </span>
                     <span className="text-sm text-[#A9A9A9]">Location</span>
                   </div>
@@ -861,7 +862,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                                 <div className="text-white font-medium truncate">{studio.name}</div>
                                 <div className="text-xs text-[#A9A9A9] flex items-center gap-1 mt-1">
                                   <MapPin size={12} />
-                                  <span className="truncate">{studio.location}</span>
+                                  <span className="truncate">{DEFAULT_DISPLAY_ADDRESS}</span>
                                 </div>
                               </div>
                               <div className="text-sm font-semibold text-[#E8D1AB] shrink-0">
