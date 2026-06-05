@@ -9,6 +9,7 @@ interface DeleteMeetingConfirmModalProps {
   onConfirm: () => void | Promise<void>;
   meetingTitle?: string;
   isDeleting?: boolean;
+  isDark?: boolean;
 }
 
 export default function DeleteMeetingConfirmModal({
@@ -17,6 +18,7 @@ export default function DeleteMeetingConfirmModal({
   onConfirm,
   meetingTitle,
   isDeleting = false,
+  isDark = true
 }: DeleteMeetingConfirmModalProps) {
   return (
     <DeleteConfirmationModal
@@ -28,6 +30,7 @@ export default function DeleteMeetingConfirmModal({
       isLoading={isDeleting}
       title="Delete Meeting"
       description={`Are you sure you want to delete ${meetingTitle ? `"${meetingTitle}"` : "this meeting"}? This action cannot be undone.`}
+      isDark={isDark}
     />
   );
 }

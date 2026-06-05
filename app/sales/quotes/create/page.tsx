@@ -2524,12 +2524,6 @@ export default function CreateQuotePage() {
     }
   };
 
-  const formattedValidUntil = (() => {
-    if (!validUntil) return "";
-    const parsedDate = parseISO(validUntil);
-    return isValid(parsedDate) ? format(parsedDate, "dd-MM-yyyy") : validUntil;
-  })();
-
   const progressValue =
     view === "selection"
       ? 0
@@ -7220,8 +7214,8 @@ export default function CreateQuotePage() {
 
                             {
                               validityDays !== "custom" &&
-                              <span className="ml-2 text-[#E8D1AB]/80 font-medium">
-                                Quote valid until <strong>{format(parseISO(validUntil), "MM-dd-yyyy")}</strong>
+                            <span className="ml-2 text-[#E8D1AB]/80 font-medium">
+                                Quote valid until <strong>{format(parseISO(validUntil), "MMM d, yyyy")}</strong>
                               </span>
                             }
                           </p>
@@ -7250,7 +7244,7 @@ export default function CreateQuotePage() {
                                 }
                               }}
                               disabled={validityDays !== "custom"}
-                              format="MM-dd-yyyy"
+                              format="MMM d, yyyy"
                               colors={{
                                 inputBackground: isCustomValiditySelected
                                   ? isDark
@@ -7385,7 +7379,7 @@ export default function CreateQuotePage() {
                               }
                             }}
                             disabled={validityDays !== "custom"}
-                            format="MM-dd-yyyy"
+                            format="MMM d, yyyy"
                             colors={{
                               inputBackground: isCustomValiditySelected
                                 ? isDark
