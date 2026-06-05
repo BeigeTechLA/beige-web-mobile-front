@@ -268,14 +268,14 @@ export const CreativeProfileSelectorAdd = ({
             project_id: projectId,
             role_type: roleType,
             search_query: debouncedSearch || undefined,
-            radius: appliedFilters.radius
+            radius: debouncedSearch ? 99999 : appliedFilters.radius
           });
         } else {
           response = await salesApi.getCrewForLead({
             lead_id: leadId || 0,
             role_type: roleType,
-            search_query: debouncedSearch || undefined,
-            radius: appliedFilters.radius,
+            search_query: undefined,
+            radius: debouncedSearch ? 99999 : appliedFilters.radius,
             latitude: Number.isFinite(currentLatitude) ? currentLatitude : undefined,
             longitude: Number.isFinite(currentLongitude) ? currentLongitude : undefined
           });
@@ -316,12 +316,11 @@ export const CreativeProfileSelectorAdd = ({
 
     fetchCreatives();
   }, [disableCrewFetch, leadId, projectId, stats?.location, currentLocation, currentLatitude, currentLongitude, roleType, debouncedSearch, appliedFilters.radius]);
-
   const selectedIds = externalSelectedIds || internalSelectedIds;
 
   const filteredCreatives = creatives.filter((creative) => {
     const fullName = `${creative.first_name || ''} ${creative.last_name || ''} ${creative.name || ''}`.toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase());
+   return !debouncedSearch || fullName.includes(debouncedSearch.toLowerCase()); 
   });
 
   const groupedCreatives = useMemo<RadiusBucket[]>(() => {
@@ -360,8 +359,8 @@ export const CreativeProfileSelectorAdd = ({
       items,
     };
   }, [filteredCreatives, viewMode]);
-
   const radiusFilteredCreatives = useMemo(() => {
+    if (debouncedSearch) return filteredCreatives;
     return filteredCreatives.filter((creative) => {
       const bucket = parseWorkingDistance(creative.working_distance);
 

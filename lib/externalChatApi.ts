@@ -312,6 +312,16 @@ async uploadFile(roomId: string, file: File, sender?: ExternalChatUser | null) {
     },
   });
 
-  return response.data?.data || null;
+  const data = response.data?.data;
+  if (!data?.filePath && !data?.fileUrl) return null;
+
+  const s3Prefix = String(process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-dev.s3.us-east-1.amazonaws.com/beige/").replace(/\/+$/, "");
+  const fileUrl = data.fileUrl || `${s3Prefix}/${data.filePath}`;
+
+  return {
+    fileUrl,
+    fileName: data.fileName,
+    fileType: data.fileType,
+  };
 },
 };
