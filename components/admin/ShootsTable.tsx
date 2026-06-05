@@ -1732,9 +1732,10 @@ export const ShootsTable = ({
                               </div>
                             )}
                           </div>
-                      </td>
-                      </tr>
-                  ))}
+             </td>
+</tr>
+);
+})}
                 </tbody>
               </table>
             </div>

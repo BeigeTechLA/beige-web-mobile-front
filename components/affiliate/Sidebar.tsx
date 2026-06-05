@@ -44,17 +44,17 @@ import { useAppSelector } from '@/lib/redux/hooks';
 import { hasModulePermission } from '@/lib/permissions';
 
 const menuItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard', permissionKeys: ['dashboard'] },
-  { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview', permissionKeys: ['users'] },
-  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager', permissionKeys: ['file_manager'] },
-  { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself', permissionKeys: ['shoots'] },
-  { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings', permissionKeys: ['meetings'] },
-  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages', permissionKeys: ['messages'] },
-  { name: 'Shoots', icon: Camera, link: '/affiliate/shoots', permissionKeys: ['shoots'] },
-  { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes', permissionKeys: ['quotes'] },
-  { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot', permissionKeys: ['shoots'] },
-  { name: 'Finances', icon: DollarSign, link: '/affiliate/finances', permissionKeys: ['invoices'] },
-  { name: 'Profile', icon: Settings, link: '/affiliate/profile', permissionKeys: ['settings'] },
+  { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard', permissionKeys: ['client_dashboard', 'dashboard'] },
+  { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview', permissionKeys: ['client_affiliate_overview', 'users'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager', permissionKeys: ['client_file_manager', 'file_manager'] },
+  { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself', permissionKeys: ['client_find_yourself', 'shoots'] },
+  { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings', permissionKeys: ['client_meetings', 'meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages', permissionKeys: ['client_messages', 'messages'] },
+  { name: 'Shoots', icon: Camera, link: '/affiliate/shoots', permissionKeys: ['client_shoots', 'shoots'] },
+  { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes', permissionKeys: ['client_quotes', 'quotes'] },
+  { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot', permissionKeys: ['client_book_a_shoot', 'shoots'] },
+  { name: 'Finances', icon: DollarSign, link: '/affiliate/finances', permissionKeys: ['client_finances', 'invoices'] },
+  { name: 'Profile', icon: Settings, link: '/affiliate/profile', permissionKeys: ['client_profile', 'profile', 'settings'] },
 ];
 
 type MenuItem = {

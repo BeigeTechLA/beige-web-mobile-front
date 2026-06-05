@@ -43,39 +43,40 @@ const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
 };
 
 const menuItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['dashboard'] },
-  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['shoots'] },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
-  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
-  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },
+  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['admin_dashboard', 'dashboard'] },
+  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['admin_shoots', 'shoots'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['admin_file_manager', 'file_manager'] },
+  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['admin_meetings', 'meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['admin_messages', 'messages'] },
+  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['admin_availability', 'availability'] },
   {
     name: 'Sales Representative',
     icon: CircleDollarSign,
     link: '/admin/sales-representative',
-    permissionKeys: ['sales_representative'],
+    permissionKeys: ['admin_sales_representative', 'sales_representative'],
     children: [
-      { name: 'Dashboard', link: '/admin/sales-representative' },
+      { name: 'Dashboard', link: '/admin/sales-representative', permissionKeys: ['admin_sales_representative', 'sales_representative'] },
       // { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
   { name: 'Finances', icon: DollarSign, 
+    permissionKeys: ['admin_finances', 'finances'],
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
       // { name: 'Transactions', link: '/admin/finances/transactions' },
       // { name: 'Disputes', link: '/admin/finances/disputes' },
-      { name: 'Beige credit points', link: '/admin/finances/creditPoints' },
+      { name: 'Beige credit points', link: '/admin/finances/creditPoints', permissionKeys: ['admin_finances', 'finances'] },
 
     ] },
 
   {
     name: 'Users',
     icon: Users,
-    permissionKeys: ['users'],
+    permissionKeys: ['admin_users', 'users'],
     children: [
-      { name: 'All Users', link: '/admin/users/all' },
-      { name: 'Clients', link: '/admin/users/clients' },
-      { name: 'Creative Partners', link: '/admin/users/creative-partners' },
+      { name: 'All Users', link: '/admin/users/all', permissionKeys: ['admin_users', 'users'] },
+      { name: 'Clients', link: '/admin/users/clients', permissionKeys: ['admin_users', 'users'] },
+      { name: 'Creative Partners', link: '/admin/users/creative-partners', permissionKeys: ['admin_users', 'users'] },
     ]
   },
   { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions' },
@@ -83,14 +84,14 @@ const menuItems = [
     name: 'Quotes',
     icon: CustomQuotesIcon,
     link: '/admin/quotes',
-    permissionKeys: ['quotes'],
+    permissionKeys: ['admin_quotes', 'quotes'],
     children: [
-      { name: 'All Quotes', link: '/admin/quotes' },
-      { name: 'Quote Approvals', link: '/admin/quotes/change-requests' },
-      { name: 'Master Pricing', link: '/admin/quotes/pricing' },
+      { name: 'All Quotes', link: '/admin/quotes', permissionKeys: ['admin_quotes', 'quotes'] },
+      { name: 'Quote Approvals', link: '/admin/quotes/change-requests', permissionKeys: ['admin_quotes', 'quotes'] },
+      { name: 'Master Pricing', link: '/admin/quotes/pricing', permissionKeys: ['admin_quotes', 'quotes'] },
     ],
   },
-  { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['invoices'] },
+  { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['admin_invoices', 'invoices'] },
 ];
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
@@ -99,7 +100,7 @@ type MenuItem = {
   name: string;
   icon: LucideIcon;
   link?: string;
-  children?: { name: string; link: string; isDisabled?: boolean }[];
+  children?: { name: string; link: string; isDisabled?: boolean; permissionKeys?: string[] }[];
   isDisabled?: boolean;
   permissionKeys?: string[];
 };
@@ -248,7 +249,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               if (!canView) return null;
             }
 
-            const hasChildren = item.children && item.children.length > 0;
+            const visibleChildren = item.children?.filter((child) => {
+              if (!child.permissionKeys?.length) return true;
+              return hasModulePermission(permissions, child.permissionKeys, "view");
+            }) ?? [];
+            const hasChildren = visibleChildren.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);
             const isDisabled = item.isDisabled;
@@ -300,7 +305,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {/* Submenu */}
                 {hasChildren && isExpanded && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
-                    {item.children!.map((child) => {
+                    {visibleChildren.map((child) => {
                       const childActive = isChildActive(item.name, child.link);
                       return (
                         <button

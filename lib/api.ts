@@ -2384,7 +2384,13 @@ export const adminApi = {
   getPermissionModules: async () => {
     try {
       const response = await api.get('admin/permissions/modules');
-      return response.data;
+      const payload = response.data;
+      const modules = Array.isArray(payload?.data) ? payload.data : [];
+
+      return {
+        ...payload,
+        data: modules,
+      };
     } catch (error: any) {
       console.error('Get Permission Modules Error:', error.response?.data || error.message);
       return {
@@ -2398,7 +2404,17 @@ export const adminApi = {
   getUserPermissions: async (userId: number | string) => {
     try {
       const response = await api.get(`admin/users/${userId}/permissions`);
-      return response.data;
+      const payload = response.data;
+      const permissions =
+        payload?.data?.permissions ??
+        payload?.data ??
+        payload?.permissions ??
+        {};
+
+      return {
+        ...payload,
+        data: permissions,
+      };
     } catch (error: any) {
       console.error('Get User Permissions Error:', error.response?.data || error.message);
       return {

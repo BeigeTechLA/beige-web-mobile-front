@@ -19,11 +19,16 @@ export const mergePermissionMaps = (
 ): PermissionsMap => {
   const normalizedRolePermissions = normalizePermissionsPayload(rolePermissions ?? {});
   const normalizedCustomPermissions = normalizePermissionsPayload(customPermissions ?? {});
+  const mergedPermissions: PermissionsMap = { ...normalizedRolePermissions };
 
-  return {
-    ...normalizedRolePermissions,
-    ...normalizedCustomPermissions,
-  };
+  Object.entries(normalizedCustomPermissions).forEach(([moduleKey, actions]) => {
+    mergedPermissions[moduleKey] = {
+      ...(mergedPermissions[moduleKey] ?? {}),
+      ...actions,
+    };
+  });
+
+  return mergedPermissions;
 };
 
 export const fetchEffectiveUserPermissions = async (

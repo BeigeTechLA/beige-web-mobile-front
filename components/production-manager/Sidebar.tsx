@@ -10,13 +10,13 @@ import { useAppSelector } from '@/lib/redux/hooks';
 import { hasModulePermission } from '@/lib/permissions';
 
 const menuItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, link: '/production-manager/dashboard', permissionKeys: ['dashboard'] },
-    { name: 'Creative Partners', icon: Users, link: '/production-manager/creative-partners', permissionKeys: ['users'] },
-    { name: 'Shoots', icon: Camera, link: '/production-manager/shoots', permissionKeys: ['shoots'] },
-    { name: 'File Manager', icon: FolderOpen, link: '/production-manager/file-manager', permissionKeys: ['file_manager'] },
-    { name: 'Meetings', icon: CalendarClock, link: '/production-manager/meetings', permissionKeys: ['meetings'] },
-    { name: 'Messages', icon: MessageCircle, link: '/production-manager/messages', permissionKeys: ['messages'] },
-    { name: 'Availability', icon: CalendarClock, link: '/production-manager/availability', permissionKeys: ['availability'] },
+    { name: 'Dashboard', icon: LayoutDashboard, link: '/production-manager/dashboard', permissionKeys: ['production_manager_dashboard', 'dashboard'] },
+    { name: 'Creative Partners', icon: Users, link: '/production-manager/creative-partners', permissionKeys: ['production_manager_creative_partner', 'users'] },
+    { name: 'Shoots', icon: Camera, link: '/production-manager/shoots', permissionKeys: ['production_manager_shoots', 'shoots'] },
+    { name: 'File Manager', icon: FolderOpen, link: '/production-manager/file-manager', permissionKeys: ['production_manager_file_manager', 'file_manager'] },
+    { name: 'Meetings', icon: CalendarClock, link: '/production-manager/meetings', permissionKeys: ['production_manager_meetings', 'meetings'] },
+    { name: 'Messages', icon: MessageCircle, link: '/production-manager/messages', permissionKeys: ['production_manager_messages', 'messages'] },
+    { name: 'Availability', icon: CalendarClock, link: '/production-manager/availability', permissionKeys: ['production_manager_availability', 'availability'] },
 ];
 
 type MenuItem = {

@@ -132,6 +132,13 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
     if (!item.children?.length) return [];
 
     return item.children.filter((child) => {
+      if (
+        child.permissionKeys?.length &&
+        !hasModulePermission(permissions, child.permissionKeys, child.permissionAction ?? "view")
+      ) {
+        return false;
+      }
+
       if (child.visibleForUserTypes?.length) {
         if (currentUserTypeId == null || !child.visibleForUserTypes.includes(currentUserTypeId)) {
           return false;

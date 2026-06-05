@@ -49,32 +49,32 @@ const salesMenuItems: SalesMenuItem[] = [
     name: 'Sales',
     icon: LayoutDashboard,
     link: '/sales/dashboard',
-    permissionKeys: ['dashboard'],
+    permissionKeys: ['sales_admin_dashboard', 'sales_rep_sales', 'dashboard'],
     children: [
-      { name: 'Dashboard', link: '/sales/dashboard', visibleForUserTypes: [7] },
-      { name: 'Sales People', link: '/sales/sales-people', visibleForUserTypes: [7] },
+      { name: 'Dashboard', link: '/sales/dashboard', visibleForUserTypes: [7], permissionKeys: ['sales_admin_dashboard', 'dashboard'] },
+      { name: 'Sales People', link: '/sales/sales-people', visibleForUserTypes: [7], permissionKeys: ['sales_admin_sales_people', 'users'] },
     ],
   },
-  { name: 'Availability', icon: Calendar, link: '/sales/availability', permissionKeys: ['availability'], visibleForUserTypes: [5] },
-  { name: 'Shoots', icon: Camera, link: '/sales/shoots', permissionKeys: ['shoots'] },
-  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', permissionKeys: ['file_manager'] },
-  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings', permissionKeys: ['meetings'] },
-  { name: 'Messages', icon: MessageCircle, link: '/sales/messages', permissionKeys: ['messages'] },
+  { name: 'Availability', icon: Calendar, link: '/sales/availability', permissionKeys: ['sales_rep_availability', 'availability'], visibleForUserTypes: [5] },
+  { name: 'Shoots', icon: Camera, link: '/sales/shoots', permissionKeys: ['sales_rep_shoots', 'sales_admin_shoots', 'shoots'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', permissionKeys: ['sales_rep_file_manager', 'sales_admin_file_manager', 'file_manager'] },
+  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings', permissionKeys: ['sales_rep_meetings', 'sales_admin_meetings', 'meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/sales/messages', permissionKeys: ['sales_rep_messages', 'sales_admin_messages', 'messages'] },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
     link: '/sales/quotes',
-    permissionKeys: ['quotes'],
+    permissionKeys: ['sales_rep_quotes', 'sales_admin_quotes', 'quotes'],
     children: [
-      { name: 'All Quotes', link: '/sales/quotes' },
-      { name: 'Change Request', link: '/sales/quotes/change-requests' },
-      { name: 'Master Pricing', link: '/sales/quotes/pricing' }
+      { name: 'All Quotes', link: '/sales/quotes', permissionKeys: ['sales_rep_quotes', 'sales_admin_quotes', 'quotes'] },
+      { name: 'Change Request', link: '/sales/quotes/change-requests', permissionKeys: ['sales_admin_quotes', 'quotes'] },
+      { name: 'Master Pricing', link: '/sales/quotes/pricing', permissionKeys: ['sales_admin_quotes', 'quotes'] }
     ],
   },
 
 
 
-  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', permissionKeys: ['invoices'], visibleForUserTypes: [7] },
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', permissionKeys: ['sales_admin_invoices', 'invoices'], visibleForUserTypes: [7] },
 ];
 
 type SalesMenuItem = {
@@ -89,6 +89,7 @@ type SalesMenuItem = {
     link: string;
     isDisabled?: boolean;
     visibleForUserTypes?: number[];
+    permissionKeys?: string[];
   }[];
 };
 
@@ -192,6 +193,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     }
 
     return item.children.filter((child) => {
+      if (child.permissionKeys?.length && !hasModulePermission(permissions, child.permissionKeys, "view")) {
+        return false;
+      }
+
       if (!child.visibleForUserTypes?.length) {
         return true;
       }
@@ -391,7 +396,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
                 {item.name === 'Quotes' && item.children && quotesExpanded && user?.user_type_id === 7 && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
-                    {item.children.map((child) => {
+                    {visibleChildren.map((child) => {
                       if ((child.name === 'Master Pricing' || child.name === 'Change Request') && !isSalesAdmin) return null;
 
                       return (
