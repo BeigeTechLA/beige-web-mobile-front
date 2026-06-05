@@ -2,11 +2,140 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { salesApi, adminApi } from '@/lib/api';
-import { Search, SlidersHorizontal, Check, Loader2, List, LayoutGrid } from 'lucide-react';
-import { CreativeFilterModal } from './CreativeFilterModal';
+import { Search, SlidersHorizontal, Check, Loader2, List, LayoutGrid, ChevronDown } from 'lucide-react';
+import { CreativeFilterModal, CREATIVE_RADIUS_OPTIONS } from './CreativeFilterModal';
 import { Separator } from '@/src/components/landing/Separator';
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+const DEFAULT_RADIUS = 50;
+
+type CreativeWithDistance = {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  status?: string;
+  shoots?: number;
+  assigned_shoots?: number;
+  specialities?: string;
+  role?: string;
+  availability?: string;
+  location?: string;
+  rating?: number | string;
+  hourly_rate?: number | string;
+  is_beige_member?: number;
+  profile_image?: string;
+  profile_photo?: string;
+  latitude?: string | number;
+  longitude?: string | number;
+  working_distance?: string;
+  distanceBucket?: number | "traveling" | null;
+};
+
+type RadiusBucket = {
+  lowerBound: number;
+  upperBound: number;
+  label: string;
+  items: CreativeWithDistance[];
+};
+
+type TravelingBucket = {
+  label: string;
+  items: CreativeWithDistance[];
+};
+
+type CrewApiItem = {
+  crew_member_id: number;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  availability?: string;
+  profile_photo?: string;
+  latitude?: string | number;
+  longitude?: string | number;
+  working_distance?: string;
+  years_of_experience?: number;
+  is_active?: boolean;
+  [key: string]: unknown;
+};
+
+type LeadStats = {
+  fulfillment_stats?: {
+    videographer?: string;
+    photographer?: string;
+  };
+};
+
+type CreativeCardProps = {
+  creative: CreativeWithDistance;
+  isSelected: boolean;
+  onToggle: () => void;
+  onViewProfile: () => void;
+  isDark?: boolean;
+  viewMode: 'list' | 'grid';
+};
+
+type LocationLike = {
+  address?: string;
+  location?: string;
+  full_address?: string;
+};
+
+const formatLocation = (locationInput?: unknown) => {
+  const raw =
+    typeof locationInput === "string"
+      ? locationInput.trim()
+      : locationInput && typeof locationInput === "object"
+        ? String((locationInput as LocationLike).address || (locationInput as LocationLike).location || (locationInput as LocationLike).full_address || "").trim()
+        : String(locationInput || "").trim();
+
+  if (!raw) return "N/A";
+
+  let addressStr = raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      const parsedLocation = parsed as LocationLike;
+      addressStr = String(parsedLocation.address || parsedLocation.location || parsedLocation.full_address || raw);
+    }
+  } catch {
+    // Not JSON, use raw string.
+  }
+
+  const normalizeSegment = (segment: string) =>
+    segment
+      .replace(/^\d{3,}(?:-\d+)?\s+/, "")
+      .replace(/^\d{3,}(?:\s+\d{3,})*\s+/, "")
+      .trim();
+
+  const parts = addressStr
+    .split(/[,،，]/)
+    .map((part) => normalizeSegment(part.trim()))
+    .filter(Boolean);
+
+  if (parts.length <= 1) return addressStr;
+
+  if (parts.length >= 4) {
+    const country = normalizeSegment(parts[parts.length - 1]);
+    const middle = normalizeSegment(parts[parts.length - 2] || "");
+    const city = normalizeSegment(parts[parts.length - 3]);
+    return [city, middle, country].filter(Boolean).join(", ");
+  }
+
+  if (parts.length === 3) {
+    const secondPartLooksLikeCity = !/^\d/.test(parts[1]);
+    if (secondPartLooksLikeCity) {
+      return parts.map(normalizeSegment).join(", ");
+    }
+
+    const country = normalizeSegment(parts[2]);
+    const city = normalizeSegment(parts[1]);
+    return [city, country].filter(Boolean).join(", ");
+  }
+
+  const country = normalizeSegment(parts[parts.length - 1]);
+  return [normalizeSegment(parts[0]), country].filter(Boolean).join(", ");
+};
 
 export const CreativeProfileSelectorAdd = ({
   selectedIds: externalSelectedIds,
@@ -15,6 +144,8 @@ export const CreativeProfileSelectorAdd = ({
   leadId,
   projectId,
   currentLocation,
+  currentLatitude,
+  currentLongitude,
   targets,
   disableCrewFetch,
   statsSource = "lead",
@@ -27,6 +158,8 @@ export const CreativeProfileSelectorAdd = ({
   leadId?: number | string,
   projectId?: number | string,
   currentLocation?: string,
+  currentLatitude?: number,
+  currentLongitude?: number,
   targets?: { videographer: number, photographer: number },
   disableCrewFetch?: boolean, // When true, suppresses the get-crew-for-lead API call
   statsSource?: "lead" | "client",
@@ -36,17 +169,50 @@ export const CreativeProfileSelectorAdd = ({
   const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [appliedFilters, setAppliedFilters] = useState({ radius: 50 });
-  const [stats, setStats] = useState<any>(null);
-  const [creatives, setCreatives] = useState<any[]>([]);
+  const [appliedFilters, setAppliedFilters] = useState({ radius: DEFAULT_RADIUS });
+  const [stats, setStats] = useState<LeadStats | null>(null);
+  const [creatives, setCreatives] = useState<CreativeWithDistance[]>([]);
   // const [roleType, setRoleType] = useState<string>('videographer');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [expandedBuckets, setExpandedBuckets] = useState<number[]>([10, 50]);
 
 
   const roleType = externalRoleType || 'videographer';
+  const activeBucketLimits = useMemo(
+    () => CREATIVE_RADIUS_OPTIONS.filter((limit) => limit <= appliedFilters.radius),
+    [appliedFilters.radius]
+  );
+
+  useEffect(() => {
+    setExpandedBuckets(activeBucketLimits);
+  }, [activeBucketLimits]);
+
+  const parseWorkingDistance = (workingDistance?: string) => {
+    const normalized = (workingDistance || "").toLowerCase().trim();
+
+    if (!normalized) {
+      return null;
+    }
+
+    if (normalized.includes("travel")) {
+      return "traveling" as const;
+    }
+
+    const match = normalized.match(/(\d+(?:\.\d+)?)/);
+    if (!match) {
+      return null;
+    }
+
+    const miles = Number.parseFloat(match[1]);
+    if (miles <= 10) return 10;
+    if (miles <= 50) return 50;
+    if (miles <= 100) return 100;
+    if (miles <= 150) return 150;
+    return 200;
+  };
 
   // 1. Debounce search query
   useEffect(() => {
@@ -109,19 +275,31 @@ export const CreativeProfileSelectorAdd = ({
             lead_id: leadId || 0,
             role_type: roleType,
             search_query: debouncedSearch || undefined,
-            radius: appliedFilters.radius
+            radius: appliedFilters.radius,
+            latitude: Number.isFinite(currentLatitude) ? currentLatitude : undefined,
+            longitude: Number.isFinite(currentLongitude) ? currentLongitude : undefined
           });
         }
 
-        if (response && response.data) {
-          const formattedCreatives = response.data.map((item: any) => ({
+        const responseData = response?.data ?? response;
+        const responseCreatives = Array.isArray(responseData)
+          ? responseData
+          : Array.isArray(responseData?.data)
+            ? responseData.data
+            : [];
+        if (responseCreatives.length > 0 || responseData?.success) {
+          const formattedCreatives = responseCreatives.map((item: CrewApiItem) => ({
             id: item.crew_member_id,
             name: `${item.first_name} ${item.last_name}`,
             status: item.is_active ? "Active" : "Inactive",
             shoots: item.years_of_experience || 0,
             specialities: item.role || "Creative",
             availability: item.availability || "Available",
+            location: item.location || item.old_location || "",
             profile_photo: item.profile_photo,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            working_distance: item.working_distance,
             ...item
           }));
           setCreatives(formattedCreatives);
@@ -137,9 +315,67 @@ export const CreativeProfileSelectorAdd = ({
     };
 
     fetchCreatives();
-  }, [leadId, projectId, stats?.location, currentLocation, roleType, debouncedSearch, appliedFilters.radius]);
+  }, [disableCrewFetch, leadId, projectId, stats?.location, currentLocation, currentLatitude, currentLongitude, roleType, debouncedSearch, appliedFilters.radius]);
 
   const selectedIds = externalSelectedIds || internalSelectedIds;
+
+  const filteredCreatives = creatives.filter((creative) => {
+    const fullName = `${creative.first_name || ''} ${creative.last_name || ''} ${creative.name || ''}`.toLowerCase();
+    return fullName.includes(searchQuery.toLowerCase());
+  });
+
+  const groupedCreatives = useMemo<RadiusBucket[]>(() => {
+    if (viewMode !== 'grid') {
+      return [];
+    }
+
+    return activeBucketLimits.map((upperBound, index) => {
+      const lowerBound = index === 0 ? 0 : activeBucketLimits[index - 1];
+      const label = `${lowerBound}-${upperBound} miles`;
+
+      const items = filteredCreatives
+        .map((creative) => ({
+          ...creative,
+          distanceBucket: parseWorkingDistance(creative.working_distance),
+        }))
+        .filter((creative) => creative.distanceBucket === upperBound);
+
+      return { lowerBound, upperBound, label, items };
+    }).filter((bucket) => bucket.items.length > 0);
+  }, [activeBucketLimits, filteredCreatives, viewMode]);
+
+  const travelingCreatives = useMemo<TravelingBucket | null>(() => {
+    if (viewMode !== "grid") {
+      return null;
+    }
+
+    const items = filteredCreatives.filter((creative) => parseWorkingDistance(creative.working_distance) === "traveling");
+
+    if (items.length === 0) {
+      return null;
+    }
+
+    return {
+      label: "Traveling",
+      items,
+    };
+  }, [filteredCreatives, viewMode]);
+
+  const radiusFilteredCreatives = useMemo(() => {
+    return filteredCreatives.filter((creative) => {
+      const bucket = parseWorkingDistance(creative.working_distance);
+
+      if (bucket === "traveling") {
+        return true;
+      }
+
+      if (bucket === null) {
+        return false;
+      }
+
+      return bucket <= appliedFilters.radius;
+    });
+  }, [appliedFilters.radius, filteredCreatives]);
 
   const counts = useMemo(() => {
     let vCount = 0;
@@ -189,6 +425,14 @@ export const CreativeProfileSelectorAdd = ({
       onSelectionUpdate(counts);
     }
   }, [counts, onSelectionUpdate]);
+
+  const toggleBucket = (bucketLimit: number) => {
+    setExpandedBuckets((current) =>
+      current.includes(bucketLimit)
+        ? current.filter((limit) => limit !== bucketLimit)
+        : [...current, bucketLimit]
+    );
+  };
 
   const toggleSelection = (id: number) => {
     const creative = creatives.find(c => c.id === id);
@@ -249,7 +493,7 @@ export const CreativeProfileSelectorAdd = ({
                 }`}
             />
           </div>
-           {/* <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
+            {/* <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
           <button
             onClick={() => setViewMode('list')}
             className={`p-3 transition-colors ${viewMode === 'list' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
@@ -262,7 +506,7 @@ export const CreativeProfileSelectorAdd = ({
           >
             <LayoutGrid size={20} />
           </button>
-        </div> */}
+        </div>  */}
           {/* FILTER TRIGGER */}
           <button
             onClick={() => setIsFilterOpen(true)}
@@ -280,17 +524,120 @@ export const CreativeProfileSelectorAdd = ({
       {/* Creative List Container */}
       <div className={`border rounded-2xl p-4 md:p-8 transition-colors ${
         isDark ? "bg-black border-white/5" : "bg-black border-[#D8D8D8]"
-      } ${
-        viewMode === 'grid' 
-          ? "grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6" 
-          : "space-y-4 lg:space-y-8"      
-    }`}>
+      } ${viewMode === 'grid' ? "space-y-4" : "space-y-4 lg:space-y-8"}`}>
         {isLoading ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-10">
+          <div className="flex flex-col items-center justify-center py-10">
             <Loader2 className="mb-4 animate-spin text-[#E8D1AB]" size={32} />
           </div>
-        ) : creatives.length > 0 ? (
-          creatives.map((creative, index) => (
+        ) : viewMode === 'grid' ? (
+          groupedCreatives.length > 0 || travelingCreatives ? (
+            <>
+              {groupedCreatives.map((bucket) => {
+                const isExpanded = expandedBuckets.includes(bucket.upperBound);
+
+                return (
+                  <div
+                    key={`${bucket.lowerBound}-${bucket.upperBound}`}
+                    className={`overflow-hidden rounded-2xl border transition-colors ${
+                      isDark ? "border-white/10 bg-white/[0.02]" : "border-black/10 bg-black/[0.02]"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleBucket(bucket.upperBound)}
+                      className={`flex w-full items-center justify-between gap-3 px-4 py-4 text-left md:px-6 ${
+                        isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.03]"
+                      }`}
+                    >
+                      <div>
+                        <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                          {bucket.label}
+                        </p>
+                        <p className={isDark ? "text-sm text-white/45" : "text-sm text-black/45"}>
+                          {bucket.items.length} creative{bucket.items.length === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`transition-transform ${isExpanded ? "rotate-180" : ""} ${
+                          isDark ? "text-white/60" : "text-black/60"
+                        }`}
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 px-4 pb-4 md:px-6 md:pb-6">
+                        {bucket.items.map((creative, index) => (
+                          <CreativeCard
+                            key={`${creative.id}-${index}`}
+                            creative={creative}
+                            isSelected={selectedIds.includes(creative.id)}
+                            onToggle={() => toggleSelection(creative.id)}
+                            onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                            isDark={isDark}
+                            viewMode="grid"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {travelingCreatives && (
+                <div
+                  className={`overflow-hidden rounded-2xl border transition-colors ${
+                    isDark ? "border-white/10 bg-white/[0.02]" : "border-black/10 bg-black/[0.02]"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleBucket(999)}
+                    className={`flex w-full items-center justify-between gap-3 px-4 py-4 text-left md:px-6 ${
+                      isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.03]"
+                    }`}
+                  >
+                    <div>
+                      <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                        {travelingCreatives.label}
+                      </p>
+                      <p className={isDark ? "text-sm text-white/45" : "text-sm text-black/45"}>
+                        {travelingCreatives.items.length} creative{travelingCreatives.items.length === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <ChevronDown
+                      size={18}
+                      className={`transition-transform ${expandedBuckets.includes(999) ? "rotate-180" : ""} ${
+                        isDark ? "text-white/60" : "text-black/60"
+                      }`}
+                    />
+                  </button>
+
+                  {expandedBuckets.includes(999) && (
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 px-4 pb-4 md:px-6 md:pb-6">
+                      {travelingCreatives.items.map((creative, index) => (
+                        <CreativeCard
+                          key={`${creative.id}-${index}`}
+                          creative={creative}
+                          isSelected={selectedIds.includes(creative.id)}
+                          onToggle={() => toggleSelection(creative.id)}
+                          onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                          isDark={isDark}
+                          viewMode="grid"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+        ) : (
+            <div className={`text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
+              No creatives found for {roleType} in this location.
+            </div>
+          )
+        ) : radiusFilteredCreatives.length > 0 ? (
+          radiusFilteredCreatives.map((creative, index) => (
             <React.Fragment key={creative.id || index}>
               <CreativeCard
                 creative={creative}
@@ -298,14 +645,13 @@ export const CreativeProfileSelectorAdd = ({
                 onToggle={() => toggleSelection(creative.id)}
                 onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
                 isDark={isDark}
-                viewMode={viewMode} // Pass viewMode to the card
+                viewMode={viewMode}
               />
-              {/* Only show separator in list mode and if not last item */}
-              {viewMode === 'list' && index !== creatives.length - 1 && <Separator />}
+              {viewMode === 'list' && index !== radiusFilteredCreatives.length - 1 && <Separator />}
             </React.Fragment>
           ))
         ) : (
-          <div className={`col-span-full text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
+          <div className={`text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
             No creatives found for {roleType} in this location.
           </div>
         )}
@@ -316,17 +662,19 @@ export const CreativeProfileSelectorAdd = ({
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         onApply={(filters) => setAppliedFilters(filters)}
+        value={appliedFilters.radius}
         isDark={isDark}
       />
     </div>
   );
 };
-const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, viewMode }: any) => {
+const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, viewMode }: CreativeCardProps) => {
   const isGrid = viewMode === 'grid';
   const imageSrc = creative.profile_photo
     ? (creative.profile_photo.startsWith('http') ? creative.profile_photo : `${S3_PREFIX}${creative.profile_photo}`)
     : null;
   const experienceLabel = `${String(creative.shoots || 0).padStart(2, '0')} Years`;
+  const locationLabel = formatLocation(creative.location);
 
     return (
     <div
@@ -398,6 +746,11 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
                 <p className="text-[15px] font-medium leading-tight text-white">{creative.specialities}</p>
               </div>
             </div>
+
+            <div className="mt-4 border-t border-white/15 pt-4">
+              <p className="mb-1 text-[13px] text-white/45">Location:</p>
+              <p className="text-[15px] font-medium leading-tight text-white">{locationLabel}</p>
+            </div>
           </div>
         </>
       ) : (
@@ -447,6 +800,10 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
                 <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Specialities:</p>
                 <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{creative.specialities}</p>
               </div>
+              <div className="md:pl-6">
+                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Location:</p>
+                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{formatLocation(creative.location)}</p>
+              </div>
             </div>
 
             <div className="mt-auto pt-4 w-full flex justify-end">
@@ -469,5 +826,6 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
     </div>
   );
 };
+
 
 

@@ -11,6 +11,7 @@ interface CreateFolderModalProps {
   onCreate: (data: { name: string }) => void | Promise<void>;
   title?: string;
   description?: string;
+  isDark?: boolean;
 }
 
 export const CreateFolderModal = ({
@@ -19,6 +20,7 @@ export const CreateFolderModal = ({
   onCreate,
   title = "Create Folder",
   description = "Create a new folder in this location",
+  isDark = true,
 }: CreateFolderModalProps) => {
   const [folderName, setFolderName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,21 +55,26 @@ export const CreateFolderModal = ({
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-[500px] bg-[#0A0A0A] border border-white/10 rounded-[24px] overflow-hidden shadow-2xl"
+            className={`relative w-full max-w-[500px] border rounded-[24px] overflow-hidden shadow-2xl transition-colors duration-200 ${isDark ? "bg-[#0A0A0A] border-white/10" : "bg-white border-[#D7D7D7]"
+              }`}
           >
             {/* Header */}
-            <div className="p-5 flex justify-between items-start border-b border-white/5">
+            <div className={`p-5 flex justify-between items-start border-b transition-colors duration-200 ${isDark ? "border-white/5" : "border-[#D7D7D7]"
+              }`}>
               <div>
-                <h2 className="text-xl lg:text-2xl font-bold text-white mb-1">
+                <h2 className={`text-xl lg:text-2xl font-bold mb-1 transition-colors ${isDark ? "text-white" : "text-black"
+                  }`}>
                   {title}
                 </h2>
-                <p className="text-sm text-white/40">
+                <p className={`text-sm transition-colors ${isDark ? "text-white/40" : "text-[#727272]"}`}>
                   {description}
                 </p>
               </div>
               <button
+                type="button"
                 onClick={onClose}
-                className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors"
+                className={`p-2 rounded-full transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 text-white" : "bg-black/5 hover:bg-black/10 text-black"
+                  }`}
               >
                 <X size={20} />
               </button>
@@ -77,13 +84,19 @@ export const CreateFolderModal = ({
             <form onSubmit={handleSubmit} className="p-5 space-y-5">
               {/* Folder Name Input */}
               <div className="relative group">
-                <label className="absolute -top-2 left-4 bg-[#0A0A0A] px-2 text-xs font-medium text-white/40 group-focus-within:text-[#E5D5B8] transition-colors">
+                <label className={`absolute -top-2 left-4 px-2 text-xs font-medium transition-colors ${isDark
+                    ? "bg-[#0A0A0A] text-white/40 group-focus-within:text-[#E5D5B8]"
+                    : "bg-white text-[#000000]/40 group-focus-within:text-[#000000]/40"
+                  }`}>
                   Folder Name
                 </label>
                 <textarea
                   value={folderName}
                   onChange={(e) => setFolderName(e.target.value)}
-                  className="w-full bg-transparent border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-[#E5D5B8]/50 h-15 transition-all resize-none"
+                  className={`w-full bg-transparent border rounded-xl px-4 py-4 outline-none h-15 transition-all resize-none ${isDark
+                      ? "border-white/10 text-white focus:border-[#E5D5B8]/50"
+                      : "border-[#D7D7D7] text-black focus:border-[#000000]/40"
+                    }`}
                   placeholder="Enter folder name..."
                   required
                 />
@@ -95,14 +108,17 @@ export const CreateFolderModal = ({
                   type="button"
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="flex-1 h-12 rounded-xl bg-white text-black font-bold hover:bg-white/90 transition-colors"
+                  className={`flex-1 h-12 rounded-xl font-bold transition-colors ${isDark
+                      ? "bg-white text-black hover:bg-white/90"
+                      : "bg-[#F4F5F7] text-black hover:bg-[#E4E5E7]"
+                    }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-[1.5] h-12 rounded-xl bg-[#E5D5B8] text-black font-bold hover:bg-[#dcb98a] transition-colors"
+                  className={`flex-[1.5] h-12 rounded-xl font-bold transition-colors bg-[#E5D5B8] text-black hover:bg-[#dcb98a]`}
                 >
                   {isSubmitting ? "Creating..." : "Create Folder"}
                 </button>

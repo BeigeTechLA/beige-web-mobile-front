@@ -295,6 +295,7 @@ interface AffiliateShootDetailsFormProps {
   hideAffiliateStep?: boolean;
   redirectTo?: string;
   isDark?: boolean;
+  onSubmitSuccess?: (payload?: any) => void;
 }
 
 export const AffiliateShootDetailsForm = ({
@@ -304,7 +305,8 @@ export const AffiliateShootDetailsForm = ({
   pendingProjects = [],
   hideAffiliateStep = false,
   redirectTo,
-  isDark: isDarkProp
+  isDark: isDarkProp,
+  onSubmitSuccess
 }: AffiliateShootDetailsFormProps) => {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
@@ -641,6 +643,9 @@ export const AffiliateShootDetailsForm = ({
 
       if (response.success) {
         toast.success(response.message || "Project form submitted successfully!");
+        if (typeof onSubmitSuccess === "function") {
+          onSubmitSuccess(response?.data || null);
+        }
         handleClose();
         if (redirectTo) {
           router.push(redirectTo);
@@ -829,7 +834,7 @@ export const AffiliateShootDetailsForm = ({
                               value={project.project_id.toString()}
                               className="focus:bg-[#E8D1AB] focus:text-black cursor-pointer"
                             >
-                              {project.project_name}
+                              {project.project_name} (Project ID: {project.project_id})
                             </SelectItem>
                           ))}
                         </SelectContent>

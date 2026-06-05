@@ -710,6 +710,19 @@ const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
   if (normalizedQuoteStatus === "rejected" || normalizedQuoteStatus === "cancelled") {
     return "rejected";
   }
+  const paymentSummary = getRecord(quoteRecord.payment_summary);
+  const summaryPaymentStatus = getText(paymentSummary?.payment_status).toLowerCase();
+  const summaryPaidAmount = Math.max(
+    0,
+    (toNumericOrNull(paymentSummary?.paid_amount) ?? 0) +
+    (toNumericOrNull(paymentSummary?.credit_used_amount) ?? 0),
+  );
+  const summaryDueAmount = Math.max(
+    0,
+    toNumericOrNull(paymentSummary?.due_amount) ??
+    toNumericOrNull(paymentSummary?.pending_amount) ??
+    0,
+  );
   const manualPaymentSummary = getRecord(quoteRecord.manual_payment_summary);
   const manualPaidAmount = Math.max(
     0,
@@ -757,6 +770,30 @@ const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
 
   if (paymentStatus === "partially_paid" || paymentStatus === "partial_paid") {
     return "partially_paid";
+  }
+
+  if (
+    summaryPaymentStatus === "paid" ||
+    summaryPaymentStatus === "completed" ||
+    summaryPaymentStatus === "success"
+  ) {
+    return summaryDueAmount > 0 ? "partially_paid" : "paid";
+  }
+
+  if (
+    summaryPaymentStatus === "partially_paid" ||
+    summaryPaymentStatus === "partial_paid" ||
+    summaryPaymentStatus === "partially paid"
+  ) {
+    return "partially_paid";
+  }
+
+  if (summaryPaidAmount > 0 && summaryDueAmount > 0) {
+    return "partially_paid";
+  }
+
+  if (paymentSummary && summaryDueAmount > 0) {
+    return normalizedQuoteStatus;
   }
 
   if (hasManualFullPayment) {

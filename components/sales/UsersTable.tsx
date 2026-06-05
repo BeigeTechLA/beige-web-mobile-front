@@ -68,7 +68,7 @@ function MobileUserRow<T>({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className={`border-t transition-colors duration-300 ${isDark ? "border-white/5 bg-black/20" : "border-[#F0F0F0] bg-[#FFFCF6]"}`}
+            className={`transition-colors duration-300 ${isDark ? "bg-black/20" : "bg-[#FFFCF6]"}`}
           >
             {renderMobileDetails(item)}
           </motion.div>
@@ -498,14 +498,14 @@ export default function UsersTable<T>({
                               setExpandedRowId(isExpanded ? null : id);
                               onRowClick?.(item);
                             }}
-                            className={`group transition-colors cursor-pointer ${isDark ? "bg-[#171717] hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"} ${isExpanded && isDark ? "bg-[#202020]" : ""}`}
+                            className={`group transition-colors cursor-pointer ${isDark ? "bg-[#171717] hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"} ${isExpanded ? (isDark ? "bg-[#202020]" : "bg-[#f9f9f9]") : ""}`}
                           >
                             {/* This td renders the custom renderRow content but logic wraps it for mobile toggle */}
                             {renderRow(item, isExpanded)}
                           </tr>
                           {isExpanded && (
                             <tr className="md:hidden">
-                              <td colSpan={headers.length} className={`p-5 pt-0 border-b ${isDark ? "bg-[#202020] border-[#3D3D3D]" : "bg-[#F9F9F9] border-[#F0F0F0]"}`}>
+                              <td colSpan={headers.length} className={`p-5 pt-0 ${isExpanded ? "" : "border-b"} ${isDark ? "bg-[#202020] border-[#3D3D3D]" : "bg-[#F9F9F9] border-[#F0F0F0]"}`}>
                                 {renderMobileDetails!(item)}
                               </td>
                             </tr>
@@ -518,75 +518,94 @@ export default function UsersTable<T>({
               </div>
 
               {/* PAGINATION FOOTER - Integrated inside the list container */}
-              {!loading && totalPages > 1 && (
-                <div className={`p-4 md:p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}>
-                  <div className="flex flex-col items-center gap-4 md:flex-row md:justify-between">
-                    {/* Showing Count */}
-                    <div className={`hidden lg:block text-sm font-medium ${isDark ? "text-white/40" : "text-[#999]"}`}>
-                      {paginatedData.length > 0 ? (
-                        <>
-                          Showing{" "}
-                          <span className={isDark ? "text-white/80" : "text-black"}>
-                            {/* Start: (Current Page - 1) * Limit + 1 */}
-                            {((currentPage - 1) * limit) + 1}
-                          </span>{" "}
-                          to{" "}
-                          <span className={isDark ? "text-white/80" : "text-black"}>
-                            {/* End: Current Start + current slice length */}
-                            {Math.min(((currentPage - 1) * limit) + paginatedData.length, totalRecords)}
-                          </span>{" "}
-                          of{" "}
-                          <span className={isDark ? "text-white/80" : "text-black"}>
-                            {/* Total: The total records from the API */}
-                            {Number(totalRecords) || 0}
-                          </span>{" "}
-                          results
-                        </>
-                      ) : (
-                        "No results found"
-                      )}
-                    </div>
+              {
+                !loading && totalPages > 1 && (
+                  <div className={`p-4 md:p-6 border-t w-full overflow-hidden transition-colors duration-300 min-w-0 ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-white"
+                    }`}>
+                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
 
-                    {/* Pagination Controls */}
-                    <div className="flex gap-2 items-center">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onPageChange(Math.max(1, currentPage - 1)); }}
-                        disabled={currentPage === 1}
-                        className={`px-3 py-2 rounded-lg border transition-all flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed ${isDark ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
-                          }`}
-                      >
-                        <ChevronLeft size={20} />
-                      </button>
-
-                      <div className="flex gap-1">
-                        {getPageNumbers().map((page, idx) => (
-                          <button
-                            key={idx}
-                            disabled={page === "..."}
-                            onClick={(e) => { e.stopPropagation(); typeof page === "number" && onPageChange(page); }}
-                            className={`w-9 h-9 flex items-center justify-center text-sm font-semibold rounded-lg transition-all ${page === currentPage
-                              ? "bg-[#E5D5B8] text-black shadow-sm"
-                              : page === "..."
-                                ? "cursor-default opacity-50"
-                                : isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-black/5"
-                              }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
+                      {/* Showing Count */}
+                      <div className={`hidden lg:block text-sm font-medium truncate max-w-xs shrink ${isDark ? "text-white/40" : "text-[#999]"}`}>
+                        {paginatedData.length > 0 ? (
+                          <>
+                            Showing{" "}
+                            <span className={isDark ? "text-white/80" : "text-black"}>
+                              {((currentPage - 1) * limit) + 1}
+                            </span>{" "}
+                            to{" "}
+                            <span className={isDark ? "text-white/80" : "text-black"}>
+                              {Math.min(((currentPage - 1) * limit) + paginatedData.length, totalRecords)}
+                            </span>{" "}
+                            of{" "}
+                            <span className={isDark ? "text-white/80" : "text-black"}>
+                              {Number(totalRecords) || 0}
+                            </span>{" "}
+                            results
+                          </>
+                        ) : (
+                          "No results found"
+                        )}
                       </div>
 
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onPageChange(Math.min(totalPages, currentPage + 1)); }}
-                        disabled={currentPage === totalPages}
-                        className={`px-3 py-2 rounded-lg border transition-all flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed ${isDark ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"}`}
-                      >
-                        <ChevronRight size={20} />
-                      </button>
+                      {/* Pagination Controls Wrapper */}
+                      <div className="flex gap-1 sm:gap-2 items-center justify-center sm:justify-end w-full max-w-full min-w-0 overflow-hidden">
+
+                        {/* Previous Button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onPageChange(Math.max(1, currentPage - 1)); }}
+                          disabled={currentPage === 1}
+                          className={`p-2 lg:px-3 rounded-lg border transition-all flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed ${isDark
+                            ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                            : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                            }`}
+                        >
+                          <span className="hidden lg:inline">Previous</span>
+                          <ChevronLeft className="w-5 h-5 lg:hidden" />
+                        </button>
+
+                        {/* Dynamic Page Numbers List Container */}
+                        <div className="flex-1 sm:flex-none flex gap-1 items-center justify-center overflow-x-auto no-scrollbar min-w-0 px-1 py-0.5">
+                          {getPageNumbers().map((page, idx) => (
+                            page === "..." ? (
+                              /* Render a lightweight, unbonded span layout node for ellipsis formatting to guarantee correct numeric spacing margins */
+                              <span
+                                key={idx}
+                                className={`px-1 text-center text-xs font-semibold select-none shrink-0 min-w-[16px] ${isDark ? "text-white/40" : "text-[#999]"
+                                  }`}
+                              >
+                                ...
+                              </span>
+                            ) : (
+                              <button
+                                key={idx}
+                                onClick={(e) => { e.stopPropagation(); typeof page === "number" && onPageChange(page); }}
+                                className={`w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center text-xs lg:text-sm font-semibold rounded-lg transition-all shrink-0 ${page === currentPage
+                                  ? "bg-[#E5D5B8] text-black shadow-sm"
+                                  : isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-black/5"
+                                  }`}
+                              >
+                                {page}
+                              </button>
+                            )
+                          ))}
+                        </div>
+
+                        {/* Next Button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onPageChange(Math.min(totalPages, currentPage + 1)); }}
+                          disabled={currentPage === totalPages}
+                          className={`p-2 lg:px-3 rounded-lg border transition-all flex items-center justify-center shrink-0 disabled:opacity-30 disabled:cursor-not-allowed ${isDark
+                            ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                            : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                            }`}
+                        >
+                          <span className="hidden lg:inline">Next</span>
+                          <ChevronRight className="w-5 h-5 lg:hidden" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           )}
         </div>

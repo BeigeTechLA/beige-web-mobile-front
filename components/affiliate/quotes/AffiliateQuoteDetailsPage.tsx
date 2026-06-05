@@ -747,9 +747,10 @@ export default function AffiliateQuoteDetailsPage({
                   <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className="break-words text-sm leading-7 text-[#B3B3B8]">
-                  <span className="text-[#8F8F95]">Project Description :</span> {projectDescription}
-                </p>
+                <div className="break-words text-sm leading-7 text-[#B3B3B8]">
+                  <span className="text-[#8F8F95]">Project Description :</span>
+                  <p className="mt-1 whitespace-pre-wrap">{projectDescription}</p>
+                </div>
 
                 <div className="flex items-start gap-2 text-sm text-[#9B9BA1]">
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />

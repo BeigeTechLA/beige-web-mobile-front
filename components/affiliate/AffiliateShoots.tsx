@@ -39,6 +39,9 @@ export const AffiliateShoots: React.FC<AffiliateShootsProps> = ({
                 Help us prepare better by filling out detailed information about
                 your upcoming shoot
               </p>
+              <p className="text-[#E8D1AB] text-xs lg:text-sm mt-2 font-medium">
+                Pending projects: {pendingCount}
+              </p>
             </div>
             <Button
               onClick={() => {

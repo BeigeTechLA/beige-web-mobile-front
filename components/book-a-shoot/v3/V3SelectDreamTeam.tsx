@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BookingDataV3 } from "./types";
@@ -292,6 +292,74 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
     return creators;
   }, [activeRoleFilter, creators]);
+
+  const getSelectionRole = useCallback(
+    (creatorId: number): CrewRole | null => {
+      const assignedRole = selectedRoles[creatorId];
+      if (assignedRole) return assignedRole;
+
+      const creator = creators.find((item) => item.crew_member_id === creatorId);
+      if (!creator) return null;
+
+      const caps = getCreatorCapabilities(creator);
+      if (caps.isVideo && !caps.isPhoto) return "video";
+      if (!caps.isVideo && caps.isPhoto) return "photo";
+
+      const roleName = (creator.role_name || "").toLowerCase();
+      if (roleName.includes("video")) return "video";
+      if (roleName.includes("photo")) return "photo";
+
+      return null;
+    },
+    [creators, selectedRoles]
+  );
+
+  useLayoutEffect(() => {
+    const maxVideo = requirements.required.video;
+    const maxPhoto = requirements.required.photo;
+
+    const currentCounts = calculateCounts(selectedIds, selectedRoles);
+    const needsVideoTrim = currentCounts.video > maxVideo;
+    const needsPhotoTrim = currentCounts.photo > maxPhoto;
+
+    if (!needsVideoTrim && !needsPhotoTrim) return;
+
+    const idsToRemove = new Set<number>();
+    let nextVideo = currentCounts.video;
+    let nextPhoto = currentCounts.photo;
+
+    for (let i = selectedIds.length - 1; i >= 0 && (nextVideo > maxVideo || nextPhoto > maxPhoto); i--) {
+      const creatorId = selectedIds[i];
+      const role = getSelectionRole(creatorId);
+      if (!role) continue;
+
+      if (role === "video" && nextVideo > maxVideo) {
+        idsToRemove.add(creatorId);
+        nextVideo--;
+      } else if (role === "photo" && nextPhoto > maxPhoto) {
+        idsToRemove.add(creatorId);
+        nextPhoto--;
+      }
+    }
+
+    if (!idsToRemove.size) return;
+
+    setSelectedIds((prevIds) => prevIds.filter((id) => !idsToRemove.has(id)));
+    setSelectedRoles((prevRoles) => {
+      const nextRoles = { ...prevRoles };
+      idsToRemove.forEach((id) => {
+        delete nextRoles[id];
+      });
+      return nextRoles;
+    });
+  }, [
+    calculateCounts,
+    getSelectionRole,
+    requirements.required.photo,
+    requirements.required.video,
+    selectedIds,
+    selectedRoles,
+  ]);
 
   const toggleSelection = (id: number) => {
     const creator = creators.find(c => c.crew_member_id === id);

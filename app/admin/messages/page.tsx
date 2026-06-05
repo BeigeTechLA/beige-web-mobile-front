@@ -4,9 +4,11 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import Topbar from "@/components/admin/Topbar";
 import ExternalChatView from "@/components/chat/ExternalChatView";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 export default function MessagesPage() {
   const pathname = usePathname();
+  const {isDark} = useResolvedTheme();
 
   return (
     <>
@@ -16,6 +18,7 @@ export default function MessagesPage() {
           role="admin"
           heading="Messages"
           description="Create and manage shoot conversations, direct client threads, and room participants from one place."
+          isDark={isDark}
         />
       </div>
     </>
