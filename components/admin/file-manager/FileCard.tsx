@@ -90,6 +90,8 @@ interface FileCardFile {
   lastOpened?: string;
   statusLabel?: string;
   statusClassName?: string;
+  versionLabel?: string;
+  versionClassName?: string;
   fileSizeBytes?: number;
   size?: number;
 }
@@ -229,8 +231,8 @@ export const FileCard = ({
               {file.title}
             </span>
             {file.statusLabel && (
-              <span className="shrink-0 inline-flex items-center rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-400 border border-purple-500/20">
-                {file.statusLabel.includes("Version") ? file.statusLabel.split(" ")[0] + " Latest" : "V1 Latest"}
+              <span className={`shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border ${file.versionClassName || "bg-purple-500/10 text-purple-400 border-purple-500/20"}`}>
+                {file.versionLabel || (file.statusLabel.includes("Version") ? file.statusLabel.split(" ")[0] + " Latest" : "V1 Latest")}
               </span>
             )}
           </div>

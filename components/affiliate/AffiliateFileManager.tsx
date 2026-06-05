@@ -520,9 +520,8 @@ export default function AffiliateFileManager() {
     }
 
     if (editStatus === "revision_requested") {
-      const nextVersion = Number(file.metadata?.requestedNextVersion || currentVersion + 1 || 2);
       return {
-        label: `Revision Requested - Version${nextVersion} Pending`,
+        label: "Revision Requested",
         className: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]",
       };
     }
@@ -550,9 +549,8 @@ export default function AffiliateFileManager() {
         };
       }
       if (latestStatus === "revision_requested") {
-        const nextVersion = Number(latest.file.metadata?.requestedNextVersion || latest.version + 1);
         return {
-          label: `Version${nextVersion} Pending`,
+          label: "Revision Requested",
           className: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]",
         };
       }

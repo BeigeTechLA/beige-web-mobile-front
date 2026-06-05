@@ -3,6 +3,16 @@ import { ChevronDown, Download, Share2, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 
+interface MobileFileRowFile {
+  title?: string;
+  label?: string;
+  lastOpened?: string;
+  statusLabel?: string;
+  statusClassName?: string;
+  versionLabel?: string;
+  versionClassName?: string;
+}
+
 {/* Internal Expandable Mobile Row Item */ }
 export const MobileFileRow = ({
   file,
@@ -16,15 +26,15 @@ export const MobileFileRow = ({
   onDelete,
   isDeleting
 }: {
-  file: any;
+  file: MobileFileRowFile;
   isDark: boolean;
   isSelectionMode: boolean;
   isSelected: boolean;
   onSelect: () => void;
   onOpen: () => void;
-  onDownload: (e: any) => void;
-  onShare: (e: any) => void;
-  onDelete: (e: any) => void;
+  onDownload: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onShare: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onDelete: (e: React.MouseEvent<HTMLButtonElement>) => void;
   isDeleting: boolean;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -59,10 +69,25 @@ export const MobileFileRow = ({
             </div>
           )}
 
-          {/* Only File Title/Name Display */}
-          <span className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}>
-            {file.title}
-          </span>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}>
+              {file.title}
+            </span>
+            {(file.versionLabel || file.statusLabel) && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {file.versionLabel ? (
+                  <span className={`inline-flex w-fit rounded border px-1.5 py-0.5 text-[10px] font-medium leading-none ${file.versionClassName || "border-[#7C3AED]/30 bg-[#7C3AED]/15 text-[#C4B5FD]"}`}>
+                    {file.versionLabel}
+                  </span>
+                ) : null}
+                {file.statusLabel ? (
+                  <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${file.statusClassName || "border-[#7C3AED]/30 bg-[#7C3AED]/15 text-[#C4B5FD]"}`}>
+                    {file.statusLabel}
+                  </span>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
