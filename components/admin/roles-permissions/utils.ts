@@ -43,9 +43,10 @@ export const buildPermissionRows = (
 
   return modules.map((module) => {
     const supportedActions = new Set(module.actions);
+    const allowedActions = ALL_ACTIONS.filter((action) => supportedActions.has(action));
     const access = ALL_ACTIONS.reduce<Record<PermissionColumnKey, boolean>>(
       (acc, action) => {
-        acc[action] = supportedActions.has(action) ? false : false;
+        acc[action] = false;
         return acc;
       },
       { view: false, create: false, edit: false, delete: false },
@@ -56,7 +57,7 @@ export const buildPermissionRows = (
       label: formatModuleLabel(module.module_key),
       selected: false,
       access,
-      allowedActions: ALL_ACTIONS.filter((action) => supportedActions.has(action)),
+      allowedActions: allowedActions.length ? allowedActions : undefined,
     };
   });
 };

@@ -26,6 +26,9 @@ const accessColumns: { key: PermissionColumnKey; label: string }[] = [
 const getActionsToToggle = (row: PermissionMatrixRow) =>
   row.allowedActions?.length ? row.allowedActions : accessColumns.map((column) => column.key);
 
+const isActionAllowed = (row: PermissionMatrixRow, key: PermissionColumnKey) =>
+  !row.allowedActions?.length || row.allowedActions.includes(key);
+
 export function PermissionMatrixTable({
   rows,
   onChange,
@@ -176,9 +179,9 @@ export function PermissionMatrixTable({
                 {accessColumns.map((column) => (
                   <td key={column.key} className="px-6 py-8 text-center">
                     <div className="flex justify-center" onClick={() => readOnly && onReadOnlyClick?.()}>
-                      {(!row.allowedActions || row.allowedActions.includes(column.key)) ? (
+                      {isActionAllowed(row, column.key) ? (
                         <Checkbox
-                          checked={row.access[column.key]}
+                          checked={Boolean(row.access[column.key])}
                           onCheckedChange={(value) =>
                             toggleAccess(row.id, column.key, value === true)
                           }
