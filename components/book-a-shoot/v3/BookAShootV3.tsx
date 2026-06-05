@@ -770,6 +770,7 @@ const LeaveConfirmationModal = ({
           </button>
         </div>
       </div>
-    </div>
+    {/* </div> */}
+</div>
   );
 };
