@@ -21,6 +21,8 @@ type CreativeWithDistance = {
   role?: string;
   availability?: string;
   location?: string;
+  email?: string;
+  phone_number?: string;
   rating?: number | string;
   hourly_rate?: number | string;
   is_beige_member?: number;
@@ -181,6 +183,7 @@ export const CreativeProfileSelectorAdd = ({
 
 
   const roleType = externalRoleType || 'videographer';
+  const hasActiveSearch = searchQuery.trim().length > 0;
   const activeBucketLimits = useMemo(
     () => CREATIVE_RADIUS_OPTIONS.filter((limit) => limit <= appliedFilters.radius),
     [appliedFilters.radius]
@@ -320,8 +323,24 @@ export const CreativeProfileSelectorAdd = ({
   const selectedIds = externalSelectedIds || internalSelectedIds;
 
   const filteredCreatives = creatives.filter((creative) => {
-    const fullName = `${creative.first_name || ''} ${creative.last_name || ''} ${creative.name || ''}`.toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase());
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    if (!normalizedSearch) return true;
+
+    const searchableText = [
+      creative.first_name,
+      creative.last_name,
+      creative.name,
+      creative.email,
+      creative.phone_number,
+      creative.location,
+      creative.specialities,
+      creative.role,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchableText.includes(normalizedSearch);
   });
 
   const groupedCreatives = useMemo<RadiusBucket[]>(() => {
@@ -376,6 +395,8 @@ export const CreativeProfileSelectorAdd = ({
       return bucket <= appliedFilters.radius;
     });
   }, [appliedFilters.radius, filteredCreatives]);
+
+  const visibleCreatives = hasActiveSearch ? filteredCreatives : radiusFilteredCreatives;
 
   const counts = useMemo(() => {
     let vCount = 0;
@@ -521,6 +542,23 @@ export const CreativeProfileSelectorAdd = ({
         </div>
       </div>
 
+      <div className={`mb-5 rounded-xl border px-4 py-3 transition-colors ${
+        isDark
+          ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/10 text-white"
+          : "border-[#D9C19A] bg-[#FFF8EC] text-black"
+      }`}>
+        <p className="text-sm font-medium">
+          {hasActiveSearch
+            ? "Searching all creative partners. Select any matching CP to assign them to this shoot."
+            : `Showing available CPs around the shoot location within ${appliedFilters.radius} miles.`}
+        </p>
+        <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+          {hasActiveSearch
+            ? "Clear the search to return to nearby CPs around the shoot location."
+            : "If you want a different CP, use search to find from all creative partners."}
+        </p>
+      </div>
+
       {/* Creative List Container */}
       <div className={`border rounded-2xl p-4 md:p-8 transition-colors ${
         isDark ? "bg-black border-white/5" : "bg-black border-[#D8D8D8]"
@@ -636,8 +674,8 @@ export const CreativeProfileSelectorAdd = ({
               No creatives found for {roleType} in this location.
             </div>
           )
-        ) : radiusFilteredCreatives.length > 0 ? (
-          radiusFilteredCreatives.map((creative, index) => (
+        ) : visibleCreatives.length > 0 ? (
+          visibleCreatives.map((creative, index) => (
             <React.Fragment key={creative.id || index}>
               <CreativeCard
                 creative={creative}
@@ -647,12 +685,12 @@ export const CreativeProfileSelectorAdd = ({
                 isDark={isDark}
                 viewMode={viewMode}
               />
-              {viewMode === 'list' && index !== radiusFilteredCreatives.length - 1 && <Separator />}
+              {viewMode === 'list' && index !== visibleCreatives.length - 1 && <Separator />}
             </React.Fragment>
           ))
         ) : (
           <div className={`text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
-            No creatives found for {roleType} in this location.
+            {hasActiveSearch ? "No creative partners found for this search." : `No creatives found for ${roleType} in this location.`}
           </div>
         )}
       </div>
@@ -826,6 +864,5 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
     </div>
   );
 };
-
 
 
