@@ -24,6 +24,7 @@ import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getQuoteNumber } from "@/lib/quoteDetail";
 
 type SkillOption = {
   id?: number | string;
@@ -42,6 +43,8 @@ type ProjectDetails = {
   end_time?: string;
   event_start_time?: string;
   total_paid_amount?: string | number;
+  total_value_amount?: string | number;
+  converted_quote_amount?: string | number;
   payment_status?: string | null;
   payment_id?: string | number | null;
   converted_sales_quote_id?: string | number | null;
@@ -65,6 +68,38 @@ type QuoteVersionItem = {
   version_number?: number | string | null;
   is_current?: boolean | null;
   [key: string]: unknown;
+};
+
+const resolveLatestQuoteDetail = async (quoteId: string) => {
+  const versionsResponse = await salesApi.getQuoteVersions(quoteId);
+  const versionsData = Array.isArray(versionsResponse?.data)
+    ? versionsResponse.data
+    : versionsResponse?.data?.versions || [];
+
+  const latestVersion = versionsData.reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
+    const latestNo = Number(latest?.version_number || 0);
+    const candidateNo = Number(candidate?.version_number || 0);
+    return candidateNo > latestNo ? candidate : latest;
+  }, (versionsData.find((version: QuoteVersionItem) => version?.is_current) || versionsData[0] || null) as QuoteVersionItem | null);
+
+  const versionId = latestVersion?.version_number != null ? String(latestVersion.version_number) : null;
+  const detailResponse = versionId
+    ? await salesApi.getQuoteVersionDetail(quoteId, versionId)
+    : await salesApi.getQuoteDetail(quoteId);
+
+  return unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+};
+
+const getConvertedQuoteAmount = async (quoteId: string) => {
+  const quoteDetail = await resolveLatestQuoteDetail(quoteId);
+
+  return getQuoteNumber(
+    quoteDetail?.final_total,
+    quoteDetail?.total_amount,
+    quoteDetail?.amount_after_tax,
+    quoteDetail?.amount_after_discount,
+    quoteDetail?.total
+  );
 };
 
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -121,25 +156,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     setQuotePreviewData(null);
 
     try {
-      const versionsResponse = await salesApi.getQuoteVersions(convertedSalesQuoteId);
-      const versionsData = Array.isArray(versionsResponse?.data)
-        ? versionsResponse.data
-        : versionsResponse?.data?.versions || [];
-
-      const latestVersion = versionsData.reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
-        const latestNo = Number(latest?.version_number || 0);
-        const candidateNo = Number(candidate?.version_number || 0);
-        return candidateNo > latestNo ? candidate : latest;
-      }, (versionsData.find((version: QuoteVersionItem) => version?.is_current) || versionsData[0] || null) as QuoteVersionItem | null);
-
-      const versionId =
-        latestVersion?.version_number != null ? String(latestVersion.version_number) : null;
-
-      const detailResponse = versionId
-        ? await salesApi.getQuoteVersionDetail(convertedSalesQuoteId, versionId)
-        : await salesApi.getQuoteDetail(convertedSalesQuoteId);
-
-      const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+      const quoteDetail = await resolveLatestQuoteDetail(convertedSalesQuoteId);
 
       if (!quoteDetail) {
         throw new Error("Quote preview data is unavailable");
@@ -213,8 +230,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             }
           }
 
-          setProject({
+          const nextProject: ProjectDetails = {
             ...projectData,
+            payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
+            payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
             manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
@@ -225,7 +244,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               projectData?.assigned_post_production_members ||
               [],
             skills_needed: skillsText || projectData.skills_needed
-          });
+          };
+
+          const quoteId = String(nextProject.converted_sales_quote_id || "").trim();
+          if (quoteId) {
+            try {
+              const convertedQuoteAmount = await getConvertedQuoteAmount(quoteId);
+              if (convertedQuoteAmount !== undefined) {
+                nextProject.converted_quote_amount = convertedQuoteAmount;
+              }
+            } catch (error) {
+              console.error("Failed to resolve converted quote amount:", error);
+            }
+          }
+
+          setProject(nextProject);
         }
       } catch (error) {
         console.error("Failed to fetch shoot details:", error);
