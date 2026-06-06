@@ -1,3 +1,5 @@
+// Static UI
+
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
