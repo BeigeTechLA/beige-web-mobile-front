@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, Camera, Video } from "lucide-react";
+import { ArrowLeft, Camera, Video, SendHorizontal, SendHorizontalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAssignCrewFromShootMutation } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
@@ -145,6 +145,29 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         }
       />
 
+      {selectedCreativeIds.length > 0 && (
+        <div className="w-full bg-[#141414] border-b border-white/5 px-4 lg:px-10 py-3.5 flex items-center justify-between shadow-lg">
+          <div className="text-sm font-semibold text-[#E2D1B0] tracking-wide">
+            {selectedCreativeIds.length} Creatives Selected
+          </div>
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => setSelectedCreativeIds([])}
+              className="text-sm font-medium text-white/70 hover:text-white transition-colors underline underline-offset-4 decoration-white/20"
+            >
+              Clear Selection
+            </button>
+            <button
+              onClick={handleAssign}
+              className="h-10 px-5 bg-black text-[#E2D1B0] rounded-lg text-xs font-bold flex items-center gap-2.5 hover:bg-black/80 transition-all border border-white/10"
+            >
+              <SendHorizontalIcon size={16} strokeWidth={2.5} />
+              Continue to Compensation
+            </button>
+          </div>
+        </div>
+      )}
+
       <AssignmentConfirmationModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
@@ -156,9 +179,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       <div className={`min-h-screen overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
         <Button
           onClick={() => router.back()}
-          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${
-            isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"
-          }`}
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"
+            }`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back to Shoot Details</span>
