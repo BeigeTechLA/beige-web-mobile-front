@@ -131,17 +131,16 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
   }
 
   return (
-    <div className="flex h-full -m-6 lg:-m-10 relative">
-
-      {/* Main Content (Left) */}
-      <div className="flex-1 p-6 pb-50 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+    <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
+      {/* Main Content (Left Scroll Window) */}
+      <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
         <AffiliateShootHeader
           activeTab={activeTab}
           project={project}
           projectId={shootId}
           onBack={onBack}
         />
-        
+
         <Button
           className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
             ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
@@ -152,13 +151,13 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
           View Project Timeline
         </Button>
 
-        <div className={`rounded-lg lg:rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
+        <div className={`rounded-lg lg:rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
           <AffiliateShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
-          <div className="px-5 py-6 lg:py-9">
+          <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
             {activeTab === "Overview" && (
               <>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+                <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
                   <AffiliateProjectTeam projectId={shootId} />
                   <AffiliateAssignedCP projectId={shootId} />
                 </div>
@@ -167,7 +166,9 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
             )}
 
             {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-              <AffiliatePreProductionTab isDark={isDark} projectId={shootId} />
+              <div className="px-5">
+                <AffiliatePreProductionTab isDark={isDark} projectId={shootId} />
+              </div>
             )}
 
             {(activeTab === "Post_Production" || activeTab === "Post Production") && (
