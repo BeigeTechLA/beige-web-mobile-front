@@ -3724,9 +3724,16 @@ export default function CreateQuotePage() {
     await saveQuoteDraft("save", { suppressRedirect: true, openPreview: true });
   };
 
+  const noQuoteChangesMessage = "No changes found to save.";
+
   const handleSaveQuote = async () => {
     if (!quoteReviewValidation.isValid) {
       toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
       return;
     }
 
@@ -3739,12 +3746,22 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     setIsReviewChangesModalOpen(true);
   };
 
   const handleSaveAsNewVersion = async () => {
     if (!effectiveQuoteId) {
       toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
       return;
     }
 
@@ -3766,6 +3783,11 @@ export default function CreateQuotePage() {
   };
 
   const handleConfirmReviewChanges = async () => {
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     if (quoteVersionNumber !== null && quoteVersionNumber > 1) {
       await handleSaveAsNewVersion();
       return;
@@ -3863,6 +3885,11 @@ export default function CreateQuotePage() {
         : "Continue";
 
   const handleSaveAsDraft = async () => {
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     await saveQuoteDraft("draft");
   };
 
