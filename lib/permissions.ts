@@ -16,6 +16,7 @@ const MODULE_ALIASES: Record<string, string[]> = {
   file_manager: ["file_manager", "file-manager"],
   file_manager_view: ["file_manager", "file-manager"],
   request_shoots: ["request_shoots", "request-shoots"],
+  quotes: ["quotes", "admin_quotes", "sales_admin_quotes", "sales_rep_quotes", "client_quotes"],
   roles_permissions: ["roles_permissions", "roles-permissions"],
   sales_representative: ["sales_representative", "sales-representative"],
 };

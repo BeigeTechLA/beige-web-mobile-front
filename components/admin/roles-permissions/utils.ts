@@ -7,8 +7,8 @@ import {
 } from "@/components/admin/roles-permissions/types";
 
 type PermissionModuleRecord = {
-  module_key: string;
-  actions: string[];
+  module_key?: string | null;
+  actions?: string[] | null;
 };
 
 type RolePermissionsMap = Record<string, Partial<Record<PermissionColumnKey, boolean>> | string[]>;
@@ -18,14 +18,28 @@ const ALL_ACTIONS: PermissionColumnKey[] = ["view", "create", "edit", "delete"];
 const getAllowedActions = (row: PermissionMatrixRow) =>
   row.allowedActions?.length ? row.allowedActions : ALL_ACTIONS;
 
-export const normalizeModuleKeyToRowId = (moduleKey: string) =>
-  moduleKey.replace(/_/g, "-");
+const getAllowedActionsFromRecord = (
+  value: Partial<Record<PermissionColumnKey, boolean>> | string[] | undefined,
+) => {
+  if (Array.isArray(value)) {
+    return ALL_ACTIONS.filter((action) => value.includes(action));
+  }
 
-export const normalizeRowIdToModuleKey = (rowId: string) =>
-  rowId.replace(/-/g, "_");
+  if (!value || typeof value !== "object") {
+    return ALL_ACTIONS;
+  }
 
-export const formatModuleLabel = (moduleKey: string) =>
-  moduleKey
+  return ALL_ACTIONS.filter((action) => Boolean(value[action]));
+};
+
+export const normalizeModuleKeyToRowId = (moduleKey: string | null | undefined) =>
+  String(moduleKey || "").replace(/_/g, "-");
+
+export const normalizeRowIdToModuleKey = (rowId: string | null | undefined) =>
+  String(rowId || "").replace(/-/g, "_");
+
+export const formatModuleLabel = (moduleKey: string | null | undefined) =>
+  String(moduleKey || "")
     .split("_")
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -41,21 +55,67 @@ export const buildPermissionRows = (
     }));
   }
 
-  return modules.map((module) => {
-    const supportedActions = new Set(module.actions);
-    const allowedActions = ALL_ACTIONS.filter((action) => supportedActions.has(action));
+  return modules
+    .filter((module) => Boolean(module?.module_key))
+    .map((module) => {
+      const moduleKey = String(module.module_key || "");
+      const supportedActions = new Set(Array.isArray(module.actions) ? module.actions : []);
+      const allowedActions = ALL_ACTIONS.filter((action) => supportedActions.has(action));
+      const access = ALL_ACTIONS.reduce<Record<PermissionColumnKey, boolean>>(
+        (acc, action) => {
+          acc[action] = false;
+          return acc;
+        },
+        { view: false, create: false, edit: false, delete: false },
+      );
+
+      return {
+        id: normalizeModuleKeyToRowId(moduleKey),
+        label: formatModuleLabel(moduleKey),
+        selected: false,
+        access,
+        allowedActions: allowedActions.length ? allowedActions : undefined,
+      };
+    });
+};
+
+export const buildPermissionRowsFromMap = (
+  permissions: RolePermissionsMap = {},
+  moduleLabels: Record<string, string> = {},
+  moduleActions: Record<string, PermissionColumnKey[]> = {},
+): PermissionMatrixRow[] => {
+  const entries = Object.entries(permissions);
+
+  if (!entries.length) {
+    return basePermissions.map((row) => ({
+      ...row,
+      access: { ...row.access },
+    }));
+  }
+
+  return entries.map(([moduleKey, actionsValue]) => {
+    const rowId = normalizeModuleKeyToRowId(moduleKey);
     const access = ALL_ACTIONS.reduce<Record<PermissionColumnKey, boolean>>(
       (acc, action) => {
-        acc[action] = false;
+        if (Array.isArray(actionsValue)) {
+          acc[action] = actionsValue.includes(action);
+        } else if (actionsValue && typeof actionsValue === "object") {
+          acc[action] = Boolean(actionsValue[action]);
+        } else {
+          acc[action] = false;
+        }
         return acc;
       },
       { view: false, create: false, edit: false, delete: false },
     );
+    const allowedActions = moduleActions[moduleKey]?.length
+      ? moduleActions[moduleKey]
+      : ALL_ACTIONS;
 
     return {
-      id: normalizeModuleKeyToRowId(module.module_key),
-      label: formatModuleLabel(module.module_key),
-      selected: false,
+      id: rowId,
+      label: moduleLabels[moduleKey] || formatModuleLabel(moduleKey),
+      selected: allowedActions.every((action) => access[action]),
       access,
       allowedActions: allowedActions.length ? allowedActions : undefined,
     };

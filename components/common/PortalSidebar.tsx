@@ -70,6 +70,10 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
   const { theme } = useTheme();
   const permissions = useAppSelector((state) => state.auth.permissions);
   const initialPath = useRef(pathname);
+  const isPrivilegedAdminAccount = Boolean(
+    user?.email === "admin@revure.com" ||
+    user?.email === "harsh.panchal@gmail.com",
+  );
 
   const [mounted, setMounted] = useState(false);
   const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
@@ -117,7 +121,7 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
 
   const visibleItems = useMemo(() => {
     return portalSidebarItems[portal].filter((item) => {
-      if (item.permissionKeys?.length) {
+      if (!isPrivilegedAdminAccount && item.permissionKeys?.length) {
         const canView = hasModulePermission(permissions, item.permissionKeys, item.permissionAction ?? "view");
         if (!canView) return false;
       }
@@ -126,12 +130,16 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
 
       return currentUserTypeId != null && item.visibleForUserTypes.includes(currentUserTypeId);
     });
-  }, [currentUserTypeId, permissions, portal]);
+  }, [currentUserTypeId, isPrivilegedAdminAccount, permissions, portal]);
 
   const getVisibleChildren = (item: SidebarItem) => {
     if (!item.children?.length) return [];
 
     return item.children.filter((child) => {
+      if (isPrivilegedAdminAccount) {
+        return true;
+      }
+
       if (
         child.permissionKeys?.length &&
         !hasModulePermission(permissions, child.permissionKeys, child.permissionAction ?? "view")

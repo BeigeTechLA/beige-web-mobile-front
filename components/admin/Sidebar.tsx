@@ -86,9 +86,9 @@ const menuItems = [
     link: '/admin/quotes',
     permissionKeys: ['admin_quotes', 'quotes'],
     children: [
-      { name: 'All Quotes', link: '/admin/quotes', permissionKeys: ['admin_quotes', 'quotes'] },
-      { name: 'Quote Approvals', link: '/admin/quotes/change-requests', permissionKeys: ['admin_quotes', 'quotes'] },
-      { name: 'Master Pricing', link: '/admin/quotes/pricing', permissionKeys: ['admin_quotes', 'quotes'] },
+      { name: 'All Quotes', link: '/admin/quotes', permissionKeys: ['admin_quotes', 'quotes'], permissionAction: 'view' },
+      { name: 'Quote Approvals', link: '/admin/quotes/change-requests', permissionKeys: ['admin_quotes', 'quotes'], permissionAction: 'edit' },
+      { name: 'Master Pricing', link: '/admin/quotes/pricing', permissionKeys: ['admin_quotes', 'quotes'], permissionAction: 'edit' },
     ],
   },
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['admin_invoices', 'invoices'] },
@@ -100,7 +100,7 @@ type MenuItem = {
   name: string;
   icon: LucideIcon;
   link?: string;
-  children?: { name: string; link: string; isDisabled?: boolean; permissionKeys?: string[] }[];
+  children?: { name: string; link: string; isDisabled?: boolean; permissionKeys?: string[]; permissionAction?: "view" | "create" | "edit" | "delete" }[];
   isDisabled?: boolean;
   permissionKeys?: string[];
 };
@@ -111,6 +111,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
   const permissions = useAppSelector((state) => state.auth.permissions);
+  const isPrivilegedAdminAccount = Boolean(
+    user?.email === "admin@revure.com" ||
+    user?.email === "harsh.panchal@gmail.com",
+  );
 
   const initialPath = useRef(pathname);
 
@@ -244,14 +248,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2">
           {menuItems.map((item) => {
-            if (item.permissionKeys && item.permissionKeys.length > 0) {
+            if (!isPrivilegedAdminAccount && item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");
               if (!canView) return null;
             }
 
             const visibleChildren = item.children?.filter((child) => {
+              if (isPrivilegedAdminAccount) return true;
               if (!child.permissionKeys?.length) return true;
-              return hasModulePermission(permissions, child.permissionKeys, "view");
+              return hasModulePermission(permissions, child.permissionKeys, child.permissionAction ?? "view");
             }) ?? [];
             const hasChildren = visibleChildren.length > 0;
             const isExpanded = expanded.includes(item.name);

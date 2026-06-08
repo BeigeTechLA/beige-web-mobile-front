@@ -1290,6 +1290,7 @@ export default function QuoteDetailsPage({
         version_status: (quote as Record<string, unknown> | null)?.version_status,
       })
     );
+  const isSelectedCurrentVersion = isCurrentVersionMeta(selectedVersionMeta);
   const latestUsableVersionNumber = getRawVersionNumber(latestUsableVersionMeta) ?? null;
   const isSelectedLatestUsableVersion = useMemo(() => {
     if (versions.length === 0) return true;

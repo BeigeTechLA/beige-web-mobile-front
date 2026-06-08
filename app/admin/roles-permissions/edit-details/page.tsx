@@ -19,8 +19,8 @@ import {
   type PermissionMatrixRow,
 } from "@/components/admin/roles-permissions/types";
 import {
-  applyPermissionsToRows,
   buildPermissionRows,
+  buildPermissionRowsFromMap,
   extractPermissionStateFromRows,
   extractPermissionsFromRows,
 } from "@/components/admin/roles-permissions/utils";
@@ -50,6 +50,34 @@ type RoleOption = {
 
 const normalizeUserPermissionsPayload = (value: unknown): UserPermissionsMap =>
   normalizePermissionsPayload(value) as UserPermissionsMap;
+
+const buildModuleLabelMap = (modules: PermissionModuleRecord[]) =>
+  modules.reduce<Record<string, string>>((acc, module) => {
+    if (module.module_key) {
+      acc[module.module_key] = module.module_key
+        .split("_")
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+    }
+    return acc;
+  }, {});
+
+const buildModuleActionsMap = (modules: PermissionModuleRecord[]) =>
+  modules.reduce<Record<string, PermissionColumnKey[]>>((acc, module) => {
+    if (module.module_key) {
+      acc[module.module_key] = Array.isArray(module.actions)
+        ? module.actions.filter(
+            (action): action is PermissionColumnKey =>
+              action === "view" ||
+              action === "create" ||
+              action === "edit" ||
+              action === "delete",
+          )
+        : [];
+    }
+    return acc;
+  }, {});
 
 const getDeletedUserPermissionEntries = (
   previousPermissions: UserPermissionsMap,
@@ -132,11 +160,13 @@ export default function AdminRoleEditDetailsRoute() {
 
     const loadUserPermissions = async ({
       nextUserId,
-      baseRows,
+      moduleLabels,
+      moduleActions,
       fallbackPermissions,
     }: {
       nextUserId: string;
-      baseRows: PermissionMatrixRow[];
+      moduleLabels: Record<string, string>;
+      moduleActions: Record<string, PermissionColumnKey[]>;
       fallbackPermissions: UserPermissionsMap;
     }) => {
       const response = await adminApi.getUserPermissions(nextUserId);
@@ -149,7 +179,7 @@ export default function AdminRoleEditDetailsRoute() {
       const hasCustomPermissions = Object.keys(normalizedPermissions).length > 0;
       const permissionsToApply = hasCustomPermissions ? normalizedPermissions : fallbackPermissions;
 
-      setRows(applyPermissionsToRows(baseRows, permissionsToApply));
+      setRows(buildPermissionRowsFromMap(permissionsToApply, moduleLabels, moduleActions));
       setUserCustomPermissions(normalizedPermissions);
       setHasUserCustomPermissions(hasCustomPermissions);
     };
@@ -168,7 +198,8 @@ export default function AdminRoleEditDetailsRoute() {
       const modules: PermissionModuleRecord[] = Array.isArray(modulesResponse?.data)
         ? modulesResponse.data
         : [];
-      const baseRows = buildPermissionRows(modules);
+      const moduleLabels = buildModuleLabelMap(modules);
+      const moduleActions = buildModuleActionsMap(modules);
 
       const availableRoles: AdminRoleRecord[] = Array.isArray(rolesResponse?.data)
         ? rolesResponse.data
@@ -192,9 +223,15 @@ export default function AdminRoleEditDetailsRoute() {
           setStatus(Number(response.data.role.is_active) === 1 ? "Active" : "In-Active");
           setCreatedAt(formatDateTime(response.data.role.created_at));
           setUpdatedAt(formatDateTime(response.data.role.updated_at));
-          setRows(applyPermissionsToRows(baseRows, response.data.permissions || {}));
+          setRows(
+            buildPermissionRowsFromMap(
+              normalizeUserPermissionsPayload(response.data.permissions || {}),
+              moduleLabels,
+              moduleActions,
+            ),
+          );
         } else {
-          setRows(baseRows);
+          setRows(buildPermissionRows());
           setError(response?.error || response?.message || "Failed to load role details");
         }
       } else if (userId) {
@@ -213,15 +250,16 @@ export default function AdminRoleEditDetailsRoute() {
           setRoleDescription(data.role?.description || "");
           await loadUserPermissions({
             nextUserId: String(userId),
-            baseRows,
+            moduleLabels,
+            moduleActions,
             fallbackPermissions: normalizeUserPermissionsPayload(data.permissions || {}),
           });
         } else {
-          setRows(baseRows);
+          setRows(buildPermissionRows());
           setError(response?.error || response?.message || "Failed to load user role details");
         }
       } else {
-        setRows(baseRows);
+        setRows(buildPermissionRows());
         setError("Missing role or user identifier.");
       }
 
@@ -323,13 +361,14 @@ export default function AdminRoleEditDetailsRoute() {
     const modules: PermissionModuleRecord[] = Array.isArray(modulesResponse?.data)
       ? modulesResponse.data
       : [];
-    const baseRows = buildPermissionRows(modules);
+    const moduleLabels = buildModuleLabelMap(modules);
+    const moduleActions = buildModuleActionsMap(modules);
     const permissionResponse = await adminApi.getUserPermissions(userId);
     const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
     const permissionsToApply =
       Object.keys(normalizedPermissions).length > 0 ? normalizedPermissions : nextPermissions;
 
-    setRows(applyPermissionsToRows(baseRows, permissionsToApply));
+    setRows(buildPermissionRowsFromMap(permissionsToApply, moduleLabels, moduleActions));
     setUserCustomPermissions(normalizedPermissions);
     setHasUserCustomPermissions(true);
 
@@ -371,7 +410,8 @@ export default function AdminRoleEditDetailsRoute() {
       const modules: PermissionModuleRecord[] = Array.isArray(modulesResponse?.data)
         ? modulesResponse.data
         : [];
-      const baseRows = buildPermissionRows(modules);
+      const moduleLabels = buildModuleLabelMap(modules);
+      const moduleActions = buildModuleActionsMap(modules);
       const permissionResponse = await adminApi.getUserPermissions(userId);
       const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
       const fallbackPermissions = normalizeUserPermissionsPayload(
@@ -380,7 +420,7 @@ export default function AdminRoleEditDetailsRoute() {
       const permissionsToApply =
         Object.keys(normalizedPermissions).length > 0 ? normalizedPermissions : fallbackPermissions;
 
-      setRows(applyPermissionsToRows(baseRows, permissionsToApply));
+      setRows(buildPermissionRowsFromMap(permissionsToApply, moduleLabels, moduleActions));
       setUserCustomPermissions(normalizedPermissions);
       setHasUserCustomPermissions(Object.keys(normalizedPermissions).length > 0);
       setCurrentRoleLabel(

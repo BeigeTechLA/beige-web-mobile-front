@@ -9,13 +9,15 @@ import { hasModulePermission } from "../permissions";
 export const usePermissions = (moduleKey?: string) => {
   const permissions = useAppSelector((state) => state.auth.permissions);
   const user = useAppSelector((state) => state.auth.user);
+  const isPrivilegedAdminAccount = Boolean(
+    user?.email === "admin@revure.com" ||
+    user?.email === "harsh.panchal@gmail.com",
+  );
   const isAdmin = Boolean(
     user && (
       Number(user.userTypeId) === 4 ||
       Number(user.user_type_id) === 4 ||
-      user.userRole?.toLowerCase() === "admin" ||
-      user.email === "admin@revure.com" ||
-      user.email === "harsh.panchal@gmail.com"
+      user.userRole?.toLowerCase() === "admin"
     ),
   );
 
@@ -28,7 +30,7 @@ export const usePermissions = (moduleKey?: string) => {
   }
 
   // Admin users can access every module/action.
-  if (isAdmin) {
+  if (isAdmin || (isPrivilegedAdminAccount && moduleKey === "roles_permissions")) {
     return {
       canView: true,
       canEdit: true,
@@ -46,4 +48,3 @@ export const usePermissions = (moduleKey?: string) => {
     isLoading: !permissions,
   };
 };
-

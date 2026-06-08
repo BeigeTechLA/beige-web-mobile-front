@@ -2385,7 +2385,11 @@ export const adminApi = {
     try {
       const response = await api.get('admin/permissions/modules');
       const payload = response.data;
-      const modules = Array.isArray(payload?.data) ? payload.data : [];
+      const modules = Array.isArray(payload?.data)
+        ? payload.data.flatMap((item: any) => (
+            Array.isArray(item?.modules) ? item.modules : [item]
+          ))
+        : [];
 
       return {
         ...payload,

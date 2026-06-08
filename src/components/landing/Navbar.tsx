@@ -9,6 +9,7 @@ import { useEffect, useState, useRef } from "react";
 import { Separator } from "./Separator";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getDashboardPathForUser } from "@/lib/auth-routing";
+import { useAppSelector } from "@/lib/redux/hooks";
 
 const portfolioConfig = {
   photos: {
@@ -149,6 +150,7 @@ export const Navbar = () => {
   const [activeCategory, setActiveCategory] = useState<"photos" | "videos">("photos");
   const [activeSector, setActiveSector] = useState("corporate");
   const [localUser, setLocalUser] = useState<any>(null);
+  const permissions = useAppSelector((state) => state.auth.permissions);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -326,7 +328,7 @@ export const Navbar = () => {
     setMobileOpen(false);
     setShowProfileDropdown(false);
 
-    const dashboardPath = getDashboardPathForUser(localUser);
+    const dashboardPath = getDashboardPathForUser(localUser, permissions);
     router.push(dashboardPath);
   };
 

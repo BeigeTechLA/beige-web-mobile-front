@@ -2077,7 +2077,7 @@ export default function QuotesDashboardPage({
         )}
       </div>
 
-      {!loading && !showEmptyState && (
+      {!loading && !showEmptyState && canCreate && (
         <div
           className={`fixed bottom-0 left-0 right-0 z-[40] flex gap-2 px-6 pb-6 lg:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
             }`}

@@ -11,6 +11,8 @@ interface AuthState {
   isLoading: boolean;
 }
 
+const PERMISSIONS_SYNC_KEY = "revure_permissions_sync";
+
 const initialState: AuthState = {
   user: null,
   token: null,
@@ -78,6 +80,12 @@ const authSlice = createSlice({
       const normalizedPermissions = normalizePermissionsPayload(action.payload);
       state.permissions = normalizedPermissions;
       Cookies.set('revure_permissions', JSON.stringify(normalizedPermissions), { expires: 7 });
+      if (typeof window !== "undefined") {
+        localStorage.setItem(PERMISSIONS_SYNC_KEY, String(Date.now()));
+      }
+    },
+    hydratePermissions: (state, action: PayloadAction<Record<string, Record<string, boolean>>>) => {
+      state.permissions = normalizePermissionsPayload(action.payload);
     },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
@@ -91,5 +99,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, logout, updateUser, setLoading, setPermissions } = authSlice.actions;
+export const { setCredentials, logout, updateUser, setLoading, setPermissions, hydratePermissions } = authSlice.actions;
 export default authSlice.reducer;
