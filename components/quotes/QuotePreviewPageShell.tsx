@@ -188,7 +188,10 @@ export default function QuotePreviewPageShell({
       }
 
       try {
-        const response =
+        // ---------------------------------------------------------
+        // STEP 1: Initial API Call (Validates link / gets basic info)
+        // ---------------------------------------------------------
+        const initialResponse =
           quoteDetailMode === "public"
             ? queryQuoteKey
               ? await fetchQuotePreviewByKey(queryQuoteKey)
@@ -199,23 +202,57 @@ export default function QuotePreviewPageShell({
               }
             : await salesApi.getQuoteDetail(queryQuoteId);
 
-        if (response?.error || response?.success === false) {
+        if (initialResponse?.error || initialResponse?.success === false) {
           throw new Error(
-            typeof response?.error === "string" ? response.error : "Failed to fetch quote preview"
+            typeof initialResponse?.error === "string" ? initialResponse.error : "Failed to fetch quote preview"
           );
         }
 
-        const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+        const initialQuoteDetail = unwrapSalesQuoteDetail(initialResponse?.data ?? null);
 
-        if (!quoteDetail) {
+        if (!initialQuoteDetail) {
           throw new Error("Quote preview is unavailable");
+        }
+
+        let finalQuoteDetail = initialQuoteDetail;
+
+        const salesQuoteId = String(
+          initialQuoteDetail.sales_quote_id ??
+          initialQuoteDetail.quote_id ??
+          initialQuoteDetail.id ??
+          ""
+        ).trim();
+
+        if (salesQuoteId && quoteDetailMode === "public") {
+          try {
+            console.log("🔄 Fetching full quote details for ID:", salesQuoteId);
+            const fullResponse = await salesApi.getQuoteDetail(salesQuoteId);
+
+            if (fullResponse?.success !== false && fullResponse?.data) {
+              const unwrappedFull = unwrapSalesQuoteDetail(fullResponse.data);
+              if (unwrappedFull) {
+                finalQuoteDetail = unwrappedFull;
+              }
+            }
+          } catch (fullErr) {
+            console.warn("⚠️ Failed to fetch full quote details, using initial preview data:", fullErr);
+          }
         }
 
         if (!isMounted) {
           return;
         }
 
-        setQuote(quoteDetail);
+        // Log signature status for debugging (replaces your getbyquoteID logs)
+        const isSignatureAvailable = Boolean(
+          finalQuoteDetail.signed_at ||
+          finalQuoteDetail.signature_base64 ||
+          finalQuoteDetail.signature_path ||
+          (finalQuoteDetail as Record<string, unknown>)?.signer_name
+        );
+
+        setQuote(finalQuoteDetail);
+
       } catch (error) {
         console.error("Failed to load quote preview", error);
 
@@ -240,7 +277,7 @@ export default function QuotePreviewPageShell({
     return () => {
       isMounted = false;
     };
-  }, [queryQuoteId, queryQuoteKey, quoteDetailMode, summaryStorageKey]);
+  }, [queryQuoteId, queryQuoteKey, quoteDetailMode, summaryStorageKey, showSignature]);
 
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? queryQuoteId ?? ""
@@ -505,14 +542,14 @@ export default function QuotePreviewPageShell({
     }
 
     if (quoteDetailMode === "public") {
-      const response = await fetch("/api/quotes/public-convert", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quoteKey: queryQuoteKey,
-          payload: resolveBookingTimingFromQuote(quote) || {},
-        }),
-      });
+      // const response = await fetch("/api/quotes/public-convert", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({
+      //     quoteKey: queryQuoteKey,
+      //     payload: resolveBookingTimingFromQuote(quote) || {},
+      //   }),
+      // });
       const data = await response.json().catch(() => null);
       if (!response.ok || data?.success === false || !data?.data?.booking_id) {
         throw new Error(
@@ -603,7 +640,7 @@ export default function QuotePreviewPageShell({
             : "border border-[#00000033] bg-[#FFF] text-black hover:bg-[#E5E7EB]"
             }`}
         >
-          Sign Quote
+          Sign Quote^
         </ActionButton>
       )}
       {canContinueToPayment && (
