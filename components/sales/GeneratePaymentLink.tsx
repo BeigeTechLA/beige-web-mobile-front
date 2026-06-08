@@ -12,6 +12,7 @@ import {
   usePreviewInvoiceMutation,
   useSendInvoiceMutation
 } from "@/lib/redux/features/sales/salesApi";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 interface GeneratePaymentLinkProps {
   leadId?: number;
@@ -117,15 +118,16 @@ const GeneratePaymentLink = ({
   const effectiveLeadId = resolvedLeadId ?? leadId;
 
   const isPaidBooking = String(bookingStatus || "").toLowerCase() === "paid";
+  const isPaymentPendingBooking = String(bookingStatus || "").toLowerCase().includes("payment pending");
   const hasPendingAdditionalPayment =
     Number(additionalPaymentOutstandingAmount ?? 0) > 0 &&
     !["paid", "success", "completed"].includes(
       String(additionalPaymentStatus || "").trim().toLowerCase()
     );
   const showInvoiceActions =
-    (!!paymentData && !paymentData.isExpired) || isPaidBooking || hasPendingAdditionalPayment;
+    (!!paymentData && !paymentData.isExpired) || isPaidBooking || isPaymentPendingBooking || hasPendingAdditionalPayment;
   const showGenerateSection =
-    !isPaidBooking && (!paymentData || (paymentData.isExpired && !activeLink));
+    !isPaidBooking && !isPaymentPendingBooking && (!paymentData || (paymentData.isExpired && !activeLink));
   const shouldAttachDiscount =
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
@@ -211,12 +213,18 @@ const GeneratePaymentLink = ({
       if (response.success) {
         const hostedInvoiceUrl = response.data?.invoiceUrl || null;
         const invoicePdfUrl = response.data?.invoicePdf || null;
-        const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
-        const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${effectiveBookingId}?t=${Date.now()}`;
-        const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${effectiveBookingId}?download=1&t=${Date.now()}`;
         const isManualInvoice =
           String(invoicePdfUrl || "").includes("manual=1") ||
           String(hostedInvoiceUrl || "").includes("manual=1");
+        const brandedPdfUrl = buildBeigeInvoiceUrl(effectiveBookingId, {
+          manual: isManualInvoice,
+          cacheBust: true,
+        });
+        const brandedDownloadUrl = buildBeigeInvoiceUrl(effectiveBookingId, {
+          manual: isManualInvoice,
+          download: true,
+          cacheBust: true,
+        });
 
         if (!hostedInvoiceUrl && !invoicePdfUrl) {
           toast.error("Preview URL not available");
@@ -224,7 +232,7 @@ const GeneratePaymentLink = ({
         }
 
         // Open Stripe invoice page directly.
-        if (hostedInvoiceUrl) {
+        if (hostedInvoiceUrl && !invoicePdfUrl) {
           window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
         }
 
@@ -232,10 +240,10 @@ const GeneratePaymentLink = ({
         // For Manual flow open/view only (no forced download).
         if (invoicePdfUrl) {
           if (isManualInvoice) {
-            window.open(invoicePdfUrl || proxiedPdfUrl, "_blank", "noopener,noreferrer");
+            window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
           } else {
             const link = document.createElement("a");
-            link.href = proxiedDownloadUrl || proxiedPdfUrl;
+            link.href = brandedDownloadUrl;
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             link.click();
@@ -465,6 +473,17 @@ const GeneratePaymentLink = ({
                 </button>
               </div>
             )}
+          </div>
+        ) : isPaymentPendingBooking ? (
+          <div className={`mt-4 rounded-xl border p-4 transition-colors ${
+            isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E7D7BC] bg-[#FFF8EA]"
+            }`}>
+            <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+              Payment is pending under Net 30 terms.
+            </p>
+            <p className={`text-xs mt-1 ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
+              Use the buttons above to view the invoice or send it to the client.
+            </p>
           </div>
         ) : hasPendingAdditionalPayment ? (
           <div className={`mt-4 rounded-xl border p-4 transition-colors ${

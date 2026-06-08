@@ -342,7 +342,7 @@ export default function SalesShootsTable({ externalSelectedDate,
   return (
     <div className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
-      {/* <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+      <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
         <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3>
         <div className="flex gap-3 flex-wrap">
           <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}>
@@ -369,9 +369,9 @@ export default function SalesShootsTable({ externalSelectedDate,
               <SelectItem value="year">Year</SelectItem>
               {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
             </SelectContent>
-          </Select> */}
+          </Select> 
 
-          {/* <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
+           <div className={`hidden md:flex items-center rounded-lg border overflow-hidden ${
             isDark ? "bg-[#202020] border-white/5" : "bg-[#FAFAFA] border-[#E5E5E5]"
           }`}>
              <button
@@ -403,8 +403,8 @@ export default function SalesShootsTable({ externalSelectedDate,
            
           </div> 
 
-        {/* </div>
-      </div> */}
+         </div>
+      </div> 
 
       {loading ? (
         <div className="text-center py-20">

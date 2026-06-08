@@ -24,7 +24,9 @@ type QuotePreviewModalProps = {
   quote: SalesQuoteDetailData | null;
   quoteId?: string | null;
   isLoading?: boolean;
+  showShareActions?: boolean;
   onBeforeSend?: () => Promise<boolean> | boolean;
+  onBeforeCopy?: () => Promise<boolean> | boolean;
   paymentSummaryOverrides?: {
     previousTotal?: number;
     previouslyPaid?: number;
@@ -54,7 +56,9 @@ export default function QuotePreviewModal({
   quote,
   quoteId,
   isLoading = false,
+  showShareActions = true,
   onBeforeSend,
+  onBeforeCopy,
   paymentSummaryOverrides,
 }: QuotePreviewModalProps) {
   const { isDark } = useResolvedTheme();
@@ -114,6 +118,13 @@ export default function QuotePreviewModal({
     }
 
     try {
+      if (onBeforeCopy) {
+        const canContinue = await onBeforeCopy();
+        if (!canContinue) {
+          return;
+        }
+      }
+
       let shareValue = copyQuoteUrl;
 
       if (!shareValue) {
@@ -211,7 +222,7 @@ export default function QuotePreviewModal({
             <ArrowLeft size={18} className="mr-2" />
             Back
           </Button>
-          {!isExpired && (
+          {!isExpired && showShareActions && (
           <div className="hidden items-center gap-3 lg:flex">
             <PreviewActionButton
               onClick={() => {
@@ -290,6 +301,8 @@ export default function QuotePreviewModal({
         {/* Floating Mobile Buttons */}
         <div className={`flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8 ${isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD] bg-white"}`}>
           <div className="flex gap-2 lg:hidden w-full">
+            {!showShareActions || isExpired ? null : (
+              <>
             <PreviewActionButton
               onClick={() => {
                 void handleCopy();
@@ -317,6 +330,8 @@ export default function QuotePreviewModal({
               )}
               {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
             </PreviewActionButton>
+              </>
+            )}
           </div>
         </div>
       </div>

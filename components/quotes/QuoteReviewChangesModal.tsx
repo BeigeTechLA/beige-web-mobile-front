@@ -29,6 +29,9 @@ type QuoteReviewChangesModalProps = {
   onReviewChangeReason: (value: string) => void;
   onConfirm: () => void;
   isSaving: boolean;
+  confirmLabel?: string;
+  requireReason?: boolean;
+  isDark?: boolean; // Theme parameter injection
 };
 
 const formatCurrency = (value: number) =>
@@ -45,6 +48,9 @@ export default function QuoteReviewChangesModal({
   onReviewChangeReason,
   onConfirm,
   isSaving,
+  confirmLabel = "Save as New Version",
+  requireReason = true,
+  isDark = true, // Defaulting safely to core profile configuration
 }: QuoteReviewChangesModalProps) {
   const fieldChanges = reviewChangesData.fieldChanges.map((item) => ({
     id: item.id,
@@ -55,15 +61,23 @@ export default function QuoteReviewChangesModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="left-auto right-0 top-0 h-screen w-full max-w-[732px] translate-x-0 translate-y-0 rounded-none border-y-0 border-l border-r-0 border-[#2B2B2B] bg-[#050505] p-0 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04)] duration-300 sm:max-w-[732px]">
-        <div className="flex items-start justify-between border-b border-white/10 px-7 pb-7 pt-12">
+      <DialogContent
+        className={`left-auto right-0 top-0 h-screen w-full max-w-[732px] translate-x-0 translate-y-0 rounded-none border-y-0 border-l border-r-0 duration-300 sm:max-w-[732px] p-0 ${isDark
+            ? "border-[#2B2B2B] bg-[#050505] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04)]"
+            : "border-[#D7D7D7] bg-white text-black shadow-xl"
+          }`}
+      >
+        {/* Header Block Section */}
+        <div className={`flex items-start justify-between border-b px-7 pb-7 pt-12 ${isDark ? "border-white/10" : "border-[#D7D7D7]"
+          }`}>
           <div>
-            <DialogTitle className="text-[32px] font-semibold leading-[1.05] text-white lg:text-[33px]">
+            <DialogTitle className={`text-2xl font-semibold leading-[1.05] lg:text-4xl ${isDark ? "text-white" : "text-black"
+              }`}>
               Review Changes Before Saving
             </DialogTitle>
-            <p className="mt-3 max-w-[520px] text-[15px] leading-6 text-[#96969E]">
-              Review the changes to your quote including price differences and service
-              modifications.
+            <p className={`mt-3 max-w-[520px] text-base leading-6 ${isDark ? "text-[#96969E]" : "text-[#727272]"
+              }`}>
+              Review the changes to your quote including price differences and service modifications.
             </p>
           </div>
         </div>
@@ -71,7 +85,7 @@ export default function QuoteReviewChangesModal({
         <div className="max-h-[calc(100vh-218px)] overflow-y-auto px-7 py-7">
           <div className="rounded-[14px] bg-[#E7D0A4] px-5 py-4 text-black">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 text-[16px] font-semibold">
+              <div className="flex items-center gap-3 text-base font-semibold">
                 {reviewChangesData.delta < 0 ? (
                   <TrendingDown size={18} />
                 ) : reviewChangesData.delta > 0 ? (
@@ -93,30 +107,33 @@ export default function QuoteReviewChangesModal({
             </div>
           </div>
 
+          {/* Refund/Credit Alternative Prompt */}
           {reviewChangesData.delta < 0 ? (
-            <div className="mt-4 rounded-[14px] border border-[#E8D1AB]/30 bg-[#201A10] px-5 py-4 text-[#E8D1AB]">
-              <p className="text-[15px] font-semibold">Credit Notice</p>
-              <p className="mt-2 text-[14px] leading-6 text-[#DCC79E]">
+            <div className={`mt-4 rounded-[14px] border px-5 py-4 ${isDark
+                ? "border-[#E8D1AB]/30 bg-[#201A10] text-[#E8D1AB]"
+                : "border-[#E8D1AB] bg-[#FFF7E6] text-[#B38F43]"
+              }`}>
+              <p className="text-base font-semibold">Credit Notice</p>
+              <p className={`mt-2 text-[14px] leading-6 ${isDark ? "text-[#DCC79E]" : "text-[#727272]"}`}>
                 This update decreases the quote total by{" "}
-                <span className="font-semibold text-white">
+                <span className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>
                   {formatCurrency(Math.abs(reviewChangesData.delta))}
                 </span>
-                . Review whether the difference should be added as account credit before
-                saving this version.
+                . Review whether the difference should be added as account credit before saving this version.
               </p>
             </div>
           ) : null}
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-[12px] bg-[#141416] px-5 py-4">
-              <p className="text-sm text-[#9C9CA3]">Old Quote Total</p>
-              <p className="mt-2 text-[18px] font-semibold text-white md:text-[19px]">
+            <div className={`rounded-[12px] px-5 py-4 ${isDark ? "bg-[#141416]" : "bg-[#F4F5F7]"}`}>
+              <p className={`text-sm ${isDark ? "text-[#9C9CA3]" : "text-[#727272]"}`}>Old Quote Total</p>
+              <p className={`mt-2 text-lg font-semibold md:text-xl ${isDark ? "text-white" : "text-black"}`}>
                 {formatCurrency(reviewChangesData.previousTotal)}
               </p>
             </div>
-            <div className="rounded-[12px] bg-[#141416] px-5 py-4">
-              <p className="text-sm text-[#9C9CA3]">New Quote Total</p>
-              <p className="mt-2 text-[18px] font-semibold text-white md:text-[19px]">
+            <div className={`rounded-[12px] px-5 py-4 ${isDark ? "bg-[#141416]" : "bg-[#F4F5F7]"}`}>
+              <p className={`text-sm ${isDark ? "text-[#9C9CA3]" : "text-[#727272]"}`}>New Quote Total</p>
+              <p className={`mt-2 text-lg font-semibold md:text-xl ${isDark ? "text-white" : "text-black"}`}>
                 {formatCurrency(reviewChangesData.nextTotal)}
               </p>
             </div>
@@ -130,17 +147,20 @@ export default function QuoteReviewChangesModal({
           ] as const).map(([title, items]) =>
             items.length ? (
               <div key={title} className="mt-5">
-                <h3 className="mb-3 text-[15px] font-medium text-[#A7A7AE]">{title}</h3>
+                <h3 className={`mb-3 text-base font-medium ${isDark ? "text-[#A7A7AE]" : "text-[#727272]"}`}>{title}</h3>
                 <div className="space-y-3">
                   {items.map((item) => {
                     const isRemoved = item.changeType === "removed";
                     const isNegativeChange = isRemoved || item.delta < 0;
                     const isPositive = item.delta >= 0;
-                    const toneClass = isRemoved
-                      ? "border-[#6C161C] bg-[#2A090C] text-[#FF6B6B]"
-                      : isPositive
+
+                    const toneClass = isRemoved || !isPositive
+                      ? isDark
+                        ? "border-[#6C161C] bg-[#2A090C] text-[#FF6B6B]"
+                        : "border-red-200 bg-red-50 text-red-600"
+                      : isDark
                         ? "border-[#0C5B35] bg-[#031A12] text-[#00E18F]"
-                        : "border-[#6C161C] bg-[#2A090C] text-[#FF6B6B]";
+                        : "border-emerald-200 bg-emerald-50 text-emerald-700";
 
                     return (
                       <div
@@ -152,9 +172,7 @@ export default function QuoteReviewChangesModal({
                             {isNegativeChange ? "-" : "+"}
                           </span>
                           <div>
-                            <p
-                              className={`text-[16px] font-medium ${isRemoved ? "line-through" : ""}`}
-                            >
+                            <p className={`text-base font-medium ${isRemoved ? "line-through" : ""}`}>
                               {item.label}
                             </p>
                             {item.changeType === "updated" ? (
@@ -165,9 +183,7 @@ export default function QuoteReviewChangesModal({
                             ) : null}
                           </div>
                         </div>
-                        <div
-                          className={`text-[16px] font-semibold ${isRemoved ? "line-through" : ""}`}
-                        >
+                        <div className={`text-base font-semibold ${isRemoved ? "line-through" : ""}`}>
                           {`${isNegativeChange ? "-" : "+"}${formatCurrency(Math.abs(item.delta))}`}
                         </div>
                       </div>
@@ -180,22 +196,22 @@ export default function QuoteReviewChangesModal({
 
           {fieldChanges.length ? (
             <div className="mt-5">
-              <h3 className="mb-3 text-[15px] font-medium text-[#A7A7AE]">Other Changes</h3>
-              <div className="rounded-[12px] bg-[#141416] p-5">
+              <h3 className={`mb-3 text-base font-medium ${isDark ? "text-[#A7A7AE]" : "text-[#727272]"}`}>Other Changes</h3>
+              <div className={`rounded-[12px] p-5 ${isDark ? "bg-[#141416]" : "bg-[#F4F5F7] border border-[#D7D7D7]"}`}>
                 <div className="space-y-4">
                   {fieldChanges.map((item) => (
-                    <div key={item.id} className="rounded-[12px] bg-[#101012] p-4">
-                      <p className="text-[16px] font-medium text-white">{item.label}</p>
+                    <div key={item.id} className={`rounded-[12px] p-4 ${isDark ? "bg-[#101012]" : "bg-white border border-[#D7D7D7]"}`}>
+                      <p className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>{item.label}</p>
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
                         <div>
-                          <p className="text-sm text-[#7D7D84]">Old:</p>
-                          <p className="mt-1 text-[15px] text-[#D4D4D8]">
+                          <p className={`text-sm ${isDark ? "text-[#7D7D84]" : "text-[#727272]"}`}>Old:</p>
+                          <p className={`mt-1 text-base ${isDark ? "text-[#D4D4D8]" : "text-[#333333]"}`}>
                             {item.previousValue}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-[#7D7D84]">New:</p>
-                          <p className="mt-1 text-[15px] text-white">
+                          <p className={`text-sm ${isDark ? "text-[#7D7D84]" : "text-[#727272]"}`}>New:</p>
+                          <p className={`mt-1 text-base ${isDark ? "text-white" : "text-black"}`}>
                             {item.nextValue}
                           </p>
                         </div>
@@ -208,35 +224,47 @@ export default function QuoteReviewChangesModal({
           ) : null}
 
           <div className="mt-7">
-            <label className="mb-3 block text-[15px] font-medium text-[#9D9DA4]">
-              Reason for Change*
+            <label className={`mb-3 block text-base font-medium ${isDark ? "text-[#9D9DA4]" : "text-[#727272]"}`}>
+              {requireReason ? "Reason for Change*" : "Reason for Change"}
             </label>
             <Textarea
               value={reviewChangeReason}
               onChange={(event) => onReviewChangeReason(event.target.value)}
-              placeholder="Explain why these changes are being made..."
-              className="min-h-[136px] rounded-[14px] border border-[#2E2E33] bg-black px-5 py-4 text-[15px] text-white placeholder:text-[#5F5F65]"
+              placeholder={
+                requireReason
+                  ? "Explain why these changes are being made..."
+                  : "Optional: explain why these changes are being made..."
+              }
+              className={`min-h-[136px] rounded-[14px] px-5 py-4 text-base focus:border-[#A78857] ${isDark
+                  ? "border-[#2E2E33] bg-black text-white placeholder:text-[#5F5F65]"
+                  : "border-[#D7D7D7] bg-white text-black placeholder:text-[#9F9FA9]"
+                }`}
             />
           </div>
         </div>
 
-        <DialogFooter className="flex flex-col gap-3 border-t border-white/10 px-7 py-7 sm:flex-row sm:justify-end sm:gap-4">
+        {/* Form Overlay Sticky Footer Panel */}
+        <DialogFooter className={`flex flex-col gap-3 border-t px-7 py-7 sm:flex-row sm:justify-end sm:gap-4 ${isDark ? "border-white/10" : "border-[#D7D7D7] bg-[#FAFAFA]"
+          }`}>
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isSaving}
-            className="h-[50px] min-w-[160px] rounded-[12px] border-[#363636] bg-[#111111] text-white hover:bg-[#181818] sm:min-w-[160px]"
+            className={`h-[50px] min-w-[160px] rounded-[12px] border transition-colors sm:min-w-[160px] ${isDark
+                ? "border-[#363636] bg-[#111111] text-white hover:bg-[#181818]"
+                : "border-[#D7D7D7] bg-white text-black hover:bg-[#F4F5F7]"
+              }`}
           >
             Cancel
           </Button>
           <Button
             type="button"
             onClick={onConfirm}
-            disabled={isSaving || !reviewChangeReason.trim()}
+            disabled={isSaving || (requireReason && !reviewChangeReason.trim())}
             className="h-[50px] min-w-[230px] rounded-[12px] bg-[#E7D0A4] text-black hover:bg-[#E7D0A4]/90 sm:min-w-[230px]"
           >
-            {isSaving ? "Saving..." : "Save as New Version"}
+            {isSaving ? "Saving..." : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -10,6 +10,8 @@ import QuotePreviewDocument from "@/components/quotes/QuotePreviewDocument";
 import { Button } from "@/components/ui/button";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import {
+  QUOTE_PREVIEW_SUPERSEDED_REASON,
+  QuotePreviewFetchError,
   createSignedQuotePreviewUrl,
   fetchQuotePreviewByKey,
 } from "@/lib/quotePreview";
@@ -18,6 +20,7 @@ import {
   buildPreviewQuoteFromSummary,
   readQuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import SignatureModal from "@/components/signature/SignatureModal";
@@ -126,6 +129,7 @@ export default function QuotePreviewPageShell({
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorReasonCode, setErrorReasonCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isPreparingLink, setIsPreparingLink] = useState(false);
@@ -155,6 +159,7 @@ export default function QuotePreviewPageShell({
     const loadQuotePreview = async () => {
       setLoading(true);
       setErrorMessage(null);
+      setErrorReasonCode(null);
 
       if (!queryQuoteKey && !queryQuoteId) {
         if (!summaryStorageKey) {
@@ -219,6 +224,7 @@ export default function QuotePreviewPageShell({
         }
 
         setQuote(null);
+        setErrorReasonCode(error instanceof QuotePreviewFetchError ? error.reasonCode : null);
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to fetch quote preview"
         );
@@ -275,6 +281,40 @@ export default function QuotePreviewPageShell({
       ? `${window.location.origin}/quotes/preview?quoteKey=${encodeURIComponent(queryQuoteKey)}`
       : null);
   const effectivePaymentBookingId = String(paymentBookingId || existingBookingId || "").trim();
+  const paymentStatus = String(
+    quote?.additional_payment?.payment_status ||
+    (quote as Record<string, unknown> | null)?.payment_status ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  const normalizedQuoteStatus = String(quote?.quote_status || quote?.status || "")
+    .trim()
+    .toLowerCase();
+  const outstandingAmount = Number(quote?.additional_payment?.outstanding_amount);
+  const previouslyPaidAmount = Number(quote?.additional_payment?.previously_paid_amount);
+  const isMarkedFullyPaid =
+    ["paid", "completed", "success"].includes(paymentStatus) ||
+    ["paid", "completed", "success"].includes(
+      String((quote as Record<string, unknown> | null)?.payment_status || "")
+        .trim()
+        .toLowerCase()
+    );
+  const isZeroOutstanding =
+    Number.isFinite(outstandingAmount) && outstandingAmount <= 0 && previouslyPaidAmount > 0;
+  const isPublicPaymentAllowedStatus = !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
+  const hasValidPublicQuotePreview =
+    quoteDetailMode === "public" && !loading && Boolean(quote) && !errorMessage;
+  const unavailableMessage =
+    errorReasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON
+      ? "Your old version link has expired because a new quote version was created. Please contact your sales person for the latest quote link."
+      : errorMessage || "The quote preview could not be loaded.";
+  const canContinueToPayment =
+    hasValidPublicQuotePreview &&
+    Boolean(effectivePaymentBookingId) &&
+    isPublicPaymentAllowedStatus &&
+    !isMarkedFullyPaid &&
+    !isZeroOutstanding;
 
   useEffect(() => {
     if (!paymentStorageKey || typeof window === "undefined") {
@@ -306,6 +346,20 @@ export default function QuotePreviewPageShell({
     router.push(baseHref || fallbackHref);
   };
 
+  const validateBeforeShareQuote = async () => {
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote,
+      quoteId: resolvedQuoteId,
+    });
+
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleCopy = async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       toast.error("Copy is not supported in this browser");
@@ -313,6 +367,11 @@ export default function QuotePreviewPageShell({
     }
 
     try {
+      const canContinue = await validateBeforeShareQuote();
+      if (!canContinue) {
+        return;
+      }
+
       let shareValue = copyQuoteUrl;
 
       if (!shareValue) {
@@ -348,6 +407,11 @@ export default function QuotePreviewPageShell({
   const handleSendQuote = async () => {
     if (!resolvedQuoteId) {
       toast.error("Save the quote before sending it.");
+      return;
+    }
+
+    const canContinue = await validateBeforeShareQuote();
+    if (!canContinue) {
       return;
     }
 
@@ -524,7 +588,7 @@ export default function QuotePreviewPageShell({
           {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
         </ActionButton>
       )}
-      {quoteDetailMode === "public" && !isQuoteSigned && (
+      {hasValidPublicQuotePreview && !isQuoteSigned && (
         <ActionButton
           onClick={() => {
             if (!acceptServiceAgreement) {
@@ -536,13 +600,13 @@ export default function QuotePreviewPageShell({
           disabled={!resolvedQuoteId || loading}
           className={`h-11 rounded-xl px-4 ${isDark
             ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-            : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+            : "border border-[#00000033] bg-[#FFF] text-black hover:bg-[#E5E7EB]"
             }`}
         >
           Sign Quote
         </ActionButton>
       )}
-      {quoteDetailMode === "public" && effectivePaymentBookingId && (
+      {canContinueToPayment && (
         <ActionButton
           onClick={handleContinueToPayment}
           className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -595,7 +659,7 @@ export default function QuotePreviewPageShell({
                 {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
               </ActionButton>
             )}
-            {quoteDetailMode === "public" && (
+            {hasValidPublicQuotePreview && (
               !isQuoteSigned ? (
                 <ActionButton
                   onClick={() => {
@@ -608,14 +672,14 @@ export default function QuotePreviewPageShell({
                   disabled={!resolvedQuoteId || loading}
                   className={`h-11 rounded-xl ${isDark
                     ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-                    : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                    : "border border-[#00000033] bg-[#FFF] text-black hover:bg-[#E5E7EB]"
                     }`}
                 >
                   Sign Quote
                 </ActionButton>
               ) : null
             )}
-            {quoteDetailMode === "public" && effectivePaymentBookingId && (
+            {canContinueToPayment && (
               <ActionButton
                 onClick={handleContinueToPayment}
                 className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -687,7 +751,7 @@ export default function QuotePreviewPageShell({
               Preview data unavailable
             </p>
             <p className={`max-w-[480px] text-sm ${isDark ? "text-[#8B8B90]" : "text-[#60646C]"}`}>
-              {errorMessage || "The quote preview could not be loaded."}
+              {unavailableMessage}
             </p>
             {createHref ? (
               <Button
@@ -721,6 +785,7 @@ export default function QuotePreviewPageShell({
           setIsServiceAgreementOpen(false);
           setShowSignature(true);
         }}
+        isDark={isDark}
       />
 
       {showSignature && (

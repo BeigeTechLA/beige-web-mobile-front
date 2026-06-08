@@ -24,6 +24,17 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
 
+type CpStatusPayload = {
+  success?: boolean;
+  status?: string;
+  message?: string;
+  crew_member_id?: string | number;
+};
+
+type CpStatusResponse = CpStatusPayload & {
+  data?: CpStatusPayload;
+};
+
 export default function AffiliateLayout({ children }: { children: React.ReactNode; }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
@@ -35,7 +46,8 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
     const checkCpStatus = async () => {
       try {
         const response = await CheckCPStatus();
-        const data = (response as any)?.data ?? response;
+        const statusResponse = response as CpStatusResponse;
+        const data = statusResponse.data ?? statusResponse;
 
         if (data?.success === false || data?.status === "inactive") {
           toast.error(data?.message || "Your creator account is inactive.");
@@ -141,8 +153,11 @@ function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void
 
   const NavLink = ({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) => {
     const active = isActive(href);
-    // Allow Dashboard and Profile always; lock others if not verified
-    const isPublic = href === "/creator/dashboard" || href === "/creator/dashboard/profile";
+    // Allow key account/file access pages even when verification is pending or rejected.
+    const isPublic =
+      href === "/creator/dashboard" ||
+      href === "/creator/dashboard/profile" ||
+      href === "/creator/dashboard/file-manager";
     const locked = !isVerified && !isPublic;
 
     if (locked) {

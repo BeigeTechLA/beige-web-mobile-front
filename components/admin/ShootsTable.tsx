@@ -1,19 +1,26 @@
 "use client";
 
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useCallback, useMemo, useEffect, useState } from "react";
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronRight,
   Loader2,
   Trash2,
   Search,
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Grid3X3,
   List,
   MoreVertical,
   CirclePlus,
+  MessageCirclePlus,
+  AlertCircle,
 } from "lucide-react";
+import Lottie from "lottie-react";
+import redAnimation from "@/public/animations/Red.json";
+import yellowAnimation from "@/public/animations/Yellow.json";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
@@ -29,6 +36,8 @@ import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow"
 import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
+import { MissingFieldsModal } from "./MissingFieldsModal";
+import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { meetingsApi } from "@/lib/meetingsApi";
 // import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
@@ -49,15 +58,24 @@ type ShootStatus =
 
 interface ShootRecord {
   id: string;
+  sourceProject?: Record<string, unknown>;
   customerName: string;
+  email: string;
+  phone: string;
   initials: string;
   date: string;
+  location: string;
   rawDate: number; // Added for correct chronological sorting
   category: string;
   price: string;
   rawPrice: number; // Added for correct numerical sorting
   status: ShootStatus;
   hasAssignedCp: boolean;
+  notesCount: number;
+  needsAttention?: {
+    required: boolean;
+    missing_fields: string[];
+  };
 }
 
 const KANBAN_STATUS_ORDER: ShootStatus[] = [
@@ -193,10 +211,22 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   7: "Cancelled",
 };
 
+const extractPhoneNumber = (project: any) => {
+  const directPhone = project?.phone || project?.Phone;
+  if (typeof directPhone === "string" && directPhone.trim()) {
+    return directPhone.trim().replace(/[^\d+]/g, "");
+  }
+
+  const description = typeof project?.description === "string" ? project.description : "";
+  const phoneMatch = description.match(/Phone:\s*([+\d][\d\s()-]*)/i);
+  return phoneMatch ? phoneMatch[1].replace(/[^\d+]/g, "") : "";
+};
+
 interface ShootsTableProps {
   externalSelectedDate?: Date | null;
   detailBasePath?: string;
   enablePriceSort?: boolean;
+  filtersReady?: boolean;
   searchQuery: string;
   setSearchQuery: (v: string) => void;
   categoryFilter: string;
@@ -237,8 +267,11 @@ export const ShootsTable = ({
   showHeaderControls = true,
   showHeaderFilters = true,
   showViewToggle = true,
+  filtersReady = true,
 }: ShootsTableProps) => {
   const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
+  const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
+  const SHOOTS_RESTORE_PAGE_KEY = "admin-shoots-restore-page-on-return-v1";
   const router = useRouter();
   const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
   const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
@@ -258,6 +291,7 @@ export const ShootsTable = ({
   const [meetingGapLoading, setMeetingGapLoading] = useState(false);
   const [meetingGapBookingIds, setMeetingGapBookingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [hasRestoredCurrentPage, setHasRestoredCurrentPage] = useState(false);
   const [internalViewMode, setInternalViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
   const [kanbanOrder, setKanbanOrder] = useState<Record<ShootStatus, string[]>>({} as Record<ShootStatus, string[]>);
@@ -267,6 +301,7 @@ export const ShootsTable = ({
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const hasInitializedSearchResetRef = React.useRef(false);
 
   // Filtering states
   const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
@@ -283,6 +318,24 @@ export const ShootsTable = ({
   });
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    try {
+      const shouldRestorePage = window.localStorage.getItem(SHOOTS_RESTORE_PAGE_KEY) === "1";
+      if (shouldRestorePage) {
+        const savedPage = window.localStorage.getItem(SHOOTS_CURRENT_PAGE_KEY);
+        const parsedPage = savedPage ? Number(savedPage) : 1;
+        if (Number.isFinite(parsedPage) && parsedPage >= 1) {
+          setCurrentPage(Math.floor(parsedPage));
+        }
+      }
+      window.localStorage.removeItem(SHOOTS_RESTORE_PAGE_KEY);
+    } catch (error) {
+      console.error("Failed to restore shoots current page:", error);
+    } finally {
+      setHasRestoredCurrentPage(true);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -380,6 +433,24 @@ export const ShootsTable = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [shootToDelete, setShootToDelete] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState<string | null>(null);
+  const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [selectedShootIdForMissingFields, setSelectedShootIdForMissingFields] = useState<string | null>(null);
+  const [selectedShootDataForMissingFields, setSelectedShootDataForMissingFields] = useState<Record<string, unknown> | null>(null);
+  const [fieldsToShow, setFieldsToShow] = useState<string[]>([]);
+  const [hoveredShootId, setHoveredShootId] = useState<string | null>(null);
+
+  const handleNotesCountChange = useCallback((shootId: string, count: number) => {
+    const nextCount = Number.isFinite(count) ? Math.max(0, count) : 0;
+    setShoots((currentShoots) =>
+      currentShoots.map((shoot) =>
+        shoot.id === shootId
+          ? { ...shoot, notesCount: nextCount }
+          : shoot
+      )
+    );
+  }, []);
+
 
   // Sync external date with range
   useEffect(() => {
@@ -390,18 +461,35 @@ export const ShootsTable = ({
     }
   }, [externalSelectedDate]);
 
+  const fetchRangeMode = range === "custom" ? "custom" : "all";
+
   useEffect(() => {
+    if (!filtersReady) return;
+    if (!hasInitializedSearchResetRef.current) {
+      hasInitializedSearchResetRef.current = true;
+      return;
+    }
     setCurrentPage(1);
-  }, [debouncedSearchQuery]);
+  }, [debouncedSearchQuery, filtersReady]);
+
+  useEffect(() => {
+    if (!hasRestoredCurrentPage) return;
+    try {
+      window.localStorage.setItem(SHOOTS_CURRENT_PAGE_KEY, String(currentPage));
+    } catch (error) {
+      console.error("Failed to persist shoots current page:", error);
+    }
+  }, [currentPage, hasRestoredCurrentPage]);
 
   useEffect(() => {
     let isCancelled = false;
     const fetchId = ++latestFetchIdRef.current;
+    const isCustomDateRange = fetchRangeMode === "custom";
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        const params: any = { range };
+        const params: any = { range: fetchRangeMode };
         if (statusFilter !== "all") {
           params.status = statusFilter;
         }
@@ -412,7 +500,7 @@ export const ShootsTable = ({
           params.category = categoryFilter;
         }
 
-        if (externalSelectedDate && range === 'custom') {
+        if (externalSelectedDate && isCustomDateRange) {
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
@@ -429,6 +517,22 @@ export const ShootsTable = ({
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as ShootStatus;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+          const extractedPhone = extractPhoneNumber(project);
+          const resolvedLocation =
+            typeof project.event_location === "string"
+              ? project.event_location.trim()
+              : typeof project.location === "string"
+                ? project.location.trim()
+                : project.event_location?.address?.trim?.() || project.location?.address?.trim?.() || "";
+          const missingFields = Array.isArray(project.needs_attention?.missing_fields)
+            ? project.needs_attention.missing_fields.filter((field: string) => {
+                const normalizedField = String(field).toLowerCase();
+                if ((normalizedField === "location" || normalizedField === "event_location") && resolvedLocation) {
+                  return false;
+                }
+                return true;
+              })
+            : [];
 
           // Sorting Helpers
           const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
@@ -445,12 +549,17 @@ export const ShootsTable = ({
               ? project.assigned_crews
               : [];
           const hasAssignedCp = assignedCrews.length > 0 || selectedCrewIds.length > 0;
+          const notesCount = Number(project.notes_count || 0);
 
           return {
             id: `#${project.stream_project_booking_id}`,
+            sourceProject: project,
             customerName,
+            email: project.guest_email || "",
+            phone: extractedPhone,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            location: resolvedLocation,
             rawDate: dateObj.getTime(),
             category: getShootCategoryLabel(project),
             price: resolvedPriceSource
@@ -461,6 +570,11 @@ export const ShootsTable = ({
             rawPrice: priceValue,
             status: statusLabel,
             hasAssignedCp,
+            notesCount: Number.isFinite(notesCount) ? notesCount : 0,
+            needsAttention: project.needs_attention ? {
+              required: missingFields.length > 0,
+              missing_fields: missingFields
+            } : undefined
           };
         });
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
@@ -481,7 +595,7 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [range, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
 
   useEffect(() => {
     if (!isMeetingGapStatusFilter(productionFilter)) {
@@ -544,12 +658,42 @@ export const ShootsTable = ({
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const next7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).getTime();
+    const next15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15).getTime();
+    const in1Month = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime();
+    const in2Months = new Date(now.getFullYear(), now.getMonth() + 2, now.getDate()).getTime();
+    const in6Months = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate()).getTime();
+    const in1Year = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).getTime();
+
+    const matchesRange = (shoot: ShootRecord) => {
+      if (range === "all" || range === "custom") return true;
+      if (!Number.isFinite(shoot.rawDate) || shoot.rawDate <= 0) return false;
+
+      if (range === "upcoming") return shoot.rawDate >= startOfToday;
+      if (range === "next_7_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next7Days;
+      if (range === "next_15_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next15Days;
+      if (range === "in_1_month") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Month;
+      if (range === "in_2_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in2Months;
+      if (range === "in_6_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in6Months;
+      if (range === "in_1_year") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Year;
+
+      return true;
+    };
+
     // 1. Filter
     const normalizedSearchQuery = debouncedSearchQuery.toLowerCase();
+    const normalizedPhoneQuery = normalizedSearchQuery.replace(/[^\d+]/g, "");
     let result = shoots.filter((shoot) => {
+      if (!matchesRange(shoot)) return false;
+
+      const normalizedPhone = shoot.phone.toLowerCase();
       const matchesSearch =
         shoot.customerName.toLowerCase().includes(normalizedSearchQuery) ||
-        shoot.id.toLowerCase().includes(normalizedSearchQuery);
+        shoot.id.toLowerCase().includes(normalizedSearchQuery) ||
+        shoot.email.toLowerCase().includes(normalizedSearchQuery) ||
+        (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery));
       if (!matchesSearch) return false;
 
       if (statusFilter === "all") return true;
@@ -605,7 +749,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
+  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds, range]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -701,11 +845,12 @@ export const ShootsTable = ({
   const totalPages = listTotalPages;
 
   useEffect(() => {
+    if (loading) return;
     const nextPage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
     if (nextPage !== currentPage) {
       setCurrentPage(nextPage);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, totalPages, loading]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -715,7 +860,50 @@ export const ShootsTable = ({
 
   const handleRowClick = (id: string) => {
     const cleanId = id.replace('#', '');
+    try {
+      window.localStorage.setItem(SHOOTS_RESTORE_PAGE_KEY, "1");
+    } catch (error) {
+      console.error("Failed to mark shoots page for restoration:", error);
+    }
     router.push(`${detailBasePath}/${cleanId}`);
+  };
+
+  const getApiShootId = (id: string) => id.replace(/^#/, '').trim();
+
+  const handleMissingFieldsSaved = (updated: {
+    shootId: string;
+    location?: string;
+    bookingType: "single_day" | "multi_day";
+    dateLabel?: string;
+    rawDate?: number;
+    startTime?: string;
+    endTime?: string;
+    bookingDays?: Array<{
+      date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+    remainingMissingFields: string[];
+  }) => {
+    setShoots((prev) =>
+      prev.map((shoot) => {
+        const currentId = shoot.id.replace(/^#/, "").trim();
+        if (currentId !== updated.shootId) return shoot;
+
+        return {
+          ...shoot,
+          location: updated.location ?? shoot.location,
+          date: updated.dateLabel ?? shoot.date,
+          rawDate: updated.rawDate ?? shoot.rawDate,
+          needsAttention: updated.remainingMissingFields.length > 0
+            ? {
+                required: true,
+                missing_fields: updated.remainingMissingFields,
+              }
+            : undefined,
+        };
+      })
+    );
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
@@ -839,7 +1027,7 @@ export const ShootsTable = ({
     <div className={`w-full overflow-hidden transition-all duration-300 ${activeViewMode === "list"
       ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
       : "bg-transparent border-transparent"
-      }`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+      }`}>
       {/* Table Header Controls */}
       {shouldRenderHeaderControls && (
         <div className={`flex flex-col lg:flex-row justify-end lg:items-center px-4 lg:px-6 pt-4 lg:pt-6 pb-0 gap-4`}>
@@ -891,14 +1079,18 @@ export const ShootsTable = ({
                     </SelectContent>
                   </Select>
                   <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
-                    <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Range" />
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                      <SelectItem value="all">All time</SelectItem>
-                      <SelectItem value="week">Week</SelectItem>
-                      <SelectItem value="month">Month</SelectItem>
-                      <SelectItem value="year">Year</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="next_7_days">Next 7 Days</SelectItem>
+                      <SelectItem value="next_15_days">Next 15 Days</SelectItem>
+                      <SelectItem value="in_1_month">In 1 Month</SelectItem>
+                      <SelectItem value="in_2_months">In 2 Months</SelectItem>
+                      <SelectItem value="in_6_months">In 6 Months</SelectItem>
+                      <SelectItem value="in_1_year">In 1 Year</SelectItem>
                       {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
                     </SelectContent>
                   </Select>
@@ -956,7 +1148,7 @@ export const ShootsTable = ({
           </div>
         </div>
       ) : processedShoots.length === 0 ? (
-        <div className={`py-20 text-center font-instrument-sans ${isDark ? "text-white/50" : "text-[#999]"}`}>No shoots found.</div>
+        <div className={`py-20 text-center ${isDark ? "text-white/50" : "text-[#999]"}`}>No shoots found.</div>
       ) : (
         <>
           {/* MOBILE ONLY VIEW */}
@@ -1060,7 +1252,7 @@ export const ShootsTable = ({
             <div className="relative block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden pb-6 snap-x snap-mandatory ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`overflow-x-auto overflow-y-hidden pb-6 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
@@ -1070,7 +1262,7 @@ export const ShootsTable = ({
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit snap-center ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
+                      className={`w-[calc(100vw-48px)] md:w-[340px] lg:w-[360px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
                       <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
@@ -1115,7 +1307,12 @@ export const ShootsTable = ({
                             }`}>
                             No shoots in this stage
                           </div>
-                        ) : column.items.map((shoot, idx) => (
+                        ) : column.items.map((shoot, idx) => {
+                          const missingFields = shoot.needsAttention?.missing_fields || [];
+                          const hasMissingFields = missingFields.length > 0;
+                          const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
+
+                          return (
                           <div
                             key={`${column.status}-${idx}`}
                             onClick={() => handleRowClick(shoot.id)}
@@ -1196,6 +1393,34 @@ export const ShootsTable = ({
                                     </button>
                                     <button
                                       type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenCardActionId(null);
+                                        setFieldsToShow(shoot.needsAttention?.missing_fields || []);
+                                        setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                        setIsMissingFieldsModalOpen(true);
+                                      }}
+                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-[#8C6A00] hover:bg-[#F8F4EA]"
+                                        }`}
+                                    >
+                                      <AlertCircle size={16} />
+                                      Actions
+                                    </button>
+                                    <button
+                                        type="button"
+                                    onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenCardActionId(null);
+                                          setChatOpen(shoot.id); 
+                                        }}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                                      >
+                                        <MessageCirclePlus size={16} />
+                                        Notes {shoot.notesCount > 0 ? `(${shoot.notesCount})` : ""}
+                                      </button>
+
+                                    <button
+                                      type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setOpenCardActionId(null);
@@ -1232,13 +1457,92 @@ export const ShootsTable = ({
 
                             {/* DIVIDER */}
                             <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
-
+                            
                             {/* FOOTER */}
-                            <div className="flex items-center p-5">
+                            <div
+                              className="flex items-center justify-between p-5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <StatusBadge status={shoot.status} />
+                              
+                              {shoot.needsAttention?.required && (
+                                <div className="relative">
+                                  {/* 1. THE PILL:  */}
+                                  <span 
+                                    onMouseEnter={() => setHoveredShootId(`grid-${shoot.id}`)}
+                                    onMouseLeave={() => setHoveredShootId(null)}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Prevent opening shoot details
+                                      setFieldsToShow(missingFields);
+                                      setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                      setSelectedShootDataForMissingFields(shoot.sourceProject || null);
+                                      setIsMissingFieldsModalOpen(true);
+                                    }}
+                                    className={`cursor-pointer text-[10px] font-medium px-2 py-0.5 rounded-full transition-transform hover:scale-105 ${
+                                      isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"
+                                    }`}
+                                  >
+                                    Missing Info
+                                  </span>
+
+                                  {/* 2. THE TOOLTIP */}
+                                  <AnimatePresence>
+                                    {hoveredShootId === `grid-${shoot.id}` && (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }} 
+                                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                                        transition={{ duration: 0.15, ease: "easeOut" }} 
+                                          className={`absolute bottom-full right-0 mb-2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none ${
+                                          isDark ? "bg-[#222] border border-white/10 text-white" : "bg-white border border-gray-200 text-black"
+                                        }`}
+                                      >                                      
+                                        <div className="flex flex-col gap-1">
+                                          <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1 flex items-center justify-between gap-4">
+                                            Attention Required
+                                          </span>
+                                          {missingFields.map((field, i) => (
+                                            <span key={i} className="flex items-center gap-1.5">
+                                              <span className="w-1 h-1 rounded-full bg-red-500" />
+                                              {toTitleCase(field)}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <div className={`absolute top-full right-4 border-4 border-transparent ${isDark ? "border-t-[#222]" : "border-t-white"}`} />
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              )}
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setChatOpen(shoot.id);
+                                }}
+                                className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/5 transition-colors"
+                              >
+                                {shoot.notesCount > 0 ? (
+                                  <>
+                                    <span className={`${isDark ? "text-white" : "text-[#222]"} text-base leading-none`}>
+                                      {shoot.notesCount}
+                                    </span>
+                                    <MessageCirclePlus
+                                      size={18}
+                                      className={`${isDark ? "text-[#CFCFCF]" : "text-[#666]"} transition-colors`}
+                                    />
+                                  </>
+                                ) : (
+                                  <CirclePlus
+                                    size={18}
+                                    className={`${isDark ? "text-[#AFAFAF]" : "text-[#777]"} transition-colors`}
+                                  />
+                                )}
+                              </button>
                             </div>
                           </div>
-                        ))}
+                          ); 
+                        })}
                       </div>
                     </div>
                   ))}
@@ -1255,8 +1559,8 @@ export const ShootsTable = ({
               */}
             </div>
           ) : (
-            <div className="hidden lg:block w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="hidden lg:block w-full">
+              <table className="w-full text-left border-separate border-spacing-0">
                 <thead>
                   <tr className={`text-base font-medium border-b leading-none tracking-normal transition-colors duration-300 ${isDark ? "text-[#E8D1AB] border-[#333333]" : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                     <th
@@ -1276,98 +1580,280 @@ export const ShootsTable = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {currentShoots.map((shoot, idx) => (
-                    <tr
-                      key={idx}
-                      onClick={() => handleRowClick(shoot.id)}
-                      className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
-                    >
-                      <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
-                      <td className="py-5 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
-                            {shoot.initials}
+                  {currentShoots.map((shoot, idx) => {
+                    const missingFields = shoot.needsAttention?.missing_fields || [];
+                    const hasMissingFields = missingFields.length > 0;
+                    const borderClass = isDark ? "border-[#333333]" : "border-[#E5E5E5]";
+                    const rowBgClass = isDark ? "bg-[#111111] hover:bg-[#171717]" : "bg-white hover:bg-zinc-50";
+
+                    const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
+
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={() => handleRowClick(shoot.id)}
+                        className={`group border-b transition-colors last:border-0 cursor-pointer relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
+                      >
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                             className="w-8 h-8 shrink-0 flex items-center justify-center relative"
+                             onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
+                             onMouseLeave={() => setHoveredShootId(null)}>
+                              {hasMissingFields && (
+                                <div>
+                                <Lottie animationData={animationData} loop={true} />
+                                {/* Tooltip */}
+                                  <AnimatePresence>
+                                    {hoveredShootId === `list-${shoot.id}` && (
+                                      <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      exit={{ opacity: 0, x: -10 }}
+                                      
+                                      className={`absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none 
+                                        ${isDark 
+                                          ? "bg-[#222] border border-white/10 text-white" 
+                                          : "bg-white border border-gray-200 text-black"
+                                        }`}
+                                    >                                      
+                                      <div className="flex flex-col gap-1">
+                                        <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1">
+                                          Attention Required:
+                                        </span>
+                                        {missingFields.map((field, i) => (
+                                          <span key={i} className="flex items-center gap-1.5">
+                                            <span className="w-1 h-1 rounded-full bg-red-500" /> 
+                                            {toTitleCase(field)}
+                                          </span>
+                                        ))}
+                                      </div>
+
+                                      {/* Tooltip Arrow */}
+                                      <div className={`absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent ${
+                                        isDark ? "border-t-[#222]" : "border-t-white"
+                                      }`} />
+                                    </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              )}
+                            </div>
+                            {shoot.id}
                           </div>
-                          <div>
-                            <p className={`font-medium text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#000000]"}`}>{shoot.customerName}</p>
-                            <p className={`text-xs mt-1.5 ${isDark ? "text-[#666666]" : "text-[#999]"}`}>{shoot.date}</p>
+                        </td>
+                        <td className={`py-5 px-6 relative border-y ${borderClass}`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
+                              {shoot.initials}
+                            </div>
+                            <div>
+                              <p className={`font-medium text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#000000]"}`}>{shoot.customerName}</p>
+                              <div className="flex items-center gap-2 mt-1.5 ">
+                                <p className={`text-xs ${isDark ? "text-[#666666]" : "text-[#999]"}`}>{shoot.date}</p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
-                      <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.price}</td>
-                      <td className="py-5 px-6">
-                        <StatusBadge status={shoot.status} />
-                      </td>
-                      <td className="py-5 px-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={(e) => handleDeleteClick(e, shoot.id)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                          <ChevronRight size={20} className={isDark ? "text-[#666666]" : "text-[#999]"} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.price}</td>
+                        <td className={`py-5 px-6 border-y ${borderClass}`}>
+                          <StatusBadge status={shoot.status} />
+                        </td>
+                        <td className={`py-5 px-6 text-right border-y border-r ${borderClass}`}>
+                          <div className="relative flex justify-end" data-card-actions>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
+                              }}
+                              className={`p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                              aria-label="Actions"
+                            >
+                              <MoreVertical size={24} />
+                            </button>
+
+                            {openCardActionId === shoot.id && (
+                              <div
+                                className={`absolute right-0 top-9 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
+                                  }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenCardActionId(null);
+                                    handleRowClick(shoot.id);
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
+                                    }`}
+                                >
+                                  <ChevronRight size={16} />                                  Open details
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenCardActionId(null);
+                                  setFieldsToShow(missingFields);
+                                  setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                  setSelectedShootDataForMissingFields(shoot.sourceProject || null);
+                                  setIsMissingFieldsModalOpen(true);
+                                }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-[#8C6A00] hover:bg-[#F8F4EA]"}`}
+                                >
+                                  <AlertCircle size={16} />
+                                  Actions
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenCardActionId(null);
+                                    setChatOpen(shoot.id); // Triggers the Notes Drawer
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                                >
+                                  <MessageCirclePlus size={16} />
+                                  Notes
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenCardActionId(null);
+                                    handleDeleteClick(e, shoot.id);
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                    }`}
+                                >
+                                  <Trash2 size={16} />
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-            </div >
+            </div>
           )}
         </>
       )}
 
+      <NotesDrawer
+        isOpen={!!chatOpen}
+        onClose={() => setChatOpen(null)}
+        shootId={chatOpen ?? undefined}
+        isDark={isDark}
+        onNotesCountChange={handleNotesCountChange}
+      />
+
+      <MissingFieldsModal
+        isOpen={isMissingFieldsModalOpen}
+        onClose={() => {
+          setIsMissingFieldsModalOpen(false);
+          setSelectedShootIdForMissingFields(null);
+          setSelectedShootDataForMissingFields(null);
+        }}
+        isDark={isDark}
+        fields={fieldsToShow}
+        shootId={selectedShootIdForMissingFields ?? undefined}
+        initialShootData={selectedShootDataForMissingFields}
+        onSaved={handleMissingFieldsSaved}
+      />
+
       {/* Pagination - Exact Logic Preserved */}
       {
         !loading && !meetingGapLoading && processedShoots.length > 0 && activeViewMode !== "grid" && (
-          <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
-            <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-              {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
-            </div>
-            <div className="flex gap-2 items-center">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}>Previous</button>
-              <div className="flex gap-1">
-                {(() => {
-                  const rangeArr = [];
-                  const delta = 1;
-                  const left = currentPage - delta;
-                  const right = currentPage + delta + 1;
+          <div className={`p-4 lg:p-6 border-t w-full overflow-hidden transition-colors duration-300 min-w-0 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
+            }`}>
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
 
-                  for (let i = 1; i <= totalPages; i++) {
-                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
-                      rangeArr.push(i);
-                    } else if (i === left - 1 || i === right) {
-                      rangeArr.push('...');
-                    }
-                  }
-
-                  return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
-                    page === '...' ? (
-                      <span key={`dots-${index}`} className={`px-2 py-1 text-xs ${isDark ? "text-white/30" : "text-[#999]"}`}>...</span>
-                    ) : (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page as number)}
-                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black") : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")}`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  ));
-                })()}
+              {/* Pagination Entries Info */}
+              <div className={`hidden lg:block text-sm truncate max-w-xs shrink ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
+                {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
               </div>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
-              >
-                Next
-              </button>
+
+              {/* Pagination Controls Wrapper */}
+              <div className="flex gap-2 items-center justify-center sm:justify-end w-full max-w-full min-w-0 overflow-hidden">
+
+                {/* Previous Button: Text on desktop, Icon on mobile */}
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`p-2 lg:w-auto lg:px-4 lg:py-2 text-sm font-medium rounded-lg border transition-all flex items-center justify-center shrink-0 disabled:opacity-30 ${isDark
+                    ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
+                    : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
+                    }`}
+                >
+                  <span className="hidden lg:inline">Previous</span>
+                  <ChevronLeft className="w-4 h-4 lg:hidden" />
+                </button>
+
+                {/* Page Numbers - Flex-1 wrapper eliminates viewport clipping under arrows */}
+                <div className="flex-1 sm:flex-none flex gap-1 items-center justify-center overflow-x-auto no-scrollbar min-w-0 px-1 py-0.5">
+                  {(() => {
+                    const rangeArr = [];
+                    const delta = 1;
+                    const left = currentPage - delta;
+                    const right = currentPage + delta + 1;
+
+                    for (let i = 1; i <= totalPages; i++) {
+                      if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                        rangeArr.push(i);
+                      } else if (i === left - 1 || i === right) {
+                        rangeArr.push('...');
+                      }
+                    }
+
+                    return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                      page === '...' ? (
+                        /* Rendered as an unbonded span node to save space and prevent arrow overlaps */
+                        <span
+                          key={`dots-${index}`}
+                          className={`px-1 text-center text-xs font-semibold select-none shrink-0 min-w-[16px] ${isDark ? "text-white/30" : "text-[#999]"
+                            }`}
+                        >
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page as number)}
+                          className={`w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center text-xs lg:text-sm font-medium rounded-lg transition-all shrink-0 ${currentPage === page
+                            ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")
+                            }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    ));
+                  })()}
+                </div>
+
+                {/* Next Button: Text on desktop, Icon on mobile */}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`p-2 lg:w-auto lg:px-4 lg:py-2 text-sm font-medium rounded-lg border transition-all flex items-center justify-center shrink-0 disabled:opacity-30 ${isDark
+                    ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
+                    : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
+                    }`}
+                >
+                  <span className="hidden lg:inline">Next</span>
+                  <ChevronRight className="w-4 h-4 lg:hidden" />
+                </button>
+
+              </div>
             </div>
           </div>
         )

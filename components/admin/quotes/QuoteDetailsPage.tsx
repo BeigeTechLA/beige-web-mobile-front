@@ -60,9 +60,11 @@ import {
 } from "@/lib/quoteDetail";
 import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -113,6 +115,18 @@ type QuoteConvertedBookingDetailsLike = {
   location?: string | null;
   booking_days?: QuoteConvertedBookingDayLike[] | null;
 };
+
+type ManualPaymentMode =
+  | "cash"
+  | "wire"
+  | "ach"
+  | "zelle"
+  | "venmo"
+  | "cashapp"
+  | "applepay"
+  | "other"
+  | "net30";
+
 const S3_PREFIX =
   process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
@@ -129,18 +143,25 @@ const resolveS3ProofUrl = (value?: string | null) => {
   return joinAssetUrl(S3_PREFIX, rawValue);
 };
 
-const resolveSignatureSource = (rawData: any) => {
-  const nested = rawData?.data;
+const resolveSignatureSource = (rawData: unknown) => {
+  const record =
+    rawData && typeof rawData === "object" && !Array.isArray(rawData)
+      ? (rawData as Record<string, unknown>)
+      : null;
+  const nested =
+    record?.data && typeof record.data === "object" && !Array.isArray(record.data)
+      ? (record.data as Record<string, unknown>)
+      : null;
   const source =
-    rawData?.signature_base64 ??
+    record?.signature_base64 ??
     nested?.signature_base64 ??
-    rawData?.signature_path ??
+    record?.signature_path ??
     nested?.signature_path ??
-    rawData?.file_path ??
+    record?.file_path ??
     nested?.file_path ??
-    rawData?.signature_url ??
+    record?.signature_url ??
     nested?.signature_url ??
-    rawData?.file_url ??
+    record?.file_url ??
     nested?.file_url;
 
   if (!source) return null;
@@ -374,6 +395,136 @@ const formatStatusLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+type QuoteVersionMeta = Record<string, unknown>;
+type QuoteChangeRequestMeta = Record<string, unknown>;
+
+const getVersionMeta = (version: unknown): QuoteVersionMeta | null =>
+  version && typeof version === "object" && !Array.isArray(version)
+    ? (version as QuoteVersionMeta)
+    : null;
+
+const normalizeVersionStatus = (version: unknown) => {
+  const versionMeta = getVersionMeta(version);
+
+  return getQuoteText(
+    versionMeta?.approval_status,
+    versionMeta?.change_request_status,
+    versionMeta?.review_status,
+    versionMeta?.version_status,
+    versionMeta?.status
+  ).toLowerCase();
+};
+
+const isRejectedVersion = (version: unknown) =>
+  ["rejected", "declined", "denied"].includes(normalizeVersionStatus(version));
+
+const isPendingVersion = (version: unknown) =>
+  ["pending", "pending_approval", "in_review", "review"].includes(normalizeVersionStatus(version));
+
+const isUsableVersion = (version: unknown) =>
+  !normalizeVersionStatus(version) || normalizeVersionStatus(version) === "approved";
+
+const getVersionDropdownLabel = (version: unknown, fallbackNumber: number) => {
+  const versionMeta = getVersionMeta(version);
+  const versionNumber = versionMeta?.version_number ?? fallbackNumber;
+  const suffix = isRejectedVersion(versionMeta)
+    ? " - Rejected"
+    : isPendingVersion(versionMeta)
+      ? " - Pending Approval"
+      : versionMeta?.is_current
+        ? " - Current"
+        : "";
+
+  return `Version ${versionNumber}${suffix}`;
+};
+
+const getVersionNumberValue = (version: unknown) => {
+  const versionNumber = getVersionMeta(version)?.version_number;
+  const parsed = Number(versionNumber);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const isCurrentVersionMeta = (version: unknown) =>
+  Boolean(getVersionMeta(version)?.is_current);
+
+const getRawVersionNumber = (version: unknown) =>
+  getVersionMeta(version)?.version_number;
+
+const extractQuoteChangeRequestRows = (data: unknown): QuoteChangeRequestMeta[] => {
+  if (Array.isArray(data)) {
+    return data as QuoteChangeRequestMeta[];
+  }
+
+  if (!data || typeof data !== "object") {
+    return [];
+  }
+
+  const record = data as Record<string, unknown>;
+  const rows = [
+    record.items,
+    record.rows,
+    record.results,
+    record.list,
+    record.data,
+  ].find(Array.isArray);
+
+  return (rows || []) as QuoteChangeRequestMeta[];
+};
+
+const mergeVersionApprovalFromChangeRequests = (
+  versions: unknown[],
+  requests: QuoteChangeRequestMeta[]
+) => {
+  if (!versions.length || !requests.length) {
+    return versions;
+  }
+
+  const sortedRequests = [...requests].sort(
+    (a, b) =>
+      new Date(String(a.created_at || 0)).getTime() -
+      new Date(String(b.created_at || 0)).getTime()
+  );
+  const firstVersionNumber = Math.min(
+    ...versions
+      .map((version) => getVersionNumberValue(version))
+      .filter((versionNumber) => versionNumber > 0)
+  );
+  const firstChangeVersionNumber = Number.isFinite(firstVersionNumber)
+    ? firstVersionNumber + 1
+    : 2;
+  const requestByVersionNumber = new Map<number, QuoteChangeRequestMeta>();
+
+  sortedRequests.forEach((request, index) => {
+    const explicitVersionNumber = Number(
+      request.version_number ??
+      request.quote_version_number ??
+      request.new_version_number
+    );
+    const versionNumber = Number.isFinite(explicitVersionNumber) && explicitVersionNumber > 0
+      ? explicitVersionNumber
+      : firstChangeVersionNumber + index;
+
+    requestByVersionNumber.set(versionNumber, request);
+  });
+
+  return versions.map((version) => {
+    const versionNumber = getVersionNumberValue(version);
+    const request = requestByVersionNumber.get(versionNumber);
+    if (!request) {
+      return version;
+    }
+
+    return {
+      ...(getVersionMeta(version) || {}),
+      approval_status: request.approval_status,
+      change_request_status: request.approval_status,
+      review_status: request.approval_status,
+      source_activity_id: request.activity_id,
+      reviewed_at: request.reviewed_at,
+    };
+  });
+};
+
 const INVOICE_ACTION_VISIBLE_STATUSES = new Set([
   "accepted",
   "approved",
@@ -430,18 +581,30 @@ const SectionShell = ({
   actionLabel,
   onAction,
   children,
+  isDark = true,
 }: {
   title: string;
   actionLabel?: string;
   onAction?: () => void;
   children: React.ReactNode;
+  isDark?: boolean;
 }) => (
-  <section className="rounded-lg lg:rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
+  <section className={`rounded-lg lg:rounded-[26px] border transition-colors ${isDark ? "border-[#2B2B2B] bg-[#171717]" : "border-[#000000]/10 bg-white"}`}>
     <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-7">
-      <h2 className="lg:text-lg font-semibold text-white lg:text-[20px]">{title}</h2>
-      {actionLabel && onAction ? <SectionActionButton label={actionLabel} onClick={onAction} /> : null}
+      <h2 className={`lg:text-lg font-semibold lg:text-xl transition-colors ${isDark ? "text-white" : "text-[#000000AD]"}`}>
+        {title}
+      </h2>
+      {actionLabel && onAction ? (
+        <SectionActionButton
+          label={actionLabel}
+          onClick={onAction}
+        />
+      ) : null}
     </div>
-    <div className="border-t border-dashed border-[#343434]" />
+
+    {/* Dashed Separator Line */}
+    <div className={`border-t transition-colors ${isDark ? "border-[#343434]" : "border-[#2B2B2B]"}`} />
+
     <div className="px-5 py-5 lg:px-8 lg:py-7">{children}</div>
   </section>
 );
@@ -521,7 +684,7 @@ const QuoteTopActions = ({
   isRejecting: boolean;
   isRejected: boolean;
   isConverting: boolean;
-  versions: any[];
+  versions: QuoteVersionMeta[];
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
 }) => (
@@ -536,13 +699,13 @@ const QuoteTopActions = ({
           <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
             {versions
               .map((v, index) => {
-                const rawVersionNumber = v?.version_number;
+                const rawVersionNumber = getRawVersionNumber(v);
                 if (rawVersionNumber == null) {
                   return null;
                 }
                 return (
                   <SelectItem key={`${rawVersionNumber}-${index}`} value={String(rawVersionNumber)}>
-                    Version {v?.version_number ?? index + 1}
+                    {getVersionDropdownLabel(v, index + 1)}
                   </SelectItem>
                 );
               })
@@ -582,10 +745,16 @@ const QuoteTopActions = ({
   </div>
 );
 
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
+const DetailRow = ({ label, value, isDark = true }: { label: string; value: string; isDark?: boolean; }) => (
   <div className="flex items-start justify-between gap-4 py-2.5 lg:py-4">
-    <p className="shrink-0 text-sm lg:text-base text-[#8F8F95]">{label}</p>
-    <p className="max-w-[65%] break-words text-right text-sm lg:text-base font-semibold text-white">{value}</p>
+    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"
+      }`}>
+      {label}
+    </p>
+    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"
+      }`}>
+      {value}
+    </p>
   </div>
 );
 
@@ -670,7 +839,7 @@ export default function QuoteDetailsPage({
   const router = useRouter();
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [versions, setVersions] = useState<any[]>([]);
+  const [versions, setVersions] = useState<QuoteVersionMeta[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -744,17 +913,17 @@ export default function QuoteDetailsPage({
       setQuote((current) =>
         current
           ? ({
-              ...current,
-              signature_base64: normalizedQuoteDetail.signature_base64 ?? current.signature_base64,
-              signature_path: normalizedQuoteDetail.signature_path ?? current.signature_path,
-              signature_url:
-                (normalizedQuoteDetail as Record<string, unknown>)?.signature_url ??
-                (current as Record<string, unknown>)?.signature_url,
-              signed_at: normalizedQuoteDetail.signed_at ?? current.signed_at,
-              signer_name:
-                (normalizedQuoteDetail as Record<string, unknown>)?.signer_name ??
-                (current as Record<string, unknown>)?.signer_name,
-            } as SalesQuoteDetailData)
+            ...current,
+            signature_base64: normalizedQuoteDetail.signature_base64 ?? current.signature_base64,
+            signature_path: normalizedQuoteDetail.signature_path ?? current.signature_path,
+            signature_url:
+              (normalizedQuoteDetail as Record<string, unknown>)?.signature_url ??
+              (current as Record<string, unknown>)?.signature_url,
+            signed_at: normalizedQuoteDetail.signed_at ?? current.signed_at,
+            signer_name:
+              (normalizedQuoteDetail as Record<string, unknown>)?.signer_name ??
+              (current as Record<string, unknown>)?.signer_name,
+          } as SalesQuoteDetailData)
           : normalizedQuoteDetail
       );
       setSignatureBase64(sig);
@@ -828,12 +997,42 @@ export default function QuoteDetailsPage({
         const versionsRes = await salesApi.getQuoteVersions(quoteId);
         if (versionsRes?.success && isMounted) {
           const versionsData = Array.isArray(versionsRes.data) ? versionsRes.data : versionsRes.data?.versions || [];
-          setVersions(versionsData);
+          let resolvedVersions = versionsData;
+
+          try {
+            const quoteNumberForSearch = getQuoteText(normalizedQuoteDetail.quote_number, quoteId);
+            const changeRequestsResponse = await salesApi.getQuoteChangeRequests({
+              page: 1,
+              limit: 50,
+              search: quoteNumberForSearch,
+              approval_status: "all",
+            });
+
+            if (changeRequestsResponse?.success) {
+              const quoteRequests = extractQuoteChangeRequestRows(changeRequestsResponse.data)
+                .filter((request) => {
+                  const requestQuoteId = getQuoteText(request.quote_id);
+                  const requestQuoteNumber = getQuoteText(request.quote_number);
+                  return (
+                    requestQuoteId === quoteId ||
+                    requestQuoteNumber === quoteNumberForSearch
+                  );
+                });
+              resolvedVersions = mergeVersionApprovalFromChangeRequests(versionsData, quoteRequests);
+            }
+          } catch (requestError) {
+            console.error("Failed to merge quote change request status into versions", requestError);
+          }
+
+          setVersions(resolvedVersions);
           // Set initial selected version to the current one if found
           const currentVersion =
-            versionsData.find((v: any) => v?.is_current && v?.version_number != null) ||
-            versionsData.find((v: any) => v?.version_number != null);
-          const currentVersionNumber = currentVersion?.version_number;
+            resolvedVersions.find((version) => isCurrentVersionMeta(version) && isUsableVersion(version)) ||
+            [...resolvedVersions]
+              .filter((version) => getRawVersionNumber(version) != null && isUsableVersion(version))
+              .sort((a, b) => getVersionNumberValue(b) - getVersionNumberValue(a))[0] ||
+            resolvedVersions.find((version) => getRawVersionNumber(version) != null);
+          const currentVersionNumber = getRawVersionNumber(currentVersion);
           if (currentVersionNumber != null && !selectedVersionId) {
             setSelectedVersionId(String(currentVersionNumber));
           }
@@ -876,6 +1075,32 @@ export default function QuoteDetailsPage({
           if (quoteDetail) {
             setQuote((current) =>
               mergeVersionQuoteWithPrimaryContext(current, quoteDetail)
+            );
+            setVersions((currentVersions) =>
+              currentVersions.map((version) => {
+                if (
+                  getRawVersionNumber(version) == null ||
+                  String(getRawVersionNumber(version)) !== selectedVersionId
+                ) {
+                  return version;
+                }
+
+                return {
+                  ...version,
+                  approval_status:
+                    (quoteDetail as Record<string, unknown>).approval_status ??
+                    (version as Record<string, unknown>).approval_status,
+                  change_request_status:
+                    (quoteDetail as Record<string, unknown>).change_request_status ??
+                    (version as Record<string, unknown>).change_request_status,
+                  review_status:
+                    (quoteDetail as Record<string, unknown>).review_status ??
+                    (version as Record<string, unknown>).review_status,
+                  version_status:
+                    (quoteDetail as Record<string, unknown>).version_status ??
+                    (version as Record<string, unknown>).version_status,
+                };
+              })
             );
 
             const selectedVersionNumber = Number(selectedVersionId);
@@ -1015,7 +1240,7 @@ export default function QuoteDetailsPage({
 
   const clientName = getQuoteText(quote?.client_name, "Client");
   const clientEmail = getQuoteText(quote?.client_email, quote?.guest_email, "N/A") || "N/A";
-  const clientPhone = getQuoteText(quote?.client_phone, "N/A") || "N/A";
+  const clientPhone = getQuoteText(quote?.client_phone, quote?.phone, "N/A") || "N/A";
   const clientAddress =
     getQuoteText(quote?.client_address, quote?.address, quote?.location, "Address not available") ||
     "Address not available";
@@ -1036,35 +1261,58 @@ export default function QuoteDetailsPage({
       ) || null
     );
   }, [selectedVersionId, versions]);
-  const latestVersionMeta = useMemo(() => {
+  const latestUsableVersionMeta = useMemo(() => {
     if (versions.length === 0) return null;
-    const currentFlagged =
-      versions.find((version) => Boolean(version?.is_current)) || null;
-    if (currentFlagged) return currentFlagged;
 
-    return versions.reduce((latest: any, candidate: any) => {
-      const latestNo = Number(latest?.version_number || 0);
-      const candidateNo = Number(candidate?.version_number || 0);
+    const currentApprovedVersion =
+      versions.find((version) => isCurrentVersionMeta(version) && isUsableVersion(version)) || null;
+    if (currentApprovedVersion) return currentApprovedVersion;
+
+    const usableVersions = versions.filter((version) => isUsableVersion(version));
+    if (usableVersions.length === 0) return null;
+
+    return usableVersions.reduce((latest, candidate) => {
+      const latestNo = getVersionNumberValue(latest);
+      const candidateNo = getVersionNumberValue(candidate);
       return candidateNo > latestNo ? candidate : latest;
-    }, versions[0]);
+    }, usableVersions[0]);
   }, [versions]);
-  const isSelectedCurrentVersion = useMemo(() => {
+  const isSelectedVersionRejected =
+    isRejectedVersion(selectedVersionMeta) ||
+    Boolean(
+      selectedVersionMeta &&
+      isRejectedVersion({
+        approval_status: (quote as Record<string, unknown> | null)?.approval_status,
+        change_request_status: (quote as Record<string, unknown> | null)?.change_request_status,
+        review_status: (quote as Record<string, unknown> | null)?.review_status,
+        version_status: (quote as Record<string, unknown> | null)?.version_status,
+      })
+    );
+  const latestUsableVersionNumber = getRawVersionNumber(latestUsableVersionMeta) ?? null;
+  const isSelectedLatestUsableVersion = useMemo(() => {
     if (versions.length === 0) return true;
-    if (!latestVersionMeta) return false;
+    if (!latestUsableVersionMeta) return false;
 
-    const latestVersionNumber = Number(latestVersionMeta?.version_number);
+    const latestUsableNumber = getVersionNumberValue(latestUsableVersionMeta);
     const selectedVersionNumber =
-      Number(selectedVersionMeta?.version_number ?? selectedVersionId);
+      Number(getRawVersionNumber(selectedVersionMeta) ?? selectedVersionId);
 
-    if (!Number.isFinite(latestVersionNumber) || !Number.isFinite(selectedVersionNumber)) {
-      return Boolean(selectedVersionMeta?.is_current);
+    if (!Number.isFinite(latestUsableNumber) || !Number.isFinite(selectedVersionNumber)) {
+      return isCurrentVersionMeta(selectedVersionMeta) && !isSelectedVersionRejected;
     }
 
-    return selectedVersionNumber === latestVersionNumber;
-  }, [latestVersionMeta, selectedVersionId, selectedVersionMeta, versions.length]);
+    return selectedVersionNumber === latestUsableNumber;
+  }, [
+    isSelectedVersionRejected,
+    latestUsableVersionMeta,
+    selectedVersionId,
+    selectedVersionMeta,
+    versions.length,
+  ]);
   const canEditSelectedVersion =
-    isSelectedCurrentVersion &&
-    !["rejected", "cancelled","expired"].includes(normalizedQuoteStatus);
+    isSelectedLatestUsableVersion &&
+    !isSelectedVersionRejected &&
+    !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -1241,7 +1489,13 @@ export default function QuoteDetailsPage({
   // Account for previous payments from lead or quote context
   const leadCollectedAmount = Number(linkedLeadDetails?.collected_amount) || 0;
   const quotePreviouslyPaid = Number(quote?.additional_payment?.previously_paid_amount) || 0;
-  const effectivePreviouslyPaid = leadCollectedAmount || quotePreviouslyPaid;
+  const summaryPaidAmount = Number(quote?.payment_summary?.paid_amount) || 0;
+  const summaryCreditUsedAmount = Number(quote?.payment_summary?.credit_used_amount) || 0;
+  const effectivePreviouslyPaid = Math.max(
+    leadCollectedAmount + summaryCreditUsedAmount,
+    quotePreviouslyPaid + summaryCreditUsedAmount,
+    summaryPaidAmount + summaryCreditUsedAmount
+  );
 
   const hasFullPaymentFromActivity = manualPaymentEntries.some((entry) => entry.data.payment_type === "full");
   const partialPaidFromActivity = manualPaymentEntries.reduce((sum, entry) => {
@@ -1275,7 +1529,8 @@ export default function QuoteDetailsPage({
     Boolean(quote?.additional_payment?.invoice_url) ||
     Boolean(signedAt);
   const canSendInvoiceFromDetails =
-    isSelectedCurrentVersion &&
+    isSelectedLatestUsableVersion &&
+    !isSelectedVersionRejected &&
     normalizedQuoteStatus !== "expired" &&
     (
       INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedQuoteStatus) ||
@@ -1468,8 +1723,8 @@ export default function QuoteDetailsPage({
   };
 
   const handleViewInvoice = async () => {
-    if (!isSelectedCurrentVersion) {
-      toast.error("Invoices can only be viewed for the latest quote version.");
+    if (!isSelectedLatestUsableVersion || isSelectedVersionRejected) {
+      toast.error("Invoices can only be viewed for the latest approved quote version.");
       return;
     }
 
@@ -1501,30 +1756,37 @@ export default function QuoteDetailsPage({
       } else {
         await refreshQuotePrimaryContext();
       }
-      const apiBase = (
-        process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
-      ).replace(/\/$/, "");
-      const proxiedPdfUrl = invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
+      const isManualInvoicePdf =
+        typeof invoicePdfUrl === "string" &&
+        /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
+      const brandedPdfUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+            manual: isManualInvoicePdf,
+            cacheBust: true,
+          })
         : null;
-      const proxiedDownloadUrl = invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
+      const brandedDownloadUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+            manual: isManualInvoicePdf,
+            download: true,
+            cacheBust: true,
+          })
         : null;
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !invoicePdfUrl) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
       if (invoicePdfUrl) {
         const link = document.createElement("a");
-        if (!proxiedDownloadUrl && !proxiedPdfUrl) {
+        if (!brandedDownloadUrl && !brandedPdfUrl) {
           throw new Error("Invoice PDF URL is not available");
         }
-        link.href = proxiedDownloadUrl || proxiedPdfUrl || invoicePdfUrl;
+        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.click();
@@ -1540,8 +1802,8 @@ export default function QuoteDetailsPage({
   };
 
   const sendQuoteInvoiceRequest = async () => {
-    if (!isSelectedCurrentVersion) {
-      toast.error("Invoices can only be sent for the latest quote version.");
+    if (!isSelectedLatestUsableVersion || isSelectedVersionRejected) {
+      toast.error("Invoices can only be sent for the latest approved quote version.");
       return false;
     }
 
@@ -1702,7 +1964,11 @@ export default function QuoteDetailsPage({
 
   const proceedToEditQuote = (targetView: QuoteEditorView) => {
     if (!canEditSelectedVersion) {
-      toast.error("Only the latest quote version can be edited.");
+      toast.error(
+        isSelectedVersionRejected
+          ? "This version was rejected. Select the previous approved version to continue editing."
+          : "Only the latest approved quote version can be edited."
+      );
       return;
     }
 
@@ -1712,8 +1978,20 @@ export default function QuoteDetailsPage({
 
     toast.success("Opening quote editor");
     window.setTimeout(() => {
+      const query = new URLSearchParams({
+        quoteId,
+        view: targetView,
+        editMode: "full",
+        returnTo: pathname,
+      });
+
+      const selectedVersionNumberForEdit = getRawVersionNumber(selectedVersionMeta);
+      if (selectedVersionNumberForEdit != null) {
+        query.set("editVersion", String(selectedVersionNumberForEdit));
+      }
+
       router.push(
-        `${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}&editMode=full&returnTo=${encodeURIComponent(pathname)}`
+        `${baseHref}/create?${query.toString()}`
       );
     }, 450);
   };
@@ -1745,6 +2023,20 @@ export default function QuoteDetailsPage({
     }
   };
 
+  const handleBeforeShareQuote = useCallback(async () => {
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote,
+      quoteId,
+    });
+
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
+    }
+
+    return true;
+  }, [quote, quoteId]);
+
   const topbarActions = (
     <QuoteTopActions
       onReject={() => {
@@ -1757,28 +2049,23 @@ export default function QuoteDetailsPage({
         void handlePaymentTransactionAction();
       }}
       onPreview={() => setIsPreviewOpen(true)}
-      previewDisabled={!quote || loading || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      convertDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      previewDisabled={!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      rejectDisabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      convertDisabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
       isConverting={isConverting}
-      isRejected={["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      isRejected={isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       versions={versions}
       selectedVersionId={selectedVersionId}
       onVersionChange={(val) => setSelectedVersionId(val)}
     />
   );
 
-  const selectedVersionNumber = selectedVersionMeta?.version_number ?? null;
+  const selectedVersionNumber = getRawVersionNumber(selectedVersionMeta) ?? null;
 
   return (
-    <div
-      className={`quote-editor-theme min-h-screen ${isDark
-        ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
-        : "quote-editor-theme-light bg-[#F4F5F7] text-black"
-        }`}
-    >
+    <div className={`quote-editor-theme min-h-screen ${isDark ? "quote-editor-theme-dark bg-[#0f0f0f] text-white" : "quote-editor-theme-light bg-[#F4F5F7] text-black"}`}>
       <TopbarComponent pathname={pathname} actions={topbarActions} breadcrumbOverrides={breadcrumbOverrides} />
 
       <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-14 lg:pt-8">
@@ -1806,7 +2093,7 @@ export default function QuoteDetailsPage({
                   }}
                   disabled={isViewingInvoice || isSendingInvoice || isConverting}
                   variant="outline"
-                  className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-5 text-white hover:bg-[#232323] w-full lg:w-auto"
+                  className={`h-11 rounded-xl border px-5 w-full lg:w-auto ${isDark ? "border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]" : "border-[#0000004D] bg-white text-black hover:bg-[#F4F5F7]"}`}
                 >
                   {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
                   {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
@@ -1830,16 +2117,30 @@ export default function QuoteDetailsPage({
         </div>
 
         {loading ? (
-          <div className="flex min-h-[360px] items-center justify-center rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
-            <div className="flex items-center gap-3 text-base text-[#D4D4D8]">
+          <div className={`flex min-h-[360px] items-center justify-center rounded-[26px] border transition-colors ${isDark
+            ? "border-[#2B2B2B] bg-[#171717]"
+            : "border-[#000000]/10 bg-white"
+            }`}
+          >
+            <div
+              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"
+                }`}
+            >
               <Loader2 size={18} className="animate-spin text-[#E8D1AB]" />
               Loading quote details...
             </div>
           </div>
         ) : !quote ? (
-          <div className="rounded-[26px] border border-[#2B2B2B] bg-[#171717] p-8 text-center">
-            <p className="text-xl font-semibold text-white">Quote details unavailable</p>
-            <p className="mt-3 text-sm text-[#A1A1AA]">
+          <div
+            className={`rounded-[26px] border p-8 text-center transition-colors ${isDark
+              ? "border-[#2B2B2B] bg-[#171717]"
+              : "border-[#000000]/10 bg-white"
+              }`}
+          >
+            <p className={`text-xl font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+              Quote details unavailable
+            </p>
+            <p className={`mt-3 text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
               {errorMessage || "The selected quote could not be loaded."}
             </p>
             <Button
@@ -1856,11 +2157,12 @@ export default function QuoteDetailsPage({
               title="Client Information"
               actionLabel={canEditSelectedVersion ? "Edit Details" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("details") : undefined}
+              isDark={isDark}
             >
               <div className="flex flex-col gap-3 lg:gap-6">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 items-start gap-4">
-                    <div className="flex h-12 w-12 lg:h-[74px] lg:w-[74px] shrink-0 items-center justify-center rounded-xl lg:rounded-[22px] bg-[#F3D9A7] text-lg lg:text-[24px] font-semibold text-black">
+                    <div className="flex h-12 w-12 lg:h-[74px] lg:w-[74px] shrink-0 items-center justify-center rounded-xl lg:rounded-[22px] bg-[#F3D9A7] text-lg lg:text-2xl font-semibold text-black">
                       {getInitials(clientName)}
                     </div>
                     <div className="min-w-0">
@@ -1870,18 +2172,23 @@ export default function QuoteDetailsPage({
                         </p>
                         {selectedVersionNumber && (
                           <div className="flex flex-col items-start gap-1">
-                            <span className="text-nowrap rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
-                              Quote Version {selectedVersionNumber}
+                            <span className={`text-nowrap rounded-full px-3 py-1 text-xs font-semibold border ${isSelectedVersionRejected
+                              ? "border-[#FCA5A5]/30 bg-[#FECACA] text-[#DC2626]"
+                              : isDark
+                                ? "border-[#E8D1AB]/20 text-[#E8D1AB] bg-[#E8D1AB]/10"
+                                : "border-[#E8D1AB]/20 text-[#71717B] bg-[#E8D1AB]/30"
+                              }`}>
+                              Quote Version {selectedVersionNumber}{isSelectedVersionRejected ? " - Rejected" : ""}
                             </span>
                             {quote?.edit_reason && (
                               <p className="max-w-[300px] text-[13px] italic text-[#8F8F95] line-clamp-2" title={quote.edit_reason}>
-                                "{quote.edit_reason}"
+                                {`"${quote.edit_reason}"`}
                               </p>
                             )}
                           </div>
                         )}
                       </div>
-                      <p className="mt-1 lg:text-[24px] font-medium text-[#D8BC87]">
+                      <p className="mt-1 lg:text-2xl font-medium text-[#D8BC87]">
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
                       <p className="mt-2 text-xs lg:text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
@@ -1896,7 +2203,7 @@ export default function QuoteDetailsPage({
                       {formatStatusLabel(displayStatus)}
                     </span>
                     {signatureBase64 && (
-                      <div className="mt-3 flex flex-col items-end gap-2">
+                      <div className="mt-3 flex flex-col items-center lg:items-end gap-2">
                         <div className="border border-white/10 rounded-lg p-2 bg-white">
                           <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
                         </div>
@@ -1918,21 +2225,61 @@ export default function QuoteDetailsPage({
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm text-[#9B9BA1]">
-                  <span className="break-all">{`Email ID : ${clientEmail}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
-                  <span className="break-all">{`Phone Number : ${clientPhone}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                {isSelectedVersionRejected ? (
+                  <div className="rounded-lg lg:rounded-[20px] border border-[#FCA5A5]/25 bg-[#2A1111] p-3 lg:px-5 lg:py-4">
+                    <p className="text-xs lg:text-sm font-semibold text-[#FCA5A5]">
+                      This version was rejected. Continue with the old approved version
+                      {latestUsableVersionNumber ? `, Version ${latestUsableVersionNumber},` : ""} and edit from there.
+                    </p>
+                    {latestUsableVersionNumber ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVersionId(String(latestUsableVersionNumber))}
+                        className="mt-2 text-xs font-semibold text-[#E8D1AB] underline-offset-4 hover:underline"
+                      >
+                        Switch to Version {latestUsableVersionNumber}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm transition-colors ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
+                  <span>
+                    Email ID :{" "}
+                    <a
+                      href={`mailto:${clientEmail}`}
+                      title="Email ID"
+                      className="break-all text-white transition-colors hover:opacity-80"
+                    >
+                      {clientEmail}
+                    </a>
+                  </span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
+
+                  <span>
+                    Phone Number :{" "}
+                    <a
+                      href={`tel:${String(clientPhone).replace(/[^\d+]/g, "")}`}
+                      title="Phone Number"
+                      className="break-all text-white transition-colors hover:opacity-80"
+                    >
+                      {clientPhone}
+                    </a>
+                  </span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
+
                   <span>{`Valid Until : ${validUntil}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
+
                   <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className="break-words text-xs lg:text-sm leading-7 text-[#B3B3B8]">
-                  <span className="text-[#8F8F95]">Project Description :</span> {projectDescription}
-                </p>
+                <div className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
+                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span>
+                  <p className="mt-1 whitespace-pre-wrap">{projectDescription}</p>
+                </div>
 
-                <div className="flex items-start gap-2 text-xs lg:text-sm text-[#9B9BA1]">
+                <div className={`flex items-start gap-2 text-xs lg:text-sm ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
                   <span className="break-words">{clientAddress}</span>
                 </div>
@@ -1940,7 +2287,7 @@ export default function QuoteDetailsPage({
             </SectionShell>
 
             {!["rejected", "cancelled"].includes(normalizedQuoteStatus) && (
-              <SectionShell title="Payment">
+              <SectionShell title="Payment" isDark={isDark}>
                 <div className="space-y-4" ref={paymentSectionRef}>
                   {quoteLeadId ? (
                     <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4">
@@ -1973,20 +2320,25 @@ export default function QuoteDetailsPage({
                       {canTakeManualPayment ? (
                         <>
                           <div className="mt-3 grid grid-cols-2 gap-2">
-                            {(["full", "partial"] as const).map((type) => (
-                              <button
-                                key={type}
-                                type="button"
-                                onClick={() => setManualPaymentType(type)}
-                                disabled={hasFullPayment}
-                                className={`h-10 rounded-lg border text-sm font-medium ${manualPaymentType === type
-                                  ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                                  : "border-white/20 text-white/70"
-                                  }`}
-                              >
-                                {type === "full" ? "Full Payment" : "Partial Payment"}
-                              </button>
-                            ))}
+                            {(["full", "partial"] as const).map((type) => {
+                              const isActive = manualPaymentType === type;
+                              return (
+                                <button
+                                  key={type}
+                                  type="button"
+                                  onClick={() => setManualPaymentType(type)}
+                                  disabled={hasFullPayment}
+                                  className={`h-10 rounded-lg border text-sm font-medium transition-colors ${isActive
+                                    ? isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF7E6] text-[#000]"
+                                    : isDark
+                                      ? "border-white/20 text-white/70 hover:bg-white/5"
+                                      : "border-[#000000]/15 text-[#000000]/70 hover:bg-[#000000]/5"
+                                    }`}
+                                >
+                                  {type === "full" ? "Full Payment" : "Partial Payment"}
+                                </button>
+                              )
+                            })}
                           </div>
 
                           {manualPaymentType === "partial" ? (
@@ -1995,15 +2347,33 @@ export default function QuoteDetailsPage({
                               value={manualPaymentAmount}
                               onChange={(event) => setManualPaymentAmount(event.target.value)}
                               placeholder="Enter partial amount"
-                              className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                              className={`mt-3 h-11 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors ${isDark
+                                ? "border-white/20 text-white placeholder:text-white/40"
+                                : "border-[#000000]/15 text-[#000000] placeholder:text-[#000000]/40"
+                                }`}
                             />
                           ) : null}
 
-                          <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
-                            <SelectTrigger className="mt-3 h-11 rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white">
+                          <Select
+                            value={manualPaymentMode}
+                            onValueChange={(value) => {
+                              const nextMode = value as ManualPaymentMode;
+                              setManualPaymentMode(nextMode);
+                              if (nextMode === "net30") {
+                                setManualPaymentType("full");
+                                setManualPaymentAmount("");
+                              }
+                            }}
+                          >
+                            <SelectTrigger className={`mt-3 h-11 rounded-lg border bg-transparent px-3 text-sm transition-colors ${isDark ? "border-white/20 text-white" : "border-[#000000]/15 text-[#000000]"}`}>
                               <SelectValue placeholder="Select payment mode" />
                             </SelectTrigger>
-                            <SelectContent className="border-[#333333] bg-[#111111] text-white">
+                            <SelectContent
+                              className={`transition-colors ${isDark
+                                ? "border-[#333333] bg-[#111111] text-white"
+                                : "border-[#000000]/10 bg-white text-[#000000]"
+                                }`}
+                            >
                               <SelectItem value="cash">Cash</SelectItem>
                               <SelectItem value="wire">Wire</SelectItem>
                               <SelectItem value="ach">ACH</SelectItem>
@@ -2011,6 +2381,7 @@ export default function QuoteDetailsPage({
                               <SelectItem value="venmo">Venmo</SelectItem>
                               <SelectItem value="cashapp">CashApp</SelectItem>
                               <SelectItem value="applepay">ApplePay</SelectItem>
+                              <SelectItem value="net30">Net 30</SelectItem>
                               <SelectItem value="other">Other</SelectItem>
                             </SelectContent>
                           </Select>
@@ -2021,13 +2392,26 @@ export default function QuoteDetailsPage({
                               value={manualPaymentOtherMode}
                               onChange={(event) => setManualPaymentOtherMode(event.target.value)}
                               placeholder="Enter payment mode"
-                              className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                              className={`mt-3 h-11 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors ${isDark
+                                ? "border-white/20 text-white placeholder:text-white/40"
+                                : "border-[#000000]/15 text-[#000000] placeholder:text-[#000000]/40"
+                                }`}
                             />
                           ) : null}
 
-                          <div className="mt-3 rounded-lg border border-white/20 p-3">
-                            <label className="mb-2 block text-xs text-[#71717B]">Proof Upload (Required)</label>
-                            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 text-sm text-white">
+                          <div
+                            className={`mt-3 rounded-lg border p-3 transition-colors ${isDark ? "border-white/20" : "border-[#000000]/15"
+                              }`}
+                          >
+                            <label className={`mb-2 block text-xs transition-colors ${isDark ? "text-[#71717B]" : "text-[#000000]/50"}`}>
+                              Proof Upload (Required)
+                            </label>
+                            <label
+                              className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition-colors ${isDark
+                                ? "border-white/20 text-white hover:bg-white/5"
+                                : "border-[#000000]/15 text-[#000000] hover:bg-[#000000]/5"
+                                }`}
+                            >
                               <ArrowUpToLine size={14} />
                               {isUploadingManualProof ? "Uploading..." : "Choose File"}
                               <input
@@ -2041,7 +2425,9 @@ export default function QuoteDetailsPage({
                               />
                             </label>
                             {manualPaymentProofFileName ? (
-                              <p className="mt-2 text-xs text-[#71717B]">{manualPaymentProofFileName}</p>
+                              <p className={`mt-2 text-xs transition-colors ${isDark ? "text-[#71717B]" : "text-[#000000]/50"}`}>
+                                {manualPaymentProofFileName}
+                              </p>
                             ) : null}
                           </div>
 
@@ -2049,7 +2435,10 @@ export default function QuoteDetailsPage({
                             value={manualPaymentNotes}
                             onChange={(event) => setManualPaymentNotes(event.target.value)}
                             placeholder="Add notes"
-                            className="mt-3 min-h-[84px] w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm text-white outline-none"
+                            className={`mt-3 min-h-[84px] w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none transition-colors ${isDark
+                              ? "border-white/20 text-white placeholder:text-white/40"
+                              : "border-[#000000]/15 text-[#000000] placeholder:text-[#000000]/40"
+                              }`}
                           />
 
                           <div className="mt-3 flex justify-end">
@@ -2077,7 +2466,9 @@ export default function QuoteDetailsPage({
                             {manualPaymentEntries.map((entry, index) => {
                               const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
                               const paidMode = entry.data.payment_mode
-                                ? String(entry.data.payment_mode).replace(/_/g, " ")
+                                ? String(entry.data.payment_mode).toLowerCase() === "other" && entry.data.other_payment_mode
+                                  ? String(entry.data.other_payment_mode)
+                                  : String(entry.data.payment_mode).replace(/_/g, " ")
                                 : "manual";
 
                               return (
@@ -2086,7 +2477,9 @@ export default function QuoteDetailsPage({
                                   className="rounded-md border border-white/10 px-3 py-2 text-xs"
                                 >
                                   <p className="text-white/80">
-                                    {entry.data.payment_type === "partial"
+                                    {String(entry.data.payment_mode || "").toLowerCase() === "net30"
+                                      ? "Net 30 initiated"
+                                      : entry.data.payment_type === "partial"
                                       ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
                                       : "Full payment marked"}{" "}
                                     via {paidMode}
@@ -2118,7 +2511,7 @@ export default function QuoteDetailsPage({
                         {convertedBookingId ? ` #${convertedBookingId}` : ""}.
                       </p>
                       <p className="mt-1 text-xs text-emerald-300/90">
-                      <Loader2/>
+                        <Loader2 />
                         Lead linkage is unavailable in this response, so manual payment updates from this panel are hidden.
                       </p>
                     </div>
@@ -2133,6 +2526,7 @@ export default function QuoteDetailsPage({
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
               actionLabel={canEditSelectedVersion ? "Edit Services" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("services") : undefined}
+              isDark={isDark}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -2153,6 +2547,7 @@ export default function QuoteDetailsPage({
               title="Add-On Includes"
               actionLabel={canEditSelectedVersion ? "Edit Add ons" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("addons") : undefined}
+              isDark={isDark}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -2160,10 +2555,13 @@ export default function QuoteDetailsPage({
                     <div
                       key={item.id}
                       title={`${item.name} x ${item.quantity}`}
-                      className="min-w-0 max-w-full rounded-lg lg:rounded-[14px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 sm:max-w-[360px]"
+                      className={`min-w-0 max-w-full rounded-lg lg:rounded-[14px] border p-3 lg:px-5 lg:py-4 sm:max-w-[360px] transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111]"
+                        : "border-[#000000]/10 bg-white"
+                        }`}
                     >
                       <p className="truncate text-sm lg:text-lg font-medium text-[#D8BC87]">{item.name}</p>
-                      <p className="mt-1 text-xs lg:text-sm text-[#8F8F95]">Qty: {item.quantity}</p>
+                      <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>Qty: {item.quantity}</p>
                     </div>
                   ))}
                 </div>
@@ -2176,6 +2574,7 @@ export default function QuoteDetailsPage({
               title="Logistics"
               actionLabel={canEditSelectedVersion ? "Edit Logistics" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("logistics") : undefined}
+              isDark={isDark}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -2183,7 +2582,10 @@ export default function QuoteDetailsPage({
                     <div
                       key={item.id}
                       title={item.name}
-                      className="min-w-0 max-w-full rounded-lg lg:rounded-[14px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 text-sm lg:text-lg text-[#9B9BA1] sm:max-w-[360px]"
+                      className={`min-w-0 max-w-full rounded-lg lg:rounded-[14px] border p-3 lg:px-5 lg:py-4 text-sm lg:text-lg sm:max-w-[360px] transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111] text-[#9B9BA1]"
+                        : "border-[#000000]/10 bg-white text-[#000000]/60"
+                        }`}
                     >
                       <p className="truncate">{item.name}</p>
                     </div>
@@ -2198,13 +2600,17 @@ export default function QuoteDetailsPage({
               title="Custom Line Item"
               actionLabel={canEditSelectedVersion ? "Edit Items" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("customlineitems") : undefined}
+              isDark={isDark}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
                   {customItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex flex-col gap-1.5 lg:gap-3 rounded-lg lg:rounded-[18px] border border-[#2B2B2B] bg-[#111111] p-3 lg:px-5 lg:py-4 lg:flex-row lg:items-center lg:justify-between"
+                      className={`flex flex-col gap-1.5 lg:gap-3 rounded-lg lg:rounded-[18px] border p-3 lg:px-5 lg:py-4 lg:flex-row lg:items-center lg:justify-between transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111]"
+                        : "border-[#000000]/10 bg-white"
+                        }`}
                     >
                       <span
                         className="min-w-0 flex-1 break-words pr-0 text-sm lg:text-[20px] font-medium text-white lg:pr-6"
@@ -2227,13 +2633,14 @@ export default function QuoteDetailsPage({
               title="Other Details"
               actionLabel={canEditSelectedVersion ? "Edit Tax & Discounts" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("discounts") : undefined}
+              isDark={isDark}
             >
               <div className="space-y-3 lg:space-y-6">
-                <div className="inline-flex rounded-lg lg:rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
+                <div className="inline-flex rounded-lg lg:rounded-2xl border border-[#2B2B2B] bg-[#111111] p-1">
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("discounts")}
-                    className={`rounded-xl lg:rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
+                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2243,7 +2650,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
-                    className={`rounded-xl lg:rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
+                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2253,65 +2660,79 @@ export default function QuoteDetailsPage({
                 </div>
 
                 {otherDetailsTab === "discounts" ? (
-                  <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
+                  <div
+                    className={`rounded-lg lg:rounded-[22px] border px-4 lg:px-5 py-2 transition-colors ${isDark
+                      ? "border-[#2B2B2B] bg-[#111111]"
+                      : "border-[#000000]/10 bg-white"
+                      }`}
+                  >
                     <div className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
-                        <p className="lg:text-[24px] font-semibold text-white">Discount Type</p>
-                        <p className="mt-1 text-xs lg:text-sm text-[#8F8F95]">
+                        <p className={`lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+                          Discount Type
+                        </p>
+                        <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
                           {isFixedDiscount ? "$ off subtotal" : "% off subtotal"}
                         </p>
                       </div>
-                      <div className="inline-flex items-center gap-3 rounded-lg lg:rounded-[16px] bg-[#1A1A1A] px-4 py-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#E8D1AB] text-black">
+
+                      {/* Type Badge Metric Display */}
+                      <div className={`inline-flex items-center gap-3 rounded-lg lg:rounded-2xl px-4 py-3 transition-colors ${isDark ? "bg-[#1A1A1A]" : "bg-[#000000]/[0.02] border border-[#000000]/5"}`}>
+                        <div className={`flex h-11 w-11 items-center justify-center rounded-xl transition-colors bg-[#E8D1AB] text-black`}>
                           {isFixedDiscount ? <DollarSign size={20} /> : <Percent size={20} />}
                         </div>
                         <div>
-                          <p className="lg:text-lg font-semibold text-white">
+                          <p className={`lg:text-lg font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                             {isFixedDiscount ? "Fixed Amount" : "Percentage"}
                           </p>
-                          <p className="text-xs lg:text-sm text-[#8F8F95]">
+                          <p className={`text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
                             {isFixedDiscount ? formatQuoteCurrency(discountValue) : `${discountValue}%`}
                           </p>
                         </div>
                       </div>
                     </div>
-                    <div className="border-t border-[#2B2B2B]" />
+
+                    {/* Row Data Metrics Panels */}
+                    <div className={`border-t transition-colors ${isDark ? "border-[#2B2B2B]" : "border-[#000000]/10"}`} />
                     <DetailRow
                       label="Discount Amount"
                       value={formatQuoteCurrency(discountAmount)}
+                      isDark={isDark}
                     />
-                    <div className="border-t border-[#2B2B2B]" />
+
+                    <div className={`border-t transition-colors ${isDark ? "border-[#2B2B2B]" : "border-[#000000]/10"}`} />
                     <DetailRow
                       label="Total After Discount"
                       value={formatQuoteCurrency(discountedSubtotal)}
+                      isDark={isDark}
                     />
                   </div>
                 ) : (
                   <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
-                    <DetailRow label="Tax Type" value={taxType} />
+                    <DetailRow label="Tax Type" value={taxType} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Tax Rate" value={`${taxRate}%`} />
+                    <DetailRow label="Tax Rate" value={`${taxRate}%`} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} />
+                    <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} isDark={isDark} />
                   </div>
                 )}
 
                 <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
-                  <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} />
+                  <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} isDark={isDark} />
                   {discountAmount > 0 ? (
                     <>
                       <div className="border-t border-[#2B2B2B]" />
-                      <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
+                      <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} isDark={isDark} />
                     </>
                   ) : null}
                   <div className="border-t border-[#2B2B2B]" />
-                  <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} />
+                  <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} isDark={isDark} />
                 </div>
 
                 {terms.length > 0 ? (
                   <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4 lg:p-5">
                     <p className="lg:text-lg font-semibold text-white">Terms & Conditions</p>
-                    <div className="mt-4 lg:space-y-2 text-xs lg:text-sm leading-4 lg:leading-7 text-[#B3B3B8]">
+                    <div className={`mt-4 lg:space-y-2 text-xs lg:text-sm leading-4 lg:leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#71717B]"}`}>
                       {terms.map((term, index) => (
                         <p key={`${term}-${index}`}>{term}</p>
                       ))}
@@ -2327,16 +2748,16 @@ export default function QuoteDetailsPage({
               <Button
                 type="button"
                 onClick={handleRejectQuote}
-                disabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                disabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
                 className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
               >
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
-                {isRejecting ? "Rejecting..." : ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
+                {isRejecting ? "Rejecting..." : isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
               </Button>
               <Button
                 type="button"
-                onClick={() => setIsPreviewOpen(true) }
-                disabled={(!quote || loading || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                onClick={() => setIsPreviewOpen(true)}
+                disabled={(!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
                 className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
               >
                 <Eye size={18} />
@@ -2352,6 +2773,9 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+        onBeforeCopy={handleBeforeShareQuote}
+        onBeforeSend={handleBeforeShareQuote}
+        showShareActions={isSelectedLatestUsableVersion && !isSelectedVersionRejected}
         paymentSummaryOverrides={previewPaymentSummaryOverrides}
       />
       <EditAccessModalComponent

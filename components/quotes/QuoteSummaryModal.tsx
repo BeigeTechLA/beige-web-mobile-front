@@ -6,7 +6,6 @@ import { ArrowLeft } from "lucide-react";
 import QuoteSummaryContent from "@/components/admin/quotes/QuoteSummaryContent";
 import { Button } from "@/components/ui/button";
 import type { QuoteSummarySnapshot } from "@/lib/quoteSummary";
-import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type QuoteSummaryModalProps = {
   open: boolean;
@@ -14,6 +13,7 @@ type QuoteSummaryModalProps = {
   snapshot: QuoteSummarySnapshot | null;
   onPreview: () => void;
   previewDisabled?: boolean;
+  isDark?: boolean; // Added theme control prop
 };
 
 export default function QuoteSummaryModal({
@@ -22,8 +22,8 @@ export default function QuoteSummaryModal({
   snapshot,
   onPreview,
   previewDisabled = false,
+  isDark = true
 }: QuoteSummaryModalProps) {
-  const { isDark } = useResolvedTheme();
 
   if (!open) {
     return null;

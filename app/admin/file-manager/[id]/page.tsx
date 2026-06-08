@@ -24,6 +24,7 @@ import {
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const STATUSES = ["Linked", "Unlinked"];
 const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
@@ -33,6 +34,7 @@ export default function AdminFolderDetailsPage() {
   const pathname = usePathname();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const { isDark } = useResolvedTheme();
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -188,44 +190,60 @@ export default function AdminFolderDetailsPage() {
     <>
       <Topbar pathname={pathname} />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
-        <Button onClick={() => router.back()} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0">
+      <div className="overflow-x-hidden overflow-y-auto p-4 pb-10 lg:px-10 lg:py-9">
+        <Button onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-        {loading ? (
-          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
-        }`}>
-        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-      </div>
-        ) : error ? (
-          <div className="text-red-300 text-sm">{error || "Workspace not found"}</div>
-        ) : !workspaceName ? (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-[#111111] p-6 text-sm text-white/65">
-            Workspace is not available for this project yet. Older projects may not have one linked.
-          </div>
-        ) : (
-          <>
-            <div>
-              <div className="flex items-start gap-5 mb-3 lg:mb-6">
-                <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
-                  {getDisplayInitials(workspaceName)}
-                </div>
-                <div className="min-w-0 text-white max-w-3xl flex-1">
-                  <div className="flex flex-row lg:items-center gap-2">
-                    <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
-                      {workspaceName}
-                    </h1>
-                    <span className="px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
+        {
+          loading ? (
+            <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-gray-200 bg-gray-50"}`}>
+              <Loader2 className={`animate-spin text-[#E8D1AB]`} size={40} />
+            </div>
+          ) : error ? (
+            <div className={`text-sm p-4 rounded-2xl border ${isDark
+              ? "text-red-300"
+              : "text-red-600"
+              }`}>
+              {error || "Workspace not found"}
+            </div>
+          ) : !workspaceName ? (
+            <div className={`rounded-2xl border border-dashed p-6 text-sm ${isDark ? "border-white/10 bg-[#111111] text-white/65" : "border-gray-300 bg-white text-gray-600"}`}>
+              Workspace is not available for this project yet. Older projects may not have one linked.
+            </div>
+          ) : (
+            <>
+              <div>
+                <div className="flex items-start gap-5 mb-3 lg:mb-6">
+                  {/* Workspace Initials Avatar */}
+                  <div className={`h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl flex items-center justify-center text-lg lg:text-[30px] font-medium transition-colors duration-300 ${isDark
+                    ? "bg-[#C8E1FF] text-[#000]"
+                    : "bg-blue-100 text-blue-900"
+                    }`}>
+                    {getDisplayInitials(workspaceName)}
+                  </div>
+
+                  <div className={`min-w-0 ${isDark ? "text-white" : "text-black"} max-w-3xl flex-1`}>
+                    <div className="flex flex-row lg:items-center gap-2">
+                      <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
+                        {workspaceName}
+                      </h1>
+                      <span className="hidden lg:block px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
+                        Active Project
+                      </span>
+                    </div>
+
+                    {/* Project Code Meta text */}
+                    <p className={`text-xs lg:text-sm transition-colors duration-300 ${isDark ? "text-[#D0D0D0]" : "text-gray-600"}`}>
+                      <span className={isDark ? "text-[#AAA7A7]" : "text-gray-400"}>Project Code: </span>
+                      {workspaceCode}
+                    </p>
+
+                    <span className="mt-2 block lg:hidden px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
                       Active Project
                     </span>
-                  </div>
-                  <p className="text-xs lg:text-sm text-[#D0D0D0]">
-                    <span className="text-[#AAA7A7]">Project Code: </span>
-                    {workspaceCode}
-                  </p>
-                  {/* {workspaceConsoleUrl ? (
+                    {/* {workspaceConsoleUrl ? (
                     <a
                       href={workspaceConsoleUrl}
                       target="_blank"
@@ -235,14 +253,14 @@ export default function AdminFolderDetailsPage() {
                       Open Storage Folder
                     </a>
                   ) : null} */}
+                  </div>
                 </div>
-              </div>
 
-              {/* <p className="lg:hidden text-xs text-[#D0D0D0]">
+                {/* <p className="lg:hidden text-xs text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {workspaceCode}
               </p> */}
-              {/* {workspaceConsoleUrl ? (
+                {/* {workspaceConsoleUrl ? (
                 <a
                   href={workspaceConsoleUrl}
                   target="_blank"
@@ -252,175 +270,183 @@ export default function AdminFolderDetailsPage() {
                   Open Storage Folder
                 </a>
               ) : null} */}
-            </div>
-
-            <div className="pb-20 lg:pb-0">
-              <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
-                <div className="relative flex-1 max-w-xl">
-                  <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search folder..."
-                    value={searchTerm}
-                    className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <div className="flex gap-2 ">
-                  {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-                  <FileManagerViewToggle
-                    isOpen={isOpen}
-                    setIsOpen={setIsOpen}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                  />
-                </div>
               </div>
 
-              {viewMode === "grid" ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-                  {visibleFolders.map((folder) => (
-                    <FolderCard
-                      key={folder.id}
-                      title={folder.title}
-                      fileCount={folder.fileCount}
-                      lastOpened={folder.lastOpened}
-                      userInitials={folder.userInitials}
-                      onOpenLinkModal={() => {
-                        setSelectedFolder(folder);
-                        setIsLinkModalOpen(true);
-                      }}
-                      href={folder.href}
-                      onDownload={async () => {
-                        setSelectedFolder(folder);
-                        try {
-                          const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
-                            phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
-                          });
-                          if (result?.url) {
-                            window.open(result.url, "_blank", "noopener,noreferrer");
-                          }
-                        } catch (err: any) {
-                          toast.error(err?.message || "Failed to download folder");
-                        }
-                      }}
-                      onDelete={() => {
-                        setSelectedFolder(folder);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      onShare={() => {
-                        setSelectedFolder(folder);
-                        setShareResource({
-                          resourceType: "folder",
-                          externalId: String(projectId || ""),
-                          phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
-                          label: folder.title,
-                        });
-                        setIsShareModalOpen(true);
-                      }}
-                      onRename={() => toast.info("Folder rename is the next safe step.")}
+              <div >
+                <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
+                  <div className="relative flex-1 max-w-xl">
+                    <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
+                    <input
+                      type="text"
+                      placeholder="Search folder..."
+                      value={searchTerm}
+                      className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                        ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                        : "bg-white border-[#E3E3E3] text-black placeholder:text-[#9F9FA9] focus:ring-[#D7D7D7] focus:border-[#D7D7D7]"
+                        }`}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                  ))}
+                  </div>
+
+                  <div className="flex gap-2 ">
+                    {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
+                    <FileManagerViewToggle
+                      isOpen={isOpen}
+                      setIsOpen={setIsOpen}
+                      viewMode={viewMode}
+                      setViewMode={setViewMode}
+                      isDark={isDark}
+                    />
+                  </div>
                 </div>
-              ) : viewMode === "board" ? (
-                <FileManagerBoard
-                  columns={boardColumns}
-                  emptyMessage="No folders in this column"
-                  getItemId={(folder) => String(folder.id)}
-                  renderCard={(folder) => (
-                    <FolderCard
-                      title={folder.title}
-                      fileCount={folder.fileCount}
-                      lastOpened={folder.lastOpened}
-                      userInitials={folder.userInitials}
-                      isLinked={folder.isLinked}
-                      href={folder.href}
-                      onOpen={() => router.push(folder.href || `${pathname}/${folder.id}`)}
-                      onOpenLinkModal={() => {
-                        setSelectedFolder(folder);
-                        setIsLinkModalOpen(true);
-                      }}
-                      onDownload={async () => {
-                        setSelectedFolder(folder);
-                        try {
-                          const result = await fileManagerApi.getExternalFolderDownloadUrl(folder.id);
-                          if (result?.url) {
-                            window.open(result.url, "_blank", "noopener,noreferrer");
-                          }
-                        } catch (err: any) {
-                          toast.error(err?.message || "Failed to download folder");
-                        }
-                      }}
-                      onDelete={() => {
-                        setSelectedFolder(folder);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      onShare={() => {
-                        setSelectedFolder(folder);
-                        setIsShareModalOpen(true);
-                      }}
-                      onRename={() => toast.info("Folder rename is the next safe step.")}
-                    />
-                  )}
-                />
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <div className="lg:hidden">
+
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                     {visibleFolders.map((folder) => (
-                      <MobileFolderRow
+                      <FolderCard
                         key={folder.id}
-                        folder={folder}
-                        handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                        title={folder.title}
+                        fileCount={folder.fileCount}
+                        lastOpened={folder.lastOpened}
+                        userInitials={folder.userInitials}
+                        onOpenLinkModal={() => {
+                          setSelectedFolder(folder);
+                          setIsLinkModalOpen(true);
+                        }}
+                        href={folder.href}
+                        onDownload={async () => {
+                          setSelectedFolder(folder);
+                          try {
+                            const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
+                              phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                            });
+                            if (result?.url) {
+                              window.open(result.url, "_blank", "noopener,noreferrer");
+                            }
+                          } catch (err: any) {
+                            toast.error(err?.message || "Failed to download folder");
+                          }
+                        }}
+                        onDelete={() => {
+                          setSelectedFolder(folder);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        onShare={() => {
+                          setSelectedFolder(folder);
+                          setShareResource({
+                            resourceType: "folder",
+                            externalId: String(projectId || ""),
+                            phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                            label: folder.title,
+                          });
+                          setIsShareModalOpen(true);
+                        }}
+                        onRename={() => toast.info("Folder rename is the next safe step.")}
                       />
                     ))}
                   </div>
+                ) : viewMode === "board" ? (
+                  <FileManagerBoard
+                    columns={boardColumns}
+                    emptyMessage="No folders in this column"
+                    getItemId={(folder) => String(folder.id)}
+                    renderCard={(folder) => (
+                      <FolderCard
+                        title={folder.title}
+                        fileCount={folder.fileCount}
+                        lastOpened={folder.lastOpened}
+                        userInitials={folder.userInitials}
+                        isLinked={folder.isLinked}
+                        href={folder.href}
+                        onOpen={() => router.push(folder.href || `${pathname}/${folder.id}`)}
+                        onOpenLinkModal={() => {
+                          setSelectedFolder(folder);
+                          setIsLinkModalOpen(true);
+                        }}
+                        onDownload={async () => {
+                          setSelectedFolder(folder);
+                          try {
+                            const result = await fileManagerApi.getExternalFolderDownloadUrl(folder.id);
+                            if (result?.url) {
+                              window.open(result.url, "_blank", "noopener,noreferrer");
+                            }
+                          } catch (err: any) {
+                            toast.error(err?.message || "Failed to download folder");
+                          }
+                        }}
+                        onDelete={() => {
+                          setSelectedFolder(folder);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        onShare={() => {
+                          setSelectedFolder(folder);
+                          setIsShareModalOpen(true);
+                        }}
+                        onRename={() => toast.info("Folder rename is the next safe step.")}
+                      />
+                    )}
+                  />
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <div className="lg:hidden">
+                      {visibleFolders.map((folder) => (
+                        <MobileFolderRow
+                          key={folder.id}
+                          folder={folder}
+                          handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                          isDark={isDark}
+                        />
+                      ))}
+                    </div>
 
-                  <div className="hidden lg:block overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                          <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                          <th className="py-5 px-6 font-medium">Files</th>
-                          <th className="py-5 px-6 font-medium">Last Updated</th>
-                          <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleFolders.map((folder) => (
-                          <tr
-                            key={folder.id}
-                            className="items-center hover:bg-white/[0.02] transition-colors cursor-pointer"
-                            onClick={(e) => {
-                              if ((e.target as HTMLElement).closest("button")) return;
-                              router.push(folder.href || `${pathname}/${folder.id}`);
-                            }}
-                          >
-                            <td className="py-5 px-6 text-white flex gap-2 items-center">
-                              <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
-                                <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
-                              </div>
-                              <span className="text-sm font-semibold">{folder.title}</span>
-                            </td>
-                            <td className="py-5 px-6 text-white">{String(folder.fileCount).padStart(2, "0")}</td>
-                            <td className="py-5 px-6">{folder.lastOpened}</td>
-                            <td className="py-5 px-6 text-right">
-                              <Button
-                                className="h-10 w-10 rounded-full p-0 text-white transition-colors hover:bg-white/10 hover:text-white/90"
-                                onClick={(e) => handleOpenMenu(e, folder)}
-                              >
-                                <MoreVertical size={20} />
-                              </Button>
-                            </td>
+                    <div className="hidden lg:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className={`text-sm font-normal cursor-pointer transition-colors duration-200 ${isDark ? "bg-[#202020] text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"}`}>
+                            <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                            <th className="py-5 px-6 font-medium">Files</th>
+                            <th className="py-5 px-6 font-medium">Last Updated</th>
+                            <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className={`${isDark ? "bg-[#171717]" : "bg-white"} transition-colors duration-200`}>
+                          {visibleFolders.map((folder) => (
+                            <tr
+                              key={folder.id}
+                              className={`items-center cursor-pointer transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
+                              onClick={(e) => {
+                                if ((e.target as HTMLElement).closest("button")) return;
+                                router.push(folder.href || `${pathname}/${folder.id}`);
+                              }}
+                            >
+                              <td className={`py-5 px-6 flex gap-2 items-center min-w-0 ${isDark ? "text-white" : "text-black"}`}>
+                                <div className={`h-10 w-10 flex items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-transparent"}`}>
+                                  <FolderOpen className={"text-[#E8D1AB] fill-[#E8D1AB]/20"} size={24} />
+                                </div>
+                                <span className="text-sm font-semibold">{folder.title}</span>
+                              </td>
+                              <td className={`py-5 px-6 font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                                {String(folder.fileCount).padStart(2, "0")}
+                              </td>
+                              <td className={`py-5 px-6 font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>{folder.lastOpened}</td>
+                              <td className={`py-5 px-6 text-right transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                                <Button
+                                  className={`h-10 w-10 rounded-full p-0 transition-colors ${isDark ? "text-white hover:bg-white/10 hover:text-white/90" : "text-black bg-transparent hover:bg-black/5 hover:text-black/90"}`}
+                                  onClick={(e) => handleOpenMenu(e, folder)}
+                                >
+                                  <MoreVertical size={20} />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+                )}
+              </div>
+            </>
+          )}
 
         {menuAnchor && (
           <FileActionMenu
@@ -443,6 +469,7 @@ export default function AdminFolderDetailsPage() {
             }}
             onDelete={() => setIsDeleteModalOpen(true)}
             onRename={() => toast.info("Folder rename is the next safe step.")}
+            isDark={isDark}
           />
         )}
 

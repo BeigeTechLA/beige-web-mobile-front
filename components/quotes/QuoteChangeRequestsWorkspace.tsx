@@ -175,7 +175,7 @@ const buildPaginationItems = (
 const getStatusBadgeClass = (status: string) => {
   switch (normalizeStatus(status)) {
     case "approved":
-      return "bg-[#C8F5D2] text-[#1F9D4A]";
+      return "bg-[#D4FFE4] text-[#1F9D4A]";
     case "rejected":
       return "bg-[#FFC9C9] text-[#E44E4E]";
     default:
@@ -183,21 +183,21 @@ const getStatusBadgeClass = (status: string) => {
   }
 };
 
-const getRequestTypeMeta = (requestType: string) => {
+const getRequestTypeMeta = (requestType: string, isDark: boolean) => {
   if (normalizeRequestType(requestType) === "increase") {
     return {
       label: "Increase",
-      amountClass: "text-[#22c55e]",
+      amountClass: isDark ? "text-[#22c55e]" : "text-[#16a34a]",
       Icon: TrendingUp,
-      iconWrapClass: "bg-[#232323] text-[#22c55e]",
+      iconWrapClass: isDark ? "bg-[#232323] text-[#22c55e]" : "bg-[#000000]/[0.05] text-[#16a34a]",
     };
   }
 
   return {
     label: "Decrease",
-    amountClass: "text-[#ef4444]",
+    amountClass: isDark ? "text-[#ef4444]" : "text-[#dc2626]", // Adjusted slightly for light mode readability
     Icon: TrendingDown,
-    iconWrapClass: "bg-[#232323] text-[#ef4444]",
+    iconWrapClass: isDark ? "bg-[#232323] text-[#ef4444]" : "bg-[#000000]/[0.05] text-[#dc2626]",
   };
 };
 
@@ -247,7 +247,7 @@ const TableRow = ({
 }) => {
   const quoteLabel = request.quote_number || `Beige - ${request.quote_id ?? "-"}`;
   const clientName = request.client_name || "Client not available";
-  const requestTypeMeta = getRequestTypeMeta(request.request_type || "");
+  const requestTypeMeta = getRequestTypeMeta(request.request_type || "", isDark);
   const changeAmount =
     normalizeRequestType(request.request_type) === "increase"
       ? request.extra_amount
@@ -286,9 +286,6 @@ const TableRow = ({
             </div>
 
             <div className="flex items-center gap-3">
-              {/* <div className={`flex w-5 h-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center overflow-hidden rounded-md lg:rounded-lg text-[9px] lg:text-sm font-semibold ${getAvatarClass(clientName)}`}>
-                {getInitials(clientName)}
-              </div> */}
               {window.innerWidth < 1024 ? (
                 <div className="flex items-center gap-2">
                   <div className={`flex w-5 h-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center overflow-hidden rounded-md lg:rounded-lg text-[9px] lg:text-sm font-semibold ${getAvatarClass(clientName)}`}>
@@ -354,10 +351,7 @@ const TableRow = ({
           </div>
         </td>
 
-        <td
-          className={`px-4 py-4 hidden lg:table-cell text-sm ${isDark ? "text-white/80" : "text-black/70"
-            }`}
-        >
+        <td className={`px-4 py-4 hidden lg:table-cell text-sm ${isDark ? "text-white/80" : "text-black/70"}`}>
           <div>{`Before: ${formatCurrency(request.previous_total)}`}</div>
           <div>{`After : ${formatCurrency(request.new_total)}`}</div>
         </td>
@@ -372,10 +366,7 @@ const TableRow = ({
           </span>
         </td>
 
-        <td
-          className={`px-4 py-4 hidden lg:table-cell ${isDark ? "text-white/60" : "text-black/60"
-            }`}
-        >
+        <td className={`px-4 py-4 hidden lg:table-cell ${isDark ? "text-white/60" : "text-black/60"}`}>
           {formatDateTime(request.created_at)}
         </td>
 
@@ -464,6 +455,7 @@ const RequestDetailsModal = ({
   onApprove,
   onReject,
   processingAction,
+  isDark = true,
 }: {
   request: QuoteChangeRequestItem;
   detailsHrefBase: string;
@@ -471,6 +463,7 @@ const RequestDetailsModal = ({
   onApprove: () => void;
   onReject: () => void;
   processingAction: "approve" | "reject" | null;
+  isDark?: boolean;
 }) => {
   const status = normalizeStatus(request.approval_status);
   const requestType = normalizeRequestType(request.request_type);
@@ -481,33 +474,36 @@ const RequestDetailsModal = ({
   const newTotal = toNumber(request.new_total);
   const changeSummary = request.overall_change_summary?.summary;
   const summaryLines = request.overall_change_summary?.lines ?? [];
-  const requestTypeMeta = getRequestTypeMeta(request.request_type || "");
+  const requestTypeMeta = getRequestTypeMeta(request.request_type || "", isDark);
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/80 px-0 pt-7 pb-0 lg:p-4 backdrop-blur-md no-scrollbar ">
-      <div className="relative flex flex-col lg:block max-h-[95vh] lg:max-h-[90vh] w-full max-w-[1120px] overflow-hidden lg:overflow-y-auto rounded-t-3xl lg:rounded-3xl border border-[#FFFFFF66] bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_120px_rgba(0,0,0,0.72)]">
-
+    <div className={`fixed inset-0 z-[160] flex items-center justify-center px-0 pt-7 pb-0 lg:p-4 backdrop-blur-md no-scrollbar ${isDark ? "bg-black/80" : "bg-white/20"}`}>
+      <div
+        className={`relative flex flex-col lg:block max-h-[95vh] lg:max-h-[90vh] w-full max-w-[1120px] overflow-hidden lg:overflow-y-auto rounded-t-3xl lg:rounded-3xl border transition-colors mx-5 ${isDark
+          ? "border-white/20 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_120px_rgba(0,0,0,0.72)]"
+          : "border-[#000000]/10 bg-white text-[#000000] shadow-[0_30px_120px_rgba(0,0,0,0.15)]"}`}
+      >
         {/* Header: Fixed at the top */}
-        <div className="flex items-center justify-between gap-6 border-b border-b-[CACACA] px-4 py-7 lg:px-9 shrink-0">
+        <div className={`flex items-center justify-between gap-6 border-b px-4 py-7 lg:px-9 shrink-0 ${isDark ? " border-[CACACA]" : "border-[#000000]/10"}`}>
           <h2 className="lg:text-xl lg:text-[30px] font-bold leading-none">View Details</h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex w-11 h-11 lg:h-15 lg:w-15 items-center justify-center rounded-full bg-[#2D2725] text-white transition-colors hover:bg-[#39312E]"
+            className={`flex w-11 h-11 lg:h-15 lg:w-15 items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#2D2725] text-white hover:bg-[#39312E]" : "bg-[#000000]/5 text-[#000000] hover:bg-[#000000]/10"}`}
             aria-label="Close modal"
           >
             <X size={24} />
           </button>
         </div>
 
-        {/* Content: Scrollable on mobile (flex-1), static on desktop (lg:overflow-visible) */}
+        {/* Content: Scrollable on mobile (flex-1), static on desktop */}
         <div className="flex-1 overflow-y-auto lg:overflow-visible space-y-5 px-6 py-6 lg:px-9 lg:py-7">
           <div className="flex gap-5 flex-row items-center justify-between">
             <div>
-              <h3 className="text-lg lg:text-[26px] font-semibold text-white">
+              <h3 className={`text-lg lg:text-[26px] font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>
                 {request.quote_number || `BEIGE-${request.quote_id ?? "117"}`}
               </h3>
-              <p className="lg:mt-2 text-xs lg:text-sm text-[#FFFFFFB2]">
+              <p className={`lg:mt-2 text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000]/60"}`}>
                 Review the quote change request details and approve or reject from this popup.
               </p>
             </div>
@@ -517,29 +513,29 @@ const RequestDetailsModal = ({
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#1A1A1A] px-4 py-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#1B2840] text-[#58A6FF]">
+            <div className={`flex items-center gap-4 rounded-2xl border px-4 py-4 ${isDark ? "border-white/10 bg-[#1A1A1A]" : "border-[#e3e3e3] bg-[#F4F5F7]"}`}>
+              <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${isDark ? "bg-[#1B2840] text-[#58A6FF]" : "bg-[#58A6FF]/15 text-[#0052CC]"}`}>
                 <CalendarDays size={24} />
               </div>
-              <div className="min-w-0 text-sm leading-7 text-white/62 lg:text-base">
-                <span className="text-white/62">Requested At : </span>
-                <span className="font-semibold text-white">{formatShortDateTime(request.created_at)}</span>
+              <div className={`min-w-0 text-sm leading-7 lg:text-base ${isDark ? "text-white/60" : "text-[#000000]/60"}`}>
+                <span>Requested At : </span>
+                <span className={`font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>{formatShortDateTime(request.created_at)}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#1A1A1A] px-4 py-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#17331E] text-[#1ED760]">
+            <div className={`flex items-center gap-4 rounded-2xl border px-4 py-4 ${isDark ? "border-white/10 bg-[#1A1A1A]" : "border-[#e3e3e3] bg-[#F4F5F7]"}`}>
+              <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${isDark ? "bg-[#17331E] text-[#1ED760]" : "bg-emerald-500/10 text-emerald-600"}`}>
                 <TrendingUp size={24} />
               </div>
-              <div className="min-w-0 text-sm leading-7 text-white/62 lg:text-base">
-                <span className="text-white/62">Request Type : </span>
+              <div className={`min-w-0 text-sm leading-7 lg:text-base ${isDark ? "text-white/60" : "text-[#000000]/60"}`}>
+                <span>Request Type : </span>
                 <span className={requestTypeMeta.amountClass}>{requestTypeMeta.label}</span>
               </div>
             </div>
           </div>
 
-          <section className="rounded-2xl border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
-            <h4 className="lg:text-xl font-medium text-white">Request Info</h4>
+          <section className={`rounded-2xl border p-4 lg:p-5 ${isDark ? "border-white/10 bg-[#1A1A1A]" : "border-[#000000]/10 bg-[#000000]/[0.01]"}`}>
+            <h4 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-[#000000]"}`}>Request Info</h4>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-4">
               {[
@@ -547,35 +543,35 @@ const RequestDetailsModal = ({
                   label: "Booking ID:",
                   value: `B - ${request.booking_id ?? "1234"}`,
                   icon: ClipboardList,
-                  valueClass: "text-white",
+                  valueClass: isDark ? "text-white" : "text-[#000000]",
                 },
                 {
                   label: "Client Name:",
                   value: request.client_name || "Ethan Carter",
                   icon: UserRound,
-                  valueClass: "text-white",
+                  valueClass: isDark ? "text-white" : "text-[#000000]",
                 },
                 {
                   label: "Requested By:",
                   value: request.requested_by?.name || "Admin",
                   icon: UsersRound,
-                  valueClass: "text-white",
+                  valueClass: isDark ? "text-white" : "text-[#000000]",
                 },
                 {
                   label: "Assigned Sales Rep:",
                   value: request.assigned_sales_rep?.name || "Beige Sales",
                   icon: UserRound,
-                  valueClass: "text-[#E7D2AB]",
+                  valueClass: isDark ? "text-[#E7D2AB]" : "text-[#02020285] font-semibold",
                 },
               ].map(({ label, value, icon: Icon, valueClass }, index) => (
                 <div
                   key={label}
-                  className={`flex lg:flex-col items-center gap-2.5 lg:items-start ${index < 3 ? "lg:border-r lg:border-white/12 lg:pr-6" : ""}`}
+                  className={`flex lg:flex-col items-center gap-2.5 lg:items-start ${index < 3 ? (isDark ? "lg:border-r lg:border-white/10 lg:pr-6" : "lg:border-r lg:border-[#000000]/10 lg:pr-6") : ""}`}
                 >
-                  <div className="flex h-9 w-9 lg:h-11 lg:w-11 items-center justify-center rounded-lg bg-[#EFD6A9] text-black">
+                  <div className={`flex h-9 w-9 lg:h-11 lg:w-11 items-center justify-center rounded-lg ${isDark ? "bg-[#EFD6A9] text-black" : "bg-[#F2F3F5] text-[#8E8E8E]"}`}>
                     <Icon size={22} />
                   </div>
-                  <div className="lg:mt-3 text-sm lg:text-base text-white/70 lg:text-base">{label}</div>
+                  <div className={`lg:mt-3 text-sm lg:text-base ${isDark ? "text-white/60" : "text-[#000000]/50"}`}>{label}</div>
                   <div className={`lg:mt-1 text-sm lg:text-base font-medium lg:text-lg ${valueClass}`}>
                     {value}
                   </div>
@@ -583,31 +579,31 @@ const RequestDetailsModal = ({
               ))}
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-xl border border-white/12 bg-[#0B0B0B]">
-              <div className="border-b border-white/10 px-5 py-5 lg:text-xl font-medium text-[#E7D2AB]">
+            <div className={`mt-6 overflow-hidden rounded-xl border ${isDark ? "border-white/10 bg-[#0B0B0B]" : "border-[#000000]/10 bg-white"}`}>
+              <div className={`border-b px-5 py-5 lg:text-xl font-medium ${isDark ? "border-white/10 text-[#E7D2AB]" : "border-[#000000]/10 text-[#02020285]"}`}>
                 Total Amount
               </div>
               <div className="grid gap-4 px-5 py-5 grid-cols-[1fr_auto]">
-                <div className="space-y-2 text-sm lg:text-base leading-8 text-white/62">
+                <div className={`space-y-2 text-sm lg:text-base leading-8 ${isDark ? "text-white/60" : "text-[#000000]/60"}`}>
                   <div>Previous Total</div>
                   <div>Increase Amount</div>
                   <div>Reduced Amount</div>
                   <div>New Total</div>
                 </div>
                 <div className="space-y-2 text-right text-sm lg:text-base leading-8">
-                  <div className="font-semibold text-white">{formatCurrency(previousTotal)}</div>
-                  <div className="font-semibold text-[#1ED760]">{formatCurrency(extraAmount)}</div>
-                  <div className="font-semibold text-white">{formatCurrency(reducedAmount)}</div>
-                  <div className="font-semibold text-[#E7D2AB]">{formatCurrency(newTotal)}</div>
+                  <div className={`font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>{formatCurrency(previousTotal)}</div>
+                  <div className={`font-semibold ${isDark ? "text-[#1ED760]" : "text-emerald-600"}`}>{formatCurrency(extraAmount)}</div>
+                  <div className={`font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>{formatCurrency(reducedAmount)}</div>
+                  <div className={`font-semibold ${isDark ? "text-[#E7D2AB]" : "text-[#02020285]"}`}>{formatCurrency(newTotal)}</div>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
-            <h4 className="lg:text-xl font-medium text-white">Change Summary</h4>
-            <div className="mt-5 overflow-hidden rounded-xl border border-white/12 bg-[#0B0B0B]">
-              <div className="border-b border-white/10 p-4 lg:px-5 lg:py-6 text-sm lg:text-lg font-semibold leading-5 lg:leading-8 text-[#E7D2AB]">
+          <section className={`rounded-2xl border p-4 lg:p-5 ${isDark ? "border-white/10 bg-[#1A1A1A]" : "border-[#000000]/10 bg-[#000000]/[0.01]"}`}>
+            <h4 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-[#000000]"}`}>Change Summary</h4>
+            <div className={`mt-5 overflow-hidden rounded-xl border ${isDark ? "border-white/10 bg-[#0B0B0B]" : "border-[#000000]/10 bg-white"}`}>
+              <div className={`border-b p-4 lg:px-5 lg:py-6 text-sm lg:text-lg font-semibold leading-5 lg:leading-8 ${isDark ? "border-white/10 text-[#E7D2AB]" : "border-[#000000]/10 text-[#02020285]"}`}>
                 {changeSummary ||
                   `Quote total changed from ${formatCurrency(previousTotal)} to ${formatCurrency(
                     newTotal
@@ -615,7 +611,7 @@ const RequestDetailsModal = ({
                     requestType === "increase" ? extraAmount : reducedAmount
                   )}) across 1 update.`}
               </div>
-              <div className="space-y-4 p-4 lg:p-5 text-sm leading-5 lg:leading-7 text-white/70 lg:text-base">
+              <div className={`space-y-4 p-4 lg:p-5 text-sm leading-5 lg:leading-7 lg:text-base ${isDark ? "text-white/70" : "text-[#000000]/70"}`}>
                 {summaryLines.length > 0 ? (
                   summaryLines.map((line, index) => (
                     <p key={`${request.activity_id}-line-${index}`}>{line}</p>
@@ -628,7 +624,7 @@ const RequestDetailsModal = ({
                   <Link href={`${detailsHrefBase}/${request.quote_id}`}>
                     <Button
                       type="button"
-                      className="mt-2 h-14 rounded-lg lg:rounded-2xl bg-[#EED4A7] px-5 text-sm lg:text-base font-semibold text-black hover:bg-[#EED4A7]/92 w-full lg:w-fit"
+                      className={`mt-2 h-14 rounded-lg lg:rounded-2xl px-5 text-sm lg:text-base font-semibold w-full lg:w-fit bg-[#EED4A7] text-black hover:bg-[#EED4A7]/90`}
                     >
                       View Full Quote Details
                     </Button>
@@ -638,13 +634,13 @@ const RequestDetailsModal = ({
             </div>
           </section>
 
-          {/* On desktop, the footer div is rendered here to scroll with content */}
+          {/* Desktop Footer Actions */}
           <div className="hidden lg:flex flex-col gap-4 pt-1 lg:flex-row lg:items-center lg:justify-between mt-10">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="h-15 rounded-2xl border-white/12 bg-[#111111] px-7 text-base text-white hover:bg-[#181818]"
+              className={`h-15 rounded-2xl px-7 text-base border transition-colors ${isDark ? "border-white/10 bg-[#111111] text-white hover:bg-[#181818]" : "border-[#000000]/10 bg-white text-[#000000] hover:bg-[#000000]/5"}`}
             >
               Close
             </Button>
@@ -655,7 +651,7 @@ const RequestDetailsModal = ({
                 onClick={onReject}
                 disabled={!canReview}
                 isLoading={processingAction === "reject"}
-                className="h-15 min-w-[180px] rounded-2xl border border-[#A31D1D] bg-[#2A0E0E] px-7 text-base text-[#FF7B7B] hover:bg-[#341111]"
+                className={`h-15 min-w-[180px] rounded-2xl border px-7 text-base font-semibold transition-all ${isDark ? "border-[#A31D1D] bg-[#2A0E0E] text-[#FF7B7B] hover:bg-[#341111]" : "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"}`}
               >
                 <X size={20} />
                 Reject
@@ -665,7 +661,7 @@ const RequestDetailsModal = ({
                 onClick={onApprove}
                 disabled={!canReview}
                 isLoading={processingAction === "approve"}
-                className="h-15 min-w-[180px] rounded-2xl bg-[#22C55E] px-7 text-base font-semibold text-black hover:bg-[#28d165]"
+                className={`h-15 min-w-[180px] rounded-2xl px-7 text-base font-semibold text-black transition-all ${isDark ? "bg-[#22C55E] hover:bg-[#28d165]" : "bg-emerald-500 text-white hover:bg-emerald-600"}`}
               >
                 <Check size={20} />
                 Accept
@@ -674,14 +670,13 @@ const RequestDetailsModal = ({
           </div>
         </div>
 
-        {/* Fixed Footer: Visible only on mobile */}
-        <div className="relative lg:hidden shrink-0 bg-[#0B0B0B] p-6 pt-4">
+        {/* Fixed Footer Actions: Mobile viewports only */}
+        <div className={`relative lg:hidden shrink-0 p-6 pt-4 border-t ${isDark ? "bg-[#0B0B0B] border-white/5" : "bg-white border-[#000000]/5"}`}>
           <div className="flex flex-col gap-4">
             <Button
               type="button"
-              // variant="link"
               onClick={onClose}
-              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent py-5 min-w-[166px] text-sm font-medium transition-all disabled:opacity-70"
+              className={`underline bg-transparent py-5 min-w-[166px] text-sm font-medium transition-all ${isDark ? "text-white hover:bg-[#181818]" : "text-[#000000] hover:bg-[#000000]/5"}`}
             >
               Close
             </Button>
@@ -691,7 +686,7 @@ const RequestDetailsModal = ({
                 onClick={onReject}
                 disabled={!canReview}
                 isLoading={processingAction === "reject"}
-                className="h-14 w-full rounded-lg border border-[#A31D1D] bg-[#2A0E0E] text-sm font-semibold text-[#FF7B7B]"
+                className={`h-14 w-full rounded-lg border text-sm font-semibold transition-all ${isDark ? "border-[#A31D1D] bg-[#2A0E0E] text-[#FF7B7B]" : "border-red-200 bg-red-50 text-red-600"}`}
               >
                 <X size={20} />
                 Reject
@@ -701,7 +696,7 @@ const RequestDetailsModal = ({
                 onClick={onApprove}
                 disabled={!canReview}
                 isLoading={processingAction === "approve"}
-                className="h-14 w-full rounded-lg bg-[#22C55E] text-sm font-semibold text-black"
+                className={`h-14 w-full rounded-lg text-sm font-semibold transition-all ${isDark ? "bg-[#22C55E] text-black" : "bg-emerald-500 text-white"}`}
               >
                 <Check size={20} />
                 Accept
@@ -717,7 +712,7 @@ const RequestDetailsModal = ({
 export default function QuoteChangeRequestsWorkspace({
   TopbarComponent,
   title = "Quote Change Request",
-  description = "Dynamic list from 'sales/dashboard/quote-change-requests'. Click any request to open its details popup.",
+  description = "Click any request to open its details popup.",
   detailsHrefBase,
 }: QuoteChangeRequestsWorkspaceProps) {
   const pathname = usePathname();
@@ -827,34 +822,45 @@ export default function QuoteChangeRequestsWorkspace({
   return (
     <div className="relative overflow-hidden">
       <TopbarComponent pathname={pathname} />
-
       <div
-        className={`min-h-screen px-4 pb-12 pt-6 lg:px-10 lg:pt-10 lg:pb-16 lg:pt-8 ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#101010]"
-          }`}
+        className={`min-h-screen px-4 pb-12 pt-6 lg:px-10 lg:pt-10 lg:pb-16 lg:pt-8 ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#101010]"}`}
       >
         <div className="w-full">
           <div className="mb-6">
-            <h1 className="lg:text-[22px] font-semibold text-white">{title}</h1>
-            <p className="mt-1 text-xs lg:text-sm text-white/70">{description}</p>
+            <h1 className={`lg:text-[22px] font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>{title}</h1>
+            <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#101010]/70"}`}>{description}</p>
           </div>
 
           <div className="mb-4 flex flex-col gap-3 lg:flex-row">
-            <div className="flex min-w-0 flex-1 items-center rounded-lg lg:rounded-2xl border border-white/10 bg-[#242424] px-4 py-3">
-              <Search size={17} className="mr-3 text-white/35" />
+            {/* Search Bar Container */}
+            <div
+              className={`flex min-w-0 flex-1 items-center rounded-lg lg:rounded-2xl border transition-colors px-4 py-3 ${isDark
+                ? "border-white/10 bg-[#242424]"
+                : "border-[#000000]/10 bg-white"
+                }`}
+            >
+              <Search size={17} className={`mr-3 ${isDark ? "text-white/35" : "text-[#000000]/40"}`} />
               <input
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search quotes, booking, Client , rep"
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+                placeholder="Search quotes, booking, Client, rep"
+                className={`w-full bg-transparent text-sm outline-none transition-colors ${isDark
+                  ? "text-white placeholder:text-white/40"
+                  : "text-[#000000] placeholder:text-[#000000]/40"
+                  }`}
               />
             </div>
 
             <div className="flex w-full lg:w-auto gap-3">
+              {/* Request Type Selector */}
               <div className="relative flex-1 lg:w-auto">
                 <select
                   value={requestTypeFilter}
                   onChange={(event) => setRequestTypeFilter(event.target.value)}
-                  className="h-11 appearance-none rounded-lg lg:rounded-2xl border border-white/10 bg-[#242424] pl-4 pr-10 text-sm text-white outline-none w-full lg:w-auto"
+                  className={`h-11 appearance-none rounded-lg lg:rounded-2xl border pl-4 pr-10 text-sm outline-none w-full lg:w-auto transition-colors ${isDark
+                    ? "border-white/10 bg-[#242424] text-white [&>option]:bg-[#242424] [&>option]:text-white"
+                    : "border-[#000000]/10 bg-white text-[#000000] [&>option]:bg-white [&>option]:text-[#000000]"
+                    }`}
                 >
                   <option value="all">All Types</option>
                   <option value="increase">Increase</option>
@@ -862,15 +868,19 @@ export default function QuoteChangeRequestsWorkspace({
                 </select>
                 <ChevronDown
                   size={16}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/60"
+                  className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${isDark ? "text-white/60" : "text-[#000000]/50"}`}
                 />
               </div>
 
+              {/* Approval Status Selector */}
               <div className="relative flex-1 lg:w-auto">
                 <select
                   value={approvalStatusFilter}
                   onChange={(event) => setApprovalStatusFilter(event.target.value)}
-                  className="h-11 appearance-none rounded-lg lg:rounded-2xl border border-white/10 bg-[#242424] pl-4 pr-10 text-sm text-white outline-none w-full lg:w-auto"
+                  className={`h-11 appearance-none rounded-lg lg:rounded-2xl border pl-4 pr-10 text-sm outline-none w-full lg:w-auto transition-colors ${isDark
+                    ? "border-white/10 bg-[#242424] text-white [&>option]:bg-[#242424] [&>option]:text-white"
+                    : "border-[#000000]/10 bg-white text-[#000000] [&>option]:bg-white [&>option]:text-[#000000]"
+                    }`}
                 >
                   <option value="all">All Statuses</option>
                   <option value="pending">Pending</option>
@@ -879,7 +889,8 @@ export default function QuoteChangeRequestsWorkspace({
                 </select>
                 <ChevronDown
                   size={16}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/60"
+                  className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${isDark ? "text-white/60" : "text-[#000000]/50"
+                    }`}
                 />
               </div>
             </div>
@@ -968,14 +979,11 @@ export default function QuoteChangeRequestsWorkspace({
               {!loading && requests.length > 0 && (
                 <tfoot>
                   <tr
-                    className={`border-t transition-colors ${isDark
-                      ? "border-white/[0.05] bg-[#141414]"
-                      : "border-[#E5E5E5] bg-[#FFFCF6]"
-                      }`}
+                    className={`border-t transition-colors ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}
                   >
                     <td colSpan={7} className="px-4 py-4">
                       <div className="flex gap-4 items-center justify-center lg:justify-between">
-                        <div className={`hidden lg:block text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>
+                        <div className={`hidden lg:block text-sm ${isDark ? "text-white/40" : "text-[#999]"}`}>
                           {`Page ${safeCurrentPage} to ${totalPages}`}
                         </div>
                         <div className="flex items-center gap-2 self-auto">
@@ -985,20 +993,19 @@ export default function QuoteChangeRequestsWorkspace({
                               setPage((currentValue) => Math.max(1, currentValue - 1))
                             }
                             disabled={safeCurrentPage === 1}
-                            className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-colors disabled:opacity-35 ${isDark
-                              ? "text-[#6D6D6D] hover:bg-white/[0.04]"
-                              : "text-black/60 hover:bg-black/5"
+                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30  ${isDark
+                              ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                              : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
                               }`}
                           >
-                            <ChevronLeft size={16} />
+                            <ChevronLeft size={24} />
                           </button>
 
                           {paginationItems.map((item, index) =>
                             item === "..." ? (
                               <span
                                 key={`ellipsis-${index}`}
-                                className={`px-2 text-sm ${isDark ? "text-white/40" : "text-black/30"
-                                  }`}
+                                className={`px-2 text-sm ${isDark ? "text-white/60" : "text-[#666]"}`}
                               >
                                 ...
                               </span>
@@ -1007,13 +1014,11 @@ export default function QuoteChangeRequestsWorkspace({
                                 key={item}
                                 type="button"
                                 onClick={() => setPage(item)}
-                                className={`flex h-9 min-w-9 items-center justify-center rounded-[10px] px-3 text-sm transition-colors ${safeCurrentPage === item
-                                  ? isDark
-                                    ? "border border-[#E8D1AB] bg-[#202020] text-[#E7D2AB]"
-                                    : "border border-black bg-black text-white"
+                                className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${safeCurrentPage === item
+                                  ? "bg-[#E5D5B8] text-black"
                                   : isDark
-                                    ? "text-[#6D6D6D] hover:bg-white/[0.04]"
-                                    : "text-black/60 hover:bg-black/5"
+                                    ? "text-white/60 hover:bg-white/5"
+                                    : "text-[#666] hover:bg-black/5"
                                   }`}
                               >
                                 {item}
@@ -1029,12 +1034,12 @@ export default function QuoteChangeRequestsWorkspace({
                               )
                             }
                             disabled={safeCurrentPage === totalPages}
-                            className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-colors disabled:opacity-35 ${isDark
-                              ? "text-[#6D6D6D] hover:bg-white/[0.04]"
-                              : "text-black/60 hover:bg-black/5"
+                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
+                              ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                              : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
                               }`}
                           >
-                            <ChevronRight size={16} />
+                            <ChevronRight size={24} />
                           </button>
                         </div>
                       </div>
@@ -1171,6 +1176,7 @@ export default function QuoteChangeRequestsWorkspace({
           onApprove={() => void handleReview("approve")}
           onReject={() => void handleReview("reject")}
           processingAction={processingAction}
+          isDark={isDark}
         />
       ) : null}
     </div>
