@@ -175,8 +175,6 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         ? versionsResponse.data
         : versionsResponse?.data?.versions || [];
 
-        const quoteDetail = await resolveLatestQuoteDetail(convertedSalesQuoteId);
-
       const latestVersion =
         versionsData.find((version: QuoteVersionItem) => version?.is_current && isUsableQuoteVersion(version)) ||
         versionsData
