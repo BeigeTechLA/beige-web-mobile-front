@@ -56,6 +56,22 @@ function SearchResultsContent() {
   const min_budget = searchParams.get("min_budget") ? Number(searchParams.get("min_budget")) : undefined;
   const max_budget = searchParams.get("max_budget") ? Number(searchParams.get("max_budget")) : undefined;
   const location = searchParams.get("location") || undefined;
+  const latitude =
+    searchParams.get("location_latitude")
+      ? Number(searchParams.get("location_latitude"))
+      : searchParams.get("latitude")
+        ? Number(searchParams.get("latitude"))
+        : searchParams.get("lat")
+          ? Number(searchParams.get("lat"))
+          : undefined;
+  const longitude =
+    searchParams.get("location_longitude")
+      ? Number(searchParams.get("location_longitude"))
+      : searchParams.get("longitude")
+        ? Number(searchParams.get("longitude"))
+        : searchParams.get("lng")
+          ? Number(searchParams.get("lng"))
+          : undefined;
   const maxDistance = searchParams.get("maxDistance") ? Number(searchParams.get("maxDistance")) : 50; // Default 50 miles
   const skills = searchParams.get("skills") || undefined;
   const content_type = searchParams.get("content_type") ? Number(searchParams.get("content_type")) : undefined;
@@ -67,6 +83,8 @@ function SearchResultsContent() {
     min_budget,
     max_budget,
     location,
+    latitude,
+    longitude,
     maxDistance,
     skills,
     content_type,
@@ -83,6 +101,8 @@ function SearchResultsContent() {
 
     // Location filters (new: maxDistance for proximity search)
     location,
+    latitude,
+    longitude,
     maxDistance,
 
     // Skills filter (new: triggers skill-based scoring)

@@ -1,24 +1,26 @@
 "use client";
 
 import React from "react";
-import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ArrowLeft, Eye } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { cn, getInitials } from "@/lib/utils";
 import { getPaymentStatusMeta, getProjectDateText, getProjectScheduleTimeText } from "@/lib/utils/shootDetails";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
+import { Button } from "@/components/ui/button";
 
 interface AffiliateShootHeaderProps {
   activeTab?: string;
   project?: any;
   onBack?: () => void;
   projectId?: string;
-}
+  }
 
 export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack, projectId }: AffiliateShootHeaderProps) {
   const router = useRouter();
   const { theme } = useTheme();
+  const pathname = usePathname();
   const [mounted, setMounted] = React.useState(false);
   const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
   const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
@@ -27,6 +29,12 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
   const isDark = !mounted || theme === "dark";
   const projectDateText = getProjectDateText(project);
   const projectTimeText = getProjectScheduleTimeText(project);
+  const shootBasePath = pathname?.startsWith("/sales") 
+  ? "/sales/shoots" 
+  : pathname?.startsWith("/affiliate") 
+    ? "/affiliate/shoots" 
+    : "/admin/shoots";
+    
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
@@ -142,13 +150,22 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
             {project?.project_name ? getInitials(project?.project_name) : "NA"}
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                {project?.project_name || "Untitled Project"}
-              </h1>
-              <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
-                {resolvedStatusLabel || "Pending"}
-              </span>
+            <div className="mb-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                  {project?.project_name || "Untitled Project"}
+                </h1>
+                <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
+                  {resolvedStatusLabel || "Pending"}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                className="h-10 w-fit self-start rounded-lg border-none bg-[#2C2C2C] px-4 text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0]"
+                onClick={() => router.push(`${shootBasePath}/${projectId}/form-details`)}
+              >
+                <Eye className="w-4 h-4" /> View Form Details
+              </Button>
             </div>
             {project?.skills_needed && project.skills_needed !== "N/A" && (
               <p className={`${isDark ? "text-[#888888]" : "text-[#666666]"} font-normal text-sm lg:text-base mb-2`}>({project.skills_needed})</p>

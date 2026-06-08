@@ -27,10 +27,19 @@ import { useTheme } from 'next-themes';
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
+const CREATIVE_PARTNERS_FILTERS_STORAGE_KEY = "admin-users-creative-partners-filters";
+
+type PersistedCreativePartnersFilters = {
+  currentPage: number;
+  searchQuery: string;
+  statusFilter: string;
+};
+
 interface CreativePartner {
   id: string;
   name: string;
   email: string;
+  location: string;
   role: string;
   status: UserStatus;
   joinDate: string;
@@ -38,16 +47,70 @@ interface CreativePartner {
   imageUrl?: string | null;
 }
 
+const formatLocation = (locationInput?: unknown) => {
+  const raw =
+    typeof locationInput === "string"
+      ? locationInput.trim()
+      : locationInput && typeof locationInput === "object"
+        ? String((locationInput as any).address || (locationInput as any).location || (locationInput as any).full_address || "").trim()
+        : String(locationInput || "").trim();
+  if (!raw) return "N/A";
+
+  let addressStr = raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      addressStr = String(parsed.address || parsed.location || parsed.full_address || raw);
+    }
+  } catch {
+    // Not JSON, use raw string.
+  }
+
+  const normalizeSegment = (segment: string) =>
+    segment
+      .replace(/^\d{3,}(?:-\d+)?\s+/, "")
+      .replace(/^\d{3,}(?:\s+\d{3,})*\s+/, "")
+      .trim();
+
+  const parts = addressStr
+    .split(/[,،，]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length <= 1) return addressStr;
+
+  if (parts.length >= 4) {
+    const country = normalizeSegment(parts[parts.length - 1]);
+    const middle = normalizeSegment(parts[parts.length - 2] || "");
+    const city = normalizeSegment(parts[parts.length - 3]);
+    return [city, middle, country].filter(Boolean).join(", ");
+  }
+
+  if (parts.length === 3) {
+    const secondPartLooksLikeCity = !/^\d/.test(parts[1]);
+    if (secondPartLooksLikeCity) {
+      return parts.map(normalizeSegment).join(", ");
+    }
+
+    const country = normalizeSegment(parts[2]);
+    const city = normalizeSegment(parts[1]);
+    return [city, country].filter(Boolean).join(", ");
+  }
+
+  const country = normalizeSegment(parts[parts.length - 1]);
+  return [normalizeSegment(parts[0]), country].filter(Boolean).join(", ");
+};
+
 const INITIAL_DATA: CreativePartner[] = [
-  { id: "#123456", name: "Ethan Carter", email: "ethanc4519@yahoo.com", role: "Videographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "EC" },
-  { id: "#123456", name: "Lana Guzman", email: "lanaguzman@gmail.com", role: "Photographer", status: "Pending", joinDate: "Jan 13, 2026", initials: "LG" },
-  { id: "#123456", name: "John Lee", email: "johnlee45@gmail.com", role: "Photographer", status: "Pending", joinDate: "Jan 13, 2026", initials: "JL" },
-  { id: "#123456", name: "Maya Ross", email: "mayaross@yahoo.com", role: "Director", status: "Rejected", joinDate: "Jan 13, 2026", initials: "MR" },
-  { id: "#123456", name: "Emily Davis", email: "emilydavis@yahoo.com", role: "Producer", status: "Pending", joinDate: "Jan 13, 2026", initials: "ED" },
-  { id: "#123456", name: "Prince Carter", email: "princecarter@yahoo.com", role: "Videographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "PC" },
-  { id: "#123456", name: "Daniel Roberts", email: "danielrobert@gmail.com", role: "Photographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "DR" },
-  { id: "#123456", name: "Jake Ross", email: "jakeross25@yahoo.com", role: "Photographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "JR" },
-  { id: "#123456", name: "Sophia Johnson", email: "sophiaJ6545@yahoo.com", role: "Director", status: "Rejected", joinDate: "Jan 13, 2026", initials: "SJ" },
+  { id: "#123456", name: "Ethan Carter", email: "ethanc4519@yahoo.com", location: "N/A", role: "Videographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "EC" },
+  { id: "#123456", name: "Lana Guzman", email: "lanaguzman@gmail.com", location: "N/A", role: "Photographer", status: "Pending", joinDate: "Jan 13, 2026", initials: "LG" },
+  { id: "#123456", name: "John Lee", email: "johnlee45@gmail.com", location: "N/A", role: "Photographer", status: "Pending", joinDate: "Jan 13, 2026", initials: "JL" },
+  { id: "#123456", name: "Maya Ross", email: "mayaross@yahoo.com", location: "N/A", role: "Director", status: "Rejected", joinDate: "Jan 13, 2026", initials: "MR" },
+  { id: "#123456", name: "Emily Davis", email: "emilydavis@yahoo.com", location: "N/A", role: "Producer", status: "Pending", joinDate: "Jan 13, 2026", initials: "ED" },
+  { id: "#123456", name: "Prince Carter", email: "princecarter@yahoo.com", location: "N/A", role: "Videographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "PC" },
+  { id: "#123456", name: "Daniel Roberts", email: "danielrobert@gmail.com", location: "N/A", role: "Photographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "DR" },
+  { id: "#123456", name: "Jake Ross", email: "jakeross25@yahoo.com", location: "N/A", role: "Photographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "JR" },
+  { id: "#123456", name: "Sophia Johnson", email: "sophiaJ6545@yahoo.com", location: "N/A", role: "Director", status: "Rejected", joinDate: "Jan 13, 2026", initials: "SJ" },
 ];
 
 const StatusBadge = ({ status, mobile }: { status: UserStatus; mobile?: boolean }) => {
@@ -67,9 +130,36 @@ const StatusBadge = ({ status, mobile }: { status: UserStatus; mobile?: boolean 
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
+const normalizeSearchQuery = (value: string) => value.trim().replace(/\s+/g, " ");
+
+const getCrewSearchParam = (value: string) => {
+  const tokens = normalizeSearchQuery(value).split(" ").filter(Boolean);
+  if (tokens.length <= 1) return value;
+
+  return tokens.reduce((longest, token) => (token.length > longest.length ? token : longest), tokens[0]);
+};
+
+const matchesCreativePartnerSearch = (user: CreativePartner, searchValue: string) => {
+  const tokens = normalizeSearchQuery(searchValue).toLowerCase().split(" ").filter(Boolean);
+  if (tokens.length === 0) return true;
+
+  const searchableText = [
+    user.id,
+    user.name,
+    user.email,
+    user.location,
+    user.role,
+    user.status,
+    user.joinDate,
+  ].join(" ").toLowerCase();
+
+  return tokens.every((token) => searchableText.includes(token));
+};
+
 export const CreativePartnersTable = () => {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [users, setUsers] = useState<CreativePartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -81,6 +171,9 @@ export const CreativePartnersTable = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const normalizedSearch = normalizeSearchQuery(debouncedSearch);
+  const hasMultiWordSearch = normalizedSearch.includes(" ");
+  const crewSearchParam = getCrewSearchParam(normalizedSearch);
   const [expandedRows, setExpandedRows] = useState(new Set());
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -94,6 +187,43 @@ export const CreativePartnersTable = () => {
 
   useEffect(() => setMounted(true), []);
   const isDark = !mounted || theme === "dark";
+
+  useEffect(() => {
+    try {
+      const savedFilters = localStorage.getItem(CREATIVE_PARTNERS_FILTERS_STORAGE_KEY);
+      if (savedFilters) {
+        const parsedFilters = JSON.parse(savedFilters) as Partial<PersistedCreativePartnersFilters>;
+
+        if (typeof parsedFilters.searchQuery === "string") {
+          setSearchQuery(parsedFilters.searchQuery);
+        }
+
+        if (typeof parsedFilters.statusFilter === "string") {
+          setStatusFilter(parsedFilters.statusFilter);
+        }
+
+        if (typeof parsedFilters.currentPage === "number" && parsedFilters.currentPage > 0) {
+          setCurrentPage(parsedFilters.currentPage);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to restore creative partner filters:", error);
+    } finally {
+      setFiltersInitialized(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!filtersInitialized) return;
+
+    const filtersToPersist: PersistedCreativePartnersFilters = {
+      currentPage,
+      searchQuery,
+      statusFilter,
+    };
+
+    localStorage.setItem(CREATIVE_PARTNERS_FILTERS_STORAGE_KEY, JSON.stringify(filtersToPersist));
+  }, [currentPage, searchQuery, statusFilter, filtersInitialized]);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -129,11 +259,11 @@ export const CreativePartnersTable = () => {
       setLoading(true);
       try {
         const params: any = {
-          page: currentPage,
-          limit: limit,
+          page: hasMultiWordSearch ? 1 : currentPage,
+          limit: hasMultiWordSearch ? 200 : limit,
         };
 
-        if (debouncedSearch) params.search = debouncedSearch;
+        if (crewSearchParam) params.search = crewSearchParam;
         if (statusFilter !== "all") params.status = statusFilter;
 
         const response = await adminApi.getCrewMembers(params);
@@ -176,6 +306,9 @@ export const CreativePartnersTable = () => {
             const imageUrl = profilePhoto
               ? `${S3_PREFIX}${profilePhoto.file_path}`
               : null;
+            const location = formatLocation(
+              member.location || member.address || member.full_address || member.city || ""
+            );
 
             // Normalize status
             const apiStatus = member.status?.toLowerCase() || "";
@@ -187,6 +320,7 @@ export const CreativePartnersTable = () => {
               id: `#${member.crew_member_id}`,
               name: fullName,
               email: member.email || "No Email",
+              location,
               role: displayRole,
               status: displayStatus,
               joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
@@ -194,7 +328,15 @@ export const CreativePartnersTable = () => {
               imageUrl,
             };
           });
-          setUsers(mappedUsers);
+          const visibleUsers = normalizedSearch
+            ? mappedUsers.filter((user: CreativePartner) => matchesCreativePartnerSearch(user, normalizedSearch))
+            : mappedUsers;
+
+          setUsers(visibleUsers);
+          if (hasMultiWordSearch) {
+            setTotalRecords(visibleUsers.length);
+            setTotalPages(1);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch creative partners:", error);
@@ -202,8 +344,9 @@ export const CreativePartnersTable = () => {
         setLoading(false);
       }
     };
+    if (!filtersInitialized) return;
     fetchCreativePartners();
-  }, [currentPage, limit, debouncedSearch, statusFilter]);
+  }, [currentPage, limit, normalizedSearch, hasMultiWordSearch, crewSearchParam, statusFilter, filtersInitialized]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     // Prevent navigation if clicking on action buttons
@@ -372,7 +515,10 @@ export const CreativePartnersTable = () => {
               type="text"
               placeholder="Search ..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
                 }`} />
           </div>
@@ -422,9 +568,13 @@ export const CreativePartnersTable = () => {
             <thead>
               <tr className={`text-sm font-medium border-b cursor-pointer leading-none tracking-normal ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
                 <th className="py-5 px-6 font-medium">User ID</th>
-                <th className="py-5 px-6 font-medium">Creative Name</th>
-                <th className="py-5 px-6 font-medium">Email ID</th>
+                <th className="py-5 px-6 font-medium">
+                  <div className="flex flex-col">
+                    <span>Creative Name / Email Id</span>
+                  </div>
+                </th>
                 <th className="py-5 px-6 font-medium">Roles</th>
+                <th className="py-5 px-6 font-medium">Location</th>
                 <th className="py-5 px-6 font-medium">Status</th>
                 <th className="py-5 px-6 font-medium text-right">Action</th>
               </tr>
@@ -479,12 +629,15 @@ export const CreativePartnersTable = () => {
                         </div>
                         <div>
                           <p className="font-medium">{user.name}</p>
-                          <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-[10px] mt-0.5 uppercase tracking-wider font-bold`}>{user.joinDate}</p>
+                          <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-sm mt-0.5 break-all`}>{user.email}</p>
+                          <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-[10px] mt-0.5 uppercase tracking-wider font-bold`}>
+                            {user.joinDate}
+                          </p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-5 px-6">{user.email}</td>
                     <td className="py-5 px-6">{user.role}</td>
+                    <td className="py-5 px-6">{user.location}</td>
                     <td className="py-5 px-6">
                       <StatusBadge status={user.status} />
                     </td>
@@ -585,11 +738,10 @@ export const CreativePartnersTable = () => {
                       </div>
                       <div>
                         <p className={`font-medium text-sm ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
-                        {/* <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[#666] text-xs">{user.id}</span>
-                        <div className="w-1 h-1 rounded-full bg-[#333]" />
-                        <span className="text-[#666] text-xs">{user.joinDate}</span>
-                      </div> */}
+                        <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-[10px] mt-0.5 uppercase tracking-wider font-bold`}>
+                          {user.joinDate}
+                        </p>
+                        <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-xs mt-0.5 break-all`}>{user.email}</p>
                       </div>
                     </div>
                     <StatusBadge status={user.status} mobile />
@@ -615,9 +767,13 @@ export const CreativePartnersTable = () => {
                             <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Role</p>
                             <p className={`text-xs ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.role}</p>
                           </div>
-                          <div >
+                          {/* <div >
                             <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Email ID</p>
                             <p className={`text-xs break-all ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.email}</p>
+                          </div> */}
+                          <div>
+                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Location</p>
+                            <p className={`text-xs break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.location}</p>
                           </div>
                         </div>
 

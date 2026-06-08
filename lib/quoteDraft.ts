@@ -53,12 +53,14 @@ type QuoteDraftSimplePriceConfig = {
 
 export interface QuoteDraftPayload {
   pricing_mode: "general";
-  client_user_id?: number;
-  client_id?: number;
+  client_user_id?: number | null;
+  client_id?: number | null;
   client_name?: string;
   client_email?: string;
   client_phone?: string;
   client_address?: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   project_description?: string;
   video_shoot_type?: string;
   quote_validity_days?: number;
@@ -96,6 +98,8 @@ export interface BuildQuoteDraftPayloadInput {
   emailId: string;
   phoneNumber: string;
   address: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
   projectDescription: string;
   validityDays: number | "custom";
   validUntil: string;
@@ -184,7 +188,7 @@ export function buildQuoteDraftPayload(
 
   const payload: QuoteDraftPayload = {
     pricing_mode: "general",
-    ...(clientUserId ? { client_user_id: clientUserId } : {}),
+    ...(clientUserId !== undefined ? { client_user_id: clientUserId } : {}),
     ...(clientId ? { client_id: clientId } : {}),
   };
 
@@ -196,6 +200,8 @@ export function buildQuoteDraftPayload(
 
   if (includeDetails) {
     payload.client_address = input.address.trim();
+    payload.location_latitude = input.locationLatitude ?? null;
+    payload.location_longitude = input.locationLongitude ?? null;
     payload.project_description = input.projectDescription.trim();
     payload.quote_validity_days = resolveQuoteValidityDays(input.validityDays, input.validUntil);
   }
@@ -252,12 +258,14 @@ export function buildQuoteStepUpdatePayload(
 
   if (step === "selection" || step === "details") {
     return {
-      ...(clientUserId ? { client_user_id: clientUserId } : {}),
+      ...(clientUserId !== undefined ? { client_user_id: clientUserId } : {}),
       ...(clientId ? { client_id: clientId } : {}),
       client_name: input.clientName.trim() || input.selectedClient?.name?.trim() || "",
       client_email: input.emailId.trim() || input.selectedClient?.email?.trim() || "",
       client_phone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
       client_address: input.address.trim(),
+      location_latitude: input.locationLatitude ?? null,
+      location_longitude: input.locationLongitude ?? null,
       project_description: input.projectDescription.trim(),
       quote_validity_days: resolveQuoteValidityDays(input.validityDays, input.validUntil),
     };
@@ -328,7 +336,7 @@ function normalizeClientType(value: unknown): string {
 }
 
 function resolveClientIdentifiers(selectedClient: QuoteDraftClient | null): {
-  clientUserId?: number;
+  clientUserId?: number | null;
   clientId?: number;
 } {
   const clientType = normalizeClientType(selectedClient?.client_type);
@@ -337,13 +345,13 @@ function resolveClientIdentifiers(selectedClient: QuoteDraftClient | null): {
 
   if (clientType === "registered") {
     return {
-      ...(userId ? { clientUserId: userId } : {}),
+      clientUserId: userId ?? null,
       ...(clientId ? { clientId } : {}),
     };
   }
 
   if (clientType === "guest") {
-    return clientId ? { clientId } : {};
+    return clientId ? { clientUserId: null, clientId } : {};
   }
 
   // Fallback for legacy/incomplete dropdown items: when user_id exists, treat as registered and include both ids when present.
@@ -355,7 +363,7 @@ function resolveClientIdentifiers(selectedClient: QuoteDraftClient | null): {
   }
 
   if (clientId) {
-    return { clientId };
+    return { clientUserId: null, clientId };
   }
 
   return {};
@@ -444,7 +452,11 @@ function buildServiceItems(
 
       const applySource = (item: QuoteDraftLineItem): QuoteDraftLineItem =>
         catalogItemId
-          ? { ...item, catalog_item_id: catalogItemId }
+          ? {
+              ...item,
+              catalog_item_id: catalogItemId,
+              item_name: service.label || "Custom Service",
+            }
           : {
               ...item,
               source_type: "custom",
@@ -545,6 +557,7 @@ function buildAddonItems(
         return {
           catalog_item_id: catalogItemId,
           section_type: "addon",
+          item_name: addon.label || "Custom Add-on",
           quantity,
           estimated_pricing: estimatedPricing,
         };
@@ -594,6 +607,7 @@ function buildSimpleItems(
         return {
           catalog_item_id: catalogItemId,
           section_type: sectionType,
+          item_name: item.label?.trim() || "Custom Item",
           quantity: 1,
           estimated_pricing: price,
         };

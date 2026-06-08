@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import { CalendarClock, ExternalLink, Eye, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
+import { CalendarClock, ExternalLink, Eye, Loader2, RefreshCw, Search, SquarePen, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "@/components/meetings/CreateMeetingModal";
@@ -14,6 +14,15 @@ import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusCl
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import EmptyMeetingState from "./EmptyMeetingState";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/src/components/landing/ui/tooltip"
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import ParticipantAvatarStack from "./AvatarStack";
+import MeetingsStructure from "./MeetingsTable";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -84,6 +93,8 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [search, setSearch] = useState("");
   const [respondingMeetingId, setRespondingMeetingId] = useState<string | null>(null);
+
+  const { isDark } = useResolvedTheme();
 
   const currentUserId = useMemo(() => {
     if (!user || typeof user !== "object") return undefined;
@@ -159,11 +170,15 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   );
 
   return (
-    <div className="flex h-[calc(100vh-120px)] min-h-0 flex-col overflow-hidden p-4 lg:px-10 lg:py-9">
-      <div className="mb-6 flex flex-col gap-4">
+    <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+
+      {/* Top Actions Panel */}
+      <div className="mb-3 lg:mb-6 flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Meetings</h1>
-          <p className="mt-1 text-sm text-white/45">
+          <h1 className={`text-xl lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+            Meetings
+          </h1>
+          <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
             {role === "admin"
               ? "Browse scheduled meetings across shoots and open each shoot for full management."
               : "Browse your scheduled meetings and jump into the related shoot when needed."}
@@ -171,17 +186,22 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         </div>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {/* Search Input Box Container */}
           <div className="relative w-full lg:max-w-sm">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+            <Search size={16} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-[#171717B2]"}`} />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search meetings, shoots, or members"
-              className="border-white/10 bg-[#141414] pl-10 text-white placeholder:text-white/30"
+              className={`pl-10 text-xs lg:text-sm transition-colors ${isDark
+                ? "border-white/10 bg-[#141414] text-white placeholder:text-white/30 focus:border-white/20"
+                : "border-zinc-200 bg-white text-black placeholder:text-zinc-400 focus:border-zinc-400"
+                }`}
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3">
+          {/* Primary Header Controls Group */}
+          <div className="flex items-center gap-2 lg:gap-3 w-full lg:w-auto justify-end">
             <Button
               type="button"
               variant="outline"
@@ -189,7 +209,10 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
                 await loadMeetings();
                 toast.success("Meetings refreshed");
               }}
-              className="border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]"
+              className={`border ${isDark
+                ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]"
+                : "border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#323232]/50"
+                }`}
             >
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
               Refresh
@@ -198,7 +221,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
               <Button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
+                className={`text-black ${isDark ? "bg-[#E5D5B8] hover:bg-[#d9c5a0]" : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/80"}`}
               >
                 Create Meeting
               </Button>
@@ -207,156 +230,53 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-[#222222] bg-[#111111] p-5">
-        {loading ? 
-        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
-        }`}>
-        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-      </div>: error ? (
-          <div className="py-16 text-center text-sm text-[#ff8e8e]">{error}</div>
-        ) : filteredMeetings.length === 0 ? (
-          <div className="py-16 text-center text-sm text-white/45">
-            {search.trim()
-              ? "No meetings match your search."
-              : <EmptyMeetingState />}
+      {/* Main Meetings Stream Container */}
+      {loading ? (
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-zinc-200 bg-white"}`}>
+          <Loader2 className="animate-spin text-[#BFA780]" size={40} />
+        </div>
+      ) : error ? (
+        <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border p-4 lg:p-5 transition-colors ${isDark ? "border-[#222222] bg-black" : "border-zinc-200 bg-white"}`}>
+          <div className="py-16 text-center text-xs lg:text-sm font-medium text-[#ff8e8e]">{error}</div>
+        </div>
+      ) : filteredMeetings.length === 0 ? (
+        <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border p-4 lg:p-5 transition-colors ${isDark ? "border-[#222222] bg-black" : "border-zinc-200 bg-white"}`}>
+          <div className={`py-16 text-center text-xs lg:text-sm ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
+            {search.trim() ? "No meetings match your search." : <EmptyMeetingState />}
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredMeetings.map((meeting) => {
-              const shootLink = getShootLink(role, meeting);
-              const effectiveStatus = getEffectiveMeetingStatus(meeting);
-              const isCompleted = effectiveStatus === "completed";
-              const currentResponse = getParticipantResponse(meeting, currentUserId);
-              const createdById = getIdentityId(meeting.created_by?.id);
-              const isClientCreatedBySelf =
-                role === "client" &&
-                !!currentUserId &&
-                !!createdById &&
-                String(currentUserId) === createdById;
-              const canRespond =
-                !!meeting.id &&
-                !!currentUserId &&
-                !isAdminView &&
-                !isClientCreatedBySelf &&
-                !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
-              const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
-              const isResponding = respondingMeetingId === String(meeting.id || "");
-
-              return (
-                <div
-                  key={String(meeting.id || Math.random())}
-                  className="rounded-2xl border border-white/10 bg-[#151515] p-5 transition-colors hover:border-white/20"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="truncate text-lg font-semibold text-white">
-                          {meeting.meeting_title || meeting.order?.name || "Meeting"}
-                        </h2>
-                        <span className={cn("rounded-full border px-3 py-1 text-xs font-medium", getMeetingStatusClasses(effectiveStatus))}>
-                          {formatMeetingStatusLabel(effectiveStatus)}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/55">
-                        <span className="inline-flex items-center gap-2">
-                          <CalendarClock size={14} />
-                          {formatDateTime(meeting.meeting_date_time)}
-                        </span>
-                        {meeting.order?.name ? <span>Order: {meeting.order.name}</span> : null}
-                        {canRespond ? (
-                          <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-medium capitalize text-amber-300">
-                            Your response: {formatInvitationResponse(currentResponse)}
-                          </span>
-                        ) : null}
-                      </div>
-                      {meeting.description ? <p className="mt-3 line-clamp-2 text-sm text-white/65">{meeting.description}</p> : null}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      {canRespond && currentResponse !== "accepted" ? (
-                        <Button
-                          type="button"
-                          onClick={() => handleRespond(meeting.id as string | number, "accepted")}
-                          disabled={isResponding}
-                          className="bg-emerald-500 text-white hover:bg-emerald-600"
-                        >
-                          {isResponding ? <RefreshCw size={14} className="animate-spin" /> : null}
-                          Accept
-                        </Button>
-                      ) : null}
-                      {canRespond && currentResponse !== "declined" ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleRespond(meeting.id as string | number, "declined")}
-                          disabled={isResponding}
-                          className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
-                        >
-                          Reject
-                        </Button>
-                      ) : null}
-                      {meeting.meetLink ? (
-                        <a
-                          href={meeting.meetLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-disabled={isCompleted}
-                          onClick={(event) => {
-                            if (isCompleted) {
-                              event.preventDefault();
-                            }
-                          }}
-                          className={cn(
-                            "inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium",
-                            isCompleted
-                              ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/30"
-                              : "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]"
-                          )}
-                        >
-                          Join Meeting
-                          <ExternalLink size={14} />
-                        </a>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedMeeting(meeting)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-white hover:bg-[#222222]"
-                      >
-                        <Eye size={14} />
-                        View Details
-                      </button>
-                      {canDeleteThisMeeting ? (
-                        <button
-                          type="button"
-                          onClick={() => setMeetingPendingDelete(meeting)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-200 hover:bg-rose-500/20"
-                        >
-                          <Trash2 size={14} />
-                          Delete
-                        </button>
-                      ) : null}
-                      {shootLink ? (
-                        <Link
-                          href={shootLink}
-                          className="inline-flex items-center gap-2 rounded-xl bg-[#E5D5B8] px-4 py-2 text-sm font-semibold text-black hover:bg-[#d9c5a0]"
-                        >
-                          Open Shoot
-                        </Link>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          <MeetingsStructure
+            filteredMeetings={filteredMeetings}
+            getShootLink={getShootLink}
+            getEffectiveMeetingStatus={getEffectiveMeetingStatus}
+            getParticipantResponse={getParticipantResponse}
+            getIdentityId={getIdentityId}
+            currentUserId={currentUserId}
+            role={role}
+            isAdminView={isAdminView}
+            canDeleteMeeting={canDeleteMeeting}
+            respondingMeetingId={respondingMeetingId}
+            handleRespond={handleRespond}
+            setSelectedMeeting={setSelectedMeeting}
+            setMeetingPendingDelete={setMeetingPendingDelete}
+            formatMeetingStatusLabel={formatMeetingStatusLabel}
+            getMeetingStatusClasses={getMeetingStatusClasses}
+            formatDateTime={formatDateTime}
+            formatInvitationResponse={formatInvitationResponse}
+            isDark={isDark}
+          />
+        </>
+      )}
+      {/* </div> */}
 
       <CreateMeetingModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         role={effectiveRoleForActions}
         onCreated={loadMeetings}
+        isDark={isDark}
       />
 
       <MeetingDetailsModal
@@ -367,6 +287,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         currentUserId={currentUserId}
         currentUserEmail={currentUserEmail}
         onUpdated={loadMeetings}
+        isDark={isDark}
       />
 
       <DeleteMeetingConfirmModal
@@ -395,7 +316,54 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
             setIsDeletingMeeting(false);
           }
         }}
+        isDark={isDark}
       />
     </div>
   );
 }
+
+const TruncatedMeetingTitle = ({ title, isDark = true }: { title: string; isDark?: boolean }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // 1. Explicitly type the ref as HTMLHeadingElement
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  const handleMouseEnter = () => {
+    const element = titleRef.current;
+    console.log(element);
+
+    if (element) {
+      // 2. Now TypeScript knows 'element' has scrollWidth and offsetWidth
+      const isActuallyTruncated = element.scrollWidth > element.offsetWidth;
+
+      console.log(isActuallyTruncated);
+      console.log(element.scrollWidth, element.offsetWidth);
+
+      setIsOpen(isActuallyTruncated);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsOpen(false);
+  };
+
+  return (
+    <TooltipProvider>
+      <Tooltip open={isOpen}>
+        <TooltipTrigger asChild>
+          <h2
+            ref={titleRef}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className={`min-w-0 truncate lg:text-lg font-semibold cursor-default ${isDark ? "text-white" : "text-black"}`}
+          >
+            {title}
+          </h2>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs break-words">
+          <p>{title}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};

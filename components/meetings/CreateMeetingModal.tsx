@@ -25,7 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi } from "@/lib/meetingsApi";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
+import { getBrowserTimeZone } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
+import SearchAutocomplete from "@/components/chat/SearchAutocomplete";
 type MeetingType = "pre_production" | "post_production";
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -35,6 +37,7 @@ interface CreateMeetingModalProps {
   orderId?: string | number | null;
   role?: RoleVariant;
   onCreated?: () => void;
+  isDark?: boolean;
 }
 
 interface ParticipantOption {
@@ -47,6 +50,7 @@ interface ParticipantOption {
 interface ProjectOption {
   id: string;
   label: string;
+  description?: string;
 }
 
 type MemberTab = "cp" | "staff";
@@ -131,9 +135,9 @@ const getProjectName = (project: ProjectSource | null | undefined) => {
   const eventType = Array.isArray(project?.event_type)
     ? project.event_type[0]
     : String(project?.event_type || "")
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter(Boolean)[0];
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean)[0];
 
   const candidates = [
     project?.project_name,
@@ -150,6 +154,12 @@ const getProjectName = (project: ProjectSource | null | undefined) => {
       .map((value) => String(value || "").trim())
       .find((value) => value && value.toLowerCase() !== "shoot #") || `Shoot #${bookingId || "New"}`
   );
+};
+
+const getProjectOptionLabel = (project: ProjectSource | null | undefined) => {
+  const bookingId = getProjectId(project);
+  const name = getProjectName(project);
+  return bookingId ? `${name} (Booking #${bookingId})` : name;
 };
 
 const formatRoleLabel = (value?: string) =>
@@ -215,25 +225,31 @@ export default function CreateMeetingModal({
   orderId,
   role = "admin",
   onCreated,
+  isDark = true,
 }: CreateMeetingModalProps) {
   const { user } = useAuth();
   const currentUserId = getCurrentUserId(user);
   const currentUserName = getCurrentUserName(user);
-  const defaultStart = useMemo(() => {
+
+  const getNextValidTime = () => {
     const now = new Date();
-    now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
-    return now;
-  }, []);
+    const next = new Date(now);
+    next.setSeconds(0, 0);
+    next.setHours(now.getHours() + 1, 0, 0, 0);
+    return next;
+  };
 
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState(orderId ? String(orderId) : "");
   const [selectedOrder, setSelectedOrder] = useState<ProjectSource | null>(null);
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingType, setMeetingType] = useState<MeetingType>("post_production");
-  const [meetingDate, setMeetingDate] = useState<Date | null>(defaultStart);
-  const [meetingStartTime, setMeetingStartTime] = useState<Date | null>(defaultStart);
+  const initialTime = getNextValidTime();
+
+  const [meetingDate, setMeetingDate] = useState<Date | null>(initialTime);
+  const [meetingStartTime, setMeetingStartTime] = useState<Date | null>(initialTime);
   const [meetingEndTime, setMeetingEndTime] = useState<Date | null>(
-    new Date(defaultStart.getTime() + 60 * 60 * 1000)
+    new Date(initialTime.getTime() + 60 * 60 * 1000)
   );
   const [description, setDescription] = useState("");
   const [meetLink, setMeetLink] = useState("");
@@ -314,9 +330,10 @@ export default function CreateMeetingModal({
 
     setMeetingTitle("");
     setMeetingType("post_production");
-    setMeetingDate(defaultStart);
-    setMeetingStartTime(defaultStart);
-    setMeetingEndTime(new Date(defaultStart.getTime() + 60 * 60 * 1000));
+    const next = getNextValidTime();
+    setMeetingDate(next);
+    setMeetingStartTime(next);
+    setMeetingEndTime(new Date(next.getTime() + 60 * 60 * 1000));
     setDescription("");
     setMeetLink("");
     setSendNotification(true);
@@ -331,7 +348,7 @@ export default function CreateMeetingModal({
     setMemberTab("staff");
     setIsSubmitting(false);
     setIsGeneratingLink(false);
-  }, [defaultStart, isOpen, orderId]);
+  }, [isOpen, orderId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -366,7 +383,11 @@ export default function CreateMeetingModal({
           .filter((item) => getProjectId(item))
           .map((item) => ({
             id: getProjectId(item),
-            label: getProjectName(item),
+            label: getProjectOptionLabel(item),
+            description:
+              resolveClientName(item) ||
+              resolveClientEmail(item) ||
+              (getProjectId(item) ? `Booking #${getProjectId(item)}` : "Project"),
           }));
 
         setProjects(normalizedProjects);
@@ -461,6 +482,13 @@ export default function CreateMeetingModal({
     };
   }, [isOpen, meetingTitle, selectedOrderId]);
 
+  useEffect(() => {
+    if (meetingStartTime) {
+      const newEnd = new Date(meetingStartTime.getTime() + 60 * 60 * 1000);
+      setMeetingEndTime(newEnd);
+    }
+  }, [meetingStartTime]);
+
   if (!isOpen) return null;
 
   const activeOrderId = selectedOrderId || (orderId ? String(orderId) : "");
@@ -490,6 +518,7 @@ export default function CreateMeetingModal({
         description: description.trim(),
         startDateTime: startIso,
         endDateTime: endIso,
+        timeZone: getBrowserTimeZone(),
         orderId: activeOrderId,
       });
 
@@ -548,6 +577,11 @@ export default function CreateMeetingModal({
 
     const startIso = combineDateAndTime(meetingDate, meetingStartTime);
     const endIso = combineDateAndTime(meetingDate, meetingEndTime);
+
+    if (startIso && new Date(startIso) < new Date()) {
+      toast.error("Start time cannot be in the past.");
+      return;
+    }
 
     if (!startIso || !endIso) {
       toast.error("Please provide a valid meeting start and end time.");
@@ -627,75 +661,85 @@ export default function CreateMeetingModal({
   const managerOption = projectParticipants.find((participant) => participant.role === "manager") || null;
   const cpOptions = projectParticipants.filter((participant) => participant.role === "cp");
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto px-4 pb-8 pt-8">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+  const isToday = meetingDate
+    ? new Date(meetingDate).toDateString() === new Date().toDateString()
+    : false;
 
-      <div className="relative mx-auto flex max-h-[calc(100vh-4rem)] w-full max-w-[860px] flex-col rounded-[30px] border border-[#262626] bg-[#090909] shadow-2xl shadow-black/40">
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto px-4 py-8">
+      <div className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-black/10"}`} onClick={onClose} />
+
+      <div className={`relative mx-auto flex max-h-[calc(100vh-4rem)] w-full max-w-[860px] flex-col rounded-2xl lg:rounded-4xl border shadow-2xl ${isDark ? "shadow-black/40 border-[#262626] bg-[#090909]" : "shadow-[#64646f33] bg-[#FFFFFF] border-[#FFFFFF66]"}`}>
+        <div className={`flex items-start justify-between border-b p-4 lg:px-6 lg:py-5 ${isDark ? "border-white/10" : "border-[#CACACA]"}`}>
           <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#E5D5B8]/20 bg-[#17130d] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-[#E5D5B8]">
+            <div className={`mb-2 inline-flex items-center gap-2 rounded-full border px-2 lg:px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "border-[#E5D5B8]/20 bg-[#17130d] text-[#E5D5B8]" : "border-[#CACACA] bg-[#F0F0F0] text-[#000]"}`}>
               <Video size={12} />
               Google Meet Only
             </div>
-            <h2 className="text-[28px] font-semibold tracking-[-0.02em] text-white">Create Meeting</h2>
-            <p className="mt-1 max-w-[560px] text-sm leading-6 text-white/45">
+            <h2 className={`text-xl lg:text-3xl font-semibold tracking-[-0.02em] ${isDark ? "text-white" : "text-black"}`}>Create Meeting</h2>
+            <p className={`mt-1 max-w-[560px] text-xs lg:text-sm lg:leading-6 ${isDark ? "text-white/45" : " text-black/75"}`}>
               Schedule a project meeting, choose the right members, and generate a Google Meet link they can join after accepting.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#1A1A1A] text-white transition-colors hover:bg-[#222222]"
+            className={`shrink-0 flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${isDark ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]" : "border-[#F0F0F0] bg-[#F0F0F0] text-black hover:bg-black/20"}`}
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4 lg:p-6 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
           <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-            <div className="rounded-[26px] border border-white/10 bg-[#101010] p-5">
-              <div className="mb-5">
-                <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/35">Meeting Basics</p>
-                <h3 className="mt-2 text-lg font-semibold text-white">Schedule & context</h3>
+            <div className={`rounded-xl lg:rounded-3xl border  p-3 lg:p-5 ${isDark ? "border-white/10 bg-[#101010]" : "border-black/20 bg-white"}`}>
+              <div className="mb-3 lg:mb-5">
+                <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : " text-black/60"}`}>Meeting Basics</p>
+                <h3 className={`mt-1 lg:mt-2 lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Schedule & context</h3>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 lg:gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-white/70">Project / Shoot</label>
-                  <Select value={activeOrderId} onValueChange={setSelectedOrderId} disabled={fixedOrder || isLoadingProjects}>
-                    <SelectTrigger className="h-12 border-[#2C2C2C] bg-[#151515] text-white">
-                      <SelectValue placeholder={isLoadingProjects ? "Loading projects..." : "Select a project"} />
-                    </SelectTrigger>
-                    <SelectContent className="border-white/10 bg-[#111111] text-white">
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id} className="focus:bg-[#1B1B1B] focus:text-white">
-                          {project.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <label className={`text-xs lg:text-smfont-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Project / Shoot</label>
+                  {fixedOrder ? (
+                    <div className={`h-12 rounded-lg rounded-xl border px-4 text-xs lg:text-sm flex items-center ${isDark ? "text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff]"}`}>
+                      {projects.find((project) => project.id === activeOrderId)?.label || `Booking #${activeOrderId}`}
+                    </div>
+                  ) : (
+                    <SearchAutocomplete
+                      placeholder={isLoadingProjects ? "Loading projects..." : "Search by project name or booking ID"}
+                      options={projects.map((project) => ({
+                        id: project.id,
+                        label: project.label,
+                        description: project.description,
+                      }))}
+                      value={activeOrderId}
+                      onChange={setSelectedOrderId}
+                      emptyMessage="No project matches your search"
+                      isDark={isDark}
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-white/70">Meeting Title</label>
+                  <label className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Meeting Title</label>
                   <Input
                     value={meetingTitle}
                     onChange={(event) => setMeetingTitle(event.target.value)}
                     placeholder="Project catch-up"
-                    className="h-12 border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30"
+                    className={`h-12 rounded-lg lg:rounded-xl ${isDark ? "placeholder:text-white/30 text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-white/70">Meeting Type</label>
+                  <label className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Meeting Type</label>
                   <Select value={meetingType} onValueChange={(value) => setMeetingType(value as MeetingType)}>
-                    <SelectTrigger className="h-12 border-[#2C2C2C] bg-[#151515] text-white">
+                    <SelectTrigger className={`h-12 rounded-lg lg:rounded-xl ${isDark ? "text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff]"}`}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="border-white/10 bg-[#111111] text-white">
-                      <SelectItem value="pre_production" className="focus:bg-[#1B1B1B] focus:text-white">Pre Production</SelectItem>
-                      <SelectItem value="post_production" className="focus:bg-[#1B1B1B] focus:text-white">Post Production</SelectItem>
+                    <SelectContent className={`rounded-xl ${isDark ? "border-white/10 bg-[#111111] text-white" : "text-black border-black/20 bg-[#fff]"}`}>
+                      <SelectItem value="pre_production" className={`${isDark ? "focus:bg-[#1B1B1B] focus:text-white " : "focus:bg-[#E8D1AB] focus:text-black"}`}>Pre Production</SelectItem>
+                      <SelectItem value="post_production" className={`${isDark ? "focus:bg-[#1B1B1B] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}`}>Post Production</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -707,59 +751,72 @@ export default function CreateMeetingModal({
                       value={meetingDate}
                       onChange={setMeetingDate}
                       minDate={new Date()}
-                      colors={datePickerColours}
+                      // colors={datePickerColours}
+                      isDark={isDark}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <TimePicker label="Start Time" value={meetingStartTime} onChange={setMeetingStartTime} />
+                    <TimePicker
+                      label="Start Time"
+                      value={meetingStartTime}
+                      onChange={setMeetingStartTime}
+                      minTime={isToday ? getNextValidTime() : null}
+                      isDark={isDark}
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <TimePicker label="End Time" value={meetingEndTime} onChange={setMeetingEndTime} />
+                    <TimePicker
+                      label="End Time"
+                      value={meetingEndTime}
+                      onChange={setMeetingEndTime}
+                      minTime={meetingStartTime || (isToday ? getNextValidTime() : null)}
+                      isDark={isDark}
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-white/70">Description</label>
+                  <label className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Description</label>
                   <Textarea
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
                     rows={4}
                     placeholder="Agenda, discussion points, or notes for the team."
-                    className="min-h-[120px] rounded-2xl border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30"
+                    className={`min-h-[120px] rounded-lg lg:rounded-2xl text-sm lg:text-base ${isDark ? "border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-[26px] border border-white/10 bg-[#101010] p-5">
-                <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/35">Host</p>
-                <div className="mt-4 rounded-2xl border border-[#2C2C2C] bg-[#151515] p-4">
-                  <p className="text-base font-semibold text-white">{currentUserName}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[#E5D5B8]">{formatRoleLabel(role)}</p>
+              <div className={`rounded-xl lg:rounded-3xl borderp-3 lg:p-5 ${isDark ? "border-white/10 bg-[#101010]" : "border-black/20 bg-[#fff]"}`}>
+                <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : "text-black/75"}`}>Host</p>
+                <div className={`mt-4 rounded-lg lg:rounded-2xl border p-3 lg:p-4 ${isDark ? "border-[#2C2C2C] bg-[#151515]" : "border-black/20 bg-[#f5f5f5]"}`}>
+                  <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>{currentUserName}</p>
+                  <p className={`mt-1 text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#E5D5B8]" : "text-[#000]/80"}`}>{formatRoleLabel(role)}</p>
                 </div>
               </div>
 
-              <div className="rounded-[26px] border border-[#E5D5B8]/10 bg-[linear-gradient(180deg,#15120d_0%,#101010_100%)] p-5">
+              <div className={`rounded-xl lg:rounded-3xl borderp-3 lg:p-5 ${isDark ? "border-[#E5D5B8]/10 bg-[linear-gradient(180deg,#15120d_0%,#101010_100%)]" : "border-black/20 bg-[#fff]"}`}>
                 <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#E5D5B8]/30 bg-[#1A1A1A] text-[#E5D5B8]">
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${isDark ? "border-[#E5D5B8]/30 bg-[#1A1A1A] text-[#E5D5B8]" : "border-[#E8D1AB] bg-[#E8D1AB] text-black"}`}>
                     <Video size={18} />
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-white">Google Meet</p>
-                    <p className="mt-1 text-sm leading-6 text-white/45">
-                      Auto-generate the meeting room from your live Google Meet integration.
+                    <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Google Meet</p>
+                    <p className={`mt-1 text-xs lg:text-sm leading-6 ${isDark ? "text-white/45 " : "text-black/55 "}`}>
+                      The meeting will take place via Google Meet.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-[26px] border border-white/10 bg-[#101010] p-5">
+              <div className={`rounded-xl lg:rounded-3xl borderp-3 lg:p-5 ${isDark ? "border-white/10 bg-[#101010]" : " border-black/20 bg-[#fff]"}`}>
                 <div className="flex items-start gap-3">
-                  <Info className="mt-0.5 text-white/60" size={16} />
-                  <p className="text-sm leading-6 text-white/45">
+                  <Info className={`mt-0.5 shrink-0 ${isDark ? "text-white/60" : "text-black/80"}`} size={16} />
+                  <p className={`text-xs lg:text-sm leading-6 ${isDark ? "text-white/45" : "text-black/55"} `}>
                     Invited members can approve or reject the invite, and once accepted they can join directly from the saved meeting card.
                   </p>
                 </div>
@@ -767,42 +824,47 @@ export default function CreateMeetingModal({
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-white/10 bg-[#101010] p-5">
-            <div className="mb-5 flex items-center justify-between gap-3">
+          <div className={`rounded-xl lg:rounded-3xl border p-3 lg:p-5 ${isDark ? "border-white/10 bg-[#101010]" : "border-black/20 bg-[#fff]"}`}>
+            <div className="mb-3 lg:mb-5 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/35">Project Team</p>
-                <h3 className="mt-2 text-lg font-semibold text-white">Default invited members</h3>
+                <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : "text-black/75"}`}>Project Team</p>
+                <h3 className={`mt-2 lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Default invited members</h3>
               </div>
               {isLoadingOrderDetails ? (
-                <span className="inline-flex items-center gap-2 text-xs text-white/40">
+                <span className={`inline-flex items-center gap-2 text-xs ${isDark ? "text-white/40" : "text-black/60"}`}>
                   <Loader2 size={12} className="animate-spin" />
                   Loading members
                 </span>
               ) : null}
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-[#111111] p-4">
+            {/* Added w-full and overflow-hidden to the immediate container block */}
+            <div className={`rounded-lg lg:rounded-2xl border p-3 lg:p-4 w-full overflow-hidden ${isDark ? "border-white/10 bg-[#111111]" : "border-black/20 bg-[#f5f5f5]"}`}>
               {!activeOrderId ? (
-                <p className="text-sm text-white/40">Choose a project first to load sales rep and assigned creative partners.</p>
+                <p className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/60"}`}>Choose a project first to load sales rep and assigned creative partners.</p>
               ) : (
-                <div className="grid gap-3 md:grid-cols-2">
+                /* Added min-w-0 and w-full directly to the grid component layer */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 lg:gap-3 w-full min-w-0">
+
+                  {/* --- CLIENT CARD --- */}
                   {(clientName || clientEmail) ? (
-                    <div className="rounded-2xl border px-4 py-4 text-left border-[#E5D5B8]/40 bg-[#1B1812]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-white">{clientName || clientEmail || "Client"}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/35">Client</p>
+                    <div className={`rounded-lg lg:rounded-2xl border p-3 lg:p-4 text-left min-w-0 w-full ${isDark ? "border-[#E5D5B8]/40 bg-[#1B1812]" : "border-[#E3E3E3] bg-[#F0F0F0]"}`}>
+                      <div className="flex items-start justify-between gap-3 min-w-0 w-full">
+                        <div className="min-w-0 w-full">
+                          <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white " : "text-black "}`}>{clientName || clientEmail || "Client"}</p>
+                          <p className={`mt-1 text-xs uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/75"}`}>Client</p>
                           {clientEmail ? (
-                            <p className="mt-2 truncate text-xs text-white/60">{clientEmail}</p>
+                            <p className={`mt-2 truncate text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>{clientEmail}</p>
                           ) : null}
                         </div>
-                        <span className="rounded-full bg-[#E5D5B8] px-2.5 py-1 text-[11px] font-medium text-black">
+                        <span className={`rounded-full bg-[#E8D1AB] px-2.5 py-1 text-xs font-medium text-black shrink-0`}>
                           Client
                         </span>
                       </div>
                     </div>
                   ) : null}
 
+                  {/* --- MANAGER / SALES REP CARD --- */}
                   {managerOption ? (
                     <button
                       type="button"
@@ -812,22 +874,22 @@ export default function CreateMeetingModal({
                         )
                       }
                       className={cn(
-                        "rounded-2xl border px-4 py-4 text-left transition-colors",
+                        "rounded-lg lg:rounded-2xl border p-3 lg:p-4 text-left transition-colors min-w-0 w-full",
                         selectedManagerIds.includes(managerOption.id)
-                          ? "border-[#E5D5B8]/40 bg-[#1B1812]"
-                          : "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]"
+                          ? (isDark ? "border-[#E5D5B8]/40 bg-[#1B1812]" : "border-[#E3E3E3] bg-[#F0F0F0]")
+                          : (isDark ? "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]" : "border-[#E3E3E3] bg-[#F4F5F7] hover:bg-[#f0f0f0]")
                       )}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-white">{managerOption.name}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/35">Sales Rep</p>
+                      <div className="flex items-start justify-between gap-3 min-w-0 w-full">
+                        <div className="min-w-0 w-full">
+                          <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{managerOption.name}</p>
+                          <p className={`mt-1 text-xs uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/75"}`}>Sales Rep</p>
                         </div>
                         <span className={cn(
-                          "rounded-full px-2.5 py-1 text-[11px] font-medium",
+                          "rounded-full px-2.5 py-1 text-xs font-medium shrink-0",
                           selectedManagerIds.includes(managerOption.id)
                             ? "bg-[#E5D5B8] text-black"
-                            : "bg-white/5 text-white/45"
+                            : (isDark ? "bg-white/5 text-white/45" : "bg-black/15 text-black/60")
                         )}>
                           {selectedManagerIds.includes(managerOption.id) ? "Selected" : "Optional"}
                         </span>
@@ -835,6 +897,7 @@ export default function CreateMeetingModal({
                     </button>
                   ) : null}
 
+                  {/* --- CREATIVE PARTNER CARDS --- */}
                   {cpOptions.map((cp) => {
                     const selected = selectedCpIds.includes(cp.id);
                     return (
@@ -849,20 +912,21 @@ export default function CreateMeetingModal({
                           )
                         }
                         className={cn(
-                          "rounded-2xl border px-4 py-4 text-left transition-colors",
+                          "rounded-lg lg:rounded-2xl border p-3 lg:p-4 text-left transition-colors min-w-0 w-full",
                           selected
-                            ? "border-[#E5D5B8]/40 bg-[#1B1812]"
-                            : "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]"
+                            ? (isDark ? "border-[#E5D5B8]/40 bg-[#1B1812]" : "border-[#E3E3E3] bg-[#F0F0F0]")
+                            : (isDark ? "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]" : "border-[#E3E3E3] bg-[#F4F5F7] hover:bg-[#f0f0f0]")
                         )}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-white">{cp.name}</p>
-                            <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/35">Creative Partner</p>
+                        <div className="flex items-start justify-between gap-3 min-w-0 w-full">
+                          <div className="min-w-0 w-full">
+                            <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{cp.name}</p>
+                            <p className={`mt-1 text-xs uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/75"}`}>Creative Partner</p>
                           </div>
                           <span className={cn(
-                            "rounded-full px-2.5 py-1 text-[11px] font-medium",
-                            selected ? "bg-[#E5D5B8] text-black" : "bg-white/5 text-white/45"
+                            "rounded-full px-2.5 py-1 text-xs font-medium shrink-0",
+                            selected ? "bg-[#E5D5B8] text-black"
+                              : (isDark ? "bg-white/5 text-white/45" : "bg-black/15 text-black/60")
                           )}>
                             {selected ? "Selected" : "Optional"}
                           </span>
@@ -872,17 +936,17 @@ export default function CreateMeetingModal({
                   })}
 
                   {managerOption === null && cpOptions.length === 0 ? (
-                    <p className="text-sm text-white/40 md:col-span-2">No default project members were found.</p>
+                    <p className={`text-xs lg:text-sm md:col-span-2 ${isDark ? "text-white/40" : "text-black/60"}`}>No default project members were found.</p>
                   ) : null}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-white/10 bg-[#101010] p-5">
+          <div className={`rounded-xl lg:rounded-3xl border ${isDark ? "border-white/10 bg-[#101010]" : " border-black/20 bg-[#fff]"} p-3 lg:p-5`}>
             <div className="mb-5">
-              <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/35">Additional Members</p>
-              <h3 className="mt-2 text-lg font-semibold text-white">Invite more staff or creative partners</h3>
+              <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : "text-black/75"}`}>Additional Members</p>
+              <h3 className={`mt-2 lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Invite more staff or creative partners</h3>
             </div>
 
             <div className="space-y-3">
@@ -891,10 +955,10 @@ export default function CreateMeetingModal({
                   type="button"
                   onClick={() => setMemberTab("staff")}
                   className={cn(
-                    "rounded-2xl border px-4 py-2.5 text-sm transition-colors",
+                    "rounded-lg lg:rounded-2xl border px-4 py-2.5 text-sm transition-colors",
                     memberTab === "staff"
-                      ? "border-[#E5D5B8] bg-[#1B1812] text-white"
-                      : "border-white/10 bg-[#111111] text-white/60"
+                      ? (isDark ? "border-[#E5D5B8] bg-[#1B1812] text-white" : "border-[#E3E3E3] bg-[#F0F0F0] text-black")
+                      : (isDark ? "border-white/10 bg-[#111111] text-white/60" : "border-[#E3E3E3] bg-[#F0F0F0] text-black/60")
                   )}
                 >
                   Staff
@@ -903,10 +967,10 @@ export default function CreateMeetingModal({
                   type="button"
                   onClick={() => setMemberTab("cp")}
                   className={cn(
-                    "rounded-2xl border px-4 py-2.5 text-sm transition-colors",
+                    "rounded-lg lg:rounded-2xl border px-4 py-2.5 text-xs lg:text-sm transition-colors",
                     memberTab === "cp"
-                      ? "border-[#E5D5B8] bg-[#1B1812] text-white"
-                      : "border-white/10 bg-[#111111] text-white/60"
+                      ? (isDark ? "border-[#E5D5B8] bg-[#1B1812] text-white" : "border-[#E3E3E3] bg-[#F0F0F0] text-black")
+                      : (isDark ? "border-white/10 bg-[#111111] text-white/60" : "border-[#E3E3E3] bg-[#F0F0F0] text-black/60")
                   )}
                 >
                   CPs
@@ -914,21 +978,21 @@ export default function CreateMeetingModal({
               </div>
 
               <div className="relative">
-                <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-black/60"}`} />
                 <Input
                   value={memberSearch}
                   onChange={(event) => setMemberSearch(event.target.value)}
                   placeholder={memberTab === "cp" ? "Search creative partners" : "Search staff members"}
-                  className="h-12 border-[#2C2C2C] bg-[#151515] pl-10 text-white placeholder:text-white/30"
+                  className={`h-12 pl-10 rounded-xl ${isDark ? "border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
                 />
               </div>
 
               {selectedAdditionalMembers.staff.length > 0 || selectedAdditionalMembers.cp.length > 0 ? (
-                <div className="rounded-2xl border border-[#E5D5B8]/15 bg-[#14110d] p-4">
+                <div className={`rounded-lg lg:rounded-2xl border p-4 ${isDark ? "border-[#E5D5B8]/15 bg-[#14110d]" : "border-black/20 bg-[#f5f5f5]"}`}>
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-white">Added to this meeting</p>
-                      <p className="text-xs text-white/45">
+                      <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Added to this meeting</p>
+                      <p className={`text-xs ${isDark ? "text-white/45" : "text-black/60"}`}>
                         {selectedAdditionalMembers.staff.length + selectedAdditionalMembers.cp.length} additional member(s) selected
                       </p>
                     </div>
@@ -945,13 +1009,13 @@ export default function CreateMeetingModal({
                           onClick={() =>
                             setSelectedStaffIds((current) => current.filter((value) => value !== memberId))
                           }
-                          className="inline-flex items-center gap-2 rounded-full border border-[#E5D5B8]/30 bg-[#1B1812] px-3 py-2 text-left text-sm text-white transition-colors hover:bg-[#241d14]"
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-left text-xs lg:text-sm transition-colors ${isDark ? "text-white border-[#E5D5B8]/30 bg-[#1B1812] hover:bg-[#241d14]" : "text-black border-black/20 bg-[#F0F0F0] hover:bg-[#fff]"}`}
                         >
                           <span className="max-w-[220px] truncate">{member.name || member.email || "Staff Member"}</span>
-                          <span className="rounded-full bg-[#E5D5B8] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-black">
+                          <span className="rounded-full bg-[#E8D1AB] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-black">
                             Staff
                           </span>
-                          <span className="text-white/55">×</span>
+                          <span className={isDark ? "text-white/55" : "text-black/55"}><X size={12} /></span>
                         </button>
                       );
                     })}
@@ -966,13 +1030,13 @@ export default function CreateMeetingModal({
                           onClick={() =>
                             setSelectedExtraCpIds((current) => current.filter((value) => value !== memberId))
                           }
-                          className="inline-flex items-center gap-2 rounded-full border border-[#E5D5B8]/30 bg-[#1B1812] px-3 py-2 text-left text-sm text-white transition-colors hover:bg-[#241d14]"
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-left text-xs lg:text-sm transition-colors ${isDark ? "text-white border-[#E5D5B8]/30 bg-[#1B1812] hover:bg-[#241d14]" : "text-black border-black/20 bg-[#F0F0F0] hover:bg-[#fff]"}`}
                         >
                           <span className="max-w-[220px] truncate">{member.name || member.email || "Creative Partner"}</span>
                           <span className="rounded-full bg-[#E5D5B8] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-black">
                             CP
                           </span>
-                          <span className="text-white/55">×</span>
+                          <span className={isDark ? "text-white/55" : "text-black/55"}><X size={12} /></span>
                         </button>
                       );
                     })}
@@ -980,9 +1044,9 @@ export default function CreateMeetingModal({
                 </div>
               ) : null}
 
-              <div className="max-h-56 space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-[#111111] p-3">
+              <div className={`max-h-56 space-y-2 overflow-y-auto rounded-lg lg:rounded-2xl border p-3 ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E3E3E3] bg-[#F0F0F0]"}`}>
                 {filteredDirectoryMembers.length === 0 ? (
-                  <p className="px-2 py-3 text-sm text-white/40">
+                  <p className={`px-2 py-3 text-sm ${isDark ? "text-white/40" : "text-black/60"}`}>
                     {memberTab === "cp" ? "No additional CPs found for this search." : "No additional staff found for this search."}
                   </p>
                 ) : (
@@ -1000,35 +1064,35 @@ export default function CreateMeetingModal({
                         onClick={() =>
                           memberTab === "cp"
                             ? setSelectedExtraCpIds((current) =>
-                                selected
-                                  ? current.filter((value) => value !== memberId)
-                                  : [...current, memberId]
-                              )
+                              selected
+                                ? current.filter((value) => value !== memberId)
+                                : [...current, memberId]
+                            )
                             : setSelectedStaffIds((current) =>
-                                selected
-                                  ? current.filter((value) => value !== memberId)
-                                  : [...current, memberId]
-                              )
+                              selected
+                                ? current.filter((value) => value !== memberId)
+                                : [...current, memberId]
+                            )
                         }
                         className={cn(
-                          "flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition-colors",
+                          "flex w-full items-center justify-between rounded-lg lg:rounded-2xl border px-4 py-4 text-left transition-colors",
                           selected
-                            ? "border-[#E5D5B8] bg-[#1B1812]"
-                            : "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]"
+                            ? (isDark ? "border-[#E5D5B8] bg-[#1B1812]" : "border-[#E3E3E3] bg-[#F0F0F0]")
+                            : (isDark ? "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]" : "border-[#E3E3E3] bg-[#F4F5F7] hover:bg-[#f0f0f0]")
                         )}
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-white">{member.name || member.email || "Staff Member"}</p>
+                          <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{member.name || member.email || "Staff Member"}</p>
                           {member.email ? (
-                            <p className="truncate text-xs text-white/45">{member.email}</p>
+                            <p className={`truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{member.email}</p>
                           ) : null}
-                          <p className="truncate text-xs uppercase tracking-[0.16em] text-white/35">
+                          <p className={`truncate text-xs uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/35"}`}>
                             {memberTab === "cp" ? "Creative Partner" : formatRoleLabel(member.role || "Manager")}
                           </p>
                         </div>
                         <span className={cn(
-                          "rounded-full px-2.5 py-1 text-[11px] font-medium",
-                          selected ? "bg-[#E5D5B8] text-black" : "bg-white/5 text-white/45"
+                          "rounded-full px-2.5 py-1 text-xs font-medium",
+                          selected ? "bg-[#E5D5B8] text-black" : (isDark ? "bg-white/5 text-white/45" : "bg-black/15 text-black/60")
                         )}>
                           {selected ? "Selected" : "Add"}
                         </span>
@@ -1040,28 +1104,28 @@ export default function CreateMeetingModal({
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-white/10 bg-[#101010] p-5">
+          <div className={`rounded-xl lg:rounded-3xl border ${isDark ? "border-white/10 bg-[#101010]" : " border-black/20 bg-[#fff]"} p-3 lg:p-5`}>
             <div className="mb-5">
-              <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/35">Link & Notifications</p>
-              <h3 className="mt-2 text-lg font-semibold text-white">Generate the meeting room</h3>
+              <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : "text-black/75"}`}>Link & Notifications</p>
+              <h3 className={`mt-2 lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Generate the meeting room</h3>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-white/70">Google Meet Link</label>
+                <label className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Google Meet Link</label>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Input
                     value={meetLink}
                     onChange={(event) => setMeetLink(event.target.value)}
                     placeholder="Auto-generated Google Meet link"
-                    className="h-12 border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30"
+                    className={`h-12 rounded-xl ${isDark ? "placeholder:text-white/30 text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     onClick={generateMeetLink}
                     disabled={isGeneratingLink || !activeOrderId}
-                    className="h-12 border-white/10 bg-[#141414] text-white hover:bg-[#1c1c1c]"
+                    className="h-12 rounded-xl border-white/10 bg-[#141414] text-[#E8D1AB] hover:bg-[#1c1c1c]"
                   >
                     {isGeneratingLink ? <Loader2 size={15} className="animate-spin" /> : <Video size={15} />}
                     Generate
@@ -1069,7 +1133,7 @@ export default function CreateMeetingModal({
                 </div>
               </div>
 
-              <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-[#111111] p-4">
+              <label className={`flex items-start gap-3 rounded-lg lg:rounded-2xl border p-4 ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E3E3E3] bg-[#F0F0F0]"}`}>
                 <input
                   type="checkbox"
                   checked={sendNotification}
@@ -1077,8 +1141,8 @@ export default function CreateMeetingModal({
                   className="mt-0.5 h-4 w-4 accent-[#E5D5B8]"
                 />
                 <div>
-                  <p className="text-sm font-medium text-white">Send meeting invitation notifications</p>
-                  <p className="mt-1 text-sm text-white/45">
+                  <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Send meeting invitation notifications</p>
+                  <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/45" : "text-black/60"}`}>
                     Selected members will get the meeting invite and can approve or reject it from their side.
                   </p>
                 </div>

@@ -5,6 +5,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCoverflow, Navigation } from 'swiper/modules';
 import { ArrowDownLeft, ArrowUpRight, Star, Check, Plus, X } from 'lucide-react';
 import type { Creator } from "@/lib/types";
+import type { CrewRole, SelectedCrewRoles } from "../types";
 
 // Import Swiper styles
 import 'swiper/css';
@@ -50,10 +51,14 @@ const getCreatorImage = (creator: Creator, index: number) => {
 const CreatorCarousel = ({
   creators,
   selectedIds,
+  selectedRoles,
+  activeRoleFilter,
   toggleSelection
 }: {
   creators: Creator[],
   selectedIds: (string | number)[],
+  selectedRoles: SelectedCrewRoles,
+  activeRoleFilter: CrewRole | null,
   toggleSelection: (id: number) => void;
 }) => {
   const count = creators.length;
@@ -120,6 +125,11 @@ const CreatorCarousel = ({
           {creators.map((creator, index) => {
             const creatorId = creator.crew_member_id;
             const isSelected = selectedIds.includes(creatorId);
+            const assignedRole = selectedRoles[creatorId];
+            const isSelectedForActiveRole = activeRoleFilter
+              ? assignedRole === activeRoleFilter
+              : isSelected;
+            const isSelectedInOtherRole = Boolean(activeRoleFilter && isSelected && assignedRole && assignedRole !== activeRoleFilter);
             const rating = creator.rating || 0;
             const imageUrl = getCreatorImage(creator, index);
 
@@ -184,12 +194,26 @@ const CreatorCarousel = ({
                           onClick={(e) => {
                             e.stopPropagation(); // Prevent Swiper from intercepting this as a drag/slide
                             e.preventDefault();
+                            if (isSelectedInOtherRole) return;
                             toggleSelection(creatorId);
                           }}
-                          className={`flex-1 py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium flex items-center justify-center transition-colors ${isSelected ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717]" : "bg-[#E8D1AB] text-black"
+                          disabled={isSelectedInOtherRole}
+                          className={`flex-1 min-h-14 px-4 py-2 rounded-xl text-sm lg:text-base font-medium flex items-center justify-center gap-2 text-center transition-all ${isSelectedForActiveRole ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717] shadow-[0_0_0_1px_rgba(255,201,201,0.15)]" : isSelectedInOtherRole ? "bg-white/5 text-white/40 border border-white/10 cursor-not-allowed" : "bg-[#E8D1AB] text-black hover:bg-[#f0dbb7]"
                             }`}
                         >
-                          {isSelected ? <><X size={16} className="mr-1" /> Remove</> : <><Plus size={16} className="mr-1" /> Add</>}
+                          {isSelectedForActiveRole ? (
+                            <>
+                              <X size={16} className="shrink-0" />
+                              <span>Remove</span>
+                            </>
+                          ) : isSelectedInOtherRole ? (
+                            <span>Already selected</span>
+                          ) : (
+                            <>
+                              <Plus size={16} className="shrink-0" />
+                              <span>Add</span>
+                            </>
+                          )}
                         </button>
                         <Link
                           href={`/creatives/${creatorId}?from=booking_flow`}

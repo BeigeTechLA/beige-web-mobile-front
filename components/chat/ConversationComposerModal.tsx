@@ -12,6 +12,7 @@ interface ConversationComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated?: (room: ExternalChatRoom | null) => void;
+  isDark?: boolean;
 }
 
 type Mode = "project" | "direct";
@@ -61,6 +62,12 @@ const getProjectName = (project: any) => {
   return picked || `Shoot #${bookingId || "New"}`;
 };
 
+const getProjectOptionLabel = (project: any) => {
+  const bookingId = getProjectId(project);
+  const baseName = getProjectName(project);
+  return bookingId ? `${baseName} (Booking #${bookingId})` : baseName;
+};
+
 const getCrewId = (member: any) => String(member?.crew_member_id || member?.crew_member?.crew_member_id || member?.id || "");
 
 const getCrewName = (member: any) =>
@@ -83,6 +90,7 @@ export default function ConversationComposerModal({
   isOpen,
   onClose,
   onCreated,
+  isDark = true
 }: ConversationComposerModalProps) {
   const { user } = useAuth();
   const [mode, setMode] = useState<Mode>("project");
@@ -210,11 +218,15 @@ export default function ConversationComposerModal({
     () =>
       projects.map((project) => ({
         id: getProjectId(project),
-        label: getProjectName(project),
+        label: getProjectOptionLabel(project),
         description:
-          project?.client_name ||
-          toReadableLabel(Array.isArray(project?.event_type) ? project.event_type[0] : project?.event_type) ||
-          (getProjectId(project) ? `Booking #${getProjectId(project)}` : null),
+          [
+            getProjectId(project) ? `Booking #${getProjectId(project)}` : "",
+            project?.client_name || "",
+            toReadableLabel(Array.isArray(project?.event_type) ? project.event_type[0] : project?.event_type) || "",
+          ]
+            .filter(Boolean)
+            .join(" • "),
         disabled: Boolean(existingProjectRooms[getProjectId(project)]),
         disabledLabel: existingProjectRooms[getProjectId(project)]
           ? "Chat room already exists for this shoot"
@@ -236,15 +248,26 @@ export default function ConversationComposerModal({
     [clients]
   );
 
+  const resetComposerFormState = () => {
+    setMode("project");
+    setSelectedProjectId("");
+    setSelectedClientId("");
+    setProjectDetails(null);
+    setSelectedCpIds([]);
+    setSelectedDirectoryIds([]);
+    setMemberSearch("");
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
     const load = async () => {
       setLoading(true);
       try {
-        const [projectsResponse, clientsResponse, directoryResponse, roomsResponse] = await Promise.all([
+        const [projectsResponse, adminClientsResponse, salesClientsResponse, directoryResponse, roomsResponse] = await Promise.all([
           adminApi.getProjects({}),
-          adminApi.getClients({ page: 1, limit: 200 }),
+          adminApi.getAdminClients({ page: 1, limit: 300 }),
+          adminApi.getClients({ page: 1, limit: 300 }),
           externalChatApi.getDirectory(),
           externalChatApi.listRooms({ page: 1, limit: 200, sortBy: "updatedAt:desc" }),
         ]);
@@ -255,15 +278,35 @@ export default function ConversationComposerModal({
           projectsResponse?.data ||
           projectsResponse?.results ||
           [];
-        const rawClientResults = Array.isArray(clientsResponse?.data)
-          ? clientsResponse.data
-          : clientsResponse?.data?.items || [];
+        const rawAdminClientResults = Array.isArray(adminClientsResponse?.data)
+          ? adminClientsResponse.data
+          : adminClientsResponse?.data?.items ||
+          adminClientsResponse?.data?.rows ||
+          adminClientsResponse?.items ||
+          [];
+        const rawSalesClientResults = Array.isArray(salesClientsResponse?.data)
+          ? salesClientsResponse.data
+          : salesClientsResponse?.data?.items ||
+          salesClientsResponse?.data?.rows ||
+          salesClientsResponse?.items ||
+          [];
+        const mergedClientResults = [
+          ...(Array.isArray(rawAdminClientResults) ? rawAdminClientResults : []),
+          ...(Array.isArray(rawSalesClientResults) ? rawSalesClientResults : []),
+        ];
 
         const normalizedProjects = (Array.isArray(rawProjectResults) ? rawProjectResults : [])
           .map((item: any) => item?.project || item)
           .filter((item: any) => getProjectId(item));
-        const normalizedClients = (Array.isArray(rawClientResults) ? rawClientResults : [])
-          .filter((item: any) => getClientId(item));
+        const seenClientIds = new Set<string>();
+        const normalizedClients = mergedClientResults
+          .filter((item: any) => getClientId(item))
+          .filter((item: any) => {
+            const clientId = getClientId(item);
+            if (!clientId || seenClientIds.has(clientId)) return false;
+            seenClientIds.add(clientId);
+            return true;
+          });
         const existingRoomMap = (Array.isArray(roomsResponse) ? roomsResponse : []).reduce(
           (acc: Record<string, ExternalChatRoom>, room: ExternalChatRoom) => {
             const bookingId = String(room?.external_order_ref || room?.order_id?.id || room?.order_id || "").trim();
@@ -292,11 +335,17 @@ export default function ConversationComposerModal({
   useEffect(() => {
     if (!isOpen || !selectedProjectId || mode !== "project") return;
 
+    let isActive = true;
+    const requestProjectId = selectedProjectId;
+
     const loadProject = async () => {
       try {
         const response = await adminApi.getProjectDetails(selectedProjectId);
         const data = response?.data?.project || response?.data || response;
         const assignedCrew = response?.data?.assignedCrew || data?.assignedCrew || data?.assigned_crews || [];
+        if (!isActive || !isOpen || mode !== "project" || requestProjectId !== selectedProjectId) {
+          return;
+        }
         setProjectDetails({
           ...data,
           assignedCrew,
@@ -309,17 +358,18 @@ export default function ConversationComposerModal({
     };
 
     loadProject();
+    return () => {
+      isActive = false;
+    };
   }, [isOpen, mode, selectedProjectId]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setMode("project");
-    setSelectedProjectId("");
-    setSelectedClientId("");
-    setProjectDetails(null);
-    setSelectedCpIds([]);
-    setSelectedDirectoryIds([]);
-    setMemberSearch("");
+    if (!isOpen) {
+      resetComposerFormState();
+      return;
+    }
+
+    resetComposerFormState();
   }, [isOpen]);
 
   useEffect(() => {
@@ -397,12 +447,11 @@ export default function ConversationComposerModal({
           role: "client",
         },
         participants,
-        roomName: `Direct_${
-          selectedClient.name ||
+        roomName: `Direct_${selectedClient.name ||
           `${selectedClient.first_name || ""} ${selectedClient.last_name || ""}`.trim() ||
           selectedClient.email ||
           getClientId(selectedClient)
-        }`,
+          }`,
       });
 
       if (!room) {
@@ -424,261 +473,361 @@ export default function ConversationComposerModal({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className={`absolute inset-0 backdrop-blur-sm transition-colors ${isDark ? "bg-black/80" : "bg-black/40"}`}
+        onClick={() => {
+          resetComposerFormState();
+          onClose();
+        }}
+      />
       <div className="absolute inset-0 overflow-y-auto">
         <div className="flex min-h-full items-start justify-center p-4 pb-8 sm:p-6 sm:pb-10">
-        <div className="my-4 w-full max-w-4xl overflow-hidden rounded-[28px] border border-white/10 bg-[#090909] shadow-2xl sm:my-6">
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-          <div>
-            <h2 className="text-2xl font-semibold text-white">Start New Conversation</h2>
-            <p className="mt-1 text-sm text-white/50">Create a shoot thread or a direct client conversation.</p>
-          </div>
-          <button onClick={onClose} className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/15">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r">
-            <div className="mb-5 inline-flex rounded-full border border-white/10 bg-[#111] p-1">
-              {(["project", "direct"] as Mode[]).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setMode(value)}
-                  className={`rounded-full px-4 py-2 text-sm transition ${
-                    mode === value ? "bg-[#E5D5B8] text-black" : "text-white/65"
-                  }`}
-                >
-                  {value === "project" ? "Shoot Conversation" : "Direct Client Chat"}
-                </button>
-              ))}
-            </div>
-
-            {loading ? (
-              <div className="flex items-center gap-2 text-sm text-white/60">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading options...
-              </div>
-            ) : mode === "project" ? (
-              <div className="space-y-5">
-                <div>
-                  {/* <label className="mb-2 block text-sm text-white/70">Select Shoot</label> */}
-                  <SearchAutocomplete
-                    label="Select Shoot"
-                    placeholder="Search shoot / client"
-                    options={projectOptions}
-                    value={selectedProjectId}
-                    onChange={setSelectedProjectId}
-                    emptyMessage="No shoot matches your search"
-                  />
-                </div>
-
-                <div className="rounded-3xl border border-white/10 bg-[#101010] p-4">
-                  <p className="text-sm font-medium text-white">Default Members</p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/70">
-                    <span className="rounded-full border border-white/10 bg-[#171717] px-3 py-2">Admin</span>
-                    {salesRep ? (
-                      <span className="rounded-full border border-white/10 bg-[#171717] px-3 py-2">
-                        Sales: {salesRep.name || salesRep.email}
-                      </span>
-                    ) : null}
-                    {projectDetails?.client_name || projectDetails?.guest_email ? (
-                      <span className="rounded-full border border-white/10 bg-[#171717] px-3 py-2">
-                        Client: {projectDetails?.client_name || projectDetails?.guest_email}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-white/10 bg-[#101010] p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-medium text-white">Assigned CPs</p>
-                    <span className="text-xs text-[#E5D5B8]">{selectedCpIds.length} selected</span>
-                  </div>
-                  <div className="space-y-2">
-                    {assignedCrew.length ? (
-                      assignedCrew.map((member: any) => {
-                        const id = getCrewId(member);
-                        const selected = selectedCpIds.includes(id);
-                        return (
-                          <label
-                            key={id}
-                            className={`flex items-center gap-3 rounded-2xl border px-3 py-3 ${
-                              selected ? "border-[#E5D5B8] bg-[#1A1711]" : "border-white/10 bg-[#0D0D0D]"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => toggleSelection(id, setSelectedCpIds)}
-                              className="accent-[#E5D5B8]"
-                            />
-                            <div>
-                              <p className="text-sm text-white">{getCrewName(member)}</p>
-                            </div>
-                          </label>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-white/45">No assigned CPs found for this shoot.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-white/10 bg-[#101010] p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-medium text-white">Already Included</p>
-                    <span className="text-xs text-white/45">{defaultIncludedMembers.length} members</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {defaultIncludedMembers.map((member) => (
-                      <span
-                        key={`included-${member.role}-${member.id}`}
-                        className="rounded-full border border-white/10 bg-[#171717] px-3 py-2 text-xs text-white/70"
-                      >
-                        {member.name} • {getRoleLabel(member.role)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div>
-                  {/* <label className="mb-2 block text-sm text-white/70">Select Client</label> */}
-                  <SearchAutocomplete
-                    label="Select Client"
-                    placeholder="Search client"
-                    options={clientOptions}
-                    value={selectedClientId}
-                    onChange={setSelectedClientId}
-                    emptyMessage="No client matches your search"
-                  />
-                </div>
-
-                <div className="rounded-3xl border border-white/10 bg-[#101010] p-4">
-                  <div className="mb-3 flex items-center gap-3">
-                    <div className="rounded-2xl bg-[#E5D5B8] p-3 text-black">
-                      <MessageSquarePlus size={16} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">Direct client conversation</p>
-                      <p className="text-xs text-white/50">Admin and selected client are added first. You can add more members too.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-white/10 bg-[#101010] p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-medium text-white">Already Included</p>
-                    <span className="text-xs text-white/45">{defaultIncludedMembers.length} members</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {defaultIncludedMembers.map((member) => (
-                      <span
-                        key={`included-${member.role}-${member.id}`}
-                        className="rounded-full border border-white/10 bg-[#171717] px-3 py-2 text-xs text-white/70"
-                      >
-                        {member.name} • {getRoleLabel(member.role)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="rounded-2xl bg-white/10 p-3 text-white">
-                <Users size={16} />
-              </div>
+          <div
+            className={`my-4 w-full max-w-4xl overflow-hidden rounded-[28px] border shadow-2xl transition-colors sm:my-6 ${isDark ? "border-white/10 bg-[#090909]" : "border-[#E3E3E3] bg-white"}`}
+          >
+            <div
+              className={`flex items-center justify-between border-b px-6 py-5 ${isDark ? "border-white/10" : "border-[#E3E3E3]"}`}
+            >
               <div>
-                <p className="text-base font-semibold text-white">Add Extra Members</p>
-              <p className="text-xs text-white/50">Admins can include any member, even if they are not linked to the shoot.</p>
+                <h2 className={`text-lg lg:text-2xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                  Start New Conversation
+                </h2>
+                <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/50" : "text-[#000000B2]"}`}>
+                  Create a shoot thread or a direct client conversation.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  resetComposerFormState();
+                  onClose();
+                }}
+                className={`rounded-full p-2 transition ${isDark
+                  ? "bg-white/10 text-white hover:bg-white/15"
+                  : "bg-[#F0F0F0] text-black hover:bg-[#F4F5F7]"
+                  }`}
+              >
+                <X size={18} />
+              </button>
             </div>
-          </div>
 
-            <div className="mb-3 rounded-2xl border border-dashed border-white/10 bg-[#0f0f0f] px-4 py-3 text-xs text-white/45">
-              Members already added by default are hidden from this list.
-            </div>
-
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-              <input
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                placeholder="Search members by name, email, or role"
-                className="h-11 w-full rounded-xl border border-white/10 bg-[#141414] pl-10 pr-3 text-sm text-white outline-none placeholder:text-white/30"
-              />
-            </div>
-
-            <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-              {filteredDirectoryMembers.map((member) => {
-                const memberId = String(member.id);
-                const selected = selectedDirectoryIds.includes(memberId);
-                return (
-                  <label
-                    key={`${member.source}-${memberId}`}
-                    className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 ${
-                      selected ? "border-[#E5D5B8] bg-[#1A1711]" : "border-white/10 bg-[#101010]"
-                    }`}
-                  >
-                    <div>
-                      <p className="text-sm text-white">{member.name || member.email || memberId}</p>
-                      <p className="mt-1 text-xs text-white/45">
-                        {(member.role || member.source || "member").replace("_", " ")}
-                        {member.email ? ` • ${member.email}` : ""}
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleSelection(memberId, setSelectedDirectoryIds)}
-                      className="accent-[#E5D5B8]"
-                    />
-                  </label>
-                );
-              })}
-              {!filteredDirectoryMembers.length ? (
-                <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-white/40">
-                  No members match this search.
+            <div className={`grid gap-0 lg:grid-cols-[1.1fr_0.9fr]`}>
+              <div
+                className={`border-b p-6 lg:border-b-0 lg:border-r ${isDark ? "border-white/10" : "border-[#E3E3E3]"}`}
+              >
+                <div
+                  className={`mb-5 inline-flex rounded-full border p-1 ${isDark ? "border-white/10 bg-[#111]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}
+                >
+                  {(["project", "direct"] as Mode[]).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setMode(value)}
+                      className={`rounded-full px-4 py-2 text-sm transition ${mode === value
+                        ? "bg-[#E5D5B8] text-black"
+                        : isDark
+                          ? "text-white/65 hover:text-white"
+                          : "text-zinc-650 hover:text-black"
+                        }`}
+                    >
+                      {value === "project" ? "Shoot Conversation" : "Direct Client Chat"}
+                    </button>
+                  ))}
                 </div>
-              ) : null}
-            </div>
 
-            <div className="mt-5 rounded-3xl border border-white/10 bg-[#101010] p-4">
-              <p className="text-sm font-medium text-white">Ready to add</p>
-              <p className="mt-1 text-xs text-white/50">
-                {chosenExtras.length} extra member{chosenExtras.length === 1 ? "" : "s"} selected
-              </p>
-            </div>
+                {loading ? (
+                  <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/60" : "text-zinc-600"}`}>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading options...
+                  </div>
+                ) : mode === "project" ? (
+                  <div className="space-y-5">
+                    <div>
+                      {/* <label className="mb-2 block text-sm text-white/70">Select Shoot</label> */}
+                      <SearchAutocomplete
+                        label="Select Shoot"
+                        placeholder="Search by project name, client, or booking ID"
+                        options={projectOptions}
+                        value={selectedProjectId}
+                        onChange={setSelectedProjectId}
+                        emptyMessage="No shoot matches your search"
+                        isDark={isDark}
+                      />
+                    </div>
 
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/70 transition hover:bg-white/5"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submit}
-                disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#E5D5B8] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#d4c19f] disabled:opacity-70"
-              >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {submitting ? "Creating..." : "Start Chat"}
-              </button>
+                    <div className={`rounded-xl lg:rounded-3xl border p-4 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-[#F4F5F7"}`}>
+                      <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                        Default Members
+                      </p>
+                      <div className={`mt-3 flex flex-wrap gap-2 text-xs ${isDark ? "text-white/70" : "text-zinc-600"}`}>
+                        <span className={`rounded-full border px-3 py-2 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}>
+                          Admin
+                        </span>
+                        {salesRep ? (
+                          <span className={`rounded-full border px-3 py-2 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}>
+                            Sales: {salesRep.name || salesRep.email}
+                          </span>
+                        ) : null}
+                        {projectDetails?.client_name || projectDetails?.guest_email ? (
+                          <span className={`rounded-full border px-3 py-2 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}>
+                            Client: {projectDetails?.client_name || projectDetails?.guest_email}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className={`rounded-xl lg:rounded-3xl border p-4 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}>
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          Assigned CPs
+                        </p>
+                        <span className={isDark ? "text-xs text-[#E5D5B8]" : "text-xs text-[#bfae8f]"}>
+                          {selectedCpIds.length} selected
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {assignedCrew.length ? (
+                          assignedCrew.map((member: any) => {
+                            const id = getCrewId(member);
+                            const selected = selectedCpIds.includes(id);
+                            return (
+                              <label
+                                key={id}
+                                className={`flex items-center gap-3 rounded-2xl border px-3 py-3 transition ${selected
+                                  ? isDark
+                                    ? "border-[#E5D5B8] bg-[#1A1711]"
+                                    : "border-[#E5D5B8] bg-[#FDFBF7]"
+                                  : isDark
+                                    ? "border-white/10 bg-[#0D0D0D]"
+                                    : "border-[#E3E3E3] bg-white"
+                                  }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleSelection(id, setSelectedCpIds)}
+                                  className="accent-[#E5D5B8]"
+                                />
+                                <div>
+                                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>
+                                    {getCrewName(member)}
+                                  </p>
+                                </div>
+                              </label>
+                            );
+                          })
+                        ) : (
+                          <p className={`text-sm ${isDark ? "text-white/45" : "text-zinc-400"}`}>
+                            No assigned CPs found for this shoot.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`rounded-xl lg:rounded-3xl border p-4 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}
+                    >
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          Already Included
+                        </p>
+                        <span className={`text-xs ${isDark ? "text-white/45" : "text-zinc-400"}`}>
+                          {defaultIncludedMembers.length} members
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {defaultIncludedMembers.map((member) => (
+                          <span
+                            key={`included-${member.role}-${member.id}`}
+                            className={`rounded-full border px-3 py-2 text-xs ${isDark
+                              ? "border-white/10 bg-[#171717] text-white/70"
+                              : "border-[#E3E3E3] bg-[#F4F5F7] text-zinc-600"
+                              }`}
+                          >
+                            {member.name} • {getRoleLabel(member.role)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <div>
+                      {/* <label className="mb-2 block text-sm text-white/70">Select Client</label> */}
+                      <SearchAutocomplete
+                        label="Select Client"
+                        placeholder="Search client"
+                        options={clientOptions}
+                        value={selectedClientId}
+                        onChange={setSelectedClientId}
+                        emptyMessage="No client matches your search"
+                        isDark={isDark}
+                      />
+                    </div>
+
+                    <div
+                      className={`rounded-xl lg:rounded-3xl border p-4 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}
+                    >
+                      <div className="mb-3 flex items-center gap-3">
+                        <div className="rounded-2xl bg-[#E5D5B8] p-3 text-black">
+                          <MessageSquarePlus size={16} />
+                        </div>
+                        <div>
+                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            Direct client conversation
+                          </p>
+                          <p className={`text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                            Admin and selected client are added first. You can add more members too.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`rounded-xl lg:rounded-3xl border p-4 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}
+                    >
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          Already Included
+                        </p>
+                        <span className={`text-xs ${isDark ? "text-white/45" : "text-zinc-400"}`}>
+                          {defaultIncludedMembers.length} members
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {defaultIncludedMembers.map((member) => (
+                          <span
+                            key={`included-${member.role}-${member.id}`}
+                            className={`rounded-full border px-3 py-2 text-xs ${isDark ? "border-white/10 bg-[#171717] text-white/70" : "border-[#E3E3E3] bg-[#F4F5F7] text-zinc-600"}`}
+                          >
+                            {member.name} • {getRoleLabel(member.role)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className={`rounded-lg lg:rounded-2xl p-3 ${isDark ? "bg-white/10 text-white" : "bg-[#F4F5F7] text-zinc-800"}`}>
+                    <Users size={16} />
+                  </div>
+                  <div>
+                    <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                      Add Extra Members
+                    </p>
+                    <p className={`text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                      Admins can include any member, even if they are not linked to the shoot.
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={`mb-3 rounded-lg lg:rounded-2xl border border-dashed px-4 py-3 text-xs ${isDark
+                    ? "border-white/10 bg-[#0f0f0f] text-white/45"
+                    : "border-[#E3E3E3] bg-[#F4F5F7] text-zinc-500"
+                    }`}
+                >
+                  Members already added by default are hidden from this list.
+                </div>
+
+                <div className="relative mb-3">
+                  <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-white/35" : "text-zinc-400"}`} />
+                  <input
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    placeholder="Search members by name, email, or role"
+                    className={`h-11 w-full rounded-lg lg:rounded-xl border pl-10 pr-3 text-sm outline-none transition ${isDark
+                      ? "border-white/10 bg-[#141414] text-white placeholder:text-white/30"
+                      : "border-[#E3E3E3] bg-white text-black placeholder:text-zinc-400 focus:border-zinc-300"
+                      }`}
+                  />
+                </div>
+
+                <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                  {filteredDirectoryMembers.map((member) => {
+                    const memberId = String(member.id);
+                    const selected = selectedDirectoryIds.includes(memberId);
+                    return (
+                      <label
+                        key={`${member.source}-${memberId}`}
+                        className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 transition ${selected
+                          ? isDark
+                            ? "border-[#E5D5B8] bg-[#1A1711]"
+                            : "border-[#E5D5B8] bg-[#FDFBF7]"
+                          : isDark
+                            ? "border-white/10 bg-[#101010]"
+                            : "border-[#E3E3E3] bg-white hover:bg-[#F4F5F7]"
+                          }`}
+                      >
+                        <div>
+                          <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>
+                            {member.name || member.email || memberId}
+                          </p>
+                          <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-zinc-400"}`}>
+                            {(member.role || member.source || "member").replace("_", " ")}
+                            {member.email ? ` • ${member.email}` : ""}
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleSelection(memberId, setSelectedDirectoryIds)}
+                          className="accent-[#E5D5B8]"
+                        />
+                      </label>
+                    );
+                  })}
+                  {!filteredDirectoryMembers.length ? (
+                    <div
+                      className={`rounded-lg lg:rounded-2xl border border-dashed px-4 py-8 text-center text-sm ${isDark ? "border-white/10 text-white/40" : "border-[#E3E3E3] text-zinc-400"
+                        }`}
+                    >
+                      No members match this search.
+                    </div>
+                  ) : null}
+                </div>
+
+                <div
+                  className={`mt-5 rounded-xl lg:rounded-3xl border p-4 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-[#F4F5F7]"
+                    }`}
+                >
+                  <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Ready to add</p>
+                  <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                    {chosenExtras.length} extra member{chosenExtras.length === 1 ? "" : "s"} selected
+                  </p>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetComposerFormState();
+                      onClose();
+                    }}
+                    className={`rounded-lg lg:rounded-2xl border px-4 py-3 text-sm transition ${isDark
+                      ? "border-white/10 text-white/70 hover:bg-white/5"
+                      : "border-[#E3E3E3] text-zinc-600 hover:bg-[#F4F5F7]"
+                      }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submit}
+                    disabled={submitting}
+                    className="inline-flex items-center gap-2 rounded-lg lg:rounded-2xl bg-[#E5D5B8] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#d4c19f] disabled:opacity-70"
+                  >
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {submitting ? "Creating..." : "Start Chat"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
-  </div>
-
   );
 }

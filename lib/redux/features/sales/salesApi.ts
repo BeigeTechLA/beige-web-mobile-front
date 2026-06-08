@@ -116,7 +116,7 @@ export const salesApi = createApi({
 
     getLeads: builder.query<
       PaginatedLeadsResponse,
-      { page?: number; limit?: number; status?: string; lead_type?: string; assigned_to?: string; search?: string; start_date?: string; end_date?: string; intent?: string }
+      { page?: number; limit?: number; status?: string; lead_type?: string; assigned_to?: string; search?: string; start_date?: string; end_date?: string; intent?: string; timeline_status?: string; shoot_status?: string; cp_assignment?: string; production_filter?: string }
     >({
       query: (params) => ({
         url: 'sales/leads',
@@ -394,7 +394,7 @@ export const salesApi = createApi({
         location_latitude?: number;
         location_longitude?: number;
         description?: string;        // Added
-        reference_links?: string;    // Added
+        reference_links?: string | string[];    // Changed to accept array
       }
     >({
       query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id
@@ -452,7 +452,7 @@ export const salesApi = createApi({
       }),
       invalidatesTags: ['Lead'], // Invalidating Lead could trigger shoots/projects refresh depending on setup
     }),
-    getCrewForLead: builder.query<any[], { lead_id: number | string; role_type: string; search_query?: string }>({
+    getCrewForLead: builder.query<any[], { lead_id: number | string; role_type: string; search_query?: string; radius?: number; latitude?: number; longitude?: number }>({
       query: (params) => ({
         url: 'admin/get-crew-for-lead',
         params,

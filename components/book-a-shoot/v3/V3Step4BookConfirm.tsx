@@ -110,6 +110,7 @@ const USER_TYPE: Record<number, string> = {
   5: "Sales Representative",
   6: "Production Manager"
 }
+const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 
 interface Props {
   data: BookingDataV3;
@@ -197,7 +198,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const hasEditing = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
   const isEditingOnly =
     data.contentType.length === 1 && data.contentType.includes("editing");
-  const isCoachellaEvent = data.shootType === "coachella";
+  const isStudioBooking = data.shootType === "studio";
+  const selectedStudios = normalizeSelectedStudios(data);
+  const primaryStudio = selectedStudios[0];
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -226,27 +229,30 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     ? allSameTime && firstDay?.startTime && firstDay?.endTime
       ? `${formatDisplayTime(firstDay.startTime)} - ${formatDisplayTime(firstDay.endTime)}`
       : "Multiple times"
-    : isEditingOnly
-      ? "Not required for editing-only projects"
-      : data.startDate && data.endDate
-        ? `${formatDisplayTime(data.startDate)} - ${formatDisplayTime(data.endDate)}`
-        : "Time not set";
+    : isStudioBooking && primaryStudio?.startTime && primaryStudio?.endTime
+      ? `${formatDisplayTime(primaryStudio.startTime)} - ${formatDisplayTime(primaryStudio.endTime)}`
+      : isEditingOnly
+        ? "Not required for editing-only projects"
+        : data.startDate && data.endDate
+          ? `${formatDisplayTime(data.startDate)} - ${formatDisplayTime(data.endDate)}`
+          : "Time not set";
   const summaryDateText = isMultiDay
     ? `${sortedBookingDays.length} Days • ${formatSummaryDate(firstDay.date)} - ${formatSummaryDate(lastDay.date)}`
-    : isEditingOnly && data.expectedDeliveryDate
-      ? formatSummaryDate(data.expectedDeliveryDate)
-      : data.startDate
-        ? formatSummaryDate(data.startDate)
-        : "Date not set";
+    : isStudioBooking && primaryStudio?.selectedDate
+      ? formatSummaryDate(primaryStudio.selectedDate)
+      : isEditingOnly && data.expectedDeliveryDate
+        ? formatSummaryDate(data.expectedDeliveryDate)
+        : data.startDate
+          ? formatSummaryDate(data.startDate)
+          : "Date not set";
 
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
-  const selectedStudios = normalizeSelectedStudios(data);
   const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
   const useContentHouseInclusivePricing =
-    isCoachellaEvent && selectedStudios.length > 0;
+    isStudioBooking && selectedStudios.length > 0;
   const photoEditCounts = buildEditTypeCounts(data.photoEditTypes);
   const photoEditSetCount = photoEditCounts.find((item) => item.slug === "edited_photos")?.quantity || 0;
   const photoEditSummary = getPhotoEditSummary({
@@ -805,50 +811,77 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                  <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
                       <Calendar size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-base lg:text-lg font-medium capitalize">
-                        {summaryDateText}
-                      </span>
-                      <span className="text-sm text-[#A9A9A9]">Date</span>
+                      {isMultiDay ? (
+                        <>
+                          <span className="text-[#A9A9A9] text-sm mb-1">
+                            {sortedBookingDays.length} Days
+                          </span>
+                          {sortedBookingDays.map((day, idx) => (
+
+                            <span key={idx} className="text-white text-sm lg:text-base font-medium">
+                              <span className="text-[#A9A9A9]">• </span>
+                              {formatSummaryDate(day.date)}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        <span className="text-white text-base lg:text-lg font-medium capitalize">
+                          {summaryDateText}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
+                {!isEditingOnly && (
+                  <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 h-fit">
+                    <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
+                      <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
+                        <Clock size={32} className="text-[#9D9595]" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {isMultiDay && !allSameTime ? (
+                          <>
+                            <span className="text-[#A9A9A9] text-sm mb-1">Per Day</span>
+                            {sortedBookingDays.map((day, idx) => (
+                              <span key={idx} className="text-white text-sm lg:text-base font-medium">
+                                <span className="text-[#A9A9A9]">• </span>
+                                {day.startTime && day.endTime
+                                  ? `${formatDisplayTime(day.startTime)} – ${formatDisplayTime(day.endTime)}`
+                                  : "Time not set"}
+                              </span>
+                            ))}
+                          </>
+                        ) : (
+                          <span className="text-white text-base lg:text-lg font-medium capitalize">
+                            {displayTimeText}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {!isEditingOnly && (
-                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
+                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
-                      <Clock size={32} className="text-[#9D9595]" />
+                      <Map size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-base lg:text-lg font-medium capitalize">
-                        {displayTimeText}
+                      <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
+                        {DEFAULT_DISPLAY_ADDRESS || "Location not set"}
                       </span>
-                      <span className="text-sm text-[#A9A9A9]">Time</span>
+                      <span className="text-sm text-[#A9A9A9]">Location</span>
                     </div>
                   </div>
                 </div>
-                 )}
-              </div>
-             
-              {!isEditingOnly && (
-              <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
-                    <Map size={32} className="text-[#9D9595]" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
-                      {data.location || "Location not set"}
-                    </span>
-                    <span className="text-sm text-[#A9A9A9]">Location</span>
-                  </div>
-                </div>
-              </div>
-            )}
+              )}
 
 
               {
@@ -1004,8 +1037,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <span className="text-white">Photo Edit</span>
                       <div className="flex flex-wrap gap-2">
                         <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
-                          {isEditingOnly && photoEditSummary.includedCount === 0 
-                            ? `${photoEditSummary.extraCount} Photos Added` 
+                          {isEditingOnly && photoEditSummary.includedCount === 0
+                            ? `${photoEditSummary.extraCount} Photos Added`
                             : `Edited Photos ${photoEditSummary.includedCount} Included ${photoEditSummary.extraCount > 0 ? ` + ${photoEditSummary.extraCount} Added` : ""}`
                           }
                         </span>
@@ -1025,7 +1058,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 <div className="rounded-[16px] border border-white/5 bg-[#171717]">
                   <div className="p-4 lg:p-[30px] border-b border-b-white/5">
                     <h4 className="text-white text-base lg:text-xl font-medium tracking-wide">
-                      BEIGE Content House
+                      BEIGE Studios
                     </h4>
                   </div>
                   <div className="p-4 lg:p-[30px] space-y-3">
@@ -1047,7 +1080,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                                 <div className="text-white font-medium truncate">{studio.name}</div>
                                 <div className="text-xs text-[#A9A9A9] flex items-center gap-1 mt-1">
                                   <MapPin size={12} />
-                                  <span className="truncate">{studio.location}</span>
+                                  <span className="truncate">{DEFAULT_DISPLAY_ADDRESS}</span>
                                 </div>
                               </div>
                               <div className="text-sm font-semibold text-[#E8D1AB] shrink-0">
@@ -1064,9 +1097,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                               </span>
                               <span className="px-2 py-1 rounded-md text-[10px] bg-[#E8D1AB1F] text-[#E8D1AB]">
                                 {studio.pricingMode === "hourly"
-                                  ? `${studio.quantity} hour${studio.quantity > 1 ? "s" : ""}`
+                                  ? `${studio.quantity} billable hour${studio.quantity > 1 ? "s" : ""}`
                                   : `Duration: ${studio.nights || studio.quantity} Night${(studio.nights || studio.quantity) > 1 ? "s" : ""}`}
                               </span>
+                              {studio.pricingLabel && (
+                                <span className="px-2 py-1 rounded-md text-[10px] bg-white/5 text-white/60">
+                                  {studio.pricingLabel}
+                                </span>
+                              )}
+                              {studio.cleaningFee ? (
+                                <span className="px-2 py-1 rounded-md text-[10px] bg-white/5 text-white/60">
+                                  ${studio.cleaningFee.toLocaleString()} cleaning
+                                </span>
+                              ) : null}
                             </div>
 
                             <div className="text-xs text-[#A9A9A9] mt-3 flex items-center gap-2">
@@ -1323,14 +1366,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     {/* Duration & Crew Info */}
                     <div className="bg-[#101010] rounded-lg p-4 border border-white/5 space-y-3">
                       {!isEditingOnly && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-white/60">Project Duration</span>
-                        <span className="font-medium text-white">
-                          {durationHours}{" "}
-                          {durationHours === 1 ? "hour" : "hours"}
-                        </span>
-                      </div>
-                        )}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/60">Project Duration</span>
+                          <span className="font-medium text-white">
+                            {durationHours}{" "}
+                            {durationHours === 1 ? "hour" : "hours"}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/60">
@@ -1387,14 +1430,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
                       {/* 1. SHOOT COST */}
                       {!isEditingOnly && !useContentHouseInclusivePricing && (
-                      <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
-                        <div className="flex justify-between items-start mb-1">
-                          <div className="text-white font-medium">Shoot Cost</div>
-                          <div className="font-bold text-white">
-                            {formatCurrency(pricingGroups.shootCost)}
+                        <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="text-white font-medium">Shoot Cost</div>
+                            <div className="font-bold text-white">
+                              {formatCurrency(pricingGroups.shootCost)}
+                            </div>
                           </div>
                         </div>
-                      </div>
                       )}
 
                       {/* NEW: 2. EDITING SERVICES */}
@@ -1416,7 +1459,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       {pricingGroups.studioCost > 0 && (
                         <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
                           <div className="flex justify-between items-start mb-1">
-                            <div className="text-white font-medium text-sm">BEIGE Content House</div>
+                            <div className="text-white font-medium text-sm">BEIGE Studios</div>
                             <div className="font-bold text-white text-sm">
                               {formatCurrency(pricingGroups.studioCost)}
                             </div>
@@ -1559,4 +1602,3 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     </div>
   );
 };
-

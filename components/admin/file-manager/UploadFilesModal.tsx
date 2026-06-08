@@ -10,6 +10,7 @@ interface UploadModalProps {
   folderName: string;
   uploadPath?: string;
   onUploadComplete?: () => Promise<void> | void;
+  isDark?: boolean;
 }
 
 type UploadStatus = "queued" | "uploading" | "uploaded" | "failed";
@@ -44,6 +45,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
   folderName,
   uploadPath,
   onUploadComplete,
+  isDark = true,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<UploadQueueItem[]>([]);
@@ -53,6 +55,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const batchPolicySupportedRef = useRef<boolean>(true);
   const batchMetadataSupportedRef = useRef<boolean>(true);
   const previewUrlsRef = useRef<Set<string>>(new Set());
+  const cancelUploadRef = useRef(false);
+  const activeUploadControllersRef = useRef<Set<AbortController>>(new Set());
+  const wasOpenRef = useRef(isOpen);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
 
   const uploadedCount = useMemo(
     () => selectedFiles.filter((item) => item.status === "uploaded").length,
@@ -88,6 +94,18 @@ const UploadModal: React.FC<UploadModalProps> = ({
       previewUrlsRef.current.clear();
     };
   }, []);
+  useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+
+    if (!isOpen) {
+      setSelectionError(null);
+      setStatusMessage(null);
+    } else if (!wasOpen && !isUploading) {
+      cancelUploadRef.current = false;
+      setStatusMessage(null);
+    }
+  }, [isOpen, isUploading]);
 
   if (!isOpen) return null;
 
@@ -103,11 +121,13 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
   const handleFiles = (files: FileList | null) => {
     if (files) {
+      setSelectionError(null);
       const now = Date.now();
       const incoming = Array.from(files);
       const validIncoming = incoming.filter((file) => file.size > 0);
       const emptyFileCount = incoming.length - validIncoming.length;
       setSelectedFiles((prev) => {
+
         const existingSignatures = new Set(prev.map((item) => item.signature));
         const deduped = validIncoming
           .map((file, index) => {
@@ -131,13 +151,13 @@ const UploadModal: React.FC<UploadModalProps> = ({
         const duplicateCount = validIncoming.length - deduped.length;
         const notices: string[] = [];
         if (emptyFileCount > 0) {
-          notices.push(`${emptyFileCount} empty file(s) were skipped.`);
+          notices.push("You cannot upload empty files.");
         }
         if (duplicateCount > 0) {
           notices.push(`${duplicateCount} duplicate file(s) were skipped.`);
         }
         if (notices.length > 0) {
-          setStatusMessage(notices.join(" "));
+          setSelectionError(notices.join(" "));
         }
 
         return [...prev, ...deduped];
@@ -169,14 +189,19 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const runWithRetry = async (task: () => Promise<void>) => {
+  const runWithRetry = async <T,>(task: () => Promise<T>, respectCancellation = true): Promise<T> => {
     let lastError: unknown = null;
     for (let attempt = 0; attempt < MAX_UPLOAD_RETRIES; attempt += 1) {
+      if (respectCancellation && cancelUploadRef.current) {
+        throw new Error("Upload cancelled.");
+      }
       try {
-        await task();
-        return;
+        return await task();
       } catch (error) {
         lastError = error;
+        if (respectCancellation && cancelUploadRef.current) {
+          throw error;
+        }
         if (attempt < MAX_UPLOAD_RETRIES - 1) {
           const backoff = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
           await sleep(backoff);
@@ -232,9 +257,40 @@ const UploadModal: React.FC<UploadModalProps> = ({
     uploadPolicy: { url: string; fields: Record<string, string> },
     selectedFile: File
   ) => {
-    await runWithRetry(async () => {
-      await fileManagerApi.uploadExternalFile(uploadPolicy, selectedFile);
+    const abortController = new AbortController();
+    activeUploadControllersRef.current.add(abortController);
+    try {
+      await runWithRetry(async () => {
+        await fileManagerApi.uploadExternalFile(
+          uploadPolicy,
+          selectedFile,
+          undefined,
+          abortController.signal
+        );
+      });
+    } finally {
+      activeUploadControllersRef.current.delete(abortController);
+    }
+  };
+
+  const cancelUpload = () => {
+    if (!isUploading) {
+      setSelectedFiles((prev) => {
+        prev.forEach((item) => revokePreviewUrl(item.previewUrl));
+        return [];
+      });
+      onClose();
+      return;
+    }
+
+    cancelUploadRef.current = true;
+    setStatusMessage("Cancelling upload...");
+    activeUploadControllersRef.current.forEach((controller) => controller.abort());
+    setSelectedFiles((prev) => {
+      prev.forEach((item) => revokePreviewUrl(item.previewUrl));
+      return [];
     });
+    onClose();
   };
 
   const handleUpload = async (mode: "all" | "failedOnly" = "all") => {
@@ -255,6 +311,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
     }
 
     try {
+      cancelUploadRef.current = false;
       setIsUploading(true);
       setStatusMessage(`Uploading 0/${selectedFiles.length} files...`);
       setSelectedFiles((prev) =>
@@ -298,6 +355,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
       const policyChunks = chunkArray(policyRequests, UPLOAD_POLICY_BATCH_SIZE);
       for (let index = 0; index < policyChunks.length; index += 1) {
+        if (cancelUploadRef.current) break;
         const chunk = policyChunks[index];
         setStatusMessage(
           `Preparing upload links ${index + 1}/${policyChunks.length}... Uploaded ${uploaded}/${selectedFiles.length}.`
@@ -314,8 +372,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
             const batchItems = Array.isArray((response as any)?.items)
               ? (response as any).items
               : Array.isArray((response as any)?.data?.items)
-              ? (response as any).data.items
-              : [];
+                ? (response as any).data.items
+                : [];
 
             batchItems.forEach((item: any) => {
               if (item.success && item.data?.url && item.data?.fields) {
@@ -331,12 +389,20 @@ const UploadModal: React.FC<UploadModalProps> = ({
           } catch (error: any) {
             if (isRouteNotFoundError(error)) {
               batchPolicySupportedRef.current = false;
+            } else {
+              // Keep single API flow: if batch endpoint exists but fails (permission/validation),
+              // do not fan out into per-file policy calls.
+              chunk.forEach((item) => {
+                policyFailedPaths.add(item.filepath);
+              });
+              continue;
             }
           }
         }
 
         // Fallback when batch endpoint is unavailable
         await runWithConcurrency(chunk, 5, async (item) => {
+          if (cancelUploadRef.current) return;
           try {
             const single = await runWithRetry(async () =>
               fileManagerApi.getExternalUploadPolicy(
@@ -360,9 +426,15 @@ const UploadModal: React.FC<UploadModalProps> = ({
       }
 
       const uploadSingle = async (item: UploadQueueItem) => {
+        if (cancelUploadRef.current) return;
         const selectedFile = item.file;
         const filepath = `${uploadPath.replace(/\/+$/, "")}/${selectedFile.name}`;
         setFileStatus(item.id, "uploading");
+
+        if (cancelUploadRef.current) {
+          setFileStatus(item.id, "queued");
+          return;
+        }
 
         if (policyFailedPaths.has(filepath) || !policyByFilePath.has(filepath)) {
           failed += 1;
@@ -386,6 +458,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
           uploaded += 1;
           setFileStatus(item.id, "uploaded");
         } catch (error: any) {
+          if (cancelUploadRef.current) {
+            setFileStatus(item.id, "queued");
+            return;
+          }
           failed += 1;
           setFileStatus(item.id, "failed", error?.message || "Upload failed.");
         }
@@ -396,7 +472,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
       };
 
       const worker = async () => {
-        while (nextIndex < filesToUpload.length) {
+        while (!cancelUploadRef.current && nextIndex < filesToUpload.length) {
           const currentIndex = nextIndex;
           nextIndex += 1;
           await uploadSingle(filesToUpload[currentIndex]);
@@ -417,21 +493,23 @@ const UploadModal: React.FC<UploadModalProps> = ({
           );
           if (batchMetadataSupportedRef.current) {
             try {
-              const response = await runWithRetry(async () =>
-                fileManagerApi.notifyExternalFilesUploadedBatch(
-                  chunk.map((item) => ({
-                    filepath: item.filepath,
-                    fileContentType: item.fileContentType,
-                    fileSize: item.fileSize,
-                    fileName: item.fileName,
-                  }))
-                )
+              const response = await runWithRetry(
+                async () =>
+                  fileManagerApi.notifyExternalFilesUploadedBatch(
+                    chunk.map((item) => ({
+                      filepath: item.filepath,
+                      fileContentType: item.fileContentType,
+                      fileSize: item.fileSize,
+                      fileName: item.fileName,
+                    }))
+                  ),
+                false
               );
               const metadataItems = Array.isArray((response as any)?.items)
                 ? (response as any).items
                 : Array.isArray((response as any)?.data?.items)
-                ? (response as any).data.items
-                : [];
+                  ? (response as any).data.items
+                  : [];
               const failedPaths = new Set(
                 metadataItems
                   .filter((item) => !item.success)
@@ -457,6 +535,20 @@ const UploadModal: React.FC<UploadModalProps> = ({
             } catch (error: any) {
               if (isRouteNotFoundError(error)) {
                 batchMetadataSupportedRef.current = false;
+              } else {
+                metadataFailed += chunk.length;
+                setSelectedFiles((prev) =>
+                  prev.map((queued) => {
+                    const match = chunk.find((entry) => entry.id === queued.id);
+                    if (!match) return queued;
+                    return {
+                      ...queued,
+                      status: "failed",
+                      error: error?.message || "Metadata save failed. Retry failed files.",
+                    };
+                  })
+                );
+                continue;
               }
             }
           }
@@ -464,8 +556,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
           // Fallback when batch endpoint is unavailable
           await runWithConcurrency(chunk, 5, async (entry) => {
             try {
-              await runWithRetry(async () =>
-                fileManagerApi.notifyExternalFileUploaded(entry.filepath, entry.file)
+              await runWithRetry(
+                async () => fileManagerApi.notifyExternalFileUploaded(entry.filepath, entry.file),
+                false
               );
             } catch (singleError: any) {
               metadataFailed += 1;
@@ -491,6 +584,14 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
       if (uploaded > 0) {
         await onUploadComplete?.();
+      }
+
+      if (cancelUploadRef.current) {
+        setSelectedFiles((prev) =>
+          prev.map((item) => (item.status === "uploading" ? { ...item, status: "queued" } : item))
+        );
+        setStatusMessage(`Upload cancelled. Uploaded ${uploaded}/${selectedFiles.length} files.`);
+        return;
       }
 
       if (failed > 0) {
@@ -523,32 +624,32 @@ const UploadModal: React.FC<UploadModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       {/* Modal Container */}
-      <div className="mx-5 w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
+      <div className={`mx-5 w-full max-w-xl overflow-hidden rounded-2xl border shadow-2xl ${isDark ? "border-white/10 bg-black" : "border-zinc-200 bg-white"
+        }`}>
 
         {/* Header */}
         <div className="relative p-3 lg:p-5">
           <button
-            onClick={() => {
-              if (isUploading) return;
-              onClose();
-            }}
-            className="absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-hover hover:bg-white/20"
+            onClick={cancelUpload}
+            className={`absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+              }`}
           >
             <X size={20} />
           </button>
 
-          <h2 className="text-lg font-semibold text-white">Upload Files</h2>
-          <p className="mt-1 text-sm text-white/60">
-            Files will be uploaded to the folder <span className="text-white/80">{folderName}</span>
+          <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>Upload Files</h2>
+          <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+            Files will be uploaded to the folder <span className={isDark ? "text-white/80" : "text-zinc-800 font-medium"}>{folderName}</span>
           </p>
           {uploadPath ? (
-            <p className="mt-1 text-xs text-white/40">{uploadPath}</p>
+            <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-zinc-400"}`}>{uploadPath}</p>
           ) : (
-            <p className="mt-1 text-xs text-red-300">Open a folder before uploading files.</p>
+            <p className={`mt-1 text-xs ${isDark ? "text-red-300" : "text-red-500"}`}>Open a folder before uploading files.</p>
           )}
           {selectedFiles.length > 0 && (
-            <div className="mt-3 space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
-              <div className="flex items-center justify-between text-xs text-white/70">
+            <div className={`mt-3 space-y-2 rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/5" : "border-zinc-200 bg-zinc-50"
+              }`}>
+              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/70" : "text-zinc-600"}`}>
                 <span>
                   Uploaded {uploadedCount}/{totalCount}
                 </span>
@@ -556,9 +657,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
                   Failed {failedCount} | Pending {Math.max(totalCount - completedCount, 0)}
                 </span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div className={`h-2 w-full overflow-hidden rounded-full ${isDark ? "bg-white/10" : "bg-zinc-200"}`}>
                 <div
-                  className="h-full rounded-full bg-[#E8D1AB] transition-all duration-200"
+                  className={`h-full rounded-full transition-all duration-200 ${isDark ? "bg-[#E8D1AB]" : "bg-black"}`}
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -567,7 +668,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
         </div>
 
         {/* Divider */}
-        <div className="h-[1px] w-full bg-white/10" />
+        <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
 
         {/* Dropzone Area */}
         <div className="p-3 lg:p-5">
@@ -578,51 +679,66 @@ const UploadModal: React.FC<UploadModalProps> = ({
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={`group relative flex h-[185px] cursor-pointer flex-col items-center justify-center rounded-[10px] border transition-all duration-200 
-              ${isDragging
-                ? "border-[#E8D1AB] bg-[#E8D1AB]/5"
-                : "border-white/10 bg-[#202020] hover:border-white/20 hover:bg-[#202020]/[0.04]"
+          ${isDragging
+                ? isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/5" : "border-black bg-zinc-50"
+                : isDark
+                  ? "border-white/10 bg-[#202020] hover:border-white/20 hover:bg-[#202020]/[0.04]"
+                  : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:bg-zinc-100"
               }`}
           >
             <input type="file" className="hidden" ref={fileInputRef} multiple onChange={(e) => handleFiles(e.target.files)} />
 
             <div className="mb-4 flex h-16 w-16 items-center justify-center">
-              <UploadCloud className="text-[#E8D1AB]" size={32} />
+              <UploadCloud className={isDark ? "text-[#E8D1AB]" : "text-zinc-600"} size={32} />
             </div>
 
-            <p className="text-lg font-medium text-white">
+            <p className={`text-lg font-medium ${isDark ? "text-white" : "text-zinc-800"}`}>
               Drag your files here or{" "}
-              <span className="text-[#E8D1AB] underline decoration-[#E8D1AB]/30 underline-offset-4 hover:decoration-[#E8D1AB]">
+              <span className={
+                isDark
+                  ? "text-[#E8D1AB] underline decoration-[#E8D1AB]/30 underline-offset-4 hover:decoration-[#E8D1AB]"
+                  : "text-zinc-900 underline decoration-zinc-900/30 underline-offset-4 hover:decoration-zinc-900"
+              }>
                 Browse
               </span>
             </p>
+            {selectionError && (
+              <p className="mt-2 text-sm font-medium text-red-500">
+                {selectionError}
+              </p>
+            )}
           </div>
 
-          {/* New: File List Area */}
+          {/* File List Area */}
           {selectedFiles.length > 0 && (
-            <div className="mt-4 max-h-[200px] overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-white/10">
+            <div className={`mt-4 max-h-[200px] overflow-y-auto space-y-2 pr-2 scrollbar-thin ${isDark ? "scrollbar-thumb-white/10" : "scrollbar-thumb-zinc-200"
+              }`}>
               {selectedFiles.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between rounded-lg bg-white/5 p-3 border border-white/5"
+                  className={`flex items-center justify-between rounded-lg p-3 border ${isDark ? "bg-white/5 border-white/5" : "bg-white border-zinc-200"
+                    }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {item.previewUrl ? (
                       <img
                         src={item.previewUrl}
                         alt={item.file.name}
-                        className="h-11 w-11 rounded-md object-cover shrink-0 border border-white/10"
+                        className={`h-11 w-11 rounded-md object-cover shrink-0 border ${isDark ? "border-white/10" : "border-zinc-200"
+                          }`}
                       />
                     ) : (
-                      <div className="flex h-11 w-11 items-center justify-center rounded-md border border-white/10 bg-white/5 shrink-0">
-                        <File size={18} className="text-[#E8D1AB]" />
+                      <div className={`flex h-11 w-11 items-center justify-center rounded-md border shrink-0 ${isDark ? "border-white/10 bg-white/5" : "border-zinc-200 bg-zinc-50"
+                        }`}>
+                        <File size={18} className={isDark ? "text-[#E8D1AB]" : "text-zinc-500"} />
                       </div>
                     )}
                     <div className="flex flex-col min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{item.file.name}</p>
-                      <p className="text-xs text-white/40">
+                      <p className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-zinc-800"}`}>{item.file.name}</p>
+                      <p className={`text-xs ${isDark ? "text-white/40" : "text-zinc-500"}`}>
                         {(item.file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
-                      <p className="text-[11px] text-white/50 capitalize">
+                      <p className={`text-[11px] capitalize ${isDark ? "text-white/50" : "text-zinc-400"}`}>
                         {item.status === "failed"
                           ? `Failed${item.error ? `: ${item.error}` : ""}`
                           : item.status}
@@ -635,7 +751,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
                       removeFile(item.id);
                     }}
                     disabled={isUploading}
-                    className="p-1.5 text-white/40 hover:text-red-400 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`p-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white/40 hover:text-red-400" : "text-zinc-400 hover:text-red-500"
+                      }`}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -645,7 +762,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
           )}
 
           {statusMessage && (
-            <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+            <div className={`mt-4 rounded-lg border p-3 text-sm ${isDark ? "border-white/10 bg-white/5 text-white/70" : "border-zinc-200 bg-zinc-50 text-zinc-700"
+              }`}>
               {statusMessage}
             </div>
           )}
@@ -654,19 +772,17 @@ const UploadModal: React.FC<UploadModalProps> = ({
         {/* Footer Actions */}
         <div className="flex items-center gap-3 p-3 pt-0 lg:p-5 lg:pt-3">
           <button
-            onClick={() => {
-              if (isUploading) return;
-              onClose();
-            }}
-            className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:flex-none lg:min-w-[90px]"
-            disabled={isUploading}
+            onClick={cancelUpload}
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:flex-none lg:min-w-[90px] ${isDark ? "bg-white text-black" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+              }`}
           >
-            Cancel
+            {isUploading ? "Cancel Upload" : "Cancel"}
           </button>
           <button
             onClick={handleUpload}
             disabled={isUploading || !uploadPath}
-            className="flex-1 rounded-lg bg-[#E8D1AB] px-4 py-2 text-sm font-medium text-[#101010] transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[110px]"
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[110px] ${isDark ? "bg-[#E8D1AB] text-[#101010]" : "bg-black text-white"
+              }`}
           >
             {isUploading ? `Uploading ${uploadedCount}/${totalCount}` : "Upload Files"}
           </button>
@@ -674,7 +790,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
             <button
               onClick={() => handleUpload("failedOnly")}
               disabled={isUploading || !uploadPath}
-              className="rounded-lg border border-[#E8D1AB]/50 px-4 py-2 text-sm font-medium text-[#E8D1AB] transition-opacity hover:bg-[#E8D1AB]/10 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark
+                  ? "border border-[#E8D1AB]/50 text-[#E8D1AB] hover:bg-[#E8D1AB]/10"
+                  : "border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                }`}
             >
               Retry Failed
             </button>

@@ -19,6 +19,16 @@ import { useTheme } from 'next-themes';
 
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
+const CLIENTS_FILTERS_STORAGE_KEY = "admin-users-clients-filters";
+
+type PersistedClientsFilters = {
+    currentPage: number;
+    range: string;
+    selectedDate: string | null;
+    searchQuery: string;
+    statusFilter: string;
+};
+
 interface Client {
     id: string;
     name: string;
@@ -29,6 +39,7 @@ interface Client {
     phoneNumber: string;
     imageUrl?: string | null;
     referralCode?: string | null;
+    clientType?: "guest" | "registered";
 }
 
 const StatusBadge = ({ status }: { status: UserStatus }) => {
@@ -47,9 +58,24 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
     );
 };
 
+const ClientTypeBadge = ({ type }: { type?: "guest" | "registered" }) => {
+    const normalized = type === "registered" ? "registered" : "guest";
+    const label = normalized === "registered" ? "Registered" : "Guest";
+    const styles = normalized === "registered"
+        ? "bg-[#E8F2FF] text-[#246BCE] border-[#246BCE]/20"
+        : "bg-[#FFF4E5] text-[#B66A00] border-[#B66A00]/20";
+
+    return (
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles}`}>
+            {label}
+        </span>
+    );
+};
+
 export const ClientsTable = () => {
     const { theme } = useTheme();
     const [mounted, setMounted] = useState(false);
+    const [filtersInitialized, setFiltersInitialized] = useState(false);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -68,6 +94,56 @@ export const ClientsTable = () => {
 
     useEffect(() => setMounted(true), []);
     const isDark = !mounted || theme === "dark";
+
+    useEffect(() => {
+        try {
+            const savedFilters = localStorage.getItem(CLIENTS_FILTERS_STORAGE_KEY);
+            if (savedFilters) {
+                const parsedFilters = JSON.parse(savedFilters) as Partial<PersistedClientsFilters>;
+
+                if (typeof parsedFilters.searchQuery === "string") {
+                    setSearchQuery(parsedFilters.searchQuery);
+                }
+
+                if (typeof parsedFilters.statusFilter === "string") {
+                    setStatusFilter(parsedFilters.statusFilter);
+                }
+
+                if (typeof parsedFilters.range === "string") {
+                    setRange(parsedFilters.range);
+                }
+
+                if (typeof parsedFilters.selectedDate === "string") {
+                    const restoredDate = new Date(parsedFilters.selectedDate);
+                    if (!Number.isNaN(restoredDate.getTime())) {
+                        setSelectedDate(restoredDate);
+                    }
+                }
+
+                if (typeof parsedFilters.currentPage === "number" && parsedFilters.currentPage > 0) {
+                    setCurrentPage(parsedFilters.currentPage);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to restore client filters:", error);
+        } finally {
+            setFiltersInitialized(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!filtersInitialized) return;
+
+        const filtersToPersist: PersistedClientsFilters = {
+            currentPage,
+            range,
+            selectedDate: selectedDate ? selectedDate.toISOString() : null,
+            searchQuery,
+            statusFilter,
+        };
+
+        localStorage.setItem(CLIENTS_FILTERS_STORAGE_KEY, JSON.stringify(filtersToPersist));
+    }, [currentPage, range, selectedDate, searchQuery, statusFilter, filtersInitialized]);
 
     // Handle single date selection from theme datepicker
     const handleDateSort = (date: Date | null) => {
@@ -126,6 +202,7 @@ export const ClientsTable = () => {
                             phoneNumber: client.phone_number || "N/A",
                             imageUrl: client.profile_image || client.image || null,
                             referralCode: client.referral_code || null,
+                            clientType: (client.client_type === "registered" ? "registered" : "guest"),
                         };
                     });
                     setClients(mappedClients);
@@ -137,8 +214,9 @@ export const ClientsTable = () => {
                 setLoading(false);
             }
         };
+        if (!filtersInitialized) return;
         fetchClients();
-    }, [currentPage, limit, debouncedSearch, statusFilter, range, selectedDate]);
+    }, [currentPage, limit, debouncedSearch, statusFilter, range, selectedDate, filtersInitialized]);
 
     // const handleRowClick = (id: string) => {
     //     // const cleanId = id.replace('#', '');
@@ -227,6 +305,7 @@ export const ClientsTable = () => {
                                 <th className="py-5 px-6 font-medium">Email ID</th>
                                 <th className="py-5 px-6 font-medium">Mobile Number</th>
                                 <th className="py-5 px-6 font-medium">Status</th>
+                                <th className="py-5 px-6 font-medium">Client Type</th>
                                 <th className="py-5 px-6 font-medium">Referral Code</th>
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
@@ -234,7 +313,7 @@ export const ClientsTable = () => {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="py-20 text-center text-[#888]">
+                                    <td colSpan={8} className="py-20 text-center text-[#888]">
                                         <div className="flex flex-col items-center gap-2">
                                             <div className="w-6 h-6 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
                                             <span>Loading users...</span>
@@ -243,7 +322,7 @@ export const ClientsTable = () => {
                                 </tr>
                             ) : clients.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="py-20 text-center text-[#888]">
+                                    <td colSpan={8} className="py-20 text-center text-[#888]">
                                         No users found for the selected filters.
                                     </td>
                                 </tr>
@@ -287,6 +366,9 @@ export const ClientsTable = () => {
                                         </td>
                                         <td className="py-5 px-6">
                                             <StatusBadge status={client.status} />
+                                        </td>
+                                        <td className="py-5 px-6">
+                                            <ClientTypeBadge type={client.clientType} />
                                         </td>
                                         <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
                                             {client.referralCode ? (

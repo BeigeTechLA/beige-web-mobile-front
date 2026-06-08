@@ -21,6 +21,7 @@ export type BookingStatus =
   | "Closed - Lost"
   | "In-Progress"
   | "Paid"
+  | "Partially Paid"
   | "Cancelled"
   | "Unknown"
   | string;
@@ -62,6 +63,7 @@ const BOOKING_STATUS_STYLES: Record<
   // --- Success Group ---
   "Booked": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
   "Paid": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
+  "Partially Paid": { bg: "bg-[#FFF4C9]", text: "text-[#BA6605]" },
 
   // --- Lost / Cancelled Group ---
   "Closed – Lost": { bg: "bg-[#FFB9B9]", text: "text-[#F03434]" },
@@ -69,6 +71,8 @@ const BOOKING_STATUS_STYLES: Record<
   "Cancelled": { bg: "bg-[#FFB9B9]", text: "text-[#F03434]" },
 
   // --- Fallback ---
+  "Approved": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
+  "Rejected": { bg: "bg-[#FFB9B9]", text: "text-[#F03434]" },
   "Unknown": { bg: "bg-gray-200", text: "text-gray-600" },
 };
 
@@ -88,10 +92,10 @@ export function LeadsStatusBadge({ status }: StatusBadgeProps) {
       className={`
         inline-block max-w-[150px] lg:max-w-none
         text-nowrap px-2 py-1.5 lg:px-3 lg:py-2 rounded-full 
-        text-xs lg:text-base font-medium truncate 
+        text-xs lg:text-sm font-medium truncate
         ${style.bg} ${style.text}
       `}
-      title={displayStatus} // Good UX: shows full status on hover
+      title={displayStatus}
     >
       {displayStatus}
     </span>

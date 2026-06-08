@@ -99,6 +99,36 @@ interface ExternalWorkspaceFile {
   createdAt?: string;
   updatedAt?: string;
 }
+interface ExternalShareCreateResponse {
+  success: boolean;
+  data: {
+    shareToken: string;
+    shareUrl: string;
+    message?: string | null;
+  };
+}
+interface ExternalShareListItem {
+  shareId: number;
+  shareToken: string;
+  email: string;
+  accessMode?: "email_only" | "anyone_with_link";
+  message?: string | null;
+  resourceType: "workspace" | "folder" | "file";
+  phase?: string;
+  path?: string;
+  filepath?: string;
+  createdAt?: string;
+}
+interface ExternalShareAccessLogItem {
+  id: number;
+  shareId: number;
+  shareToken: string;
+  email: string;
+  action: string;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt?: string;
+}
 
 interface ExternalWorkspacesResponse {
   success: boolean;
@@ -263,6 +293,44 @@ interface FaceScanIndexStatusResponse {
 
 type ExternalFileUrlData = { url: string; duration: number };
 type ExternalFileUrlResponse = { success: boolean; data: ExternalFileUrlData };
+
+const getApiOriginForExternalLinks = (): string | null => {
+  const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
+  if (endpoint) {
+    try {
+      return new URL(endpoint).origin;
+    } catch {
+      // ignore invalid endpoint and use fallback below
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return null;
+};
+
+const normalizeExternalLinkUrl = (rawUrl?: string): string => {
+  if (!rawUrl) return "";
+
+  try {
+    const parsed = new URL(rawUrl);
+    const isLocalHost =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "::1";
+
+    if (!isLocalHost) return rawUrl;
+
+    const origin = getApiOriginForExternalLinks();
+    if (!origin) return rawUrl;
+
+    return `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return rawUrl;
+  }
+};
 
 export interface UiFolderItem {
   id: string;
@@ -652,7 +720,8 @@ export const fileManagerApi = {
   async uploadExternalFile(
     uploadPolicy: { url: string; fields: Record<string, string> },
     file: File,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    signal?: AbortSignal
   ) {
     const data = new FormData();
     Object.entries(uploadPolicy.fields || {}).forEach(([key, value]) => {
@@ -661,6 +730,7 @@ export const fileManagerApi = {
     data.append("file", file);
 
     await axios.post(uploadPolicy.url, data, {
+      signal,
       onUploadProgress: (event) => {
         if (!onProgress || !event.total) return;
         onProgress(event.loaded / event.total);
@@ -704,6 +774,9 @@ export const fileManagerApi = {
       "external-file-manager/file-download-url",
       { filepath }
     );
+    if (response?.data?.url) {
+      response.data.url = normalizeExternalLinkUrl(response.data.url);
+    }
     return response.data;
   },
 
@@ -719,6 +792,9 @@ export const fileManagerApi = {
         path: options?.path,
       }
     );
+    if (response?.data?.url) {
+      response.data.url = normalizeExternalLinkUrl(response.data.url);
+    }
     return response.data;
   },
 
@@ -740,6 +816,126 @@ export const fileManagerApi = {
       phase: options?.phase,
       path: options?.path,
     });
+    return response.data;
+  },
+
+  async createExternalShare(payload: {
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    email?: string;
+    accessMode?: "email_only" | "anyone_with_link";
+    message?: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+  }) {
+    const response = await apiClient.post<ExternalShareCreateResponse>(
+      "external-file-manager/share",
+      payload
+    );
+    return response.data;
+  },
+
+  async requestExternalShareOtp(shareToken: string, email: string) {
+    const response = await apiClient.post<{ success: boolean; message?: string }>(
+      "external-file-manager/share/request-otp",
+      { shareToken, email }
+    );
+    return response;
+  },
+
+  async verifyExternalShareOtp(shareToken: string, email: string, otp: string) {
+    const response = await apiClient.post<{ success: boolean; data?: { accessToken: string } }>(
+      "external-file-manager/share/verify-otp",
+      { shareToken, email, otp }
+    );
+    return response;
+  },
+
+  async getSharedContent(
+    shareToken: string,
+    accessToken: string,
+    options?: { phase?: string; path?: string }
+  ) {
+    const params: Record<string, string> = {};
+    if (options?.phase) params.phase = options.phase;
+    if (options?.path) params.path = options.path;
+    const response = await apiClient.getInstance().get(
+      `external-file-manager/share/${shareToken}/content`,
+      {
+        params,
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+    return response.data;
+  },
+
+  async listExternalShares(params: {
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+  }) {
+    const response = await apiClient.get<{ success: boolean; data?: { shares?: ExternalShareListItem[] } }>(
+      "external-file-manager/share",
+      params as unknown as Record<string, unknown>
+    );
+    return response?.data?.shares || [];
+  },
+
+  async listExternalShareAccessLogs(params: {
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+  }) {
+    const response = await apiClient.get<{ success: boolean; data?: { logs?: ExternalShareAccessLogItem[] } }>(
+      "external-file-manager/share/access-logs",
+      params as unknown as Record<string, unknown>
+    );
+    return response?.data?.logs || [];
+  },
+
+  async revokeExternalShare(payload: { shareId?: number; shareToken?: string }) {
+    const response = await apiClient.getInstance().delete("external-file-manager/share", { data: payload });
+    return response.data;
+  },
+
+  async getSharedFileDownloadUrl(
+    shareToken: string,
+    accessToken: string,
+    filepath?: string,
+    options?: { phase?: string; path?: string }
+  ) {
+    const params = new URLSearchParams();
+    if (filepath) params.set("filepath", filepath);
+    if (options?.phase) params.set("phase", options.phase);
+    if (options?.path) params.set("path", options.path);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const response = await apiClient.getInstance().get(
+      `external-file-manager/share/${shareToken}/download-url${query}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async getSharedFileViewUrl(
+    shareToken: string,
+    accessToken: string,
+    filepath?: string,
+    options?: { phase?: string; path?: string }
+  ) {
+    const params = new URLSearchParams();
+    if (filepath) params.set("filepath", filepath);
+    if (options?.phase) params.set("phase", options.phase);
+    if (options?.path) params.set("path", options.path);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const response = await apiClient.getInstance().get(
+      `external-file-manager/share/${shareToken}/view-url${query}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
     return response.data;
   },
 

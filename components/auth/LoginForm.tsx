@@ -45,6 +45,21 @@ export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const hasShownAdminOnlyToast = React.useRef(false)
+  const returnTo = React.useMemo(() => {
+    const value = searchParams?.get("returnTo")?.trim() || ""
+    return value.startsWith("/") ? value : ""
+  }, [searchParams])
+  const bookingEmail = React.useMemo(() => {
+    const value = searchParams?.get("bookingEmail")?.trim() || ""
+    return value.toLowerCase()
+  }, [searchParams])
+  const signupHref = React.useMemo(() => {
+    const params = new URLSearchParams()
+    if (returnTo) params.set("returnTo", returnTo)
+    if (bookingEmail) params.set("bookingEmail", bookingEmail)
+    const query = params.toString()
+    return query ? `/signup/user?${query}` : "/signup/user"
+  }, [returnTo, bookingEmail])
 
   React.useEffect(() => {
     if (hasShownAdminOnlyToast.current) return
@@ -82,6 +97,7 @@ export function LoginForm() {
       const user = result?.user
       const userTypeId = user?.user_type_id
       const userTypeName = userTypeId ? USER_TYPE[userTypeId as keyof typeof USER_TYPE] : "Unknown";
+      const loggedInEmail = String(user?.email || data.email || "").trim().toLowerCase()
 
       pushToDataLayer("login", {
         custom_user_id: user?.id || null,
@@ -95,8 +111,10 @@ export function LoginForm() {
       });
       // ---------------------------
 
-      // Extract user_type_id from the response
-      // const userTypeId = result?.user?.user_type_id
+      if (returnTo && (!bookingEmail || bookingEmail === loggedInEmail)) {
+        router.replace(returnTo)
+        return
+      }
 
       // Logic for conditional redirection
       if (userTypeId === 1) {
@@ -124,13 +142,13 @@ export function LoginForm() {
     <div className="w-full">
       <div className="absolute top-0 left-0 w-screen h-[380px] overflow-hidden lg:hidden -z-10 bg-[#101010]">
         <div className="relative h-full w-full">
-          <Image
+          {/* <Image
             src={mobileEventImgUrl}
             alt="Coachella x Neon Carnival"
             fill
             priority
             className="object-cover object-[80%_0%] -translate-y-14"
-          />
+          /> */}
           <div
             className="absolute inset-x-0 bottom-0 h-20 backdrop-blur-[0.5px]"
             style={{
@@ -143,14 +161,14 @@ export function LoginForm() {
             alt="Beige logo"
             width={68}
             height={14}
-            className="absolute left-4 bottom-[125px] z-10 lg:hidden"
+            className="absolute left-4 top-4 z-20 lg:hidden"
             priority
           />
           <div className="absolute inset-x-0 bottom-0 h-62 bg-gradient-to-t from-[#101010] via-[#101010]/50 to-transparent" />
         </div>
       </div>
 
-      <div className="space-y-6 lg:space-y-8 overflow-x-hidden pt-[250px] lg:pt-0 relative z-10 w-full">
+      <div className="space-y-6 lg:space-y-8 overflow-x-hidden pt-8 lg:pt-0 relative z-10 w-full">
         <div className="space-y-2 text-center lg:mt-15">
           <h1 className="text-[28px] lg:text-4xl font-semibold tracking-tight text-[#E8D1AB] leading-tight">
             Welcome Back
@@ -287,7 +305,7 @@ export function LoginForm() {
         <div className="space-y-6 lg:pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
             <Link
-              href="/signup/user"
+              href={signupHref}
               onClick={() => {
                 pushToDataLayer("sign_up_started_user", {
                   type: "Action Tracking",

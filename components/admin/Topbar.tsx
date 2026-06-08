@@ -132,7 +132,34 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
         {/* Bottom Row: Breadcrumbs & Counts */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           {renderBreadcrumbs(true)}
+          {/* {isShootsPage ? (
+            <h1 className={`font-semibold text-sm whitespace-nowrap ${isDark ? "text-white" : "text-[#101010]"}`}>
+              Shoots Management
+            </h1>
+          ) : (
+            <nav className={`flex items-center gap-2 text-xs whitespace-nowrap ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
+              {paths.map((path, index) => {
+                const isLast = index === paths.length - 1;
+                // CHANGED: Specific check for create-new-deal to show as "create new lead"
+                const displayText = breadcrumbOverrides?.[path] ||
+                  (path === "create-new-deal" ? "create new lead" : path.split("-").join(" "));
+
+                return (
+                  <React.Fragment key={index}>
+                    <span className={`capitalize ${isLast ? (isDark ? "text-white font-bold" : "text-[#101010] font-bold") : ""}`}>
+                      {displayText}
+                    </span>
+                    {!isLast && <span className="mx-1">/</span>}
+                  </React.Fragment>
+                );
+              })}
+            </nav>
+          )} */}
         </div>
+
+        {/* <div>
+          {actions}
+        </div> */}
       </div>
 
       {/* ==========================================

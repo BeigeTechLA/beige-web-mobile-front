@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   Video,
   Camera,
@@ -9,7 +10,6 @@ import {
   Radio,
   MapPin,
   Package,
-  List,
   Zap,
   Plus,
   Trash2,
@@ -27,8 +27,6 @@ import { salesApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type SectionKey = "service" | "addon" | "logistics";
 
@@ -54,8 +52,6 @@ interface SectionMeta {
   rateUnit: string | null;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const SECTION_META: Record<SectionKey, SectionMeta> = {
   service: {
     label: "Services",
@@ -67,7 +63,7 @@ const SECTION_META: Record<SectionKey, SectionMeta> = {
   },
   addon: {
     label: "Add-ons",
-    sub: "Fixed rates for optional upgrades & extras",
+    sub: "Fixed rates for optional upgrades and extras",
     rateLabel: "fixed",
     sectionType: "addon",
     rateType: "fixed",
@@ -75,7 +71,7 @@ const SECTION_META: Record<SectionKey, SectionMeta> = {
   },
   logistics: {
     label: "Logistics",
-    sub: "Travel, equipment & permit costs",
+    sub: "Travel, equipment and permit costs",
     rateLabel: "fixed",
     sectionType: "logistics",
     rateType: "fixed",
@@ -92,9 +88,6 @@ const PROTECTED_SERVICES = [
   "livestream production",
   "studio",
 ];
-
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatCurrency = (value: number) =>
   `$${value.toLocaleString(undefined, {
@@ -115,25 +108,25 @@ const isProtectedService = (label: string) =>
   PROTECTED_SERVICES.includes(label.trim().toLowerCase());
 
 const getServiceIcon = (label: string) => {
-  const l = label.toLowerCase();
-  if (l.includes("video")) return Video;
-  if (l.includes("photo")) return Camera;
-  if (l.includes("edit")) return Scissors;
-  if (l.includes("live")) return Radio;
-  if (l.includes("studio") || l.includes("location")) return MapPin;
+  const normalized = label.toLowerCase();
+  if (normalized.includes("video")) return Video;
+  if (normalized.includes("photo")) return Camera;
+  if (normalized.includes("edit")) return Scissors;
+  if (normalized.includes("live")) return Radio;
+  if (normalized.includes("studio") || normalized.includes("location")) return MapPin;
   return Zap;
 };
 
 const getSectionIcon = (section: SectionKey) => {
   switch (section) {
-    case "service":   return Zap;
-    case "addon":     return Package;
-    case "logistics": return MapPin;
-    case "line_item": return List;
+    case "service":
+      return Zap;
+    case "addon":
+      return Package;
+    case "logistics":
+      return MapPin;
   }
 };
-
-// ─── ItemRow Component ───────────────────────────────────────────────────────
 
 interface ItemRowProps {
   item: PricingItem;
@@ -141,13 +134,14 @@ interface ItemRowProps {
   onSave: (id: string, name: string, rate: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   isProtected: boolean;
+  isDark?: boolean;
 }
 
-function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps) {
+function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }: ItemRowProps) {
   const [editing, setEditing] = useState(false);
-  const [name, setName]       = useState(item.label);
-  const [price, setPrice]     = useState(item.price.toFixed(2));
-  const [saving, setSaving]   = useState(false);
+  const [name, setName] = useState(item.label);
+  const [price, setPrice] = useState(item.price.toFixed(2));
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -185,123 +179,168 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
 
   return (
     <div
-      className={`group flex items-center gap-3 rounded-xl border px-4 py-2 transition-all duration-200 ${
-        editing
-          ? "border-[#8E826A]/60 bg-[#1D1A15]"
-          : "border-[#2A2A28] bg-[#111110] hover:border-[#3D3D3A]"
-      }`}
-    >
-      {/* Icon */}
-      <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all ${
-          editing
-            ? "border-[#3D3930] bg-[#2D2820] text-[#E8D1AB]"
-            : "border-[#2A2A28] bg-[#1A1A18] text-[#555550]"
+      className={`group rounded-lg border px-4 py-3 transition-all duration-200 ${editing
+        ? isDark
+          ? "border-[#8E826A]/50 bg-black/80"
+          : "border-zinc-400 bg-zinc-50"
+        : isDark
+          ? "border-[#3D3D3D] bg-black hover:border-white/20"
+          : "border-[#D7D7D7] bg-[#F4F5F7] hover:border-zinc-300"
         }`}
-      >
-        <ServiceIcon size={15} />
-      </div>
+    >
+      <div className="flex items-center gap-3">
+        {/* Icon Area */}
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-all ${editing
+            ? isDark
+              ? "border border-[#8E826A]/30 bg-[#2A251E] text-[#E8D1AB]"
+              : "border border-zinc-300 bg-zinc-200 text-zinc-800"
+            : isDark
+              ? "bg-[#302E2E] text-[#E8D1AB]"
+              : "bg-zinc-100 text-zinc-700"
+            }`}
+        >
+          <ServiceIcon size={16} />
+        </div>
 
-      {/* Name */}
-      <div className="min-w-0 flex-1">
-        {editing ? (
-          <Input
-            ref={nameRef}
-            value={name}
-            onChange={(e) => setName(e.target.value.slice(0, 80))}
-            onKeyDown={handleKeyDown}
-            maxLength={80}
-            className="h-9 border-[#3D3D3A] bg-[#0F0F0E] text-sm text-white placeholder:text-[#444] focus:border-[#8E826A]"
-          />
-        ) : (
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#E0E0DC]">
-              {item.label}
-            </span>
-            {isProtected && (
-              <span className="hidden shrink-0 rounded-full border border-[#3D3930] bg-[#1D1C18] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#8E826A] sm:inline-flex">
-                Default
+        {/* Name and Meta text */}
+        <div className="min-w-0 flex-1">
+          {editing ? (
+            <Input
+              ref={nameRef}
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, 80))}
+              onKeyDown={handleKeyDown}
+              maxLength={80}
+              className={`h-10 rounded-xl text-sm transition-colors ${isDark
+                ? "border-white/10 bg-[#0F0F0F] text-white placeholder:text-white/30 focus:border-[#8E826A]"
+                : "border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500"
+                }`}
+            />
+          ) : (
+            <div className="flex min-w-0 items-center gap-3">
+              <span className={`min-w-0 truncate text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-zinc-900"}`}>
+                {item.label}
               </span>
-            )}
-          </div>
-        )}
-        <p className={`text-xs text-[#444] ${editing ? "hidden" : "mt-0.5"}`}>
-          {SECTION_META[section].rateLabel}
-        </p>
+              {isProtected ? (
+                <span className={`hidden shrink-0 items-center justify-center self-center rounded-full border px-2.5 py-1 leading-none text-[10px] font-semibold capitalize tracking-wider sm:inline-flex ${isDark ? "border-[#E8D1AB26] bg-[#E8D1AB26] text-[#E8D1AB]" : "border-zinc-300 bg-zinc-100 text-zinc-700"}`}>
+                  Default
+                </span>
+              ) : null}
+            </div>
+          )}
+          <p className={`text-xs ${isDark ? "text-white/40" : "text-zinc-400"} ${editing ? "hidden" : "mt-0.5"}`}>
+            {SECTION_META[section].rateLabel}
+          </p>
+        </div>
+
+        {/* Desktop Price Display */}
+        <div className={`hidden lg:block shrink-0 ${editing ? "w-24 sm:w-28" : "w-24 text-right sm:w-32"}`}>
+          {editing ? (
+            <div className="relative">
+              <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>$</span>
+              <Input
+                value={price}
+                onChange={(e) => setPrice(sanitizeCurrencyInput(e.target.value))}
+                onKeyDown={handleKeyDown}
+                inputMode="decimal"
+                className={`h-10 rounded-xl pl-6 text-sm font-semibold ${isDark
+                  ? "border-white/10 bg-[#0F0F0F] text-[#E8D1AB] focus:border-[#8E826A]"
+                  : "border-zinc-300 bg-white text-zinc-900 focus:border-zinc-500"
+                  }`}
+              />
+            </div>
+          ) : (
+            <span className={`lg:text-lg font-bold tabular-nums ${isDark ? "text-[#E8D1AB]" : "text-zinc-900"}`}>
+              {formatCurrency(item.price)}
+            </span>
+          )}
+        </div>
+
+        {/* Control Button Actions */}
+        <div className={`flex shrink-0 items-center justify-end gap-2 lg:pl-2.5 ${editing ? "w-20" : "w-[4.5rem] sm:w-18"}`}>
+          {editing ? (
+            <>
+              <button
+                onClick={handleCancel}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isDark ? "bg-[#161616] text-white/50 hover:text-white" : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"}`}
+              >
+                <X size={14} />
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !name.trim()}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all disabled:opacity-50 ${isDark
+                  ? "border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] hover:bg-[#1E381E]"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                  }`}
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setEditing(true)}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all ${isDark
+                  ? "bg-[#161616] text-white/55 hover:text-[#E8D1AB] sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
+                  : "bg-zinc-100 text-zinc-600 hover:text-zinc-900 sm:border-transparent sm:bg-transparent sm:text-zinc-400 sm:opacity-0 sm:group-hover:border-zinc-200 sm:group-hover:bg-zinc-100 sm:group-hover:opacity-100"
+                  }`}
+              >
+                <Pencil size={14} />
+              </button>
+              {!isProtected ? (
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all disabled:opacity-50 ${isDark
+                    ? "bg-[#161616] text-white/55 hover:text-[#EF4444] sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
+                    : "bg-white text-zinc-600 hover:text-red-600 sm:border-transparent sm:bg-transparent sm:text-zinc-400 sm:opacity-0 sm:group-hover:border-zinc-200 sm:group-hover:bg-zinc-100 sm:group-hover:opacity-100"
+                    }`}
+                >
+                  {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Price */}
-      <div className={`shrink-0 ${editing ? "w-24 sm:w-28" : "w-24 text-right sm:w-32"}`}>
+      {/* Mobile only */}
+      <div className={`lg:hidden shrink-0 mt-5 ${editing ? "w-24 sm:w-28" : "w-24 sm:w-32"}`}>
         {editing ? (
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666]">$</span>
+            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>$</span>
             <Input
               value={price}
               onChange={(e) => setPrice(sanitizeCurrencyInput(e.target.value))}
               onKeyDown={handleKeyDown}
               inputMode="decimal"
-              className="h-9 border-[#3D3D3A] bg-[#0F0F0E] pl-6 text-sm font-semibold text-[#E8D1AB] focus:border-[#8E826A]"
+              className={`h-10 rounded-xl pl-6 text-sm font-semibold ${isDark
+                ? "border-white/10 bg-[#0F0F0F] text-[#E8D1AB] focus:border-[#8E826A]"
+                : "border-zinc-300 bg-white text-zinc-900 focus:border-zinc-500"
+                }`}
             />
           </div>
         ) : (
-          <span className="text-sm font-bold tabular-nums text-[#E8D1AB]">
+          <span className={`font-bold tabular-nums ${isDark ? "text-[#E8D1AB]" : "text-zinc-900"}`}>
             {formatCurrency(item.price)}
           </span>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className={`flex shrink-0 items-center justify-end gap-2 ${editing ? "w-20" : "w-[4.5rem] sm:w-16"}`}>
-        {editing ? (
-          <>
-            <button
-              onClick={handleCancel}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A28] bg-[#1A1A18] text-[#666] transition-colors hover:text-[#999]"
-            >
-              <X size={14} />
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !name.trim()}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] transition-all hover:bg-[#1E381E] disabled:opacity-50"
-            >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => setEditing(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A28] bg-[#1A1A18] text-[#8A8A84] opacity-100 transition-all hover:text-[#E8D1AB] sm:border-transparent sm:bg-transparent sm:text-[#444] sm:opacity-0 sm:group-hover:border-[#2A2A28] sm:group-hover:bg-[#1A1A18] sm:group-hover:opacity-100"
-            >
-              <Pencil size={14} />
-            </button>
-            {!isProtected && (
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A28] bg-[#1A1A18] text-[#8A8A84] opacity-100 transition-all hover:text-[#EF4444] disabled:opacity-50 sm:border-transparent sm:bg-transparent sm:text-[#444] sm:opacity-0 sm:group-hover:border-[#2A2A28] sm:group-hover:bg-[#1A1A18] sm:group-hover:opacity-100"
-              >
-                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-              </button>
-            )}
-          </>
         )}
       </div>
     </div>
   );
 }
 
-// ─── AddItemForm Component ───────────────────────────────────────────────────
-
 interface AddItemFormProps {
   section: SectionKey;
   onAdd: (name: string, rate: number) => Promise<void>;
   onClose: () => void;
+  isDark?: boolean;
 }
 
-function AddItemForm({ section, onAdd, onClose }: AddItemFormProps) {
-  const [name, setName]   = useState("");
+function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProps) {
+  const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [saving, setSaving] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -325,11 +364,23 @@ function AddItemForm({ section, onAdd, onClose }: AddItemFormProps) {
   const meta = SECTION_META[section];
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#3D3930] bg-[#1A1814] px-4 py-3 animate-in fade-in slide-in-from-top-2 duration-200">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#3D3930] bg-[#2D2820] text-[#E8D1AB]">
+    <div
+      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 animate-in fade-in slide-in-from-top-2 duration-200 ${isDark
+          ? "border-[#8E826A]/25 bg-[#1D1A15]"
+          : "border-zinc-200 bg-zinc-50"
+        }`}
+    >
+      {/* Plus Icon Container */}
+      <div
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${isDark
+            ? "border-[#8E826A]/25 bg-[#2A251E] text-[#E8D1AB]"
+            : "border-zinc-300 bg-zinc-200 text-zinc-700"
+          }`}
+      >
         <Plus size={14} strokeWidth={3} />
       </div>
 
+      {/* Name Input */}
       <div className="min-w-0 flex-1">
         <Input
           ref={nameRef}
@@ -338,34 +389,45 @@ function AddItemForm({ section, onAdd, onClose }: AddItemFormProps) {
           onKeyDown={handleKeyDown}
           placeholder={`Enter ${meta.label.slice(0, -1).toLowerCase()} name...`}
           maxLength={80}
-          className="h-9 border-[#3D3D3A] bg-[#0F0F0E] text-sm text-white placeholder:text-[#333] focus:border-[#8E826A]"
+          className={`h-10 rounded-xl text-sm transition-colors ${isDark
+              ? "border-white/10 bg-[#0F0F0F] text-white placeholder:text-white/30 focus:border-[#8E826A]"
+              : "border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500"
+            }`}
         />
-      
       </div>
 
+      {/* Price Input Container */}
       <div className="relative w-28 shrink-0">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666]">$</span>
+        <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>$</span>
         <Input
           value={price}
           onChange={(e) => setPrice(sanitizeCurrencyInput(e.target.value))}
           onKeyDown={handleKeyDown}
           placeholder="0.00"
           inputMode="decimal"
-          className="h-9 border-[#3D3D3A] bg-[#0F0F0E] pl-6 text-sm font-semibold text-[#E8D1AB] placeholder:text-[#333] focus:border-[#8E826A]"
+          className={`h-10 rounded-xl pl-6 text-sm font-semibold transition-colors ${isDark ? "border-white/10 bg-[#0F0F0F] text-[#E8D1AB] placeholder:text-white/30 focus:border-[#8E826A]" : "border-zinc-300 bg-white text-black placeholder:text-[#0000004D] focus:border-[#00000080]"}`}
         />
       </div>
 
+      {/* Action Controls */}
       <div className="flex shrink-0 items-center gap-2">
         <button
           onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A28] bg-[#1A1A18] text-[#666] transition-colors hover:text-[#999]"
+          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-colors ${isDark
+              ? "border-white/10 bg-[#1B1B1B] text-white/50 hover:text-white"
+              : "border-zinc-200 bg-zinc-200 text-zinc-600 hover:bg-zinc-300 hover:text-zinc-900"
+            }`}
         >
           <X size={14} />
         </button>
+
         <button
           onClick={handleAdd}
           disabled={saving || !name.trim() || !price}
-          className="flex h-8 items-center gap-1.5 rounded-lg border border-[#2D4A2D] bg-[#1A2E1A] px-3 text-xs font-semibold text-[#4ADE80] transition-all hover:bg-[#1E381E] disabled:cursor-not-allowed disabled:opacity-40"
+          className={`flex h-8 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+              ? "border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] hover:bg-[#1E381E]"
+              : "border-[#0DC752] bg-[#0DC752] text-black hover:bg-[#0DC752]/80"
+            }`}
         >
           {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={3} />}
           {saving ? "Adding..." : "Add"}
@@ -375,8 +437,6 @@ function AddItemForm({ section, onAdd, onClose }: AddItemFormProps) {
   );
 }
 
-// ─── PricingSection Component ─────────────────────────────────────────────────
-
 interface PricingSectionProps {
   section: SectionKey;
   items: PricingItem[];
@@ -385,6 +445,7 @@ interface PricingSectionProps {
   onAdd: (section: SectionKey, name: string, rate: number) => Promise<void>;
   searchQuery: string;
   defaultExpanded?: boolean;
+  isDark?: boolean;
 }
 
 function PricingSection({
@@ -395,67 +456,63 @@ function PricingSection({
   onAdd,
   searchQuery,
   defaultExpanded = true,
+  isDark = true
 }: PricingSectionProps) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [expanded, setExpanded]       = useState(defaultExpanded);
-  const meta    = SECTION_META[section];
-  const Icon    = getSectionIcon(section);
-  const filtered = items.filter((it) =>
-    it.label.toLowerCase().includes(searchQuery.toLowerCase())
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const meta = SECTION_META[section];
+  const Icon = getSectionIcon(section);
+  const filtered = items.filter((item) =>
+    item.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const avgPrice = items.length
-    ? items.reduce((s, i) => s + i.price, 0) / items.length
-    : 0;
+  const avgPrice = items.length ? items.reduce((sum, item) => sum + item.price, 0) / items.length : 0;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#222220] bg-[#0D0D0C]">
-      {/* Section Header */}
-      <div className="flex flex-col gap-3 border-b border-[#1E1E1C] bg-gradient-to-r from-[#111110] to-[#0D0D0C] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <div className={`overflow-hidden rounded-lg lg:rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.18)] p-4 lg:p-6 transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
+      <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between transition-colors duration-100`}>
         <button
-          onClick={() => setExpanded((p) => !p)}
-          className="flex min-w-0 items-center gap-3 text-left"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#2D2D2A] bg-[#1D1D1A] text-[#E8D1AB]">
-            <Icon size={18} />
+          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors ${isDark ? "bg-[#302E2E] text-[#E8D1AB]" : "bg-[#E8D1AB] text-black"}`}>
+            <Icon size={24} />
           </div>
-          <div className="min-w-0">
+
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold tracking-tight text-[#E0E0DC]">
-                {meta.label}
-              </h2>
-              <span className="rounded-full border border-[#2D2D2A] bg-[#1A1A18] px-2 py-0.5 text-[11px] font-semibold text-[#555]">
+              <h2 className={`text-sm lg:text-base font-semibold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>{meta.label}</h2>
+              <span className={`rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-semibold transition-colors ${isDark ? "bg-[#302E2E] text-white/60" : "bg-zinc-200 text-zinc-600"}`}>
                 {items.length}
               </span>
             </div>
-            <p className="mt-0.5 text-xs text-[#444]">{meta.sub}</p>
+            <p className={`mt-0.5 text-xs lg:text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>{meta.sub}</p>
           </div>
+
           <ChevronDown
-            size={16}
-            className={`ml-1 text-[#444] transition-transform duration-300 ${
-              expanded ? "rotate-180" : ""
-            }`}
+            className={`w-5 h-5 lg:w-7 lg:h-7 ml-auto shrink-0 transition-all duration-300 ${isDark ? "text-white/40" : "text-zinc-400"} ${expanded ? "rotate-180" : ""}`}
           />
         </button>
 
-        <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
-          {items.length > 0 && (
-            <span className="text-xs text-[#555]">
-              avg{" "}
-              <span className="font-semibold text-[#8E826A]">
-                {formatCurrency(avgPrice)}
-              </span>
+        <div className="flex w-full items-center justify-between gap-4 sm:w-auto sm:justify-end">
+          {items.length > 0 ? (
+            <span className={`text-lg ${isDark ? "text-white/50" : "text-zinc-400"}`}>
+              avg <span className={`font-semibold ${isDark ? "text-[#E8D1AB]" : "text-zinc-900"}`}>{formatCurrency(avgPrice)}</span>
             </span>
-          )}
+          ) : null}
+
           <Button
             onClick={() => {
               setExpanded(true);
-              setShowAddForm((p) => !p);
+              setShowAddForm((prev) => !prev);
             }}
-            className={`h-8 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${
-              showAddForm
-              ? "border border-[#3D3930] bg-[#1D1A14] text-[#E8D1AB] hover:bg-[#E5D5B8]"
-              : "border border-[#2D4020] bg-[#E5D5B8] text-black "
-            }`}
+            className={`h-10 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-sm font-semibold transition-all ${showAddForm
+              ? isDark
+                ? "border border-white/10 bg-[#24201A] text-[#E8D1AB] hover:bg-[#2B261F]"
+                : "border border-zinc-200 bg-zinc-100 text-zinc-800 hover:bg-zinc-200"
+              : isDark
+                ? "border border-[#E5D5B8] bg-[#E5D5B8] text-black hover:bg-[#d9c8a6]"
+                : "border border-black bg-black text-white hover:bg-zinc-900"
+              }`}
           >
             {showAddForm ? (
               <>
@@ -470,81 +527,99 @@ function PricingSection({
         </div>
       </div>
 
-      {/* Items List */}
-      {expanded && (
-        <div className="flex flex-col gap-2 p-4 animate-in fade-in duration-200">
-          {showAddForm && (
-            <AddItemForm
-              section={section}
-              onAdd={async (name, rate) => {
-                await onAdd(section, name, rate);
-                setShowAddForm(false);
-              }}
-              onClose={() => setShowAddForm(false)}
-            />
-          )}
-
-          {filtered.length === 0 && !showAddForm ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[#2A2A28] bg-[#1A1A18] text-[#333]">
-                <Icon size={20} />
-              </div>
-              <p className="text-sm text-[#444]">
-                {searchQuery
-                  ? `No results for "${searchQuery}"`
-                  : "No items yet. Click Add New to get started."}
-              </p>
-            </div>
-          ) : (
-            filtered.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
+      {expanded ? (
+        <>
+          <hr className={` my-4 lg:my-6 ${isDark ? "border-white/10" : "border-black/10"}`} />
+          <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+            {showAddForm ? (
+              <AddItemForm
                 section={section}
-                onSave={onSave}
-                onDelete={onDelete}
-                isProtected={section === "service" && isProtectedService(item.label)}
+                onAdd={async (name, rate) => {
+                  await onAdd(section, name, rate);
+                  setShowAddForm(false);
+                }}
+                onClose={() => setShowAddForm(false)}
+                isDark={isDark}
               />
-            ))
-          )}
-        </div>
-      )}
+            ) : null}
+
+            {filtered.length === 0 && !showAddForm ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${isDark ? "border-white/10 bg-[#202020] text-white/30" : "border-zinc-200 bg-zinc-50 text-zinc-400"
+                  }`}>
+                  <Icon size={20} />
+                </div>
+                <p className={`text-sm ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                  {searchQuery
+                    ? `No results for "${searchQuery}"`
+                    : "No items yet. Click Add New to get started."}
+                </p>
+              </div>
+            ) : (
+              filtered.map((item) => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  section={section}
+                  onSave={onSave}
+                  onDelete={onDelete}
+                  isDark={isDark}
+                  isProtected={section === "service" && isProtectedService(item.label)}
+                />
+              ))
+            )}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function QuotePricingPage() {
   const pathname = usePathname();
-
-  const [data, setData]       = useState<CatalogData>({
-    service: [], addon: [], logistics: [],
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [data, setData] = useState<CatalogData>({
+    service: [],
+    addon: [],
+    logistics: [],
   });
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | SectionKey>("all");
-  const [search, setSearch]     = useState("");
+  const [search, setSearch] = useState("");
 
-  // ── Fetch catalog ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = !mounted || theme === "dark";
+
   const fetchCatalog = useCallback(async () => {
     setLoading(true);
     try {
       const res = await salesApi.getQuoteCatalog();
       if (!res.error && res.data) {
         const mapSection = (
-          arr: Array<{ catalog_item_id?: string | number | null; name?: string; effective_rate?: string | number | null; created_at?: string | null }> | null | undefined
+          arr:
+            | Array<{
+              catalog_item_id?: string | number | null;
+              name?: string;
+              effective_rate?: string | number | null;
+              created_at?: string | null;
+            }>
+            | null
+            | undefined
         ): PricingItem[] =>
           (arr || []).map((it, idx) => ({
-            id:        String(it.catalog_item_id ?? `tmp-${idx}`),
-            label:     it.name?.trim() || "Unnamed",
-            price:     parseFloat(String(it.effective_rate ?? 0)) || 0,
+            id: String(it.catalog_item_id ?? `tmp-${idx}`),
+            label: it.name?.trim() || "Unnamed",
+            price: parseFloat(String(it.effective_rate ?? 0)) || 0,
             createdAt: it.created_at ?? null,
           }));
-;
 
         setData({
-          service:   mapSection(res.data.service),
-          addon:     mapSection(res.data.addon),
+          service: mapSection(res.data.service),
+          addon: mapSection(res.data.addon),
           logistics: mapSection(res.data.logistics),
         });
       }
@@ -555,27 +630,31 @@ export default function QuotePricingPage() {
     }
   }, []);
 
-  useEffect(() => { fetchCatalog(); }, [fetchCatalog]);
+  useEffect(() => {
+    fetchCatalog();
+  }, [fetchCatalog]);
 
-  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = useCallback(
     async (id: string, name: string, rate: number) => {
-      const section = SECTION_KEYS.find((s) => data[s].some((it) => it.id === id));
+      const section = SECTION_KEYS.find((key) => data[key].some((item) => item.id === id));
       if (!section) return;
+
       const meta = SECTION_META[section];
+
       try {
         const res = await salesApi.updateQuoteCatalog(id, {
           section_type: meta.sectionType,
           name,
           default_rate: rate,
-          rate_type:    meta.rateType,
-          rate_unit:    meta.rateUnit,
+          rate_type: meta.rateType,
+          rate_unit: meta.rateUnit,
         });
+
         if (res && !res.error) {
           setData((prev) => ({
             ...prev,
-            [section]: prev[section].map((it) =>
-              it.id === id ? { ...it, label: name, price: rate } : it
+            [section]: prev[section].map((item) =>
+              item.id === id ? { ...item, label: name, price: rate } : item
             ),
           }));
           toast.success(`${name} updated successfully`);
@@ -589,22 +668,23 @@ export default function QuotePricingPage() {
     [data]
   );
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
   const handleDelete = useCallback(
     async (id: string) => {
-      const section = SECTION_KEYS.find((s) => data[s].some((it) => it.id === id));
-      const item    = section ? data[section].find((it) => it.id === id) : null;
+      const section = SECTION_KEYS.find((key) => data[key].some((item) => item.id === id));
+      const item = section ? data[section].find((entry) => entry.id === id) : null;
+
       if (!section || !item) return;
       if (section === "service" && isProtectedService(item.label)) {
         toast.error("Default services cannot be deleted");
         return;
       }
+
       try {
         const res = await salesApi.deleteQuoteCatalog(id);
         if (res && !res.error) {
           setData((prev) => ({
             ...prev,
-            [section]: prev[section].filter((it) => it.id !== id),
+            [section]: prev[section].filter((entry) => entry.id !== id),
           }));
           toast.success(`${item.label} deleted`);
         } else {
@@ -617,159 +697,156 @@ export default function QuotePricingPage() {
     [data]
   );
 
-  // ── Add ────────────────────────────────────────────────────────────────────
-  const handleAdd = useCallback(
-    async (section: SectionKey, name: string, rate: number) => {
-      const meta = SECTION_META[section];
-      try {
-        const res = await salesApi.createQuoteCatalog({
-          section_type: meta.sectionType,
-          name,
-          default_rate: rate,
-          rate_type:    meta.rateType,
-          rate_unit:    meta.rateUnit,
-        });
-        if (res && !res.error) {
-          const newItem: PricingItem = {
-            id:        String((res.data as { catalog_item_id?: string | number })?.catalog_item_id ?? Date.now()),
-            label:     name,
-            price:     rate,
-            createdAt: new Date().toISOString(),
-          };
-          setData((prev) => ({
-            ...prev,
-            [section]: [...prev[section], newItem],
-          }));
-          toast.success(`${name} added to ${meta.label}`);
-        } else {
-          toast.error("Failed to add item");
-        }
-      } catch {
+  const handleAdd = useCallback(async (section: SectionKey, name: string, rate: number) => {
+    const meta = SECTION_META[section];
+
+    try {
+      const res = await salesApi.createQuoteCatalog({
+        section_type: meta.sectionType,
+        name,
+        default_rate: rate,
+        rate_type: meta.rateType,
+        rate_unit: meta.rateUnit,
+      });
+
+      if (res && !res.error) {
+        const newItem: PricingItem = {
+          id: String((res.data as { catalog_item_id?: string | number })?.catalog_item_id ?? Date.now()),
+          label: name,
+          price: rate,
+          createdAt: new Date().toISOString(),
+        };
+
+        setData((prev) => ({
+          ...prev,
+          [section]: [...prev[section], newItem],
+        }));
+        toast.success(`${name} added to ${meta.label}`);
+      } else {
         toast.error("Failed to add item");
       }
-    },
-    []
-  );
+    } catch {
+      toast.error("Failed to add item");
+    }
+  }, []);
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-  const allItems     = Object.values(data).flat();
-  const totalItems   = allItems.length;
-  const visibleSections: SectionKey[] =
-    activeTab === "all" ? SECTION_KEYS : [activeTab];
-
-  const TABS: Array<{ key: "all" | SectionKey; label: string; count: number }> = [
-    { key: "all",       label: "All",       count: totalItems },
-    { key: "service",   label: "Services",  count: data.service.length },
-    { key: "addon",     label: "Add-ons",   count: data.addon.length },
+  const totalItems = Object.values(data).flat().length;
+  const visibleSections: SectionKey[] = activeTab === "all" ? SECTION_KEYS : [activeTab];
+  const tabs: Array<{ key: "all" | SectionKey; label: string; count: number }> = [
+    { key: "all", label: "All", count: totalItems },
+    { key: "service", label: "Services", count: data.service.length },
+    { key: "addon", label: "Add-ons", count: data.addon.length },
     { key: "logistics", label: "Logistics", count: data.logistics.length },
   ];
 
   return (
-    <div className="min-h-screen bg-[#0A0A09] text-white">
-      {/* ── Topbar ─────────────────────────────────────────────────────────── */}
+    <>
       <Topbar
         pathname={pathname}
         breadcrumbOverrides={{ create: "Master Pricing" }}
+        actions={
+          <Button
+            onClick={fetchCatalog}
+            disabled={loading}
+            className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors ${isDark ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10" : "border border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E3E3E3]"}`}
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </Button>
+        }
       />
 
-      {/* ── Page Header ────────────────────────────────────────────────────── */}
-      <div className="border-b border-[#1E1E1C] bg-[#0D0D0C] px-4 lg:px-9">
-        <div className="py-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-[#E0E0DC] lg:text-3xl">
-                Master Pricing
-                <span className="ml-2 text-[#E0E0DC]">Control</span>
-              </h1>
-              <p className="mt-1 text-sm text-[#555]">
-                Edit prices here → auto-reflects in all new quotes
-              </p>
-            </div>
-
-            {/* Stats */}
-            <div className="flex items-center gap-6">
-              <div className="text-right">
-                <p className="text-xl font-bold tracking-tight text-[#E8D1AB]">
-                  {totalItems}
-                </p>
-                <p className="text-xs text-[#444]">Total Items</p>
-              </div>
-              <div className="h-8 w-px bg-[#1E1E1C]" />
-              <button
-                onClick={fetchCatalog}
-                disabled={loading}
-                className="flex items-center gap-2 rounded-xl border border-[#2A2A28] bg-[#111110] px-4 py-2 text-sm font-medium text-[#888] transition-all hover:border-[#3D3D3A] hover:text-[#E0E0DC] disabled:opacity-50"
-              >
-                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                Refresh
-              </button>
-            </div>
+      <div
+        className="overflow-hidden p-4 pb-20 lg:p-6 lg:px-10 lg:py-9 space-y-6"
+        style={{ fontFamily: "var(--font-instrument-sans)" }}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1
+              className={`mb-1 text-lg font-semibold transition-colors duration-100 lg:text-2xl lg:leading-[32px] ${isDark ? "text-white" : "text-black"}`}
+            >
+              Master Pricing
+            </h1>
+            <p
+              className={`text-xs transition-colors duration-100 lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}
+            >
+              Manage default quote pricing for services, add-ons, and logistics in one place.
+            </p>
           </div>
 
-          {/* Tabs */}
-          <div className="mt-5 flex gap-1 overflow-x-auto">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex shrink-0 items-center gap-2 rounded-t-lg border-b-2 px-4 py-2.5 text-sm font-semibold transition-all ${
-                  activeTab === tab.key
-                    ? "border-[#E8D1AB] text-[#E8D1AB]"
-                    : "border-transparent text-[#555] hover:text-[#888]"
-                }`}
-              >
-                {tab.label}
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold transition-all ${
-                    activeTab === tab.key
-                      ? "bg-[#2D2820] text-[#E8D1AB]"
-                      : "bg-[#1A1A18] text-[#444]"
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+          <div className={`rounded-lg lg:rounded-2xl border px-4 py-3 text-center shadow-[0_8px_30px_rgba(0,0,0,0.12)] lg:min-w-32 transition-colors duration-100 ${isDark ? "border-[#807E7E] bg-[#171717]" : "border-[#DFDDDD] bg-white"}`}>
+            <p className={`text-lg font-semibold leading-none ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{totalItems}</p>
+            <p className={`text-xs ${isDark ? "text-[#FFFFFF99]" : "text-[#000000B2]"}`}>Total Items</p>
           </div>
         </div>
-      </div>
 
-      {/* ── Main Content ───────────────────────────────────────────────────── */}
-      <div className="px-4 pb-20 pt-6 lg:px-9">
-        {/* Search */}
-        <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]"
-            />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search pricing items..."
-              className="h-10 border-[#2A2A28] bg-[#111110] pl-9 text-sm text-[#E0E0DC] placeholder:text-[#333] focus:border-[#8E826A]"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888]"
-              >
-                <X size={14} />
-              </button>
-            )}
+        <div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            {/* Search Input Wrapper */}
+            <div className="relative w-full max-w-md">
+              <Search
+                size={15}
+                className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-zinc-400"}`}
+              />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search pricing items..."
+                className={`h-11 rounded-lg lg:rounded-2xl text-sm pl-9 transition-colors duration-100 ${isDark
+                  ? "border-white/10 bg-[#111111] text-white placeholder:text-white/30 focus:border-[#8E826A]"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400"
+                  }`}
+              />
+              {search ? (
+                <button
+                  onClick={() => setSearch("")}
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${isDark ? "text-white/35 hover:text-white/70" : "text-zinc-400 hover:text-zinc-600"}`}
+                >
+                  <X size={14} />
+                </button>
+              ) : null}
+            </div>
+
+            {/* Tabs Row */}
+            <div className="flex flex-wrap gap-2">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 rounded-lg lg:rounded-2xl border px-4 py-2 text-sm font-medium transition-all ${activeTab === tab.key
+                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-[#101010]"
+                    : isDark
+                      ? "border-white/10 bg-[#111111] text-white/70 hover:border-white/20 hover:text-white"
+                      : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                    }`}
+                >
+                  {tab.label}
+                  <span
+                    className={`rounded-sm lg:rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-colors ${activeTab === tab.key
+                      ? "bg-[#FFFFFF4D] [#101010]"
+                      : isDark ? "bg-white/5 text-white/50" : "bg-zinc-200/60 text-zinc-500"
+                      }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-          {search && (
-            <p className="text-sm text-[#555]">
+
+          {search ? (
+            <p className={`mt-3 text-sm ${isDark ? "text-white/50" : "text-zinc-400"}`}>
               Searching across all sections
             </p>
-          )}
+          ) : null}
         </div>
 
-        {/* Loading */}
+        {/* Loader / Content Area */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-24">
-            <Loader2 size={32} className="animate-spin text-[#E8D1AB]" />
-            <p className="text-sm text-[#555]">Loading pricing data...</p>
+          <div className={`flex flex-col items-center justify-center gap-4 rounded-3xl border py-24 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"
+            }`}>
+            <Loader2 size={32} className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-zinc-800"}`} />
+            <p className={`text-sm ${isDark ? "text-white/55" : "text-zinc-500"}`}>Loading pricing data...</p>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -783,27 +860,42 @@ export default function QuotePricingPage() {
                 onAdd={handleAdd}
                 searchQuery={search}
                 defaultExpanded={activeTab !== "all" || section === "service"}
+                isDark={isDark}
               />
             ))}
 
-            {/* Info Banner */}
-            <div className="flex items-start gap-3 rounded-xl border border-[#2A2520] bg-[#0F0E0C] p-4">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#2D2A20] bg-[#1D1C18] text-[#E8D1AB]">
-                <AlertCircle size={14} />
+            {/* Sync Footer Banner */}
+            <div className={`flex items-start gap-3 rounded-lg lg:rounded-3xl border p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"}`}>
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg lg:rounded-2xl transition-colors ${isDark ? "bg-[#302E2E] text-[#E8D1AB]" : "bg-[#E8D1AB] text-black"}`}>
+                <AlertCircle size={24} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#C5B48A]">
+                <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>
                   Prices sync automatically
                 </p>
-                <p className="mt-0.5 text-xs text-[#555]">
-                  Any rate you update here will be the default price loaded in all
-                  new quotes. Existing saved quotes are not affected.
+                <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+                  Any rate you update here becomes the default for new quotes. Existing saved quotes stay unchanged.
                 </p>
               </div>
             </div>
           </div>
         )}
+
+        {/* --- FLOATING MOBILE BUTTON PANEL --- */}
+        <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white"}`}>
+          <Button
+            onClick={fetchCatalog}
+            disabled={loading}
+            className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors w-full shadow-sm ${isDark
+              ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10"
+              : "border border-zinc-200 bg-zinc-100 text-zinc-800 hover:bg-zinc-200"
+              }`}
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

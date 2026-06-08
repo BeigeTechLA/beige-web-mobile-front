@@ -2,11 +2,31 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import SalesShootsTable from '@/components/sales/SalesShootsTable';
-import { ArrowUpToLine, Calendar } from 'lucide-react';
+import { ArrowUpToLine, Calendar, Search } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const FILTER_STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "initiated", label: "Initiated" },
+  { value: "preproduction", label: "Pre Production" },
+  { value: "shootday", label: "Shoot Day" },
+  { value: "postproduction", label: "Post Production" },
+  { value: "revision", label: "Revision" },
+  { value: "completed", label: "Completed" },
+  { value: "assetsdelivered", label: "Assets Delivered" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
 
 export default function SalesShootsPage() {
   const router = useRouter()
@@ -16,7 +36,12 @@ export default function SalesShootsPage() {
   useEffect(() => setMounted(true), []);
   const pathname = usePathname();
 
+  // --- Filter States ---
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [range, setRange] = useState("all");
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -34,15 +59,42 @@ export default function SalesShootsPage() {
     <>
       <Topbar pathname={pathname}
         actions={
-          <>
-            {/* Need to add search bar, filters  */}
+          <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
+
+            {/* Filters Group */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className={`w-[160px] rounded-lg h-12 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                  {FILTER_STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={range} onValueChange={setRange}>
+                <SelectTrigger className={`w-[110px] rounded-lg h-12 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                  <SelectValue placeholder="Range" />
+                </SelectTrigger>
+                <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                  <SelectItem value="all">All time</SelectItem>
+                  <SelectItem value="week">Week</SelectItem>
+                  <SelectItem value="month">Month</SelectItem>
+                  <SelectItem value="year">Year</SelectItem>
+                  {selectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
             </Button>
             <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
               Book a Shoot
             </Button>
-          </>
+          </div>
         }
       />
 
@@ -63,7 +115,12 @@ export default function SalesShootsPage() {
 
         {/* <DottedDivider /> */}
 
-        <SalesShootsTable externalSelectedDate={selectedDate} />
+        <SalesShootsTable externalSelectedDate={selectedDate}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          range={range}
+          setRange={setRange}
+        />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>

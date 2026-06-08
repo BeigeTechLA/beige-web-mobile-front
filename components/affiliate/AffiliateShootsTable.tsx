@@ -3,6 +3,9 @@
 import React, { useMemo, useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronRight, Loader2, Trash2, Search, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import Lottie from "lottie-react";
+import redAnimation from "@/public/animations/Red.json";
+import yellowAnimation from "@/public/animations/Yellow.json";
 import Cookies from "js-cookie";
 import { affiliateApi } from "@/lib/api";
 import { format } from "date-fns";
@@ -37,12 +40,53 @@ interface ShootRecord {
   status: Status;
   hasQuote: boolean;
   paymentStatus: "paid" | "pending";
+  needsAttention?: {
+    required: boolean;
+    missing_fields: string[];
+  };
 }
 
 interface AffiliateShootsTableProps {
   onShootClick?: (shootId: string) => void;
   externalSelectedDate?: Date | null;
 }
+
+const FILTER_STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "initiated", label: "Initiated" },
+  { value: "preproduction", label: "Pre Production" },
+  { value: "shootday", label: "Shoot Day" },
+  { value: "postproduction", label: "Post Production" },
+  { value: "revision", label: "Revision" },
+  { value: "completed", label: "Completed" },
+  { value: "assetsdelivered", label: "Assets Delivered" },
+  { value: "pending", label: "Pending" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const FILTER_STATUS_TO_LABEL: Record<string, Status> = {
+  initiated: "Initiated",
+  preproduction: "PreProduction",
+  shootday: "Shoot Day",
+  postproduction: "PostProduction",
+  revision: "Revision",
+  completed: "Completed",
+  assetsdelivered: "Assets Delivered",
+  pending: "Pending",
+  cancelled: "Cancelled",
+};
+
+const FILTER_CATEGORY_OPTIONS = [
+  { value: "all", label: "All Categories" },
+  { value: "corporate", label: "Corporate" },
+  { value: "wedding", label: "Wedding" },
+  { value: "private", label: "Private Events" },
+  { value: "commercial", label: "Commercial" },
+  { value: "social", label: "Social Content" },
+  { value: "podcasts", label: "Podcasts" },
+  { value: "music", label: "Music Videos" },
+  { value: "narrative", label: "Narrative" },
+];
 
 export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
@@ -56,8 +100,10 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   // Filtering states
   const [range, setRange] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hoveredShootId, setHoveredShootId] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
   const router = useRouter();
@@ -70,6 +116,12 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   useEffect(() => { setMounted(true); }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
+  const toTitleCase = (value: string) =>
+    String(value || "")
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
 
 
   // Sync external selected date with range
@@ -89,9 +141,9 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
       setLoading(true);
       try {
         const params: any = { range };
-        if (statusFilter !== "all") {
-          params.status = statusFilter;
-        }
+        // Client endpoint currently rejects admin-style status/category keys
+        // (e.g. `initiated`, `preproduction`), so we apply those filters
+        // client-side below instead of sending them as query params.
         if (debouncedSearch) {
           params.search = debouncedSearch;
         }
@@ -136,6 +188,14 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
             status: statusLabel as Status,
             hasQuote,
             paymentStatus: project.payment_status === "paid" || !!project.payment_id ? "paid" : "pending",
+            needsAttention: project.needs_attention
+              ? {
+                required: Boolean(project.needs_attention.required),
+                missing_fields: Array.isArray(project.needs_attention.missing_fields)
+                  ? project.needs_attention.missing_fields
+                  : [],
+              }
+              : undefined,
           };
         });
         setShoots(mappedShoots);
@@ -147,7 +207,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
     };
 
     fetchData();
-  }, [range, statusFilter, debouncedSearch, externalSelectedDate]);
+  }, [range, statusFilter, categoryFilter, debouncedSearch, externalSelectedDate]);
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
@@ -156,6 +216,18 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
       shoot.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shoot.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    if (statusFilter !== "all") {
+      const selectedStatus = FILTER_STATUS_TO_LABEL[statusFilter];
+      if (selectedStatus) {
+        result = result.filter((shoot) => shoot.status === selectedStatus);
+      }
+    }
+
+    if (categoryFilter !== "all") {
+      const query = categoryFilter.toLowerCase();
+      result = result.filter((shoot) => shoot.category.toLowerCase().includes(query));
+    }
 
     // 2. Sort
     if (sortConfig.direction !== null) {
@@ -185,7 +257,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
     }
 
     return result;
-  }, [shoots, searchQuery, sortConfig]);
+  }, [shoots, searchQuery, sortConfig, statusFilter, categoryFilter]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -260,20 +332,33 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={categoryFilter} onValueChange={(value) => { setCategoryFilter(value); setCurrentPage(1); }}>
+            <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+              {FILTER_CATEGORY_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}>
             <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
+              {FILTER_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
-          <Select value={range} onValueChange={setRange}>
+          <Select value={range} onValueChange={(value) => { setRange(value); setCurrentPage(1); }}>
             <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
               <SelectValue placeholder="Range" />
             </SelectTrigger>
@@ -404,14 +489,59 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                   </td>
                 </tr>
               ) : currentShoots.length > 0 ? (
-                currentShoots.map((shoot, idx) => (
-                  <tr
-                    key={idx}
-                    onClick={() => handleRowClick(shoot.id)}
-                    className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
-                  >
+                currentShoots.map((shoot, idx) => {
+                  const missingFields = shoot.needsAttention?.missing_fields || [];
+                  const hasMissingFields = missingFields.length > 0;
+                  const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
+
+                  return (
+                    <tr
+                      key={idx}
+                      onClick={() => handleRowClick(shoot.id)}
+                      className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
+                    >
                     {/* ID */}
-                    <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
+                    <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-8 h-8 shrink-0 flex items-center justify-center relative"
+                          onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
+                          onMouseLeave={() => setHoveredShootId(null)}
+                        >
+                          {hasMissingFields && (
+                            <div>
+                              <Lottie animationData={animationData} loop />
+                              <AnimatePresence>
+                                {hoveredShootId === `list-${shoot.id}` && (
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -10 }}
+                                    className={`absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none ${isDark
+                                        ? "bg-[#222] border border-white/10 text-white"
+                                        : "bg-white border border-gray-200 text-black"
+                                      }`}
+                                  >
+                                    <div className="flex flex-col gap-1">
+                                      <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1">
+                                        Attention Required:
+                                      </span>
+                                      {missingFields.map((field, i) => (
+                                        <span key={i} className="flex items-center gap-1.5">
+                                          <span className="w-1 h-1 rounded-full bg-red-500" />
+                                          {toTitleCase(field)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+                        </div>
+                        <span>{shoot.id}</span>
+                      </div>
+                    </td>
 
                     {/* Customer Info */}
                     <td className="py-5 px-6">
@@ -458,8 +588,9 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                         </button>
                       </div>
                     </td>
-                  </tr>
-                ))
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={7} className="text-center py-10 text-white/50">

@@ -117,6 +117,72 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
 
   const bookingDays = Array.isArray(data?.booking_days) ? data.booking_days : [];
   const hasMultipleBookingDays = bookingDays.length > 1;
+  const pricing = data?.pricing || {};
+  const paymentSummary = pricing?.payment_summary || {};
+  const toNumber = (value: unknown) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
+  const pickNumber = (...values: unknown[]) => {
+    for (const value of values) {
+      if (value === null || value === undefined || value === "") continue;
+      const num = Number(value);
+      if (Number.isFinite(num)) return num;
+    }
+    return 0;
+  };
+  const pickOptionalNumber = (...values: unknown[]) => {
+    for (const value of values) {
+      if (value === null || value === undefined || value === "") continue;
+      const num = Number(value);
+      if (Number.isFinite(num)) return num;
+    }
+    return null;
+  };
+  const creditAppliedAmount = Math.max(
+    pickNumber(
+      pricing.credit_applied,
+      pricing.credit_used_amount,
+      pricing.account_credit_applied,
+      paymentSummary.credit_applied,
+      paymentSummary.credit_used_amount,
+    ),
+    0,
+  );
+  const explicitCardPaidAmount = pickOptionalNumber(
+    pricing.card_paid_amount,
+    pricing.card_paid,
+    pricing.stripe_paid_amount,
+    paymentSummary.card_paid_amount,
+    paymentSummary.card_paid,
+  );
+  const totalPaidWithCredit = pickOptionalNumber(
+    pricing.total_paid_with_credit,
+    paymentSummary.total_paid_with_credit,
+  );
+  const cardPaidAmount = Math.max(
+    explicitCardPaidAmount ??
+      pickNumber(pricing.total_paid, paymentSummary.paid_amount, pricing.total),
+    0,
+  );
+  const combinedPaidAmount = Math.max(
+    totalPaidWithCredit ?? cardPaidAmount + creditAppliedAmount,
+    0,
+  );
+  const displayTotalAmount = toNumber(
+    paymentSummary.quote_total ??
+    pricing.total_before_credit ??
+    pricing.total_before_discounts ??
+    pricing.total
+  );
+  const paymentMethodLabel =
+    pricing.payment_method_label ||
+    paymentSummary.payment_method_label ||
+    (creditAppliedAmount > 0 && cardPaidAmount > 0
+      ? "Paid via Card + Account Credit"
+      : creditAppliedAmount > 0
+        ? "Paid via Account Credit"
+        : "Paid via Card");
 
   return (
     <div 
@@ -217,7 +283,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
           {/* Close button — absolutely positioned so it doesn't affect flex layout */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-all no-print"
+            className="absolute top-3 right-3 p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-all no-print"
           >
             <X size={24} />
           </button>
@@ -226,7 +292,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
           <img
             src="/images/blackBeigeLogo.png"
             alt="Beige Logo"
-            className="w-20 h-auto object-contain print:w-24"
+            className="w-20 h-auto object-contain print:w-24 lg:mr-8"
           />
        </div>
 
@@ -367,51 +433,51 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                    <div className="flex justify-between text-sm">
                      <span className="text-white/40 print:text-gray-500">Total Amount</span>
                      <span className="text-white font-medium print:text-black">
-                       {formatCurrency(data.pricing.total_before_discounts ?? data.pricing.total)}
+                       {formatCurrency(displayTotalAmount)}
                      </span>
                    </div>
-                   {data.pricing.discount_code && (
+                   {pricing.discount_code && (
                      <div className="flex justify-between text-sm text-white/60 print:text-gray-600">
                         <span>Discount Code</span>
-                        <span className="font-medium">{data.pricing.discount_code}</span>
+                        <span className="font-medium">{pricing.discount_code}</span>
                      </div>
                    )}
-                   {data.pricing.discount_code_discount > 0 && (
+                   {toNumber(pricing.discount_code_discount) > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
                         <span>Discount</span>
-                        <span>-{formatCurrency(data.pricing.discount_code_discount)}</span>
+                        <span>-{formatCurrency(toNumber(pricing.discount_code_discount))}</span>
                      </div>
                    )}
-                   {data.pricing.referral_code && (
+                   {pricing.referral_code && (
                      <div className="flex justify-between text-sm text-white/60 print:text-gray-600">
                         <span>Referral Code</span>
-                        <span className="font-medium">{data.pricing.referral_code}</span>
+                        <span className="font-medium">{pricing.referral_code}</span>
                      </div>
                    )}
-                   {data.pricing.referral_discount > 0 && (
+                   {toNumber(pricing.referral_discount) > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
                         <span>Referral Code Discount</span>
-                        <span>-{formatCurrency(data.pricing.referral_discount)}</span>
+                        <span>-{formatCurrency(toNumber(pricing.referral_discount))}</span>
                      </div>
                    )}
-                   {data.pricing.credit_applied > 0 && (
-                     <div className="flex justify-between text-sm text-green-500 font-medium">
-                        <span>Account Credit</span>
-                        <span>-{formatCurrency(data.pricing.credit_applied)}</span>
-                     </div>
-                   )}
+	                   {creditAppliedAmount > 0 && (
+	                     <div className="flex justify-between text-sm text-green-500 font-medium">
+	                        <span>Account Credit</span>
+	                        <span>-{formatCurrency(creditAppliedAmount)}</span>
+	                     </div>
+	                   )}
                    
                    <div className="pt-4 mt-2 border-t border-white/20 print:border-gray-300">
-                     <div className="flex items-center justify-between gap-6">
-                        <p className="text-white font-bold text-base sm:text-lg leading-none whitespace-nowrap print:text-black">Total Paid</p>
-                        <span className="text-[#E8D1AB] font-bold text-xl sm:text-2xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">
-                           {formatCurrency(data.pricing.total_paid ?? data.pricing.total)}
-                        </span>
-                     </div>
-                     <p className="mt-2 text-[10px] text-white/35 uppercase font-bold tracking-[0.12em] whitespace-nowrap print:text-gray-400">Paid via Card</p>
-                   </div>
-                </section>
-              </div>
+	                     <div className="flex items-center justify-between gap-6">
+	                        <p className="text-white font-bold text-base sm:text-lg leading-none whitespace-nowrap print:text-black">Total Paid</p>
+	                        <span className="text-[#E8D1AB] font-bold text-xl sm:text-2xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">
+	                           {formatCurrency(combinedPaidAmount)}
+	                        </span>
+	                     </div>
+	                     <p className="mt-2 text-[10px] text-white/35 uppercase font-bold tracking-[0.12em] whitespace-nowrap print:text-gray-400">{paymentMethodLabel}</p>
+	                   </div>
+	                </section>
+	              </div>
 
               {/* Information Notice */}
               <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl print:bg-white print:border-gray-200">

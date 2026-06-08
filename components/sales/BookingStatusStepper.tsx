@@ -22,7 +22,7 @@ interface Props {
 
 export default function BookingStatusStepper({ currentStep, isDark = true }: Props) {
   return (
-    <div className="w-full pb-4 lg:pb-9 transition-colors duration-300">
+    <div className="w-full pb-12 lg:pb-9 transition-colors duration-300">
       <h3 className={cn(
         "lg:text-xl font-medium mb-3 lg:mb-6 transition-colors duration-300",
         isDark ? "text-white/50" : "text-black"
@@ -59,17 +59,17 @@ export default function BookingStatusStepper({ currentStep, isDark = true }: Pro
               </div>
 
               {/* Label */}
-              <div className="absolute top-12 whitespace-nowrap">
-                <span
+              <div className="absolute top-12 px-1 lg:whitespace-nowrap">
+                <p
                   className={cn(
-                    "text-xs font-medium transition-colors duration-300",
+                    "text-xs font-medium transition-colors duration-300 text-center",
                     isActive
                       ? (isDark ? "text-[#E5D5B8]" : "text-[#B18A00]")
                       : (isDark ? "text-[#71717A]" : "text-[#6B7280]")
                   )}
                 >
                   {step.label}
-                </span>
+                </p>
               </div>
             </div>
           );

@@ -18,6 +18,15 @@ import { useDebounce } from "@/hooks/use-debounce";
 type UserType = "All" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
+const USER_FILTERS_STORAGE_KEY = "admin-users-tabbed-filters";
+
+type PersistedUserFilters = {
+    activeTab: UserType;
+    currentPage: number;
+    searchQuery: string;
+    statusFilter: string;
+};
+
 interface UserData {
     id: string;
     name: string;
@@ -30,6 +39,7 @@ interface UserData {
     role?: string;
     imageUrl?: string | null;
     referralCode?: string | null;
+    clientType?: "Registered" | "Guest" | "Not Applicable";
 }
 
 type SortConfig = {
@@ -52,11 +62,42 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
     );
 };
 
+const ClientTypeBadge = ({
+    clientType,
+    isDark,
+}: {
+    clientType: UserData["clientType"];
+    isDark: boolean;
+}) => {
+    if (clientType === "Registered") {
+        return (
+            <span className="px-4 py-1.5 rounded-full text-sm font-semibold border bg-[#E7F0FF] text-[#2563EB] border-[#2563EB]/20">
+                Registered
+            </span>
+        );
+    }
+
+    if (clientType === "Guest") {
+        return (
+            <span className="px-4 py-1.5 rounded-full text-sm font-semibold border bg-[#FFF7E8] text-[#C27C2C] border-[#C27C2C]/20">
+                Guest
+            </span>
+        );
+    }
+
+    return (
+        <span className={`inline-flex items-center whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-semibold border ${isDark ? "bg-white/5 text-[#A1A1AA] border-white/10" : "bg-[#F4F4F5] text-[#71717A] border-[#E4E4E7]"}`}>
+            Not Applicable
+        </span>
+    );
+};
+
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 export const UserManagementTabbed = () => {
     const { theme } = useTheme();
     const [mounted, setMounted] = useState(false);
+    const [filtersInitialized, setFiltersInitialized] = useState(false);
 
     const [activeTab, setActiveTab] = useState<UserType>("All");
     const [users, setUsers] = useState<UserData[]>([]);
@@ -73,6 +114,48 @@ export const UserManagementTabbed = () => {
 
     useEffect(() => setMounted(true), []);
     const isDark = !mounted || theme === "dark";
+
+    useEffect(() => {
+        try {
+            const savedFilters = localStorage.getItem(USER_FILTERS_STORAGE_KEY);
+            if (savedFilters) {
+                const parsedFilters = JSON.parse(savedFilters) as Partial<PersistedUserFilters>;
+
+                if (parsedFilters.activeTab && ["All", "Client", "Creative Partner"].includes(parsedFilters.activeTab)) {
+                    setActiveTab(parsedFilters.activeTab as UserType);
+                }
+
+                if (typeof parsedFilters.searchQuery === "string") {
+                    setSearchQuery(parsedFilters.searchQuery);
+                }
+
+                if (typeof parsedFilters.statusFilter === "string") {
+                    setStatusFilter(parsedFilters.statusFilter);
+                }
+
+                if (typeof parsedFilters.currentPage === "number" && parsedFilters.currentPage > 0) {
+                    setCurrentPage(parsedFilters.currentPage);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to restore user filters:", error);
+        } finally {
+            setFiltersInitialized(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!filtersInitialized) return;
+
+        const filtersToPersist: PersistedUserFilters = {
+            activeTab,
+            currentPage,
+            searchQuery,
+            statusFilter,
+        };
+
+        localStorage.setItem(USER_FILTERS_STORAGE_KEY, JSON.stringify(filtersToPersist));
+    }, [activeTab, currentPage, searchQuery, statusFilter, filtersInitialized]);
 
     const sortedUsers = useMemo(() => {
         if (!sortConfig) return users;
@@ -183,6 +266,7 @@ export const UserManagementTabbed = () => {
                         phoneNumber: client.phone_number || "N/A",
                         imageUrl: client.profile_image || null,
                         referralCode: client.referral_code || null,
+                        clientType: client?.client_type === "registered" ? "Registered" : "Guest",
                     }));
                     allUsers = [...allUsers, ...mapped];
                     paginationData = clientsRes.pagination;
@@ -212,6 +296,7 @@ export const UserManagementTabbed = () => {
                             role: member.role?.role_name || "N/A",
                             imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
                             referralCode: member.referral_code || null,
+                            clientType: "Not Applicable" as const,
                         };
                     });
                     allUsers = [...allUsers, ...mapped];
@@ -231,8 +316,9 @@ export const UserManagementTabbed = () => {
     };
 
     useEffect(() => {
+        if (!filtersInitialized) return;
         fetchUsers();
-    }, [activeTab, currentPage, debouncedSearch, statusFilter]);
+    }, [activeTab, currentPage, debouncedSearch, statusFilter, filtersInitialized]);
 
     const handleRowClick = (user: UserData) => {
         const cleanId = user.id.replace('#', '');
@@ -323,6 +409,7 @@ export const UserManagementTabbed = () => {
                                 <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
                                     <div className="flex items-center">Status {getSortIcon('status', isDark)}</div>
                                 </th>
+                                <th className="py-5 px-6 font-medium">Client Type</th>
                                 <th className="py-5 px-6 font-medium">Referral Code</th>
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
@@ -330,11 +417,11 @@ export const UserManagementTabbed = () => {
                         <tbody>
                             {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-20 text-center">
+                  <td colSpan={8} className="py-20 text-center">
                     <Loader2 className={`animate-spin inline ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} />
                   </td>
                 </tr>                            ) : sortedUsers.length === 0 ? (
-                                <tr><td colSpan={7} className="py-10 text-center text-[#888]">No users found.</td></tr>
+                                <tr><td colSpan={8} className="py-10 text-center text-[#888]">No users found.</td></tr>
                             ) : (
                                 sortedUsers.map((user, idx) => (
                                     <tr
@@ -366,6 +453,9 @@ export const UserManagementTabbed = () => {
                                             {user.type === "Client" ? user.phoneNumber : <span className={`px-2 py-0.5 rounded text-xs ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]": "bg-transparent text-[#000]"}`}>{user.role}</span>}
                                         </td>
                                         <td className="py-5 px-6"><StatusBadge status={user.status} /></td>
+                                        <td className="py-5 px-6">
+                                            <ClientTypeBadge clientType={user.clientType} isDark={isDark} />
+                                        </td>
                                         <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
                                             {user.referralCode ? (
                                                 <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{user.referralCode}</span>

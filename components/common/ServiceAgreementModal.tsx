@@ -121,15 +121,19 @@ const SERVICE_AGREEMENT_SECTIONS: AgreementSection[] = [
 interface ServiceAgreementModalProps {
   isOpen: boolean;
   initialChecked: boolean;
+  isAcceptedLocked?: boolean;
   onClose: () => void;
   onAccept: () => void;
+  isDark?: boolean;
 }
 
 export function ServiceAgreementModal({
   isOpen,
   initialChecked,
+  isAcceptedLocked = false,
   onClose,
   onAccept,
+  isDark = true
 }: ServiceAgreementModalProps) {
   const [checked, setChecked] = useState(initialChecked);
   const [expandedSection, setExpandedSection] = useState("01");
@@ -144,15 +148,19 @@ export function ServiceAgreementModal({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/70 p-3 lg:p-6 flex items-center justify-center">
-      <div className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-white/10 bg-black">
-        <div className="flex items-center justify-between px-6 lg:px-7 py-5 lg:py-6 border-b border-white/10">
-          <h3 className="text-white text-lg font-semibold">
+      <div className={`w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border transition-colors duration-200 ${isDark ? "border-white/10 bg-black" : "border-[#D7D7D7] bg-white shadow-2xl"
+        }`}>
+        {/* Header Section */}
+        <div className={`flex items-center justify-between px-6 lg:px-7 py-5 lg:py-6 border-b ${isDark ? "border-white/10" : "border-[#D7D7D7]"
+          }`}>
+          <h3 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>
             Service Agreement & Terms of Engagement
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="h-8 w-8 rounded-full bg-[#1f1f1f] text-white flex items-center justify-center hover:bg-[#2c2c2c]"
+            className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${isDark ? "bg-[#1F1F1F] text-white hover:bg-[#2C2C2C]" : "bg-[#F4F5F7] text-black hover:bg-[#E5E7EB]"
+              }`}
             aria-label="Close service agreement"
           >
             <X className="h-4 w-4" />
@@ -165,23 +173,29 @@ export function ServiceAgreementModal({
             <p className="text-xs leading-relaxed">{SERVICE_AGREEMENT_INTRO}</p>
           </div>
 
-          <div className="rounded-lg border border-white/10 overflow-hidden">
+          {/* Accordion Layout Container */}
+          <div className={`rounded-lg border overflow-hidden ${isDark ? "border-white/10" : "border-[#D7D7D7]"
+            }`}>
             {SERVICE_AGREEMENT_SECTIONS.map((section) => {
               const isExpanded = expandedSection === section.id;
               return (
-                <div key={section.id} className="border-b border-white/10 last:border-b-0">
+                <div key={section.id} className={`border-b last:border-b-0 ${isDark ? "border-white/10" : "border-[#D7D7D7]"
+                  }`}>
                   <button
                     type="button"
                     onClick={() => setExpandedSection(isExpanded ? "" : section.id)}
-                    className="w-full px-4 py-3 bg-[#171717] text-left text-white text-sm flex items-center justify-between hover:bg-[#1f1f1f]"
+                    className={`w-full px-4 py-3 text-left text-sm flex items-center justify-between transition-colors ${isDark
+                        ? "bg-[#171717] text-white hover:bg-[#1F1F1F]"
+                        : "bg-[#FAFAFA] text-black hover:bg-[#F4F5F7]"
+                      }`}
                   >
                     <span>
                       {section.id}: {section.title}
                     </span>
                     {isExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-white/80" />
+                      <ChevronUp className={`h-4 w-4 ${isDark ? "text-white/80" : "text-black/80"}`} />
                     ) : (
-                      <ChevronDown className="h-4 w-4 text-white/80" />
+                      <ChevronDown className={`h-4 w-4 ${isDark ? "text-white/80" : "text-black/80"}`} />
                     )}
                   </button>
                   <AnimatePresence initial={false}>
@@ -193,7 +207,8 @@ export function ServiceAgreementModal({
                         transition={{ duration: 0.22, ease: "easeInOut" }}
                         className="overflow-hidden"
                       >
-                        <div className="px-4 py-3 bg-[#111111] text-white/75 text-xs leading-relaxed">
+                        <div className={`px-4 py-3 text-xs leading-relaxed ${isDark ? "bg-[#111111] text-[#A1A1AA]" : "bg-white text-[#727272] border-t border-[#D7D7D7]"
+                          }`}>
                           {section.content}
                         </div>
                       </motion.div>
@@ -204,13 +219,16 @@ export function ServiceAgreementModal({
             })}
           </div>
 
-          <label className="mt-4 rounded-md bg-[#171717] px-3 py-2 flex items-center gap-2">
+          {/* Consent Checkbox Panel */}
+          <label className={`mt-4 rounded-md px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors ${isDark ? "bg-[#171717]" : "bg-[#F4F5F7] border border-[#D7D7D7]"
+            }`}>
             <input
               type="checkbox"
               checked={checked}
+              disabled={isAcceptedLocked}
               onChange={(e) => setChecked(e.target.checked)}
             />
-            <span className="text-xs text-white/70">
+            <span className={`text-xs ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
               I have read and agree to the Terms & Services Agreement.
             </span>
           </label>
@@ -219,13 +237,13 @@ export function ServiceAgreementModal({
             <button
               type="button"
               onClick={() => {
-                if (!checked) return;
+                if (!checked || isAcceptedLocked) return;
                 onAccept();
               }}
-              disabled={!checked}
-              className="h-11 px-4 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-[10px] disabled:opacity-50"
+              disabled={!checked || isAcceptedLocked}
+              className="h-11 px-5 bg-[#E8D1AB] hover:opacity-90 text-[#101010] font-semibold rounded-[10px] disabled:opacity-40 transition-opacity"
             >
-              Accept & Continue
+              {isAcceptedLocked ? "Already Signed" : "Accept & Continue"}
             </button>
           </div>
         </div>

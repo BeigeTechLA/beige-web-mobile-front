@@ -3,6 +3,7 @@ import { useRouter, usePathname } from 'next/navigation'; // Added imports
 import { FolderOpen, MoreVertical, Link as LinkIcon, Unlink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FileActionMenu from './FileActionMenu';
+import { useResolvedTheme } from '@/lib/useResolvedTheme';
 
 interface FolderCardProps {
   title: string;
@@ -18,6 +19,7 @@ interface FolderCardProps {
   onDownload?: () => void;
   onDelete?: () => void;
   onRename?: () => void;
+  onShare?: () => void;
 }
 
 export const FolderCard: React.FC<FolderCardProps> = ({
@@ -33,12 +35,14 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   showMenu = true,
   onDownload,
   onDelete,
-  onRename
+  onRename,
+  onShare
 }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const { isDark } = useResolvedTheme();
 
   const handleOpenFolder = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
@@ -72,32 +76,45 @@ export const FolderCard: React.FC<FolderCardProps> = ({
       setMenuAnchor({ x: rect.right - 10, y: rect.top - 20 });
     }
   };
+
   return (
     <div
       ref={cardRef}
       onClick={handleOpenFolder}
-      className="w-full lg:max-w-[350px] bg-[#18181b] rounded-xl lg:rounded-3xl border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group"
+      className={`w-full h-full lg:max-w-[350px] rounded-xl lg:rounded-3xl border cursor-pointer transition-all group flex flex-col overflow-hidden ${isDark
+        ? "bg-[#18181b] border-white/5 shadow-xl hover:border-white/20 hover:bg-[#1c1c20]"
+        : "bg-white border-[#e3e3e3] shadow-sm hover:border-[#D7D7D7] hover:shadow-md"
+        }`}
     >
       {/* Top Section */}
-      <div className="p-5">
+      <div className="p-5 flex-1">
         <div className="flex items-start justify-between">
           <div className="flex gap-3 items-start min-w-0">
             <div>
-              <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
+              <FolderOpen
+                className={`text-[#E8D1AB] fill-[#E8D1AB]/20`}
+                size={24}
+              />
             </div>
             <div className="min-w-0">
               <h3
-                className="text-white font-semibold text-sm leading-tight truncate"
+                className={`font-semibold text-sm leading-tight truncate transition-colors ${isDark ? "text-white" : "text-black"
+                  }`}
                 title={title}
               >
                 {title}
               </h3>
-              <p className="text-[#E8D1AB]/60 text-sm mt-1">{fileCount.toString().padStart(2, '0')} Files</p>
+              <p className={`text-sm mt-1 ${isDark ? "text-[#E8D1AB]/60" : "text-[#000000]"}`}>
+                {fileCount.toString().padStart(2, '0')} Files
+              </p>
             </div>
           </div>
           {showMenu ? (
             <Button
-              className="h-9 w-9 rounded-full p-0 text-white transition-colors hover:bg-white/10 hover:text-white/90"
+              className={`h-9 w-9 rounded-full p-0 transition-colors ${isDark
+                ? "text-white hover:bg-white/10 hover:text-white/90"
+                : "text-black bg-transparent hover:bg-black/5 hover:text-black/90"
+                }`}
               onClick={handleOpenMenu}
             >
               <MoreVertical size={20} />
@@ -106,18 +123,27 @@ export const FolderCard: React.FC<FolderCardProps> = ({
         </div>
 
         {/* Badges */}
-        {(category || isLinked) && (
-          <div className="flex flex-wrap gap-2 mt-4">
-            <span className="px-4 py-1.5 rounded-full bg-black/40 text-white text-xs font-medium border border-white/5">
-              {category}
-            </span>
+        {(category?.trim() || isLinked) && (
+          <div className="mt-4 flex min-w-0 flex-nowrap items-center gap-2">
+            {category?.trim() ? (
+              <span className={`min-w-0 max-w-[170px] shrink truncate rounded-full border px-4 py-1.5 text-xs font-medium ${isDark
+                ? "border-white/5 bg-black/40 text-white"
+                : "border-[#F0F0F0] bg-[#F0F0F0] text-[#929292]"
+                }`}>
+                {category}
+              </span>
+            ) : null}
+
             {isLinked ? (
-              <span className="px-2 py-1.5 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+              <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 whitespace-nowrap bg-[#D4FFE4] text-[#16A34A] border border-[#6ce9a6]/20`}>
                 <LinkIcon size={16} />
                 Linked
               </span>
             ) : (
-              <span className="px-2 py-1.5 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+              <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 whitespace-nowrap ${isDark
+                ? "bg-[#FFF1F2] text-[#F43F5E] border border-rose-500/20"
+                : "bg-rose-50 text-rose-700 border border-rose-200"
+                }`}>
                 <Unlink size={16} />
                 Unlinked
               </span>
@@ -127,11 +153,13 @@ export const FolderCard: React.FC<FolderCardProps> = ({
       </div>
 
       {/* Bottom Section */}
-      <div className="flex items-center border-t border-t-white/50 p-5 gap-3">
+      <div className={`mt-auto flex items-center p-5 gap-3 border-t ${isDark ? "border-t-white/10" : "border-t-[#D7D7D7]"}`}>
         <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-[#000] text-base">
           {userInitials}
         </div>
-        <span className="text-[#CDC5C5] text-sm">Updated {lastOpened}</span>
+        <span className={`text-sm ${isDark ? "text-[#CDC5C5]" : "text-[#000000]"}`}>
+          Updated {lastOpened}
+        </span>
       </div>
 
       {/* Menu Overlay */}
@@ -145,8 +173,10 @@ export const FolderCard: React.FC<FolderCardProps> = ({
           href={href}
           onOpen={onOpen}
           onDownload={onDownload}
+          onShare={onShare}
           onDelete={onDelete}
           onRename={onRename}
+          isDark={isDark}
         />
       )}
     </div>

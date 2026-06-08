@@ -6,6 +6,7 @@ import {
   getQuoteDisplayShootTypeLabel,
   getQuoteNumber,
   getQuoteText,
+  resolveQuoteLineItemDisplayName,
 } from "@/lib/quoteDetail";
 
 export type QuoteEditorView =
@@ -22,6 +23,7 @@ export type QuoteEditorClient = {
   client_id?: string | number | null;
   user_id?: string | number | null;
   id?: string | number | null;
+  client_type?: string | null;
   name?: string;
   email?: string;
   phone?: string;
@@ -80,6 +82,8 @@ export type QuoteEditorHydrationState = {
   emailId: string;
   phoneNumber: string;
   address: string;
+  locationLatitude: number | null;
+  locationLongitude: number | null;
   projectDescription: string;
   validityDays: number | "custom";
   validUntil: string;
@@ -117,6 +121,12 @@ type QuoteEditorNavigationCacheEntry = {
   quote: SalesQuoteDetailData;
 };
 
+type QuoteEditorEditReasonCacheEntry = {
+  cachedAt: number;
+  reason: string;
+  opsReviewConfirmed?: boolean;
+};
+
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const isEditingServiceLabel = (label: string) =>
@@ -136,6 +146,7 @@ const hasEditingConfiguration = (lineItem: SalesQuoteDetailLineItem) => {
   );
 };
 const QUOTE_EDITOR_NAVIGATION_CACHE_PREFIX = "quote-editor-navigation";
+const QUOTE_EDITOR_EDIT_REASON_CACHE_PREFIX = "quote-editor-edit-reason";
 const QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS = 10 * 60 * 1000;
 
 const EDITOR_VIEW_SET = new Set<QuoteEditorView>([
@@ -194,17 +205,7 @@ const resolveDetailSection = (item: SalesQuoteDetailLineItem) => {
 };
 
 const resolveItemLabel = (item: SalesQuoteDetailLineItem) => {
-  const catalogItem = asRecord(item.catalog_item);
-
-  return (
-    getQuoteText(
-      item.item_name,
-      item.name,
-      item.label,
-      catalogItem?.name,
-      "Line Item"
-    ) || "Line Item"
-  );
+  return resolveQuoteLineItemDisplayName(item);
 };
 
 const resolveItemCreatedAt = (item: SalesQuoteDetailLineItem) =>
@@ -218,6 +219,17 @@ const resolvePositiveIdString = (value: unknown) => {
 
   if (typeof value === "string" && value.trim()) {
     return value.trim();
+  }
+
+  return null;
+};
+
+const toFiniteNumber = (...values: unknown[]) => {
+  for (const value of values) {
+    const numericValue = getQuoteNumber(value);
+    if (numericValue !== undefined && Number.isFinite(numericValue)) {
+      return numericValue;
+    }
   }
 
   return null;
@@ -302,6 +314,9 @@ const ensureDateInputValue = (value: string | null, fallbackDays = 7) => {
 const getQuoteEditorNavigationCacheKey = (quoteId: string) =>
   `${QUOTE_EDITOR_NAVIGATION_CACHE_PREFIX}:${quoteId}`;
 
+const getQuoteEditorEditReasonCacheKey = (quoteId: string) =>
+  `${QUOTE_EDITOR_EDIT_REASON_CACHE_PREFIX}:${quoteId}`;
+
 export const persistQuoteEditorNavigationCache = (
   quoteId: string,
   quote: SalesQuoteDetailData
@@ -360,6 +375,119 @@ export const readQuoteEditorNavigationCache = (quoteId: string) => {
     console.error("Failed to read quote editor navigation cache", error);
     window.sessionStorage.removeItem(getQuoteEditorNavigationCacheKey(quoteId));
     return null;
+  }
+};
+
+export const persistQuoteEditorEditReason = (
+  quoteId: string,
+  reason: string,
+  opsReviewConfirmed = false
+) => {
+  if (typeof window === "undefined" || !quoteId.trim() || !reason.trim()) {
+    return;
+  }
+
+  try {
+    const cacheEntry: QuoteEditorEditReasonCacheEntry = {
+      cachedAt: Date.now(),
+      reason: reason.trim(),
+      opsReviewConfirmed,
+    };
+
+    window.sessionStorage.setItem(
+      getQuoteEditorEditReasonCacheKey(quoteId),
+      JSON.stringify(cacheEntry)
+    );
+  } catch (error) {
+    console.error("Failed to store quote editor edit reason", error);
+  }
+};
+
+export const readQuoteEditorEditReason = (quoteId: string) => {
+  if (typeof window === "undefined" || !quoteId.trim()) {
+    return "";
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(
+      getQuoteEditorEditReasonCacheKey(quoteId)
+    );
+
+    if (!rawValue) {
+      return "";
+    }
+
+    const parsedValue = JSON.parse(rawValue) as QuoteEditorEditReasonCacheEntry;
+    if (
+      !parsedValue ||
+      typeof parsedValue !== "object" ||
+      typeof parsedValue.cachedAt !== "number" ||
+      typeof parsedValue.reason !== "string"
+    ) {
+      window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+      return "";
+    }
+
+    if (Date.now() - parsedValue.cachedAt > QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+      return "";
+    }
+
+    return parsedValue.reason.trim();
+  } catch (error) {
+    console.error("Failed to read quote editor edit reason", error);
+    window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+    return "";
+  }
+};
+
+export const readQuoteEditorOpsReviewConfirmed = (quoteId: string) => {
+  if (typeof window === "undefined" || !quoteId.trim()) {
+    return false;
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(
+      getQuoteEditorEditReasonCacheKey(quoteId)
+    );
+
+    if (!rawValue) {
+      return false;
+    }
+
+    const parsedValue = JSON.parse(rawValue) as QuoteEditorEditReasonCacheEntry;
+    if (
+      !parsedValue ||
+      typeof parsedValue !== "object" ||
+      typeof parsedValue.cachedAt !== "number" ||
+      typeof parsedValue.reason !== "string"
+    ) {
+      window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+      return false;
+    }
+
+    if (Date.now() - parsedValue.cachedAt > QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+      return false;
+    }
+
+    return parsedValue.opsReviewConfirmed === true;
+  } catch (error) {
+    console.error("Failed to read quote editor ops review confirmation", error);
+    window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+    return false;
+  }
+};
+
+export const clearQuoteEditorEditReason = (quoteId: string) => {
+  if (typeof window === "undefined" || !quoteId.trim()) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(getQuoteEditorEditReasonCacheKey(quoteId));
+  } catch (error) {
+    console.error("Failed to clear quote editor edit reason", error);
   }
 };
 
@@ -557,7 +685,8 @@ export const buildQuoteEditorHydrationState = ({
   });
 
   const clientUser = asRecord(quote.client_user);
-  const clientId = resolvePositiveIdString(quote.client_user_id ?? clientUser?.id);
+  const clientId = resolvePositiveIdString(quote.client_id);
+  const clientUserId = resolvePositiveIdString(quote.client_user_id ?? clientUser?.id);
   const validUntilValue = ensureDateInputValue(
     getQuoteText(quote.valid_until, quote.expires_at) || null,
     7
@@ -571,7 +700,9 @@ export const buildQuoteEditorHydrationState = ({
 
   return {
     selectedClient: {
-      ...(clientId ? { client_id: clientId, user_id: clientId, id: clientId } : {}),
+      ...(clientId ? { client_id: clientId, id: clientId } : {}),
+      ...(clientUserId ? { user_id: clientUserId } : {}),
+      client_type: clientUserId ? "registered" : clientId ? "guest" : null,
       name: getQuoteText(quote.client_name, clientUser?.name),
       email: getQuoteText(quote.client_email, quote.guest_email, clientUser?.email),
       phone: getQuoteText(quote.client_phone, clientUser?.phone),
@@ -581,6 +712,18 @@ export const buildQuoteEditorHydrationState = ({
     emailId: getQuoteText(quote.client_email, quote.guest_email, clientUser?.email),
     phoneNumber: getQuoteText(quote.client_phone, clientUser?.phone),
     address: getQuoteText(quote.client_address, quote.address, quote.location),
+    locationLatitude: toFiniteNumber(
+      quote.location_latitude,
+      quote.latitude,
+      quote.converted_booking_details?.location_latitude,
+      quote.converted_booking_details?.latitude
+    ),
+    locationLongitude: toFiniteNumber(
+      quote.location_longitude,
+      quote.longitude,
+      quote.converted_booking_details?.location_longitude,
+      quote.converted_booking_details?.longitude
+    ),
     projectDescription: getQuoteText(quote.project_description),
     validityDays:
       quoteValidityDays && quoteValidityDays > 0 ? quoteValidityDays : "custom",

@@ -12,6 +12,7 @@ import {
   usePreviewInvoiceMutation,
   useSendInvoiceMutation
 } from "@/lib/redux/features/sales/salesApi";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 interface GeneratePaymentLinkProps {
   leadId?: number;
@@ -31,6 +32,9 @@ interface GeneratePaymentLinkProps {
   additionalPaymentOutstandingAmount?: number | string | null;
   isClientLead?: boolean;
   isDark?: boolean;
+  isReadOnly?: boolean;
+  readOnlyMessage?: string;
+  onBeforeGenerate?: () => Promise<{ bookingId: number; leadId?: number } | null>;
 }
 
 const formatCurrencyValue = (value?: number | string | null) => {
@@ -47,6 +51,21 @@ const formatCurrencyValue = (value?: number | string | null) => {
   }).format(numericValue);
 };
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (
+    error &&
+    typeof error === "object" &&
+    "data" in error &&
+    error.data &&
+    typeof error.data === "object" &&
+    "message" in error.data &&
+    typeof error.data.message === "string"
+  ) {
+    return error.data.message;
+  }
+  return fallback;
+};
+
 const GeneratePaymentLink = ({
   leadId,
   bookingId,
@@ -59,9 +78,15 @@ const GeneratePaymentLink = ({
   additionalPaymentOutstandingAmount,
   isClientLead,
   isDark = true,
+  isReadOnly = false,
+  readOnlyMessage = "Payment actions are disabled for Closed - Lost leads.",
+  onBeforeGenerate,
 }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No");
   const [paymentData, setPaymentData] = useState<{ url: string; id: number; isExpired: boolean } | null>(null);
+  const [resolvedBookingId, setResolvedBookingId] = useState<number | null>(null);
+  const [resolvedLeadId, setResolvedLeadId] = useState<number | null>(null);
+  const [isPreparingBooking, setIsPreparingBooking] = useState(false);
   const effectiveDiscountLockMessage =
     discountLockedMessage?.trim() ||
     "This payment is tied to quote pricing. Apply or update discounts in Quote Create/Edit, then save the quote before generating the payment link.";
@@ -89,41 +114,66 @@ const GeneratePaymentLink = ({
   const [notifyLink, { isLoading: isNotifying }] = useNotifyPaymentLinkMutation();
   const [previewInvoice, { isLoading: isPreviewingInvoice }] = usePreviewInvoiceMutation();
   const [sendInvoice, { isLoading: isSendingInvoice }] = useSendInvoiceMutation();
+  const effectiveBookingId = resolvedBookingId ?? bookingId;
+  const effectiveLeadId = resolvedLeadId ?? leadId;
 
   const isPaidBooking = String(bookingStatus || "").toLowerCase() === "paid";
+  const isPaymentPendingBooking = String(bookingStatus || "").toLowerCase().includes("payment pending");
   const hasPendingAdditionalPayment =
     Number(additionalPaymentOutstandingAmount ?? 0) > 0 &&
     !["paid", "success", "completed"].includes(
       String(additionalPaymentStatus || "").trim().toLowerCase()
     );
   const showInvoiceActions =
-    (!!paymentData && !paymentData.isExpired) || isPaidBooking || hasPendingAdditionalPayment;
+    (!!paymentData && !paymentData.isExpired) || isPaidBooking || isPaymentPendingBooking || hasPendingAdditionalPayment;
   const showGenerateSection =
-    !isPaidBooking &&
-    !hasPendingAdditionalPayment &&
-    (!paymentData || (paymentData.isExpired && !activeLink));
+    !isPaidBooking && !isPaymentPendingBooking && (!paymentData || (paymentData.isExpired && !activeLink));
   const shouldAttachDiscount =
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
   const handleGenerate = async () => {
-    if (!bookingId) {
+    if (isReadOnly) return;
+
+    let nextBookingId = effectiveBookingId;
+    let nextLeadId = effectiveLeadId;
+
+    if (!nextBookingId && onBeforeGenerate) {
+      setIsPreparingBooking(true);
+      try {
+        const prepared = await onBeforeGenerate();
+        if (prepared?.bookingId) {
+          nextBookingId = prepared.bookingId;
+          setResolvedBookingId(prepared.bookingId);
+        }
+        if (prepared?.leadId) {
+          nextLeadId = prepared.leadId;
+          setResolvedLeadId(prepared.leadId);
+        }
+      } finally {
+        setIsPreparingBooking(false);
+      }
+    }
+
+    if (!nextBookingId) {
       toast.error("Booking ID is required");
       return;
     }
 
     try {
-      let response: any;
-      if (isClientLead && leadId) {
+      let response:
+        | { success?: boolean; data?: { url?: string; payment_link_id?: number } }
+        | undefined;
+      if (isClientLead && nextLeadId) {
         response = await generateClientLink({
-          client_lead_id: leadId,
-          booking_id: bookingId,
+          client_lead_id: nextLeadId,
+          booking_id: nextBookingId,
           discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
           expiry_hours: 2 // User requested 2 hours in example
         }).unwrap();
       } else {
         response = await generateLink({
-          lead_id: leadId,
-          booking_id: bookingId,
+          lead_id: nextLeadId,
+          booking_id: nextBookingId,
           discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
           expiry_hours: 48
         }).unwrap();
@@ -137,33 +187,44 @@ const GeneratePaymentLink = ({
         });
         toast.success("Payment link generated successfully");
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to generate payment link");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to generate payment link"));
     }
   };
 
   const handleNotify = async () => {
+    if (isReadOnly) return;
     if (!paymentData?.id || paymentData.isExpired) return;
 
     try {
       await notifyLink({ payment_link_id: paymentData.id }).unwrap();
       toast.success("Payment link sent successfully");
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to send notification");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to send notification"));
     }
   };
 
   const handlePreviewInvoice = async () => {
-    if (!bookingId) return;
+    if (isReadOnly) return;
+    if (!effectiveBookingId) return;
 
     try {
-      const response = await previewInvoice({ booking_id: bookingId }).unwrap();
+      const response = await previewInvoice({ booking_id: effectiveBookingId }).unwrap();
       if (response.success) {
         const hostedInvoiceUrl = response.data?.invoiceUrl || null;
         const invoicePdfUrl = response.data?.invoicePdf || null;
-        const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
-        const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${bookingId}?t=${Date.now()}`;
-        const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${bookingId}?download=1&t=${Date.now()}`;
+        const isManualInvoice =
+          String(invoicePdfUrl || "").includes("manual=1") ||
+          String(hostedInvoiceUrl || "").includes("manual=1");
+        const brandedPdfUrl = buildBeigeInvoiceUrl(effectiveBookingId, {
+          manual: isManualInvoice,
+          cacheBust: true,
+        });
+        const brandedDownloadUrl = buildBeigeInvoiceUrl(effectiveBookingId, {
+          manual: isManualInvoice,
+          download: true,
+          cacheBust: true,
+        });
 
         if (!hostedInvoiceUrl && !invoicePdfUrl) {
           toast.error("Preview URL not available");
@@ -171,40 +232,47 @@ const GeneratePaymentLink = ({
         }
 
         // Open Stripe invoice page directly.
-        if (hostedInvoiceUrl) {
+        if (hostedInvoiceUrl && !invoicePdfUrl) {
           window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
         }
 
-        // Trigger direct PDF download through backend proxy.
+        // For Stripe flow keep old behavior (auto-download via backend proxy).
+        // For Manual flow open/view only (no forced download).
         if (invoicePdfUrl) {
-          const link = document.createElement("a");
-          link.href = proxiedDownloadUrl || proxiedPdfUrl;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.click();
+          if (isManualInvoice) {
+            window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
+          } else {
+            const link = document.createElement("a");
+            link.href = brandedDownloadUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.click();
+          }
         }
 
-        toast.success("Invoice opened and download started");
+        toast.success(isManualInvoice ? "Invoice opened" : "Invoice opened and download started");
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to preview invoice");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to preview invoice"));
     }
   };
 
   const handleSendInvoice = async () => {
-    if (!bookingId) return;
+    if (isReadOnly) return;
+    if (!effectiveBookingId) return;
 
     try {
-      const response = await sendInvoice({ booking_id: bookingId }).unwrap();
+      const response = await sendInvoice({ booking_id: effectiveBookingId }).unwrap();
       if (response.success) {
         toast.success("Invoice sent successfully to client email");
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to send invoice");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to send invoice"));
     }
   };
 
   const handleCopy = () => {
+    if (isReadOnly) return;
     if (paymentData?.url) {
       navigator.clipboard.writeText(paymentData.url);
       toast.success("Link copied to clipboard");
@@ -212,6 +280,7 @@ const GeneratePaymentLink = ({
   };
 
   const handleOpenLink = () => {
+    if (isReadOnly) return;
     if (!paymentData?.url) return;
     window.open(paymentData.url, "_blank", "noopener,noreferrer");
   };
@@ -224,11 +293,16 @@ const GeneratePaymentLink = ({
         <h2 className={`lg:text-xl font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
           Payment Link
         </h2>
+        {isReadOnly ? (
+          <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+            {readOnlyMessage}
+          </p>
+        ) : null}
         {showInvoiceActions && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full">
             <Button
               onClick={handlePreviewInvoice}
-              disabled={isPreviewingInvoice}
+              disabled={isReadOnly || isPreviewingInvoice}
               className={`h-10 text-xs lg:text-sm border px-3 lg:px-4 py-1.5 rounded-lg transition-all flex items-center justify-center gap-2 ${isDark
                 ? "text-[#E8D1AB] border-[#E8D1AB]/20 bg-[#0A0808] hover:bg-[#E8D1AB]/10"
                 : "text-white border-black bg-black hover:bg-gblack/70"
@@ -243,7 +317,7 @@ const GeneratePaymentLink = ({
             </Button>
             <Button
               onClick={handleSendInvoice}
-              disabled={isSendingInvoice}
+              disabled={isReadOnly || isSendingInvoice}
               className={`h-10 text-xs lg:text-sm px-3 lg:px-4 py-1.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${isDark
                 ? "text-[#101010] bg-[#E8D1AB] hover:bg-[#D4C3A3]"
                 : "text-black bg-[#E8D1AB] hover:bg-[#D9C19A]"
@@ -298,11 +372,11 @@ const GeneratePaymentLink = ({
                     key={opt}
                     type="button"
                     onClick={() => {
-                      if (discountLocked) return;
-                      setAttachDiscount(opt as any);
+                      if (discountLocked || isReadOnly) return;
+                      setAttachDiscount(opt as "Yes" | "No");
                     }}
-                    disabled={discountLocked}
-                    title={discountLocked ? effectiveDiscountLockMessage : undefined}
+                    disabled={discountLocked || isReadOnly}
+                    title={discountLocked ? effectiveDiscountLockMessage : isReadOnly ? readOnlyMessage : undefined}
                     className={`flex-1 h-12 rounded-xl border flex items-center justify-between px-4 transition-all duration-300 ${attachDiscount === opt
                       ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/5 text-white" : "border-[#E8D1AB] bg-[#E8D1AB]/50 text-black")
                       : (isDark ? "border-[#3D3D3D] bg-transparent text-[#9F9FA9]" : "border-[#D8D8D8] bg-transparent text-black/40")
@@ -324,12 +398,17 @@ const GeneratePaymentLink = ({
 
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isReadOnly || isGenerating || isPreparingBooking}
               className={`h-12 w-full font-semibold rounded-xl transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"
                 }`}
             >
-              {isGenerating ? "Generating..." : "Generate Payment Link"}
+              {isPreparingBooking ? "Preparing Booking..." : isGenerating ? "Generating..." : "Generate Payment Link"}
             </Button>
+            {hasPendingAdditionalPayment && (
+              <p className={`text-xs ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
+                Outstanding amount: {formatCurrencyValue(additionalPaymentOutstandingAmount)}.
+              </p>
+            )}
           </div>
         ) : paymentData && !isPaidBooking ? (
           /* Active / Expired Link UI */
@@ -350,11 +429,11 @@ const GeneratePaymentLink = ({
                     }`}>
                     {paymentData.url}
                   </div>
-                  <button onClick={handleCopy} title="Copy payment link" className={`border p-3 rounded-lg transition-colors ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
+                  <button onClick={handleCopy} disabled={isReadOnly} title={isReadOnly ? readOnlyMessage : "Copy payment link"} className={`border p-3 rounded-lg transition-colors disabled:opacity-50 ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
                     }`}>
                     <Copy size={18} />
                   </button>
-                  <button onClick={handleOpenLink} title="Open payment link in new tab" className={`border p-3 rounded-lg transition-colors ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
+                  <button onClick={handleOpenLink} disabled={isReadOnly} title={isReadOnly ? readOnlyMessage : "Open payment link in new tab"} className={`border p-3 rounded-lg transition-colors disabled:opacity-50 ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
                     }`}>
                     <ExternalLink size={18} />
                   </button>
@@ -365,7 +444,7 @@ const GeneratePaymentLink = ({
             {!paymentData.isExpired ? (
               <Button
                 onClick={handleNotify}
-                disabled={isNotifying} className={`h-12 w-full font-semibold rounded-xl flex items-center justify-center gap-2 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"
+                disabled={isReadOnly || isNotifying} className={`h-12 w-full font-semibold rounded-xl flex items-center justify-center gap-2 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"
                   }`}>
                 <Mail size={18} />
                 {isNotifying ? "Sending..." : "Send via Email Or SMS"}
@@ -373,7 +452,7 @@ const GeneratePaymentLink = ({
             ) : (
               <div className="flex flex-col gap-3">
                 <p className={`text-xs text-center ${isDark ? "text-[#9F9FA9]" : "text-black/50"}`}>This link has expired. Please generate a new one.</p>
-                <Button onClick={() => setPaymentData(null)} className={`h-12 w-full border font-medium rounded-xl transition-all ${isDark ? "bg-white/5 border-white/10 text-white hover:bg-white/10" : "bg-gray-50 border-[#D8D8D8] text-black hover:bg-gray-100"
+                <Button onClick={() => setPaymentData(null)} disabled={isReadOnly} className={`h-12 w-full border font-medium rounded-xl transition-all ${isDark ? "bg-white/5 border-white/10 text-white hover:bg-white/10" : "bg-gray-50 border-[#D8D8D8] text-black hover:bg-gray-100"
                   }`}>
                   Create New Link
                 </Button>
@@ -384,6 +463,7 @@ const GeneratePaymentLink = ({
               <div className="pt-2 text-center">
                 <button
                   onClick={() => setPaymentData(null)}
+                  disabled={isReadOnly}
                   className={`text-sm transition-colors underline underline-offset-4 ${isDark
                     ? "text-[#9F9FA9] hover:text-white"
                     : "text-black/50 hover:text-black"
@@ -393,6 +473,17 @@ const GeneratePaymentLink = ({
                 </button>
               </div>
             )}
+          </div>
+        ) : isPaymentPendingBooking ? (
+          <div className={`mt-4 rounded-xl border p-4 transition-colors ${
+            isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E7D7BC] bg-[#FFF8EA]"
+            }`}>
+            <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+              Payment is pending under Net 30 terms.
+            </p>
+            <p className={`text-xs mt-1 ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
+              Use the buttons above to view the invoice or send it to the client.
+            </p>
           </div>
         ) : hasPendingAdditionalPayment ? (
           <div className={`mt-4 rounded-xl border p-4 transition-colors ${

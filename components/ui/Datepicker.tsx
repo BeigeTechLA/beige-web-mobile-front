@@ -9,6 +9,26 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { Box, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 
+export interface DatePickerColors {
+  inputBackground: string;
+  inputText: string;
+  inputBorder: string;
+  inputBorderHover: string;
+  inputBorderFocus: string;
+  inputDisabled: string;
+  labelText: string;
+  iconColor: string;
+  accent: string;
+  accentText: string;
+  hoverAccent: string;
+  paperBackground: string;
+  calendarHeaderText: string;
+  weekdayLabelText: string;
+  dayNumberText: string;
+  navigationIconColor: string;
+  mutedText: string;
+}
+
 export const datePickerColours = {
   inputBackground: "#101010",
   inputText: "#FFFFFF",
@@ -37,6 +57,7 @@ export const datePickerColours = {
   mutedText: "#ffffff66",
   desktopCalendarText: "#FFFFFF",
 };
+
 // Standard dark theme tokens
 const darkTheme: DatePickerColors = {
   inputBackground: "#101010",
@@ -58,7 +79,7 @@ const darkTheme: DatePickerColors = {
   mutedText: "rgba(255, 255, 255, 0.4)",
 };
 
-// Standard light theme tokens based on your instructions
+// Standard light theme tokens
 const lightTheme: DatePickerColors = {
   inputBackground: "#FFFFFF",
   inputText: "#2C2C2C",
@@ -79,26 +100,6 @@ const lightTheme: DatePickerColors = {
   mutedText: "rgba(0, 0, 0, 0.4)",
 };
 
-export interface DatePickerColors {
-  inputBackground: string;
-  inputText: string;
-  inputBorder: string;
-  inputBorderHover: string;
-  inputBorderFocus: string;
-  inputDisabled: string;
-  labelText: string;
-  iconColor: string;
-  accent: string;
-  accentText: string;
-  hoverAccent: string;
-  paperBackground: string;
-  calendarHeaderText: string;
-  weekdayLabelText: string;
-  dayNumberText: string;
-  navigationIconColor: string;
-  mutedText: string;
-}
-
 interface Props {
   label: string;
   value: Date | null;
@@ -112,6 +113,7 @@ interface Props {
   floating?: boolean;
   labelSx?: SxProps<Theme>;
   isDark?: boolean;
+  disablePortal?: boolean;
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -127,6 +129,7 @@ export const DatePicker: React.FC<Props> = ({
   labelSx,
   floating = false,
   isDark = true,
+  disablePortal = false,
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
   const colors = { ...activeTheme, ...customColors };
@@ -138,36 +141,38 @@ export const DatePicker: React.FC<Props> = ({
       scrollbarWidth: "none", // Firefox
       "&::-webkit-scrollbar": { display: "none" }, // Chrome/Safari
     },
-    "& .MuiDatePickerToolbar-title": { color: "#FFFFFF !important" },
-    "& .MuiDatePickerToolbar-typography": { color: "#FFFFFF !important" },
+    "& .MuiDatePickerToolbar-title": { color: `${colors.calendarHeaderText} !important` },
+    "& .MuiDatePickerToolbar-typography": { color: `${colors.calendarHeaderText} !important` },
     "& .MuiPickersCalendarHeader-label": { color: colors.calendarHeaderText },
     "& .MuiPickersCalendarHeader-switchViewIcon": { color: `${colors.navigationIconColor} !important` },
     "& .MuiPickersArrowSwitcher-button": { color: `${colors.navigationIconColor} !important` },
 
     // Year selection list text colors
     "& .MuiPickersYear-yearButton": {
-      color: "#FFFFFF !important", // Makes year text white
+      color: `${colors.dayNumberText} !important`,
       "&.Mui-selected": {
         backgroundColor: `${colors.accent} !important`,
         color: `${colors.accentText} !important`,
       },
-      "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1) !important" }
+      "&:hover": {
+        backgroundColor: isDark ? "rgba(255, 255, 255, 0.1) !important" : "rgba(0, 0, 0, 0.10) !important"
+      }
     },
 
     // Calendar Days
     "& .MuiDayCalendar-weekDayLabel": { color: colors.weekdayLabelText },
     "& .MuiPickersDay-root": {
       color: colors.dayNumberText,
-      "&:hover": { backgroundColor: `${colors.accent}22` },
+      "&:hover": { backgroundColor: isDark ? "rgba(255, 255, 255, 0.1) !important" : "rgba(0, 0, 0, 0.10) !important" },
       "&.Mui-selected": {
         backgroundColor: colors.accent,
         color: colors.accentText,
         "&:hover": { backgroundColor: colors.hoverAccent },
       },
       "&.MuiPickersDay-today": { borderColor: colors.accent },
-      // Style for disabled days (past dates)
+      // Dynamic style for disabled days
       "&.Mui-disabled": {
-        color: "rgba(255, 255, 255, 0.2) !important",
+        color: isDark ? "rgba(255, 255, 255, 0.2) !important" : "rgba(0, 0, 0, 0.50) !important",
         textDecoration: "line-through",
         opacity: 0.4,
       },
@@ -178,7 +183,6 @@ export const DatePicker: React.FC<Props> = ({
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: "100%", position: "relative" }}>
-        {/* Render traditional top label only if NOT floating */}
         {label && !floating && (
           <Typography
             variant="body2"
@@ -197,12 +201,12 @@ export const DatePicker: React.FC<Props> = ({
         )}
 
         <MuiDatePicker
-          label={floating ? label : undefined} // Pass label to MUI if floating
+          label={floating ? label : undefined}
           value={value}
           onChange={onChange}
           format={format}
           open={open}
-          onOpen={() => setOpen(true)}
+          onOpen={() => !disabled && setOpen(true)}
           onClose={() => setOpen(false)}
           disabled={disabled}
           minDate={minDate}
@@ -210,11 +214,8 @@ export const DatePicker: React.FC<Props> = ({
           slotProps={{
             textField: {
               fullWidth: true,
-              // 2. Placeholder text is visible
               placeholder: floating ? format.toUpperCase() : format.toUpperCase(),
-              onClick: () => setOpen(true),
-              // Force label to stay floating even without value if desired, 
-              // or let it animate naturally.
+              onClick: () => !disabled && setOpen(true),
               InputLabelProps: {
                 // shrink: floating ? (open || !!value) : undefined,
                 shrink: floating ? true : (open || !!value),
@@ -222,13 +223,12 @@ export const DatePicker: React.FC<Props> = ({
                   color: colors.labelText,
                   fontSize: "16px",
                   "&.Mui-focused": { color: colors.accent },
-                  // Adjusting position for the notched look
                   "&.MuiInputLabel-shrink": {
                     transform: "translate(14px, -10px) scale(1)",
                     fontSize: "14px !important",
-                    color: "#FFFFFF66 !important", // Force white color
+                    color: `${colors.labelText} !important`,
                     backgroundColor: colors.inputBackground,
-                    padding: "0 8px", // Slightly more padding for the 14px text notch
+                    padding: "0 8px",
                     zIndex: 1,
                   }
                 }
@@ -247,21 +247,32 @@ export const DatePicker: React.FC<Props> = ({
                     color: colors.mutedText,
                     opacity: 1,
                   },
+                  "&.Mui-disabled fieldset": { borderColor: colors.inputDisabled },
                 },
                 "& .MuiInputBase-input": {
                   color: colors.inputText,
                   fontSize: "14px",
-                  padding: floating ? "16.5px 14px" : "16px 14px", // Tiny tweak for alignment
+                  padding: floating ? "16.5px 14px" : "16px 14px",
                   height: "100%",
+                  "&.Mui-disabled": {
+                    WebkitTextFillColor: colors.inputText,
+                    opacity: 0.5,
+                  },
                 },
-                "& .MuiSvgIcon-root": { color: colors.iconColor, fontSize: "20px" },
+                "& .MuiSvgIcon-root": {
+                  color: colors.iconColor,
+                  fontSize: "20px",
+                  opacity: disabled ? 0.5 : 1,
+                },
               },
             },
             popper: {
+              disablePortal,
               sx: {
+                zIndex: 1700,
                 "& .MuiPaper-root": {
                   backgroundColor: colors.paperBackground,
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
                   marginTop: "8px",
                   ...interiorStyles,
                 },
@@ -271,18 +282,18 @@ export const DatePicker: React.FC<Props> = ({
               sx: {
                 // Targets the "SELECT DATE" text label
                 "& .MuiTypography-overline": {
-                  color: "rgba(255, 255, 255, 0.5) !important",
+                  color: isDark ? "rgba(255, 255, 255, 0.5) !important" : "rgba(0, 0, 0, 0.5) !important",
                   fontSize: "10px !important",
                   fontWeight: 600,
                   textTransform: "uppercase",
                 },
                 // Fallback: some versions use this specific class instead
                 "& .MuiDatePickerToolbar-typography": {
-                  color: "rgba(255, 255, 255, 0.5) !important",
+                  color: isDark ? "rgba(255, 255, 255, 0.5) !important" : "rgba(0, 0, 0, 0.5) !important",
                 },
                 // Targets the actual selected date (e.g., "Tue, Feb 24")
                 "& .MuiDatePickerToolbar-title": {
-                  color: "#FFFFFF !important",
+                  color: `${colors.calendarHeaderText} !important`,
                 },
               },
             },
@@ -291,7 +302,7 @@ export const DatePicker: React.FC<Props> = ({
               sx: {
                 backgroundColor: colors.paperBackground,
                 backgroundImage: "none",
-                border: "1px solid rgba(255,255,255,0.1)",
+                border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
                 ...interiorStyles,
               }
             },

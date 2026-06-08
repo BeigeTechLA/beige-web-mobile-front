@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -47,10 +47,12 @@ import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
+import QuoteReviewChangesModal from "@/components/quotes/QuoteReviewChangesModal";
 import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
 import {
   LocationPicker,
   darkThemeColors,
+  lightThemeColors
 } from "@/src/components/booking/v2/component/LocationPicker";
 import {
   salesApi,
@@ -63,10 +65,14 @@ import {
   getQuoteAdditionalPaymentDetails,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
+  getQuoteNumber,
 } from "@/lib/quoteDetail";
 import {
+  clearQuoteEditorEditReason,
   buildQuoteEditorHydrationState,
   normalizeQuoteEditorView,
+  readQuoteEditorEditReason,
+  readQuoteEditorOpsReviewConfirmed,
   readQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import {
@@ -76,6 +82,7 @@ import {
 } from "@/lib/quoteDraft";
 import {
   buildQuoteSummarySnapshot,
+  buildPreviewQuoteFromSummary,
   hasQuoteSummaryContent,
   getQuoteValidationMessage,
   validateQuoteForReview,
@@ -83,15 +90,21 @@ import {
   type QuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
 import {
+  buildCurrentDraftReviewItems,
+  buildQuoteReviewChangesData,
+} from "@/lib/quoteReviewChanges";
+import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
 } from "@/lib/salesQuotePreview";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -102,6 +115,41 @@ type CatalogSectionItem = {
   name?: string;
   effective_rate?: string | number | null;
   created_at?: string | null;
+};
+
+type ServiceItem = {
+  id: string;
+  catalogItemId?: string | number | null;
+  catalog_item_id?: string | number | null;
+  label: string;
+  price: number;
+  icon?: React.ReactNode;
+  createdAt?: string | null;
+  originalIndex?: number;
+};
+
+type AddonItem = {
+  id: string;
+  label: string;
+  price: number;
+  createdAt?: string | null;
+  originalIndex?: number;
+};
+
+type LogisticsItem = {
+  id: string;
+  label: string;
+  basePrice: number;
+  createdAt?: string | null;
+  originalIndex?: number;
+};
+
+type LineItem = {
+  id: string;
+  label: string;
+  basePrice: number;
+  createdAt?: string | null;
+  originalIndex?: number;
 };
 
 type CatalogEditType = "service" | "addon" | "logistics" | "line_item";
@@ -267,26 +315,16 @@ const clampTextLength = (
   maxLength = MAX_QUOTE_OPTION_LABEL_LENGTH
 ) => value.slice(0, maxLength);
 
-const sanitizeCurrencyInput = (value: string) => {
-  const normalizedValue = value.replace(/[^\d.]/g, "");
-  const decimalIndex = normalizedValue.indexOf(".");
-
-  if (decimalIndex === -1) {
-    return normalizedValue;
-  }
-
-  const integerPart = normalizedValue.slice(0, decimalIndex);
-  const decimalPart = normalizedValue
-    .slice(decimalIndex + 1)
-    .replace(/\./g, "")
-    .slice(0, 2);
-
-  return `${integerPart}.${decimalPart}`;
+const parseRawPrice = (value: string) => {
+  let cleaned = value.replace(/[^0-9.]/g, "");
+  const parts = cleaned.split(".");
+  if (parts.length > 2) cleaned = parts[0] + "." + parts.slice(1).join("");
+  return cleaned;
 };
 
+const sanitizeCurrencyInput = (value: string) => parseRawPrice(value);
 const parseCurrencyInput = (value: string) => {
-  const sanitizedValue = sanitizeCurrencyInput(value);
-  const parsedValue = Number.parseFloat(sanitizedValue);
+  const parsedValue = parseFloat(parseRawPrice(value));
   return Number.isFinite(parsedValue) ? parsedValue : 0;
 };
 
@@ -316,13 +354,13 @@ const buildConvertModalInitialData = (
 
   const bookingDays = Array.isArray(booking.booking_days)
     ? booking.booking_days
-        .filter((day) => day?.event_date)
-        .map((day) => ({
-          date: day.event_date,
-          startTime: normalizeConvertModalTime(day.start_time),
-          endTime: normalizeConvertModalTime(day.end_time),
-        }))
-        .filter((day) => day.startTime && day.endTime)
+      .filter((day) => day?.event_date)
+      .map((day) => ({
+        date: day.event_date,
+        startTime: normalizeConvertModalTime(day.start_time),
+        endTime: normalizeConvertModalTime(day.end_time),
+      }))
+      .filter((day) => day.startTime && day.endTime)
     : [];
 
   if (bookingDays.length > 1) {
@@ -397,6 +435,32 @@ const pickFirstClientValue = (
   }
 
   return "";
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizePhoneNumberInput = (value: string) =>
+  value.replace(/[^\d-]/g, "");
+
+const validateClientContactDetails = ({
+  email,
+  phone,
+}: {
+  email: string;
+  phone: string;
+}) => {
+  const trimmedEmail = email.trim();
+  const trimmedPhone = phone.trim();
+
+  if (!EMAIL_REGEX.test(trimmedEmail)) {
+    return "Please enter a valid email address.";
+  }
+
+  if (trimmedPhone && !/^[\d-]+$/.test(trimmedPhone)) {
+    return "Phone number must contain only digits and hyphen (-).";
+  }
+
+  return null;
 };
 
 const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
@@ -994,6 +1058,7 @@ export default function CreateQuotePage() {
   const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
   const editQuoteId = searchParams.get("quoteId");
+  const editVersionId = searchParams.get("editVersion");
   const isEditMode = Boolean(editQuoteId);
   const editModeParam = searchParams.get("editMode");
   const isFullEditFlow = isEditMode && editModeParam === "full";
@@ -1043,6 +1108,8 @@ export default function CreateQuotePage() {
   const [emailId, setEmailId] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
+  const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [validityDays, setValidityDays] = useState<number | "custom">(7);
   const [validUntil, setValidUntil] = useState(
@@ -1084,7 +1151,7 @@ export default function CreateQuotePage() {
 
   // Step 4: Logistics State
   const [selectedLogistics, setSelectedLogistics] = useState<string[]>([]);
-  const [logisticsItems, setLogisticsItems] = useState<any[]>([]);
+  const [logisticsItems, setLogisticsItems] = useState<LogisticsItem[]>([]);
   const [logisticsConfigs, setLogisticsConfigs] = useState<
     Record<string, { price: number }>
   >({});
@@ -1099,7 +1166,7 @@ export default function CreateQuotePage() {
   //Step 5: Custom Line Items State
   const [customItemName, setCustomItemName] = useState("");
   const [customItemCost, setCustomItemCost] = useState("");
-  const [lineItems, setLineItems] = useState<any[]>([]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [lineItemConfigs, setLineItemConfigs] = useState<
     Record<string, { price: number }>
   >({});
@@ -1139,13 +1206,13 @@ export default function CreateQuotePage() {
     Record<string, string>
   >({});
 
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
   const [photoShootTypes, setPhotoShootTypes] = useState<ShootTypeOption[]>([]);
   const [editingTypeOptions, setEditingTypeOptions] = useState<
     ShootTypeOption[]
   >([]);
-  const [addons, setAddons] = useState<any[]>([]);
+  const [addons, setAddons] = useState<AddonItem[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
   const [loadingEditingTypes, setLoadingEditingTypes] = useState(false);
@@ -1169,7 +1236,10 @@ export default function CreateQuotePage() {
   );
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [shouldRedirectToSummaryAfterPreviewClose, setShouldRedirectToSummaryAfterPreviewClose] =
+    useState(false);
   const [isQuoteSaved, setIsQuoteSaved] = useState(false);
+  const [hasUnsavedQuoteChanges, setHasUnsavedQuoteChanges] = useState(false);
   const [isViewingInvoice, setIsViewingInvoice] = useState(false);
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
@@ -1185,6 +1255,12 @@ export default function CreateQuotePage() {
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [quoteToEdit, setQuoteToEdit] =
     React.useState<SalesQuoteDetailData | null>(null);
+  const [quoteVersionNumber, setQuoteVersionNumber] = React.useState<number | null>(null);
+  const [isReviewChangesModalOpen, setIsReviewChangesModalOpen] =
+    React.useState(false);
+  const [reviewChangeReason, setReviewChangeReason] = React.useState("");
+  const [isVersionSaveSuccessOpen, setIsVersionSaveSuccessOpen] =
+    React.useState(false);
   const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
   const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] =
     React.useState(false);
@@ -1237,13 +1313,17 @@ export default function CreateQuotePage() {
         setEmailId("");
         setPhoneNumber("");
         setAddress("");
+        setLocationLatitude(null);
+        setLocationLongitude(null);
         return;
       }
 
       setClientName(getClientDisplayName(client));
       setEmailId(getClientEmail(client));
-      setPhoneNumber(getClientPhone(client));
+      setPhoneNumber(normalizePhoneNumberInput(getClientPhone(client)));
       setAddress(getClientAddress(client));
+      setLocationLatitude(null);
+      setLocationLongitude(null);
     },
     [],
   );
@@ -1270,7 +1350,7 @@ export default function CreateQuotePage() {
 
     setClientName(getClientDisplayName(selectedClient));
     setEmailId(getClientEmail(selectedClient));
-    setPhoneNumber(getClientPhone(selectedClient));
+    setPhoneNumber(normalizePhoneNumberInput(getClientPhone(selectedClient)));
     setAddress(getClientAddress(selectedClient));
   }, [selectedClient]);
 
@@ -1294,6 +1374,63 @@ export default function CreateQuotePage() {
   React.useEffect(() => {
     setConvertModalInitialDataOverride(null);
   }, [effectiveQuoteId]);
+
+  React.useEffect(() => {
+    if (!effectiveQuoteId) {
+      setQuoteVersionNumber(null);
+      return;
+    }
+
+    let isMounted = true;
+    setQuoteVersionNumber(null);
+
+    const loadQuoteVersionNumber = async () => {
+      try {
+        const response = await salesApi.getQuoteVersions(effectiveQuoteId);
+        const responseData = response?.data as {
+          versions?: Array<Record<string, unknown>>;
+        } | null | undefined;
+        const versionsData: Array<Record<string, unknown>> =
+          response?.success
+            ? Array.isArray(response.data)
+              ? (response.data as Array<Record<string, unknown>>)
+              : Array.isArray(responseData?.versions)
+                ? responseData.versions
+                : []
+            : [];
+
+        const currentVersion =
+          (editVersionId
+            ? versionsData.find(
+              (version) =>
+                version?.version_number != null &&
+                String(version.version_number) === editVersionId,
+            )
+            : null) ||
+          versionsData.find((version) => version?.is_current && version?.version_number != null) ||
+          versionsData.find((version) => version?.version_number != null);
+        const versionNumber = Number(currentVersion?.version_number);
+
+        if (isMounted) {
+          setQuoteVersionNumber(
+            Number.isFinite(versionNumber) && versionNumber > 0 ? versionNumber : null,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load quote versions", error);
+
+        if (isMounted) {
+          setQuoteVersionNumber(null);
+        }
+      }
+    };
+
+    void loadQuoteVersionNumber();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editVersionId, effectiveQuoteId]);
 
   React.useEffect(() => {
     servicesRef.current = services;
@@ -1506,7 +1643,9 @@ export default function CreateQuotePage() {
 
     const fetchQuoteToEdit = async () => {
       try {
-        const response = await salesApi.getQuoteDetail(editQuoteId);
+        const response = editVersionId
+          ? await salesApi.getQuoteVersionDetail(editQuoteId, editVersionId)
+          : await salesApi.getQuoteDetail(editQuoteId);
 
         if (response?.error || response?.success === false) {
           throw new Error(
@@ -1551,7 +1690,29 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [editQuoteId, router]);
+  }, [editQuoteId, editVersionId, router]);
+
+  React.useEffect(() => {
+    if (!editQuoteId) {
+      return;
+    }
+
+    const persistedReason = readQuoteEditorEditReason(editQuoteId);
+    const fallbackReason = String(quoteToEdit?.edit_reason || "").trim();
+    const nextReason = persistedReason || fallbackReason;
+
+    if (!nextReason) {
+      return;
+    }
+
+    setReviewChangeReason((currentValue) =>
+      currentValue.trim() ? currentValue : nextReason
+    );
+
+    if (persistedReason) {
+      clearQuoteEditorEditReason(editQuoteId);
+    }
+  }, [editQuoteId, quoteToEdit]);
 
   React.useEffect(() => {
     if (!editQuoteId || !quoteToEdit || !isCatalogLoaded) {
@@ -1588,8 +1749,10 @@ export default function CreateQuotePage() {
         setSelectedClient(hydratedState.selectedClient);
         setClientName(hydratedState.clientName);
         setEmailId(hydratedState.emailId);
-        setPhoneNumber(hydratedState.phoneNumber);
+        setPhoneNumber(normalizePhoneNumberInput(hydratedState.phoneNumber));
         setAddress(hydratedState.address);
+        setLocationLatitude(hydratedState.locationLatitude ?? null);
+        setLocationLongitude(hydratedState.locationLongitude ?? null);
         setProjectDescription(hydratedState.projectDescription);
         setValidityDays(hydratedState.validityDays);
         setValidUntil(hydratedState.validUntil);
@@ -1795,14 +1958,14 @@ export default function CreateQuotePage() {
                     (normalizedKey &&
                       type.key.trim().toLowerCase() === normalizedKey) ||
                     normalizeShootTypeLabelKey(type.label) ===
-                      normalizeShootTypeLabelKey(normalizedLabel),
+                    normalizeShootTypeLabelKey(normalizedLabel),
                 ) ||
                 nextOptions.find(
                   (type) =>
                     (normalizedKey &&
                       type.key.trim().toLowerCase() === normalizedKey) ||
                     normalizeShootTypeLabelKey(type.label) ===
-                      normalizeShootTypeLabelKey(normalizedLabel),
+                    normalizeShootTypeLabelKey(normalizedLabel),
                 );
 
               if (matchedEditingType) {
@@ -1904,11 +2067,12 @@ export default function CreateQuotePage() {
     return config.estimatedPrice;
   };
 
-  const handleServicePriceUpdate = (serviceId: string, value: string) => {
+  const handleServicePriceUpdate = (serviceId, value) => {
     const config = serviceConfigs[serviceId];
     if (!config) return;
 
-    const nextPrice = parseCurrencyInput(value);
+    const raw = parseRawPrice(value);
+    const nextPrice = parseFloat(raw) || 0;
     handleConfigUpdate(serviceId, "estimatedPrice", nextPrice);
   };
 
@@ -2313,12 +2477,14 @@ export default function CreateQuotePage() {
     onToggleExpanded,
     shootTypeOptions,
     selectedId,
+    isDark = true,
   }: {
     kind: ShootTypeKind;
     isExpanded: boolean;
     onToggleExpanded: () => void;
     shootTypeOptions: ShootTypeOption[];
     selectedId: string;
+    isDark: boolean;
   }) => {
     const isFormOpen = activeShootTypeForm === kind;
     const sectionLabel =
@@ -2334,10 +2500,10 @@ export default function CreateQuotePage() {
           onClick={onToggleExpanded}
           className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
         >
-          <h2 className="text-base lg:text-xl font-medium text-white">
+          <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
             {sectionLabel}
           </h2>
-          <div className="text-zinc-600 transition-transform duration-300">
+          <div className={`${isDark ? "text-zinc-600" : "text-zinc-400"} transition-transform duration-300`}>
             {isExpanded ? (
               <ChevronDown size={22} className="rotate-180" />
             ) : (
@@ -2354,13 +2520,13 @@ export default function CreateQuotePage() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 lg:gap-4">
                 {loadingShootTypes ? (
                   <div className="col-span-4 py-5 flex justify-center items-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
                   </div>
                 ) : shootTypeOptions.length === 0 ? (
-                  <div className="col-span-4 py-5 text-sm text-[#9A9AA4]">
+                  <div className={`col-span-4 py-5 text-sm ${isDark ? "text-[#9A9AA4]" : "text-[#727272]"}`}>
                     No shoot types found.
                   </div>
                 ) : (
@@ -2377,9 +2543,11 @@ export default function CreateQuotePage() {
                               setSelectedPhotoShootType(type.id);
                             }
                           }}
-                          className={`h-[52px] w-full rounded-xl px-5 pr-11 font-medium transition-all border text-sm lg:text-base tracking-tight text-left flex items-center ${selectedId === type.id
-                            ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                            : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          className={`h-10 lg:h-[52px] w-full rounded-xl px-6 lg:px-5 lg:pr-11 font-medium transition-all border text-sm lg:text-base tracking-tight text-left flex items-center ${selectedId === type.id
+                            ? isDark ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner" : "bg-[#FFF7E6] border-[#E8D1AB] text-black shadow-inner"
+                            : isDark
+                              ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                              : "bg-white border-[#00000080] text-[#00000099] hover:border-[#E8D1AB]/80 hover:bg-[#FFFCF6]"
                             }`}
                         >
                           <span className="block w-full truncate pr-2">
@@ -2393,7 +2561,7 @@ export default function CreateQuotePage() {
                               e.stopPropagation();
                               handleDeleteShootType(kind, type.id);
                             }}
-                            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500 transition-colors hover:text-red-500"
+                            className={`absolute right-3 top-1/2 z-10 -translate-y-1/2 transition-colors hover:text-red-500 ${isDark ? "text-[#727272]" : "text-[#FF6467]"}`}
                           >
                             <Trash2 size={16} />
                           </button>
@@ -2409,7 +2577,10 @@ export default function CreateQuotePage() {
                   onClick={() =>
                     setActiveShootTypeForm(isFormOpen ? null : kind)
                   }
-                  className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                  className={`h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none ${isDark
+                    ? "bg-[#F0DCB1] text-black hover:bg-[#e7d09e]"
+                    : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                    }`}
                 >
                   <Plus size={16} strokeWidth={3} />
                   {`Add ${sectionLabel}`}
@@ -2424,8 +2595,8 @@ export default function CreateQuotePage() {
                       className="flex gap-4 items-end"
                     >
                       <div className="flex-1 relative">
-                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                          <span className="text-xs text-[#8A8A8A] font-normal">
+                        <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-[#FFFCF6]"}`}>
+                          <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>
                             {fieldLabel}
                           </span>
                         </div>
@@ -2436,7 +2607,10 @@ export default function CreateQuotePage() {
                             setCustomShootType(clampTextLength(e.target.value))
                           }
                           maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
-                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                          className={`h-15 lg:h-21 rounded-xl pl-7 text-base ${isDark
+                            ? "bg-transparent border-[#4A4A4A] focus:border-[#A78857] text-white placeholder:text-[#666666]"
+                            : "bg-white border-[#D7D7D7] focus:border-[#E8D1AB] text-black placeholder:text-zinc-400"
+                            }`}
                         />
                       </div>
                       <button
@@ -2449,15 +2623,20 @@ export default function CreateQuotePage() {
                           !customShootType ||
                           !activeShootTypeForm
                         }
-                        className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingShootType ||
-                          !customShootType ||
-                          !activeShootTypeForm
-                          ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
-                          : "bg-[#101010] text-[#16A34A]"
+                        className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingShootType || !customShootType || !activeShootTypeForm
+                          ? isDark
+                            ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                            : "bg-[#00000033] text-zinc-400 cursor-not-allowed opacity-50"
+                          : isDark
+                            ? "bg-[#101010] text-[#16A34A]"
+                            : "bg-black text-[#16A34A] hover:bg-black"
                           }`}
                       >
                         {isSubmittingShootType ? (
-                          <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                          <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark
+                            ? "border-black/20 border-t-black"
+                            : "border-zinc-300 border-t-zinc-600"
+                            }`} />
                         ) : (
                           <Check size={24} strokeWidth={3} />
                         )}
@@ -2480,12 +2659,6 @@ export default function CreateQuotePage() {
       setValidUntil(format(newDate, "yyyy-MM-dd"));
     }
   };
-
-  const formattedValidUntil = (() => {
-    if (!validUntil) return "";
-    const parsedDate = parseISO(validUntil);
-    return isValid(parsedDate) ? format(parsedDate, "dd-MM-yyyy") : validUntil;
-  })();
 
   const progressValue =
     view === "selection"
@@ -2549,23 +2722,37 @@ export default function CreateQuotePage() {
     validUntil,
     selectedServices,
   });
+  const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
+  const shouldHideBackButton = isQuoteSaved;
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
     isEditMode
       ? isFullEditFlow
         ? view === "tax"
-          ? quoteReviewValidation.isValid && !isQuoteSaved
+          ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
           : currentStepValidation.isValid
         : currentStepValidation.isValid
       : view === "tax"
-        ? quoteReviewValidation.isValid && !isQuoteSaved
+        ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
         : canContinueToNextStep;
 
   const handleContinue = async () => {
     if (!currentStepValidation.isValid) {
       toast.error(getQuoteValidationMessage(currentStepValidation));
       return;
+    }
+
+    if (view === "details") {
+      const contactValidationError = validateClientContactDetails({
+        email: emailId,
+        phone: phoneNumber,
+      });
+
+      if (contactValidationError) {
+        toast.error(contactValidationError);
+        return;
+      }
     }
 
     if (view === "selection" && selectedClient) {
@@ -2785,9 +2972,13 @@ export default function CreateQuotePage() {
     photoShootTypeLabel: selectedPhotoShootTypeLabel,
     editingShootTypeLabel: selectedEditingTypeLabel,
   });
-  const quoteDraftShootTypes = storedShootTypeLabel
-    ? [{ id: "__selected_shoot_type__", label: storedShootTypeLabel }]
-    : [];
+  const quoteDraftShootTypes = React.useMemo(
+    () =>
+      storedShootTypeLabel
+        ? [{ id: "__selected_shoot_type__", label: storedShootTypeLabel }]
+        : [],
+    [storedShootTypeLabel],
+  );
   const quoteDraftSelectedShootType = storedShootTypeLabel
     ? "__selected_shoot_type__"
     : "";
@@ -2828,6 +3019,18 @@ export default function CreateQuotePage() {
 
     return total + (selectedEditingTypes.length ? editingTotal : baseTotal);
   }, 0);
+  const effectiveAddonConfigs = React.useMemo(
+    () => ({ ...appliedAddonConfigs, ...addonConfigs }),
+    [appliedAddonConfigs, addonConfigs],
+  );
+  const effectiveLogisticsConfigs = React.useMemo(
+    () => ({ ...appliedLogisticsConfigs, ...logisticsConfigs }),
+    [appliedLogisticsConfigs, logisticsConfigs],
+  );
+  const effectiveLineItemConfigs = React.useMemo(
+    () => ({ ...appliedLineItemConfigs, ...lineItemConfigs }),
+    [appliedLineItemConfigs, lineItemConfigs],
+  );
   const selectedServicesMaxDurationHours = React.useMemo(() => {
     const durations = selectedServices
       .filter((serviceId) => {
@@ -2919,9 +3122,34 @@ export default function CreateQuotePage() {
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
+  const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
+  const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
+  const quoteContextPaidAmount =
+    getQuoteNumber(
+      previewQuote?.additional_payment?.previously_paid_amount,
+      quoteToEdit?.additional_payment?.previously_paid_amount
+    ) ?? 0;
+  const safePreviouslyPaidOverride =
+    (Number.isFinite(leadPricingPaid) && leadPricingPaid > 0
+      ? leadPricingPaid
+      : quoteContextPaidAmount > 0
+        ? quoteContextPaidAmount
+        : 0) || undefined;
+  const safePreviousTotalOverride =
+    Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
-    () => getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote),
-    [previewQuote, quoteToEdit],
+    () =>
+      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
+        revisedTotalOverride: totalAfterTax,
+        previouslyPaidOverride: safePreviouslyPaidOverride,
+        previousTotalOverride: safePreviousTotalOverride,
+      }),
+    [quoteToEdit, previewQuote, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+  );
+  const showQuoteRevisionSummary = Boolean(
+    isEditMode &&
+    quoteToEdit &&
+    additionalPaymentDetails
   );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
@@ -2968,8 +3196,8 @@ export default function CreateQuotePage() {
     isCreatingQuoteDraft &&
     activeQuoteAction !== "draft" &&
     !previewQuote;
-  const editQuoteDetailsHref = editQuoteId
-    ? `/admin/quotes/${encodeURIComponent(editQuoteId)}`
+  const editQuoteDetailsHref = effectiveQuoteId
+    ? `/admin/quotes/${encodeURIComponent(String(effectiveQuoteId))}`
     : "/admin/quotes";
   const resolvedInvoiceQuoteId = effectiveQuoteId ? String(effectiveQuoteId) : null;
   const convertedBookingId = React.useMemo(() => {
@@ -2985,11 +3213,14 @@ export default function CreateQuotePage() {
     return String(bookingId);
   }, [convertedBookingIdOverride, previewQuote, quoteToEdit]);
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId);
-  const showInvoiceActions = view === "tax" && isQuoteSaved && Boolean(resolvedInvoiceQuoteId);
+  const showInvoiceActions =
+    view === "tax" && hasCurrentSavedQuoteState && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
   const convertBookingActionLabel = isConvertedToBooking
-    ? "Update Booking"
+    ? "Converted to Booking"
     : "Convert to Booking";
+  const isConvertBookingActionDisabled =
+    isConvertedToBooking || isViewingInvoice || isSendingInvoice || isConverting;
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
       selectedClient,
@@ -2997,6 +3228,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3015,11 +3248,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
       maxStep,
     });
 
@@ -3030,6 +3263,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3048,11 +3283,11 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
       maxStep,
     });
 
@@ -3064,6 +3299,8 @@ export default function CreateQuotePage() {
         emailId,
         phoneNumber,
         address,
+        locationLatitude,
+        locationLongitude,
         projectDescription,
         validityDays,
         validUntil,
@@ -3082,11 +3319,11 @@ export default function CreateQuotePage() {
         serviceConfigs,
         selectedAddons,
         addons,
-        appliedAddonConfigs,
+        appliedAddonConfigs: effectiveAddonConfigs,
         logisticsItems: selectedLogisticsItems,
-        appliedLogisticsConfigs,
+        appliedLogisticsConfigs: effectiveLogisticsConfigs,
         lineItems,
-        appliedLineItemConfigs,
+        appliedLineItemConfigs: effectiveLineItemConfigs,
       },
       step,
     );
@@ -3098,6 +3335,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3113,21 +3352,155 @@ export default function CreateQuotePage() {
       serviceConfigs,
       selectedAddons,
       addons,
-      appliedAddonConfigs,
+      appliedAddonConfigs: effectiveAddonConfigs,
       logisticsItems: selectedLogisticsItems,
-      appliedLogisticsConfigs,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
       lineItems,
-      appliedLineItemConfigs,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
     });
+
+  const currentDraftLineItems = React.useMemo(() => {
+    const payload = buildQuoteDraftPayload({
+      selectedClient,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      locationLatitude,
+      locationLongitude,
+      projectDescription,
+      validityDays,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      taxLabel,
+      normalizedTaxRate,
+      selectedShootType: quoteDraftSelectedShootType,
+      shootTypes: quoteDraftShootTypes,
+      selectedEditingTypes,
+      editingTypeConfigs,
+      editingTypeOptions,
+      selectedServices,
+      services,
+      serviceConfigs,
+      selectedAddons,
+      addons,
+      appliedAddonConfigs: effectiveAddonConfigs,
+      logisticsItems: selectedLogisticsItems,
+      appliedLogisticsConfigs: effectiveLogisticsConfigs,
+      lineItems,
+      appliedLineItemConfigs: effectiveLineItemConfigs,
+    });
+
+    return buildCurrentDraftReviewItems({
+      draftLineItems: payload.line_items,
+      services,
+      addons,
+      logisticsItems: selectedLogisticsItems,
+      lineItems,
+    });
+  }, [
+    address,
+    locationLatitude,
+    locationLongitude,
+    addons,
+    effectiveAddonConfigs,
+    effectiveLineItemConfigs,
+    effectiveLogisticsConfigs,
+    clientName,
+    discountEnabled,
+    discountType,
+    discountValue,
+    editingTypeConfigs,
+    editingTypeOptions,
+    emailId,
+    lineItems,
+    normalizedTaxRate,
+    phoneNumber,
+    projectDescription,
+    quoteDraftSelectedShootType,
+    quoteDraftShootTypes,
+    selectedAddons,
+    selectedClient,
+    selectedEditingTypes,
+    selectedLogisticsItems,
+    selectedServices,
+    serviceConfigs,
+    services,
+    taxLabel,
+    validUntil,
+    validityDays,
+  ]);
+
+  const reviewChangesData = React.useMemo(() => {
+    return buildQuoteReviewChangesData({
+      quote: quoteToEdit,
+      currentDraftLineItems,
+      nextTotal: totalAfterTax,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      projectDescription,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      normalizedTaxRate,
+      taxLabel,
+      shootTypeLabel: storedShootTypeLabel,
+    });
+  }, [
+    address,
+    clientName,
+    currentDraftLineItems,
+    discountEnabled,
+    discountType,
+    discountValue,
+    emailId,
+    normalizedTaxRate,
+    phoneNumber,
+    projectDescription,
+    storedShootTypeLabel,
+    quoteToEdit,
+    taxLabel,
+    totalAfterTax,
+    validUntil,
+  ]);
+
+  React.useEffect(() => {
+    setHasUnsavedQuoteChanges(
+      Boolean(quoteToEdit) &&
+      (reviewChangesData.lineChanges.length > 0 ||
+        reviewChangesData.fieldChanges.length > 0 ||
+        Math.abs(reviewChangesData.delta) > 0.009),
+    );
+  }, [quoteToEdit, reviewChangesData]);
 
   const delayAfterSuccessToast = () =>
     new Promise((resolve) => window.setTimeout(resolve, 450));
 
+  const resolvedEditReason = React.useMemo(
+    () => reviewChangeReason.trim() || String(quoteToEdit?.edit_reason || "").trim(),
+    [quoteToEdit?.edit_reason, reviewChangeReason],
+  );
+  const resolvedOpsReviewConfirmed = React.useMemo(
+    () => (editQuoteId ? readQuoteEditorOpsReviewConfirmed(editQuoteId) : false),
+    [editQuoteId],
+  );
+
   const saveQuoteDraft = async (
     action: "preview" | "save" | "draft",
-    options?: { suppressRedirect?: boolean; openPreview?: boolean },
-  ) => {
-    if (isCreatingQuoteDraft) return;
+    options?: {
+      suppressRedirect?: boolean;
+      openPreview?: boolean;
+      saveAsNewVersion?: boolean;
+      versionNotes?: string;
+      showVersionSuccess?: boolean;
+    },
+  ): Promise<boolean> => {
+    if (isCreatingQuoteDraft) return false;
 
     const isUpdatingExistingQuote = Boolean(effectiveQuoteId);
     const basePayload = getQuoteDraftPayload(
@@ -3137,6 +3510,14 @@ export default function CreateQuotePage() {
       ? {
         ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
         is_draft: action === "draft",
+        ...(resolvedEditReason ? { edit_reason: resolvedEditReason } : {}),
+        ...(resolvedOpsReviewConfirmed ? { ops_review_confirmed: true } : {}),
+        ...(options?.saveAsNewVersion
+          ? {
+            save_as_new_version: true,
+            version_notes: options.versionNotes?.trim() || undefined,
+          }
+          : {}),
       }
       : action === "save"
         ? {
@@ -3192,19 +3573,29 @@ export default function CreateQuotePage() {
       }
 
       if (action === "save") {
+        setIsQuoteSaved(true);
+        setHasUnsavedQuoteChanges(false);
+        if (options?.showVersionSuccess) {
+          setIsReviewChangesModalOpen(false);
+          setIsVersionSaveSuccessOpen(true);
+          setReviewChangeReason("");
+          return true;
+        }
         toast.success(
           isUpdatingExistingQuote
             ? "Quote updated successfully"
             : "Quote saved successfully",
         );
         await delayAfterSuccessToast();
-        setIsQuoteSaved(true);
         if (!shouldOpenPreview) {
+          if (options?.suppressRedirect) {
+            return true;
+          }
           if (isEditMode && quoteEditReturnHref && !isFullEditFlow) {
             router.push(quoteEditReturnHref);
-            return;
+            return true;
           }
-          return;
+          return true;
         }
       }
 
@@ -3214,7 +3605,19 @@ export default function CreateQuotePage() {
             ? "Draft updated successfully"
             : "Draft saved successfully",
         );
-        return;
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("view", view);
+        if (!nextParams.get("quoteId") && savedQuoteId) {
+          nextParams.set("quoteId", savedQuoteId);
+        }
+        if (
+          !nextParams.get("editMode") &&
+          nextParams.get("quoteId")
+        ) {
+          nextParams.set("editMode", "full");
+        }
+        router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+        return true;
       }
 
       if (!savedQuoteId) {
@@ -3222,7 +3625,7 @@ export default function CreateQuotePage() {
           setPreviewQuoteId(extractQuoteIdFromResponse(persistedQuote));
           setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
-          return;
+          return true;
         }
 
         throw new Error("Quote draft was saved, but no quote id was returned");
@@ -3235,7 +3638,7 @@ export default function CreateQuotePage() {
           setPreviewQuoteId(savedQuoteId);
           setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
-          return;
+          return true;
         }
 
         throw new Error(
@@ -3257,6 +3660,7 @@ export default function CreateQuotePage() {
         setPreviewQuote(quoteDetail);
         toast.success("Quote preview loaded");
       }
+      return true;
     } catch (error) {
       console.error(
         action === "preview"
@@ -3285,6 +3689,7 @@ export default function CreateQuotePage() {
                 : "Failed to save quote";
 
       toast.error(error instanceof Error ? error.message : fallbackMessage);
+      return false;
     } finally {
       setIsCreatingQuoteDraft(false);
       setActiveQuoteAction(null);
@@ -3294,6 +3699,25 @@ export default function CreateQuotePage() {
   const handlePreviewQuote = async () => {
     if (!quoteReviewValidation.isValid) {
       toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    if (isEditMode) {
+      setShouldRedirectToSummaryAfterPreviewClose(false);
+      const previewSnapshot = getQuoteSummarySnapshot();
+      setPreviewQuote(buildPreviewQuoteFromSummary(previewSnapshot));
+      setPreviewQuoteId(effectiveQuoteId);
+      setIsPreviewModalOpen(true);
+      return;
+    }
+
+    if (!hasUnsavedQuoteChanges && (previewQuote || quoteToEdit)) {
+      setShouldRedirectToSummaryAfterPreviewClose(false);
+      if (!previewQuote && quoteToEdit) {
+        setPreviewQuote(quoteToEdit);
+        setPreviewQuoteId(effectiveQuoteId);
+      }
+      setIsPreviewModalOpen(true);
       return;
     }
 
@@ -3307,6 +3731,47 @@ export default function CreateQuotePage() {
     }
 
     await saveQuoteDraft("save");
+  };
+
+  const handleOpenReviewChangesModal = () => {
+    if (!quoteReviewValidation.isValid) {
+      toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    setIsReviewChangesModalOpen(true);
+  };
+
+  const handleSaveAsNewVersion = async () => {
+    if (!effectiveQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (!reviewChangeReason.trim()) {
+      toast.error("Please provide a reason for these changes.");
+      return;
+    }
+
+    if (quoteVersionNumber === null || quoteVersionNumber <= 1) {
+      toast.error("Version 1 should be updated directly instead of creating a new version.");
+      return;
+    }
+
+    await saveQuoteDraft("save", {
+      saveAsNewVersion: true,
+      versionNotes: reviewChangeReason,
+      showVersionSuccess: true,
+    });
+  };
+
+  const handleConfirmReviewChanges = async () => {
+    if (quoteVersionNumber !== null && quoteVersionNumber > 1) {
+      await handleSaveAsNewVersion();
+      return;
+    }
+
+    await saveQuoteDraft("save", { showVersionSuccess: true });
   };
 
   const handleSaveCurrentEditStep = async () => {
@@ -3325,7 +3790,11 @@ export default function CreateQuotePage() {
     try {
       const response = await salesApi.updateQuote(
         editQuoteId,
-        getQuoteStepUpdatePayload(view),
+        {
+          ...getQuoteStepUpdatePayload(view),
+          ...(resolvedEditReason ? { edit_reason: resolvedEditReason } : {}),
+          ...(resolvedOpsReviewConfirmed ? { ops_review_confirmed: true } : {}),
+        },
       );
 
       if (response?.error || response?.success === false) {
@@ -3363,13 +3832,18 @@ export default function CreateQuotePage() {
     : view === "tax"
       ? handleSaveQuote
       : handleContinue;
+  const showReviewChangesAction =
+    isEditMode &&
+    isFullEditFlow &&
+    !isDuplicateFlow &&
+    view === "tax";
 
   const primaryActionLabel = isEditMode
     ? isFullEditFlow
       ? view === "tax"
         ? isCreatingQuoteDraft && activeQuoteAction === "save"
           ? "Saving Quote..."
-          : isQuoteSaved
+          : hasCurrentSavedQuoteState
             ? "Saved"
             : "Save Quote"
         : view === "details" && isCreatingClient
@@ -3381,7 +3855,7 @@ export default function CreateQuotePage() {
     : view === "tax"
       ? isCreatingQuoteDraft && activeQuoteAction === "save"
         ? "Saving Quote..."
-        : isQuoteSaved
+        : hasCurrentSavedQuoteState
           ? "Saved"
           : "Save Quote"
       : view === "details" && isCreatingClient
@@ -3420,36 +3894,43 @@ export default function CreateQuotePage() {
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
+      const isManualInvoicePdf =
+        typeof invoicePdfUrl === "string" &&
+        /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
       const invoiceBookingId =
         response.data?.booking_id !== undefined &&
-        response.data?.booking_id !== null &&
-        String(response.data.booking_id).trim()
+          response.data?.booking_id !== null &&
+          String(response.data.booking_id).trim()
           ? String(response.data.booking_id)
           : convertedBookingId;
-      const apiBase = (
-        process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
-      ).replace(/\/$/, "");
-      const proxiedPdfUrl = invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
+      const brandedPdfUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+          manual: isManualInvoicePdf,
+          cacheBust: true,
+        })
         : null;
-      const proxiedDownloadUrl = invoiceBookingId
-        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
+      const brandedDownloadUrl = invoiceBookingId
+        ? buildBeigeInvoiceUrl(invoiceBookingId, {
+          manual: isManualInvoicePdf,
+          download: true,
+          cacheBust: true,
+        })
         : null;
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !isManualInvoicePdf && !invoicePdfUrl) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
       if (invoicePdfUrl) {
         const link = document.createElement("a");
-        if (!proxiedDownloadUrl && !proxiedPdfUrl) {
+        if (!brandedDownloadUrl && !brandedPdfUrl) {
           throw new Error("Invoice PDF URL is not available");
         }
-        link.href = proxiedDownloadUrl || proxiedPdfUrl || invoicePdfUrl;
+        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.click();
@@ -3514,9 +3995,61 @@ export default function CreateQuotePage() {
     await sendQuoteInvoiceRequest();
   };
 
+  const handleBeforeSendQuoteFromPreview = React.useCallback(async () => {
+    if (isEditMode && hasUnsavedQuoteChanges) {
+      const didSave = await saveQuoteDraft("save", { suppressRedirect: true });
+      if (!didSave) {
+        return false;
+      }
+      setShouldRedirectToSummaryAfterPreviewClose(true);
+    }
+
+    const quoteIdToValidate = effectiveQuoteId;
+    if (!quoteIdToValidate) {
+      return true;
+    }
+
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote: quoteToEdit ?? previewQuote,
+      quoteId: quoteIdToValidate,
+    });
+
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
+    }
+
+    return true;
+  }, [
+    effectiveQuoteId,
+    hasUnsavedQuoteChanges,
+    isEditMode,
+    previewQuote,
+    quoteToEdit,
+    saveQuoteDraft,
+  ]);
+
+  const handleClosePreviewModal = React.useCallback(() => {
+    setIsPreviewModalOpen(false);
+
+    if (!shouldRedirectToSummaryAfterPreviewClose) {
+      return;
+    }
+
+    setShouldRedirectToSummaryAfterPreviewClose(false);
+    const targetId = effectiveQuoteId || previewQuoteId;
+    const targetUrl = targetId
+      ? `/admin/quotes/${encodeURIComponent(String(targetId))}/summary?returnTo=${encodeURIComponent("/admin/quotes")}`
+      : "/admin/quotes";
+    router.push(targetUrl);
+  }, [effectiveQuoteId, previewQuoteId, router, shouldRedirectToSummaryAfterPreviewClose]);
+
   const handleConvertToBooking = () => {
     if (!resolvedInvoiceQuoteId) {
       toast.error("Quote id is missing.");
+      return;
+    }
+    if (isConvertedToBooking) {
       return;
     }
 
@@ -3636,7 +4169,7 @@ export default function CreateQuotePage() {
         const { service, addon, logistics } = res.data;
 
         if (service) {
-          const mappedServices = service.map((item: any, idx: number) => {
+          const mappedServices = service.map((item: CatalogSectionItem, idx: number) => {
             const name =
               item.name.toLowerCase() === "location" ? "Studio" : item.name;
             return {
@@ -3704,7 +4237,7 @@ export default function CreateQuotePage() {
         }
 
         if (addon) {
-          const mappedAddons = addon.map((item: any, idx: number) => ({
+          const mappedAddons = addon.map((item: CatalogSectionItem, idx: number) => ({
             id: (item.catalog_item_id || `add-${idx}`).toString(),
             label: item.name,
             price: parseFloat(item.effective_rate) || 0,
@@ -3757,7 +4290,7 @@ export default function CreateQuotePage() {
         }
 
         if (logistics) {
-          const mappedLogistics = logistics.map((item: any, idx: number) => ({
+          const mappedLogistics = logistics.map((item: CatalogSectionItem, idx: number) => ({
             id: (item.catalog_item_id || `log-${idx}`).toString(),
             label: item.name,
             basePrice: parseFloat(item.effective_rate) || 0,
@@ -4059,6 +4592,13 @@ export default function CreateQuotePage() {
 
   const confirmDelete = async () => {
     if (!itemToDelete) return;
+    const numericCatalogId = Number(itemToDelete.id);
+    const hasValidCatalogId = Number.isFinite(numericCatalogId) && numericCatalogId > 0;
+    const isCatalogBackedItem =
+      itemToDelete.type === "service" ||
+      itemToDelete.type === "addon" ||
+      itemToDelete.type === "logistics" ||
+      itemToDelete.type === "line_item";
 
     if (
       itemToDelete.type === "line_item" &&
@@ -4092,6 +4632,25 @@ export default function CreateQuotePage() {
 
     setIsDeleting(true);
     try {
+      if (isCatalogBackedItem && !hasValidCatalogId) {
+        if (itemToDelete.type === "service") {
+          setSelectedServices((prev) => prev.filter((sid) => sid !== itemToDelete.id));
+        } else if (itemToDelete.type === "addon") {
+          removeSelectedAddon(itemToDelete.id);
+        } else if (itemToDelete.type === "logistics") {
+          removeLogisticsItem(itemToDelete.id);
+        } else {
+          removeLineItem(itemToDelete.id);
+        }
+
+        toast.success(
+          `${itemToDelete.type === "service" ? "Service" : itemToDelete.type === "addon" ? "Add-on" : itemToDelete.type === "logistics" ? "Logistics item" : "Line item"} removed from this quote`,
+        );
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+        return;
+      }
+
       const res =
         itemToDelete.type === "editing_type"
           ? await salesApi.deleteAiEditingType(itemToDelete.id)
@@ -4445,9 +5004,9 @@ export default function CreateQuotePage() {
       } else {
         toast.error(
           res?.error ||
-            `Failed to update ${getCatalogEditItemLabel(
-              editCatalogItem.type,
-            ).toLowerCase()}`,
+          `Failed to update ${getCatalogEditItemLabel(
+            editCatalogItem.type,
+          ).toLowerCase()}`,
         );
       }
     } catch (error) {
@@ -4530,16 +5089,20 @@ export default function CreateQuotePage() {
         }
       />
 
-      <div className="px-4 pb-30 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
+      <div className="px-4 pb-50 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
         {/* Navigation & Progress Header */}
         <div className="flex justify-between items-center mb-7">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
-          >
-            <ArrowLeft size={18} />
-            Back
-          </button>
+          {!shouldHideBackButton ? (
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+          ) : (
+            <div />
+          )}
 
           <div className="text-right">
             {view === "tax" && (
@@ -4547,7 +5110,7 @@ export default function CreateQuotePage() {
                 type="button"
                 onClick={handleOpenQuoteSummary}
                 disabled={!canOpenQuoteSummary}
-                className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black disabled:opacity-60"
+                className="block lg:hidden bg-[#E5D5B8] text-sm h-10 lg:h-8 text-black disabled:opacity-60"
               >
                 View Quote Summary
               </Button>
@@ -4588,93 +5151,106 @@ export default function CreateQuotePage() {
         {/* Main Card */}
         {/* <div className={`border rounded-[18px] mb-8 bg-[#171717] border-[#3D3D3D] ${view === 'selection' ? 'overflow-visible' : 'p-10 overflow-hidden'}`}> */}
         <div
-          className={`border rounded-[18px] mb-8 bg-[#171717] border-[#3D3D3D] overflow-visible`}
+          className={`border rounded-[18px] ${(view === "tax") ? "mb-25" : "mb-10"} lg:mb-8 bg-[#171717] border-[#3D3D3D] overflow-visible`}
         >
           {view === "logistics" ? (
             <div className="">
               <section>
                 <div className="p-4 lg:p-8">
-                  <h2 className="lg:text-xl font-medium leading-none mb-2 text-white">
+                  <h2 className={`lg:text-xl font-medium leading-none mb-2 ${isDark ? "text-white" : "text-black"}`}>
                     Logistics
                   </h2>
-                  <p className="text-[#A1A1AA] text-sm font-normal leading-none">
-                    Manage travel, equipment, permits, and other logistical
-                    costs
+                  <p className={`${isDark ? "text-[#A1A1AA]" : "text-zinc-500"} text-sm font-normal leading-none`}>
+                    Manage travel, equipment, permits, and other logistical costs
                   </p>
                 </div>
-                <hr className="border-t border-[#3D3D3D]" />
+                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-zinc-200"}`} />
 
+                {/* Logistics Selection Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
-                  {logisticsItems.map((item) => (
-                    <div key={item.id} className="relative">
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={selectedLogistics.includes(item.id)}
-                        onClick={() => toggleSelectedLogistics(item.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            toggleSelectedLogistics(item.id);
-                          }
-                        }}
-                        className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedLogistics.includes(item.id)
-                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
-                          }`}
-                      >
-                        <div className="absolute right-4 top-4 z-10 flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openEditCatalogItem(item, "logistics");
-                            }}
-                            className="text-zinc-500 hover:text-[#E8D1AB] transition-colors"
-                            title="Edit logistics"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleDeleteCatalogItem(item.id, "logistics");
-                            }}
-                            className="text-red-500 hover:text-red-400 transition-colors"
-                            title="Delete logistics"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                        <div className="flex w-full min-w-0 items-start gap-4">
-                          <div
-                            className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedLogistics.includes(item.id)
-                              ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
-                              : "border-zinc-700 bg-transparent"
-                              }`}
-                          >
-                            {selectedLogistics.includes(item.id) && (
-                              <Check size={14} strokeWidth={4} />
-                            )}
+                  {logisticsItems.map((item) => {
+                    const isSelected = selectedLogistics.includes(item.id);
+                    return (
+                      <div key={item.id} className="relative">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={isSelected}
+                          onClick={() => toggleSelectedLogistics(item.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              toggleSelectedLogistics(item.id);
+                            }
+                          }}
+                          className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${isSelected
+                            ? isDark
+                              ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                              : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-sm"
+                            : isDark
+                              ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                              : "bg-[#F4F5F7] border-[#D7D7D7] text-black hover:border-zinc-400"
+                            }`}
+                        >
+                          <div className="absolute top-6 right-5 z-10 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openEditCatalogItem(item, "logistics");
+                              }}
+                              className={`transition-colors ${isDark ? "text-[#727272] hover:text-[#E8D1AB]" : "text-zinc-400 hover:bg-zinc-100 hover:text-black/70"}`}
+                              title="Edit logistics"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleDeleteCatalogItem(item.id, "logistics");
+                              }}
+                              className={`rounded-md p-1 transition-colors ${isDark ? "text-[#FF6467] hover:bg-[#FF6467]/10 hover:text-red-500" : "text-[#FF6467] hover:bg-red-50/50 hover:text-red-600"}`}
+                              title="Delete logistics"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
-                          <div className="min-w-0 flex-1 space-y-2">
-                            <div className="block w-full truncate font-medium text-base text-white leading-none">
-                              {item.label}
+                          <div className="flex w-full min-w-0 items-start gap-4 pr-2">
+                            <div
+                              className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${isSelected
+                                ? isDark
+                                  ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                                  : "bg-black border-black text-[#E8D1AB]"
+                                : isDark
+                                  ? "border-zinc-700 bg-transparent"
+                                  : "border-zinc-300 bg-white"
+                                }`}
+                            >
+                              {isSelected && <Check size={14} strokeWidth={4} />}
                             </div>
-                            <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                              ${formatAddonDisplayValue(item.basePrice)}
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <div
+                                title={item.label}
+                                className={`block w-full truncate font-medium text-base ${isDark ? "text-white" : "text-black"}`}
+                              >
+                                {item.label}
+                              </div>
+                              <div className={`block w-full truncate text-sm font-semibold tracking-tight leading-none ${isDark ? "text-[#F0DCB1]" : "text-[#B38F43]"}`}>
+                                ${formatAddonDisplayValue(item.basePrice)}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-                <hr className="border-t border-[#3D3D3D]" />
+                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-zinc-200"}`} />
 
+                {/* Dynamic Custom Creation Form Component */}
                 <div className="p-4 lg:p-8 lg:pb-6">
-                  <h3 className="lg:text-xl font-medium text-white mb-6">
+                  <h3 className={`lg:text-xl font-medium mb-6 ${isDark ? "text-white" : "text-black"}`}>
                     Add Custom Logistics Item
                   </h3>
                   <AnimatePresence>
@@ -4687,8 +5263,8 @@ export default function CreateQuotePage() {
                       >
                         <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
                           <div className="flex-1 relative w-full">
-                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-xs text-[#8A8A8A] font-normal">
+                            <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                              <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-zinc-500"}`}>
                                 Item Name
                               </span>
                             </div>
@@ -4701,13 +5277,16 @@ export default function CreateQuotePage() {
                                 )
                               }
                               maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
-                              className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                              className={`h-15 lg:h-21 bg-transparent rounded-xl focus:border-[#A78857] pl-7 text-base ${isDark
+                                ? "border-[#4A4A4A] text-white placeholder:text-[#666666]"
+                                : "border-zinc-300 text-black placeholder:text-zinc-400"
+                                }`}
                             />
                           </div>
                           <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
                             <div className="flex-1 relative">
-                              <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                <span className="text-xs text-[#8A8A8A] font-normal">
+                              <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                                <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-zinc-500"}`}>
                                   Cost
                                 </span>
                               </div>
@@ -4720,25 +5299,26 @@ export default function CreateQuotePage() {
                                   )
                                 }
                                 inputMode="decimal"
-                                className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                                className={`h-15 lg:h-21 bg-transparent rounded-xl focus:border-[#A78857] pl-7 text-base ${isDark
+                                  ? "border-[#4A4A4A] text-white placeholder:text-[#666666]"
+                                  : "border-zinc-300 text-black placeholder:text-zinc-400"
+                                  }`}
                               />
                             </div>
                             <button
                               onClick={handleCreateLogisticsItem}
-                              disabled={
-                                isSubmittingLogistics ||
-                                !customLogisticsName ||
-                                !customLogisticsCost
-                              }
-                              className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingLogistics ||
-                                !customLogisticsName ||
-                                !customLogisticsCost
-                                ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
-                                : "bg-[#101010] text-[#16A34A]"
+                              disabled={isSubmittingLogistics || !customLogisticsName || !customLogisticsCost}
+                              className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingLogistics || !customLogisticsName || !customLogisticsCost
+                                ? isDark
+                                  ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                                  : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                                : isDark
+                                  ? "bg-[#101010] text-[#16A34A]"
+                                  : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
                                 }`}
                             >
                               {isSubmittingLogistics ? (
-                                <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark ? "border-white/20 border-t-white" : "border-black/20 border-t-black"}`} />
                               ) : (
                                 <Check size={24} strokeWidth={3} />
                               )}
@@ -4750,7 +5330,7 @@ export default function CreateQuotePage() {
                   </AnimatePresence>
                   <Button
                     onClick={() => setShowAddLogisticsForm(!showAddLogisticsForm)}
-                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
+                    className={`${isDark ? "bg-[#F0DCB1] text-black hover:bg-[#e7d09e]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"} h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit`}
                   >
                     <Plus size={16} strokeWidth={3} />
                     Add More Logistics
@@ -4759,10 +5339,10 @@ export default function CreateQuotePage() {
 
                 {selectedLogistics.length > 0 && (
                   <>
-                    <hr className="border-t border-[#3D3D3D]" />
+                    <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-zinc-200"}`} />
                     <section className="p-4 lg:p-8">
                       <div className="mb-4 lg:mb-7">
-                        <h2 className="text-base lg:text-xl font-medium text-white">
+                        <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                           Selected Logistics
                         </h2>
                       </div>
@@ -4775,51 +5355,47 @@ export default function CreateQuotePage() {
                           return (
                             <div
                               key={item.id}
-                              className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-4 lg:p-6 relative overflow-hidden"
+                              className={`rounded-[18px] p-4 lg:p-6 relative overflow-hidden border ${isDark ? "bg-[#0F0F0F] border-[#4A4A4A]" : "bg-zinc-50 border-zinc-200"}`}
                             >
+                              {/* desktop version */}
                               <div className="hidden lg:flex items-center justify-between gap-6">
                                 <div className="min-w-0 flex-1 space-y-2 pr-2">
                                   <h3
                                     title={item.label}
-                                    className="max-w-full truncate text-[18px] font-medium text-white leading-snug"
+                                    className={`max-w-full truncate text-[18px] font-medium leading-snug ${isDark ? "text-white" : "text-black"}`}
                                   >
                                     {item.label}
                                   </h3>
-                                  <p className="text-[#F0DCB1] text-[15px] font-semibold tracking-tight leading-none">
+                                  <p className={`text-[15px] font-semibold tracking-tight leading-none ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"}`}>
                                     {formatCurrency(item.basePrice)}
                                   </p>
                                 </div>
 
                                 <div className="flex shrink-0 items-center gap-4">
-                                  <div className="relative w-[190px]">
-                                    <Input
+                                  <div className={`relative w-[190px] h-[50px] rounded-xl border flex items-center px-5 transition-all focus-within:ring-1 ${isDark
+                                    ? "bg-[#1A1A1F] border-[#3B3B46] focus-within:border-[#E8D1AB] focus-within:ring-[#E8D1AB]/20"
+                                    : "bg-white border-zinc-300 focus-within:border-zinc-400 focus-within:ring-zinc-400/20"
+                                    }`}>
+                                    <span className={`text-base font-medium mr-1 ${isDark ? "text-white opacity-80" : "text-zinc-400"}`}>$</span>
+                                    <input
                                       value={
                                         inputValue[item.id] !== undefined
                                           ? inputValue[item.id]
-                                          : `$ ${formatAddonDisplayValue(config.price)}`
+                                          : config.price.toFixed(2)
                                       }
                                       onChange={(e) => {
-                                        const raw = sanitizeCurrencyInput(e.target.value);
-                                        setInputValue((prev) => ({
-                                          ...prev,
-                                          [item.id]: `$ ${raw}`,
-                                        }));
+                                        const raw = parseRawPrice(e.target.value);
+                                        setInputValue((prev) => ({ ...prev, [item.id]: raw }));
 
-                                        const numericVal = Number.parseFloat(raw);
-                                        if (!Number.isNaN(numericVal)) {
+                                        const num = parseFloat(raw);
+                                        if (!isNaN(num)) {
                                           setLogisticsConfigs((prev) => ({
                                             ...prev,
-                                            [item.id]: {
-                                              ...prev[item.id],
-                                              price: numericVal,
-                                            },
+                                            [item.id]: { ...prev[item.id], price: num },
                                           }));
                                           setAppliedLogisticsConfigs((prev) => ({
                                             ...prev,
-                                            [item.id]: {
-                                              ...prev[item.id],
-                                              price: numericVal,
-                                            },
+                                            [item.id]: { ...prev[item.id], price: num },
                                           }));
                                         }
                                       }}
@@ -4830,15 +5406,15 @@ export default function CreateQuotePage() {
                                           return next;
                                         });
                                       }}
+                                      className={`bg-transparent border-0 outline-none font-normal text-base w-full p-0 focus:ring-0 ${isDark ? "text-white" : "text-black"}`}
                                       inputMode="decimal"
-                                      className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
                                     />
                                   </div>
 
                                   <div className="flex items-center gap-5 ml-2">
                                     <button
                                       onClick={() => removeSelectedLogistics(item.id)}
-                                      className="text-red-500 hover:text-red-400 transition-colors"
+                                      className="text-[#FF6467] hover:text-red-400 transition-colors"
                                     >
                                       <Trash2 size={18} />
                                     </button>
@@ -4846,16 +5422,17 @@ export default function CreateQuotePage() {
                                 </div>
                               </div>
 
+                              {/* mobile version */}
                               <div className="flex flex-col lg:hidden gap-4">
-                                <div className="space-y-1">
-                                  <h3 className="text-sm font-medium text-white leading-snug break-words">
+                                <div className="min-w-0 flex-1 pr-2 flex items-center justify-between">
+                                  <h3 className={`text-sm font-medium leading-snug break-words ${isDark ? "text-white" : "text-black"}`}>
                                     {item.label}
                                   </h3>
-                                  <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                                  <p className={`text-sm font-semibold tracking-tight leading-none ${isDark ? "text-[#F0DCB1]" : "text-[#B38F43]"}`}>
                                     {formatCurrency(item.basePrice)}
                                   </p>
                                 </div>
-                                <hr className="border-t border-[#3D3D3D]" />
+                                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-zinc-200"}`} />
                                 <div className="flex gap-3 items-center">
                                   <div className="relative flex-1">
                                     <Input
@@ -4897,15 +5474,19 @@ export default function CreateQuotePage() {
                                         });
                                       }}
                                       inputMode="decimal"
-                                      className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
+                                      className={`h-10 text-sm pl-4 rounded-[10px] ${isDark
+                                        ? "bg-[#1A1A1F] border-[#3B3B46] text-white focus:border-[#A78857]"
+                                        : "bg-white border-zinc-300 text-black focus:border-[#B38F43]"
+                                        }`}
                                     />
                                   </div>
                                   <button
                                     onClick={() => removeSelectedLogistics(item.id)}
-                                    className="text-red-500 hover:text-red-400 transition-colors"
+                                    className="text-[#FF6467] hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
                                   </button>
+                                  <Check size={16} strokeWidth={2} className="text-[#16A34A]" />
                                 </div>
                               </div>
                             </div>
@@ -4913,11 +5494,11 @@ export default function CreateQuotePage() {
                         })}
                       </div>
 
-                      <div className="mt-4 lg:mt-6 rounded-xl bg-[#2A2A2A] p-4 lg:p-6 flex items-center justify-between">
-                        <span className="text-base lg:text-xl font-medium text-white">
+                      <div className={`mt-4 lg:mt-6 rounded-xl p-4 lg:p-6 flex items-center justify-between ${isDark ? "bg-[#2A2A2A]" : "bg-[#FFF7E6] border border-[#E8D1AB]"}`}>
+                        <span className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                           Total Logistics
                         </span>
-                        <span className="text-xl font-semibold tracking-tight text-[#F0DCB1]">
+                        <span className={`text-xl font-semibold tracking-tight ${isDark ? "text-[#F0DCB1]" : "text-black"}`}>
                           ${formatAddonDisplayValue(totalLogisticsCost)}
                         </span>
                       </div>
@@ -4930,25 +5511,23 @@ export default function CreateQuotePage() {
             <div className="">
               <section>
                 <div className="p-4 lg:p-8">
-                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">
+                  <h2 className={`text-base lg:text-xl font-medium leading-none mb-2 ${isDark ? 'text-white' : 'text-black'}`}>
                     Add-ons
                   </h2>
-                  <p className="text-[#A1A1AA] text-sm font-normal leading-none">
+                  <p className={`${isDark ? 'text-[#A1A1AA]' : 'text-[#000000B2]'} text-sm font-normal leading-none`}>
                     Select additional items to enhance your service offering
                   </p>
                 </div>
-                <hr className="border-t border-[#3D3D3D]" />
+                <hr className={`border-t ${isDark ? 'border-[#3D3D3D]' : "border-[#000000]/15"}`} />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
                   {(addons || []).map((addon) => {
+                    const isSelected = selectedAddons.includes(addon.id);
                     return (
                       <div key={addon.id} className="relative">
                         <button
                           type="button"
                           onClick={() => {
-                            const isSelected = selectedAddons.includes(
-                              addon.id,
-                            );
                             if (isSelected) {
                               removeSelectedAddon(addon.id);
                             } else {
@@ -4967,42 +5546,51 @@ export default function CreateQuotePage() {
                               }));
                             }
                           }}
-                          className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
-                            // ? "bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
-                            // : "bg-transparent border-[#303030] hover:border-zinc-700"
-                            // }`}
-
-                            //  className={`h-[52px] w-full rounded-xl px-5 pr-11 font-medium transition-all border text-sm lg:text-base tracking-tight text-left flex items-center ${selectedId === type.id
-                            ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                            : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${isSelected
+                            ? isDark
+                              ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                              : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-sm"
+                            : isDark
+                              ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                              : "bg-[#F4F5F7] border-[#D7D7D7] text-black hover:border-zinc-400"
                             }`}
                         >
-                          <div className="flex w-full min-w-0 items-start gap-4 pr-8">
+                          <div className="flex w-full min-w-0 items-start gap-4 pr-2">
                             <div
-                              className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
-                                ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
-                                : "border-zinc-700 bg-transparent"
+                              className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${isSelected
+                                ? isDark
+                                  ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                                  : "bg-black border-black text-[#E8D1AB]"
+                                : isDark
+                                  ? "border-zinc-700 bg-transparent"
+                                  : "border-zinc-300 bg-white"
                                 }`}
                             >
-                              {selectedAddons.includes(addon.id) && (
+                              {isSelected && (
                                 <Check size={14} strokeWidth={4} />
                               )}
                             </div>
                             <div className="min-w-0 flex-1 space-y-2">
-                              <div className="block w-full truncate font-medium text-base text-white leading-none">
+                              <div
+                                title={addon.label}
+                                className={`block w-full truncate font-medium text-base ${isDark ? 'text-white' : 'text-black'}`}
+                              >
                                 {addon.label}
                               </div>
-                              <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                              <div className={`block w-full truncate text-sm font-semibold tracking-tight leading-none ${isDark ? 'text-[#F0DCB1]' : 'text-[#D4A75D]'}`}>
                                 ${formatAddonDisplayValue(addon.price.toFixed(2))}
                               </div>
                             </div>
                           </div>
                         </button>
-                        <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
+                        <div className="absolute top-6 right-5 z-10 flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => openEditCatalogItem(addon, "addon")}
-                            className="rounded-md p-1 text-zinc-500 transition-colors hover:bg-white/10 hover:text-[#E8D1AB]"
+                            className={`rounded-md p-1 transition-colors ${isDark
+                              ? "text-[#727272] hover:bg-white/10 hover:text-[#E8D1AB]"
+                              : "text-zinc-400 hover:bg-zinc-100 hover:text-black/70"
+                              }`}
                             title="Edit add-on"
                           >
                             <Pencil size={18} />
@@ -5012,7 +5600,10 @@ export default function CreateQuotePage() {
                             onClick={() =>
                               handleDeleteCatalogItem(addon.id, "addon")
                             }
-                            className="rounded-md p-1 text-[#FF6467] transition-colors hover:bg-[#FF6467]/10 hover:text-red-500"
+                            className={`rounded-md p-1 transition-colors ${isDark
+                              ? "text-[#FF6467] hover:bg-[#FF6467]/10 hover:text-red-500"
+                              : "text-[#FF6467] hover:bg-red-50/50 hover:text-red-600"
+                              }`}
                             title="Delete add-on"
                           >
                             <Trash2 size={18} />
@@ -5026,7 +5617,10 @@ export default function CreateQuotePage() {
                 <div className="space-y-6 p-4 lg:p-8 !pt-0">
                   <Button
                     onClick={() => setShowAddAddonForm(!showAddAddonForm)}
-                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
+                    className={`${isDark
+                      ? "bg-[#F0DCB1] text-black hover:bg-[#e7d09e]"
+                      : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                      } h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit`}
                   >
                     <Plus size={16} strokeWidth={3} />
                     Add More Add-ons
@@ -5041,9 +5635,10 @@ export default function CreateQuotePage() {
                         className="grid grid-cols-1 md:grid-cols-12 gap-6"
                       >
                         <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
+                          {/* Add-on Name Input */}
                           <div className="flex-1 relative w-full">
-                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-xs text-[#8A8A8A] font-normal">
+                            <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                              <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#000000B2]"}`}>
                                 Add-on Name
                               </span>
                             </div>
@@ -5056,13 +5651,16 @@ export default function CreateQuotePage() {
                                 )
                               }
                               maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
-                              className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                              className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
+                                ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
+                                : "border-zinc-300 text-black placeholder:text-zinc-400"
+                                }`}
                             />
                           </div>
                           <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
                             <div className="flex-1 relative">
-                              <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                <span className="text-xs text-[#8A8A8A] font-normal">
+                              <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                                <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#000000B2]"}`}>
                                   Cost
                                 </span>
                               </div>
@@ -5075,7 +5673,10 @@ export default function CreateQuotePage() {
                                   )
                                 }
                                 inputMode="decimal"
-                                className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                                className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
+                                  ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
+                                  : "border-zinc-300 text-black placeholder:text-zinc-400"
+                                  }`}
                               />
                             </div>
                             <button
@@ -5085,15 +5686,18 @@ export default function CreateQuotePage() {
                                 !customAddonName ||
                                 !customAddonCost
                               }
-                              className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingAddon ||
-                                !customAddonName ||
-                                !customAddonCost
-                                ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
-                                : "bg-[#101010] text-[#16A34A]"
+                              className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingAddon || !customAddonName || !customAddonCost
+                                ? isDark
+                                  ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                                  : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                                : isDark
+                                  ? "bg-[#101010] text-[#16A34A]"
+                                  : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
                                 }`}
                             >
                               {isSubmittingAddon ? (
-                                <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark ? "border-white/20 border-t-white" : "border-black/20 border-t-black"
+                                  }`} />
                               ) : (
                                 <Check size={24} strokeWidth={3} />
                               )}
@@ -5107,44 +5711,161 @@ export default function CreateQuotePage() {
               </section>
 
               {/* Selected Add-Ons Section */}
-              {selectedAddons.length > 0 && (
-                <>
-                  <hr className="border-t border-[#3D3D3D]" />
-                  <section className="p-4 lg:p-8">
-                    <div className="mb-4 lg:mb-7">
-                      <h2 className="text-base lg:text-xl font-medium text-white">
-                        Selected Add-Ons
-                      </h2>
-                    </div>
+              {
+                selectedAddons.length > 0 && (
+                  <>
+                    <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/15"}`} />
+                    <section className="p-4 lg:p-8">
+                      <div className="mb-4 lg:mb-7">
+                        <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          Selected Add-Ons
+                        </h2>
+                      </div>
 
-                    <div className="space-y-4 lg:space-y-6">
+                      <div className="space-y-4 lg:space-y-6">
                         {selectedAddons.map((addonId) => {
                           const addon = addons.find((a) => a.id === addonId);
                           const config = addonConfigs[addonId];
                           if (!addon || !config) return null;
 
-                        return (
-                          <div
-                            key={addonId}
-                            className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-4 lg:p-6 relative overflow-hidden"
-                          >
-                            {/* desktop version */}
-                            <div className="hidden lg:flex items-center justify-between gap-6">
-                              <div className="min-w-0 flex-1 space-y-2 pr-2">
-                                <h3
-                                  title={addon.label}
-                                  className="max-w-full truncate text-[18px] font-medium text-white leading-snug"
-                                >
-                                  {addon.label}
-                                </h3>
-                                <p className="text-[#F0DCB1] text-[15px] font-semibold tracking-tight leading-none">
-                                  {formatCurrency(addon.price)}
-                                </p>
+                          return (
+                            <div
+                              key={addonId}
+                              className={`rounded-[18px] p-4 lg:p-6 relative overflow-hidden border ${isDark
+                                ? "bg-[#0F0F0F] border-[#4A4A4A]"
+                                : "bg-[#F4F5F7] border-[#D7D7D7]"
+                                }`}
+                            >
+                              {/* desktop version */}
+                              <div className="hidden lg:flex items-center justify-between gap-6">
+                                <div className="min-w-0 flex-1 space-y-2 pr-2">
+                                  <h3
+                                    title={addon.label}
+                                    className={`max-w-full truncate text-[18px] font-medium leading-snug ${isDark ? "text-white" : "text-black"}`}
+                                  >
+                                    {addon.label}
+                                  </h3>
+                                  <p className={`text-[15px] font-semibold tracking-tight leading-none ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"}`}>
+                                    {formatCurrency(addon.price)}
+                                  </p>
+                                </div>
+
+                                <div className="flex shrink-0 items-center gap-4">
+                                  {/* Quantity Controls */}
+                                  <div className="flex items-center gap-4">
+                                    <button
+                                      onClick={() =>
+                                        handleAddonConfigUpdate(
+                                          addonId,
+                                          "quantity",
+                                          config.quantity - 1,
+                                        )
+                                      }
+                                      className={`h-[50px] w-[58px] flex items-center justify-center rounded-xl transition-all active:scale-95 ${isDark
+                                        ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                        : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                                        }`}
+                                    >
+                                      <Minus size={16} strokeWidth={2.5} />
+                                    </button>
+                                    <div className={`h-[50px] min-w-[92px] rounded-xl border px-4 flex flex-col items-center justify-center ${isDark
+                                      ? "border-[#3B3B46] bg-[#1A1A1F]"
+                                      : "border-zinc-300 bg-white"
+                                      }`}>
+                                      <span className={`text-base font-medium leading-none ${isDark ? "text-white" : "text-black"}`}>
+                                        {config.quantity}
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        handleAddonConfigUpdate(
+                                          addonId,
+                                          "quantity",
+                                          config.quantity + 1,
+                                        )
+                                      }
+                                      className={`h-[50px] w-[58px] flex items-center justify-center rounded-xl transition-all active:scale-95 ${isDark
+                                        ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                        : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                                        }`}
+                                    >
+                                      <Plus size={16} strokeWidth={2.5} />
+                                    </button>
+                                  </div>
+
+                                  {/* Price Override */}
+                                  <div className="relative w-[190px]">
+                                    {(() => {
+                                      const addonInputKey = getAddonPriceInputKey(addonId);
+
+                                      return (
+                                        <Input
+                                          value={getCurrencyDraftInputValue(
+                                            addonInputKey,
+                                            getAddonDraftPrice(addonId),
+                                          )}
+                                          onFocus={(e) => {
+                                            setEstimatedPriceDraftValue(
+                                              addonInputKey,
+                                              e.target.value,
+                                            );
+                                          }}
+                                          onChange={(e) =>
+                                            setEstimatedPriceDraftValue(
+                                              addonInputKey,
+                                              e.target.value,
+                                            )
+                                          }
+                                          onBlur={() =>
+                                            commitEstimatedPriceDraftValue(
+                                              addonInputKey,
+                                              getAddonDraftPrice(addonId),
+                                              (nextValue) => {
+                                                handleAddonPriceUpdate(
+                                                  addonId,
+                                                  String(nextValue),
+                                                );
+                                              },
+                                            )
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            }
+                                          }}
+                                          inputMode="decimal"
+                                          className={`${isDark
+                                            ? "bg-transparent border-[#4A4A4A] text-white focus:border-[#A78857]"
+                                            : "bg-white border-zinc-300 text-black focus:border-[#B38F43]"
+                                            }`}
+                                        />
+                                      );
+                                    })()}
+                                  </div>
+
+                                  <div className="flex items-center gap-5 ml-2">
+                                    <button
+                                      onClick={() => removeSelectedAddon(addonId)}
+                                      className="text-[#FF6467] hover:text-red-500 transition-colors"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
 
-                              <div className="flex shrink-0 items-center gap-4">
-                                {/* Quantity Controls */}
-                                <div className="flex items-center gap-4">
+                              {/* mobile version */}
+                              <div className="flex flex-col lg:hidden gap-4">
+                                <div className="space-y-1">
+                                  <h3 className={`text-sm font-medium leading-snug break-words ${isDark ? "text-white" : "text-black"}`}>
+                                    {addon.label}
+                                  </h3>
+                                  <p className={`text-sm font-semibold tracking-tight leading-none ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"}`}>
+                                    {formatCurrency(addon.price)}
+                                  </p>
+                                </div>
+                                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/15"}`} />
+                                <div className="flex items-center gap-3">
                                   <button
                                     onClick={() =>
                                       handleAddonConfigUpdate(
@@ -5153,15 +5874,21 @@ export default function CreateQuotePage() {
                                         config.quantity - 1,
                                       )
                                     }
-                                    className="h-[50px] w-[58px] flex items-center justify-center bg-[#F0DCB1] rounded-xl text-black hover:opacity-90 transition-all active:scale-95"
+                                    className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-[10px] transition-all active:scale-95 ${isDark
+                                      ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                      : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                                      }`}
                                   >
                                     <Minus size={16} strokeWidth={2.5} />
                                   </button>
-                                  <div className="h-[50px] min-w-[92px] rounded-xl border border-[#3B3B46] bg-[#1A1A1F] px-4 flex flex-col items-center justify-center">
-                                    {/* <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[#8A8A8A]">
+                                  <div className={`h-10 min-w-[84px] w-full lg:w-auto rounded-[10px] border px-3 flex flex-col items-center justify-center ${isDark
+                                    ? "border-[#3B3B46] bg-[#1A1A1F]"
+                                    : "border-zinc-300 bg-white"
+                                    }`}>
+                                    <span className={`text-[10px] font-medium tracking-[0.08em] uppercase ${isDark ? "text-[#8A8A8A]" : "text-zinc-400"}`}>
                                       Qty
-                                    </span> */}
-                                    <span className="text-base font-medium text-white leading-none">
+                                    </span>
+                                    <span className={`text-sm font-medium leading-none ${isDark ? "text-white" : "text-black"}`}>
                                       {config.quantity}
                                     </span>
                                   </div>
@@ -5173,203 +5900,107 @@ export default function CreateQuotePage() {
                                         config.quantity + 1,
                                       )
                                     }
-                                    className="h-[50px] w-[58px] flex items-center justify-center bg-[#F0DCB1] rounded-xl text-black hover:opacity-90 transition-all active:scale-95"
+                                    className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-[10px] transition-all active:scale-95 ${isDark
+                                      ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                      : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                                      }`}
                                   >
                                     <Plus size={16} strokeWidth={2.5} />
                                   </button>
                                 </div>
+                                <div className="flex gap-3 items-center">
+                                  <div className="relative flex-1">
+                                    {(() => {
+                                      const addonInputKey = getAddonPriceInputKey(addonId);
 
-                                {/* Price Override */}
-                                <div className="relative w-[190px]">
-                                  {(() => {
-                                    const addonInputKey =
-                                      getAddonPriceInputKey(addonId);
-
-                                    return (
-                                  <Input
-                                    value={getCurrencyDraftInputValue(
-                                      addonInputKey,
-                                      getAddonDraftPrice(addonId),
-                                    )}
-                                    onFocus={(e) => {
-                                      setEstimatedPriceDraftValue(
-                                        addonInputKey,
-                                        e.target.value,
+                                      return (
+                                        <Input
+                                          value={getCurrencyDraftInputValue(
+                                            addonInputKey,
+                                            getAddonDraftPrice(addonId),
+                                          )}
+                                          onFocus={(e) => {
+                                            setEstimatedPriceDraftValue(
+                                              addonInputKey,
+                                              e.target.value,
+                                            );
+                                          }}
+                                          onChange={(e) =>
+                                            setEstimatedPriceDraftValue(
+                                              addonInputKey,
+                                              e.target.value,
+                                            )
+                                          }
+                                          onBlur={() =>
+                                            commitEstimatedPriceDraftValue(
+                                              addonInputKey,
+                                              getAddonDraftPrice(addonId),
+                                              (nextValue) => {
+                                                handleAddonPriceUpdate(
+                                                  addonId,
+                                                  String(nextValue),
+                                                );
+                                              },
+                                            )
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            }
+                                          }}
+                                          inputMode="decimal"
+                                          className={`h-10 text-sm pl-4 rounded-[10px] ${isDark
+                                            ? "bg-[#1A1A1F] border-[#3B3B46] text-white focus:border-[#A78857]"
+                                            : "bg-white border-zinc-300 text-black focus:border-[#B38F43]"
+                                            }`}
+                                        />
                                       );
-                                    }}
-                                    onChange={(e) =>
-                                      setEstimatedPriceDraftValue(
-                                        addonInputKey,
-                                        e.target.value,
-                                      )
-                                    }
-                                    onBlur={() =>
-                                      commitEstimatedPriceDraftValue(
-                                        addonInputKey,
-                                        getAddonDraftPrice(addonId),
-                                        (nextValue) => {
-                                          handleAddonPriceUpdate(
-                                            addonId,
-                                            String(nextValue),
-                                          );
-                                        },
-                                      )
-                                    }
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.currentTarget.blur();
-                                      }
-                                    }}
-                                    inputMode="decimal"
-                                    className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
-                                  />
-                                    );
-                                  })()}
-                                </div>
-
-                                <div className="flex items-center gap-5 ml-2">
+                                    })()}
+                                  </div>
                                   <button
                                     onClick={() => removeSelectedAddon(addonId)}
-                                    className="text-red-500 hover:text-red-400 transition-colors"
+                                    className="text-[#FF6467] hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
                                   </button>
                                 </div>
                               </div>
                             </div>
+                          );
+                        })}
+                      </div>
 
-                            {/* mobile version */}
-                            <div className="flex flex-col lg:hidden gap-4">
-                              <div className="space-y-1">
-                                <h3 className="text-sm font-medium text-white leading-snug break-words">
-                                  {addon.label}
-                                </h3>
-                                <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                                  {formatCurrency(addon.price)}
-                                </p>
-                              </div>
-                              <hr className="border-t border-[#3D3D3D]" />
-                              <div className="flex items-center gap-3">
-                                <button
-                                  onClick={() =>
-                                    handleAddonConfigUpdate(
-                                      addonId,
-                                      "quantity",
-                                      config.quantity - 1,
-                                    )
-                                  }
-                                  className="w-10 h-10 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[10px] text-black hover:opacity-90 transition-all active:scale-95"
-                                >
-                                  <Minus size={16} strokeWidth={2.5} />
-                                </button>
-                                <div className="h-10 min-w-[84px] rounded-[10px] border border-[#3B3B46] bg-[#1A1A1F] px-3 flex flex-col items-center justify-center">
-                                  <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[#8A8A8A]">
-                                    Qty
-                                  </span>
-                                  <span className="text-sm font-medium text-white leading-none">
-                                    {config.quantity}
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() =>
-                                    handleAddonConfigUpdate(
-                                      addonId,
-                                      "quantity",
-                                      config.quantity + 1,
-                                    )
-                                  }
-                                  className="w-10 h-10 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[10px] text-black hover:opacity-90 transition-all active:scale-95"
-                                >
-                                  <Plus size={16} strokeWidth={2.5} />
-                                </button>
-                              </div>
-                              <div className="flex gap-3 items-center">
-                                <div className="relative flex-1">
-                                  {(() => {
-                                    const addonInputKey =
-                                      getAddonPriceInputKey(addonId);
-
-                                    return (
-                                  <Input
-                                    value={getCurrencyDraftInputValue(
-                                      addonInputKey,
-                                      getAddonDraftPrice(addonId),
-                                    )}
-                                    onFocus={(e) => {
-                                      setEstimatedPriceDraftValue(
-                                        addonInputKey,
-                                        e.target.value,
-                                      );
-                                    }}
-                                    onChange={(e) =>
-                                      setEstimatedPriceDraftValue(
-                                        addonInputKey,
-                                        e.target.value,
-                                      )
-                                    }
-                                    onBlur={() =>
-                                      commitEstimatedPriceDraftValue(
-                                        addonInputKey,
-                                        getAddonDraftPrice(addonId),
-                                        (nextValue) => {
-                                          handleAddonPriceUpdate(
-                                            addonId,
-                                            String(nextValue),
-                                          );
-                                        },
-                                      )
-                                    }
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.currentTarget.blur();
-                                      }
-                                    }}
-                                    inputMode="decimal"
-                                    className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
-                                  />
-                                    );
-                                  })()}
-                                </div>
-                                <button
-                                  onClick={() => removeSelectedAddon(addonId)}
-                                  className="text-red-500 hover:text-red-400 transition-colors"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-4 lg:mt-6 rounded-xl bg-[#2A2A2A] p-4 lg:p-6 flex items-center justify-between">
-                      <span className="text-base lg:text-xl font-medium text-white">
-                        Total Add-Ons
-                      </span>
-                      <span className="text-xl font-semibold tracking-tight text-[#F0DCB1]">
-                        ${formatAddonDisplayValue(totalAddOnsCost)}
-                      </span>
-                    </div>
-                  </section>
-                </>
-              )}
+                      {/* Summary Total Block */}
+                      <div className={`mt-4 lg:mt-6 rounded-xl p-4 lg:p-6 flex items-center justify-between ${isDark ? "bg-[#2A2A2A]" : "bg-[#FFF7E6] border border-[#E8D1AB]"
+                        }`}>
+                        <span className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          Total Add-Ons
+                        </span>
+                        <span className={`text-xl font-semibold tracking-tight ${isDark ? "text-[#F0DCB1]" : "text-black"}`}>
+                          ${formatAddonDisplayValue(totalAddOnsCost)}
+                        </span>
+                      </div>
+                    </section>
+                  </>
+                )
+              }
             </div>
           ) : view === "services" ? (
             <div className="">
               {/* Services Section */}
               <section>
                 <div className="px-5 pt-5 lg:px-8 lg:pt-8">
-                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">
+                  <h2 className={`text-base lg:text-xl font-medium leading-none mb-2 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                     Services
                   </h2>
-                  <p className="text-[#A1A1AA] text-sm font-normal leading-none">
+                  <p className={`text-sm font-normal leading-none transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
                     Select services and configure pricing
                   </p>
                 </div>
-                <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-                <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 ">
+                <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
+
+                <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 mb-5">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     {loadingServices ? (
                       <div className="col-span-3 py-10 flex justify-center items-center">
@@ -5380,41 +6011,55 @@ export default function CreateQuotePage() {
                         const isProtectedService = isProtectedServiceLabel(
                           service.label,
                         );
+                        const isSelected = selectedServices.includes(service.id);
 
                         return (
                           <div key={service.id} className="relative">
                             <button
                               type="button"
-                              onClick={() =>
-                                handleServiceSelect(service.id, service.price)
-                              }
-                              className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
-                                ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
-                                : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
+                              onClick={() => handleServiceSelect(service.id, service.price)}
+                              className={`group relative grid h-[78px] w-full grid-rows-[auto_auto] content-center items-start overflow-hidden rounded-xl border px-5 pr-24 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 lg:pr-24 ${isSelected
+                                ? isDark
+                                  ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
+                                  : "bg-[#FFF7E6] border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20 shadow-[0_8px_30px_rgba(142,130,106,0.15)]"
+                                : isDark
+                                  ? "bg-[#101010] border-white/30 hover:border-white/80"
+                                  : "bg-[#F4F5F7] border-[#D7D7D7] hover:border-[#000000]/20"
                                 }`}
                             >
-                              <div className="mb-2 w-full truncate pr-6 font-medium text-base leading-none text-white">
+                              <div
+                                title={getServiceDisplayLabel(service.label)}
+                                className={`w-full truncate pr-2 font-medium leading-normal text-base self-end transition-colors ${isDark ? "text-white" : "text-[#000]"}`}
+                              >
                                 {getServiceDisplayLabel(service.label)}
                               </div>
-                              <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+
+                              <div className={`text-sm font-semibold tracking-tight leading-normal mt-0.5 self-start transition-colors ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"}`}>
                                 ${service.price.toFixed(2)}{" "}
-                                <span className="text-[#71717B] font-medium text-xs lowercase ml-1">
+                                <span className={`font-medium text-xs lowercase ml-1 transition-colors ${isDark ? "text-[#71717B]" : "text-[#71717B]"}`}>
                                   per hour
                                 </span>
                               </div>
-                              {selectedServices.includes(service.id) && (
+
+                              {isSelected && (
                                 <div
-                                  className={`absolute top-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none ${isProtectedService ? "right-16 lg:right-16" : "right-20 lg:right-20"}`}
+                                  className={`absolute top-6 text-xs font-medium px-4 py-1 rounded-[6px] leading-none transition-colors bg-[#0DC752] text-[#09090B] ${isProtectedService ? "right-16 lg:right-16" : "right-20 lg:right-20"
+                                    }`}
                                 >
                                   Selected
                                 </div>
                               )}
                             </button>
+
+                            {/* Action Icons Panel */}
                             <div className="absolute top-6 right-6 flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => openEditCatalogItem(service, "service")}
-                                className="text-zinc-500 transition-colors hover:text-[#E8D1AB]"
+                                className={`transition-colors ${isDark
+                                  ? "text-[#727272] hover:text-[#E8D1AB]"
+                                  : "text-[#000000]/40 hover:text-[#8E826A]"
+                                  }`}
                                 title="Edit service"
                               >
                                 <Pencil size={18} />
@@ -5425,7 +6070,10 @@ export default function CreateQuotePage() {
                                   onClick={() =>
                                     handleDeleteCatalogItem(service.id, "service")
                                   }
-                                  className="text-zinc-500 transition-colors hover:text-red-500"
+                                  className={`transition-colors ${isDark
+                                    ? "text-[#727272] hover:text-red-500"
+                                    : "text-[#000000]/40 hover:text-red-600"
+                                    }`}
                                   title="Delete service"
                                 >
                                   <Trash2 size={18} />
@@ -5456,9 +6104,10 @@ export default function CreateQuotePage() {
                           className="grid grid-cols-1 md:grid-cols-12 gap-6"
                         >
                           <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
+                            {/* Service Name Input Field */}
                             <div className="flex-1 relative w-full">
-                              <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                <span className="text-xs text-[#8A8A8A] font-normal">
+                              <div className={`absolute -top-3 left-4 z-10 px-3 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                                <span className={`text-xs font-normal transition-colors ${isDark ? "text-[#8A8A8A]" : "text-[#000000]/50"}`}>
                                   Service Name
                                 </span>
                               </div>
@@ -5471,13 +6120,19 @@ export default function CreateQuotePage() {
                                   )
                                 }
                                 maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
-                                className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                                className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-sm lg:text-base transition-all ${isDark
+                                  ? "border-[#4A4A4A] focus:border-[#A78857] text-white placeholder:text-[#666666]"
+                                  : "border-[#000000]/15 focus:border-[#8E826A] text-[#171717] placeholder:text-[#71717B]"
+                                  }`}
                               />
                             </div>
+
+                            {/* Cost Input & Action Button Container */}
                             <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
                               <div className="flex-1 relative">
-                                <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                  <span className="text-xs text-[#8A8A8A] font-normal">
+                                <div className={`absolute -top-3 left-4 z-10 px-3 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                                  <span className={`text-xs font-normal transition-colors ${isDark ? "text-[#8A8A8A]" : "text-[#000000]/50"
+                                    }`}>
                                     Cost
                                   </span>
                                 </div>
@@ -5490,25 +6145,32 @@ export default function CreateQuotePage() {
                                     )
                                   }
                                   inputMode="decimal"
-                                  className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                                  className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-sm lg:text-base transition-all ${isDark
+                                    ? "border-[#4A4A4A] focus:border-[#A78857] text-white placeholder:text-[#666666]"
+                                    : "border-[#000000]/15 focus:border-[#8E826A] text-[#171717] placeholder:text-[#71717B]"
+                                    }`}
                                 />
                               </div>
+
+                              {/* Submit Action Button */}
                               <button
+                                type="button"
                                 onClick={handleCreateService}
                                 disabled={
                                   isSubmittingService ||
                                   !customServiceName ||
                                   !customServiceCost
                                 }
-                                className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingService ||
-                                  !customServiceName ||
-                                  !customServiceCost
-                                  ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
-                                  : "bg-[#101010] text-[#16A34A]"
+                                className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingService || !customServiceName || !customServiceCost
+                                  ? "opacity-40 cursor-not-allowed"
+                                  : "hover:scale-[1.02] active:scale-[0.98]"
+                                  } ${isDark
+                                    ? "bg-[#101010] text-[#16A34A]"
+                                    : "bg-[#F4F5F7] text-[#16A34A]"
                                   }`}
                               >
                                 {isSubmittingService ? (
-                                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                  <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark ? "border-white/20 border-t-white" : "border-black/20 border-t-black"}`} />
                                 ) : (
                                   <Check size={24} strokeWidth={3} />
                                 )}
@@ -5528,193 +6190,216 @@ export default function CreateQuotePage() {
                   {/* <div className="space-y-4 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"> */}
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Shoot Type Section */}
-                    {(hasVideoService || hasPhotoService) && (
-                      <div className="">
-                        <hr className="border-t border-[#3D3D3D]" />
-                        {hasVideoService &&
-                          renderShootTypeSection({
-                            kind: "video",
-                            isExpanded: isVideoShootTypeExpanded,
-                            onToggleExpanded: () =>
-                              setIsVideoShootTypeExpanded((prev) => !prev),
-                            shootTypeOptions: videoShootTypes,
-                            selectedId: selectedVideoShootType,
-                          })}
-                        {hasPhotoService && (
-                          <>
-                            {hasVideoService && (
-                              <hr className="border-t border-[#3D3D3D]" />
-                            )}
-                            {renderShootTypeSection({
-                              kind: "photo",
-                              isExpanded: isPhotoShootTypeExpanded,
+                    {
+                      (hasVideoService || hasPhotoService) && (
+                        <div className="">
+                          <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/15"}`} />
+                          {hasVideoService &&
+                            renderShootTypeSection({
+                              kind: "video",
+                              isExpanded: isVideoShootTypeExpanded,
                               onToggleExpanded: () =>
-                                setIsPhotoShootTypeExpanded((prev) => !prev),
-                              shootTypeOptions: photoShootTypes,
-                              selectedId: selectedPhotoShootType,
+                                setIsVideoShootTypeExpanded((prev) => !prev),
+                              shootTypeOptions: videoShootTypes,
+                              selectedId: selectedVideoShootType,
+                              isDark: isDark
                             })}
-                          </>
-                        )}
-                      </div>
-                    )}
+                          {hasPhotoService && (
+                            <>
+                              {hasVideoService && (
+                                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/15"}`} />
+                              )}
+                              {renderShootTypeSection({
+                                kind: "photo",
+                                isExpanded: isPhotoShootTypeExpanded,
+                                onToggleExpanded: () =>
+                                  setIsPhotoShootTypeExpanded((prev) => !prev),
+                                shootTypeOptions: photoShootTypes,
+                                selectedId: selectedPhotoShootType,
+                                isDark: isDark
+                              })}
+                            </>
+                          )}
+                        </div>
+                      )
+                    }
 
                     {/* Editing Types Section */}
-                    {hasEditingTypeContext && (
-                      <div className="">
-                        <hr className="border-t border-[#3D3D3D]" />
-                        <section className="px-4 py-5 lg:p-8">
-                          <button
-                            onClick={() =>
-                              setIsEditingTypeExpanded(!isEditingTypeExpanded)
-                            }
-                            className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
-                          >
-                            <h2 className="text-base lg:text-xl font-medium text-white">
-                              Editing Types
-                            </h2>
-                            <div className="text-zinc-600 transition-transform duration-300">
-                              {isEditingTypeExpanded ? (
-                                <ChevronDown size={22} className="rotate-180" />
-                              ) : (
-                                <ChevronDown size={22} />
-                              )}
-                            </div>
-                          </button>
+                    {
+                      hasEditingTypeContext && (
+                        <div className="">
+                          <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E8D1AB]/30"}`} />
+                          <section className="px-4 py-5 lg:p-8">
+                            <button
+                              onClick={() =>
+                                setIsEditingTypeExpanded(!isEditingTypeExpanded)
+                              }
+                              className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
+                            >
+                              <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                Editing Types
+                              </h2>
+                              <div className={`${isDark ? "text-zinc-600" : "text-zinc-400"} transition-transform duration-300`}>
+                                {isEditingTypeExpanded ? (
+                                  <ChevronDown size={22} className="rotate-180" />
+                                ) : (
+                                  <ChevronDown size={22} />
+                                )}
+                              </div>
+                            </button>
 
-                          <AnimatePresence>
-                            {isEditingTypeExpanded && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  {loadingEditingTypes ? (
-                                    <div className="col-span-full flex justify-center py-8">
-                                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#E8D1AB]" />
-                                    </div>
-                                  ) : editingTypeOptions.length === 0 ? (
-                                    <div className="col-span-full rounded-xl border border-dashed border-[#4A4A4A] px-5 py-6 text-sm text-[#8A8A8A]">
-                                      No editing types found.
-                                    </div>
-                                  ) : (
-                                    editingTypeOptions.map((type) => {
-                                      const canDeleteShootType =
-                                        canDeleteShootTypeItem(type);
+                            <AnimatePresence>
+                              {isEditingTypeExpanded && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: "auto" }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {loadingEditingTypes ? (
+                                      <div className="col-span-full flex justify-center py-8">
+                                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#E8D1AB]" />
+                                      </div>
+                                    ) : editingTypeOptions.length === 0 ? (
+                                      <div className={`col-span-full rounded-xl border border-dashed px-5 py-6 text-sm ${isDark
+                                        ? "border-[#4A4A4A] text-[#8A8A8A]"
+                                        : "border-[#E8D1AB]/60 text-[#727272] bg-white/50"
+                                        }`}>
+                                        No editing types found.
+                                      </div>
+                                    ) : (
+                                      editingTypeOptions.map((type) => {
+                                        const canDeleteShootType =
+                                          canDeleteShootTypeItem(type);
 
-                                      return (
-                                        <div key={type.id} className="relative">
+                                        return (
+                                          <div key={type.id} className="relative">
+                                            <button
+                                              onClick={() =>
+                                                setSelectedEditingTypes((prev) =>
+                                                  prev.includes(type.id)
+                                                    ? prev.filter((id) => id !== type.id)
+                                                    : [...prev, type.id]
+                                                )
+                                              }
+                                              className={`h-10 w-full lg:h-[52px] px-6 pr-11 rounded-xl font-medium transition-all border text-sm lg:text-base text-center lg:text-left leading-tight tracking-tight ${selectedEditingTypes.includes(type.id)
+                                                ? isDark ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner" : "bg-[#FFF7E6] border-[#E8D1AB] text-black shadow-inner"
+                                                : isDark
+                                                  ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                                                  : "bg-white border-[#D7D7D7] text-zinc-700 hover:border-[#E8D1AB]/80 hover:bg-[#FFFCF6]"
+                                                }`}
+                                            >
+                                              <span className="block w-full truncate pr-2">
+                                                {type.label}
+                                              </span>
+                                            </button>
+                                            {canDeleteShootType && (
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleDeleteShootType("editing", type.id);
+                                                }}
+                                                className={`absolute right-3 top-1/2 z-10 -translate-y-1/2 transition-colors hover:text-red-500 ${isDark ? "text-[#727272]" : "text-[#FF6467]"}`}
+                                              >
+                                                <Trash2 size={16} />
+                                              </button>
+                                            )}
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+
+                                  <div className="mt-8 space-y-6">
+                                    <Button
+                                      onClick={() =>
+                                        setShowAddEditingTypeForm(
+                                          !showAddEditingTypeForm,
+                                        )
+                                      }
+                                      className={`h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none ${isDark
+                                        ? "bg-[#F0DCB1] text-black hover:bg-[#e7d09e]"
+                                        : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                                        }`}
+                                    >
+                                      <Plus size={16} strokeWidth={3} />
+                                      Add Editing Types
+                                    </Button>
+
+                                    <AnimatePresence>
+                                      {showAddEditingTypeForm && (
+                                        <motion.div
+                                          initial={{ opacity: 0, y: -10 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          exit={{ opacity: 0, y: -10 }}
+                                          className="flex gap-4 items-end"
+                                        >
+                                          <div className="flex-1 relative">
+                                            <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-[#FFFCF6]"}`}>
+                                              <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>
+                                                Editing Type Name
+                                              </span>
+                                            </div>
+                                            <Input
+                                              placeholder="Eg : Reel Editing..."
+                                              value={customEditingType}
+                                              onChange={(e) =>
+                                                setCustomEditingType(
+                                                  clampTextLength(e.target.value),
+                                                )
+                                              }
+                                              maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
+                                              className={`h-[84px] rounded-[14px] pl-7 text-base ${isDark
+                                                ? "bg-transparent border-[#4A4A4A] focus:border-[#A78857] text-white placeholder:text-[#666666]"
+                                                : "bg-white border-[#D7D7D7] focus:border-[#E8D1AB] text-black placeholder:text-zinc-400"
+                                                }`}
+                                            />
+                                          </div>
                                           <button
-                                            onClick={() =>
-                                              setSelectedEditingTypes((prev) =>
-                                                prev.includes(type.id)
-                                                  ? prev.filter((id) => id !== type.id)
-                                                  : [...prev, type.id]
-                                              )
+                                            type="button"
+                                            onClick={handleCreateEditingType}
+                                            disabled={
+                                              isSubmittingEditingType ||
+                                              !customEditingType.trim()
                                             }
-                                            className={`h-10 w-full lg:h-[52px] px-6 pr-11 rounded-xl font-medium transition-all border text-sm lg:text-base text-center lg:text-left leading-tight tracking-tight ${selectedEditingTypes.includes(type.id)
-                                              ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                                              : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                                            className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingEditingType || !customEditingType.trim()
+                                              ? isDark
+                                                ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                                                : "bg-[#00000033] text-zinc-400 cursor-not-allowed opacity-50"
+                                              : isDark
+                                                ? "bg-[#101010] text-[#16A34A]"
+                                                : "bg-black text-[#16A34A] hover:bg-black"
                                               }`}
                                           >
-                                            <span className="block w-full truncate pr-2">
-                                              {type.label}
-                                            </span>
+                                            {isSubmittingEditingType ? (
+                                              <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark
+                                                ? "border-black/20 border-t-black"
+                                                : "border-zinc-300 border-t-zinc-600"
+                                                }`} />
+                                            ) : (
+                                              <Check size={22} strokeWidth={3} />
+                                            )}
                                           </button>
-                                          {canDeleteShootType && (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteShootType("editing", type.id);
-                                              }}
-                                              className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500 transition-colors hover:text-red-500"
-                                            >
-                                              <Trash2 size={16} />
-                                            </button>
-                                          )}
-                                        </div>
-                                      );
-                                    })
-                                  )}
-                                </div>
-
-                                <div className="mt-8 space-y-6">
-                                  <Button
-                                    onClick={() =>
-                                      setShowAddEditingTypeForm(
-                                        !showAddEditingTypeForm,
-                                      )
-                                    }
-                                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
-                                  >
-                                    <Plus size={16} strokeWidth={3} />
-                                    Add Editing Types
-                                  </Button>
-
-                                  <AnimatePresence>
-                                    {showAddEditingTypeForm && (
-                                      <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="flex gap-4 items-end"
-                                      >
-                                        <div className="flex-1 relative">
-                                          <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                            <span className="text-xs text-[#8A8A8A] font-normal">
-                                              Editing Type Name
-                                            </span>
-                                          </div>
-                                          <Input
-                                            placeholder="Eg : Reel Editing..."
-                                            value={customEditingType}
-                                            onChange={(e) =>
-                                              setCustomEditingType(
-                                                clampTextLength(e.target.value),
-                                              )
-                                            }
-                                            maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
-                                            className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                                          />
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={handleCreateEditingType}
-                                          disabled={
-                                            isSubmittingEditingType ||
-                                            !customEditingType.trim()
-                                          }
-                                          className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingEditingType ||
-                                            !customEditingType.trim()
-                                            ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
-                                            : "bg-[#101010] text-[#16A34A]"
-                                            }`}
-                                        >
-                                          {isSubmittingEditingType ? (
-                                            <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                                          ) : (
-                                            <Check size={22} strokeWidth={3} />
-                                          )}
-                                        </button>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </section>
-                      </div>
-                    )}
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </section>
+                        </div>
+                      )
+                    }
 
                     {/* Configure Selected Services */}
                     <>
-                      <hr className="border-t border-[#3D3D3D]" />
+                      <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/15"}`} />
                       <section className="px-4 py-5 lg:p-8">
                         <div className="mb-4 lg:mb-8">
-                          <h2 className="text-base lg:text-xl font-medium text-white">
+                          <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                             Configure Selected Services
                           </h2>
                         </div>
@@ -5756,8 +6441,8 @@ export default function CreateQuotePage() {
                               const serviceTotal = isEditingService
                                 ? quantity * estimatedPrice
                                 : config.duration *
-                                  config.crewSize *
-                                  config.estimatedPrice;
+                                config.crewSize *
+                                config.estimatedPrice;
                               const cardKey = isEditingService
                                 ? `${serviceId}-${editingTypeId || "editing"}-${index}`
                                 : serviceId;
@@ -5765,258 +6450,280 @@ export default function CreateQuotePage() {
                               return (
                                 <div
                                   key={cardKey}
-                                  className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden"
+                                  className={`border rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden transition-colors ${isDark
+                                    ? "bg-[#0F0F0F] border-[#4A4A4A]"
+                                    : "bg-[#F4F5F7] border-[#D7D7D7]"
+                                    }`}
                                 >
-                                <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
-                                  <div className="min-w-0 flex-1 space-y-2">
-                                    <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
-                                      {isEditingServiceLabel(service.label) ? (
-                                        <>
-                                          Editing Type - <span className="break-words text-[#8E826A]">{editingLabel || "Not selected"}</span>
-                                        </>
-                                      ) : shootTypeLabel ? (
-                                        <>
-                                          {getServiceDisplayLabel(service.label)} -{" "}
-                                          <span className="break-words text-[#8E826A]">
-                                            ({shootTypeLabel})
-                                          </span>
-                                        </>
-                                      ) : (
-                                        <>{getServiceDisplayLabel(service.label)}</>
-                                      )}
-                                    </h3>
-                                    <p className="text-[#8A8A8A] text-xs font-normal">
-                                      Base: ${service.price.toFixed(2)} per hour
-                                    </p>
-                                  </div>
-                                  <div className="flex shrink-0 items-center gap-5">
-                                    <div className="hidden lg:flex flex-col items-end gap-1">
-                                      <span className="text-[#7B7B85] text-xs font-normal">
-                                        Total
-                                      </span>
-                                      <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">
-                                        ${serviceTotal.toFixed(2).toLocaleString()}
-                                        {/* service.price.toFixed(2) */}
-                                      </span>
+                                  <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                      <h3 className={`flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug ${isDark ? "text-white" : "text-black"}`}>
+                                        {isEditingServiceLabel(service.label) ? (
+                                          <>
+                                            Editing Type - <span className={`break-words ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{editingLabel || "Not selected"}</span>
+                                          </>
+                                        ) : shootTypeLabel ? (
+                                          <>
+                                            {getServiceDisplayLabel(service.label)} -{" "}
+                                            <span className={`break-words ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+                                              ({shootTypeLabel})
+                                            </span>
+                                          </>
+                                        ) : (
+                                          <>{getServiceDisplayLabel(service.label)}</>
+                                        )}
+                                      </h3>
+                                      <p className={`${isDark ? "text-[#8A8A8A]" : "text-[#727272]"} text-xs font-normal`}>
+                                        Base: ${service.price.toFixed(2)} per hour
+                                      </p>
                                     </div>
-                                    {index === 0 && (
-                                      <button
-                                        onClick={() =>
-                                          setSelectedServices((prev) =>
-                                            prev.filter((id) => id !== serviceId),
-                                          )
-                                        }
-                                        className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                                      >
-                                        <Trash2 size={18} />
-                                      </button>
-                                    )}
+                                    <div className="flex shrink-0 items-center gap-5">
+                                      <div className="hidden lg:flex flex-col items-end gap-1">
+                                        <span className={`${isDark ? "text-[#71717B]" : "text-[#727272]"} text-xs font-normal`}>
+                                          Total
+                                        </span>
+                                        <span className={`text-xl font-semibold tracking-tight leading-none ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"}`}>
+                                          ${serviceTotal.toFixed(2).toLocaleString()}
+                                        </span>
+                                      </div>
+                                      {index === 0 && (
+                                        <button
+                                          onClick={() =>
+                                            setSelectedServices((prev) =>
+                                              prev.filter((id) => id !== serviceId),
+                                            )
+                                          }
+                                          className={`w-10 h-10 rounded-full border border-transparent flex items-center justify-center text-[#FF6467] transition-all ${isDark
+                                            ? "bg-[#323232] hover:bg-[#2A2A2A]"
+                                            : "bg-white hover:bg-[#FF6467]"
+                                            }`}
+                                        >
+                                          <Trash2 size={18} />
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
 
-                                <div className="my-3 lg:my-6 border-t border-[#303030]" />
+                                  <div className={`my-3 lg:my-6 border-t ${isDark ? "border-[#303030]" : "border-[#00000033]"}`} />
 
-                                <div className="flex lg:hidden justify-between items-center gap-1">
-                                  <span className="text-[#7B7B85] text-sm font-normal">
-                                    Total
-                                  </span>
-                                  <span className="font-semibold text-[#F0DCB1] tracking-tight leading-none">
-                                    ${serviceTotal.toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="lg:hidden my-4 lg:my-8 border-t border-[#303030]" />
+                                  <div className="flex lg:hidden justify-between items-center gap-1">
+                                    <span className={`${isDark ? "text-[#71717B]" : "text-[#727272]"} text-sm font-normal`}>
+                                      Total
+                                    </span>
+                                    <span className={`font-semibold tracking-tight leading-none ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"}`}>
+                                      ${serviceTotal.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className={`lg:hidden my-4 lg:my-8 border-t ${isDark ? "border-[#303030]" : "border-[#00000033]"}`} />
 
-                                <div className={`grid grid-cols-1 ${isEditingService ? "md:grid-cols-2" : "md:grid-cols-3"} gap-3 lg:gap-6`}>
-                                  {!isEditingService && (
+                                  <div className={`grid grid-cols-1 ${isEditingService ? "md:grid-cols-2" : "md:grid-cols-3"} gap-3 lg:gap-6`}>
+                                    {!isEditingService && (
+                                      <div className="flex flex-col gap-2">
+                                        <span className={`text-sm font-normal ${isDark ? "text-[#9A9AA4]" : "text-[#727272]"}`}>
+                                          Duration (hours)
+                                        </span>
+                                        <div className="flex items-center gap-2 h-9">
+                                          <button
+                                            onClick={() =>
+                                              handleConfigUpdate(
+                                                serviceId,
+                                                "duration",
+                                                config.duration - 0.5,
+                                              )
+                                            }
+                                            className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 text-black ${isDark
+                                              ? "bg-[#F0DCB1] hover:opacity-90"
+                                              : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                                              }`}
+                                          >
+                                            <Minus size={16} strokeWidth={2.5} />
+                                          </button>
+                                          <div className={`flex-1 h-full flex items-center justify-center border rounded-[8px] font-normal text-sm ${isDark
+                                            ? "bg-[#1A1A1F] border-[#3B3B46] text-white"
+                                            : "bg-white border-[#D7D7D7] text-black"
+                                            }`}>
+                                            {config.duration}
+                                          </div>
+                                          <button
+                                            onClick={() =>
+                                              handleConfigUpdate(
+                                                serviceId,
+                                                "duration",
+                                                config.duration + 0.5,
+                                              )
+                                            }
+                                            className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 ${isDark
+                                              ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                              : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                                              }`}
+                                          >
+                                            <Plus size={16} strokeWidth={2.5} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+
                                     <div className="flex flex-col gap-2">
-                                      <span className="text-sm font-normal text-[#9A9AA4]">
-                                        Duration (hours)
+                                      <span className={`text-sm font-normal ${isDark ? "text-[#9A9AA4]" : "text-[#727272]"}`}>
+                                        {isEditingService ? "Quantity" : "Crew Size"}
                                       </span>
                                       <div className="flex items-center gap-2 h-9">
                                         <button
                                           onClick={() =>
-                                            handleConfigUpdate(
-                                              serviceId,
-                                              "duration",
-                                              config.duration - 1,
-                                            )
+                                            isEditingService
+                                              ? setEditingTypeConfigs((prev) => ({
+                                                ...prev,
+                                                [editingTypeId]: {
+                                                  quantity: Math.max(1, quantity - 1),
+                                                  estimatedPrice,
+                                                },
+                                              }))
+                                              : handleConfigUpdate(
+                                                serviceId,
+                                                "crewSize",
+                                                config.crewSize - 1,
+                                              )
                                           }
-                                          className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                          className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 ${isDark
+                                            ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                            : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                                            }`}
                                         >
                                           <Minus size={16} strokeWidth={2.5} />
                                         </button>
-                                        <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                          {config.duration}
+                                        <div className={`flex-1 h-full flex items-center justify-center border rounded-[8px] font-normal text-sm ${isDark
+                                          ? "bg-[#1A1A1F] border-[#3B3B46] text-white"
+                                          : "bg-white border-[#D7D7D7] text-black"
+                                          }`}>
+                                          {isEditingService ? quantity : config.crewSize}
                                         </div>
                                         <button
                                           onClick={() =>
-                                            handleConfigUpdate(
-                                              serviceId,
-                                              "duration",
-                                              config.duration + 1,
-                                            )
+                                            isEditingService
+                                              ? setEditingTypeConfigs((prev) => ({
+                                                ...prev,
+                                                [editingTypeId]: {
+                                                  quantity: Math.max(1, quantity + 1),
+                                                  estimatedPrice,
+                                                },
+                                              }))
+                                              : handleConfigUpdate(
+                                                serviceId,
+                                                "crewSize",
+                                                config.crewSize + 1,
+                                              )
                                           }
-                                          className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                          className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 ${isDark
+                                            ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                            : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                                            }`}
                                         >
                                           <Plus size={16} strokeWidth={2.5} />
                                         </button>
                                       </div>
                                     </div>
-                                  )}
 
-                                  <div className="flex flex-col gap-2">
-                                    <span className="text-sm font-normal text-[#9A9AA4]">
-                                      {isEditingService ? "Quantity" : "Crew Size"}
-                                    </span>
-                                    <div className="flex items-center gap-2 h-9">
-                                      <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity: Math.max(1, quantity - 1),
-                                                estimatedPrice,
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "crewSize",
-                                              config.crewSize - 1,
-                                            )
-                                        }
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Minus size={16} strokeWidth={2.5} />
-                                      </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                        {isEditingService ? quantity : config.crewSize}
-                                      </div>
-                                      <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity: Math.max(1, quantity + 1),
-                                                estimatedPrice,
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "crewSize",
-                                              config.crewSize + 1,
-                                            )
-                                        }
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Plus size={16} strokeWidth={2.5} />
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Estimated Pricing */}
-                                  <div className="flex flex-col gap-2">
-                                    <span className="text-sm font-normal text-[#9A9AA4]">
-                                      Estimated Pricing
-                                    </span>
-                                    <div className="flex items-center gap-2 h-9">
-                                      <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: Math.max(0, estimatedPrice - 50),
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "estimatedPrice",
-                                              config.estimatedPrice - 50,
-                                            )
-                                        }
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Minus size={16} strokeWidth={2.5} />
-                                      </button>
-                                      <Input
-                                        value={getEstimatedPriceInputValue(
-                                          estimatedPriceInputKey,
-                                          isEditingService
-                                            ? estimatedPrice
-                                            : getServiceDraftPrice(serviceId),
-                                        )}
-                                        onFocus={(e) => {
-                                          setEstimatedPriceDraftValue(
-                                            estimatedPriceInputKey,
-                                            e.target.value,
-                                          );
-                                        }}
-                                        onChange={(e) =>
-                                          setEstimatedPriceDraftValue(
-                                            estimatedPriceInputKey,
-                                            e.target.value,
-                                          )
-                                        }
-                                        onBlur={() =>
-                                          commitEstimatedPriceDraftValue(
+                                    {/* Estimated Pricing */}
+                                    <div className="flex flex-col gap-2">
+                                      <span className={`text-sm font-normal ${isDark ? "text-[#9A9AA4]" : "text-[#727272]"}`}>
+                                        Estimated Pricing
+                                      </span>
+                                      <div className="flex items-center gap-2 h-9">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const current = isEditingService ? estimatedPrice : config.estimatedPrice;
+                                            const val = Math.max(0, current - 50);
+                                            if (isEditingService) {
+                                              setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
+                                            } else {
+                                              handleConfigUpdate(serviceId, "estimatedPrice", val);
+                                            }
+                                          }}
+                                          className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 ${isDark
+                                            ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                            : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                                            }`}
+                                        >
+                                          <Minus size={16} strokeWidth={2.5} />
+                                        </button>
+                                        <Input
+                                          value={getEstimatedPriceInputValue(
                                             estimatedPriceInputKey,
                                             isEditingService
                                               ? estimatedPrice
                                               : getServiceDraftPrice(serviceId),
-                                            (nextValue) => {
-                                              if (isEditingService) {
-                                                setEditingTypeConfigs((prev) => ({
-                                                  ...prev,
-                                                  [editingTypeId]: {
-                                                    quantity,
-                                                    estimatedPrice: nextValue,
-                                                  },
-                                                }));
-                                                return;
-                                              }
-
-                                              handleServicePriceUpdate(
-                                                serviceId,
-                                                String(nextValue),
-                                              );
-                                            },
-                                          )
-                                        }
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter") {
-                                            e.currentTarget.blur();
-                                          }
-                                        }}
-                                        inputMode="decimal"
-                                        className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
-                                      />
-                                      <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: Math.max(0, estimatedPrice + 50),
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "estimatedPrice",
-                                              config.estimatedPrice + 50,
+                                          )}
+                                          onFocus={(e) => {
+                                            setEstimatedPriceDraftValue(
+                                              estimatedPriceInputKey,
+                                              e.target.value,
+                                            );
+                                          }}
+                                          onChange={(e) =>
+                                            setEstimatedPriceDraftValue(
+                                              estimatedPriceInputKey,
+                                              e.target.value,
                                             )
-                                        }
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Plus size={16} strokeWidth={2.5} />
-                                      </button>
+                                          }
+                                          onBlur={() =>
+                                            commitEstimatedPriceDraftValue(
+                                              estimatedPriceInputKey,
+                                              isEditingService
+                                                ? estimatedPrice
+                                                : getServiceDraftPrice(serviceId),
+                                              (nextValue) => {
+                                                if (isEditingService) {
+                                                  setEditingTypeConfigs((prev) => ({
+                                                    ...prev,
+                                                    [editingTypeId]: {
+                                                      quantity,
+                                                      estimatedPrice: nextValue,
+                                                    },
+                                                  }));
+                                                  return;
+                                                }
+
+                                                handleServicePriceUpdate(
+                                                  serviceId,
+                                                  String(nextValue),
+                                                );
+                                              },
+                                            )
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            }
+                                          }}
+                                          inputMode="decimal"
+                                          className={`flex-1 h-full border rounded-[8px] font-normal text-sm text-center ${isDark
+                                            ? "bg-[#1A1A1F] border-[#3B3B46] text-white focus:border-[#A78857]"
+                                            : "bg-white border-[#D7D7D7] text-black focus:border-[#E8D1AB]"
+                                            }`}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const current = isEditingService ? estimatedPrice : config.estimatedPrice;
+                                            const val = current + 50;
+                                            if (isEditingService) {
+                                              setEditingTypeConfigs(p => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
+                                            } else {
+                                              handleConfigUpdate(serviceId, "estimatedPrice", val);
+                                            }
+                                          }}
+                                          className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 ${isDark
+                                            ? "bg-[#F0DCB1] text-black hover:opacity-90"
+                                            : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                                            }`}
+                                        >
+                                          <Plus size={16} strokeWidth={2.5} />
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
                               );
                             });
                           })}
@@ -6031,34 +6738,49 @@ export default function CreateQuotePage() {
             /* Client Selector View */
             <div>
               <div className="px-7 pt-7 lg:px-8 lg:pt-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">
+                <h2 className={`text-base lg:text-xl font-medium mb-1 transition-colors ${isDark ? "text-white" : "text-[#000000]"
+                  }`}>
                   Client Information
                 </h2>
-                <p className="text-sm text-[#A1A1AA]">
+                <p className={`text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"
+                  }`}>
                   Select an existing client or create a new one
                 </p>
               </div>
 
-              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
+              {/* Section Divider Line */}
+              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"
+                }`} />
 
               <div className="px-7 pb-9 lg:px-8 lg:pb-10">
                 <div className="relative max-w-full">
-                  <div className="absolute -top-3 left-5 z-10 px-3 bg-[#171717]">
-                    <span className="text-sm text-[#A1A1AA] font-normal tracking-[0.01em]">
+                  {/* Floating Field Label Input Frame */}
+                  <div className={`absolute -top-3 left-5 z-10 px-3 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"
+                    }`}>
+                    <span className={`text-sm font-normal tracking-[0.01em] transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"
+                      }`}>
                       Select Client
                     </span>
                   </div>
 
-                  <div className="relative border border-[#4A4A4A] rounded-xl bg-transparent">
+                  {/* Main Select Button Container */}
+                  <div className={`relative border rounded-xl bg-transparent transition-colors ${isDark ? "border-[#4A4A4A]" : "border-[#000000]/15"
+                    }`}>
                     <button
                       onClick={() => {
                         setIsDetailsClientDropdownOpen(false);
                         setIsDropdownOpen(!isDropdownOpen);
                       }}
-                      className={`w-full group bg-transparent rounded-xl px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? "ring-1 ring-[#8E826A]/30" : ""}`}
+                      className={`w-full group bg-transparent rounded-xl px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen
+                        ? isDark
+                          ? "ring-1 ring-[#8E826A]/30"
+                          : "ring-1 ring-[#8E826A]/40 bg-[#000000]/[0.01]"
+                        : ""
+                        }`}
                     >
                       {selectedClient ? (
-                        <span className="flex min-w-0 items-center gap-2 text-white text-[16px] font-normal">
+                        <span className={`flex min-w-0 items-center gap-2 text-[16px] font-normal transition-colors ${isDark ? "text-white" : "text-[#000000]"
+                          }`}>
                           <span className="truncate">
                             {getClientDisplayName(selectedClient)}
                           </span>
@@ -6075,7 +6797,8 @@ export default function CreateQuotePage() {
                       )}
                       <ChevronDown
                         size={20}
-                        className={`text-[#E5E5E5] transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+                        className={`transition-transform duration-300 ${isDark ? "text-[#E5E5E5]" : "text-[#000000]/60"
+                          } ${isDropdownOpen ? "rotate-180" : ""}`}
                       />
                     </button>
 
@@ -6093,22 +6816,21 @@ export default function CreateQuotePage() {
           ) : view === "customlineitems" ? (
             <div>
               <div className="p-4 pt-5 lg:p-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">
+                <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>
                   Custom Line Items
                 </h2>
-                <p className="text-sm text-[#A1A1AA]">
-                  Add any custom charges or fees not covered by services or
-                  add-ons
+                <p className={`text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+                  Add any custom charges or fees not covered by services or add-ons
                 </p>
               </div>
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
               <div className="p-4 lg:p-8">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                   <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
                     <div className="flex-1 relative w-full">
-                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-xs text-[#8A8A8A] font-normal">
+                      <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                        <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>
                           Item Name
                         </span>
                       </div>
@@ -6119,42 +6841,47 @@ export default function CreateQuotePage() {
                           setCustomItemName(clampTextLength(e.target.value))
                         }
                         maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
-                        className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
+                          ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
+                          : "border-[#D7D7D7] text-black placeholder:text-[#9F9FA9] focus:border-[#000]/30"
+                          }`}
                       />
                     </div>
                     <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
                       <div className="flex-1 relative">
-                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                          <span className="text-xs text-[#8A8A8A] font-normal">
+                        <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                          <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>
                             Cost
                           </span>
                         </div>
-                      <Input
-                        placeholder="$ 0.00"
-                        value={customItemCost}
-                        onChange={(e) =>
-                          setCustomItemCost(sanitizeCurrencyInput(e.target.value))
-                        }
-                        inputMode="decimal"
-                        className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                      />
+                        <Input
+                          placeholder="$ 0.00"
+                          value={customItemCost}
+                          onChange={(e) =>
+                            setCustomItemCost(sanitizeCurrencyInput(e.target.value))
+                          }
+                          inputMode="decimal"
+                          className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
+                            ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
+                            : "border-[#D7D7D7] text-black placeholder:text-[#9F9FA9] focus:border-[#000]/30"
+                            }`}
+                        />
                       </div>
                       <button
                         onClick={handleCreateLineItem}
-                        disabled={
-                          isSubmittingLineItem ||
-                          !customItemName ||
-                          !customItemCost
-                        }
-                        className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingLineItem ||
-                          !customItemName ||
-                          !customItemCost
-                          ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
-                          : "bg-[#101010] text-[#16A34A]"
+                        disabled={isSubmittingLineItem || !customItemName || !customItemCost}
+                        className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingLineItem || !customItemName || !customItemCost
+                          ? isDark
+                            ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                            : "bg-[#F4F5F7] text-[#9F9FA9] cursor-not-allowed"
+                          : isDark
+                            ? "bg-[#101010] text-[#16A34A]"
+                            : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
                           }`}
                       >
                         {isSubmittingLineItem ? (
-                          <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                          <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark ? "border-white/20 border-t-white" : "border-black/20 border-t-black"
+                            }`} />
                         ) : (
                           <Check size={24} strokeWidth={3} />
                         )}
@@ -6164,33 +6891,34 @@ export default function CreateQuotePage() {
                 </div>
               </div>
 
-              <hr className="border-t border-[#3D3D3D]" />
-              {
-                lineItems.length > 0 &&
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
+
+              {/* Created Line Items List */}
+              {lineItems.length > 0 && (
                 <div className="space-y-4 lg:space-y-6 p-4 lg:p-8 lg:pb-6">
                   {lineItems.map((item) => {
                     const config = lineItemConfigs[item.id];
-                    const isProtectedLineItem = isProtectedLineItemLabel(
-                      item.label,
-                    );
-                    const canEditLineItem = Boolean(
-                      getPositiveCatalogItemId(item.id),
-                    );
+                    const isProtectedLineItem = isProtectedLineItemLabel(item.label);
+                    const canEditLineItem = Boolean(getPositiveCatalogItemId(item.id));
 
                     return (
                       <div
                         key={item.id}
-                        className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden"
+                        className={`rounded-xl p-4 lg:p-5 relative overflow-hidden border ${isDark
+                          ? "bg-[#111111] border-[#FFFFFF80]"
+                          : "bg-zinc-50 border-[#D7D7D7]"
+                          }`}
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                          <div className="min-w-0 flex-1 pr-2 lg:flex lg:flex-col lg:justify-between lg:gap-1">
+                          <div className="min-w-0 flex-1 pr-2 flex lg:flex-col items-center justify-between lg:items-start lg:gap-1">
                             <h3
                               title={item.label}
-                              className="max-w-full truncate text-base font-medium text-white leading-snug"
+                              className={`max-w-full truncate text-sm lg:text-lg font-medium leading-snug ${isDark ? "text-white" : "text-black"}`}
                             >
                               {item.label}
                             </h3>
-                            <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                            <p className={`text-sm lg:text-lg font-semibold tracking-tight leading-none ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"
+                              }`}>
                               $
                               {item.basePrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
@@ -6199,24 +6927,10 @@ export default function CreateQuotePage() {
                             </p>
                           </div>
 
-                          <hr className="lg:hidden border-t border-[#3D3D3D]" />
+                          <hr className={`lg:hidden border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
                           <div className="flex shrink-0 items-center gap-6">
                             <div className="relative w-2/3 lg:w-36">
-                              {/* <Input
-                                value={`$ ${config?.price || 0}`}
-                                onChange={(e) => {
-                                  const val =
-                                    parseFloat(
-                                      e.target.value.replace("$ ", ""),
-                                    ) || 0;
-                                  setLineItemConfigs((prev) => ({
-                                    ...prev,
-                                    [item.id]: { price: val },
-                                  }));
-                                }}
-                                className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
-                              /> */}
                               <Input
                                 value={getCurrencyDraftInputValue(
                                   getLineItemPriceInputKey(item.id),
@@ -6261,17 +6975,19 @@ export default function CreateQuotePage() {
                                     e.currentTarget.blur();
                                   }
                                 }}
-                                className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                className={`h-9 text-sm pl-3 rounded-[8px] ${isDark
+                                  ? "bg-[#1A1A1F] border-[#3B3B46] text-white focus:border-[#A78857]"
+                                  : "bg-white border-[#D7D7D7] text-black focus:border-[#B38F43]"
+                                  }`}
                                 inputMode="decimal"
                               />
                             </div>
                             <div className="flex items-center gap-4">
                               {canEditLineItem && (
                                 <button
-                                  onClick={() =>
-                                    openEditCatalogItem(item, "line_item")
-                                  }
-                                  className="text-zinc-500 hover:text-[#E8D1AB] transition-colors"
+                                  onClick={() => openEditCatalogItem(item, "line_item")}
+                                  className={`transition-colors ${isDark ? "text-[#727272] hover:text-[#E8D1AB]" : "text-[#727272] hover:text-black"
+                                    }`}
                                   title="Edit line item"
                                 >
                                   <Pencil size={18} />
@@ -6282,11 +6998,12 @@ export default function CreateQuotePage() {
                                   onClick={() =>
                                     handleDeleteCatalogItem(item.id, "line_item")
                                   }
-                                  className="text-red-500 hover:text-red-400 transition-colors"
+                                  className="text-[#FF6467] hover:text-red-400 transition-colors"
                                 >
                                   <Trash2 size={18} />
                                 </button>
                               )}
+                              <Check size={16} strokeWidth={2} className={`text-[#16A34A]`} />
                             </div>
                           </div>
                         </div>
@@ -6294,13 +7011,17 @@ export default function CreateQuotePage() {
                     );
                   })}
                 </div>
-              }
+              )}
 
-              <div className={`m-4 lg:m-8 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50 ${lineItems.length > 0 ? "!mt-0" : ""}`}>
-                <span className="text-sm lg:text-xl font-medium text-[#FFF]">
+              {/* Summary Total Module */}
+              <div className={`m-4 lg:m-8 rounded-xl p-4 lg:p-6 flex justify-between items-center border ${isDark
+                ? "bg-[#282727] border-[#FFFFFF80]/50"
+                : "bg-[#FFF7E6] border-[#E8D1AB]"
+                } ${lineItems.length > 0 ? "!mt-0" : ""}`}>
+                <span className={`text-sm lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Total Custom Line Items
                 </span>
-                <span className="text-lg lg:text-2xl font-bold text-[#E8D1AB] tracking-tight">
+                <span className={`text-lg lg:text-2xl font-bold tracking-tight ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                   $
                   {totalLineItemsCost.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -6312,30 +7033,25 @@ export default function CreateQuotePage() {
           ) : view === "discounts" ? (
             <div>
               <div className="p-4 pt-5 lg:p-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">
+                <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>
                   Discounts
                 </h2>
-                <p className="text-sm text-[#A1A1AA]">
-                  Add any custom charges or fees not covered by services or
-                  add-ons
+                <p className={`text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+                  Add any custom charges or fees not covered by services or add-ons
                 </p>
               </div>
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
               <div className="p-4 lg:p-8">
                 <div
-                  className={`w-full p-4 lg:p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between bg-[#101010] border-[#FFFFFF80]`}
-                  style={{
-                    fontFamily: "var(--font-instrument-sans), sans-serif",
-                  }}
+                  className={`w-full p-4 lg:p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between ${isDark ? "bg-[#101010] border-[#FFFFFF80]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}
+                  style={{ fontFamily: "var(--font-instrument-sans), sans-serif", }}
                 >
                   <div className="lg:space-y-1">
-                    <h3
-                      className={`text-sm lg:text-lg font-medium tracking-tight text-white`}
-                    >
+                    <h3 className={`text-sm lg:text-lg font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                       Apply Discount
                     </h3>
-                    <p className={`text-sm text-[#888888]`}>
+                    <p className={`text-sm ${isDark ? "text-[#888888]" : "text-[#7D7D7D]"}`}>
                       Add a discount to this quotation
                     </p>
                   </div>
@@ -6343,8 +7059,7 @@ export default function CreateQuotePage() {
                   {/* Custom Toggle Switch */}
                   <button
                     onClick={handleDiscountToggle}
-                    className={`relative w-12 h-[28px] rounded-lg p-1 transition-colors duration-300 flex items-center ${discountEnabled ? "bg-[#E8D1AB]" : "bg-[#333333]"
-                      }`}
+                    className={`relative w-12 h-[28px] rounded-lg p-1 transition-colors duration-300 flex items-center ${discountEnabled ? "bg-[#E8D1AB]" : isDark ? "bg-[#333333]" : "bg-[#484646]"}`}
                   >
                     <motion.div
                       animate={{ x: discountEnabled ? 24 : 0 }}
@@ -6353,8 +7068,7 @@ export default function CreateQuotePage() {
                         stiffness: 500,
                         damping: 30,
                       }}
-                      className={`w-5 h-5 rounded-md shadow-sm transition-colors duration-300 ${discountEnabled ? "bg-white" : "bg-white"
-                        }`}
+                      className={`w-5 h-5 rounded-md shadow-sm transition-colors duration-300 bg-white`}
                     />
                   </button>
                 </div>
@@ -6362,11 +7076,11 @@ export default function CreateQuotePage() {
 
               {discountEnabled ? (
                 <>
-                  <hr className="border-t border-[#3D3D3D]" />
+                  <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
+
+                  {/* Expanded Configurations Form */}
                   <div className="p-4 lg:p-8">
-                    <h3
-                      className={`text-base lg:text-lg font-medium tracking-tight text-white`}
-                    >
+                    <h3 className={`text-base lg:text-lg font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                       Discount Type
                     </h3>
 
@@ -6375,23 +7089,26 @@ export default function CreateQuotePage() {
                       <button
                         onClick={() => handleDiscountTypeSelect("percentage")}
                         className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${discountType === "percentage"
-                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          ? isDark
+                            ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                            : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-inner"
+                          : isDark
+                            ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                            : "bg-[#F4F5F7] border-[#D7D7D7] text-[#727272] hover:border-black/50"
                           }`}
                       >
                         <div
                           className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "percentage"
-                            ? "bg-[#E8D1AB] text-black"
-                            : "bg-[#3F3F47] text-[#888888]"
-                            }`}
+                            ? isDark ? "bg-[#E8D1AB] text-black" : "bg-[#FFFFFF] text-[#09090B]"
+                            : isDark ? "bg-[#3F3F47] text-[#888888]" : "bg-[#FFFFFF] text-[#9F9FA9]"}`}
                         >
                           <Percent size={20} strokeWidth={2.5} />
                         </div>
                         <div>
-                          <h4 className={`font-semibold text-base text-white`}>
+                          <h4 className={`font-semibold text-base ${isDark ? "text-white" : "text-black"}`}>
                             Percentage
                           </h4>
-                          <p className={`text-xs mt-0.5 text-[#888888]`}>
+                          <p className={`text-xs mt-0.5 ${isDark ? "text-[#888888]" : "text-[#727272]"}`}>
                             % off subtotal
                           </p>
                         </div>
@@ -6401,23 +7118,26 @@ export default function CreateQuotePage() {
                       <button
                         onClick={() => handleDiscountTypeSelect("fixed")}
                         className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${discountType === "fixed"
-                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          ? isDark
+                            ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                            : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-inner"
+                          : isDark
+                            ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                            : "bg-[#F4F5F7] border-[#D7D7D7] text-[#727272] hover:border-black/50"
                           }`}
                       >
                         <div
                           className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "fixed"
-                            ? "bg-[#E8D1AB] text-black"
-                            : "bg-[#3F3F47] text-[#888888]"
-                            }`}
+                            ? isDark ? "bg-[#E8D1AB] text-black" : "bg-[#FFFFFF] text-[#09090B]"
+                            : isDark ? "bg-[#3F3F47] text-[#888888]" : "bg-[#FFFFFF] text-[#9F9FA9]"}`}
                         >
                           <DollarSign size={20} strokeWidth={2.5} />
                         </div>
                         <div>
-                          <h4 className={`font-semibold text-base text-white`}>
+                          <h4 className={`font-semibold text-base ${isDark ? "text-white" : "text-black"}`}>
                             Fixed Amount
                           </h4>
-                          <p className={`text-xs mt-0.5 text-[#888888]`}>
+                          <p className={`text-xs mt-0.5 ${isDark ? "text-[#888888]" : "text-[#727272]"}`}>
                             $ off subtotal
                           </p>
                         </div>
@@ -6425,8 +7145,8 @@ export default function CreateQuotePage() {
                     </div>
 
                     <div className="md:col-span-8 relative">
-                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-xs text-[#8A8A8A] font-normal">
+                      <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                        <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>
                           Discount Value
                         </span>
                       </div>
@@ -6435,30 +7155,37 @@ export default function CreateQuotePage() {
                         value={discountValue}
                         onChange={(e) => handleDiscountValueChange(e.target.value, maxDiscountValue)}
                         onBlur={() => handleDiscountValueBlur(maxDiscountValue)}
-                        className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
+                          ? "bg-[#1A1A1F] border-[#3B3B46] text-white focus:border-[#A78857]"
+                          : "bg-white border-[#D7D7D7] text-black focus:border-[#B38F43]"
+                          }`}
                       />
                     </div>
 
-                    <div className="my-6 flex flex-col gap-2">
-                      <div className="flex justify-between text-[#9F9FA9] ">
+                    <div className="my-4 lg:my-6 flex flex-col gap-2">
+                      <div className={`flex justify-between font-normal ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                         <p>Subtotal</p>
                         <p>{formatCurrency(quoteSubtotal)}</p>
                       </div>
-                      <div className="flex justify-between text-[#E8D1AB] font-medium ">
+                      <div className={`flex justify-between font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
                         <p>Discount Applied </p>
                         <p>- {formatCurrency(discountAmount)}</p>
                       </div>
-                      <div className="flex justify-between text-[#9F9FA9] ">
+                      <div className={`flex justify-between font-normal ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                         <p>Total After Discount</p>
                         <p>{formatCurrency(discountedSubtotal)}</p>
                       </div>
                     </div>
 
-                    <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
-                      <span className="text-sm lg:text-xl font-medium text-white">
+                    {/* Final Total Block */}
+                    <div className={`rounded-xl p-4 lg:p-6 flex justify-between items-center border ${isDark
+                      ? "bg-[#282727] border-[#FFFFFF80]/50"
+                      : "bg-[#FFF7E6] border-[#E8D1AB]"
+                      }`}>
+                      <span className={`text-sm lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                         After Discount
                       </span>
-                      <span className="text-lg lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                      <span className={`text-lg lg:text-2xl font-semibold tracking-tight ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                         {formatCurrency(totalAfterDiscount)}
                       </span>
                     </div>
@@ -6467,12 +7194,12 @@ export default function CreateQuotePage() {
               ) : (
                 <div className="flex flex-col gap-5 items-center justify-center my-4 lg:my-11">
                   <Image
-                    src={"/images/misc/DiscountTag.svg"}
+                    src={isDark ? "/images/misc/DiscountTag.svg" : "/images/misc/WhiteDiscount.svg"}
                     width={132}
                     height={132}
                     alt="Discount Tag"
                   />
-                  <p className="text-white text-base">
+                  <p className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                     No discount applied to this quote
                   </p>
                 </div>
@@ -6481,19 +7208,17 @@ export default function CreateQuotePage() {
           ) : view === "tax" ? (
             <div>
               <div className="p-4 pt-5 lg:p-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">
+                <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>
                   Tax
                 </h2>
-                <p className="text-sm text-[#A1A1AA]">
+                <p className={`text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
                   Configure tax rate and type for this quotation
                 </p>
               </div>
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
               <div className="p-4 lg:p-8">
-                <h3
-                  className={`text-base lg:text-lg font-medium tracking-tight text-white`}
-                >
+                <h3 className={`text-base lg:text-lg font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   Common Tax Rates
                 </h3>
 
@@ -6504,15 +7229,20 @@ export default function CreateQuotePage() {
                       setShowCustomTax(false);
                       setTaxRate(0);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                    className={`flex-1 flex items-center justify-center  gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0 && !showCustomTax
+                      ? isDark
+                        ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                        : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-inner"
+                      : isDark
+                        ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                        : "bg-transparent border-[#D7D7D7] text-[#727272] hover:border-black/50"
                       }`}
                   >
                     <div>
-                      <p
-                        className={`${(selectedTax === 0 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
-                      >
+                      <p className={`font-semibold text-sm lg:text-base text-center ${selectedTax === 0 && !showCustomTax
+                        ? isDark ? "text-[#E8D1AB]" : "text-black"
+                        : isDark ? "text-white" : "text-[#00000099]"
+                        }`}>
                         0 %
                       </p>
                     </div>
@@ -6523,14 +7253,20 @@ export default function CreateQuotePage() {
                       setTaxRate(5);
                       setShowCustomTax(false);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner" : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"}
-                      `}
+                    className={`flex-1 flex items-center justify-center  gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5 && !showCustomTax
+                      ? isDark
+                        ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                        : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-inner"
+                      : isDark
+                        ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                        : "bg-transparent border-[#D7D7D7] text-[#727272] hover:border-black/50"
+                      }`}
                   >
                     <div>
-                      <p
-                        className={`${(selectedTax === 5 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
-                      >
+                      <p className={`font-semibold text-sm lg:text-base ${selectedTax === 5 && !showCustomTax
+                        ? isDark ? "text-[#E8D1AB]" : "text-black"
+                        : isDark ? "text-white" : "text-[#00000099]"
+                        }`}>
                         5 %
                       </p>
                     </div>
@@ -6541,15 +7277,20 @@ export default function CreateQuotePage() {
                       setTaxRate(8.5);
                       setShowCustomTax(false);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                    className={`flex-1 flex items-center justify-center  gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5 && !showCustomTax
+                      ? isDark
+                        ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                        : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-inner"
+                      : isDark
+                        ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                        : "bg-transparent border-[#D7D7D7] text-[#727272] hover:border-black/50"
                       }`}
                   >
                     <div>
-                      <p
-                        className={`${(selectedTax === 8.5 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
-                      >
+                      <p className={`font-semibold text-sm lg:text-base ${selectedTax === 8.5 && !showCustomTax
+                        ? isDark ? "text-[#E8D1AB]" : "text-black"
+                        : isDark ? "text-white" : "text-[#00000099]"
+                        }`}>
                         8.5 %
                       </p>
                     </div>
@@ -6560,13 +7301,20 @@ export default function CreateQuotePage() {
                       setTaxRate(10);
                       setShowCustomTax(false);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                    className={`flex-1 flex items-center justify-center  gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10 && !showCustomTax
+                      ? isDark
+                        ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                        : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-inner"
+                      : isDark
+                        ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                        : "bg-transparent border-[#D7D7D7] text-[#727272] hover:border-black/50"
                       }`}
                   >
                     <div>
-                      <p className={`${(selectedTax === 10 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                      <p className={`font-semibold text-sm lg:text-base ${selectedTax === 10 && !showCustomTax
+                        ? isDark ? "text-[#E8D1AB]" : "text-black"
+                        : isDark ? "text-white" : "text-[#00000099]"
+                        }`}>
                         10 %
                       </p>
                     </div>
@@ -6576,13 +7324,20 @@ export default function CreateQuotePage() {
                       setShowCustomTax(true);
                       setSelectedTax(-1);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${showCustomTax
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                    className={`flex-1 flex items-center justify-center  gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${showCustomTax
+                      ? isDark
+                        ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                        : "bg-[#FFF7E6] border-[#E8D1AB] text-[#D4A75D] shadow-inner"
+                      : isDark
+                        ? "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                        : "bg-transparent border-[#D7D7D7] text-[#727272] hover:border-black/50"
                       }`}
                   >
                     <div>
-                      <p className={`${showCustomTax ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                      <p className={`font-semibold text-sm lg:text-base ${showCustomTax
+                        ? isDark ? "text-[#E8D1AB]" : "text-black"
+                        : isDark ? "text-white" : "text-[#00000099]"
+                        }`}>
                         Add Custom Tax Rate
                       </p>
                     </div>
@@ -6590,18 +7345,18 @@ export default function CreateQuotePage() {
                 </div>
               </div>
 
-              {
-                showCustomTax &&
+              {/* Custom Input Form Segment */}
+              {showCustomTax && (
                 <>
-                  <hr className="border-t border-[#3D3D3D]" />
+                  <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
                   <div className="w-full p-4 lg:p-8">
-                    <h2 className="text-base lg:text-lg font-medium text-white mb-4 lg:mb-6">
+                    <h2 className={`text-base lg:text-lg font-medium mb-4 lg:mb-6 ${isDark ? "text-white" : "text-black"}`}>
                       Custom Tax Rate
                     </h2>
                     <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full">
                       <div className="w-full relative">
-                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                          <span className="text-xs text-[#8A8A8A] font-normal">
+                        <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                          <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>
                             Tax Rate (%)
                           </span>
                         </div>
@@ -6611,13 +7366,13 @@ export default function CreateQuotePage() {
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                              setTaxRate(val as any);
+                              setTaxRate(val);
 
                               const numericTax = parseFloat(val);
                               if (!isNaN(numericTax)) {
                                 const presets = [0, 5, 8.5, 10];
                                 if (presets.includes(numericTax) && !val.endsWith(".")) {
-                                  setSelectedTax(numericTax as any);
+                                  setSelectedTax(numericTax);
                                   setShowCustomTax(false);
                                 } else {
                                   setSelectedTax(-1);
@@ -6626,16 +7381,18 @@ export default function CreateQuotePage() {
                               }
                             }
                           }}
-                          // Clean up the value when the user clicks away
                           onBlur={() => {
                             setTaxRate(parseFloat(taxRate.toString()) || 0);
                           }}
-                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                          className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
+                            ? "bg-[#1A1A1F] border-[#3B3B46] text-white focus:border-[#A78857]"
+                            : "bg-white border-[#D7D7D7] text-black focus:border-[#B38F43]"
+                            }`}
                         />
                       </div>
                       <div className="w-full relative">
-                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                          <span className="text-xs text-[#8A8A8A] font-normal">
+                        <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                          <span className={`text-xs font-normal ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>
                             Tax Type
                           </span>
                         </div>
@@ -6643,97 +7400,136 @@ export default function CreateQuotePage() {
                           placeholder="Sales Tax"
                           value={taxType}
                           onChange={(e) => setTaxType(e.target.value)}
-                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                          className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
+                            ? "bg-[#1A1A1F] border-[#3B3B46] text-white focus:border-[#A78857]"
+                            : "bg-white border-[#D7D7D7] text-black focus:border-[#B38F43]"
+                            }`}
                         />
                       </div>
                     </div>
                   </div>
                 </>
-              }
+              )}
 
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
+
+              {/* Live Calculation Table Display */}
               <div className="p-4 lg:p-8">
-                <h3
-                  className={`text-base lg:text-lg font-medium tracking-tight text-white mb-3 lg:mb-6`}
-                >
+                <h3 className={`text-base lg:text-lg font-medium tracking-tight mb-3 lg:mb-6 ${isDark ? "text-white" : "text-black"}`}>
                   Tax Calculation
                 </h3>
 
-                <div className="bg-[#282727] rounded-xl p-4 lg:p-6 ">
-                  <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">
+                <div className={`rounded-xl p-4 lg:p-6 border ${isDark ? "bg-[#282727] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
+
+                  {/* Subtotal Item */}
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       Subtotal
                     </span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                    <span className={`text-sm lg:text-base tracking-tight ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       {formatCurrency(quoteSubtotal)}
                     </span>
                   </div>
-                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+
+                  <div className={`my-4 lg:my-6 border-t ${isDark ? "border-[#FFFFFF33]" : "border-[#E5E7EB]"}`} />
+
+                  {/* Discount Item */}
                   <div className="flex justify-between items-center">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">
+                    <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       Discount Applied
                     </span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                    <span className={`text-sm lg:text-base tracking-tight ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       - {formatCurrency(discountAmount)}
                     </span>
                   </div>
-                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                  <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">Total After Discount</span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+
+                  <div className={`my-4 lg:my-6 border-t ${isDark ? "border-[#FFFFFF33]" : "border-[#E5E7EB]"}`} />
+
+                  {/* Reduced Subtotal */}
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
+                      Total After Discount
+                    </span>
+                    <span className={`text-sm lg:text-base tracking-tight ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       {formatCurrency(discountedSubtotal)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+
+                  {/* Calculated Tax Amount */}
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
+                      {`${taxLabel} (${normalizedTaxRate}%)`}
+                    </span>
+                    <span className={`text-sm lg:text-base tracking-tight ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       {formatCurrency(taxAmount)}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center mt-2 mb-2">
-                    <span className="text-sm lg:text-base text-white font-medium">
+                    <span className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                       Amount After Tax
                     </span>
-                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
+                    <span className={`text-sm lg:text-base font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                       {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
-                  {additionalPaymentDetails ? (
+
+                  {/* Revision Multi-Layer Summary */}
+                  {showQuoteRevisionSummary ? (
                     <>
-                      <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                      <div className={`my-4 lg:my-6 border-t ${isDark ? "border-[#FFFFFF33]" : "border-[#E5E7EB]"}`} />
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            Previously Paid
+                          <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
+                            Old Quote Total
                           </span>
-                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                          <span className={`text-sm lg:text-base tracking-tight ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
+                            {formatCurrency(reviewChangesData.previousTotal)}
                           </span>
                         </div>
+                        {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
+                          <div className="flex justify-between items-center">
+                            <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
+                              Total Paid
+                            </span>
+                            <span className={`text-sm lg:text-base tracking-tight ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
+                              {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                            </span>
+                          </div>
+                        ) : null}
                         <div className="flex justify-between items-center">
-                          <span className="text-sm lg:text-base text-[#9F9FA9]">
-                            Additional Amount
+                          <span className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            {reviewChangesData.delta < 0 ? "Reduced Amount" : "Additional Amount"}
                           </span>
-                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                            {formatCurrency(additionalPaymentDetails.additionalAmount)}
+                          <span className={`text-sm lg:text-base tracking-tight ${reviewChangesData.delta < 0
+                            ? "text-red-500"
+                            : isDark ? "text-[#9F9FA9]" : "text-[#727272]"
+                            }`}>
+                            {reviewChangesData.delta < 0 ? "-" : "+"}{formatCurrency(Math.abs(reviewChangesData.delta))}
                           </span>
                         </div>
+                        {reviewChangesData.delta < 0 &&
+                          additionalPaymentDetails.previouslyPaidAmount > 0 ? (
+                          <p className={`text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#D4A75D]"}`}>
+                            This reduced amount will be added as Beige Credits after approval.
+                          </p>
+                        ) : null}
                       </div>
                     </>
                   ) : null}
 
-                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className={`my-4 lg:my-6 border-t ${isDark ? "border-[#FFFFFF33]" : "border-[#E5E7EB]"}`} />
 
-                  <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-xl font-medium text-white">
-                      Final Total
+                  {/* Global Invoice Target Total Panel */}
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                      New Quote Total
                     </span>
-                    <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
-                      {formatCurrency(totalAfterDiscount)}
+                    <span className={`text-sm lg:text-2xl font-semibold tracking-tight ${isDark ? "text-[#E8D1AB]" : "text-black"
+                      }`}>
+                      {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -6741,27 +7537,33 @@ export default function CreateQuotePage() {
             /* Client Details View */
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="px-5 pt-5 lg:px-8 lg:pt-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">
+                <h2 className={`text-base lg:text-xl font-medium mb-1 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                   Client Information
                 </h2>
-                <p className="text-sm text-[#A1A1AA]">
+                <p className={`text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
                   Select an existing client or create a new one
                 </p>
               </div>
-              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-              <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 lg:pt-2 space-y-6 lg:space-y-8 ">
+              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
+
+              <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 lg:pt-2 space-y-6 lg:space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                  {/* Client Name Input Field */}
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#D3D3D3] font-medium">
+                    <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                         Client Name*
                       </span>
                     </div>
                     <Input
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 pr-14 text-sm lg:text-base"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 pr-14 text-sm lg:text-base ${isDark
+                        ? "border-white/50 text-white focus:border-[#E8D1AB]/50"
+                        : "border-[#000000]/15 text-[#000000] focus:border-[#8E826A]"
+                        }`}
                     />
                     <button
                       type="button"
@@ -6769,7 +7571,7 @@ export default function CreateQuotePage() {
                         setIsDropdownOpen(false);
                         setIsDetailsClientDropdownOpen((prev) => !prev);
                       }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[#E5E5E5] transition-colors hover:text-white"
+                      className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${isDark ? "text-[#E5E5E5] hover:text-white" : "text-[#000000]/60 hover:text-[#000000]"}`}
                     >
                       <ChevronDown
                         size={18}
@@ -6784,45 +7586,76 @@ export default function CreateQuotePage() {
                         })}
                     </AnimatePresence>
                   </div>
+
+                  {/* Email ID Input Field */}
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#D3D3D3] font-medium">
+                    <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                         Email ID*
                       </span>
                     </div>
                     <Input
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
-                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      type="email"
+                      inputMode="email"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark
+                        ? "border-white/50 text-white focus:border-[#E8D1AB]/50"
+                        : "border-[#000000]/15 text-[#000000] focus:border-[#8E826A]"
+                        }`}
                     />
                   </div>
+
+                  {/* Phone Number Input Field */}
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#D3D3D3] font-medium">
+                    <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                         Phone Number*
                       </span>
                     </div>
                     <Input
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      onChange={(e) => setPhoneNumber(normalizePhoneNumberInput(e.target.value))}
+                      inputMode="numeric"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark
+                        ? "border-white/50 text-white focus:border-[#E8D1AB]/50"
+                        : "border-[#000000]/15 text-[#000000] focus:border-[#8E826A]"
+                        }`}
                     />
                   </div>
                 </div>
 
+                {/* Location Picker Module */}
                 <div className="relative">
                   <LocationPicker
                     value={address}
-                    onChange={(selectedAddress) => setAddress(selectedAddress)}
+                    onChange={(selectedAddress, details) => {
+                      setAddress(selectedAddress);
+                      const nextLatitude =
+                        details?.coordinates?.lat ?? details?.lat ?? details?.center?.[1] ?? null;
+                      const nextLongitude =
+                        details?.coordinates?.lng ?? details?.lng ?? details?.center?.[0] ?? null;
+                      setLocationLatitude(
+                        typeof nextLatitude === "number" && Number.isFinite(nextLatitude)
+                          ? nextLatitude
+                          : null
+                      );
+                      setLocationLongitude(
+                        typeof nextLongitude === "number" && Number.isFinite(nextLongitude)
+                          ? nextLongitude
+                          : null
+                      );
+                    }}
                     placeholder="Search for an address"
                     label="Address*"
-                    colors={isDark ? darkThemeColors : undefined}
+                    colors={isDark ? darkThemeColors : lightThemeColors}
                   />
                 </div>
 
+                {/* Project Description Block */}
                 <div className="relative">
-                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
-                    <span className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"}`}>
+                  <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                       Project Description*
                     </span>
                   </div>
@@ -6833,7 +7666,6 @@ export default function CreateQuotePage() {
                     data-1p-ignore="true"
                     placeholder="Describe the project scope and requirements....."
                     className={`min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base ${isDark
-                      // ? "bg-[#171717] border-[#FFFFFF80] text-white placeholder:text-[#FFFFFF4D] focus:border-[#E8D1AB]/50"
                       ? "!border-[#FFFFFF80] !bg-[#171717] !text-white !placeholder:text-[#FFFFFF4D] !focus:border-[#E8D1AB]/50"
                       : "!bg-white !border-[#D7D7D7] !text-black !placeholder:text-[#71717B] !focus:border-[#E8D1AB] !hover:border-[#C9A86A]"
                       }`}
@@ -6853,7 +7685,7 @@ export default function CreateQuotePage() {
                   />
                 </div> */}
                 <div>
-                  <h3 className="lg:text-xl font-semibold mb-6">
+                  <h3 className={`lg:text-xl font-semibold mb-6 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                     Quote Validity
                   </h3>
                   {(() => {
@@ -6862,23 +7694,36 @@ export default function CreateQuotePage() {
                     return (
                       <>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          {[3, 5, 7].map((days: number) => (
-                            <button
-                              key={days}
-                              onClick={() => handleValiditySelect(days)}
-                              className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === days
-                                ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
-                                : "bg-transparent border-[#FFFFFF80] text-zinc-500 hover:border-zinc-700"
-                                }`}
-                            >
-                              {days} Days
-                            </button>
-                          ))}
+                          {[3, 7, 10].map((days: number) => {
+                            const isSelected = validityDays === days;
+                            return (
+                              <button
+                                key={days}
+                                type="button"
+                                onClick={() => handleValiditySelect(days)}
+                                className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${isSelected
+                                  ? isDark
+                                    ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
+                                    : "bg-[#FFF7E6] border-[#E8D1AB] text-[#000000]"
+                                  : isDark
+                                    ? "bg-transparent border-white/50 text-[#727272] hover:border-zinc-400"
+                                    : "bg-transparent border-[#DEDEDE] text-[#000000]/60 hover:border-[#000000]/30"
+                                  }`}
+                              >
+                                {days} Days
+                              </button>
+                            );
+                          })}
                           <button
+                            type="button"
                             onClick={() => handleValiditySelect("custom")}
-                            className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === "custom"
-                              ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
-                              : "bg-transparent border-[#FFFFFF80] text-zinc-500 hover:border-zinc-700"
+                            className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${isCustomValiditySelected
+                              ? isDark
+                                ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
+                                : "bg-[#FFF7E6] border-[#E8D1AB] text-[#000000]"
+                              : isDark
+                                ? "bg-transparent border-white/50 text-[#727272] hover:border-zinc-400"
+                                : "bg-transparent border-[#000000]/50 text-[#000000]/60 hover:border-[#000000]/30"
                               }`}
                           >
                             Add Custom Date
@@ -6886,8 +7731,8 @@ export default function CreateQuotePage() {
                         </div>
 
                         <div className="flex items-center gap-2 text-zinc-400 text-sm">
-                          <Check size={16} className="text-[#E8D1AB]" />
-                          <p className="text-[#E8D1AB]/80 font-medium">
+                          <Check size={16} className={isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"} />
+                          <p className={`${isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"} font-medium`}>
                             This quote is valid for{" "}
                             {validityDays === "custom"
                               ? differenceInDays(
@@ -6896,27 +7741,18 @@ export default function CreateQuotePage() {
                               )
                               : validityDays}{" "}
                             days from today.
-
-                            {
-                              validityDays !== "custom" &&
-                              <span className="ml-2 text-[#E8D1AB]/80 font-medium">
-                                Quote valid until <strong>{format(parseISO(validUntil), "MM-dd-yyyy")}</strong>
+                            {validityDays !== "custom" && (
+                              <span className={`ml-2 font-medium ${isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"}`}>
+                                Quote valid until <strong>{format(parseISO(validUntil), "MMM d, yyyy")}</strong>
                               </span>
-                            }
+                            )}
                           </p>
                         </div>
 
-                        {
-                          validityDays === "custom" &&
+                        {isCustomValiditySelected && (
                           <div className="relative mt-8">
-                            <div
-                              className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"
-                                }`}
-                            >
-                              <span
-                                className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"
-                                  }`}
-                              >
+                            <div className={`absolute -top-3 left-4 z-10 px-2 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                              <span className={`text-sm font-medium transition-colors ${isDark ? "text-[#D3D3D3]" : "text-[#000000]/60"}`}>
                                 Quote Valid Until*
                               </span>
                             </div>
@@ -6928,13 +7764,15 @@ export default function CreateQuotePage() {
                                   setValidUntil(format(date, "yyyy-MM-dd"));
                                 }
                               }}
+                              minDate={addDays(new Date(), 1)}
                               disabled={validityDays !== "custom"}
-                              format="MM-dd-yyyy"
+                              format="MMM d, yyyy"
+                              isDark={isDark}
                               colors={{
                                 inputBackground: isCustomValiditySelected
                                   ? isDark
                                     ? "#1D1A15"
-                                    : "#FFF7E6"
+                                    : "#FFF"
                                   : "transparent",
                                 inputText: isCustomValiditySelected
                                   ? isDark
@@ -6956,20 +7794,9 @@ export default function CreateQuotePage() {
                                     ? "#E8D1AB"
                                     : "#171717"
                                   : "rgba(113, 113, 122, 1)",
-                                inputBorder: isDark ? "#FFFFFF80" : "#E8D1AB",
-                                inputBorderHover: isDark ? "#FFFFFF" : "#BEBEBE",
-                                // inputBorder: isDark
-                                //     ? "#FFFFFF80"
-                                //     : "#E8D1AB",
-                                //   // : isDark
-                                //   //   ? "rgba(39, 39, 42, 1)"
-                                //   //   : "#D7D7D7",
-                                // inputBorderHover: isCustomValiditySelected
-                                //   ? "#E8D1AB"
-                                //   : isDark
-                                //     ? "rgba(63, 63, 70, 1)"
-                                //     : "#BEBEBE",
-                                inputBorderFocus: "#E8D1AB",
+                                inputBorder: isDark ? "#FFFFFF80" : "#DEDEDE",
+                                inputBorderHover: isDark ? "#FFFFFF" : "#00000080",
+                                inputBorderFocus: isDark ? "#E8D1AB" : "#00000080",
                               }}
                               sx={{
                                 height: "64px", // h-16
@@ -6978,19 +7805,19 @@ export default function CreateQuotePage() {
                                   backgroundColor: isCustomValiditySelected
                                     ? isDark
                                       ? "#1D1A15"
-                                      : "#FFF7E6"
+                                      : "#FFF"
                                     : "transparent",
                                   borderRadius: "12px",
                                   paddingLeft: "10px",
                                   "& fieldset": {
-                                    borderColor: isDark ? "#FFFFFF80 !important" : "#E8D1AB !important",
+                                    borderColor: isDark ? "#FFFFFF80 !important" : "#DEDEDE !important",
                                     borderWidth: "1px !important",
                                   },
                                   "&:hover fieldset": {
-                                    borderColor: isDark ? "#FFFFFF !important" : "#BEBEBE !important",
+                                    borderColor: isDark ? "#FFFFFF !important" : "#DEDEDE !important",
                                   },
                                   "&.Mui-focused fieldset": {
-                                    borderColor: "#E8D1AB !important",
+                                    borderColor: isDark ? "#E8D1AB !important" : "#00000080 !important",
                                     borderWidth: "2px !important",
                                   },
                                 },
@@ -7014,7 +7841,7 @@ export default function CreateQuotePage() {
                                 },
                                 "& .MuiSvgIcon-root": {
                                   color: isCustomValiditySelected
-                                    ? "#E8D1AB"
+                                    ? isDark ? "#E8D1AB" : "#DEDEDE !important"
                                     : isDark
                                       ? "#FFFFFF"
                                       : "#171717",
@@ -7041,7 +7868,7 @@ export default function CreateQuotePage() {
                               }}
                             />
                           </div>
-                        }
+                        )}
 
                         {/* <div className="relative">
                           <div
@@ -7064,7 +7891,7 @@ export default function CreateQuotePage() {
                               }
                             }}
                             disabled={validityDays !== "custom"}
-                            format="MM-dd-yyyy"
+                            format="MMM d, yyyy"
                             colors={{
                               inputBackground: isCustomValiditySelected
                                 ? isDark
@@ -7189,42 +8016,54 @@ export default function CreateQuotePage() {
         {/* Footer Actions */}
         <div className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
           <div className="flex gap-4">
-            <Button
-              variant="outline"
-              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
-              onClick={handleBack}
-            >
-              Back
-            </Button>
-            {!showInvoiceActions ? (
+            {!shouldHideBackButton ? (
               <Button
-                className={`${view === "tax"
-                  ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
-                  : canPrimaryAction
-                    ? "bg-[#E8D1AB] text-[#101010]"
-                    : isDark
-                      ? "bg-[#2A2B2D] text-zinc-600"
-                      : "bg-[#A4A5A6] text-white"
-                  } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
-                disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
-                onClick={handlePrimaryAction}
+                variant="outline"
+                className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
+                onClick={handleBack}
               >
-                {primaryActionLabel}
+                Back
               </Button>
+            ) : null}
+            {!showInvoiceActions ? (
+              showReviewChangesAction ? (
+                <Button
+                  className="bg-white text-[#1B1B1B] hover:bg-[#00000033] border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all"
+                  disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft || hasCurrentSavedQuoteState}
+                  onClick={handleOpenReviewChangesModal}
+                >
+                  Review Changes
+                </Button>
+              ) : (
+                <Button
+                  className={`${view === "tax"
+                    ? "bg-white text-[#1B1B1B] hover:bg-white/80 border-0 shadow-lg"
+                    : canPrimaryAction
+                      ? "bg-[#E8D1AB] text-[#101010]"
+                      : isDark
+                        ? "bg-[#2A2B2D] text-zinc-600"
+                        : "bg-[#A4A5A6] text-white"
+                    } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
+                  disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
+                  onClick={handlePrimaryAction}
+                >
+                  {primaryActionLabel}
+                </Button>
+              )
             ) : null}
           </div>
 
           <div className="flex gap-4 self-start sm:self-auto">
-              {showInvoiceActions ? (
+            {showInvoiceActions ? (
               <>
                 <Button
                   type="button"
                   onClick={handleConvertToBooking}
-                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  disabled={isConvertBookingActionDisabled}
                   variant="outline"
                   className="border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all shadow-lg disabled:opacity-70"
                 >
-                  {isConverting ? <Loader2 size={20} className="animate-spin" /> : null}
+                  {isConverting && !isConvertedToBooking ? <Loader2 size={20} className="animate-spin" /> : null}
                   {isConverting ? "Converting..." : convertBookingActionLabel}
                 </Button>
                 <Button
@@ -7256,7 +8095,7 @@ export default function CreateQuotePage() {
                 type="button"
                 onClick={handleSaveAsDraft}
                 disabled={isCreatingQuoteDraft}
-                className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg disabled:opacity-70"
+                className="bg-white text-[#1B1B1B] hover:bg-[#00000033] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg disabled:opacity-70"
               >
                 <div className="flex items-center justify-center">
                   <Save
@@ -7290,65 +8129,84 @@ export default function CreateQuotePage() {
       {/* --- FLOATING MOBILE BUTTON --- */}
       <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
         {showInvoiceActions ? (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2">
             <Button
               type="button"
               onClick={handleConvertToBooking}
-              disabled={isViewingInvoice || isSendingInvoice || isConverting}
+              disabled={isConvertBookingActionDisabled}
               className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isConverting ? "Converting..." : convertBookingActionLabel}
             </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void handleViewInvoice();
-              }}
-              disabled={isViewingInvoice || isSendingInvoice || isConverting}
-              className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-            >
-              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void handleSendInvoice();
-              }}
-              disabled={isViewingInvoice || isSendingInvoice || isConverting}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-            >
-              {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
-            </Button>
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleViewInvoice();
+                }}
+                disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              >
+                {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleSendInvoice();
+                }}
+                disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              >
+                {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+              </Button>
+            </div>
+
           </div>
         ) : showPreviewAction ? (
-          <div className="flex gap-2">
+          <div className="flex flex-col lg:flex-row gap-2">
+            {showReviewChangesAction ? (
+              <Button
+                variant="default"
+                onClick={handleOpenReviewChangesModal}
+                disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid || hasCurrentSavedQuoteState}
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              >
+                Review Changes
+              </Button>
+            ) : null}
             <Button
-              type="button"
-              onClick={handleSaveAsDraft}
-              disabled={isCreatingQuoteDraft}
-              className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-            >
-              {isCreatingQuoteDraft && activeQuoteAction === "draft"
-                ? "Saving Draft..."
-                : "Save as Draft"}
-            </Button>
-            <Button
-              type="button"
+              variant="beige"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."
                 : "Preview Quote"}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveAsDraft}
+              disabled={(selectedClient === null) || isCreatingQuoteDraft}
+              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+            >
+              <div className="flex items-center justify-center">
+                <Save
+                  size={20}
+                  className="group-hover:scale-110 transition-transform"
+                />
+              </div>
+              {isCreatingQuoteDraft && activeQuoteAction === "draft"
+                ? "Saving Draft..."
+                : "Save as Draft"}
             </Button>
           </div>
         ) : (
           <Button
             type="button"
             onClick={handleSaveAsDraft}
-            disabled={isCreatingQuoteDraft}
-            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            disabled={(selectedClient === null) || isCreatingQuoteDraft}
+            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
           >
             <div className="flex items-center justify-center">
               <Save
@@ -7362,40 +8220,52 @@ export default function CreateQuotePage() {
           </Button>
         )}
         <div className="flex gap-2">
+          {!shouldHideBackButton ? (
+            <Button
+              variant="outline"
+              className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+              onClick={handleBack}
+            >
+              Back
+            </Button>
+          ) : null}
           {showInvoiceActions && showPreviewAction ? (
             <Button
               type="button"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."
                 : "Preview Quote"}
             </Button>
           ) : null}
-          <Button
-            variant="outline"
-            className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
-            onClick={handleBack}
-          >
-            Back
-          </Button>
           {!showInvoiceActions ? (
-            <Button
-              className={`${canPrimaryAction
-                ? view === "tax"
-                  ? "bg-white text-[#1B1B1B]"
-                  : "bg-[#E8D1AB] text-[#101010]"
-                : isDark
-                  ? "bg-[#2A2B2D] text-zinc-600"
-                  : "bg-[#A4A5A6] text-white"
-                } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1 `}
-              disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
-              onClick={handlePrimaryAction}
-            >
-              {primaryActionLabel}
-            </Button>
+            showReviewChangesAction ? (
+              <Button
+                className="bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1"
+                disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft || hasCurrentSavedQuoteState}
+                onClick={handleOpenReviewChangesModal}
+              >
+                Review Changes
+              </Button>
+            ) : (
+              <Button
+                className={`${canPrimaryAction
+                  ? view === "tax"
+                    ? "bg-white text-[#1B1B1B]"
+                    : "bg-[#E8D1AB] text-[#1D1D1B]"
+                  : isDark
+                    ? "bg-[#E8D1AB] text-[#1D1D1B]"
+                    : "bg-[#A4A5A6] text-white"
+                  } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1 `}
+                disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
+                onClick={handlePrimaryAction}
+              >
+                {primaryActionLabel}
+              </Button>
+            )
           ) : null}
         </div>
       </div>
@@ -7410,7 +8280,87 @@ export default function CreateQuotePage() {
         title={`Delete ${itemToDelete?.type === "service" ? "Service" : itemToDelete?.type === "addon" ? "Add-on" : itemToDelete?.type === "logistics" ? "Logistics Item" : itemToDelete?.type === "shoot_type" ? "Shoot Type" : itemToDelete?.type === "editing_type" ? "Editing Type" : "Line Item"}`}
         description={`Are you sure you want to delete this ${itemToDelete?.type === "service" ? "service" : itemToDelete?.type === "addon" ? "add-on" : itemToDelete?.type === "logistics" ? "logistics item" : itemToDelete?.type === "shoot_type" ? "shoot type" : itemToDelete?.type === "editing_type" ? "editing type" : "line item"}? This action cannot be undone.`}
         isLoading={isDeleting}
+        isDark={isDark}
       />
+
+      <QuoteReviewChangesModal
+        open={isReviewChangesModalOpen}
+        onOpenChange={(open) => {
+          if (isCreatingQuoteDraft) {
+            return;
+          }
+          setIsReviewChangesModalOpen(open);
+        }}
+        reviewChangesData={reviewChangesData}
+        reviewChangeReason={reviewChangeReason}
+        onReviewChangeReason={setReviewChangeReason}
+        onConfirm={() => {
+          void handleConfirmReviewChanges();
+        }}
+        requireReason={quoteVersionNumber !== null && quoteVersionNumber > 1}
+        confirmLabel={
+          quoteVersionNumber !== null && quoteVersionNumber > 1
+            ? "Save as New Version"
+            : "Save Quote"
+        }
+        isSaving={isCreatingQuoteDraft && activeQuoteAction === "save"}
+        isDark={isDark}
+      />
+
+      <AnimatePresence>
+        {isVersionSaveSuccessOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center px-4 ${isDark ? "bg-[#111111]" : "bg-[#FAFAFA]"
+              }`}
+          >
+            {/* Animation Box Container */}
+            <div className="relative mb-8 flex flex-col items-center justify-center">
+              <div className="relative h-[220px] w-[360px] lg:h-[344px] lg:w-[548px]">
+                <Image
+                  src="/images/misc/PaymentSuccess.gif"
+                  alt="Success Animation"
+                  fill
+                  className="object-contain"
+                  priority
+                  unoptimized
+                />
+              </div>
+            </div>
+
+            {/* Success Title */}
+            <h2 className={`mb-2 text-center text-[28px] font-bold leading-tight sm:text-[36px] lg:text-[40px] ${isDark ? "text-white" : "text-black"
+              }`}>
+              Quote Saved Successfully
+            </h2>
+
+            {/* Descriptive Copy */}
+            <p className={`mx-auto mb-10 max-w-[450px] text-center text-[16px] sm:text-[18px] ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"
+              }`}>
+              Your quote has been updated successfully.
+            </p>
+
+            {/* CTA Action Target Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsVersionSaveSuccessOpen(false);
+                const targetId = createdQuoteId || editQuoteId || effectiveQuoteId;
+                const targetUrl = targetId
+                  ? `/admin/quotes/${encodeURIComponent(String(targetId))}/summary?returnTo=${encodeURIComponent("/admin/quotes")}`
+                  : "/admin/quotes";
+                router.push(targetUrl);
+              }}
+              className="flex h-14 min-w-[240px] items-center justify-center rounded-[12px] bg-[#E7D0A4] px-10 text-[16px] font-semibold text-black transition-colors hover:bg-[#E7D0A4]/90 sm:h-[60px]"
+            >
+              View Quote Summary
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Dialog
         open={Boolean(editCatalogItem)}
         onOpenChange={(open) => {
@@ -7421,33 +8371,48 @@ export default function CreateQuotePage() {
           }
         }}
       >
-        <DialogContent className="bg-[#171717] text-white border border-[#2E2E2E]">
+        <DialogContent
+          className={`border ${isDark
+            ? "bg-[#171717] text-white border-[#2E2E2E]"
+            : "bg-white text-black border-[#D7D7D7]"
+            }`}
+        >
           <DialogHeader>
-            <DialogTitle className="text-white">
+            <DialogTitle className={isDark ? "text-white" : "text-black"}>
               {`Edit ${getCatalogEditItemLabel(editCatalogItem?.type ?? "line_item")}`}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="space-y-2">
-              <label className="text-sm text-[#A1A1AA]">Name</label>
+              <label className={`text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+                Name
+              </label>
               <Input
                 value={editCatalogName}
                 onChange={(e) =>
                   setEditCatalogName(clampTextLength(e.target.value))
                 }
                 maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
-                className="h-11 bg-transparent border-[#4A4A4A] rounded-xl text-white placeholder:text-[#666666]"
+                className={`h-11 bg-transparent rounded-xl ${isDark
+                  ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
+                  : "border-zinc-300 text-black placeholder:text-zinc-400 focus:border-zinc-400"
+                  }`}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-[#A1A1AA]">Rate</label>
+              <label className={`text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+                Rate
+              </label>
               <Input
                 value={editCatalogCost}
                 onChange={(e) =>
                   setEditCatalogCost(sanitizeCurrencyInput(e.target.value))
                 }
                 inputMode="decimal"
-                className="h-11 bg-transparent border-[#4A4A4A] rounded-xl text-white placeholder:text-[#666666]"
+                className={`h-11 bg-transparent rounded-xl focus:border-[#A78857] ${isDark
+                  ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
+                  : "border-zinc-300 text-black placeholder:text-zinc-400 focus:border-zinc-400"
+                  }`}
               />
             </div>
           </div>
@@ -7455,12 +8420,15 @@ export default function CreateQuotePage() {
             <Button
               type="button"
               variant="outline"
-              className="border border-[#363636] text-[#D4D4D4] hover:text-white hover:bg-[#181818]"
               onClick={() => {
                 setEditCatalogItem(null);
                 setEditCatalogName("");
                 setEditCatalogCost("");
               }}
+              className={`border ${isDark
+                ? "border-[#363636] text-[#D4D4D4] hover:text-white hover:bg-[#181818]"
+                : "border-[#D7D7D7] text-[#727272] bg-[#F4F5F7] hover:bg-[#E5E7EB] hover:text-black"
+                }`}
             >
               Cancel
             </Button>
@@ -7468,13 +8436,14 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handleUpdateCatalogItem}
               disabled={isSavingCatalogEdit}
-              className="bg-[#E8D1AB] text-[#101010] hover:opacity-90"
+              className={`bg-[#E8D1AB] text-[#101010] hover:opacity-90`}
             >
               {isSavingCatalogEdit ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <ConvertBookingModal
         open={isConvertModalOpen}
         onClose={() => setIsConvertModalOpen(false)}
@@ -7493,9 +8462,9 @@ export default function CreateQuotePage() {
               : "Convert to Booking Before Sending Invoice"
             : convertIntent === "view_invoice"
               ? "Convert to Booking Before Viewing Invoice"
-            : isConvertedToBooking
-              ? "Update Booking"
-              : "Convert to Booking"
+              : isConvertedToBooking
+                ? "Update Booking"
+                : "Convert to Booking"
         }
         description={
           convertIntent === "send_invoice"
@@ -7504,9 +8473,9 @@ export default function CreateQuotePage() {
               : "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
             : convertIntent === "view_invoice"
               ? "This quote must be converted to a booking before an invoice can be viewed. Complete the booking details below to continue."
-            : isConvertedToBooking
-              ? "Review or update the booking date and time below."
-              : "Select booking type, shoot date and time before continuing."
+              : isConvertedToBooking
+                ? "Review or update the booking date and time below."
+                : "Select booking type, shoot date and time before continuing."
         }
         submitLabel={
           convertIntent === "send_invoice"
@@ -7518,19 +8487,33 @@ export default function CreateQuotePage() {
               : "Convert to Booking"
         }
       />
+
       <QuoteSummaryModal
         open={isSummaryModalOpen}
         onClose={() => setIsSummaryModalOpen(false)}
         snapshot={quoteSummarySnapshot}
         onPreview={handlePreviewQuote}
         previewDisabled={!quoteReviewValidation.isValid}
+        isDark={isDark}
       />
+
       <QuotePreviewModal
         open={isPreviewModalOpen}
-        onClose={() => setIsPreviewModalOpen(false)}
+        onClose={handleClosePreviewModal}
         quote={previewQuote}
         quoteId={previewQuoteId}
         isLoading={isPreviewLoading}
+        onBeforeCopy={handleBeforeSendQuoteFromPreview}
+        onBeforeSend={handleBeforeSendQuoteFromPreview}
+        paymentSummaryOverrides={
+          showQuoteRevisionSummary
+            ? {
+              previousTotal: reviewChangesData.previousTotal,
+              previouslyPaid: additionalPaymentDetails?.previouslyPaidAmount,
+              revisedTotal: totalAfterTax,
+            }
+            : undefined
+        }
       />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useViewMode } from "@/hooks/useViewMode";
 import {
   Grid3X3,
   History,
@@ -11,41 +12,133 @@ import {
   MoreVertical,
   Search,
 } from "lucide-react";
+
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
-import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import {
   fileManagerApi,
+  getDisplayInitials,
   isCommonEventWorkspaceId,
   isRecentWithinHours,
   mapExternalWorkspaceToFolderCard,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
-import { GetCreatorDashboardDetails } from "@/lib/api";
+import { GetUpcomingShoots, getAcceptedShoots, getPendingProjects } from "@/lib/api";
 import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
-const STATUSES = ["Linked", "Unlinked"];
+type CreatorAssignmentStatus = "Pending" | "Confirmed" | "Completed" | "Rejected";
 
-interface CreatorAssignmentItem {
-  project_id?: string | number;
-  project?: {
-    stream_project_booking_id?: string | number;
-  } | null;
+interface CreatorAssignedProject {
+  projectId: string;
+  title: string;
+  status: CreatorAssignmentStatus;
+  updatedAt?: string;
+  createdAt?: string;
 }
+
+const getNestedRecord = (value: unknown, key: string): Record<string, unknown> | null => {
+  if (!value || typeof value !== "object") return null;
+  const child = (value as Record<string, unknown>)[key];
+  return child && typeof child === "object" ? (child as Record<string, unknown>) : null;
+};
+
+const getStringValue = (value: unknown, keys: string[]) => {
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    const raw = record[key];
+    if (raw !== undefined && raw !== null && String(raw).trim()) {
+      return String(raw).trim();
+    }
+  }
+  return "";
+};
+
+const getAssignedProjectId = (item: unknown) => {
+  const project = getNestedRecord(item, "project");
+  return getStringValue(item, ["project_id", "id", "stream_project_booking_id", "booking_id"]) ||
+    getStringValue(project, ["stream_project_booking_id", "project_id", "id", "booking_id"]);
+};
+
+const getAssignedProjectTitle = (item: unknown, projectId: string) => {
+  const project = getNestedRecord(item, "project");
+  return getStringValue(item, ["project_name", "title", "name", "shoot_name"]) ||
+    getStringValue(project, ["project_name", "title", "name", "shoot_name"]) ||
+    `Project #${projectId}`;
+};
+
+const getAssignedProjectDate = (item: unknown) => {
+  const project = getNestedRecord(item, "project");
+  return getStringValue(item, ["updated_at", "updatedAt", "event_date", "shoot_date", "created_at", "createdAt"]) ||
+    getStringValue(project, ["updated_at", "updatedAt", "event_date", "shoot_date", "created_at", "createdAt"]);
+};
+
+const normalizeFolderToken = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+
+const buildAssignedWorkspaceFolderName = (assignment: CreatorAssignedProject) =>
+  `${normalizeFolderToken(assignment.title) || "project"}_#${assignment.projectId}`;
+
+const mapAssignedProjectToFolderCard = (
+  assignment: CreatorAssignedProject,
+  basePath: string
+): UiFolderItem => ({
+  id: assignment.projectId,
+  title: buildAssignedWorkspaceFolderName(assignment),
+  fileCount: 0,
+  category: `${assignment.status} Assignment`,
+  isLinked: true,
+  lastOpened: assignment.updatedAt || assignment.createdAt ? "recently" : "not opened yet",
+  userInitials: getDisplayInitials(assignment.title),
+  href: `${basePath}/${assignment.projectId}`,
+  updatedAtRaw: assignment.updatedAt || assignment.createdAt,
+});
+
+const appendAssignments = (
+  target: Map<string, CreatorAssignedProject>,
+  items: unknown,
+  status: CreatorAssignmentStatus
+) => {
+  if (!Array.isArray(items)) return;
+  items.forEach((item) => {
+    const projectId = getAssignedProjectId(item);
+    if (!projectId || target.has(projectId)) return;
+    target.set(projectId, {
+      projectId,
+      title: getAssignedProjectTitle(item, projectId),
+      status,
+      updatedAt: getAssignedProjectDate(item),
+    });
+  });
+};
+
+const getApiArray = (response: unknown) => {
+  if (!response || typeof response !== "object") return [];
+  const record = response as Record<string, unknown>;
+  if (Array.isArray(record.data)) return record.data;
+  const data = record.data && typeof record.data === "object" ? (record.data as Record<string, unknown>) : null;
+  if (data && Array.isArray(data.data)) return data.data;
+  return [];
+};
 
 export default function CreatorFileManagerPage() {
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [status, setStatus] = useState("");
+  const [viewMode, setViewMode] = useViewMode();
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -53,7 +146,17 @@ export default function CreatorFileManagerPage() {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareResource, setShareResource] = useState<{
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+    label?: string;
+  } | null>(null);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
+  const [assignedProjects, setAssignedProjects] = useState<Map<string, CreatorAssignedProject>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,28 +182,39 @@ export default function CreatorFileManagerPage() {
         return;
       }
 
-      const [data, dashboardDetails] = await Promise.all([
+      const [data, pendingRes, upcomingRes, acceptedRes] = await Promise.all([
         fileManagerApi.listExternalWorkspaces(),
-        GetCreatorDashboardDetails({ crew_member_id: crewMemberId }),
+        getPendingProjects({ crew_member_id: crewMemberId }),
+        GetUpcomingShoots({ crew_member_id: crewMemberId }),
+        getAcceptedShoots({ crew_member_id: crewMemberId }),
       ]);
 
-      const acceptedProjectIds = new Set(
-        (dashboardDetails?.data?.data?.allShoots || [])
-          .map((assignment: CreatorAssignmentItem) =>
-            String(assignment?.project?.stream_project_booking_id || assignment?.project_id || "")
-          )
-          .filter(Boolean)
+      const assignmentMap = new Map<string, CreatorAssignedProject>();
+      appendAssignments(assignmentMap, getApiArray(pendingRes), "Pending");
+      appendAssignments(assignmentMap, getApiArray(upcomingRes), "Confirmed");
+      appendAssignments(assignmentMap, getApiArray(acceptedRes), "Confirmed");
+      setAssignedProjects(assignmentMap);
+
+      const projectWorkspaces = data.filter(
+        (workspace) =>
+          isCommonEventWorkspaceId(workspace.externalId) ||
+          assignmentMap.has(String(workspace.externalId))
       );
 
+      const workspaceIds = new Set(projectWorkspaces.map((workspace) => String(workspace.externalId)));
+      const missingAssignedFolders = Array.from(assignmentMap.values())
+        .filter((assignment) => !workspaceIds.has(assignment.projectId))
+        .map((assignment) =>
+          mapAssignedProjectToFolderCard(assignment, "/creator/dashboard/file-manager")
+        );
+
       setProjects(
-        data
-          .filter((workspace) =>
-            isCommonEventWorkspaceId(workspace.externalId) ||
-            acceptedProjectIds.has(String(workspace.externalId))
-          )
-          .map((workspace) =>
-          mapExternalWorkspaceToFolderCard(workspace, "/creator/dashboard/file-manager")
-          )
+        [
+          ...projectWorkspaces.map((workspace) =>
+            mapExternalWorkspaceToFolderCard(workspace, "/creator/dashboard/file-manager")
+          ),
+          ...missingAssignedFolders,
+        ]
       );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load file manager projects");
@@ -135,12 +249,6 @@ export default function CreatorFileManagerPage() {
     //   items = [];
     // }
 
-    if (status === "Linked") {
-      items = items.filter((item) => item.isLinked);
-    } else if (status === "Unlinked") {
-      items = items.filter((item) => !item.isLinked);
-    }
-
     if (searchTerm.trim()) {
       const query = searchTerm.toLowerCase();
       items = items.filter(
@@ -151,7 +259,7 @@ export default function CreatorFileManagerPage() {
     }
 
     return items;
-  }, [projects, searchTerm, selectedTab, status]);
+  }, [projects, searchTerm, selectedTab]);
 
   const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, folder: UiFolderItem) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -170,7 +278,8 @@ export default function CreatorFileManagerPage() {
     const targetFolder = folder || selectedFolder;
     if (!targetFolder) return;
     try {
-      const result = await fileManagerApi.getExternalFolderDownloadUrl(targetFolder.id);
+      const workspaceId = await ensureAssignedWorkspace(targetFolder);
+      const result = await fileManagerApi.getExternalFolderDownloadUrl(workspaceId);
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
       }
@@ -179,8 +288,39 @@ export default function CreatorFileManagerPage() {
     }
   };
 
+  const ensureAssignedWorkspace = async (folder: UiFolderItem) => {
+    const projectId = String(folder.id || "");
+    if (folder.resourcePath || isCommonEventWorkspaceId(projectId)) return projectId;
+
+    const assignment = assignedProjects.get(projectId);
+    if (!assignment) return projectId;
+
+    const created = await fileManagerApi.createExternalWorkspace(
+      projectId,
+      buildAssignedWorkspaceFolderName(assignment)
+    );
+    if (!created?.data?.workspace?.externalId) {
+      throw new Error("Failed to create file manager workspace");
+    }
+    await loadProjects();
+    return created.data.workspace.externalId;
+  };
+
+  const handleOpenFolder = async (folder: UiFolderItem) => {
+    try {
+      const workspaceId = await ensureAssignedWorkspace(folder);
+      router.push(`/creator/dashboard/file-manager/${workspaceId}`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to open workspace");
+    }
+  };
+
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
+    if (!isCommonEventWorkspaceId(selectedFolder.id)) {
+      toast.error("Only common event folders can be deleted.");
+      return;
+    }
 
     try {
       setIsDeleting(true);
@@ -203,7 +343,7 @@ export default function CreatorFileManagerPage() {
         <div className="text-white">
           <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">File Manager</h1>
           <p className="text-xs lg:text-sm text-white/70">
-            Accepted project folders and common event folders. Uploads are available inside post-production folders.
+            Project folders and common event folders. Uploads are available inside post-production folders.
           </p>
         </div>
 
@@ -250,8 +390,6 @@ export default function CreatorFileManagerPage() {
             />
           </div>
           <div className="flex gap-2">
-            {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-
             <div className="relative md:hidden">
               <Button
                 onClick={() => setIsOpen((prev) => !prev)}
@@ -336,12 +474,32 @@ export default function CreatorFileManagerPage() {
                   setSelectedFolder(folder);
                   setIsLinkModalOpen(true);
                 }}
+                onOpen={() => {
+                  void handleOpenFolder(folder);
+                }}
                 href={folder.href}
                 onDelete={() => {
-                  setSelectedFolder(folder);
-                  setIsDeleteModalOpen(true);
+                  if (isCommonEventWorkspaceId(folder.id)) {
+                    setSelectedFolder(folder);
+                    setIsDeleteModalOpen(true);
+                  }
                 }}
                 onDownload={() => handleDownloadSelectedFolder(folder)}
+                onShare={() => {
+                  void (async () => {
+                    try {
+                      const workspaceId = await ensureAssignedWorkspace(folder);
+                      setShareResource({
+                        resourceType: "workspace",
+                        externalId: String(workspaceId || ""),
+                        label: folder.title,
+                      });
+                      setIsShareModalOpen(true);
+                    } catch (err: unknown) {
+                      toast.error(err instanceof Error ? err.message : "Failed to share workspace");
+                    }
+                  })();
+                }}
                 onRename={() => toast.info("Folder rename is the next safe step.")}
               />
             ))}
@@ -375,7 +533,7 @@ export default function CreatorFileManagerPage() {
                       className="cursor-pointer items-center transition-colors hover:bg-white/[0.02]"
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest("button")) return;
-                        router.push(folder.href || `/creator/dashboard/file-manager/${folder.id}`);
+                        void handleOpenFolder(folder);
                       }}
                     >
                       <td className="flex items-center gap-2 px-6 py-5 text-white">
@@ -411,8 +569,33 @@ export default function CreatorFileManagerPage() {
           onOpenLinkModal={() => setIsLinkModalOpen(true)}
           anchor={menuAnchor}
           href={selectedFolder?.href}
+          onOpen={() => {
+            if (selectedFolder) {
+              void handleOpenFolder(selectedFolder);
+            }
+          }}
           onDownload={handleDownloadSelectedFolder}
-          onDelete={() => setIsDeleteModalOpen(true)}
+          onShare={() => {
+            if (!selectedFolder) return;
+            void (async () => {
+              try {
+                const workspaceId = await ensureAssignedWorkspace(selectedFolder);
+                setShareResource({
+                  resourceType: "workspace",
+                  externalId: String(workspaceId || ""),
+                  label: selectedFolder.title,
+                });
+                setIsShareModalOpen(true);
+              } catch (err: unknown) {
+                toast.error(err instanceof Error ? err.message : "Failed to share workspace");
+              }
+            })();
+          }}
+          onDelete={
+            selectedFolder && isCommonEventWorkspaceId(selectedFolder.id)
+              ? () => setIsDeleteModalOpen(true)
+              : undefined
+          }
           onRename={() => toast.info("Folder rename is the next safe step.")}
         />
       )}
@@ -430,6 +613,14 @@ export default function CreatorFileManagerPage() {
         itemName={selectedFolder?.title || "this folder"}
         itemType="folder"
         isDeleting={isDeleting}
+      />
+      <ShareResourceModal
+        isOpen={isShareModalOpen}
+        onClose={() => {
+          setIsShareModalOpen(false);
+          setShareResource(null);
+        }}
+        resource={shareResource}
       />
     </div>
   );

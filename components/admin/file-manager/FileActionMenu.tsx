@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   FolderOpen,
+  Share2,
   Download,
   Trash2
 } from "lucide-react";
@@ -19,10 +20,12 @@ interface FileActionMenuProps {
   onDownload?: () => void;
   onDelete?: () => void;
   onRename?: () => void;
+  onShare?: () => void;
+  isDark?: boolean;
 }
 
 const FileActionMenu: React.FC<FileActionMenuProps> = ({
-  isOpen, onClose, anchor, folderName, href, onOpen, onDownload, onDelete
+  isOpen, onClose, anchor, folderName, href, onOpen, onDownload, onDelete, onShare, isDark = true
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -57,7 +60,7 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
 
       {/* Menu Container */}
       <div
-        className="fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] shadow-2xl"
+        className={`fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] shadow-2xl transition-colors duration-200 ${isDark ? "bg-[#0A0A0A] border-white/10" : "bg-white border-[#D7D7D7]"}`}
         onMouseDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
         style={{
@@ -72,6 +75,7 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
             icon={<FolderOpen size={18} />}
             label="Open"
             onClick={handleOpenFolder}
+            isDark={isDark}
           />
           {/* Temporarily hidden actions: Rename / Link to Shoot */}
           {/* <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={() => {
@@ -89,33 +93,50 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
         </div>
 
         {/* Divider */}
-        <div className="h-[1px] w-full bg-white/10" />
+        <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#D7D7D7]"}`} />
 
         {/* Section 2: Sharing */}
         <div className="flex flex-col p-1.5">
-          {/* Temporarily hidden action: Share */}
-          {/* <MenuButton icon={<Share2 size={18} />} label="Share" onClick={onClose} /> */}
-          <MenuButton icon={<Download size={18} />} label="Download" onClick={() => {
-            onDownload?.();
-            onClose();
-          }} />
+          {onShare ? (
+            <MenuButton
+              icon={<Share2 size={18} />}
+              label="Share"
+              onClick={() => {
+                onShare();
+                onClose();
+              }}
+              isDark={isDark}
+            />
+          ) : null}
+          <MenuButton
+            icon={<Download size={18} />}
+            label="Download"
+            onClick={() => {
+              onDownload?.();
+              onClose();
+            }}
+            isDark={isDark}
+          />
         </div>
 
         {/* Divider */}
-        <div className="h-[1px] w-full bg-white/10" />
-
-        {/* Section 3: Danger Zone */}
-        <div className="flex flex-col p-1.5">
-          <MenuButton
-            icon={<Trash2 size={18} />}
-            label="Delete"
-            variant="danger"
-            onClick={() => {
-              onDelete?.();
-              onClose();
-            }}
-          />
-        </div>
+        {onDelete ? (
+          <>
+            <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#D7D7D7]"}`} />
+            <div className="flex flex-col p-1.5">
+              <MenuButton
+                icon={<Trash2 size={18} />}
+                label="Delete"
+                variant="danger"
+                onClick={() => {
+                  onDelete();
+                  onClose();
+                }}
+                isDark={isDark}
+              />
+            </div>
+          </>
+        ) : null}
       </div>
     </>
   );
@@ -126,23 +147,33 @@ const MenuButton = ({
   icon,
   label,
   onClick,
-  variant = "default"
+  variant = "default",
+  isDark = true
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   variant?: "default" | "danger";
+  isDark?: boolean;
 }) => (
   <button
     onClick={onClick}
     className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[15px] font-medium transition-colors
       ${variant === "danger"
         ? "text-[#F04438] hover:bg-[#F04438]/10"
-        : "text-white hover:bg-white/5"
+        : isDark
+          ? "text-white hover:bg-white/5"
+          : "text-black hover:bg-black/5"
       }
     `}
   >
-    <span className={variant === "danger" ? "text-[#F04438]" : "text-white/70"}>
+    <span className={
+      variant === "danger"
+        ? "text-[#F04438]"
+        : isDark
+          ? "text-white/70"
+          : "text-black/60"
+    }>
       {icon}
     </span>
     {label}

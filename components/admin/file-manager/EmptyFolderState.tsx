@@ -9,6 +9,7 @@ interface EmptyFileStateProps {
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  isDark?: boolean;
 }
 
 export default function EmptyFileState({
@@ -16,9 +17,13 @@ export default function EmptyFileState({
   description = "No project folders have been created.",
   actionLabel,
   onAction,
+  isDark = true
 }: EmptyFileStateProps) {
   return (
-    <div className="flex min-h-[260px] w-full flex-col items-center justify-center rounded-2xl border border-white/5 bg-[#111111] px-6 py-10 text-center">
+    <div className={`flex min-h-[260px] w-full flex-col items-center justify-center rounded-2xl border px-6 py-10 text-center transition-all duration-200 ${isDark
+        ? "border-white/5 bg-[#111111]"
+        : "border-[#D7D7D7] bg-white shadow-sm"
+      }`}>
       <Image
         src="/images/file-manager-empty-state.png"
         alt="No file uploaded"
@@ -28,9 +33,13 @@ export default function EmptyFileState({
         priority
       />
 
-      <h3 className="mb-2 text-[28px] font-semibold leading-tight text-white">{title}</h3>
-      <p className="max-w-md text-sm text-white/45">{description}</p>
+      <h3 className={`mb-2 text-[28px] font-semibold leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
+        {title}
+      </h3>
 
+      <p className={`max-w-md text-sm transition-colors ${isDark ? "text-white/45" : "text-[#727272]"}`}>
+        {description}
+      </p>
     </div>
   );
 }
