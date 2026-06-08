@@ -150,6 +150,7 @@ export default function ShootHeader({
     {};
 
   const subtotalValue = parseAmount(pricingBreakdown.subtotal);
+  const isFullyDiscountedShoot = parseAmount(pricingBreakdown.total) === 0 && parseAmount(pricingBreakdown.subtotal) > 0;
   const totalBeforeCredit = parseAmount(pricingBreakdown.total_before_credit);
   const discountValue = parseAmount(pricingBreakdown.discount);
   const creditAppliedValue = parseAmount(pricingBreakdown.credit_applied);
@@ -161,9 +162,15 @@ export default function ShootHeader({
       Math.max(parseAmount(pricingBreakdown.total) + discountValue + creditAppliedValue, 0) ||
       parseAmount(project?.total_paid_amount));
 
-  const totalReductionValue = isConvertedBooking ? 0 : Math.max(discountValue + creditAppliedValue, 0);
+  const totalReductionValue = isFullyDiscountedShoot
+    ? discountValue
+    : isConvertedBooking
+      ? 0
+      : Math.max(discountValue + creditAppliedValue, 0);
 
-  const finalValue = isConvertedBooking
+  const finalValue = isFullyDiscountedShoot
+    ? 0
+    : isConvertedBooking
       ? convertedTotalValue
       : (totalAfterCredit ||
         parseAmount(pricingBreakdown.total) ||
@@ -175,11 +182,14 @@ export default function ShootHeader({
     : paymentStatus;
 
   if (isConvertedBooking) {
-    const statusKey = convertedPaidAmount >= convertedTotalValue && convertedTotalValue > 0 
-      ? "paid" 
-      : convertedPaidAmount > 0 
-        ? "pending" 
-        : "unpaid";
+    const isFullyDiscounted = parseAmount(pricingBreakdown.total) === 0 && parseAmount(pricingBreakdown.subtotal) > 0;
+    const statusKey = isFullyDiscounted
+      ? "paid"
+      : convertedPaidAmount >= convertedTotalValue && convertedTotalValue > 0
+        ? "paid"
+        : convertedPaidAmount > 0
+          ? "pending"
+          : "unpaid";
     effectivePaymentStatus = getPaymentStatusMeta(statusKey, project?.payment_id);
   }
 
@@ -200,7 +210,7 @@ export default function ShootHeader({
         ? finalValue
         : 0);
 
-  const pendingAmountValue = Math.max(finalValue - paidAmountValue, 0); 
+ const pendingAmountValue = isFullyDiscountedShoot ? 0 : Math.max(finalValue - paidAmountValue, 0); 
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
