@@ -322,12 +322,12 @@ export default function ShootHeader({
               <Eye className="w-4 h-4" /> View Form Details
             </Button>
           ) : null}
-          <Button
+          {/* <Button
             onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
             className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
           >
             Edit Shoot
-          </Button>
+          </Button> */}
         </div>
       </div>
 

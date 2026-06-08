@@ -2744,12 +2744,11 @@ export default function QuoteDetailsPage({
 
             {/* --- FLOATING MOBILE BUTTON --- */}
             <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
-
               <Button
                 type="button"
                 onClick={handleRejectQuote}
                 disabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-                className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
+                className="h-10 rounded-lg border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
               >
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
                 {isRejecting ? "Rejecting..." : isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
@@ -2758,7 +2757,7 @@ export default function QuoteDetailsPage({
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
                 disabled={(!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-                className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+                className="h-10 rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
               >
                 <Eye size={18} />
                 Preview Quote

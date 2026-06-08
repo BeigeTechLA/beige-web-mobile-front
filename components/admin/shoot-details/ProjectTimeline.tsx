@@ -46,10 +46,8 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
     const currentStepId = getCurrentStep();
 
     return (
-        <div className={`h-full w-80 shrink-0 mt-1 pt-8 lg:pt-6 transition-colors duration-300 border-l ${isDark ? "bg-[#111111] border-[#222222]" : "bg-[#FFFFFF] border-[#D8D8D8]"
-            }`}>
-            <h3 className={`px-6 py-3 text-lg font-bold lg:my-8 border-y transition-colors duration-300 ${isDark ? "text-white bg-[#101010] border-[#3A3A3A]" : "text-black bg-[#F4F5F7] border-[#D8D8D8]"
-                }`}>
+        <div className={`h-full lg:w-80 shrink-0 mt-1 pt-8 lg:pt-6 transition-colors duration-300 border-l ${isDark ? "bg-[#111111] border-[#222222]" : "bg-[#FFFFFF] border-[#D8D8D8]"}`}>
+            <h3 className={`px-6 py-3 text-lg font-bold lg:my-8 border-y transition-colors duration-300 ${isDark ? "text-white bg-[#101010] border-[#3A3A3A]" : "text-black bg-[#F4F5F7] border-[#D8D8D8]"}`}>
                 Project Timeline
             </h3>
 
