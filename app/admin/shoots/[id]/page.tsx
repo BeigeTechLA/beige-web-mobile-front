@@ -25,6 +25,8 @@ import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { getQuoteNumber } from "@/lib/quoteDetail";
+import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
+import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 
 type SkillOption = {
   id?: number | string;
@@ -133,6 +135,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [isAssignmentMissingDetailsModalOpen, setIsAssignmentMissingDetailsModalOpen] = useState(false);
+  const [pendingAssignmentAction, setPendingAssignmentAction] = useState<(() => void) | null>(null);
   const [isQuotePreviewOpen, setIsQuotePreviewOpen] = useState(false);
   const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
   const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
@@ -159,6 +163,26 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     ? project.needs_attention.missing_fields
     : [];
   const hasFormDetails = !missingFields.includes("onboarding_form");
+  const assignmentMissingDetails =
+    project?.needs_attention?.required ? getCpAssignmentMissingDetails(project) : [];
+
+  const handleAssignmentRequest = (continueAction: () => void) => {
+    if (assignmentMissingDetails.length > 0) {
+      setPendingAssignmentAction(() => continueAction);
+      setIsAssignmentMissingDetailsModalOpen(true);
+      return;
+    }
+
+    continueAction();
+  };
+
+  const handleConfirmAssignmentWithMissingDetails = () => {
+    setIsAssignmentMissingDetailsModalOpen(false);
+    const action = pendingAssignmentAction;
+    setPendingAssignmentAction(null);
+    action?.();
+  };
+
   const handlePreviewConvertedQuote = async () => {
     if (!convertedSalesQuoteId) {
       toast.error("Converted quote is not available");
@@ -530,8 +554,17 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               {activeTab === "Overview" && (
                 <>
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
-                    <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+                    <ProjectTeam
+                      projectId={id}
+                      assignedMembers={project?.assigned_post_production_members}
+                      onRequestAssignment={handleAssignmentRequest}
+                    />
+                    <AssignedCP
+                      projectId={id}
+                      leadId={project?.lead_id}
+                      assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+                      onRequestAssignment={handleAssignmentRequest}
+                    />
                   </div>
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} />
@@ -584,6 +617,17 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             shootId={id}
             initialShootData={project}
             onSaved={handleMissingFieldsSaved}
+          />
+
+          <AssignmentMissingDetailsModal
+            isOpen={isAssignmentMissingDetailsModalOpen}
+            onClose={() => {
+              setIsAssignmentMissingDetailsModalOpen(false);
+              setPendingAssignmentAction(null);
+            }}
+            onConfirm={handleConfirmAssignmentWithMissingDetails}
+            missingDetails={assignmentMissingDetails}
+            isDark={isDark}
           />
         </div>
 

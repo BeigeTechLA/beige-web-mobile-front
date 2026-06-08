@@ -21,6 +21,7 @@ interface AssignmentConfirmationModalProps {
 interface AssignmentMissingDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onConfirm?: () => void;
   missingDetails: string[];
   isDark?: boolean;
 }
@@ -130,6 +131,7 @@ export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalPr
 export const AssignmentMissingDetailsModal: React.FC<AssignmentMissingDetailsModalProps> = ({
   isOpen,
   onClose,
+  onConfirm,
   missingDetails,
   isDark = true
 }) => {
@@ -159,7 +161,7 @@ export const AssignmentMissingDetailsModal: React.FC<AssignmentMissingDetailsMod
         </div>
 
         <p className={`text-sm mb-5 transition-colors ${isDark ? "text-white/70" : "text-black/70"}`}>
-          Complete these details before assigning CPs.
+          The following required details are missing. Do you still want to continue?
         </p>
 
         <div className={`border rounded-xl p-4 mb-6 transition-colors ${
@@ -175,12 +177,23 @@ export const AssignmentMissingDetailsModal: React.FC<AssignmentMissingDetailsMod
           </ul>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
           <Button
+            variant="outline"
             onClick={onClose}
+            className={`bg-transparent border transition-all ${
+              isDark
+                ? "border-white/10 text-white hover:bg-white/5"
+                : "border-[#D8D8D8] text-black hover:bg-gray-100"
+            }`}
+          >
+            No
+          </Button>
+          <Button
+            onClick={onConfirm || onClose}
             className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
           >
-            Got it
+            Yes
           </Button>
         </div>
       </div>
