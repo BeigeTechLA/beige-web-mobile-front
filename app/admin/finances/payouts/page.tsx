@@ -55,7 +55,7 @@ type PayoutScreenSummary = {
 const normalizePayoutStatus = (status?: string | null): PayoutHistoryRow["status"] => {
   const normalized = (status || "").trim().toLowerCase();
 
-  if (["completed", "paid", "success", "successful", "processed"].includes(normalized)) {
+  if (["completed", "paid", "success", "requested", "approved","successful", "processed"].includes(normalized)) {
     return "Completed";
   }
 
@@ -102,27 +102,9 @@ const parseCurrencyValue = (value?: string | number | null) => {
   return Number.isFinite(numeric) ? numeric : 0;
 };
 
-const getPayoutItems = (responseData: unknown): PayoutScreenItem[] => {
-  if (!responseData || typeof responseData !== "object") return [];
-
-  const container = responseData as {
-    payouts?: PayoutScreenItem[];
-    data?: { payouts?: PayoutScreenItem[] };
-    items?: PayoutScreenItem[];
-    rows?: PayoutScreenItem[];
-    results?: PayoutScreenItem[];
-  };
-
-  const candidates = [
-    container.payouts,
-    container.data?.payouts,
-    container.items,
-    container.rows,
-    container.results,
-  ];
-
-  const found = candidates.find(Array.isArray);
-  return Array.isArray(found) ? found : [];
+const getPayoutItems = (responseData: any): PayoutScreenItem[] => {
+  if (!responseData) return [];
+  return responseData.payout_history?.rows || [];
 };
 
 export default function AdminPayoutsPage() {
@@ -234,62 +216,49 @@ export default function AdminPayoutsPage() {
     });
   }, [payouts,searchQuery, statusFilter, typeFilter]);
 
-  const fetchPayoutData = async () => {
+ const fetchPayoutData = async () => {
     setLoading(true);
     try {
       const response = await adminApi.getPayoutsScreen();
       if (!response?.success) {
-        throw new Error(response?.error || "Failed to fetch payout data");
+        throw new Error(response?.error || "Failed to fetch");
       }
 
-      const responseSummary = (() => {
-        const source = response.data as {
-          summary?: PayoutScreenSummary;
-          overview?: PayoutScreenSummary;
-          data?: { summary?: PayoutScreenSummary; overview?: PayoutScreenSummary };
-        } | null;
+      // 1. Update summary path
+      setPayoutSummary(response.data?.overview || null);
 
-        return source?.summary || source?.overview || source?.data?.summary || source?.data?.overview || null;
-      })();
-
-      setPayoutSummary(responseSummary);
-
+      // 2. Get items
       const payoutItems = getPayoutItems(response.data);
-      const mappedRows: PayoutHistoryRow[] = payoutItems.map((item, index) => {
-        const creatorName = item.creator_name || "Unknown";
-        const initials = creatorName
-          .split(" ")
-          .filter(Boolean)
-          .map((name) => name[0])
-          .join("")
-          .toUpperCase() || "U";
+
+      // 3. Update mapping keys
+      const mappedRows: PayoutHistoryRow[] = payoutItems.map((item: any, index) => {
+        const creator = item.creator || {};
+        const breakdown = item.payout_breakdown || {};
 
         return {
-          id: String(item.id ?? item.booking_id ?? item.project_id ?? `payout-${index}`),
-          shootId: `#${item.booking_id || item.project_id || "N/A"}`,
-          creatorName,
-          date: item.created_at
-            ? new Date(item.created_at).toLocaleDateString("en-US", {
+          id: String(item.payout_request_id || index),
+          shootId: item.request_code || "N/A",
+          creatorName: creator.name || "Unknown",
+          date: item.requested_at
+            ? new Date(item.requested_at).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
               })
             : "Unknown date",
-          serviceType: item.role || "Creative",
-          netPayout: safeCurrency(item.amount),
-          paymentMethod: normalizePaymentMethod(item.payment_method),
+          serviceType: "Creative", 
+          netPayout: safeCurrency(item.net_payout),
+          paymentMethod: item.payment_method_label || "Bank Transfer",
           status: normalizePayoutStatus(item.status),
-          initials,
+          initials: creator.initials || "U",
           avatarColor: "#E2E2E2",
-          avatarImage: item.creator_image || undefined,
+          avatarImage: creator.image || undefined,
           breakdown: {
-            earnings: safeCurrency(item.total_amount),
-            fee: safeNegativeCurrency(item.fee_amount),
-            net: safeCurrency(item.amount),
+            earnings: safeCurrency(breakdown.service_earnings),
+            fee: safeNegativeCurrency(breakdown.platform_fee),
+            net: safeCurrency(breakdown.net_payout),
           },
-          invoiceIds: Array.isArray(item.invoices)
-            ? item.invoices.map((invoice) => String(invoice))
-            : [],
+          invoiceIds: Array.isArray(item.linked_invoices) ? item.linked_invoices : [],
         };
       });
 
@@ -297,8 +266,6 @@ export default function AdminPayoutsPage() {
     } catch (error) {
       console.error("Failed to load payout data:", error);
       toast.error("Failed to load payout data");
-      setPayouts([]);
-      setPayoutSummary(null);
     } finally {
       setLoading(false);
     }
