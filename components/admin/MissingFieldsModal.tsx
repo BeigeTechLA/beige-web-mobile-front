@@ -783,23 +783,19 @@ export const MissingFieldsModal = ({
 
   const reelDays = useMemo(() => {
     const today = startOfDay(new Date());
-    return Array.from({ length: 21 }, (_, index) => addDays(today, index));
+    return Array.from({ length: 21 }, (_, index) => addDays(today, index - 10));
   }, []);
 
   const calendarDays = useMemo(() => {
-    const today = startOfDay(new Date());
     const start = startOfWeek(startOfMonth(currentCalendarMonth));
     const end = endOfWeek(endOfMonth(currentCalendarMonth));
-    return eachDayOfInterval({ start, end }).filter((date) => date >= today);
+    return eachDayOfInterval({ start, end });
   }, [currentCalendarMonth]);
 
   const handlePrevMonth = () => {
     setCurrentCalendarMonth((current) => {
       const previousMonth = addDays(startOfMonth(current), -1);
-      const todayMonthStart = startOfMonth(new Date());
-      return startOfMonth(previousMonth).getTime() < todayMonthStart.getTime()
-        ? todayMonthStart
-        : previousMonth;
+      return previousMonth;
     });
   };
 
@@ -1045,7 +1041,6 @@ export const MissingFieldsModal = ({
                                 label="Select Date"
                                 value={selectedShootDate}
                                 onChange={handleDateChange}
-                                minDate={new Date()}
                                 sx={{ height: "72px", borderRadius: "16px" }}
                                 isDark={isDark}
                                 disablePortal={false}
