@@ -10,6 +10,8 @@ import QuotePreviewDocument from "@/components/quotes/QuotePreviewDocument";
 import { Button } from "@/components/ui/button";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import {
+  QUOTE_PREVIEW_SUPERSEDED_REASON,
+  QuotePreviewFetchError,
   createSignedQuotePreviewUrl,
   fetchQuotePreviewByKey,
 } from "@/lib/quotePreview";
@@ -127,6 +129,7 @@ export default function QuotePreviewPageShell({
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorReasonCode, setErrorReasonCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isPreparingLink, setIsPreparingLink] = useState(false);
@@ -156,6 +159,7 @@ export default function QuotePreviewPageShell({
     const loadQuotePreview = async () => {
       setLoading(true);
       setErrorMessage(null);
+      setErrorReasonCode(null);
 
       if (!queryQuoteKey && !queryQuoteId) {
         if (!summaryStorageKey) {
@@ -220,6 +224,7 @@ export default function QuotePreviewPageShell({
         }
 
         setQuote(null);
+        setErrorReasonCode(error instanceof QuotePreviewFetchError ? error.reasonCode : null);
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to fetch quote preview"
         );
@@ -300,6 +305,10 @@ export default function QuotePreviewPageShell({
   const isPublicPaymentAllowedStatus = !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
   const hasValidPublicQuotePreview =
     quoteDetailMode === "public" && !loading && Boolean(quote) && !errorMessage;
+  const unavailableMessage =
+    errorReasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON
+      ? "Your old version link has expired because a new quote version was created. Please contact your sales person for the latest quote link."
+      : errorMessage || "The quote preview could not be loaded.";
   const canContinueToPayment =
     hasValidPublicQuotePreview &&
     Boolean(effectivePaymentBookingId) &&
@@ -742,7 +751,7 @@ export default function QuotePreviewPageShell({
               Preview data unavailable
             </p>
             <p className={`max-w-[480px] text-sm ${isDark ? "text-[#8B8B90]" : "text-[#60646C]"}`}>
-              {errorMessage || "The quote preview could not be loaded."}
+              {unavailableMessage}
             </p>
             {createHref ? (
               <Button

@@ -109,6 +109,9 @@ export default function ShootHeader({
   const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
+  const isConvertedBooking = !!(project?.is_quote_converted_booking || project?.converted_sales_quote_id);
+  const convertedTotalValue = parseAmount(project?.total_value_amount);
+  const convertedPaidAmount = parseAmount(project?.total_paid_amount);
   const pricingBreakdown =
     (project?.pricing_breakdown as Record<string, unknown> | undefined) ||
     ((project?.lead_details as Record<string, unknown> | undefined)?.pricing_breakdown as Record<string, unknown> | undefined) ||
@@ -151,40 +154,53 @@ export default function ShootHeader({
   const discountValue = parseAmount(pricingBreakdown.discount);
   const creditAppliedValue = parseAmount(pricingBreakdown.credit_applied);
   const totalAfterCredit = parseAmount(pricingBreakdown.total_after_credit);
-  const totalValue =
-    lockedQuoteAmount !== undefined
-      ? lockedQuoteAmount
-      : totalBeforeCredit ||
-        subtotalValue ||
-        Math.max(parseAmount(pricingBreakdown.total) + discountValue + creditAppliedValue, 0) ||
-        parseAmount(project?.total_value_amount) ||
-        parseAmount(project?.total_paid_amount);
-  const totalReductionValue = lockedQuoteAmount !== undefined ? 0 : Math.max(discountValue + creditAppliedValue, 0);
-  const finalValue =
-    lockedQuoteAmount !== undefined
-      ? lockedQuoteAmount
-      : totalAfterCredit ||
+  const totalValue = isConvertedBooking 
+    ? convertedTotalValue
+    : (totalBeforeCredit ||
+      subtotalValue ||
+      Math.max(parseAmount(pricingBreakdown.total) + discountValue + creditAppliedValue, 0) ||
+      parseAmount(project?.total_paid_amount));
+
+  const totalReductionValue = isConvertedBooking ? 0 : Math.max(discountValue + creditAppliedValue, 0);
+
+  const finalValue = isConvertedBooking
+      ? convertedTotalValue
+      : (totalAfterCredit ||
         parseAmount(pricingBreakdown.total) ||
-        Math.max(totalValue - totalReductionValue, 0);
+        Math.max(totalValue - totalReductionValue, 0));
+
   const isFullyPaidByManualSummary = Boolean(manualPaymentSummary.hasFullPayment);
-  const effectivePaymentStatus = isFullyPaidByManualSummary
+  let effectivePaymentStatus = isFullyPaidByManualSummary
     ? getPaymentStatusMeta("paid", project?.payment_id)
     : paymentStatus;
+
+  if (isConvertedBooking) {
+    const statusKey = convertedPaidAmount >= convertedTotalValue && convertedTotalValue > 0 
+      ? "paid" 
+      : convertedPaidAmount > 0 
+        ? "pending" 
+        : "unpaid";
+    effectivePaymentStatus = getPaymentStatusMeta(statusKey, project?.payment_id);
+  }
+
   const manualPaidAmount = parseAmount(manualPaymentSummary.paidAmount);
   const manualPendingAmount = parseAmount(manualPaymentSummary.pendingAmount);
   const hasMeaningfulManualProgress =
     Boolean(manualPaymentSummary.hasFullPayment) ||
     Boolean(manualPaymentSummary.isPartiallyPaid) ||
     manualPaidAmount > 0;
+
   const isPaidStatus = String(effectivePaymentStatus.label || "").toLowerCase() === "paid";
-  const paidAmountValue = hasMeaningfulManualProgress
-    ? manualPaidAmount
-    : isPaidStatus
-      ? finalValue
-      : 0;
-  const pendingAmountValue = hasMeaningfulManualProgress
-    ? manualPendingAmount
-    : Math.max(finalValue - paidAmountValue, 0);
+
+  const paidAmountValue = isConvertedBooking
+    ? convertedPaidAmount
+    : (hasMeaningfulManualProgress
+      ? manualPaidAmount
+      : isPaidStatus
+        ? finalValue
+        : 0);
+
+  const pendingAmountValue = Math.max(finalValue - paidAmountValue, 0); 
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
@@ -358,12 +374,12 @@ export default function ShootHeader({
               <Eye className="w-4 h-4" /> View Form Details
             </Button>
           ) : null}
-          <Button
+          {/* <Button
             onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
             className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
           >
             Edit Shoot
-          </Button>
+          </Button> */}
         </div>
       </div>
 

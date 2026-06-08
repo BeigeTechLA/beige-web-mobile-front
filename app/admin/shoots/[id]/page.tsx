@@ -67,7 +67,21 @@ type ProjectDetails = {
 type QuoteVersionItem = {
   version_number?: number | string | null;
   is_current?: boolean | null;
+  approval_status?: string | null;
+  change_request_status?: string | null;
+  review_status?: string | null;
   [key: string]: unknown;
+};
+
+const isUsableQuoteVersion = (version: QuoteVersionItem) => {
+  const status = String(
+    version.approval_status ||
+    version.change_request_status ||
+    version.review_status ||
+    ""
+  ).trim().toLowerCase();
+
+  return !status || status === "approved";
 };
 
 const resolveLatestQuoteDetail = async (quoteId: string) => {
@@ -156,7 +170,32 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     setQuotePreviewData(null);
 
     try {
-      const quoteDetail = await resolveLatestQuoteDetail(convertedSalesQuoteId);
+      const versionsResponse = await salesApi.getQuoteVersions(convertedSalesQuoteId);
+      const versionsData = Array.isArray(versionsResponse?.data)
+        ? versionsResponse.data
+        : versionsResponse?.data?.versions || [];
+
+        const quoteDetail = await resolveLatestQuoteDetail(convertedSalesQuoteId);
+
+      const latestVersion =
+        versionsData.find((version: QuoteVersionItem) => version?.is_current && isUsableQuoteVersion(version)) ||
+        versionsData
+          .filter((version: QuoteVersionItem) => isUsableQuoteVersion(version))
+          .reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
+            const latestNo = Number(latest?.version_number || 0);
+            const candidateNo = Number(candidate?.version_number || 0);
+            return candidateNo > latestNo ? candidate : latest;
+          }, null) ||
+        null;
+
+      const versionId =
+        latestVersion?.version_number != null ? String(latestVersion.version_number) : null;
+
+      const detailResponse = versionId
+        ? await salesApi.getQuoteVersionDetail(convertedSalesQuoteId, versionId)
+        : await salesApi.getQuoteDetail(convertedSalesQuoteId);
+
+      const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
 
       if (!quoteDetail) {
         throw new Error("Quote preview data is unavailable");
@@ -572,48 +611,47 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         }
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
-        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-[#F4F5F7] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+          {/* View Invoice Button */}
           <Button
             onClick={handleViewInvoice}
             disabled={isViewingInvoice}
-            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-black text-white hover:bg-black/80 border border-black'}`}
+            className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-black text-white hover:bg-black/80 border border-black'}`}
           >
             {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
           </Button>
+
+          {/* Preview Quote Button */}
           {convertedSalesQuoteId ? (
             <Button
               onClick={handlePreviewConvertedQuote}
-              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#18321D] text-[#86EFAC] hover:bg-[#1D3B23] border border-[#86EFAC]/20 shadow-[0_8px_30px_rgb(0,0,0,0.35)]' : 'bg-[#F0FFF4] text-[#166534] hover:bg-[#E7F8EC] border border-[#86EFAC]/30'}`}
+              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#18321D] text-[#86EFAC] hover:bg-[#1D3B23] border border-[#86EFAC]/20 shadow-[0_8px_30px_rgb(0,0,0,0.35)]' : 'bg-[#F0FFF4] text-[#166534] hover:bg-[#E7F8EC] border border-[#86EFAC]/30'}`}
             >
               <Eye size={18} /> Preview Quote
             </Button>
           ) : null}
-          <div className="flex gap-2">
-            <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
+
+          {/* Grid Row: Cancel & Edit Operations */}
+          <div className="flex gap-2 w-full">
+            <Button
+              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}
+            >
               Cancel Shoot
             </Button>
-            <div className="flex gap-2">
-              <Button className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
-                Cancel Shoot
-              </Button>
-              <Button
-                onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
-                className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
-              >
-                Edit Shoot
-              </Button>
-            </div>
+
             <Button
-              onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
-              className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] border border-white/10' : 'bg-[#F3F3F3] text-zinc-600 border border-[#E3E3E3]'}`}
+              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
+              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
             >
-              <Eye size={16} /> View Form Details
+              Edit Shoot
             </Button>
           </div>
+
+          {/* Conditional Form Details Button */}
           {hasFormDetails ? (
             <Button
               onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
-              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
+              className={`w-full h-14 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
             >
               <Eye size={18} /> View Form Details
             </Button>
