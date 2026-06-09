@@ -28,33 +28,40 @@ const stackStyles = `
   }
 `;
 
-type CrewMemberFile = {
+interface AssignedCPProps {
+  projectId: string;
+  leadId?: string | number;
+  assignedCrew?: CrewAssignment[];
+  onRequestAssignment?: (continueAction: () => void) => void;
+}
+
+interface CrewFile {
   file_type?: string;
   file_url?: string;
   file_path?: string;
-};
+}
 
-type CrewMemberProfile = {
+interface CrewMemberProfile {
   first_name?: string;
   last_name?: string;
-  primary_role?: string | number | null;
-  role_name?: string | null;
-  crew_member_files?: CrewMemberFile[];
-};
+  primary_role?: unknown;
+  role_name?: string;
+  crew_member_files?: CrewFile[];
+}
 
-type AssignedCrewMember = {
-  id?: string | number;
-  crew_member_id?: string | number;
+interface CrewAssignment {
+  id?: number | string;
+  crew_member_id?: number | string;
   crew_member?: CrewMemberProfile;
-};
+}
 
-export default function AssignedCP({ projectId, assignedCrew = [] }: { projectId: string; assignedCrew?: AssignedCrewMember[] }) {
+export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssignment }: AssignedCPProps) {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
   const { canEdit } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [crewMembers, setCrewMembers] = useState<AssignedCrewMember[]>(assignedCrew);
+  const [crewMembers, setCrewMembers] = useState<CrewAssignment[]>(assignedCrew);
   const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -68,6 +75,16 @@ export default function AssignedCP({ projectId, assignedCrew = [] }: { projectId
   }, [assignedCrew]);
 
   const hasCPs = crewMembers.length > 0;
+
+  const handleOpenAssignment = () => {
+    const goToAddCreatives = () => router.push(`/admin/shoots/${projectId}/add-creatives`);
+    if (onRequestAssignment) {
+      onRequestAssignment(goToAddCreatives);
+      return;
+    }
+
+    goToAddCreatives();
+  };
 
 
   const handleRemoveCP = async (crewMemberId: number) => {
@@ -100,13 +117,11 @@ export default function AssignedCP({ projectId, assignedCrew = [] }: { projectId
   };
 
   // Use a placeholder if there is no image
-  const getProfileImage = (member: AssignedCrewMember) => {
+  const getProfileImage = (member: CrewAssignment) => {
     const s3Prefix = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
     if (member.crew_member?.crew_member_files?.length > 0) {
-      const photo = member.crew_member.crew_member_files.find(
-        (file) => file.file_type === "profile_photo" || file.file_type === "headshot",
-      );
+      const photo = member.crew_member.crew_member_files.find((f) => f.file_type === "profile_photo" || f.file_type === "headshot");
       if (photo) {
         if (photo.file_url) return photo.file_url;
         if (photo.file_path) return `${s3Prefix}${photo.file_path}`;
@@ -202,7 +217,7 @@ export default function AssignedCP({ projectId, assignedCrew = [] }: { projectId
               {canEdit && (
                 <div className="flex flex-col lg:flex-row gap-4">
                   <Button
-                    onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
+                    onClick={handleOpenAssignment}
                     className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
                   >
                     <Plus /> Add More CPs
@@ -215,17 +230,15 @@ export default function AssignedCP({ projectId, assignedCrew = [] }: { projectId
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full py-10 relative z-30">
-              {canEdit && (
-                <button
-                  onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
-                  className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg ${isDark
-                    ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10"
-                    : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
-                    }`}
-                >
-                  <Plus size={40} className="text-black" />
-                </button>
-              )}
+              <button
+                onClick={handleOpenAssignment}
+                className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg ${isDark
+                  ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10"
+                  : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
+                  }`}
+              >
+                <Plus size={40} className="text-black" />
+              </button>
               <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-text-black"}`}>
                 {canEdit ? "Assign Creative Partner" : "No Creative Partner Assigned"}
               </h4>

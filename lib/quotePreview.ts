@@ -11,11 +11,13 @@ export const QUOTE_PREVIEW_SUPERSEDED_REASON = "QUOTE_PREVIEW_SUPERSEDED";
 
 export class QuotePreviewFetchError extends Error {
   reasonCode: string | null;
+  payload: unknown;
 
-  constructor(message: string, reasonCode?: string | null) {
+  constructor(message: string, reasonCode?: string | null, payload?: unknown) {
     super(message);
     this.name = "QuotePreviewFetchError";
     this.reasonCode = reasonCode || null;
+    this.payload = payload;
   }
 }
 
@@ -370,7 +372,8 @@ export const fetchQuotePreviewByKey = async (quoteKey?: string | null) => {
   if (!response.ok) {
     throw new QuotePreviewFetchError(
       getQuotePreviewErrorMessage(data),
-      getQuotePreviewErrorReasonCode(data)
+      getQuotePreviewErrorReasonCode(data),
+      data
     );
   }
 

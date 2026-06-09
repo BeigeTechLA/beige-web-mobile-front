@@ -166,8 +166,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
             <div className="flex gap-2">
               <span>Total Value :</span>
               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {project?.total_paid_amount ? `$${parseFloat(project.total_paid_amount).toLocaleString()}` : "$0.00"}
-              </span>
+              {project?.total_value_amount ? `$${parseFloat(project.total_value_amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "$0.00"}  </span>
             </div>
             <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
             <div className="flex gap-2">

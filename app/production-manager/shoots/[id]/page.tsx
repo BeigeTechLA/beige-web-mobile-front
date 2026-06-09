@@ -21,6 +21,21 @@ import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
+type SkillOption = {
+  id?: string | number;
+  name?: string;
+  skill_name?: string;
+  title?: string;
+};
+
+type ProjectDetails = {
+  project_name?: string;
+  skills_needed?: string | Array<string | number> | null;
+  payment_status?: string | null;
+  payment_id?: string | number | null;
+  [key: string]: unknown;
+};
+
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
@@ -30,7 +45,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [mounted, setMounted] = useState(false);
   const { canEdit, canDelete } = usePermissions("shoots");
   const activeTab = searchParams.get("tab") || "Overview";
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   // State to handle mobile timeline visibility
@@ -60,13 +75,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         const skillsMap: Record<number, string> = {};
         if (skillsResponse && skillsResponse.data) {
           const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
+          skillsList.forEach((s: SkillOption) => {
             const name = s.name || s.skill_name || s.title;
             if (s.id && name) skillsMap[s.id] = name;
           });
         }
 
-        let projectData = projectResponse?.data?.project || projectResponse?.data || projectResponse;
+        const responseData = projectResponse?.data || null;
+        const projectData: ProjectDetails = responseData?.project || responseData || projectResponse;
 
         if (projectData) {
           // 3. Map Skills Needed to Names
@@ -80,7 +96,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 (projectData.skills_needed.trim().startsWith('[') || projectData.skills_needed.trim().startsWith('{'))) {
                 try {
                   parsedIds = JSON.parse(projectData.skills_needed);
-                } catch (e) {
+                } catch {
                   // If parsing fails, keep it as a string
                   parsedIds = projectData.skills_needed;
                 }
@@ -103,6 +119,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           setProject({
             ...projectData,
+            payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
+            payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             skills_needed: skillsText || projectData.skills_needed || "N/A"
           });
         }
