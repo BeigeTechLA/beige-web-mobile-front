@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 // Added ChevronLeft to the imports
-import { X, Maximize2, MoreVertical, ChevronLeft } from "lucide-react"; 
+import { X, Maximize2, MoreVertical, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProjectTimeText, getShootFilesText } from "@/lib/utils/shootDetails";
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
@@ -44,7 +44,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
     ? project.description.replace(/Matching Method:.*$/gm, "").trim()
     : "No description available.";
 
-     const formatDate = (dateStr?: string) => {
+  const formatDate = (dateStr?: string) => {
     if (!dateStr) return "TBD";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
@@ -54,7 +54,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
       month: "short",
       year: "numeric",
     }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
-  }; 
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -99,13 +99,14 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col font-sans">
-      
+
       {/* 1. TOP ID BAR - Updated with Back Button */}
-      <div className="flex items-center justify-between px-4 lg:px-6 py-3 border-b border-white/5 bg-[#111]">
-        <div className="flex items-center gap-4 lg:gap-6">
+      <div className="flex items-center justify-between border-b border-white/5 bg-[#111]">
+        <div className="w-full max-w-screen-xl h-[63px] flex items-center gap-4 lg:gap-6 ">
+          {/* <div className="absolute w-[942px] h-[63px] flex items-center gap-4 lg:gap-6"> */}
           {/* Back Button */}
-          <button 
-            onClick={onBack} 
+          <button
+            onClick={onBack}
             className="flex items-center gap-2 text-white/40 hover:text-white transition-colors group"
           >
             <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -123,21 +124,21 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
         </div>
 
         {/* Close Icon (Right side) */}
-        <button onClick={onBack} className="text-white/40 hover:text-white transition-colors">
+        <button onClick={onBack} className="text-white/40 hover:text-white transition-colors w-[82px] h-[63px]">
           <X size={20} />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="w-full lg:max-w-7xl mx-auto p-5 lg:p-8 space-y-4 lg:space-y-6">
-          
+        <div className="w-full lg:max-w-7xl mx-auto pt-3 lg:pt-6 space-y-4 lg:space-y-6">
+
           {/* 2. PROFILE HEADER */}
           <div className="flex flex-col lg:flex-row gap-2 lg:items-start justify-between">
             <div className="flex items-start gap-3 lg:gap-5">
               <div className="w-10 h-10 lg:h-20 lg:w-20 rounded-lg lg:rounded-2xl bg-blue-400/20 border border-blue-400/20 flex items-center justify-center text-blue-400 text-sm lg:text-3xl font-bold shadow-lg shrink-0">
                 {projectNameInitials}
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <h2 className="lg:text-2xl font-bold text-white/90">
@@ -169,18 +170,18 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             <StripItem label="Shoot Date" value={formatDate(project?.event_date)} />
             <Divider />
             <StripItem label="Time" value={projectTimeText} />
-            
+
             <div className="w-full flex flex-col lg:flex-row gap-3 lg:gap-8 pt-2 mt-2 border-t border-white/5">
-                <StripItem
-                  label="Shoot Files"
-                  value={
-                    phaseFileCount != null
-                      ? `${phaseFileCount} File${phaseFileCount === 1 ? "" : "s"}`
-                      : getShootFilesText(project)
-                  }
-                />
-                <Divider />
-                <StripItem label="Location" value={locationText} />
+              <StripItem
+                label="Shoot Files"
+                value={
+                  phaseFileCount != null
+                    ? `${phaseFileCount} File${phaseFileCount === 1 ? "" : "s"}`
+                    : getShootFilesText(project)
+                }
+              />
+              <Divider />
+              <StripItem label="Location" value={locationText} />
             </div>
           </div>
 
@@ -196,26 +197,26 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
           {/* 5. TAB CONTENT */}
           <div className="pt-4 pb-20">
             {activeTab === "shoot-details" && (
-                <ShootOverviewTab project={project} />
+              <ShootOverviewTab project={project} />
             )}
-            
+
             {activeTab === "pre-prod" && (
-                <AffiliatePreProductionTab projectId={projectId} canUpload={false} />
+              <AffiliatePreProductionTab projectId={projectId} canUpload={false} />
             )}
-            
+
             {activeTab === "post-prod" && (
-                <AffiliatePostProductionTab projectId={projectId} />
+              <AffiliatePostProductionTab projectId={projectId} />
             )}
-            
+
             {activeTab === "meetings" && (
-                <MeetingSchedule orderId={projectId} role="cp" />
+              <MeetingSchedule orderId={projectId} role="cp" />
             )}
-            
+
             {activeTab === "messages" && (
-                <MessagesTab
-                  bookingId={project?.stream_project_booking_id || project?.project_id || project?.id}
-                  role="cp"
-                />
+              <MessagesTab
+                bookingId={project?.stream_project_booking_id || project?.project_id || project?.id}
+                role="cp"
+              />
             )}
           </div>
         </div>
@@ -246,7 +247,7 @@ function StripItem({ label, value, isLink, valueClassName }: any) {
 
 function TabBtn({ label, active, onClick }: any) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`px-4 py-4 text-sm font-semibold transition-all relative whitespace-nowrap ${active ? "text-[#E8D1AB]" : "text-white/40 hover:text-white"}`}
     >

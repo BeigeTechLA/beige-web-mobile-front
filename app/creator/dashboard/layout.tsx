@@ -103,7 +103,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
       </AnimatePresence>
 
       <div className="flex-1 flex flex-col min-h-screen h-screen overflow-hidden">
-        <main className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 overflow-y-auto">
+        <main className="flex-1 p-3 lg:p-6 pt-15 lg:pt-6 overflow-y-auto">
           {children}
         </main>
       </div>
