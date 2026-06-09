@@ -8,9 +8,10 @@ import { useAssignCrewFromLeadMutation } from "@/lib/redux/features/sales/salesA
 import Topbar from "@/components/admin/Topbar";
 import { toast } from "sonner";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
-import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
+import { AssignmentConfirmationModal, AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import { salesApi } from "@/lib/api";
 import { useTheme } from "next-themes";
+import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
 
 const pluralizeRole = (role: string, count: number) => {
   if (count === 1) return role;
@@ -100,6 +101,9 @@ export default function SelectCreativesPage() {
   const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [missingDetails, setMissingDetails] = useState<string[]>([]);
+  const [isMissingDetailsModalOpen, setIsMissingDetailsModalOpen] = useState(false);
+  const [assignmentDetails, setAssignmentDetails] = useState<Record<string, unknown> | null>(null);
   const [assignCrew, { isLoading }] = useAssignCrewFromLeadMutation();
 
   useEffect(() => setMounted(true), []);
@@ -110,6 +114,7 @@ export default function SelectCreativesPage() {
       if (leadId) {
         try {
           const response = await salesApi.getLeadStats(leadId);
+          setAssignmentDetails(response?.data || response);
           if (response?.data?.fulfillment_stats) {
             const vReq = parseInt(response.data.fulfillment_stats.videographer?.split('/')[1] || "0");
             const pReq = parseInt(response.data.fulfillment_stats.photographer?.split('/')[1] || "0");
@@ -132,6 +137,13 @@ export default function SelectCreativesPage() {
 
     if (selectedCreativeIds.length === 0) {
       toast.error("Please select at least one creative");
+      return;
+    }
+
+    const currentMissingDetails = getCpAssignmentMissingDetails(assignmentDetails);
+    if (currentMissingDetails.length > 0) {
+      setMissingDetails(currentMissingDetails);
+      setIsMissingDetailsModalOpen(true);
       return;
     }
 
@@ -209,6 +221,13 @@ export default function SelectCreativesPage() {
         onConfirm={executeAssignment}
         videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+        isDark={isDark}
+      />
+
+      <AssignmentMissingDetailsModal
+        isOpen={isMissingDetailsModalOpen}
+        onClose={() => setIsMissingDetailsModalOpen(false)}
+        missingDetails={missingDetails}
         isDark={isDark}
       />
 

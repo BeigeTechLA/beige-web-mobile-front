@@ -3535,7 +3535,7 @@ export default function CreateQuotePage() {
     await saveQuoteDraft("save", { suppressRedirect: true, openPreview: true });
   };
 
-  const noQuoteChangesMessage = "No changes found to save.";
+  const noQuoteChangesMessage = "No changes made, modify anything to save it";
 
   const handleSaveQuote = async () => {
     if (!quoteReviewValidation.isValid) {
