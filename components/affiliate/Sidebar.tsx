@@ -147,10 +147,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2">
           {menuItems.map((item) => {
-            if (item.permissionKeys && item.permissionKeys.length > 0) {
-              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
-              if (!canView) return null;
-            }
+            const canView = item.permissionKeys?.length
+              ? hasModulePermission(permissions, item.permissionKeys, "view")
+              : true;
+            if (!canView) return null;
 
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.includes(item.name);
@@ -195,6 +195,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {hasChildren && isExpanded && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item.children!.map((child) => {
+                      const canViewChild = child.permissionKeys?.length
+                        ? hasModulePermission(permissions, child.permissionKeys, "view")
+                        : true;
+                      if (!canViewChild) return null;
                       const isChildActive = isActiveLink(child.link);
                       return (
                         <Link

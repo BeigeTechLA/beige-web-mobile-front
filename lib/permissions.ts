@@ -13,11 +13,54 @@ type AdminRouteRule = {
 type PortalKey = "admin" | "affiliate" | "sales" | "production-manager";
 
 const MODULE_ALIASES: Record<string, string[]> = {
+  admin_dashboard: ["dashboard", "admin-dashboard"],
+  admin_shoots: ["shoots", "shoot", "admin-shoots"],
+  admin_file_manager: ["file_manager", "file-manager", "file manager", "admin-file-manager"],
+  admin_meetings: ["meetings", "meeting", "admin-meetings"],
+  admin_messages: ["messages", "message", "admin-messages"],
+  admin_availability: ["availability", "admin-availability"],
+  admin_users: ["users", "user", "admin-users"],
+  admin_quotes: ["quotes", "quote", "admin-quote", "quote_approvals"],
+  admin_invoices: ["invoices", "invoice", "admin-invoices"],
+  admin_finances: ["finances", "finance", "payouts", "admin-finances"],
+  admin_sales_representative: ["sales_representative", "sales-representative", "sales rep", "sales_rep"],
+  production_manager_dashboard: ["production-manager-dashboard", "production manager dashboard"],
+  production_manager_shoots: ["production-manager-shoots", "production manager shoots"],
+  production_manager_file_manager: ["production-manager-file-manager", "production manager file manager"],
+  production_manager_meetings: ["production-manager-meetings", "production manager meetings"],
+  production_manager_messages: ["production-manager-messages", "production manager messages"],
+  production_manager_availability: ["production-manager-availability", "production manager availability"],
+  client_dashboard: ["affiliate_dashboard", "affiliate-dashboard"],
+  client_affiliate_overview: ["affiliate_overview", "affiliate-overview"],
+  client_file_manager: ["affiliate_file_manager", "affiliate-file-manager"],
+  client_find_yourself: ["affiliate_find_yourself", "affiliate-find-yourself"],
+  client_meetings: ["affiliate_meetings", "affiliate-meetings"],
+  client_messages: ["affiliate_messages", "affiliate-messages"],
+  client_shoots: ["affiliate_shoots", "affiliate-shoots"],
+  client_quotes: ["affiliate_quotes", "affiliate-quotes"],
+  client_book_a_shoot: ["affiliate_book_a_shoot", "affiliate-book-a-shoot"],
+  client_finances: ["affiliate_finances", "affiliate-finances"],
+  client_profile: ["affiliate_profile", "affiliate-profile"],
+  sales_admin_dashboard: ["sales-admin-dashboard"],
+  sales_admin_sales_people: ["sales-admin-sales-people"],
+  sales_admin_shoots: ["sales-admin-shoots"],
+  sales_admin_file_manager: ["sales-admin-file-manager"],
+  sales_admin_meetings: ["sales-admin-meetings"],
+  sales_admin_messages: ["sales-admin-messages"],
+  sales_admin_quotes: ["sales-admin-quotes", "quote_approvals"],
+  sales_admin_invoices: ["sales-admin-invoices"],
+  sales_rep_sales: ["sales-rep-sales"],
+  sales_rep_availability: ["sales-rep-availability"],
+  sales_rep_shoots: ["sales-rep-shoots"],
+  sales_rep_file_manager: ["sales-rep-file-manager"],
+  sales_rep_meetings: ["sales-rep-meetings"],
+  sales_rep_messages: ["sales-rep-messages"],
+  sales_rep_quotes: ["sales-rep-quotes"],
+  roles_permissions: ["roles_permissions", "roles-permissions"],
+  quotes: ["quotes", "quote", "sales_admin_quotes", "sales_rep_quotes", "client_quotes", "admin_quotes"],
   file_manager: ["file_manager", "file-manager"],
   file_manager_view: ["file_manager", "file-manager"],
   request_shoots: ["request_shoots", "request-shoots"],
-  quotes: ["quotes", "admin_quotes", "sales_admin_quotes", "sales_rep_quotes", "client_quotes"],
-  roles_permissions: ["roles_permissions", "roles-permissions"],
   sales_representative: ["sales_representative", "sales-representative"],
 };
 
@@ -211,7 +254,15 @@ export const hasModulePermission = (
 ) => {
   if (!permissions || !moduleKeys.length) return false;
 
-  const expandedKeys = expandPermissionKeys(moduleKeys);
+  const normalizedModuleKeys = moduleKeys.map((key) => normalizeKey(key));
+
+  for (const key of normalizedModuleKeys) {
+    if (permissions[key]?.[action]) {
+      return true;
+    }
+  }
+
+  const expandedKeys = expandPermissionKeys(normalizedModuleKeys);
 
   return expandedKeys.some((key) => Boolean(permissions[key]?.[action]));
 };

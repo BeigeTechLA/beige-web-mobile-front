@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   Video,
@@ -27,6 +27,8 @@ import { salesApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAppSelector } from "@/lib/redux/hooks";
+import { hasModulePermission } from "@/lib/permissions";
 
 type SectionKey = "service" | "addon" | "logistics";
 
@@ -577,7 +579,11 @@ function PricingSection({
 
 export default function QuotePricingPage() {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme } = useTheme();
+  const permissions = useAppSelector((state) => state.auth.permissions);
+  const canEdit = hasModulePermission(permissions, ["admin_quotes"], "edit");
+  const isPermissionsLoading = !permissions;
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<CatalogData>({
     service: [],
@@ -592,7 +598,14 @@ export default function QuotePricingPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!isPermissionsLoading && !canEdit) {
+      router.replace("/admin/quotes");
+    }
+  }, [canEdit, isPermissionsLoading, router]);
+
   const isDark = !mounted || theme === "dark";
+  const shouldBlockAccess = isPermissionsLoading || !canEdit;
 
   const fetchCatalog = useCallback(async () => {
     setLoading(true);
@@ -738,6 +751,10 @@ export default function QuotePricingPage() {
     { key: "addon", label: "Add-ons", count: data.addon.length },
     { key: "logistics", label: "Logistics", count: data.logistics.length },
   ];
+
+  if (shouldBlockAccess) {
+    return null;
+  }
 
   return (
     <>

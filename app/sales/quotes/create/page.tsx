@@ -102,6 +102,7 @@ import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationMo
 import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -1010,6 +1011,7 @@ export default function CreateQuotePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
+  const { canCreate, canEdit } = usePermissions("quotes");
   const editQuoteId = searchParams.get("quoteId");
   const isEditMode = Boolean(editQuoteId);
   const editModeParam = searchParams.get("editMode");
@@ -1028,6 +1030,26 @@ export default function CreateQuotePage() {
     !isDuplicateFlow && returnToParam && returnToParam.startsWith("/")
       ? returnToParam
       : null;
+
+  if ((isEditMode && !canEdit) || (!isEditMode && !canCreate)) {
+    return (
+      <div className={`min-h-screen p-10 ${isDark ? "bg-[#0f0f0f] text-white" : "bg-white text-black"}`}>
+        <div className={`mx-auto max-w-2xl rounded-3xl border p-8 ${isDark ? "border-white/10 bg-[#161616]" : "border-black/10 bg-white"}`}>
+          <h1 className="text-2xl font-semibold">Access Denied</h1>
+          <p className={`mt-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
+            You do not have permission to {isEditMode ? "edit" : "create"} quotes.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/sales/quotes")}
+            className="mt-6 rounded-xl bg-[#E5D5B8] px-5 py-3 font-semibold text-black"
+          >
+            Back to Quotes
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Using a Record so it works for multiple rows/items in a list
   const [inputValue, setInputValue] = useState<Record<string, string>>({});

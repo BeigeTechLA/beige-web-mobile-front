@@ -28,6 +28,7 @@ import { salesApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type SectionKey = "service" | "addon" | "logistics";
 
@@ -494,6 +495,7 @@ export default function QuotePricingPage() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  const { canEdit, isLoading: isPermissionsLoading } = usePermissions("quotes");
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<CatalogData>({
@@ -524,10 +526,19 @@ export default function QuotePricingPage() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
+    if (!isPermissionsLoading && !canEdit) {
+      router.replace("/sales/quotes");
+    }
+  }, [canEdit, isPermissionsLoading, router]);
+
+  useEffect(() => {
     setMounted(true);
   }, []);
 
   const isDark = !mounted || theme === "dark";
+  if (isLoading || isPermissionsLoading || !canEdit) {
+    return null;
+  }
 
   const fetchCatalog = useCallback(async () => {
     setLoading(true);

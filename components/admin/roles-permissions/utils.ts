@@ -18,25 +18,14 @@ const ALL_ACTIONS: PermissionColumnKey[] = ["view", "create", "edit", "delete"];
 const getAllowedActions = (row: PermissionMatrixRow) =>
   row.allowedActions?.length ? row.allowedActions : ALL_ACTIONS;
 
-const getAllowedActionsFromRecord = (
-  value: Partial<Record<PermissionColumnKey, boolean>> | string[] | undefined,
-) => {
-  if (Array.isArray(value)) {
-    return ALL_ACTIONS.filter((action) => value.includes(action));
-  }
-
-  if (!value || typeof value !== "object") {
-    return ALL_ACTIONS;
-  }
-
-  return ALL_ACTIONS.filter((action) => Boolean(value[action]));
-};
-
 export const normalizeModuleKeyToRowId = (moduleKey: string | null | undefined) =>
   String(moduleKey || "").replace(/_/g, "-");
 
 export const normalizeRowIdToModuleKey = (rowId: string | null | undefined) =>
   String(rowId || "").replace(/-/g, "_");
+
+export const getRowModuleKey = (row: PermissionMatrixRow) =>
+  row.moduleKey ? normalizeRowIdToModuleKey(row.moduleKey) : normalizeRowIdToModuleKey(row.id);
 
 export const formatModuleLabel = (moduleKey: string | null | undefined) =>
   String(moduleKey || "")
@@ -51,6 +40,7 @@ export const buildPermissionRows = (
   if (!modules.length) {
     return basePermissions.map((row) => ({
       ...row,
+      moduleKey: row.moduleKey ?? normalizeRowIdToModuleKey(row.id),
       access: { ...row.access },
     }));
   }
@@ -71,6 +61,7 @@ export const buildPermissionRows = (
 
       return {
         id: normalizeModuleKeyToRowId(moduleKey),
+        moduleKey,
         label: formatModuleLabel(moduleKey),
         selected: false,
         access,
@@ -114,6 +105,7 @@ export const buildPermissionRowsFromMap = (
 
     return {
       id: rowId,
+      moduleKey,
       label: moduleLabels[moduleKey] || formatModuleLabel(moduleKey),
       selected: allowedActions.every((action) => access[action]),
       access,
@@ -127,7 +119,7 @@ export const applyPermissionsToRows = (
   permissions: RolePermissionsMap = {},
 ): PermissionMatrixRow[] =>
   rows.map((row) => {
-    const permissionValue = permissions[normalizeRowIdToModuleKey(row.id)];
+    const permissionValue = permissions[getRowModuleKey(row)];
 
     const access = { ...row.access };
 
@@ -154,7 +146,7 @@ export const extractPermissionsFromRows = (rows: PermissionMatrixRow[]) => {
   rows.forEach((row) => {
     const actions = ALL_ACTIONS.filter((action) => row.access[action]);
     if (actions.length) {
-      permissions[normalizeRowIdToModuleKey(row.id)] = actions;
+      permissions[getRowModuleKey(row)] = actions;
     }
   });
 
@@ -165,7 +157,7 @@ export const extractPermissionStateFromRows = (rows: PermissionMatrixRow[]) => {
   const permissions: Record<string, Record<PermissionColumnKey, boolean>> = {};
 
   rows.forEach((row) => {
-    permissions[normalizeRowIdToModuleKey(row.id)] = {
+    permissions[getRowModuleKey(row)] = {
       view: Boolean(row.access.view),
       create: Boolean(row.access.create),
       edit: Boolean(row.access.edit),

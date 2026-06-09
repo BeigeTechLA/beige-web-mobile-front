@@ -43,55 +43,55 @@ const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
 };
 
 const menuItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['admin_dashboard', 'dashboard'] },
-  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['admin_shoots', 'shoots'] },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['admin_file_manager', 'file_manager'] },
-  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['admin_meetings', 'meetings'] },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['admin_messages', 'messages'] },
-  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['admin_availability', 'availability'] },
+  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['admin_dashboard'] },
+  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['admin_shoots'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['admin_file_manager'] },
+  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['admin_meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['admin_messages'] },
+  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['admin_availability'] },
   {
     name: 'Sales Representative',
     icon: CircleDollarSign,
     link: '/admin/sales-representative',
-    permissionKeys: ['admin_sales_representative', 'sales_representative'],
+    permissionKeys: ['admin_sales_representative'],
     children: [
-      { name: 'Dashboard', link: '/admin/sales-representative', permissionKeys: ['admin_sales_representative', 'sales_representative'] },
+      { name: 'Dashboard', link: '/admin/sales-representative', permissionKeys: ['admin_sales_representative'] },
       // { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
   { name: 'Finances', icon: DollarSign, 
-    permissionKeys: ['admin_finances', 'finances'],
+    permissionKeys: ['admin_finances'],
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
       // { name: 'Transactions', link: '/admin/finances/transactions' },
       // { name: 'Disputes', link: '/admin/finances/disputes' },
-      { name: 'Beige credit points', link: '/admin/finances/creditPoints', permissionKeys: ['admin_finances', 'finances'] },
+      { name: 'Beige credit points', link: '/admin/finances/creditPoints', permissionKeys: ['admin_finances'] },
 
     ] },
 
   {
     name: 'Users',
     icon: Users,
-    permissionKeys: ['admin_users', 'users'],
+    permissionKeys: ['admin_users'],
     children: [
-      { name: 'All Users', link: '/admin/users/all', permissionKeys: ['admin_users', 'users'] },
-      { name: 'Clients', link: '/admin/users/clients', permissionKeys: ['admin_users', 'users'] },
-      { name: 'Creative Partners', link: '/admin/users/creative-partners', permissionKeys: ['admin_users', 'users'] },
+      { name: 'All Users', link: '/admin/users/all', permissionKeys: ['admin_users'] },
+      { name: 'Clients', link: '/admin/users/clients', permissionKeys: ['admin_users'] },
+      { name: 'Creative Partners', link: '/admin/users/creative-partners', permissionKeys: ['admin_users'] },
     ]
   },
-  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions' },
+  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions', permissionKeys: ['roles_permissions'] },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
     link: '/admin/quotes',
-    permissionKeys: ['admin_quotes', 'quotes'],
+    permissionKeys: ['admin_quotes'],
     children: [
-      { name: 'All Quotes', link: '/admin/quotes', permissionKeys: ['admin_quotes', 'quotes'], permissionAction: 'view' },
-      { name: 'Quote Approvals', link: '/admin/quotes/change-requests', permissionKeys: ['admin_quotes', 'quotes'], permissionAction: 'edit' },
-      { name: 'Master Pricing', link: '/admin/quotes/pricing', permissionKeys: ['admin_quotes', 'quotes'], permissionAction: 'edit' },
+      { name: 'All Quotes', link: '/admin/quotes', permissionKeys: ['admin_quotes'], permissionAction: 'view' },
+      { name: 'Quote Approvals', link: '/admin/quotes/change-requests', permissionKeys: ['admin_quotes'], permissionAction: 'edit' },
+      { name: 'Master Pricing', link: '/admin/quotes/pricing', permissionKeys: ['admin_quotes'], permissionAction: 'edit' },
     ],
   },
-  { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['admin_invoices', 'invoices'] },
+  { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['admin_invoices'] },
 ];
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
@@ -248,15 +248,19 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2">
           {menuItems.map((item) => {
-            if (!isPrivilegedAdminAccount && item.permissionKeys && item.permissionKeys.length > 0) {
-              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
-              if (!canView) return null;
-            }
+            const hasPermissionAccess = Boolean(
+              item.permissionKeys?.length && hasModulePermission(permissions, item.permissionKeys, "view"),
+            );
+            const canSee = isPrivilegedAdminAccount || hasPermissionAccess;
+            if (!canSee) return null;
 
             const visibleChildren = item.children?.filter((child) => {
-              if (isPrivilegedAdminAccount) return true;
-              if (!child.permissionKeys?.length) return true;
-              return hasModulePermission(permissions, child.permissionKeys, child.permissionAction ?? "view");
+              const childHasPermissionAccess = Boolean(
+                child.permissionKeys?.length && hasModulePermission(permissions, child.permissionKeys, child.permissionAction ?? "view"),
+              );
+              if (childHasPermissionAccess || isPrivilegedAdminAccount) return true;
+              if (!child.visibleForUserTypes?.length) return !child.permissionKeys?.length;
+              return false;
             }) ?? [];
             const hasChildren = visibleChildren.length > 0;
             const isExpanded = expanded.includes(item.name);

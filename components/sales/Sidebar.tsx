@@ -93,26 +93,6 @@ type SalesMenuItem = {
   }[];
 };
 
-// const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
-//   if (!user) return false;
-
-//   const userTypeId = user.user_type_id ?? user.userTypeId;
-//   const roleValue = user.role ?? user.userRole;
-//   const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
-
-//   return userTypeId === 7 && normalizedRole === "sales_admin";
-// };
-
-const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
-  if (!user) return false;
-
-  const userTypeId = user.user_type_id ?? user.userTypeId;
-  const roleValue = user.role ?? user.userRole;
-  const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
-
-  return userTypeId === 7 && normalizedRole === "sales_admin";
-};
-
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -159,19 +139,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const isDark = !mounted || theme === "dark";
   const normalizedUserTypeId = Number(user?.user_type_id ?? user?.userTypeId ?? localUserTypeId);
   const currentUserTypeId = Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null;
-  const isSalesAdmin = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
-  const visibleSalesMenuItems = salesMenuItems.filter((item) => {
-    if (item.permissionKeys && item.permissionKeys.length > 0) {
-      const canView = hasModulePermission(permissions, item.permissionKeys, "view");
-      if (!canView) return false;
-    }
+  const canViewItem = (item: SalesMenuItem) => {
+    const hasPermissionAccess = Boolean(
+      item.permissionKeys?.length && hasModulePermission(permissions, item.permissionKeys, "view"),
+    );
 
-    if (!item.visibleForUserTypes?.length) {
-      return true;
-    }
-
+    if (hasPermissionAccess) return true;
+    if (!item.visibleForUserTypes?.length) return !item.permissionKeys?.length;
     return currentUserTypeId != null && item.visibleForUserTypes.includes(currentUserTypeId);
-  });
+  };
+
+  const visibleSalesMenuItems = salesMenuItems.filter((item) => canViewItem(item));
 
   useEffect(() => {
     if (currentUserTypeId !== 7) {
@@ -193,14 +171,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     }
 
     return item.children.filter((child) => {
-      if (child.permissionKeys?.length && !hasModulePermission(permissions, child.permissionKeys, "view")) {
-        return false;
-      }
+      const hasPermissionAccess = Boolean(
+        child.permissionKeys?.length && hasModulePermission(permissions, child.permissionKeys, "view"),
+      );
 
-      if (!child.visibleForUserTypes?.length) {
-        return true;
-      }
-
+      if (hasPermissionAccess) return true;
+      if (!child.visibleForUserTypes?.length) return !child.permissionKeys?.length;
       return currentUserTypeId != null && child.visibleForUserTypes.includes(currentUserTypeId);
     });
   };
@@ -302,7 +278,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         <nav className="space-y-2">
           {visibleSalesMenuItems.map((item) => {
             const visibleChildren = getVisibleChildren(item);
-            const hasChildren = currentUserTypeId === 7 && visibleChildren.length > 0;
+            const hasChildren = visibleChildren.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);
             const isDisabled =
@@ -339,7 +315,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </div>
-                ) : item.name === 'Quotes' && item.children && user?.user_type_id === 7 ? (
+                ) : item.name === 'Quotes' && item.children ? (
 
                   <button
                     onClick={() => setQuotesExpanded((p) => !p)}
@@ -394,16 +370,16 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   </div>
                 )}
 
-                {item.name === 'Quotes' && item.children && quotesExpanded && user?.user_type_id === 7 && (
+                {item.name === 'Quotes' && item.children && quotesExpanded && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {visibleChildren.map((child) => {
-                      if ((child.name === 'Master Pricing' || child.name === 'Change Request') && !isSalesAdmin) return null;
-
+                      const childDisabled = Boolean(child.isDisabled) || isRouteDisabled(child.link);
                       return (
                         <button
                           key={child.name}
-                          onClick={() => handleNavigation(child.link)}
-                          className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${pathname === child.link
+                          onClick={() => !childDisabled && handleNavigation(child.link)}
+                          disabled={childDisabled}
+                          className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${pathname === child.link
                             ? isDark ? "text-white font-medium" : "text-[#101010] font-bold"
                             : isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]"
                             }`}

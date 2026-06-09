@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Topbar from "@/components/admin/Topbar";
 import { adminApi } from "@/lib/api";
@@ -24,8 +24,10 @@ const ROLE_OPTIONS = [
 export default function InternalCredentialsPage() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
+  const [rolesLoading, setRolesLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [roles, setRoles] = useState<Array<{ label: string; value: number }>>([]);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -33,6 +35,54 @@ export default function InternalCredentialsPage() {
     phone_number: "",
     user_type: 5,
   });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchRoles = async () => {
+      setRolesLoading(true);
+
+      try {
+        const response = await adminApi.getRoles();
+
+        if (
+          mounted &&
+          response?.success &&
+          Array.isArray(response.data)
+        ) {
+          const fetchedRoles = response.data
+            .filter((role: any) => role.is_active === 1)
+            .map((role: any) => ({
+              label: role.name
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (char: string) => char.toUpperCase()),
+              value: role.role_id,
+            }));
+
+          setRoles(fetchedRoles);
+
+          if (fetchedRoles.length > 0) {
+            setForm((prev) => ({
+              ...prev,
+              user_type: fetchedRoles[0].value,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch roles:", error);
+      } finally {
+        if (mounted) {
+          setRolesLoading(false);
+        }
+      }
+    };
+
+    fetchRoles();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const updateField = (field: "name" | "email" | "password" | "phone_number", value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -87,7 +137,7 @@ export default function InternalCredentialsPage() {
         email: "",
         password: "",
         phone_number: "",
-        user_type: 5,
+        user_type: roles[0]?.value ?? 5,
       });
     } else {
       setMessage(result?.error || "Failed to create credential.");
@@ -109,61 +159,62 @@ export default function InternalCredentialsPage() {
           <form onSubmit={onSubmit} className="mt-6 space-y-4" autoComplete="off" noValidate>
             <div className="space-y-1.5">
               <Input
-              autoComplete="off"
-              className={`w-full rounded-md border bg-transparent px-3 py-2 text-white outline-none ${errors.name ? "border-[#F04438]" : "border-white/20"}`}
-              placeholder="Full name"
-              value={form.name}
-              onChange={(e) => updateField("name", e.target.value)}
-            />
+                autoComplete="off"
+                className={`w-full rounded-md border bg-transparent px-3 py-2 text-white outline-none ${errors.name ? "border-[#F04438]" : "border-white/20"}`}
+                placeholder="Full name"
+                value={form.name}
+                onChange={(e) => updateField("name", e.target.value)}
+              />
               {errors.name ? <p className="text-xs text-[#F04438]">{errors.name}</p> : null}
             </div>
 
             <div className="space-y-1.5">
               <Input
-              type="email"
-              autoComplete="off"
-              name="internal-email"
-              className={`w-full rounded-md border bg-transparent px-3 py-2 text-white outline-none ${errors.email ? "border-[#F04438]" : "border-white/20"}`}
-              placeholder="Email"
-              value={form.email}
-              onChange={(e) => updateField("email", e.target.value)}
-            />
+                type="email"
+                autoComplete="off"
+                name="internal-email"
+                className={`w-full rounded-md border bg-transparent px-3 py-2 text-white outline-none ${errors.email ? "border-[#F04438]" : "border-white/20"}`}
+                placeholder="Email"
+                value={form.email}
+                onChange={(e) => updateField("email", e.target.value)}
+              />
               {errors.email ? <p className="text-xs text-[#F04438]">{errors.email}</p> : null}
             </div>
 
             <div className="space-y-1.5">
               <Input
-              type="password"
-              autoComplete="new-password"
-              name="internal-password"
-              className={`w-full rounded-md border bg-transparent px-3 py-2 text-white outline-none ${errors.password ? "border-[#F04438]" : "border-white/20"}`}
-              placeholder="Password"
-              value={form.password}
-              onChange={(e) => updateField("password", e.target.value)}
-            />
+                type="password"
+                autoComplete="new-password"
+                name="internal-password"
+                className={`w-full rounded-md border bg-transparent px-3 py-2 text-white outline-none ${errors.password ? "border-[#F04438]" : "border-white/20"}`}
+                placeholder="Password"
+                value={form.password}
+                onChange={(e) => updateField("password", e.target.value)}
+              />
               {errors.password ? <p className="text-xs text-[#F04438]">{errors.password}</p> : null}
             </div>
 
             <div className="space-y-1.5">
               <Input
-              autoComplete="off"
-              className={`w-full rounded-md border bg-transparent px-3 py-2 text-white outline-none ${errors.phone_number ? "border-[#F04438]" : "border-white/20"}`}
-              placeholder="Phone number (optional)"
-              value={form.phone_number}
-              onChange={(e) => updateField("phone_number", e.target.value)}
-            />
+                autoComplete="off"
+                className={`w-full rounded-md border bg-transparent px-3 py-2 text-white outline-none ${errors.phone_number ? "border-[#F04438]" : "border-white/20"}`}
+                placeholder="Phone number (optional)"
+                value={form.phone_number}
+                onChange={(e) => updateField("phone_number", e.target.value)}
+              />
               {errors.phone_number ? <p className="text-xs text-[#F04438]">{errors.phone_number}</p> : null}
             </div>
 
             <Select
               value={String(form.user_type)}
               onValueChange={(value) => setForm((prev) => ({ ...prev, user_type: Number(value) }))}
+              disabled={rolesLoading}
             >
               <SelectTrigger className="w-full rounded-md border border-white/20 bg-transparent px-3 py-2 text-white outline-none focus:ring-[#E5D5B8]/40">
-                <SelectValue placeholder="Select role" />
+                <SelectValue placeholder={rolesLoading ? "Loading roles..." : "Select role"} />
               </SelectTrigger>
               <SelectContent className="border border-white/20 bg-[#111] text-white">
-                {ROLE_OPTIONS.map((role) => (
+                {roles.map((role) => (
                   <SelectItem key={role.value} value={String(role.value)}>
                     {role.label}
                   </SelectItem>

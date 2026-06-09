@@ -1,3 +1,4 @@
+import { usePathname } from "next/navigation";
 import { useAppSelector } from "../redux/hooks";
 import { hasModulePermission } from "../permissions";
 
@@ -7,6 +8,7 @@ import { hasModulePermission } from "../permissions";
  * @returns Object containing booleans for each permission action
  */
 export const usePermissions = (moduleKey?: string) => {
+  const pathname = usePathname();
   const permissions = useAppSelector((state) => state.auth.permissions);
   const user = useAppSelector((state) => state.auth.user);
   const isPrivilegedAdminAccount = Boolean(
@@ -15,8 +17,8 @@ export const usePermissions = (moduleKey?: string) => {
   );
   const isAdmin = Boolean(
     user && (
-      Number(user.userTypeId) === 4 ||
-      Number(user.user_type_id) === 4 ||
+      Number(user.userTypeId) === 1 ||
+      Number(user.user_type_id) === 1 ||
       user.userRole?.toLowerCase() === "admin"
     ),
   );
@@ -29,8 +31,7 @@ export const usePermissions = (moduleKey?: string) => {
     };
   }
 
-  // Admin users can access every module/action.
-  if (isAdmin || (isPrivilegedAdminAccount && moduleKey === "roles_permissions")) {
+  if (isPrivilegedAdminAccount && moduleKey === "roles_permissions") {
     return {
       canView: true,
       canEdit: true,
@@ -40,11 +41,22 @@ export const usePermissions = (moduleKey?: string) => {
     };
   }
 
+  const getPortalSpecificKeys = (key: string) => {
+    if (key !== "quotes") return [key];
+
+    if (pathname.startsWith("/admin")) return ["admin_quotes"];
+    if (pathname.startsWith("/sales")) return ["sales_rep_quotes", "sales_admin_quotes"];
+    if (pathname.startsWith("/affiliate")) return ["client_quotes"];
+    return [key];
+  };
+
+  const moduleKeys = getPortalSpecificKeys(moduleKey);
+
   return {
-    canView: hasModulePermission(permissions, [moduleKey], "view"),
-    canEdit: hasModulePermission(permissions, [moduleKey], "edit"),
-    canCreate: hasModulePermission(permissions, [moduleKey], "create"),
-    canDelete: hasModulePermission(permissions, [moduleKey], "delete"),
+    canView: hasModulePermission(permissions, moduleKeys, "view"),
+    canEdit: hasModulePermission(permissions, moduleKeys, "edit"),
+    canCreate: hasModulePermission(permissions, moduleKeys, "create"),
+    canDelete: hasModulePermission(permissions, moduleKeys, "delete"),
     isLoading: !permissions,
   };
 };

@@ -2381,9 +2381,11 @@ export const adminApi = {
     }
   },
 
-  getPermissionModules: async () => {
+  getPermissionModules: async (scope?: "admin" | "sales" | "crew" | "client") => {
     try {
-      const response = await api.get('admin/permissions/modules');
+      const response = await api.get('admin/permissions/modules', {
+        params: scope ? { scope } : undefined,
+      });
       const payload = response.data;
       const modules = Array.isArray(payload?.data)
         ? payload.data.flatMap((item: any) => (

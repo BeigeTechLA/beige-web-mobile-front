@@ -62,7 +62,8 @@ import {
   persistQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
-import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAppSelector } from "@/lib/redux/hooks";
+import { hasModulePermission } from "@/lib/permissions";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -175,6 +176,10 @@ type QuoteActionMenuProps = {
   onEdit: () => void;
   onPaymentTransaction: () => void;
   onReject: () => void;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canRecordPayment?: boolean;
   allowEdit?: boolean;
   allowDelete?: boolean;
   mobile?: boolean;
@@ -242,6 +247,10 @@ const QuoteActionMenu = ({
   onEdit,
   onPaymentTransaction,
   onReject,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
+  canRecordPayment = true,
   allowEdit = true,
   allowDelete = true,
   mobile = false,
@@ -297,13 +306,15 @@ const QuoteActionMenu = ({
             onClick={handleAction(onViewDetails)}
             isDark={isDark}
           />
-          <QuoteActionMenuButton
-            icon={<Copy size={18} />}
-            label="Duplicate"
-            onClick={handleAction(onDuplicate)}
-            isDark={isDark}
-          />
-          {allowEdit && (
+          {canCreate && (
+            <QuoteActionMenuButton
+              icon={<Copy size={18} />}
+              label="Duplicate"
+              onClick={handleAction(onDuplicate)}
+              isDark={isDark}
+            />
+          )}
+          {allowEdit && canEdit && (
             <QuoteActionMenuButton
               icon={<SquarePen size={18} />}
               label="Edit"
@@ -311,23 +322,27 @@ const QuoteActionMenu = ({
               isDark={isDark}
             />
           )}
-          <QuoteActionMenuButton
-            icon={<DollarSign size={18} />}
-            label="Record Payment"
-            onClick={handleAction(onPaymentTransaction)}
-            isDark={isDark}
-          />
+          {canRecordPayment && (
+            <QuoteActionMenuButton
+              icon={<DollarSign size={18} />}
+              label="Record Payment"
+              onClick={handleAction(onPaymentTransaction)}
+              isDark={isDark}
+            />
+          )}
 
           {/* Divider line using theme opacity logic */}
           <div className={`my-1 h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#000000]/10"}`} />
 
-          <QuoteActionMenuButton
-            icon={<XCircle size={18} />}
-            label="Reject Quote"
-            onClick={handleAction(onReject)}
-            variant="danger"
-            isDark={isDark}
-          />
+          {allowDelete && canDelete && (
+            <QuoteActionMenuButton
+              icon={<XCircle size={18} />}
+              label="Reject Quote"
+              onClick={handleAction(onReject)}
+              variant="danger"
+              isDark={isDark}
+            />
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -1030,7 +1045,10 @@ export default function QuotesDashboardPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuotesDashboardPageProps) {
   const { isDark } = useResolvedTheme();
-  const { canCreate, canEdit, canDelete } = usePermissions("quotes");
+  const permissions = useAppSelector((state) => state.auth.permissions);
+  const canCreate = hasModulePermission(permissions, ["admin_quotes"], "create");
+  const canEdit = hasModulePermission(permissions, ["admin_quotes"], "edit");
+  const canDelete = hasModulePermission(permissions, ["admin_quotes"], "delete");
   const pathname = usePathname();
   const router = useRouter();
   const detailBaseHref = createHref.endsWith("/create")
@@ -1571,13 +1589,13 @@ export default function QuotesDashboardPage({
               <Download size={18} className="mr-2" />
               Export
             </Button>
-            {canCreate && (
+            {canCreate ? (
               <Link href={createHref}>
                 <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
                   Create New Quote
                 </Button>
               </Link>
-            )}
+            ) : null}
           </div>
         }
       />
@@ -1958,7 +1976,12 @@ export default function QuotesDashboardPage({
                                 onReject={() => {
                                   void handleRejectQuote(quote.id, quote.statusKey);
                                 }}
+                                canCreate={canCreate}
+                                canEdit={canEdit}
+                                canDelete={canDelete}
+                                canRecordPayment={canEdit}
                                 allowEdit={quote.statusKey !== "expired"}
+                                allowDelete={quote.statusKey !== "expired"}
                                 isDark={isDark}
                               />
                             </td>
@@ -2003,12 +2026,17 @@ export default function QuotesDashboardPage({
                                         }}
                                         onEdit={() => handleEditQuote(quote)}
                                         onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
-                                        onReject={() => {
-                                          void handleRejectQuote(quote.id, quote.statusKey);
-                                        }}
-                                        allowEdit={quote.statusKey !== "expired"}
-                                        isDark={isDark}
-                                      />
+                                      onReject={() => {
+                                        void handleRejectQuote(quote.id, quote.statusKey);
+                                      }}
+                                      canCreate={canCreate}
+                                      canEdit={canEdit}
+                                      canDelete={canDelete}
+                                      canRecordPayment={canEdit}
+                                      allowEdit={quote.statusKey !== "expired"}
+                                      allowDelete={quote.statusKey !== "expired"}
+                                      isDark={isDark}
+                                    />
                                     </div>
                                   </div>
                                 </div>

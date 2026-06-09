@@ -33,6 +33,7 @@ export type PermissionColumnKey = "view" | "create" | "edit" | "delete";
 
 export type PermissionMatrixRow = {
   id: string;
+  moduleKey?: string;
   label: string;
   selected: boolean;
   access: Record<PermissionColumnKey, boolean>;

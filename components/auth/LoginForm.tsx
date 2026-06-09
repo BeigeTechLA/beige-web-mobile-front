@@ -125,12 +125,16 @@ export function LoginForm() {
         router.push('/affiliate/dashboard')
       } else if (userTypeId === 4 || userTypeId === 5 || userTypeId === 7) {
         router.push('/sales/dashboard')
-      }
-      else if (userTypeId === 6) {
+      } else if (userTypeId === 6) {
         router.push('/production-manager/dashboard')
       } else {
-        // Fallback in case user_type_id is missing or different
-        router.push('/admin/dashboard')
+        const targetPath = result.dashboardPath || '/admin/dashboard'
+        console.log("[Login] custom-role redirect", {
+          dashboardPath: targetPath,
+          permissions: result.effectivePermissions,
+        })
+        router.replace(targetPath)
+        window.location.assign(targetPath)
       }
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Login failed. Please check your credentials."
