@@ -446,6 +446,8 @@ export const V3Step5Studios: React.FC<Props> = ({
     updateData({
       selectedStudios: next,
       selectedStudioIds: next.map((studio) => studio.studioId),
+      selectedStudioImage: next[0]?.image || "",
+      selectedStudioName: next[0]?.name || "",
       startDate: studioStartDateTime,
       endDate: studioEndDateTime,
       location: primaryStudio?.location || "",
