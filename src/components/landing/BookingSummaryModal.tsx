@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
+
 export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
   
   useEffect(() => {
@@ -19,6 +21,11 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
   }, [isOpen]);
 
   if (!isOpen || !data) return null;
+
+  const isStudioBooking = String(data?.shoot_type || "").trim().toLowerCase() === "studio";
+  const locationText = isStudioBooking
+    ? DEFAULT_DISPLAY_ADDRESS
+    : String(data?.location || "").trim();
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
@@ -363,7 +370,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                 <div className="flex items-start gap-4">
                   <div className="bg-white/5 p-3 rounded-2xl text-[#E8D1AB] no-print"><MapPin size={18} /></div>
                   <div>
-                    <p className="text-white/70 text-sm leading-relaxed print:text-black">{data.location}</p>
+                    <p className="text-white/70 text-sm leading-relaxed print:text-black">{locationText}</p>
                   </div>
                 </div>
               </section>
