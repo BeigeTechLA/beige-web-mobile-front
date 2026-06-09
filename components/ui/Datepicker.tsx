@@ -214,13 +214,14 @@ export const DatePicker: React.FC<Props> = ({
           slotProps={{
             textField: {
               fullWidth: true,
-              placeholder: floating ? "" : format.toUpperCase(),
+              placeholder: floating ? format.toUpperCase() : format.toUpperCase(),
               onClick: () => !disabled && setOpen(true),
               InputLabelProps: {
-                shrink: floating ? (open || !!value) : undefined,
+                // shrink: floating ? (open || !!value) : undefined,
+                shrink: floating ? true : (open || !!value),
                 sx: {
                   color: colors.labelText,
-                  fontSize: "14px",
+                  fontSize: "16px",
                   "&.Mui-focused": { color: colors.accent },
                   "&.MuiInputLabel-shrink": {
                     transform: "translate(14px, -10px) scale(1)",
@@ -237,10 +238,15 @@ export const DatePicker: React.FC<Props> = ({
                   height: "100%",
                   ...sx,
                   backgroundColor: colors.inputBackground,
-                  borderRadius: "8px",
+                  borderRadius: "16px",
                   "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
                   "&:hover fieldset": { borderColor: colors.inputBorderHover },
                   "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },
+                  // Ensure the placeholder is visible even when not focused
+                  "& input::placeholder": {
+                    color: colors.mutedText,
+                    opacity: 1,
+                  },
                   "&.Mui-disabled fieldset": { borderColor: colors.inputDisabled },
                 },
                 "& .MuiInputBase-input": {
