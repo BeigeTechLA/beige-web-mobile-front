@@ -167,23 +167,27 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
             {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
               <div className="px-5">
-                <AffiliatePreProductionTab isDark={isDark} projectId={shootId} />
+                <AffiliatePreProductionTab projectId={shootId} />
               </div>
             )}
 
             {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-              <AffiliatePostProductionTab isDark={isDark} projectId={shootId} />
+              <div className="px-5">
+                <AffiliatePostProductionTab projectId={shootId} />
+              </div>
             )}
 
             {activeTab === "Meetings" && (
               <>
                 <AffiliateMeetingSchedule role="client" orderId={shootId} />
-                <AffiliateMeetingOverviewChart isDark={isDark} />
+                <AffiliateMeetingOverviewChart />
               </>
             )}
 
             {activeTab === "Messages" && (
-              <AffiliateMessagesTab bookingId={shootId} />
+              <div className="px-5">
+                <AffiliateMessagesTab bookingId={shootId} />
+              </div>
             )}
           </div>
         </div>
@@ -196,7 +200,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
       {/* Mobile Timeline Overlay */}
       {isTimelineOpen && (
-        <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
+        <div className={`lg:hidden fixed inset-0 z-[100] flex justify-end  ${isDark ? "bg-black/80" : "bg-white/80"}`}>
           <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
 
           <div className={`relative w-[85%] max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
@@ -216,19 +220,19 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
       )}
 
       {/* Floating Mobile Action Buttons (Dev 1) */}
-      <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+      <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-[#F4F5F7] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
         <div className="flex gap-2">
-          <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
+          <Button className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
             Cancel Shoot
           </Button>
           <Button
             onClick={() => router.push(`${shootBasePath}/${shootId}/edit-booking`)}
-            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}>
+            className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}>
             Edit Shoot</Button>
         </div>
         <Button
           onClick={() => router.push(`${shootBasePath}/${shootId}/form-details`)}
-          className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
+          className={`w-full h-14 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
         >
           <Eye size={18} /> View Form Details
         </Button>

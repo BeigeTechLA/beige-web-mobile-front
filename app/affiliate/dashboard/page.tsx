@@ -73,17 +73,10 @@ export default function AffiliateDashboardPage() {
         <div className="flex justify-between items-center gap-3">
           <div>
             <h1
-              className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${
-                isDark ? "text-white" : "text-[#000]"
-              }`}
-            >
+              className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>
               Welcome back, {user?.name || "Partner"}!
             </h1>
-            <p
-              className={`text-xs lg:text-sm transition-colors duration-100 ${
-                isDark ? "text-white/70" : "text-[#000000B2]"
-              }`}
-            >
+            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
               Monitor revenue, shoots, clients, and performance metrics in one
               centralized dashboard.
             </p>

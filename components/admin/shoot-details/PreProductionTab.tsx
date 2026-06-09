@@ -229,8 +229,7 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
 
           {/* Uploaded Documents List Block */}
           {files.length > 0 || folders.length === 0 ? (
-            <div className={`border rounded-2xl overflow-hidden min-h-[280px] ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD] shadow-sm"
-              }`}>
+            <div className={`border rounded-lg lg:rounded-2xl overflow-hidden min-h-[280px] ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD] shadow-sm"}`}>
               <div className={`px-6 py-4 border-b flex justify-between items-center ${isDark ? "border-[#222222] bg-[#161616]" : "border-[#EAE3E3] bg-[#F4F5F7]"
                 }`}>
                 <h3 className={`text-base font-medium leading-none ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>Uploaded Documents</h3>
@@ -305,7 +304,10 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
                   })}
                 </div>
               ) : (
-                <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" isDark={isDark} />
+                <EmptyFileState
+                  onAction={() => setIsUploadModalOpen(true)}
+                  actionLabel="Upload Files"
+                  isDark={isDark} />
               )}
             </div>
           ) : null}

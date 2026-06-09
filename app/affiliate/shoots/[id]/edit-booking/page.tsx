@@ -649,7 +649,7 @@ export default function AffiliateEditBookingPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className={`text-white font-sans ${isDark ? "bg-[#101010] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-white" : "bg-[#F4F5F7] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-black"}`}>
+      <div className={`font-sans ${isDark ? "bg-[#101010] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-white" : "bg-[#F4F5F7] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-black"}`}>
         <Button onClick={() => router.back()} className={`transition-colors flex items-center gap-2 mb-8 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}>
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
@@ -660,7 +660,7 @@ export default function AffiliateEditBookingPage() {
             }`}>
             {formData.fullName ? formData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "BK"}
           </div>
-          <div>
+          <div className="flex gap-2 items-center">
             <h1 className={`lg:text-[22px] font-semibold ${isDark ? "text-white" : "text-black"}`}>{formData.fullName || "Booking Details"}</h1>
             <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>Edit current shoot requirements</p>
           </div>
