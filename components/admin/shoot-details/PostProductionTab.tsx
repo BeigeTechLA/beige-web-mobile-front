@@ -209,13 +209,12 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
             </Button>
 
             {isOpen && (
-              <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#E3E3E3]"
-                }`}>
+              <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#E3E3E3]"}`}>
                 <button
                   onClick={() => handleViewChange("grid")}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid"
-                      ? isDark ? "bg-white/10 text-white" : "bg-zinc-100 text-black font-medium"
-                      : isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-zinc-50"
+                    ? isDark ? "bg-white/10 text-white" : "bg-zinc-100 text-black font-medium"
+                    : isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-zinc-50"
                     }`}
                 >
                   <Grid3X3 size={18} />
@@ -224,8 +223,8 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                 <button
                   onClick={() => handleViewChange("list")}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list"
-                      ? isDark ? "bg-white/10 text-white" : "bg-zinc-100 text-black font-medium"
-                      : isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-zinc-50"
+                    ? isDark ? "bg-white/10 text-white" : "bg-zinc-100 text-black font-medium"
+                    : isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-zinc-50"
                     }`}
                 >
                   <List size={18} />
@@ -236,8 +235,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
           </div>
 
           {/* Desktop Layout View Mode Selector */}
-          <div className={`hidden lg:flex border rounded-lg transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33]" : "bg-[#F4F5F7] border-[#FFFFFF33]"
-            }`}>
+          <div className={`hidden lg:flex border rounded-lg transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33]" : "bg-[#F4F5F7] border-[#FFFFFF33]"}`}>
             <button
               onClick={() => handleViewChange("grid")}
               className={cn(
@@ -266,13 +264,11 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
 
       {/* Content State Engine */}
       {loading ? (
-        <div className={`border rounded-2xl min-h-[280px] flex items-center justify-center ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD]"
-          }`}>
+        <div className={`border rounded-2xl min-h-[280px] flex items-center justify-center ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD]"}`}>
           <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/40"}`} size={28} />
         </div>
       ) : error ? (
-        <div className={`border rounded-2xl min-h-[280px] flex items-center justify-center text-sm ${isDark ? "bg-[#111111] border-[#222222] text-red-300" : "bg-white border-[#DFDDDD] text-red-600"
-          }`}>
+        <div className={`border rounded-2xl min-h-[280px] flex items-center justify-center text-sm ${isDark ? "bg-[#111111] border-[#222222] text-red-300" : "bg-white border-[#DFDDDD] text-red-600"}`}>
           {error}
         </div>
       ) : viewMode === "grid" ? (
@@ -338,8 +334,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                         onClick={() => router.push(`/admin/file-manager/${projectId}/post-production`)}
                         className={`text-left border rounded-xl p-3 lg:p-4 flex items-center gap-4 w-full lg:w-[360px] group relative transition-colors ${isDark ? "border-[#222222] bg-[#0A0A0A] hover:border-[#444]" : "border-[#E3E3E3] bg-[#F9F9F9] hover:border-[#B5B5B5]"}`}
                       >
-                        <div className={`w-14 h-14 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border ${isDark ? "bg-[#161616] border-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3]"
-                          }`}>
+                        <div className={`w-14 h-14 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border ${isDark ? "bg-[#161616] border-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3]"}`}>
                           {previewUrls[file.id] && isImageFile(file.contentType, file.title) ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -394,16 +389,15 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
         )
       ) : (
         /* List / Table View Module */
-        <div className={`border rounded-2xl overflow-hidden ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5] shadow-sm"
-          }`}>
+        <div className={`border rounded-2xl overflow-hidden ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
           <table className="hidden lg:table w-full text-left">
             <thead>
               <tr className={`border-b ${isDark ? "bg-[#202020] border-[#222222]" : "border-[#DFDDDD] bg-[#F4F5F7]"}`}>
-                <th className={`px-6 py-4 font-medium text-sm w-[30%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Name</th>
-                <th className={`px-6 py-4 font-medium text-sm w-[20%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Category</th>
-                <th className={`px-6 py-4 font-medium text-sm w-[10%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Files</th>
-                <th className={`px-6 py-4 font-medium text-sm w-[30%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Last Updated</th>
-                <th className={`px-6 py-4 font-medium text-sm text-right w-[10%] ${isDark ? "text-[#E8D1AB]":"text-black"}`}>Action</th>
+                <th className={`px-6 py-4 font-medium text-sm w-[30%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Name</th>
+                <th className={`px-6 py-4 font-medium text-sm w-[20%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Category</th>
+                <th className={`px-6 py-4 font-medium text-sm w-[10%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Files</th>
+                <th className={`px-6 py-4 font-medium text-sm w-[30%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Last Updated</th>
+                <th className={`px-6 py-4 font-medium text-sm text-right w-[10%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -423,8 +417,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-4 py-1.5 rounded-full text-xs font-medium ${isDark ? "bg-[#202020] text-[#fff]" : "bg-[#F5F5F5] text-black/80"
-                        }`}>
+                      <span className={`px-4 py-1.5 rounded-full text-xs font-medium ${isDark ? "bg-[#202020] text-[#fff]" : "bg-[#F5F5F5] text-black/80"}`}>
                         {folder.category}
                       </span>
                     </td>
@@ -496,8 +489,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
               <button
                 key={folder.id}
                 onClick={() => router.push(folder.href)}
-                className={`w-full text-left rounded-xl border px-4 py-4 ${isDark ? "border-[#222222] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-[#F9F9F9]"
-                  }`}
+                className={`w-full text-left rounded-xl border px-4 py-4 ${isDark ? "border-[#222222] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-[#F9F9F9]"}`}
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -513,13 +505,11 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
               <button
                 key={file.id}
                 onClick={() => router.push(`/admin/file-manager/${projectId}/post-production`)}
-                className={`w-full text-left rounded-xl border px-4 py-4 ${isDark ? "border-[#222222] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-[#F9F9F9]"
-                  }`}
+                className={`w-full text-left rounded-xl border px-4 py-4 ${isDark ? "border-[#222222] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-[#F9F9F9]"}`}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center border shrink-0 ${isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3]"
-                      }`}>
+                    <div className={`w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center border shrink-0 ${isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3]"}`}>
                       {previewUrls[file.id] && file.contentType?.startsWith("image/") ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={previewUrls[file.id]} alt={file.title} className="h-full w-full object-cover" />
