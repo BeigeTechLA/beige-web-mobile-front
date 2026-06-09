@@ -2723,7 +2723,7 @@ export default function CreateQuotePage() {
     selectedServices,
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
-  const shouldHideBackButton = isQuoteSaved;
+  const shouldHideBackButton = isQuoteSaved || (!isEditMode && !!createdQuoteId);
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
