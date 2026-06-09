@@ -24,6 +24,9 @@ import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getQuoteNumber } from "@/lib/quoteDetail";
+import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
+import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 
 type SkillOption = {
   id?: number | string;
@@ -42,6 +45,8 @@ type ProjectDetails = {
   end_time?: string;
   event_start_time?: string;
   total_paid_amount?: string | number;
+  total_value_amount?: string | number;
+  converted_quote_amount?: string | number;
   payment_status?: string | null;
   payment_id?: string | number | null;
   converted_sales_quote_id?: string | number | null;
@@ -81,6 +86,38 @@ const isUsableQuoteVersion = (version: QuoteVersionItem) => {
   return !status || status === "approved";
 };
 
+const resolveLatestQuoteDetail = async (quoteId: string) => {
+  const versionsResponse = await salesApi.getQuoteVersions(quoteId);
+  const versionsData = Array.isArray(versionsResponse?.data)
+    ? versionsResponse.data
+    : versionsResponse?.data?.versions || [];
+
+  const latestVersion = versionsData.reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
+    const latestNo = Number(latest?.version_number || 0);
+    const candidateNo = Number(candidate?.version_number || 0);
+    return candidateNo > latestNo ? candidate : latest;
+  }, (versionsData.find((version: QuoteVersionItem) => version?.is_current) || versionsData[0] || null) as QuoteVersionItem | null);
+
+  const versionId = latestVersion?.version_number != null ? String(latestVersion.version_number) : null;
+  const detailResponse = versionId
+    ? await salesApi.getQuoteVersionDetail(quoteId, versionId)
+    : await salesApi.getQuoteDetail(quoteId);
+
+  return unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+};
+
+const getConvertedQuoteAmount = async (quoteId: string) => {
+  const quoteDetail = await resolveLatestQuoteDetail(quoteId);
+
+  return getQuoteNumber(
+    quoteDetail?.final_total,
+    quoteDetail?.total_amount,
+    quoteDetail?.amount_after_tax,
+    quoteDetail?.amount_after_discount,
+    quoteDetail?.total
+  );
+};
+
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
@@ -98,6 +135,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [isAssignmentMissingDetailsModalOpen, setIsAssignmentMissingDetailsModalOpen] = useState(false);
+  const [pendingAssignmentAction, setPendingAssignmentAction] = useState<(() => void) | null>(null);
   const [isQuotePreviewOpen, setIsQuotePreviewOpen] = useState(false);
   const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
   const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
@@ -124,6 +163,26 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     ? project.needs_attention.missing_fields
     : [];
   const hasFormDetails = !missingFields.includes("onboarding_form");
+  const assignmentMissingDetails =
+    project?.needs_attention?.required ? getCpAssignmentMissingDetails(project) : [];
+
+  const handleAssignmentRequest = (continueAction: () => void) => {
+    if (assignmentMissingDetails.length > 0) {
+      setPendingAssignmentAction(() => continueAction);
+      setIsAssignmentMissingDetailsModalOpen(true);
+      return;
+    }
+
+    continueAction();
+  };
+
+  const handleConfirmAssignmentWithMissingDetails = () => {
+    setIsAssignmentMissingDetailsModalOpen(false);
+    const action = pendingAssignmentAction;
+    setPendingAssignmentAction(null);
+    action?.();
+  };
+
   const handlePreviewConvertedQuote = async () => {
     if (!convertedSalesQuoteId) {
       toast.error("Converted quote is not available");
@@ -232,8 +291,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             }
           }
 
-          setProject({
+          const nextProject: ProjectDetails = {
             ...projectData,
+            payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
+            payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
             manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
@@ -244,7 +305,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               projectData?.assigned_post_production_members ||
               [],
             skills_needed: skillsText || projectData.skills_needed
-          });
+          };
+
+          const quoteId = String(nextProject.converted_sales_quote_id || "").trim();
+          if (quoteId) {
+            try {
+              const convertedQuoteAmount = await getConvertedQuoteAmount(quoteId);
+              if (convertedQuoteAmount !== undefined) {
+                nextProject.converted_quote_amount = convertedQuoteAmount;
+              }
+            } catch (error) {
+              console.error("Failed to resolve converted quote amount:", error);
+            }
+          }
+
+          setProject(nextProject);
         }
       } catch (error) {
         console.error("Failed to fetch shoot details:", error);
@@ -479,8 +554,17 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               {activeTab === "Overview" && (
                 <>
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
-                    <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+                    <ProjectTeam
+                      projectId={id}
+                      assignedMembers={project?.assigned_post_production_members}
+                      onRequestAssignment={handleAssignmentRequest}
+                    />
+                    <AssignedCP
+                      projectId={id}
+                      leadId={project?.lead_id}
+                      assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+                      onRequestAssignment={handleAssignmentRequest}
+                    />
                   </div>
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} />
@@ -533,6 +617,17 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             shootId={id}
             initialShootData={project}
             onSaved={handleMissingFieldsSaved}
+          />
+
+          <AssignmentMissingDetailsModal
+            isOpen={isAssignmentMissingDetailsModalOpen}
+            onClose={() => {
+              setIsAssignmentMissingDetailsModalOpen(false);
+              setPendingAssignmentAction(null);
+            }}
+            onConfirm={handleConfirmAssignmentWithMissingDetails}
+            missingDetails={assignmentMissingDetails}
+            isDark={isDark}
           />
         </div>
 

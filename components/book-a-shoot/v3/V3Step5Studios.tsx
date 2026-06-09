@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingDataV3 } from "./types";
 import { MapPin, MoveUpRight, Search, ChevronDown, X, Star } from "lucide-react";
 import DatePicker from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
-import { format ,isToday, addHours } from "date-fns";
+import { format, isToday, addHours } from "date-fns";
 import { toast } from "sonner";
 import { StudioDetailsDrawer } from "./StudioDetailsDrawer";
 import {
@@ -19,6 +19,8 @@ import {
   removeSelectedStudio,
   upsertSelectedStudio,
 } from "./studioData";
+import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface Props {
   data: BookingDataV3;
@@ -26,7 +28,9 @@ interface Props {
   onNext: () => void;
   onBack: () => void;
 }
+
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
+
 const parseValidDate = (value?: string) => {
   if (!value) return null;
   const parsed = new Date(value);
@@ -55,20 +59,20 @@ const formatDisplayTime = (value?: string) => {
   return parsed ? format(parsed, "h:mm a").toUpperCase() : value;
 };
 
-  const getCoords = async (address: string) => {
-    try {
-      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${token}&limit=1`);
-      const json = await res.json();
-      if (json.features?.[0]) {
-        const [lng, lat] = json.features[0].center;
-        return { lat, lng };
-      }
-    } catch (e) {
-      console.error("Geocoding error", e);
+const getCoords = async (address: string) => {
+  try {
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${token}&limit=1`);
+    const json = await res.json();
+    if (json.features?.[0]) {
+      const [lng, lat] = json.features[0].center;
+      return { lat, lng };
     }
-    return null;
-  };
+  } catch (e) {
+    console.error("Geocoding error", e);
+  }
+  return null;
+};
 
 const HourlyStudioCard = ({
   studio,
@@ -121,13 +125,13 @@ const HourlyStudioCard = ({
     setTimeOptions(options);
   }, []);
 
-    const timeToMinutes = (timeStr: string) => {
-      if (!timeStr) return 0;
-      const [h, m] = timeStr.split(":").map(Number);
-      return h * 60 + m;
-    };
+  const timeToMinutes = (timeStr: string) => {
+    if (!timeStr) return 0;
+    const [h, m] = timeStr.split(":").map(Number);
+    return h * 60 + m;
+  };
 
-    const filteredStartTimeOptions = useMemo(() => {
+  const filteredStartTimeOptions = useMemo(() => {
     if (!selectedDate) return timeOptions;
 
     if (isToday(selectedDate)) {
@@ -144,9 +148,9 @@ const HourlyStudioCard = ({
     if (startTime && selectedDate && isToday(selectedDate)) {
       const cutoffTime = addHours(new Date(), 2);
       const cutoffMinutes = cutoffTime.getHours() * 60 + cutoffTime.getMinutes();
-      
+
       if (timeToMinutes(startTime) < cutoffMinutes) {
-        setStartTime(""); 
+        setStartTime("");
       }
     }
   }, [selectedDate, startTime]);
@@ -284,12 +288,12 @@ const HourlyStudioCard = ({
               Remove Studio
             </Button>
           ) : hasCompleteTimeSelection ? (
-              <Button
-                onClick={handleAddClick}
-                className="h-11 rounded-xl bg-white text-sm font-bold text-black hover:bg-white/90"
-              >
-                Add this Studio
-              </Button>
+            <Button
+              onClick={handleAddClick}
+              className="h-11 rounded-xl bg-white text-sm font-bold text-black hover:bg-white/90"
+            >
+              Add this Studio
+            </Button>
           ) : null}
         </div>
       </div>
@@ -313,11 +317,10 @@ const HourlyStudioCard = ({
                     key={option.key}
                     type="button"
                     onClick={() => setPricingKey(option.key)}
-                    className={`rounded-2xl border p-4 text-left transition-colors ${
-                      pricingKey === option.key
-                        ? "border-[#E8D1AB] bg-[#E8D1AB14]"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/25"
-                    }`}
+                    className={`rounded-2xl border p-4 text-left transition-colors ${pricingKey === option.key
+                      ? "border-[#E8D1AB] bg-[#E8D1AB14]"
+                      : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                      }`}
                   >
                     <div className="text-sm font-bold text-white">{option.label}</div>
                     <div className="mt-1 text-lg font-bold text-[#E8D1AB]">${option.hourlyRate.toLocaleString()}/hr</div>
@@ -416,6 +419,9 @@ export const V3Step5Studios: React.FC<Props> = ({
   onNext,
   onBack,
 }) => {
+  const [trackEarlyInterest, { isLoading: isSavingBooking }] = useTrackEarlyInterestMutation();
+  const { user } = useAuth();
+
   const selectedStudios = useMemo(
     () => normalizeSelectedStudios({
       selectedStudios: data.selectedStudios,
@@ -423,6 +429,7 @@ export const V3Step5Studios: React.FC<Props> = ({
     }),
     [data.selectedStudios, data.selectedStudioIds],
   );
+
   const selectedStudioIds = useMemo(() => selectedStudios.map((studio) => studio.studioId), [selectedStudios]);
   const selectedStudioSet = useMemo(() => new Set(selectedStudioIds), [selectedStudioIds]);
 
@@ -430,6 +437,8 @@ export const V3Step5Studios: React.FC<Props> = ({
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"Price (Low to High)" | "Price (High to Low)" | "Name">("Name");
   const [selectedDetailsStudio, setSelectedDetailsStudio] = useState<StudioCatalogItem | null>(null);
+
+  const hourlyDraftSelectionsRef = useRef<Record<string, { selectedDate: string; startTime: string; endTime: string; pricingKey?: string }>>({});
   const [hourlyDraftSelections, setHourlyDraftSelections] = useState<Record<string, { selectedDate: string; startTime: string; endTime: string; pricingKey?: string }>>({});
 
   const syncStudios = async(next: SelectedStudio[]) => {
@@ -446,6 +455,8 @@ export const V3Step5Studios: React.FC<Props> = ({
     updateData({
       selectedStudios: next,
       selectedStudioIds: next.map((studio) => studio.studioId),
+      selectedStudioImage: next[0]?.image || "",
+      selectedStudioName: next[0]?.name || "",
       startDate: studioStartDateTime,
       endDate: studioEndDateTime,
       location: primaryStudio?.location || "",
@@ -467,49 +478,173 @@ export const V3Step5Studios: React.FC<Props> = ({
 
   const filteredHourlyStudios = useMemo(() => {
     const sourceOrderMap = new Map(HOURLY_STUDIO_LIST.map((studio, index) => [studio.id, index]));
-
     return HOURLY_STUDIO_LIST
       .filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
       .sort((a, b) => (sourceOrderMap.get(a.id) ?? 0) - (sourceOrderMap.get(b.id) ?? 0));
   }, [searchQuery]);
 
-  const confirmHourlyDetails = async(
+  const confirmHourlyDetails = async (
     studio: StudioCatalogItem,
     details: { selectedDate: string; startTime: string; endTime: string; pricingKey?: string },
   ) => {
-    setHourlyDraftSelections((prev) => ({ ...prev, [studio.id]: details }));
+    const newDrafts = { ...hourlyDraftSelectionsRef.current, [studio.id]: details };
+    hourlyDraftSelectionsRef.current = newDrafts;
+    setHourlyDraftSelections(newDrafts);
 
     if (selectedStudioSet.has(studio.id)) {
       const updatedSelection = buildHourlyStudioSelection(studio, details);
+      if (!updatedSelection) {
+        toast.error("Failed to update studio selection");
+        return;
+      }
       const nextStudios = upsertSelectedStudio(selectedStudios, updatedSelection);
       await syncStudios(nextStudios);
     }
   };
 
-  const toggleHourlyStudio = async(studio: StudioCatalogItem) => {
+  const toggleHourlyStudio = async (studio: StudioCatalogItem) => {
     const existing = selectedStudios.find((item) => item.studioId === studio.id);
 
     if (existing) {
-      await syncStudios(removeSelectedStudio(selectedStudios, studio.id));
+      const nextStudios = removeSelectedStudio(selectedStudios, studio.id);
+      await syncStudios(nextStudios);
       return;
     }
 
-    const draft = hourlyDraftSelections[studio.id];
-    if (draft) {
-      await syncStudios(upsertSelectedStudio(selectedStudios, buildHourlyStudioSelection(studio, draft)));
+    const draft = hourlyDraftSelectionsRef.current[studio.id];
+
+    if (!draft) {
+      toast.error("Please pick date and time first for this studio.");
       return;
     }
 
-    toast.error("Please pick date and time first for this studio.");
+    const selection = buildHourlyStudioSelection(studio, draft);
+
+    if (!selection) {
+      toast.error("Failed to build studio selection. Check console.");
+      return;
+    }
+
+    if (!selection.selectedDate || !selection.startTime || !selection.endTime) {
+      toast.error("Selection is missing date/time. Check console.");
+      return;
+    }
+
+    const nextStudios = upsertSelectedStudio(selectedStudios, selection);
+
+    if (nextStudios.length === 0) {
+      toast.error("Failed to add studio. Check console.");
+      return;
+    }
+
+    await syncStudios(nextStudios);
   };
 
-  const handleContinue = () => {
+  const syncStudios = async (next: SelectedStudio[]) => {
+
+    if (!next || next.length === 0) {
+      updateData({
+        selectedStudios: [],
+        selectedStudioIds: [],
+        startDate: "",
+        endDate: "",
+        location: "",
+        locationDetails: null,
+        bookingDays: [],
+      });
+      return;
+    }
+
+    const primaryStudio = next[0];
+
+    if (!primaryStudio.selectedDate || !primaryStudio.startTime || !primaryStudio.endTime) {
+      console.error("❌ Missing required fields in primaryStudio!");
+      toast.error("Studio selection incomplete. Check console.");
+      return;
+    }
+
+    const coords = primaryStudio.location ? await getCoords(primaryStudio.location) : null;
+
+    const studioStartDateTime = `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`;
+    const studioEndDateTime = `${primaryStudio.selectedDate}T${primaryStudio.endTime}:00`;
+
+    const localPayload = {
+      selectedStudios: next,
+      selectedStudioIds: next.map((studio) => studio.studioId),
+      startDate: studioStartDateTime,
+      endDate: studioEndDateTime,
+      location: primaryStudio.location || "",
+      locationDetails: coords ? {
+        address: primaryStudio.location,
+        lat: coords.lat,
+        lng: coords.lng
+      } : null,
+      bookingDays: next.map(studio => ({
+        date: studio.selectedDate,
+        startTime: studio.startTime,
+        endTime: studio.endTime,
+        durationHours: studio.quantity || 0,
+      })),
+    };
+
+    updateData(localPayload);
+  };
+
+  const handleContinue = async () => {
     if (selectedStudios.length === 0) {
       toast.error("Please select a studio and date/time to continue.");
       return;
     }
 
-    onNext();
+    try {
+
+      const primaryStudio = selectedStudios[0];
+      const studioStartDateTime = `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`;
+      const studioEndDateTime = `${primaryStudio.selectedDate}T${primaryStudio.endTime}:00`;
+
+      const apiPayload = {
+        booking_id: data.bookingId || null,
+        guest_email: data.email || user?.email || "",
+        user_id: user?.id,
+        content_type: data.contentType.join(","),
+        shoot_type: data.shootType,
+        client_name: user?.name || data.clientName || "",
+        start_date: primaryStudio.selectedDate,
+        start_time: primaryStudio.startTime,
+        end_time: primaryStudio.endTime,
+        time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        startDate: studioStartDateTime,
+        endDate: studioEndDateTime,
+        booking_type: "single_day",
+        booking_days: selectedStudios.map(studio => ({
+          date: studio.selectedDate,
+          startTime: studio.startTime,
+          endTime: studio.endTime,
+          durationHours: studio.quantity || 0,
+          studio_id: studio.studioId,
+          studio_name: studio.name,
+          pricing_key: studio.pricingCategory || studio.pricingKey,
+          total_price: studio.totalPrice || 0,
+        })),
+        edits_needed: data.editsNeeded || false,
+        video_edit_types: data.videoEditTypes || [],
+        photo_edit_types: data.photoEditTypes || [],
+        estimated_delivery_date: data.expectedDeliveryDate || null,
+      };
+
+      const response = await trackEarlyInterest(apiPayload).unwrap();
+
+      if (response.data?.booking_id && !data.bookingId) {
+        updateData({ bookingId: response.data.booking_id });
+      }
+
+      toast.success("Studio booking saved successfully!");
+      onNext();
+
+    } catch (error) {
+      console.error("❌ Failed to save studio booking:", error);
+      toast.error("Failed to save studio booking. Please try again.");
+    }
   };
 
   return (
@@ -591,8 +726,12 @@ export const V3Step5Studios: React.FC<Props> = ({
           <Button onClick={onBack} className="h-12 px-8 bg-[#151515] hover:bg-[#1A1A1A] border border-white/10 text-white rounded-xl font-medium">
             Back
           </Button>
-          <Button onClick={handleContinue} className="h-12 px-8 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black rounded-xl font-medium">
-            Continue
+          <Button
+            onClick={handleContinue}
+            disabled={isSavingBooking}
+            className="h-12 px-8 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black rounded-xl font-medium disabled:opacity-50"
+          >
+            {isSavingBooking ? "Saving..." : "Continue"}
           </Button>
         </div>
       </div>
@@ -601,10 +740,10 @@ export const V3Step5Studios: React.FC<Props> = ({
         isOpen={!!selectedDetailsStudio}
         onClose={() => setSelectedDetailsStudio(null)}
         studio={
-        selectedDetailsStudio 
-          ? { ...selectedDetailsStudio, location: DEFAULT_DISPLAY_ADDRESS } 
-          : null
-      }
+          selectedDetailsStudio
+            ? { ...selectedDetailsStudio, location: DEFAULT_DISPLAY_ADDRESS }
+            : null
+        }
       />
     </div>
   );

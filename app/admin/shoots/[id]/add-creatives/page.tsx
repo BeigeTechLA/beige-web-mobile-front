@@ -8,9 +8,22 @@ import { useAssignCrewFromShootMutation } from "@/lib/redux/features/sales/sales
 import Topbar from "@/components/admin/Topbar";
 import { toast } from "sonner";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
-import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
+import { AssignmentConfirmationModal, AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
+import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
+
+type FulfillmentStats = {
+  fulfillment_stats?: {
+    videographer?: string;
+    photographer?: string;
+  };
+  location?: string;
+  needs_attention?: {
+    missing_fields?: string[];
+  };
+  [key: string]: unknown;
+};
 
 export default function AddCreativesPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -27,9 +40,11 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [missingDetails, setMissingDetails] = useState<string[]>([]);
+  const [isMissingDetailsModalOpen, setIsMissingDetailsModalOpen] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<FulfillmentStats | null>(null);
 
   const [assignCrew, { isLoading }] = useAssignCrewFromShootMutation();
 
@@ -45,9 +60,10 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         const response = await adminApi.getProjectFulfillmentStats(projectId);
         // `adminApi.getProjectFulfillmentStats` already returns `response.data`
         // BUT if the backend actually returns `{ success: true, data: { ... } }` inside that data:
-        const stats = response?.success && response?.data ? response.data : response;
+        const stats = (response?.success && response?.data ? response.data : response) as FulfillmentStats;
 
         if (stats) {
+          setStats(stats);
           // Parse fulfillment stats like "0/2" => videographer needed = 2
           const vReq = parseInt(stats.fulfillment_stats?.videographer?.split('/')[1] || "0");
           const pReq = parseInt(stats.fulfillment_stats?.photographer?.split('/')[1] || "0");
@@ -66,6 +82,13 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const handleAssign = async () => {
     if (selectedCreativeIds.length === 0) {
       toast.error("Please select at least one creative");
+      return;
+    }
+
+    const currentMissingDetails = getCpAssignmentMissingDetails(stats);
+    if (currentMissingDetails.length > 0) {
+      setMissingDetails(currentMissingDetails);
+      setIsMissingDetailsModalOpen(true);
       return;
     }
 
@@ -98,12 +121,15 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           toast.error(response.message || "Failed to assign crew");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to assign crew", error);
-      if (error?.data?.errors && Array.isArray(error.data.errors)) {
-        toast.error(error.data.errors.join(", "));
-      } else if (error?.data?.message) {
-        toast.error(error.data.message);
+      const data = typeof error === "object" && error !== null && "data" in error
+        ? (error as { data?: { errors?: string[]; message?: string } }).data
+        : undefined;
+      if (data?.errors && Array.isArray(data.errors)) {
+        toast.error(data.errors.join(", "));
+      } else if (data?.message) {
+        toast.error(data.message);
       } else {
         toast.error("An error occurred while assigning crew");
       }
@@ -151,6 +177,13 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         onConfirm={executeAssignment}
         videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+      />
+
+      <AssignmentMissingDetailsModal
+        isOpen={isMissingDetailsModalOpen}
+        onClose={() => setIsMissingDetailsModalOpen(false)}
+        missingDetails={missingDetails}
+        isDark={isDark}
       />
 
       <div className={`min-h-screen overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>

@@ -34,6 +34,10 @@ type ShootHeaderProject = {
   end_time?: string;
   event_start_time?: string;
   total_paid_amount?: string | number;
+  total_value_amount?: string | number;
+  converted_sales_quote_id?: string | number | null;
+  converted_quote_amount?: string | number;
+  converted_quote_total?: string | number;
   event_location?: string;
   location?: string;
   city?: string;
@@ -50,6 +54,26 @@ const parseAmount = (value: unknown): number => {
   const amount = Number(value);
   return Number.isFinite(amount) ? amount : 0;
 };
+
+const getAmount = (...values: unknown[]): number | undefined => {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
 
 interface ShootHeaderProps {
   activeTab?: string;
@@ -92,12 +116,41 @@ export default function ShootHeader({
     (project?.pricing_breakdown as Record<string, unknown> | undefined) ||
     ((project?.lead_details as Record<string, unknown> | undefined)?.pricing_breakdown as Record<string, unknown> | undefined) ||
     {};
+  const projectQuote = asRecord(project?.sales_quote) || asRecord(project?.quote);
+  const primaryQuote =
+    asRecord(project?.primary_quote) ||
+    asRecord(asRecord(project?.booking)?.primary_quote) ||
+    asRecord((project?.lead_details as Record<string, unknown> | undefined)?.primary_quote);
+  const customQuote =
+    asRecord(project?.custom_quote) ||
+    asRecord((project?.lead_details as Record<string, unknown> | undefined)?.custom_quote);
+  const projectConvertedSalesQuoteId = String(project?.converted_sales_quote_id || "").trim() || null;
+  const isQuoteBasedShoot = Boolean(convertedSalesQuoteId || projectConvertedSalesQuoteId);
+  const lockedQuoteAmount = isQuoteBasedShoot
+    ? getAmount(
+        project?.converted_quote_amount,
+        project?.converted_quote_total,
+        projectQuote?.final_total,
+        projectQuote?.total_amount,
+        projectQuote?.amount_after_tax,
+        projectQuote?.total,
+        primaryQuote?.final_total,
+        primaryQuote?.total_amount,
+        primaryQuote?.total,
+        customQuote?.final_total,
+        customQuote?.total_amount,
+        customQuote?.total,
+        project?.total_value_amount,
+        project?.total_paid_amount
+      )
+    : undefined;
   const manualPaymentSummary =
     (project?.manual_payment_summary as Record<string, unknown> | undefined) ||
     ((project?.lead_details as Record<string, unknown> | undefined)?.manual_payment_summary as Record<string, unknown> | undefined) ||
     {};
 
   const subtotalValue = parseAmount(pricingBreakdown.subtotal);
+  const isFullyDiscountedShoot = parseAmount(pricingBreakdown.total) === 0 && parseAmount(pricingBreakdown.subtotal) > 0;
   const totalBeforeCredit = parseAmount(pricingBreakdown.total_before_credit);
   const discountValue = parseAmount(pricingBreakdown.discount);
   const creditAppliedValue = parseAmount(pricingBreakdown.credit_applied);
@@ -109,9 +162,15 @@ export default function ShootHeader({
       Math.max(parseAmount(pricingBreakdown.total) + discountValue + creditAppliedValue, 0) ||
       parseAmount(project?.total_paid_amount));
 
-  const totalReductionValue = isConvertedBooking ? 0 : Math.max(discountValue + creditAppliedValue, 0);
+  const totalReductionValue = isFullyDiscountedShoot
+    ? discountValue
+    : isConvertedBooking
+      ? 0
+      : Math.max(discountValue + creditAppliedValue, 0);
 
-  const finalValue = isConvertedBooking
+  const finalValue = isFullyDiscountedShoot
+    ? 0
+    : isConvertedBooking
       ? convertedTotalValue
       : (totalAfterCredit ||
         parseAmount(pricingBreakdown.total) ||
@@ -123,11 +182,14 @@ export default function ShootHeader({
     : paymentStatus;
 
   if (isConvertedBooking) {
-    const statusKey = convertedPaidAmount >= convertedTotalValue && convertedTotalValue > 0 
-      ? "paid" 
-      : convertedPaidAmount > 0 
-        ? "pending" 
-        : "unpaid";
+    const isFullyDiscounted = parseAmount(pricingBreakdown.total) === 0 && parseAmount(pricingBreakdown.subtotal) > 0;
+    const statusKey = isFullyDiscounted
+      ? "paid"
+      : convertedPaidAmount >= convertedTotalValue && convertedTotalValue > 0
+        ? "paid"
+        : convertedPaidAmount > 0
+          ? "pending"
+          : "unpaid";
     effectivePaymentStatus = getPaymentStatusMeta(statusKey, project?.payment_id);
   }
 
@@ -148,7 +210,7 @@ export default function ShootHeader({
         ? finalValue
         : 0);
 
-  const pendingAmountValue = Math.max(finalValue - paidAmountValue, 0); 
+ const pendingAmountValue = isFullyDiscountedShoot ? 0 : Math.max(finalValue - paidAmountValue, 0); 
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`

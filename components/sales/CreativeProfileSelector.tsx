@@ -97,12 +97,13 @@ export const CreativeProfileSelector = ({
     }
   };
 
-  // Filter based on search
   const filteredCreatives = displayCreatives.filter(c => {
+    if (!searchQuery) return true;
     const fullName = `${c.first_name || ''} ${c.last_name || ''} ${c.name || ''}`.toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase());
+    const location = (c.location || '').toLowerCase();
+    const search = searchQuery.toLowerCase();
+    return fullName.includes(search) || location.includes(search);
   });
-
   // Transform API data to display format
   const transformCreativeData = (creative: CreativeData) => {
     if (creative.first_name || creative.last_name) {

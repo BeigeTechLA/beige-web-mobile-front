@@ -148,6 +148,7 @@ export default function SharedFileManagerPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [accessToken, setAccessToken] = useState("");
   const [content, setContent] = useState<any>(null);
+  const [resendTimer, setResendTimer] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<string | undefined>(undefined);
   const [currentPath, setCurrentPath] = useState<string | undefined>(undefined);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
@@ -177,6 +178,16 @@ export default function SharedFileManagerPage() {
     return crumbs;
   }, [currentPhase, currentPath]);
 
+  useEffect(() => {
+  let interval: NodeJS.Timeout;
+  if (resendTimer > 0) {
+    interval = setInterval(() => {
+      setResendTimer((prev) => prev - 1);
+    }, 1000);
+  }
+  return () => clearInterval(interval);
+}, [resendTimer]);
+
   const loadContent = async (token: string, options?: { phase?: string; path?: string }) => {
     const response = await fileManagerApi.getSharedContent(shareToken, token, options);
     const payload = response?.data || null;
@@ -192,6 +203,7 @@ export default function SharedFileManagerPage() {
       await fileManagerApi.requestExternalShareOtp(shareToken, email.trim().toLowerCase());
       setOtp("");
       setStep("otp");
+      setResendTimer(60);
       toast.success("OTP sent to your email");
     } catch (error: any) {
       toast.error(error?.message || "Failed to send OTP");
@@ -201,10 +213,12 @@ export default function SharedFileManagerPage() {
   };
 
   const resendOtp = async () => {
+     if (resendTimer > 0) return;
     try {
       setResendLoading(true);
       await fileManagerApi.requestExternalShareOtp(shareToken, email.trim().toLowerCase());
       setOtp("");
+      setResendTimer(60);
       toast.success("New OTP sent to your email");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to resend OTP");
@@ -509,10 +523,15 @@ export default function SharedFileManagerPage() {
                           <button
                             type="button"
                             onClick={resendOtp}
-                            disabled={loading || resendLoading || !email.trim()}
+                            disabled={loading || resendLoading || !email.trim() || resendTimer > 0}
                             className="font-semibold text-[#E5D5B8] transition-colors hover:text-[#dcb98a] disabled:cursor-not-allowed disabled:text-white/25"
                           >
-                            {resendLoading ? "Sending new OTP..." : "Resend OTP"}
+                            {resendLoading 
+                                ? "Sending..." 
+                                : resendTimer > 0 
+                                  ? `Resend in ${resendTimer}s` 
+                                  : "Resend OTP"
+                              }
                           </button>
                         </div>
                       </div>
