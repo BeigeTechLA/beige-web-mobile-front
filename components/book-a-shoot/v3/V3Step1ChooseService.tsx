@@ -9,7 +9,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse, MapPin } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -42,8 +42,9 @@ import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, i
 import { AnimatePresence, motion } from "framer-motion";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
-import {getFormattedDateString} from "@/lib/utils";
+import { getFormattedDateString } from "@/lib/utils";
 import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE } from "./utils";
+import { Input } from "@/components/ui/input";
 
 interface Props {
   data: BookingDataV3;
@@ -67,7 +68,7 @@ const datePickerColours = {
   inputBorder: "#ffffff4d",
   inputBorderHover: "#E8D1AB",
   inputBorderFocus: "#E8D1AB",
-  labelText: "#ffffff99",
+  labelText: "#FFFFFF99",
   iconColor: "#FFFFFF",
   accent: "#E8D1AB",
   accentText: "#101010",
@@ -89,6 +90,12 @@ const datePickerColours = {
   mutedText: "#ffffff66",
   desktopCalendarText: "#FFFFFF",
 };
+
+const STUDIO_BOOKING_TYPES = [
+  { key: "production", value: "Production" },
+  { key: "audio", value: "Audio" },
+  { key: "event", value: "Event" }
+];
 
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
@@ -160,6 +167,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
 
+  const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(data.bookingFor || "");
+
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
   const emailRef = useRef<HTMLDivElement>(null);
@@ -171,6 +180,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const editsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const contactRef = useRef<HTMLDivElement>(null);
+  const projectDetailsRef = useRef<HTMLDivElement>(null);
 
   const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(null);
   const videoEditDropdownRef = useRef<HTMLDivElement>(null);
@@ -217,7 +228,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       }),
     [data.shootType, durationHours, photoEditSetCount]
   );
-
 
   const totalVideoEditsSelected = data.videoEditTypes.length;
   const totalPhotoEditsSelected = data.photoEditTypes.length;
@@ -982,51 +992,53 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   }, [data, isEditingOnly, shouldBypassDateTime]);
 
-      const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
-      const current = [...data.contentType];
-      const isCurrentlySelected = current.includes(type);
-      const nextContentType = isCurrentlySelected
-        ? current.filter((t) => t !== type)
-        : [...current, type];
+  const toggleContentType = (type: "videographer" | "photographer" | "editing" | "studio") => {
+    const current = [...data.contentType];
+    const isCurrentlySelected = current.includes(type);
+    const nextContentType = isCurrentlySelected
+      ? current.filter((t) => t !== type)
+      : [...current, type];
 
-      if (nextContentType.length === 0) {
-        updateData({
-          contentType: [],
-          shootType: "",
-          startDate: "",
-          endDate: "",
-          expectedDeliveryDate: "",
-          editsNeeded: true,
-          videoEditTypes: [],
-          photoEditTypes: [],
-        });
-      } else {
-        // Determine if editing is selected to automatically set editsNeeded to true
-        const includesEditing = nextContentType.includes("editing");
-        
-        const updateObj: Partial<BookingDataV3> = { 
-          contentType: nextContentType,
-          editsNeeded: includesEditing ? true : data.editsNeeded // Force true if editing is checked
-        };
+    if (nextContentType.length === 0) {
+      updateData({
+        contentType: [],
+        shootType: "",
+        startDate: "",
+        endDate: "",
+        expectedDeliveryDate: "",
+        editsNeeded: true,
+        videoEditTypes: [],
+        photoEditTypes: [],
+      });
+    } else {
+      // Determine if editing is selected to automatically set editsNeeded to true
+      const includesEditing = nextContentType.includes("editing");
 
-        if (!nextContentType.includes("videographer")) {
-          updateObj.videoEditTypes = [];
-        } 
-        if (!nextContentType.includes("photographer")) {
-          updateObj.photoEditTypes = [];
-        }
-        if (!nextContentType.includes("editing")) {
-          updateObj.expectedDeliveryDate = "";
-        }
+      const updateObj: Partial<BookingDataV3> = {
+        contentType: nextContentType,
+        editsNeeded: includesEditing ? true : data.editsNeeded // Force true if editing is checked
+      };
 
-        updateData(updateObj);
+      if (!nextContentType.includes("videographer")) {
+        updateObj.videoEditTypes = [];
+      }
+      if (!nextContentType.includes("photographer")) {
+        updateObj.photoEditTypes = [];
+      }
+      if (!nextContentType.includes("editing")) {
+        updateObj.expectedDeliveryDate = "";
       }
 
-      setVisibleCount(INITIAL_COUNT);
-      if (nextContentType.length > 0) {
-        scrollToRef(shootTypeRef);
-      }
-    };
+      updateData(updateObj);
+    }
+
+    // Reset the view more toggle
+    setVisibleCount(INITIAL_COUNT);
+    if (nextContentType.length > 0) {
+      scrollToRef(shootTypeRef);
+    }
+  };
+
   const validate = () => {
     if (!data.email) {
       toast.error("Please enter your email address");
@@ -1046,7 +1058,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       setErrors((prev) => [...prev, "contentError"]);
       return false;
     }
-    if (!data.shootType) {
+    // if (!data.shootType) {
+    if ((data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === "") {
       toast.error("Please select a video/photo shoot type");
       setErrors((prev) => [...prev, "shootTypeError"]);
 
@@ -1110,6 +1123,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         }
       }
     }
+    // if ((data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.editsNeeded) 
     const requiresEditSelection = data.editsNeeded || isEditingOnly;
     if (requiresEditSelection) {
       const needsVideoEdit = data.contentType.includes("videographer")
@@ -1247,7 +1261,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     "editing",
                     // "cinematographer", This is not being mentioned in UI. Hence commented out
                   ],
-                  editsNeeded: true, 
+                  editsNeeded: true,
                 });
               else updateData({ contentType: [] });
             }}
@@ -1270,14 +1284,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             checked={data.contentType.includes("editing")}
             onChange={() => toggleContentType("editing")}
           />
-         
           <ContentTypeCheckbox
-            label="Locations"
-            subLabel="Coming Soon"
-            icon={<MapPinHouse size={20} />}
-            checked={false}
-            onChange={() => { }}
-            disabled={true}
+            label="Studios"
+            icon={<MapPin size={20} />}
+            checked={data.contentType.includes("studio")}
+            onChange={() => toggleContentType("studio")}
           />
           <ContentTypeCheckbox
             label="Livestream"
@@ -1292,34 +1303,58 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
       {data.contentType.length > 0 && (
         <>
-          {/* Shoot Type */}
-          <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"}`}>
-           {data.contentType.includes("videographer") && data.contentType.includes("photographer")
-              ? "Video and Photo Shoot Type"
-              : data.contentType.includes("photographer")
-                ? "Photo Shoot Type"
-                : data.contentType.includes("videographer")
-                  ? "Video Shoot Type"
-                  : "Shoot Type"}
-            </h3>
-            {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
-              {/* {availableShootTypes.map((type) => ( */}
-              {availableShootTypes.slice(0, visibleCount).map((type) => (
-                <div
-                  key={type.key}
-                  className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
-                >
-                  <ShootTypeCard
-                    title={type.title} // Assuming your shootTypes array has label
-                    details={type.details} // and details
-                    image={type.image}
-                    // stats={type.stats}
-                    selected={data.shootType === type.key}
-                    onClick={() => {
-                      if (type.key === STUDIO_SHOOT_TYPE_KEY) {
-                        if (!isEditingOnly) {
+          {!data.contentType.includes("studio") && (
+            // {/* Shoot Type */}
+            <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"}`}>
+                {data.contentType.includes("videographer") && data.contentType.includes("photographer")
+                  ? "Video and Photo Shoot Type"
+                  : data.contentType.includes("photographer")
+                    ? "Photo Shoot Type"
+                    : data.contentType.includes("videographer")
+                      ? "Video Shoot Type"
+                      : "Shoot Type"}
+              </h3>
+              {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
+                {/* {availableShootTypes.map((type) => ( */}
+                {availableShootTypes.slice(0, visibleCount).map((type) => (
+                  <div
+                    key={type.key}
+                    className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
+                  >
+                    <ShootTypeCard
+                      title={type.title} // Assuming your shootTypes array has label
+                      details={type.details} // and details
+                      image={type.image}
+                      // stats={type.stats}
+                      selected={data.shootType === type.key}
+                      onClick={() => {
+                        if (type.key === STUDIO_SHOOT_TYPE_KEY) {
+                          if (!isEditingOnly) {
+                            setBookingType("single_day");
+                            setSelectedDates([]);
+                            setSameTimingsMulti(true);
+                            setMultiDayTimes({});
+                            setExpandedDateKey(null);
+                            updateData({
+                              shootType: type.key,
+                              bookingType: "single_day",
+                              startDate: "",
+                              endDate: "",
+                              bookingDays: [],
+                              location: "",
+                              locationDetails: null,
+                            });
+                          } else {
+                            updateData({ shootType: type.key });
+                          }
+                          scrollToRef(isEditingOnly ? deliveryDateRef : editsRef);
+                          return;
+                        }
+
+                        const switchedFromStudio = data.shootType === STUDIO_SHOOT_TYPE_KEY;
+                        if (switchedFromStudio && !isEditingOnly) {
                           setBookingType("single_day");
                           setSelectedDates([]);
                           setSameTimingsMulti(true);
@@ -1331,48 +1366,26 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                             startDate: "",
                             endDate: "",
                             bookingDays: [],
-                            location: "",
-                            locationDetails: null,
                           });
                         } else {
                           updateData({ shootType: type.key });
                         }
-                        scrollToRef(isEditingOnly ? deliveryDateRef : editsRef);
-                        return;
-                      }
-
-                      const switchedFromStudio = data.shootType === STUDIO_SHOOT_TYPE_KEY;
-                      if (switchedFromStudio && !isEditingOnly) {
-                        setBookingType("single_day");
-                        setSelectedDates([]);
-                        setSameTimingsMulti(true);
-                        setMultiDayTimes({});
-                        setExpandedDateKey(null);
-                        updateData({
-                          shootType: type.key,
-                          bookingType: "single_day",
-                          startDate: "",
-                          endDate: "",
-                          bookingDays: [],
-                        });
-                      } else {
-                        updateData({ shootType: type.key });
-                      }
-                      scrollToRef(isEditingOnly ? deliveryDateRef : bookingTypeRef);
-                    }}
-                  />
-                </div>
-              ))}
+                        scrollToRef(isEditingOnly ? deliveryDateRef : bookingTypeRef);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleViewToggle}
+                  className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 rounded-lg  text-sm md:text-lg font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)]"
+                >
+                  <span className="">{isAllVisible ? "View Less" : "View More"}</span>
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={handleViewToggle}
-                className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 rounded-lg  text-sm md:text-lg font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)]"
-              >
-                <span className="">{isAllVisible ? "View Less" : "View More"}</span>
-              </Button>
-            </div>
-          </div>
+          )}
 
           {isStudioSelected && (
             <div className="pt-6 lg:pt-15 border-t border-white/10">
@@ -1391,18 +1404,19 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               </h3>
               <div className="flex flex-col lg:flex-row gap-6">
                 <div className="flex-1">
-                <DatePicker
-                  label="Select Date"
-                  value={expectedDeliveryDate}
-                  onChange={handleExpectedDeliveryDateChange}
-                  minDate={addDays(new Date(), 1)}
-                  colors={datePickerColours}
-                  format="MM/dd/yyyy"
-                  sx={{
-                    height: { xs: "56px", lg: "82px" },
-                    borderRadius: "16px",
-                  }}
-                />
+                  <DatePicker
+                    label="Select Date"
+                    value={expectedDeliveryDate}
+                    onChange={handleExpectedDeliveryDateChange}
+                    minDate={addDays(new Date(), 1)}
+                    colors={datePickerColours}
+                    format="MM/dd/yyyy"
+                    sx={{
+                      height: { xs: "56px", lg: "82px" },
+                      borderRadius: "16px",
+                    }}
+                    floating={true}
+                  />
                 </div>
               </div>
               <div className="mt-4 inline-flex max-w-full rounded-xl bg-[#211F1C] px-4 py-3 text-sm font-medium text-[#E8D1AB]">
@@ -1411,583 +1425,681 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Booking Type */}
+          {(data.contentType.length === 1 && data.contentType.includes("studio")) && (
+            <>
+              {/* Contact Details */}
+              <div ref={contactRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                <h3 className={`text-base lg:text-xl font-medium mb-4 lg:mb-9 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                  }`}>
+                  Enter your Contact Details
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Full Name</span>
+                    </div>
+                    <Input
+                      value={data.fullName}
+                      onChange={(e) => updateData({ fullName: e.target.value })}
+                      className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Email</span>
+                    </div>
+                    <Input
+                      value={data.email}
+                      onChange={(e) => updateData({ email: e.target.value })}
+                      className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-3 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Phone Number</span>
+                    </div>
+                    <Input
+                      value={data.phone}
+                      onChange={(e) => updateData({ phone: e.target.value })}
+                      className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
+                </div>
+              </div>
 
-        {!isEditingOnly && !shouldBypassDateTime && (
-          <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-              }`}>
-              Select Booking Type
-            </h3>
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  setBookingType("single_day");
-                  setSelectedDates([]);
-                  setSameTimingsMulti(true);
-                  setMultiDayTimes({});
-                  updateData({ bookingType: "single_day", bookingDays: [] });
-                  scrollToRef(dateTimeRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
-                >
-                  {bookingType === "single_day" && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
+              {/* Project Details */}
+              <div ref={projectDetailsRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                <h3 className={`text-base lg:text-xl font-medium mb-4 lg:mb-9 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                  }`}>
+                  Project Details
+                </h3>
+                <div className="grid grid-cols-1  gap-4 lg:gap-9">
+                  <div className="flex-1">
+                    <DropdownSelect
+                      title="Booking For"
+                      options={STUDIO_BOOKING_TYPES}
+                      value={bookingFor}
+                      onChange={setBookingFor}
+                      bgColour="bg-[#101010]"
+                    />
+                  </div>
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Project Name</span>
+                    </div>
+                    <Input
+                      value={data.projectName || ""}
+                      onChange={(e) => updateData({ projectName: e.target.value })}
+                      className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-3 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Description</span>
+                    </div>
+                    <textarea
+                      value={data.description}
+                      onChange={(e) => updateData({ description: e.target.value })}
+                      className={`w-full h-[82px] lg:h-[262px] bg-transparent border border-[#FFFFFF4D] rounded-xl p-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
                 </div>
-              </button>
-              <button
-                onClick={() => {
-                  setBookingType("multi_day");
-                  updateData({ bookingType: "multi_day" });
-                  scrollToRef(dateTimeRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
+              </div>
+            </>
+          )}
+
+          {/* Booking Type */}
+          {!isEditingOnly && !shouldBypassDateTime && (
+            <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                }`}>
+                Select Booking Type
+              </h3>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setBookingType("single_day");
+                    setSelectedDates([]);
+                    setSameTimingsMulti(true);
+                    setMultiDayTimes({});
+                    updateData({ bookingType: "single_day", bookingDays: [] });
+                    scrollToRef(dateTimeRef);
+                  }}
+                  disabled={data.shootType === ""}
+                  className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                 >
-                  {bookingType === "multi_day" && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
+                  <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
+                  <div
+                    className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : "border border-[#E5E5E5]"
+                      }`}
+                  >
+                    {bookingType === "single_day" && (
+                      <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                    )}
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setBookingType("multi_day");
+                    updateData({ bookingType: "multi_day" });
+                    scrollToRef(dateTimeRef);
+                  }}
+                  disabled={data.shootType === ""}
+                  className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                >
+                  <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
+                  <div
+                    className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : "border border-[#E5E5E5]"
+                      }`}
+                  >
+                    {bookingType === "multi_day" && (
+                      <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                    )}
+                  </div>
+                </button>
+              </div>
             </div>
-          </div>
-)}
+          )}
 
           {/* Date & Time */}
-        {!isEditingOnly && !shouldBypassDateTime && (
+          {!isEditingOnly && !shouldBypassDateTime && (
 
-          <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {bookingType === "single_day" ? (
-              <>
-                <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-                  }`}>
-                  Shoot Date & Time
-                </h3>
-                <div className="flex flex-col lg:flex-row gap-6">
-                  <div className="flex-1">
-                    <DatePicker
-                      label="Select Date"
-                      value={selectedShootDate}
-                      onChange={handleDateChange}
-                      minDate={new Date()}
-                      colors={datePickerColours}
-                      format="MM/dd/yyyy"
-                      sx={{
-                        height: { xs: "56px", md: "82px" },
-                        borderRadius: "16px",
+            <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              {bookingType === "single_day" ? (
+                <>
+                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                    }`}>
+                    Shoot Date & Time
+                  </h3>
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    <div className="flex-1">
+                      <DatePicker
+                        label="Select Date"
+                        value={selectedShootDate}
+                        onChange={handleDateChange}
+                        minDate={new Date()}
+                        colors={datePickerColours}
+                        format="MM/dd/yyyy"
+                        sx={{
+                          height: { xs: "56px", md: "82px" },
+                          borderRadius: "16px",
+                        }}
+                        floating={true}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <DropdownSelect
+                        title="Start Time"
+                        options={filteredStartTimeOptions}
+                        value={getStartTimeKey()}
+                        onChange={handleStartTimeChange}
+                        bgColour="bg-[#101010]"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <DropdownSelect
+                        title="End Time"
+                        options={filteredEndTimeOptions}
+                        value={getEndTimeKey()}
+                        onChange={handleEndTimeChange}
+                        bgColour="bg-[#101010]"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="relative mb-8 lg:mb-15">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                        }`}>
+                        Select Date
+                      </h3>
+                      <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
+                        <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                        <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
+                      </button>
+                    </div>
+
+                    {/* Horizontal Scroll Reel */}
+                    <div
+                      ref={reelRef}
+                      onWheel={(e) => {
+                        if (!reelRef.current) return;
+                        e.preventDefault();
+                        reelRef.current.scrollLeft += e.deltaY;
                       }}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <DropdownSelect
-                      title="Start Time"
-                      options={filteredStartTimeOptions}
-                      value={getStartTimeKey()}
-                      onChange={handleStartTimeChange}
-                      bgColour="bg-[#101010]"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <DropdownSelect
-                      title="End Time"
-                      options={filteredEndTimeOptions}
-                      value={getEndTimeKey()}
-                      onChange={handleEndTimeChange}
-                      bgColour="bg-[#101010]"
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="relative mb-8 lg:mb-15">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-                      }`}>
-                      Select Date
-                    </h3>
-                    <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
-                      <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                      <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
-                    </button>
-                  </div>
-
-                  {/* Horizontal Scroll Reel */}
-                  <div
-                    ref={reelRef}
-                    onWheel={(e) => {
-                      if (!reelRef.current) return;
-                      e.preventDefault();
-                      reelRef.current.scrollLeft += e.deltaY;
-                    }}
-                    onPointerDown={(e) => {
-                      if (!reelRef.current) return;
-                      isDraggingReel.current = true;
-                      didDragReel.current = false;
-                      dragStartX.current = e.clientX;
-                      dragStartY.current = e.clientY;
-                      dragStartScrollLeft.current = reelRef.current.scrollLeft;
-                    }}
-                    onPointerMove={(e) => {
-                      if (!reelRef.current || !isDraggingReel.current) return;
-                      const dx = e.clientX - dragStartX.current;
-                      const dy = e.clientY - dragStartY.current;
-                      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
-                        didDragReel.current = true;
-                      }
-                      if (didDragReel.current) {
+                      onPointerDown={(e) => {
+                        if (!reelRef.current) return;
+                        if ((e.target as HTMLElement).closest("button")) return;
+                        isDraggingReel.current = true;
+                        dragStartX.current = e.clientX;
+                        dragStartScrollLeft.current = reelRef.current.scrollLeft;
+                        reelRef.current.setPointerCapture?.(e.pointerId);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!reelRef.current || !isDraggingReel.current) return;
+                        const dx = e.clientX - dragStartX.current;
                         reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
-                      }
-                    }}
-                    onPointerUp={() => {
-                      isDraggingReel.current = false;
-                      if (didDragReel.current) {
-                        suppressChipClickUntil.current = Date.now() + 150;
-                      }
-                      setTimeout(() => {
-                        didDragReel.current = false;
-                      }, 0);
-                    }}
-                    onPointerLeave={() => {
-                      isDraggingReel.current = false;
-                    }}
-                    className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
-                  >
-                    {reelDays.map((date) => {
-                      const isSelected = selectedDates.some(d => isSameDay(d, date));
-                      return (
-                        <button
-                          type="button"
-                          key={date.toISOString()}
-                          ref={(el) => {
-                            dateChipRefs.current[getDateKey(date)] = el;
-                          }}
-                          onClick={() => {
-                            if (Date.now() < suppressChipClickUntil.current) return;
-                            toggleDateSelection(date);
-                          }}
-                          className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
-                        >
-                          <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
-                          <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex gap-4">
-                    <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
-                    </div>
-                    <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
-                    </div>
-                  </div>
-
-                  {/* Calendar Popover */}
-                  <AnimatePresence>
-                    {isCalendarOpen && (
-                      <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
-                        <div className="flex justify-between items-center mb-6">
-                          <button type="button" onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
-                            <ChevronLeft size={20} />
+                      }}
+                      onPointerUp={(e) => {
+                        isDraggingReel.current = false;
+                        reelRef.current?.releasePointerCapture?.(e.pointerId);
+                      }}
+                      onPointerLeave={() => {
+                        isDraggingReel.current = false;
+                      }}
+                      className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                    >
+                      {reelDays.map((date) => {
+                        const isSelected = selectedDates.some(d => isSameDay(d, date));
+                        return (
+                          <button
+                            type="button"
+                            key={date.toISOString()}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => toggleDateSelection(date)}
+                            className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                          >
+                            <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
+                            <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
                           </button>
-                          <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                          <div className="flex items-center gap-2">
-                            <button type="button" onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
-                              <ChevronRight size={20} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIsCalendarOpen(false)}
-                              className="rounded-full p-1 hover:bg-white/10 transition-colors"
-                              aria-label="Close calendar"
-                            >
-                              <X size={18} />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
-                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
-                        </div>
-                        <div className="grid grid-cols-7 gap-1">
-                          {calendarDays.map((date) => {
-                            const isSelected = selectedDates.some(d => isSameDay(d, date));
-                            return (
-                              <button
-                                type="button"
-                                key={date.toISOString()}
-                                onClick={() => {
-                                  toggleDateSelection(date);
-                                }}
-                                className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
-                              >
-                                {format(date, "d")}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                {/* timings selector will go here */}
-
-                {selectedDates.length > 0 && (
-                  <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
-                    <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
+                        );
+                      })}
+                    </div>
 
                     <div className="flex gap-4">
+                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
+                      </div>
+                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
+                      </div>
+                    </div>
+
+                    {/* Calendar Popover */}
+                    <AnimatePresence>
+                      {isCalendarOpen && (
+                        <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
+                          <div className="flex justify-between items-center mb-6">
+                            <button type="button" onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
+                              <ChevronLeft size={20} />
+                            </button>
+                            <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
+                                <ChevronRight size={20} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsCalendarOpen(false)}
+                                className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                                aria-label="Close calendar"
+                              >
+                                <X size={18} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
+                          </div>
+                          <div className="grid grid-cols-7 gap-1">
+                            {calendarDays.map((date) => {
+                              const isSelected = selectedDates.some(d => isSameDay(d, date));
+                              return (
+                                <button
+                                  type="button"
+                                  key={date.toISOString()}
+                                  onClick={() => {
+                                    toggleDateSelection(date);
+                                  }}
+                                  className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                                >
+                                  {format(date, "d")}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  {/* timings selector will go here */}
+
+                  {selectedDates.length > 0 && (
+                    <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+                      <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
+
+                      <div className="flex gap-4">
+                        <button
+                          type="button"
+                          onClick={() => handleSameTimingsModeChange(true)}
+                          disabled={data.shootType === ""}
+                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                        >
+                          <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                          <div
+                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                              }`}
+                          >
+                            {sameTimingsMulti && (
+                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                            )}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSameTimingsModeChange(false)}
+                          disabled={data.shootType === ""}
+                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                        >
+                          <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                          <div
+                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                              }`}
+                          >
+                            {!sameTimingsMulti && (
+                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                            )}
+                          </div>
+                        </button>
+                      </div>
+
+                      {
+                        sameTimingsMulti ? (
+                          <div>
+                            <div className="flex flex-col lg:flex-row gap-6">
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="Start Time"
+                                  options={filteredStartTimeOptions}
+                                  value={getStartTimeKey()}
+                                  onChange={handleStartTimeChange}
+                                  bgColour="bg-[#101010]"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="End Time"
+                                  options={filteredEndTimeOptions}
+                                  value={getEndTimeKey()}
+                                  onChange={handleEndTimeChange}
+                                  bgColour="bg-[#101010]"
+                                />
+                              </div>
+                            </div>
+                            <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
+                              <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                            </p>
+                            <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                              <p className="text-white font-medium lg:text-[20px]">
+                                {getFormattedDateString(selectedDates)}
+                              </p>
+                              <p className="text-white/60  font-medium lg:text-[20px]">
+                                {getStartTimeKey() && getEndTimeKey()
+                                  ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                                  : "Select time"}
+                              </p>
+                              <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
+                                {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                                  ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                                  : "Duration Hour/Day"}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {selectedDates.map((date) => {
+                              const dateKey = getDateKey(date);
+                              const isExpanded = expandedDateKey === dateKey;
+                              return (
+                                <div key={date.toISOString()} className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
+                                  <button type="button" onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
+                                    <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
+                                    <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                  </button>
+                                  <AnimatePresence>
+                                    {isExpanded && (
+                                      <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                          <div className="flex-1">
+                                            <DropdownSelect
+                                              title="Start Time"
+                                              options={filteredStartTimeOptions}
+                                              value={multiDayTimes[dateKey]?.startKey || ""}
+                                              onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
+                                              bgColour="bg-[#101010]"
+                                            />
+                                          </div>
+                                          <div className="flex-1">
+                                            <DropdownSelect
+                                              title="End Time"
+                                              options={filteredEndTimeOptions}
+                                              value={multiDayTimes[dateKey]?.endKey || ""}
+                                              onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
+                                              bgColour="bg-[#101010]"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                          <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                            Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
+                                              ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
+                                              : "Select time"}
+                                          </p>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )
+                      }
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Edits Needed */}
+          {
+            !data.contentType.includes("studio") && (
+              <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                {!data.contentType.includes("editing") && (
+                  <>
+                    <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
+                      }`}>
+                      Edits Needed?
+                    </h3>
+                    <div className="flex gap-4">
                       <button
-                        type="button"
-                        onClick={() => handleSameTimingsModeChange(true)}
+                        onClick={() => {
+                          updateData({ editsNeeded: true });
+                          scrollToRef(navigationRef);
+                        }}
                         disabled={data.shootType === ""}
-                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                       >
                         <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
                         <div
-                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
                             }`}
                         >
-                          {sameTimingsMulti && (
+                          {data.editsNeeded && (
                             <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                           )}
                         </div>
                       </button>
                       <button
-                        type="button"
-                        onClick={() => handleSameTimingsModeChange(false)}
+                        onClick={() => {
+                          setOpenEditPanel(null);
+                          updateData({
+                            editsNeeded: false,
+                            videoEditTypes: [],
+                            photoEditTypes: [],
+                          });
+                          scrollToRef(navigationRef);
+                        }}
                         disabled={data.shootType === ""}
-                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                       >
                         <span className="font-medium text-sm lg:text-lg pr-2">No</span>
                         <div
-                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
                             }`}
                         >
-                          {!sameTimingsMulti && (
+                          {!data.editsNeeded && (
                             <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                           )}
                         </div>
                       </button>
                     </div>
-
-                    {
-                      sameTimingsMulti ? (
-                        <div>
-                          <div className="flex flex-col lg:flex-row gap-6">
-                            <div className="flex-1">
-                              <DropdownSelect
-                                title="Start Time"
-                                options={filteredStartTimeOptions}
-                                value={getStartTimeKey()}
-                                onChange={handleStartTimeChange}
-                                bgColour="bg-[#101010]"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <DropdownSelect
-                                title="End Time"
-                                options={filteredEndTimeOptions}
-                                value={getEndTimeKey()}
-                                onChange={handleEndTimeChange}
-                                bgColour="bg-[#101010]"
-                              />
-                            </div>
-                          </div>
-                          <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
-                            <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
-                          </p>
-                          <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                            <p className="text-white font-medium lg:text-[20px]">
-                              {getFormattedDateString(selectedDates)}
-                            </p>
-                            <p className="text-white/60  font-medium lg:text-[20px]">
-                              {getStartTimeKey() && getEndTimeKey()
-                                ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
-                                : "Select time"}
-                            </p>
-                            <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
-                              {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
-                                ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
-                                : "Duration Hour/Day"}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {selectedDates.map((date) => {
-                            const dateKey = getDateKey(date);
-                            const isExpanded = expandedDateKey === dateKey;
-                            return (
-                              <div
-                                key={date.toISOString()}
-                                ref={(el) => {
-                                  selectedDateCardRefs.current[dateKey] = el;
-                                }}
-                                className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const nextExpanded = isExpanded ? null : dateKey;
-                                    setExpandedDateKey(nextExpanded);
-                                    if (nextExpanded) {
-                                      requestAnimationFrame(() => {
-                                        selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
-                                          behavior: "smooth",
-                                          block: "nearest",
-                                          inline: "nearest",
-                                        });
-                                      });
-                                    }
-                                  }}
-                                  className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}
-                                >
-                                  <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
-                                  <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                                </button>
-                                <AnimatePresence>
-                                  {isExpanded && (
-                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
-                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="Start Time"
-                                            options={getDateSpecificStartOptions(dateKey)}
-                                            value={multiDayTimes[dateKey]?.startKey || ""}
-                                            onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
-                                            bgColour="bg-[#101010]"
-                                          />
-                                        </div>
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="End Time"
-                                            options={getDateSpecificEndOptions(dateKey)}
-                                            value={multiDayTimes[dateKey]?.endKey || ""}
-                                            onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
-                                            bgColour="bg-[#101010]"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
-                                          Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
-                                            ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
-                                            : "Select time"}
-                                        </p>
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )
-                    }
-                  </div>
+                  </>
                 )}
-              </>
-            )}
-          </div>
-)}
-          {/* Edits Needed */}
-          <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {!data.contentType.includes("editing") && (
-              <>
-                <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"}`}>
-                  Edits Needed?
-                </h3>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => {
-                      updateData({ editsNeeded: true });
-                      scrollToRef(navigationRef);
-                    }}
-                    disabled={data.shootType === ""}
-                    className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                  >
-                    <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                    <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}>
-                      {data.editsNeeded && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setOpenEditPanel(null);
-                      updateData({ editsNeeded: false, videoEditTypes: [], photoEditTypes: [] });
-                      scrollToRef(navigationRef);
-                    }}
-                    disabled={data.shootType === ""}
-                    className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                  >
-                    <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                    <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}>
-                      {!data.editsNeeded && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
-                    </div>
-                  </button>
-                </div>
-              </>
-            )}
 
-            {/* Edit Dropdowns — show when editsNeeded OR editing only */}
-            {(data.editsNeeded || isEditingOnly) && (
-              <div className={`animate-in slide-in-from-top-4 duration-300 ${!isEditingOnly ? "mt-4 lg:mt-8" : ""}`}>
-                <h4 className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
-                  <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
-                  Editing includes
-                </h4>
-                <p className="text-white/60 text-sm mb-11">
-                  Professional editing includes color grading, sound mixing, and basic revisions.
-                </p>
-
-                <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
-                  {(data.contentType.includes("videographer") || isEditingOnly) && editTypeOptions.length > 0 && (
-                    <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
-                      <button
-                        type="button"
-                        className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
-                        onClick={handleVideoEditToggle}
-                      >
-                        <div className="min-w-0 flex flex-1 items-center gap-3">
-                          <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
-                          {videoEditSummaryItems.length > 0 && (
-                            <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
-                              {videoEditSummaryItems.map((item) => (
-                                <span key={item.key} className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white">
-                                  <span className="truncate max-w-[180px]">{item.label}</span>
-                                  <span className="shrink-0 text-white/50">x{item.count}</span>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        {isVideoEditOpen ? <ChevronUp className="text-white flex-shrink-0" /> : <ChevronDown className="text-white flex-shrink-0" />}
-                      </button>
-                      {isVideoEditOpen && (
-                        <div className="border-t border-white/10 px-5 py-3">
-                          {editTypeOptions.map((option) => {
-                            const count = videoEditCounts[option.key] || 0;
-                            return (
-                              <div key={option.key} className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0">
-                                <span className="text-sm lg:text-base text-white">{option.value}</span>
-                                <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-                                  <QuantityControl
-                                    value={count}
-                                    onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
-                                    onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
-                                    className="h-[52px] min-w-[110px] rounded-[16px] px-5"
-                                    buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
-                                    valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {(data.contentType.includes("photographer") || isEditingOnly) && photoEditTypeOptions.length > 0 && (
-                    <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
-                      <button
-                        type="button"
-                        className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
-                        onClick={handlePhotoEditToggle}
-                      >
-                        <div className="min-w-0 flex flex-1 items-center gap-3">
-                          <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
-                          {photoEditSummaryItems.length > 0 && (
-                            <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
-                              {photoEditSummaryItems.map((item) => (
-                                <span key={item.key} className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white">
-                                  <span className="truncate max-w-[180px]">{item.label}</span>
-                                  <span className="shrink-0 text-white/50">x{item.count}</span>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        {isPhotoEditOpen ? <ChevronUp className="text-white flex-shrink-0" /> : <ChevronDown className="text-white flex-shrink-0" />}
-                      </button>
-                      {isPhotoEditOpen && (
-                        <div className="border-t border-white/10 px-5 py-3">
-                          {photoEditTypeOptions.map((option) => {
-                            const count = photoEditCounts[option.key] || 0;
-                            return (
-                              <div key={option.key} className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0">
-                                <div>
-                                  <div className="text-sm lg:text-base text-white">{option.value}</div>
-                                  <div className="text-xs text-white/40 mt-1">+{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set</div>
-                                </div>
-                                <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-                                  <QuantityControl
-                                    value={count}
-                                    onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
-                                    onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
-                                    className="h-[52px] min-w-[110px] rounded-[16px] px-5"
-                                    buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
-                                    valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                          <div className="flex flex-wrap gap-3 pt-4">
-                            {!isEditingOnly && photoEditSummary.includedCount > 0 && (
-                              <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
-                                Includes {photoEditSummary.includedCount} free photo edits
-                              </div>
-                            )}
-                            {!isEditingOnly && (
-                              <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
-                                {durationHours} Hour Duration
-                              </div>
-                            )}
-                            <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
-                              + {photoEditSummary.extraCount} Added Extra
-                            </div>
-                          </div>
-                          {!isEditingOnly && photoEditNote && (
-                            <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
-                              <Info size={16} className="mt-0.5 flex-shrink-0" />
-                              <span>{photoEditNote}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {receiveSummaryText && (
-                  <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
-                    <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
-                      <Image src="/images/misc/booking-sparkle.png" alt="" width={18} height={18} className="h-[18px] w-[18px]" />
-                    </div>
-                    <p className="text-sm lg:text-base font-semibold">
-                      You&apos;ll Receive {receiveSummaryText}
+                {/* Edit Dropdowns — show when editsNeeded OR editing only */}
+                {(data.editsNeeded || isEditingOnly) && (
+                  <div className={`animate-in slide-in-from-top-4 duration-300 ${!isEditingOnly ? "mt-4 lg:mt-8" : ""}`}>
+                    <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
+                      <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
+                      Editing includes
+                    </h4>
+                    <p className="text-white/60 text-sm mb-11">
+                      Professional editing includes color grading, sound mixing, and
+                      basic revisions.
                     </p>
+
+                    <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
+                      {(data.contentType.includes("videographer") || isEditingOnly) && editTypeOptions.length > 0 && (
+                        <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                          <button
+                            type="button"
+                            className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                            onClick={handleVideoEditToggle}
+                          >
+                            <div className="min-w-0 flex flex-1 items-center gap-3">
+                              <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
+                              {videoEditSummaryItems.length > 0 && (
+                                <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                                  {videoEditSummaryItems.map((item) => (
+                                    <span
+                                      key={item.key}
+                                      className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                    >
+                                      <span className="truncate max-w-[180px]">{item.label}</span>
+                                      <span className="shrink-0 text-white/50">x{item.count}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {isVideoEditOpen ? (
+                              <ChevronUp className="text-white flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="text-white flex-shrink-0" />
+                            )}
+                          </button>
+
+                          {isVideoEditOpen && (
+                            <div className="border-t border-white/10 px-5 py-3">
+                              {editTypeOptions.map((option) => {
+                                const count = videoEditCounts[option.key] || 0;
+                                return (
+                                  <div
+                                    key={option.key}
+                                    className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                                  >
+                                    <span className="text-sm lg:text-base text-white">{option.value}</span>
+                                    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                      <QuantityControl
+                                        value={count}
+                                        onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                        onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
+                                        className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                        buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                        valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {(data.contentType.includes("photographer") || isEditingOnly) && photoEditTypeOptions.length > 0 && (
+                        <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                          <button
+                            type="button"
+                            className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                            onClick={handlePhotoEditToggle}
+                          >
+                            <div className="min-w-0 flex flex-1 items-center gap-3">
+                              <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
+                              {photoEditSummaryItems.length > 0 && (
+                                <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                                  {photoEditSummaryItems.map((item) => (
+                                    <span
+                                      key={item.key}
+                                      className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                    >
+                                      <span className="truncate max-w-[180px]">{item.label}</span>
+                                      <span className="shrink-0 text-white/50">x{item.count}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {isPhotoEditOpen ? (
+                              <ChevronUp className="text-white flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="text-white flex-shrink-0" />
+                            )}
+                          </button>
+
+                          {isPhotoEditOpen && (
+                            <div className="border-t border-white/10 px-5 py-3">
+                              {photoEditTypeOptions.map((option) => {
+                                const count = photoEditCounts[option.key] || 0;
+                                return (
+                                  <div
+                                    key={option.key}
+                                    className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                                  >
+                                    <div>
+                                      <div className="text-sm lg:text-base text-white">{option.value}</div>
+                                      <div className="text-xs text-white/40 mt-1">
+                                        +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
+                                      </div>
+                                    </div>
+                                    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                      <QuantityControl
+                                        value={count}
+                                        onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                        onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
+                                        className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                        buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                        valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              <div className="flex flex-wrap gap-3 pt-4">
+                                {!isEditingOnly && (
+                                  <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                    Includes {photoEditSummary.includedCount} free photo edits
+                                  </div>
+                                )}
+                                {!isEditingOnly && (
+                                  <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
+                                    {durationHours} Hour Duration
+                                  </div>
+                                )}
+                                <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                  + {photoEditSummary.extraCount} Added Extra
+                                </div>
+                              </div>
+
+                              {!isEditingOnly && photoEditNote && (
+                                <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                                  <Info size={16} className="mt-0.5 flex-shrink-0" />
+                                  <span>{photoEditNote}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {receiveSummaryText && (
+                      <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
+                        <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
+                          <Image
+                            src="/images/misc/booking-sparkle.png"
+                            alt=""
+                            width={18}
+                            height={18}
+                            className="h-[18px] w-[18px]"
+                          />
+                        </div>
+                        <p className="text-sm lg:text-base font-semibold">
+                          You&apos;ll Receive {receiveSummaryText}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            )
+          }
         </>
       )}
 
@@ -2007,6 +2119,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           Continue
         </Button>
       </div>
-    </div>
+    </div >
   );
 };

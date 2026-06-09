@@ -23,6 +23,7 @@ import {
   Video,
   Camera,
   Scissors,
+  Clapperboard,
 } from "lucide-react";
 import {
   weddingEditTypes,
@@ -51,6 +52,55 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
 import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
+
+// Swiper imports
+import { Swiper, SwiperSlide } from "swiper/react";
+import { EffectCoverflow } from "swiper/modules";
+
+// Swiper styles
+import "swiper/css";
+import "swiper/css/effect-coverflow";
+
+// DummyData: Remove post integration
+const dummyCrewData = [
+  {
+    id: 101,
+    name: "Alex Rivera",
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200&h=200",
+    role: "Lead Photographer",
+  },
+  {
+    id: 102,
+    name: "Sarah Chen",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200&h=200",
+    role: "Cinematographer",
+  },
+  {
+    id: 103,
+    name: "Marcus Thompson",
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200",
+    role: "Gaffer",
+  },
+  {
+    id: 104,
+    name: "Elena Rodriguez",
+    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=200&h=200",
+    role: "Sound Engineer",
+  },
+  {
+    id: 105,
+    name: "Jordan Smith",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200&h=200",
+    role: "Production Assistant",
+  },
+  {
+    id: 106,
+    name: "Priya Kapoor",
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200",
+    role: "Creative Director",
+  }
+];
+
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -133,6 +183,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   isSubmitting,
 }) => {
   const { user, isAuthenticated } = useAuth()
+  const [activeCPIndex, setActiveCPIndex] = useState(0);
+
 
   const [calculateQuoteFromCreators, { isLoading: isCalculating }] =
     useCalculateQuoteFromCreatorsMutation();
@@ -179,20 +231,20 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       : "Multiple times"
     : isStudioBooking && primaryStudio?.startTime && primaryStudio?.endTime
       ? `${formatDisplayTime(primaryStudio.startTime)} - ${formatDisplayTime(primaryStudio.endTime)}`
-    : isEditingOnly
-      ? "Not required for editing-only projects"
-      : data.startDate && data.endDate
-        ? `${formatDisplayTime(data.startDate)} - ${formatDisplayTime(data.endDate)}`
-        : "Time not set";
+      : isEditingOnly
+        ? "Not required for editing-only projects"
+        : data.startDate && data.endDate
+          ? `${formatDisplayTime(data.startDate)} - ${formatDisplayTime(data.endDate)}`
+          : "Time not set";
   const summaryDateText = isMultiDay
     ? `${sortedBookingDays.length} Days • ${formatSummaryDate(firstDay.date)} - ${formatSummaryDate(lastDay.date)}`
     : isStudioBooking && primaryStudio?.selectedDate
       ? formatSummaryDate(primaryStudio.selectedDate)
-    : isEditingOnly && data.expectedDeliveryDate
-      ? formatSummaryDate(data.expectedDeliveryDate)
-      : data.startDate
-        ? formatSummaryDate(data.startDate)
-        : "Date not set";
+      : isEditingOnly && data.expectedDeliveryDate
+        ? formatSummaryDate(data.expectedDeliveryDate)
+        : data.startDate
+          ? formatSummaryDate(data.startDate)
+          : "Date not set";
 
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
@@ -661,53 +713,101 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
             {/* Project Summary */}
             <div className="p-4 lg:p-6 flex flex-col gap-3 lg:gap-6 ">
-              <div className="flex items-center gap-4 pb-4 lg:pb-8 border-b border-b-white/10">
-                {/* Updated Icon Container */}
-                <div className="w-12 h-12 bg-[#E8D5B51A] rounded-[12px] flex items-center justify-center border border-[#E8D1AB1A]">
-                  <ContentTypeIcon />
-                </div>
-
-                <div className="min-w-0">
-                  <div className="text-sm text-[#999] capitalize tracking-wide mb-1">
-                    Content Type
-                  </div>
-                  {/* Updated Text Display */}
-                  <h3 className="text-base text-white capitalize whitespace-nowrap truncate">
-                    {displayContentType}
-                  </h3>
-                </div>
-              </div>
-
-              <div className="rounded-[12px] overflow-hidden border border-white/10">
-                <div className="p-4 flex gap-4 items-center">
-                  <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
-                    <Image
-                      src={shootInfo.image || "/images/projects/interior.png"}
-                      alt={"Sample shoot"}
-                      fill
-                      className="object-cover rounded-lg"
-                    />
-                  </div>
-                  <div className="flex flex-col lg:flex-row gap-2 lg:gap-0 justify-between lg:items-center flex-1 min-w-0">
-                    <div className="w-full min-w-0">
-                      <div className="">
-                        <h4 className="text-[#E8D1AB] text-base lg:text-lg font-bold capitalize">
-                          {shootInfo.title}
-                        </h4>
-                        <span className="text-sm text-[#A9A9A9] capitalize">
-                          {shootInfo.details}
-                        </span>
+              {
+                // Studios only flow
+                (data.contentType.length === 1 && data.contentType.includes("studio")) ? (
+                  <>
+                    <div className="rounded-[12px] overflow-hidden border border-white/10">
+                      <div className="p-4 flex gap-4 items-center">
+                        <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
+                          <Image
+                            src={shootInfo.image || "/images/projects/interior.png"}
+                            alt={"Sample shoot"}
+                            fill
+                            className="object-cover rounded-lg"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2 lg:gap-0 justify-between lg:items-center flex-1 min-w-0">
+                          <div className="w-full min-w-0">
+                            <div className="flex flex-col gap-1">
+                              {/* Studio Name */}
+                              <h4 className="text-white lg:text-lg font-medium capitalize">
+                                Beige Media (Modern Resort Villa with Jacuzzi)
+                              </h4>
+                              {/* Studio Address */}
+                              <span className="text-sm text-[#8C8C8C] capitalize flex gap-1">
+                                <MapPin size={16} /> Woodland Hills, Los Angeles, CA
+                              </span>
+                            </div>
+                          </div>
+                          <hr className={`border-t my-3 lg:my-6 border-[#FFFFFF33] w-full `} />
+                          <div className="flex gap-2 w-full items-center justify-start">
+                            {["Natural Light", "Product friendly"].map((feature) => {
+                              return (
+                                <div className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                  {feature}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  </>
+                ) :
+                  (
+                    // Orginal design
+                    <>
+                      <div className="flex items-center gap-4 pb-4 lg:pb-8 border-b border-b-white/10">
+                        {/* Updated Icon Container */}
+                        <div className="w-12 h-12 bg-[#E8D5B51A] rounded-[12px] flex items-center justify-center border border-[#E8D1AB1A]">
+                          <ContentTypeIcon />
+                        </div>
 
-                    <div className="rounded-full bg-[#211F1C] border border-[#616161] w-fit shrink-0 py-2 px-4">
-                      <p className="text-xs lg:text-sm text-center font-medium capitalize text-white/50 whitespace-nowrap">
-                        {shootTypeTag}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+
+                        <div className="min-w-0">
+                          <div className="text-sm text-[#999] capitalize tracking-wide mb-1">
+                            Content Type
+                          </div>
+                          {/* Updated Text Display */}
+                          <h3 className="text-base text-white capitalize whitespace-nowrap truncate">
+                            {displayContentType}
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="rounded-[12px] overflow-hidden border border-white/10">
+                        <div className="p-4 flex gap-4 items-center">
+                          <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
+                            <Image
+                              src={shootInfo.image || "/images/projects/interior.png"}
+                              alt={"Sample shoot"}
+                              fill
+                              className="object-cover rounded-lg"
+                            />
+                          </div>
+                          <div className="flex flex-col lg:flex-row gap-2 lg:gap-0 justify-between lg:items-center flex-1 min-w-0">
+                            <div className="w-full min-w-0">
+                              <div className="">
+                                <h4 className="text-[#E8D1AB] text-base lg:text-lg font-bold capitalize">
+                                  {shootInfo.title}
+                                </h4>
+                                <span className="text-sm text-[#A9A9A9] capitalize">
+                                  {shootInfo.details}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="rounded-full bg-[#211F1C] border border-[#616161] w-fit shrink-0 py-2 px-4">
+                              <p className="text-xs lg:text-sm text-center font-medium capitalize text-white/50 whitespace-nowrap">
+                                {shootTypeTag}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )
+              }
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
@@ -722,9 +822,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                             {sortedBookingDays.length} Days
                           </span>
                           {sortedBookingDays.map((day, idx) => (
-                            
+
                             <span key={idx} className="text-white text-sm lg:text-base font-medium">
-                            <span className="text-[#A9A9A9]">• </span>
+                              <span className="text-[#A9A9A9]">• </span>
                               {formatSummaryDate(day.date)}
                             </span>
                           ))}
@@ -734,56 +834,174 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           {summaryDateText}
                         </span>
                       )}
-                      
                     </div>
                   </div>
                 </div>
                 {!isEditingOnly && (
-                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 h-fit">
-                  <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
-                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
-                      <Clock size={32} className="text-[#9D9595]" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {isMultiDay && !allSameTime ? (
-                        <>
-                          <span className="text-[#A9A9A9] text-sm mb-1">Per Day</span>
-                          {sortedBookingDays.map((day, idx) => (
-                            <span key={idx} className="text-white text-sm lg:text-base font-medium">
-                              <span className="text-[#A9A9A9]">• </span>
-                              {day.startTime && day.endTime
-                                ? `${formatDisplayTime(day.startTime)} – ${formatDisplayTime(day.endTime)}`
-                                : "Time not set"}
-                            </span>
-                          ))}
-                        </>
-                      ) : (
-                        <span className="text-white text-base lg:text-lg font-medium capitalize">
-                          {displayTimeText}
-                        </span>
-                      )}
+                  <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 h-fit">
+                    <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
+                      <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
+                        <Clock size={32} className="text-[#9D9595]" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {isMultiDay && !allSameTime ? (
+                          <>
+                            <span className="text-[#A9A9A9] text-sm mb-1">Per Day</span>
+                            {sortedBookingDays.map((day, idx) => (
+                              <span key={idx} className="text-white text-sm lg:text-base font-medium">
+                                <span className="text-[#A9A9A9]">• </span>
+                                {day.startTime && day.endTime
+                                  ? `${formatDisplayTime(day.startTime)} – ${formatDisplayTime(day.endTime)}`
+                                  : "Time not set"}
+                              </span>
+                            ))}
+                          </>
+                        ) : (
+                          <span className="text-white text-base lg:text-lg font-medium capitalize">
+                            {displayTimeText}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
                 )}
               </div>
-                             
+
               {!isEditingOnly && (
-              <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
-                    <Map size={32} className="text-[#9D9595]" />
+                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                      <Map size={32} className="text-[#9D9595]" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
+                        {DEFAULT_DISPLAY_ADDRESS || "Location not set"}
+                      </span>
+                      <span className="text-sm text-[#A9A9A9]">Location</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
-                      {DEFAULT_DISPLAY_ADDRESS || "Location not set"}
-                    </span>
-                    <span className="text-sm text-[#A9A9A9]">Location</span>
+                </div>
+              )}
+
+
+              {
+                // Studios only flow
+                (data.contentType.length === 1 && data.contentType.includes("studio")) && (
+                  <div className="bg-[#171717] rounded-2xl">
+                    <div className="p-8 ">
+                      <p className="text-white text-lg lg:text-xl font-medium">Project Details</p>
+                    </div>
+                    <hr className={`border-t border-[#FFFFFF33] w-full `} />
+                    <div className="p-8 space-y-6">
+                      <div className="grid grid-cols-12 gap-4 w-full">
+                        <div className="col-span-4 ">
+                          <p className="text-sm text-white/40 mb-3">Project Name:</p>
+                          <p className="text-sm text-white font-medium">Spring Collection Fashion Shoot</p>
+                        </div>
+                        <div className="col-span-8">
+                          <p className="text-sm text-white/40 mb-3">Crew Members:</p>
+                          <p className="text-sm text-white font-medium">6 (Photographer, Videographer, Assistant, Stylist, Makeup Artist, Producer)</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-white/40 mb-3">Shoot Type :</p>
+                        <p className="bg-[#E8D5B533] text-[#E8D5B5] text-xs px-3 py-2 w-fit rounded-sm">
+                          Product Shoot
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-white/40 mb-3">Description:</p>
+                        <p className="text-sm text-white font-medium">
+                          A full-day fashion shoot for a spring collection, including both photography and video content for digital and social media campaigns.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              {/* Professional Creatives */}
+              <div className="max-w-sm lg:max-w-3xl 2xl:max-w-4xl border-y border-[#FFFFFF33] py-6">
+                <div className="pb-6 ">
+                  <p className="text-white text-lg lg:text-xl font-medium">Professional Creatives</p>
+                </div>
+                <div className="p-0">
+                  <div className="relative">
+                    {dummyCrewData.length > 0 ? (
+                      <Swiper
+                        effect={"coverflow"}
+                        grabCursor={true}
+                        centeredSlides={true}
+                        slidesPerView={1.2}
+                        spaceBetween={30}
+                        breakpoints={{
+                          768: { slidesPerView: 2.2 },
+                          1024: { slidesPerView: 2.6 }
+                        }}
+                        coverflowEffect={{
+                          rotate: 15,
+                          stretch: 0,
+                          depth: 100,
+                          modifier: 1,
+                          slideShadows: false,
+                        }}
+                        modules={[EffectCoverflow]}
+                        onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
+                        className="w-full py-8"
+                      >
+                        {dummyCrewData.map((cp, index) => (
+                          <SwiperSlide key={cp.id}>
+                            <div className="group relative transition-all duration-300">
+                              {/* FLOATING IMAGE AREA */}
+                              <div
+                                className="relative aspect-[4/3] rounded-[20px] overflow-hidden shadow-2xl mb-4 cursor-pointer bg-zinc-800"
+                              >
+                                {cp.image ? (
+                                  <img
+                                    src={cp.image}
+                                    alt={cp.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-3xl font-bold bg-zinc-700">
+                                    {/* Fixed initials logic to prevent crashes on empty/single names */}
+                                    {cp.name
+                                      .split(" ")
+                                      .filter(Boolean)
+                                      .map((n) => n[0])
+                                      .join("")}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
+                              <div
+                                className={`px-2 transition-all duration-500 transform ${index === activeCPIndex
+                                  ? "opacity-100 translate-y-0"
+                                  : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
+                                  }`}
+                              >
+                                <div className="flex flex-col justify-center items-center mb-4">
+                                  <h3 className="lg:text-lg font-bold truncate leading-tight text-[#E8D1AB]">
+                                    {cp.name}
+                                  </h3>
+                                  <p className="text-[#A9A9A9] text-sm mt-0.5">
+                                    {cp.role}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </SwiperSlide>
+                        ))}
+                      </Swiper>
+                    ) : (
+                      <div className="h-[300px] flex items-center justify-center border-dashed border rounded-[32px] text-white/40 border-[#3D3D3D]">
+                        No partners found matching this status.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
-
 
               {/* Editing Services */}
               <div className="rounded-[16px] border border-white/5 bg-[#171717]">
@@ -819,8 +1037,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <span className="text-white">Photo Edit</span>
                       <div className="flex flex-wrap gap-2">
                         <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
-                          {isEditingOnly && photoEditSummary.includedCount === 0 
-                            ? `${photoEditSummary.extraCount} Photos Added` 
+                          {isEditingOnly && photoEditSummary.includedCount === 0
+                            ? `${photoEditSummary.extraCount} Photos Added`
                             : `Edited Photos ${photoEditSummary.includedCount} Included ${photoEditSummary.extraCount > 0 ? ` + ${photoEditSummary.extraCount} Added` : ""}`
                           }
                         </span>
@@ -1019,48 +1237,122 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               </h3>
             </div>
             <div className="bg-[#171717] text-white">
-              <div className="p-4 lg:p-6 border-b border-b-white/10">
-
-                {/* Package Offer section */}
-                <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#FEF5E5] text-[#171717]">
-                  <div className="p-4">
-                    <h4 className="text-sm font-bold">Package Offer</h4>
-                  </div>
-                  <div className="p-4 flex flex-col gap-3.5 border-t border-t-black/20 text-sm font-medium">
-                    <div className="flex gap-3 items-center">
-                      <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
-                        <ShieldCheck size={20} />
+              {/* Show the package offers section for all journeys except journey 2 */}
+              {
+                !(data.contentType.length === 1 && data.contentType.includes("studio")) && (
+                  // {/* Package Offer section */}
+                  <div className="p-4 lg:p-6 border-b border-b-white/10">
+                    <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#FEF5E5] text-[#171717]">
+                      <div className="p-4">
+                        <h4 className="text-sm font-bold">Package Offer</h4>
                       </div>
-                      <p className="italic">Unlimited Usage Rights</p>
-                    </div>
-                    <div className="flex gap-3 items-center">
-                      <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
-                        <FileImage size={20} />
-                      </div>
-                      <p className="italic">All Raw Content </p>
-                    </div>
-
-                    {/* Conditionally show Editing items */}
-                    {hasEditing && (
-                      <>
+                      <div className="p-4 flex flex-col gap-3.5 border-t border-t-black/20 text-sm font-medium">
                         <div className="flex gap-3 items-center">
                           <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
-                            <Package size={20} />
+                            <ShieldCheck size={20} />
                           </div>
-                          <p className="italic">Include Edited Deliverable </p>
+                          <p className="italic">Unlimited Usage Rights</p>
                         </div>
                         <div className="flex gap-3 items-center">
                           <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
-                            <RefreshCw size={20} />
+                            <FileImage size={20} />
                           </div>
-                          <p className="italic">Up to 2 Sets of Revisions</p>
+                          <p className="italic">All Raw Content </p>
                         </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
 
+                        {/* Conditionally show Editing items */}
+                        {hasEditing && (
+                          <>
+                            <div className="flex gap-3 items-center">
+                              <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
+                                <Package size={20} />
+                              </div>
+                              <p className="italic">Include Edited Deliverable </p>
+                            </div>
+                            <div className="flex gap-3 items-center">
+                              <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
+                                <RefreshCw size={20} />
+                              </div>
+                              <p className="italic">Up to 2 Sets of Revisions</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              {/* Studios Journey 2: Calculation + Data section */}
+              {(data.contentType.length === 1 && data.contentType.includes("studio")) && (
+                <>
+                  <div className="p-4 lg:p-6 border-b border-b-white/10 flex justify-between items-start">
+                    <p className="text-[#A9A9A9] text-xs lg:text-sm">
+                      Beige Media (Modern Resort Villa with Jacuzzi)
+                    </p>
+                    <p className="text-sm lg:text-base text-white font-bold">
+                      $275.00
+                    </p>
+                  </div>
+                  <div className="p-4 lg:p-6 border-b border-b-white/10 space-y-4">
+                    <div className="flex justify-between items-center ">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-[#E8D1AB] rounded-full p-3 text-black ">
+                          <Clapperboard size={24} strokeWidth={1.5} />
+                        </div>
+                        <p className="lg:text-lg text-white font-medium">Production</p>
+                      </div>
+                      <p className="text-sm lg:text-base text-[#E8D1AB] font-bold">
+                        $50.00
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <div>
+                        <p className="text-white text-xs lg:text-sm mb-2.5">Min Duration :</p>
+                        <p className="bg-[#E8D5B533] text-[#E8D5B5] text-xs px-3 py-2 text-center min-w-[106px] rounded-sm">
+                          4 Hours
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-white text-xs lg:text-sm mb-2.5">Max People :</p>
+                        <p className="bg-[#E8D5B533] text-[#E8D5B5] text-xs px-3 py-2 text-center min-w-[106px] rounded-sm">
+                          5-6 Max
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
+                  <div className="p-4 lg:p-6 border-b border-b-white/10 space-y-4 ">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[#A9A9A9] text-xs lg:text-sm">
+                        Base hours
+                      </p>
+                      <p className="text-sm lg:text-base text-white font-bold">
+                        $600.00
+                      </p>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-[#A9A9A9] text-xs lg:text-sm">
+                        Platform fee
+                      </p>
+                      <p className="text-sm lg:text-base text-white font-bold">
+                        $600.00
+                      </p>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-[#E8D1AB] text-xs lg:text-sm">
+                        Total Amount
+                      </p>
+                      <p className="text-sm lg:text-base text-[#E8D1AB] font-bold">
+                        $600.00
+                      </p>
+                    </div>
+                  </div>
+
+                </>
+              )}
+
+              {/* Regular calculation section */}
               <div className="p-4 lg:p-6 border-b border-b-white/10">
                 {isCalculating || quoteTotal === null ? (
                   <div className="flex items-center justify-center py-4 lg:py-12">
@@ -1074,14 +1366,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     {/* Duration & Crew Info */}
                     <div className="bg-[#101010] rounded-lg p-4 border border-white/5 space-y-3">
                       {!isEditingOnly && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-white/60">Project Duration</span>
-                        <span className="font-medium text-white">
-                          {durationHours}{" "}
-                          {durationHours === 1 ? "hour" : "hours"}
-                        </span>
-                      </div>
-                        )}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/60">Project Duration</span>
+                          <span className="font-medium text-white">
+                            {durationHours}{" "}
+                            {durationHours === 1 ? "hour" : "hours"}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/60">
@@ -1138,14 +1430,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
                       {/* 1. SHOOT COST */}
                       {!isEditingOnly && !useContentHouseInclusivePricing && (
-                      <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
-                        <div className="flex justify-between items-start mb-1">
-                          <div className="text-white font-medium">Shoot Cost</div>
-                          <div className="font-bold text-white">
-                            {formatCurrency(pricingGroups.shootCost)}
+                        <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="text-white font-medium">Shoot Cost</div>
+                            <div className="font-bold text-white">
+                              {formatCurrency(pricingGroups.shootCost)}
+                            </div>
                           </div>
                         </div>
-                      </div>
                       )}
 
                       {/* NEW: 2. EDITING SERVICES */}
