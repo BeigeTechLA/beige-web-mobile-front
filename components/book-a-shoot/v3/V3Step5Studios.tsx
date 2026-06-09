@@ -217,8 +217,8 @@ const HourlyStudioCard = ({
 
   return (
     <>
-      <div className={`group relative flex h-full flex-col overflow-hidden rounded-[28px] border bg-[#111111] transition-all duration-300 ${isSelected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10 hover:border-white/20"}`}>
-        <button type="button" className="relative h-[230px] w-full overflow-hidden" onClick={onShowDetails}>
+      <div className={`group relative flex h-full flex-col overflow-hidden rounded-[24px] border bg-[#111111] transition-all duration-300 ${isSelected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10 hover:border-white/20"}`}>
+        <button type="button" className="relative h-[195px] w-full overflow-hidden" onClick={onShowDetails}>
           <Image
             src={studio.image}
             alt={studio.name}
@@ -236,18 +236,18 @@ const HourlyStudioCard = ({
           )}
         </button>
 
-        <div className="flex flex-1 flex-col gap-4 p-5">
-          <div className="min-h-[112px]">
+        <div className="flex flex-1 flex-col gap-3.5 p-5">
+          <div>
             <h3 className="text-[17px] font-bold leading-snug text-white">{studio.name}</h3>
             {metaLabel && <p className="mt-1 text-xs text-white/45">{metaLabel}</p>}
-            <div className="mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed text-white/45">
+            <div className="mt-2 flex items-center gap-1.5 text-[12px] leading-relaxed text-white/45">
               <MapPin size={14} className="mt-0.5 shrink-0" />
               <span>{DEFAULT_DISPLAY_ADDRESS}</span>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {(studio.bestFor || []).slice(0, 3).map((item) => (
+            {(studio.bestFor || []).slice(0, 2).map((item) => (
               <span key={item} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-white/60">{item}</span>
             ))}
           </div>
@@ -260,7 +260,7 @@ const HourlyStudioCard = ({
             </div>
           )}
 
-          <div className="mt-auto grid grid-cols-[1fr_48px] gap-2 border-t border-white/5 pt-4">
+          <div className="mt-auto grid grid-cols-[1fr_46px] gap-2 border-t border-white/5 pt-3.5">
             <Button
               onClick={() => setShowPickers(true)}
               className="h-11 rounded-xl bg-[#E8D1AB] text-sm font-bold text-black hover:bg-[#dcb98a]"
@@ -270,7 +270,7 @@ const HourlyStudioCard = ({
             <Button
               variant="outline"
               onClick={onShowDetails}
-              className="h-11 w-12 rounded-xl border-white/10 bg-white/5 p-0 text-white/70 hover:bg-white/10 hover:text-white"
+              className="h-11 w-[46px] rounded-xl border-white/10 bg-white/5 p-0 text-white/70 hover:bg-white/10 hover:text-white"
             >
               <MoveUpRight size={18} />
             </Button>

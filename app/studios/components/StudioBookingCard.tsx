@@ -1,13 +1,29 @@
 import React from 'react';
 import { Star } from 'lucide-react';
 
-const StudioBookingSidebar = () => {
+interface StudioBookingSidebarProps {
+  price?: number;
+  rating?: string;
+  reviews?: number;
+  propertyType?: string;
+  minimumHours?: number;
+  operatingHours?: string;
+}
+
+const StudioBookingSidebar = ({
+  price = 150,
+  rating = "5.0",
+  reviews = 0,
+  propertyType = "Studio",
+  minimumHours = 2,
+  operatingHours = "Available by booking",
+}: StudioBookingSidebarProps) => {
   const studioDetails = [
-    { label: 'Bills', value: 'Include', highlight: false },
-    { label: 'Security deposited', value: '$800', highlight: true },
-    { label: 'Property type', value: 'Apartment', highlight: false },
-    { label: 'Room furnishing', value: 'Furnished', highlight: false },
-    { label: 'Profred', value: 'Females', highlight: false },
+    { label: 'Bills', value: 'Included', highlight: false },
+    { label: 'Minimum booking', value: `${minimumHours} hours`, highlight: true },
+    { label: 'Property type', value: propertyType, highlight: false },
+    { label: 'Furnishing', value: 'Included', highlight: false },
+    { label: 'Availability', value: operatingHours, highlight: false },
   ];
 
   return (
@@ -15,15 +31,15 @@ const StudioBookingSidebar = () => {
       {/* Pricing Header */}
       <div className="flex justify-between items-start">
         <div className="flex items-baseline gap-1 text-[#E8D1AB]">
-          <span className="text-xl lg:text-3xl font-medium">$150</span>
+          <span className="text-xl lg:text-3xl font-medium">${price.toLocaleString()}</span>
           <span className="text-lg lg:text-2xl">/ Hour</span>
         </div>
         <div className="flex items-center gap-1.5 pt-2 text-white font-medium">
           <Star size={18} className="text-white" />
-          <span className="">4.5</span>
+          <span className="">{rating}</span>
           <span className="text-[#6B7280] mx-1">•</span>
           <button className="underline underline-offset-4 hover:text-[#E8D1AB] transition-colors">
-            7 reviews
+            {reviews} reviews
           </button>
         </div>
       </div>
@@ -47,7 +63,7 @@ const StudioBookingSidebar = () => {
       {/* Availability Section */}
       <div className="flex justify-between items-center mb-10 text-xl lg:text-2xl font-medium text-[#9A9898]">
         <span className="">Available</span>
-        <span className="">Jan 06, 2026</span>
+        <span className="">{operatingHours}</span>
       </div>
 
       {/* Action Button */}

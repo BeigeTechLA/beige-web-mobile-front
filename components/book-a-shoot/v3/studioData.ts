@@ -639,8 +639,10 @@ export const HOURLY_STUDIO_LIST: StudioCatalogItem[] = [
   },
 ];
 
+export const ALL_STUDIO_LIST = [...WEEKEND_STUDIO_LIST, ...HOURLY_STUDIO_LIST];
+
 const STUDIO_BY_ID = new Map(
-  [...WEEKEND_STUDIO_LIST, ...HOURLY_STUDIO_LIST].map((studio) => [studio.id, studio]),
+  ALL_STUDIO_LIST.map((studio) => [studio.id, studio]),
 );
 
 export const STUDIO_META_MARKER = "[BEIGE_STUDIO_META]";
@@ -664,6 +666,18 @@ export const calculateHourlyDuration = (startTime?: string, endTime?: string) =>
 };
 
 export const getStudioById = (studioId: string) => STUDIO_BY_ID.get(studioId);
+
+export const getStudioBySlug = (slug: string) => {
+  const directMatch = getStudioById(slug);
+  if (directMatch) return directMatch;
+
+  const numericIndex = Number(slug);
+  if (Number.isInteger(numericIndex) && numericIndex > 0) {
+    return ALL_STUDIO_LIST[numericIndex - 1];
+  }
+
+  return undefined;
+};
 
 export const upsertSelectedStudio = (
   current: SelectedStudio[] = [],

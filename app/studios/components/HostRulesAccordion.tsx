@@ -11,17 +11,21 @@ interface RuleItem {
   content: string;
 }
 
-const HostRulesAccordion = () => {
+interface HostRulesAccordionProps {
+  rules?: string[];
+  defaultOpenAll?: boolean;
+}
+
+const HostRulesAccordion = ({ rules: studioRules = [], defaultOpenAll = false }: HostRulesAccordionProps) => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
-  const rules: RuleItem[] = [
-    { title: 'Host Rules', content: 'Detailed host rules and guidelines for studio usage go here.' },
-    { title: 'Cleaning Protocol', content: 'Our comprehensive cleaning and sanitization standards for every session.' },
-    { title: 'Protective Gears', content: 'Information regarding available safety equipment and requirements.' },
-    { title: 'Physical Distance', content: 'Spatial guidelines to ensure comfort and safety during your booking.' },
-    { title: 'Signage', content: 'Directions on how to navigate the studio and use on-site indicators.' },
-    { title: 'Cancellation Policy', content: 'Terms and conditions regarding booking modifications and refunds.' },
-  ];
+  const rules: RuleItem[] = studioRules.length
+    ? studioRules.map((rule, index) => ({ title: `Rule ${index + 1}`, content: rule }))
+    : [
+        { title: 'Host Rules', content: 'Detailed host rules and guidelines for studio usage go here.' },
+        { title: 'Cleaning Protocol', content: 'Our comprehensive cleaning and sanitization standards for every session.' },
+        { title: 'Cancellation Policy', content: 'Terms and conditions regarding booking modifications and refunds.' },
+      ];
 
   const toggleAccordion = (index: number) => {
     setExpandedIndex(expandedIndex === index ? null : index);
@@ -43,11 +47,11 @@ const HostRulesAccordion = () => {
                 onClick={() => toggleAccordion(index)}
                 className="w-full flex items-center justify-between text-left transition-colors group"
               >
-                <span className={`lg:text-lg font-light transition-colors ${isExpanded ? 'text-white' : 'text-[#FFFFFFAD] group-hover:text-white/80'}`}>
+                <span className={`lg:text-lg font-light transition-colors ${isExpanded || defaultOpenAll ? 'text-white' : 'text-[#FFFFFFAD] group-hover:text-white/80'}`}>
                   {rule.title}
                 </span>
                 <motion.div
-                  animate={{ rotate: isExpanded ? 90 : 0 }}
+                  animate={{ rotate: isExpanded || defaultOpenAll ? 90 : 0 }}
                   transition={{ duration: 0.2 }}
                 >
                   <ChevronRight
@@ -58,7 +62,7 @@ const HostRulesAccordion = () => {
               </button>
 
               <AnimatePresence initial={false}>
-                {isExpanded && (
+                {(isExpanded || defaultOpenAll) && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}

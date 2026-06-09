@@ -19,11 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StudioCard from "./components/StudioCard";
+import { HOURLY_STUDIO_LIST } from "./studioData";
 import DatePicker from "@/components/ui/Datepicker";
 import { Button } from "@/src/components/landing/ui/button";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+
+const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
 
 const STUDIO_BOOKING_TYPES = [
   { key: "production", value: "Production" },
@@ -67,91 +70,17 @@ interface Props {
   onBack: () => void;
 }
 
-const studioData = [
-  {
-    image: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000&auto=format&fit=crop",
-    name: "Beige Media",
-    description: "(Modern Resort Villa with Jacuzzi)",
-    location: "Woodland Hills, Los Angeles",
-    price: 150,
-    rating: 4.5,
-    reviews: 120,
-    tags: ["Natural light", "Product-friendly"],
-    isSelected: true
-  },
-  {
-    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1000&auto=format&fit=crop",
-    name: "The Industrial Loft",
-    description: "(Raw Concrete & Exposed Brick)",
-    location: "Brooklyn, New York",
-    price: 85,
-    rating: 4.8,
-    reviews: 89,
-    tags: ["High Ceilings", "Industrial", "Music Videos"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?q=80&w=1000&auto=format&fit=crop",
-    name: "Neon Horizon",
-    description: "(Cyberpunk Aesthetic & LED Walls)",
-    location: "Downtown Tokyo, JP",
-    price: 210,
-    rating: 4.9,
-    reviews: 45,
-    tags: ["RGB Lighting", "Podcasts", "Futuristic"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=1000&auto=format&fit=crop",
-    name: "Aetheria Penthouse",
-    description: "(Minimalist Luxury with Skyline Views)",
-    location: "Gold Coast, Chicago",
-    price: 320,
-    rating: 5.0,
-    reviews: 12,
-    tags: ["Luxury", "Fashion Shoots", "Air-Conditioned"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=1000&auto=format&fit=crop",
-    name: "Vintage Vinyl Hub",
-    description: "(70s Retro Lounge & Recording Booth)",
-    location: "Nashville, Tennessee",
-    price: 110,
-    rating: 4.7,
-    reviews: 210,
-    tags: ["Retro", "Analog Gear", "Soundproof"],
-    isSelected: true
-  },
-  {
-    image: "https://images.unsplash.com/photo-1492691523567-6170c2298bda?q=80&w=1000&auto=format&fit=crop",
-    name: "Secret Garden Studio",
-    description: "(Indoor Greenhouse & Tropical Plants)",
-    location: "Silver Lake, Los Angeles",
-    price: 140,
-    rating: 4.6,
-    reviews: 74,
-    tags: ["Bohemian", "Outdoor Space", "Greenery"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=1000&auto=format&fit=crop",
-    name: "Aetheria Penthouse",
-    description: "(Minimalist Luxury with Skyline Views)",
-    location: "Gold Coast, Chicago",
-    price: 320,
-    rating: 5.0,
-    reviews: 12,
-    tags: ["Luxury", "Fashion Shoots", "Air-Conditioned"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=1000&auto=format&fit=crop",
-    name: "Vintage Vinyl Hub",
-    description: "(70s Retro Lounge & Recording Booth)",
-    location: "Nashville, Tennessee",
-    price: 110,
-    rating: 4.7,
-    reviews: 210,
-    tags: ["Retro", "Analog Gear", "Soundproof"],
-    isSelected: true
-  },
-];
+const studioData = HOURLY_STUDIO_LIST.map((studio) => ({
+  slug: studio.id,
+  image: studio.image,
+  name: studio.name,
+  description: `(${studio.poolType})`,
+  location: PUBLIC_STUDIO_LOCATION,
+  price: studio.priceValue || studio.pricingOptions?.[0]?.hourlyRate || 0,
+  rating: Number(studio.rating || 5),
+  reviews: studio.reviews || 0,
+  tags: (studio.bestFor?.length ? studio.bestFor : studio.amenities || []).slice(0, 2),
+}));
 
 export const V3BrowseStudios: React.FC<Props> = ({
   data,
