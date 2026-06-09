@@ -987,7 +987,7 @@ export default function QuotePreviewPageShell({
             : "border border-[#00000033] bg-[#FFF] text-black hover:bg-[#E5E7EB]"
             }`}
         >
-          Sign Quote^
+          Sign Quote
         </ActionButton>
       )}
       {canContinueToPayment && (
