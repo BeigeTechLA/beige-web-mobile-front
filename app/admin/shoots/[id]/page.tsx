@@ -75,6 +75,83 @@ type QuoteVersionItem = {
   [key: string]: unknown;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+};
+
+const getNormalizedString = (value: unknown) => {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+  return normalized ? normalized : null;
+};
+
+const findFirstStringField = (value: unknown, fields: string[]) => {
+  const queue: unknown[] = [value];
+  const visited = new Set<unknown>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || visited.has(current)) {
+      continue;
+    }
+
+    visited.add(current);
+
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+
+    const record = asRecord(current);
+    if (!record) {
+      continue;
+    }
+
+    for (const field of fields) {
+      const candidate = getNormalizedString(record[field]);
+      if (candidate) {
+        return candidate;
+      }
+    }
+
+    const dataRecord = asRecord(record.data);
+    queue.push(
+      record.data,
+      record.quote,
+      record.item,
+      record.result,
+      record.details,
+      dataRecord?.quote,
+      dataRecord?.details,
+    );
+  }
+
+  return null;
+};
+
+const buildSignaturePatch = (value: unknown): Partial<SalesQuoteDetailData> => {
+  const signatureBase64 = findFirstStringField(value, ["signature_base64", "signatureBase64"]);
+  const signaturePath = findFirstStringField(value, ["signature_path", "signaturePath"]);
+  const signatureUrl = findFirstStringField(value, ["signature_url", "signatureUrl"]);
+  const signedAt = findFirstStringField(value, ["signed_at", "signedAt", "accepted_at", "acceptedAt"]);
+  const signerName = findFirstStringField(value, ["signer_name", "signerName"]);
+
+  return {
+    ...(signatureBase64 ? { signature_base64: signatureBase64 } : {}),
+    ...(signaturePath ? { signature_path: signaturePath } : {}),
+    ...(signatureUrl ? ({ signature_url: signatureUrl } as Partial<SalesQuoteDetailData>) : {}),
+    ...(signedAt ? { signed_at: signedAt, accepted_at: signedAt } : {}),
+    ...(signerName ? ({ signer_name: signerName } as Partial<SalesQuoteDetailData>) : {}),
+  };
+};
+
 const isUsableQuoteVersion = (version: QuoteVersionItem) => {
   const status = String(
     version.approval_status ||
@@ -223,7 +300,42 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         throw new Error("Quote preview data is unavailable");
       }
 
-      setQuotePreviewData(quoteDetail);
+      let signaturePatch: Partial<SalesQuoteDetailData> = {};
+      try {
+        const signatureResponse = await salesApi.getSignatureByQuote(convertedSalesQuoteId);
+        const signatureData = signatureResponse?.data ?? signatureResponse;
+
+        const storageKey = `quote_signature_base64_${convertedSalesQuoteId}`;
+        const cachedBase64 = typeof window !== "undefined"
+          ? window.localStorage.getItem(storageKey)
+          : null;
+
+        const s3Prefix = (process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/$/, "");
+        const rawUrl = (signatureData as any)?.signature_url || "";
+        const resolvedUrl = rawUrl
+          ? rawUrl.startsWith("http") ? rawUrl : `${s3Prefix}/${rawUrl}`
+          : "";
+
+        signaturePatch = {
+          ...(cachedBase64 ? { signature_base64: cachedBase64 } : {}),
+          ...(resolvedUrl && !cachedBase64 ? { signature_url: resolvedUrl } as any : {}),
+          ...((signatureData as any)?.signed_at
+            ? { signed_at: (signatureData as any).signed_at, accepted_at: (signatureData as any).signed_at }
+            : {}),
+          ...((signatureData as any)?.signer_name
+            ? { signer_name: (signatureData as any).signer_name } as any
+            : {}),
+          status: "accepted",
+          quote_status: "accepted",
+        };
+      } catch (signatureError) {
+        console.warn("Failed to load quote signature for shoot preview", signatureError);
+      }
+
+      setQuotePreviewData({
+        ...quoteDetail,
+        ...signaturePatch,
+      });
     } catch (error) {
       console.error("Failed to load converted quote preview", error);
       toast.error(error instanceof Error ? error.message : "Failed to load quote preview");

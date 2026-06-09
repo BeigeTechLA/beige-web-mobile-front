@@ -2181,7 +2181,7 @@ function MultiCreatorPaymentContent() {
                   </div>
                   <div className="flex flex-col justify-between mb-4">
                     <span className="text-[#626467]">Shoot Type:</span>
-                    <span className="font-medium">{toTitleCase((summaryData.event_type || "").trim())}</span>
+                    <span className="font-medium">{toTitleCase((summaryData?.event_type || "").trim())}</span>
                   </div>
                   {(() => {
                     const rawLocation = String(booking?.event_location || "").trim();

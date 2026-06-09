@@ -447,6 +447,7 @@ export default function QuotePreviewPageShell({
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
   const enrichmentLookupRef = useRef<string | null>(null);
+  const hasSignedRef = useRef<boolean>(false);
   const paymentStorageKey =
     quoteDetailMode === "public"
       ? `public-quote-booking:${queryQuoteKey || queryQuoteId || "unknown"}`
@@ -566,6 +567,9 @@ export default function QuotePreviewPageShell({
       !resolvedQuoteId ||
       enrichmentLookupRef.current === resolvedQuoteId
     ) {
+      return;
+    }
+    if (hasSignedRef.current) {
       return;
     }
 
@@ -724,12 +728,14 @@ export default function QuotePreviewPageShell({
         ? "Your old version link has expired because a new quote version was created. Open the latest approved version below."
         : "Your old version link has expired because a new quote version was created. Generate a latest quote link below."
       : errorMessage || "The quote preview could not be loaded.";
+
   const canContinueToPayment =
     hasValidPublicQuotePreview &&
-    Boolean(effectivePaymentBookingId) &&
+    Boolean(effectivePaymentBookingId) &&  
     isPublicPaymentAllowedStatus &&
     !isMarkedFullyPaid &&
-    (!isZeroOutstanding || isPaymentPending);
+    (!isZeroOutstanding || isPaymentPending) &&
+    isQuoteSigned; 
 
   useEffect(() => {
     if (!paymentStorageKey || typeof window === "undefined") {
@@ -869,6 +875,8 @@ export default function QuotePreviewPageShell({
     }
     router.push(`/search-results/payment?shootId=${encodeURIComponent(bookingId)}`);
   };
+ 
+ 
 
   const handleGenerateLatestQuoteLink = async () => {
     if (latestPreviewUrl) {
@@ -1163,22 +1171,59 @@ export default function QuotePreviewPageShell({
           onClose={() => setShowSignature(false)}
           onSuccess={async (signatureData) => {
             toast.success("Quote signed successfully!");
+            hasSignedRef.current = true;
             setAcceptServiceAgreement(true);
+            const signedPatch = buildQuoteStatePatch(signatureData);
+            const signedAt = signedPatch.signed_at ?? new Date().toISOString();
+            const optimisticSignedPatch: Partial<SalesQuoteDetailData> = {
+              ...signedPatch,
+              signed_at: signedAt,
+              accepted_at: signedAt,
+              status: "accepted",
+              quote_status: "accepted",
+              signature_base64: signatureData?.signature_base64 || signedPatch.signature_base64 || "signed",
+            };
+         
+            const optimisticBookingId =
+              findBookingId(signatureData) ||
+              findBookingId(quote) ||
+              existingBookingId ||
+              String(quote?.booking_id || "").trim() ||
+              String((quote as any)?.converted_booking_details?.booking_id || "").trim();
+
+            setQuote((current) =>
+              current ? { ...current, ...optimisticSignedPatch } : current
+            );
+
+            let finalBookingId = optimisticBookingId;
+            if (!finalBookingId && resolvedQuoteId) {
+              try {
+                const freshDetail = await salesApi.getQuoteDetail(resolvedQuoteId);
+                finalBookingId =
+                  findBookingId(freshDetail) ||
+                  String(freshDetail?.data?.booking_id || "").trim() ||
+                  String((freshDetail?.data as any)?.converted_booking_details?.booking_id || "").trim();
+              } catch {
+                
+              }
+            }
+
+            if (finalBookingId) {
+              setPaymentBookingId(finalBookingId);
+            }
+
+          
+
             let refreshedQuote: SalesQuoteDetailData | null = null;
             setQuote((current) =>
               current
                 ? {
                   ...current,
-                  signed_at:
-                    (signatureData as Record<string, unknown> | null)?.["signed_at"] as string ??
-                    current.signed_at ??
-                    new Date().toISOString(),
-                  signature_base64:
-                    ((signatureData as Record<string, unknown> | null)?.["signature_base64"] as string | undefined) ??
-                    current.signature_base64,
-                  signature_path:
-                    ((signatureData as Record<string, unknown> | null)?.["signature_path"] as string | undefined) ??
-                    current.signature_path,
+                  ...optimisticSignedPatch,
+                  converted_booking_details: {
+                    ...(current.converted_booking_details || {}),
+                    ...(optimisticSignedPatch.converted_booking_details || {}),
+                  },
                 }
                 : current
             );
@@ -1187,20 +1232,50 @@ export default function QuotePreviewPageShell({
                 const refreshed = await fetchQuotePreviewByKey(queryQuoteKey);
                 const updated = unwrapSalesQuoteDetail(refreshed?.data ?? null);
                 if (updated) {
-                  refreshedQuote = updated;
-                  setQuote(updated);
+                  const refreshedPatch = buildQuoteStatePatch(refreshed);
+                  refreshedQuote = {
+                    ...updated,
+                    ...refreshedPatch,
+                    ...optimisticSignedPatch,
+                    converted_booking_details: {
+                      ...(updated.converted_booking_details || {}),
+                      ...(refreshedPatch.converted_booking_details || {}),
+                      ...(optimisticSignedPatch.converted_booking_details || {}),
+                    },
+                  };
+                  setQuote(refreshedQuote);
                 }
-              } else {
+              }
+           else {
                 const refreshed = await salesApi.getQuoteDetail(resolvedQuoteId);
                 const updated = unwrapSalesQuoteDetail(refreshed?.data ?? null);
                 if (updated) {
-                  refreshedQuote = updated;
-                  setQuote(updated);
+                  const refreshedPatch = buildQuoteStatePatch(refreshed);
+                  refreshedQuote = {
+                    ...updated,
+                    ...refreshedPatch,
+                    ...optimisticSignedPatch,
+                    converted_booking_details: {
+                      ...(updated.converted_booking_details || {}),
+                      ...(refreshedPatch.converted_booking_details || {}),
+                      ...(optimisticSignedPatch.converted_booking_details || {}),
+                    },
+                  };
+                  setQuote(refreshedQuote);
                 }
               }
 
               if (quoteDetailMode === "public") {
-                const bookingId = findBookingId(signatureData) || findBookingId(refreshedQuote) || findBookingId(quote);
+                const bookingId =
+                  findBookingId(signatureData) ||
+                  findBookingId(refreshedQuote) ||
+                  findBookingId(quote) ||
+                  String(refreshedQuote?.booking_id || "").trim() ||
+                  String((refreshedQuote as any)?.converted_booking_details?.booking_id || "").trim() ||
+                  String(quote?.booking_id || "").trim() ||
+                  String((quote as any)?.converted_booking_details?.booking_id || "").trim() ||
+                  optimisticBookingId;
+
                 if (bookingId) {
                   setPaymentBookingId(bookingId);
                   toast.success(`Booking #${bookingId} is ready. Continue to payment.`);

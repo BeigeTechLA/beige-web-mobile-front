@@ -3352,7 +3352,7 @@ export const salesApi = {
       const response = await api.get(`/signatures/quote/${quote_id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Signature Error:', error.response?.data || error.message);
+      console.error('Get Signature Error:', error?.response?.data ?? error?.message ?? error);
       return {
         success: false,
         data: null,

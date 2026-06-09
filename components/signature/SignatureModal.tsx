@@ -31,10 +31,24 @@ export default function SignatureModal({
             signer_email: signerEmail,
             signature_base64: base64,
         });
-
+    
         if (res.success) {
             setLoading(false);
-            onSuccess?.(res.data ?? null);
+
+            const quoteId = String(res.data?.quote_id || payload?.quote_id || "");
+            if (quoteId && typeof window !== "undefined") {
+                window.localStorage.setItem(`quote_signature_base64_${quoteId}`, base64);
+            }
+
+            onSuccess?.({
+                ...(res.data && typeof res.data === "object" ? res.data : {}),
+                signature_base64: base64,
+                signed_at: new Date().toISOString(),
+                accepted_at: new Date().toISOString(),
+                status: "accepted",
+                quote_status: "accepted",
+            });
+          
             onClose();
         } else {
             setError(res.error || "Something went wrong, please try again");
