@@ -639,7 +639,6 @@ export default function LeadsTable({
               */}
             </div >
           ) : (
-            // <div className="w-full overflow-hidden lg:overflow-x-auto rounded-2xl">
             <div className={`w-full overflow-hidden rounded-2xl border ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
               <div className="w-full overflow-x-auto">
                 <table className="w-full text-left border-separate border-spacing-0 table-fixed lg:table-auto">
@@ -657,8 +656,8 @@ export default function LeadsTable({
 
                     {/* Mobile Header: Visible below md */}
                     <tr className={`md:hidden text-sm font-medium transition-colors duration-300 ${isDark ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#FFFCF6] text-black"}`}>
-                      <th className={`p-4 border-b w-1/2 rounded-tl-2xl ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>Client Name</th>
-                      <th className={`p-4 border-b w-1/2 text-right rounded-tr-2xl ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>Status</th>
+                      <th className={`p-4 border-b w-2/3 rounded-tl-2xl ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>Client Name</th>
+                      <th className={`p-4 border-b w-1/3 text-right rounded-tr-2xl ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>Status</th>
                     </tr>
                   </thead>
 
@@ -678,16 +677,16 @@ export default function LeadsTable({
                                 onRowClick(lead.lead_id);
                               }
                             }}
-                            className={`group transition-colors cursor-pointer ${isDark ? "bg-[#171717] hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"} ${isExpanded && isDark ? "bg-[#202020]" : ""}`}
+                            className={`group transition-colors cursor-pointer ${isDark ? "bg-[#171717] hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"} ${isExpanded ? (isDark ? "bg-[#202020]" : "bg-[#f9f9f9]") : ""}`}
                           >
                             {/* Client Name (Shared) */}
                             <td
-                              className={`w-1/2 lg:w-auto p-5 border-b group-last:border-0 min-w-0 ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}
+                              className={`w-2/3 lg:w-auto p-5 ${isExpanded ? "" : "border-b"} group-last:border-0 min-w-0 ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}
                               title={lead.clientName}
                             >
-                              <div className="flex items-start gap-2 lg:gap-3 min-w-0">
-                                <div className={`shrink-0 md:hidden h-6 w-6 transition-transform duration-200 rounded-full flex items-center justify-center border ${isExpanded ? "rotate-180 border-[#E8D1AB]" : "rotate-0 border-[#4B4B4B]"}`}>
-                                  <ChevronDown size={16} className={isExpanded ? "text-[#E8D1AB]" : (isDark ? "text-[#777674]" : "text-[#999]")} />
+                              <div className="flex items-center lg:items-start gap-2 lg:gap-3 min-w-0">
+                                <div className={`shrink-0 md:hidden h-6 w-6 transition-transform duration-200 rounded-full flex items-center justify-center border ${isExpanded ? (isDark ? "rotate-180 text-[#E8D1AB]" : "rotate-180 text-black") : "rotate-0 border-[#4B4B4B]"}`}>
+                                  <ChevronDown size={16} className={isExpanded ? (isDark ? "text-[#E8D1AB]" : "text-black") : (isDark ? "text-[#777674]" : "text-[#999]")} />
                                 </div>
                                 <div className="shrink-0 w-10 h-10 lg:h-[50px] lg:w-[50px] rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-semibold text-base lg:text-xl">
                                   {lead.clientName.split(" ").map((n) => n[0]).join("").toUpperCase().substring(0, 2)}
@@ -698,7 +697,7 @@ export default function LeadsTable({
                                   </p>
                                   <div className="mt-1">
                                     <span
-                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${lead.registrationType === "registered"
+                                      className={`hidden lg:inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${lead.registrationType === "registered"
                                         ? isDark
                                           ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                                           : "bg-emerald-100 text-emerald-700 border border-emerald-200"
@@ -714,7 +713,7 @@ export default function LeadsTable({
                                     {format(lead.date, "MMM dd, yyyy")}
                                   </p>
                                   {lead.bookingId ? (
-                                    <p className={`text-xs ${isDark ? "text-white" : "text-[#171717]"}`}>
+                                    <p className={`hidden lg:block text-xs ${isDark ? "text-white" : "text-[#171717]"}`}>
                                       #{lead.bookingId}
                                     </p>
                                   ) : null}
@@ -729,7 +728,7 @@ export default function LeadsTable({
                               <IntentBadge intent={(lead.intent || "Hot") as "Hot" | "Warm" | "Cold"} />
                             </td>
                             {/* Status Column (Shared - Responsive align) */}
-                            <td className={`w-1/2 lg:w-auto p-3 lg:p-5 border-b text-right md:text-left group-last:border-0 min-w-0 overflow-hidden ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
+                            <td className={`w-1/3 lg:w-auto p-3 lg:p-5 ${isExpanded ? "" : "border-b"} text-right md:text-left group-last:border-0 min-w-0 overflow-hidden ${isDark ? "border-[#222]" : "border-[#F0F0F0]"}`}>
                               <div className="flex justify-end lg:justify-start overflow-hidden">
                                 <LeadsStatusBadge status={lead.bookingStatus || "Unknown"} />
                               </div>
@@ -773,7 +772,7 @@ export default function LeadsTable({
                           {isExpanded && (
                             <tr className="md:hidden">
                               <td colSpan={2} className={`px-5 py-0 border-b ${isDark ? "bg-[#202020] border-[#3D3D3D]" : "bg-[#F9F9F9] border-[#F0F0F0]"}`}>
-                                <div className="grid grid-cols-2 gap-y-5 py-4">
+                                <div className="grid grid-cols-2 gap-y-4 ">
                                   <div className="space-y-1 min-w-0">
                                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Email ID</p>
                                     <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{lead.email}</p>
@@ -782,12 +781,12 @@ export default function LeadsTable({
                                         #{lead.bookingId}
                                       </p>
                                     ) : null}
-                                    </div>
-                                    <div className="space-y-1 text-right">
+                                  </div>
+                                  <div className="space-y-1 text-right">
                                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Lead Type</p>
                                     <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{lead.leadType}</p>
                                   </div>
-                                  <div className="space-y-1">
+                                  <div className="space-y-1 col-span-full">
                                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Last Activity</p>
                                     <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{lead.lastActivity}</p>
                                     {(lead.assignedSalesRepName || lead.assignedSalesRepEmail) && (
@@ -797,10 +796,26 @@ export default function LeadsTable({
                                       </p>
                                     )}
                                   </div>
-                                  <div className="space-y-1 text-right">
+                                  <div className="space-y-1">
                                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Intent</p>
-                                    <IntentBadge intent={(lead.intent || "Hot") as "Hot" | "Warm" | "Cold"} />
+                                    <IntentBadge intent={(lead.intent || "Hot") as "Hot" | "Warm" | "Cold"} size={"sm"} />
                                   </div>
+                                  <div className="space-y-1 text-right">
+                                    <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Type</p>
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${lead.registrationType === "registered"
+                                        ? isDark
+                                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                          : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                        : isDark
+                                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                          : "bg-amber-100 text-amber-700 border border-amber-200"
+                                        }`}
+                                    >
+                                      {lead.registrationType === "registered" ? "Registered" : "Guest"}
+                                    </span>
+                                  </div>
+
                                   <div className="space-y-1">
                                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Action</p>
                                     <button
@@ -825,28 +840,34 @@ export default function LeadsTable({
               </div>
 
               {/* Mobile & Desktop Pagination Container */}
-              <div className={`p-4 md:p-6 border-t ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}>
-                <div className="flex flex-col items-center gap-4 md:flex-row md:justify-between">
+              <div className={`p-4 md:p-6 border-t w-full overflow-hidden transition-colors duration-300 ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}>
+                <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden">
+
                   {/* Showing Count */}
                   <div className={`hidden lg:block text-sm ${isDark ? "text-white/40" : "text-[#999]"}`}>
                     Showing {data.length} leads
                   </div>
-                  {/* Pagination Placeholder - Replace with your actual Pagination component */}
-                  <div className="flex gap-2 items-center">
+
+                  {/* Pagination Controls */}
+                  <div className="flex gap-2 items-center justify-center w-full sm:w-auto overflow-hidden">
+
+                    {/* Previous Button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onPageChange(Math.max(1, currentPage - 1));
                       }}
                       disabled={currentPage === 1}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
-                        ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                        : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                      className={`p-2 lg:px-4 lg:py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 shrink-0 ${isDark
+                          ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                          : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
                         }`}
                     >
                       <ChevronLeft size={24} />
                     </button>
-                    <div className="flex gap-1">
+
+                    {/* Page Numbers Wrapper - Bounds protected */}
+                    <div className="flex gap-1 overflow-x-auto no-scrollbar max-w-[55vw] sm:max-w-xs md:max-w-none shrink-0 py-0.5">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => (
                         <button
                           key={i + 1}
@@ -854,26 +875,28 @@ export default function LeadsTable({
                             e.stopPropagation();
                             onPageChange(i + 1);
                           }}
-                          className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === i + 1
-                            ? "bg-[#E5D5B8] text-black"
-                            : isDark
-                              ? "text-white/60 hover:bg-white/5"
-                              : "text-[#666] hover:bg-black/5"
+                          className={`w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center text-xs lg:text-sm font-medium rounded-lg transition-all shrink-0 ${currentPage === i + 1
+                              ? "bg-[#E5D5B8] text-black"
+                              : isDark
+                                ? "text-white/60 hover:bg-white/5"
+                                : "text-[#666] hover:bg-black/5"
                             }`}
                         >
                           {i + 1}
                         </button>
                       ))}
                     </div>
+
+                    {/* Next Button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onPageChange(Math.min(totalPages, currentPage + 1));
                       }}
                       disabled={currentPage === totalPages}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
-                        ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                        : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                      className={`p-2 lg:px-4 lg:py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 shrink-0 ${isDark
+                          ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                          : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
                         }`}
                     >
                       <ChevronRight size={24} />

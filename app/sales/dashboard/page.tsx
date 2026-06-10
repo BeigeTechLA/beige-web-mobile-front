@@ -1171,7 +1171,7 @@ export default function SalesLeadsPage() {
                 />
               </div>
 
-               {/* {activeTab === "Booking" && (
+               {activeTab === "Booking" && (
                 <div
                   className={`h-11 shrink-0 flex items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${
                     isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"
@@ -1208,7 +1208,7 @@ export default function SalesLeadsPage() {
                     <Grid3X3 size={14} />
                   </button>
                 </div>
-              )}  */}
+              )} 
             </div>
 
             {activeTab === "Booking" && leadsViewMode === "grid" && (
@@ -1280,7 +1280,7 @@ export default function SalesLeadsPage() {
                 totalRecords={leadsTotalRecords}
                 limit={leadsLimit}
                 activeStatusFilter={statusFilter}
-                viewMode={"list"}
+                viewMode={leadsViewMode}
                 showViewSwitcher={false}
                 onViewModeChange={setLeadsViewMode}
                 onPageChange={(page) => setLeadsCurrentPage(page)}

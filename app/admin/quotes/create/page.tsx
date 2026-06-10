@@ -97,6 +97,7 @@ import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
 } from "@/lib/salesQuotePreview";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
@@ -1057,6 +1058,7 @@ export default function CreateQuotePage() {
   const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
   const editQuoteId = searchParams.get("quoteId");
+  const editVersionId = searchParams.get("editVersion");
   const isEditMode = Boolean(editQuoteId);
   const editModeParam = searchParams.get("editMode");
   const isFullEditFlow = isEditMode && editModeParam === "full";
@@ -1106,6 +1108,8 @@ export default function CreateQuotePage() {
   const [emailId, setEmailId] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
+  const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [validityDays, setValidityDays] = useState<number | "custom">(7);
   const [validUntil, setValidUntil] = useState(
@@ -1309,6 +1313,8 @@ export default function CreateQuotePage() {
         setEmailId("");
         setPhoneNumber("");
         setAddress("");
+        setLocationLatitude(null);
+        setLocationLongitude(null);
         return;
       }
 
@@ -1316,6 +1322,8 @@ export default function CreateQuotePage() {
       setEmailId(getClientEmail(client));
       setPhoneNumber(normalizePhoneNumberInput(getClientPhone(client)));
       setAddress(getClientAddress(client));
+      setLocationLatitude(null);
+      setLocationLongitude(null);
     },
     [],
   );
@@ -1392,6 +1400,13 @@ export default function CreateQuotePage() {
             : [];
 
         const currentVersion =
+          (editVersionId
+            ? versionsData.find(
+              (version) =>
+                version?.version_number != null &&
+                String(version.version_number) === editVersionId,
+            )
+            : null) ||
           versionsData.find((version) => version?.is_current && version?.version_number != null) ||
           versionsData.find((version) => version?.version_number != null);
         const versionNumber = Number(currentVersion?.version_number);
@@ -1415,7 +1430,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [effectiveQuoteId]);
+  }, [editVersionId, effectiveQuoteId]);
 
   React.useEffect(() => {
     servicesRef.current = services;
@@ -1628,7 +1643,9 @@ export default function CreateQuotePage() {
 
     const fetchQuoteToEdit = async () => {
       try {
-        const response = await salesApi.getQuoteDetail(editQuoteId);
+        const response = editVersionId
+          ? await salesApi.getQuoteVersionDetail(editQuoteId, editVersionId)
+          : await salesApi.getQuoteDetail(editQuoteId);
 
         if (response?.error || response?.success === false) {
           throw new Error(
@@ -1673,7 +1690,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [editQuoteId, router]);
+  }, [editQuoteId, editVersionId, router]);
 
   React.useEffect(() => {
     if (!editQuoteId) {
@@ -1734,6 +1751,8 @@ export default function CreateQuotePage() {
         setEmailId(hydratedState.emailId);
         setPhoneNumber(normalizePhoneNumberInput(hydratedState.phoneNumber));
         setAddress(hydratedState.address);
+        setLocationLatitude(hydratedState.locationLatitude ?? null);
+        setLocationLongitude(hydratedState.locationLongitude ?? null);
         setProjectDescription(hydratedState.projectDescription);
         setValidityDays(hydratedState.validityDays);
         setValidUntil(hydratedState.validUntil);
@@ -2641,12 +2660,6 @@ export default function CreateQuotePage() {
     }
   };
 
-  const formattedValidUntil = (() => {
-    if (!validUntil) return "";
-    const parsedDate = parseISO(validUntil);
-    return isValid(parsedDate) ? format(parsedDate, "dd-MM-yyyy") : validUntil;
-  })();
-
   const progressValue =
     view === "selection"
       ? 0
@@ -2710,7 +2723,7 @@ export default function CreateQuotePage() {
     selectedServices,
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
-  const shouldHideBackButton = isQuoteSaved;
+  const shouldHideBackButton = isQuoteSaved || (!isEditMode && !!createdQuoteId);
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
@@ -3215,6 +3228,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3248,6 +3263,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3282,6 +3299,8 @@ export default function CreateQuotePage() {
         emailId,
         phoneNumber,
         address,
+        locationLatitude,
+        locationLongitude,
         projectDescription,
         validityDays,
         validUntil,
@@ -3316,6 +3335,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3345,6 +3366,8 @@ export default function CreateQuotePage() {
       emailId,
       phoneNumber,
       address,
+      locationLatitude,
+      locationLongitude,
       projectDescription,
       validityDays,
       validUntil,
@@ -3379,6 +3402,8 @@ export default function CreateQuotePage() {
     });
   }, [
     address,
+    locationLatitude,
+    locationLongitude,
     addons,
     effectiveAddonConfigs,
     effectiveLineItemConfigs,
@@ -3699,9 +3724,16 @@ export default function CreateQuotePage() {
     await saveQuoteDraft("save", { suppressRedirect: true, openPreview: true });
   };
 
+  const noQuoteChangesMessage = "No changes made, modify anything to save it";
+
   const handleSaveQuote = async () => {
     if (!quoteReviewValidation.isValid) {
       toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
       return;
     }
 
@@ -3714,12 +3746,22 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     setIsReviewChangesModalOpen(true);
   };
 
   const handleSaveAsNewVersion = async () => {
     if (!effectiveQuoteId) {
       toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
       return;
     }
 
@@ -3741,6 +3783,11 @@ export default function CreateQuotePage() {
   };
 
   const handleConfirmReviewChanges = async () => {
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     if (quoteVersionNumber !== null && quoteVersionNumber > 1) {
       await handleSaveAsNewVersion();
       return;
@@ -3838,6 +3885,11 @@ export default function CreateQuotePage() {
         : "Continue";
 
   const handleSaveAsDraft = async () => {
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     await saveQuoteDraft("draft");
   };
 
@@ -3970,41 +4022,6 @@ export default function CreateQuotePage() {
     await sendQuoteInvoiceRequest();
   };
 
-  const getBlockedQuotePaymentChangeMessage = React.useCallback(
-    (quoteDetail: SalesQuoteDetailData | null | undefined) => {
-      if (!quoteDetail) {
-        return null;
-      }
-
-      const additionalPayment =
-        (quoteDetail as { additional_payment?: Record<string, unknown> | null }).additional_payment ??
-        (quoteDetail as { partial_payment?: Record<string, unknown> | null }).partial_payment ??
-        null;
-      const reducedPayment =
-        (quoteDetail as { reduced_payment?: Record<string, unknown> | null }).reduced_payment ?? null;
-      const change = additionalPayment ?? reducedPayment;
-
-      if (!change) {
-        return null;
-      }
-
-      const approvalStatus = String(change.approval_status ?? "").toLowerCase();
-      const additionalAmount = Number(change.outstanding_amount ?? change.additional_amount ?? 0);
-      const reducedAmount = Number(change.reduced_amount ?? change.refund_pending_amount ?? 0);
-      const hasOpenChange = additionalAmount > 0 || reducedAmount > 0;
-
-      if (!hasOpenChange || approvalStatus === "approved") {
-        return null;
-      }
-
-      const changeType = additionalAmount > 0 ? "increase" : "decrease";
-      return approvalStatus === "rejected"
-        ? `This paid quote ${changeType} request was rejected, so it cannot be sent to the client.`
-        : `This paid quote ${changeType} request is pending admin approval. Approve it before sending the quote or payment link to the client.`;
-    },
-    [],
-  );
-
   const handleBeforeSendQuoteFromPreview = React.useCallback(async () => {
     if (isEditMode && hasUnsavedQuoteChanges) {
       const didSave = await saveQuoteDraft("save", { suppressRedirect: true });
@@ -4019,28 +4036,23 @@ export default function CreateQuotePage() {
       return true;
     }
 
-    try {
-      const detailResponse = await salesApi.getQuoteDetail(quoteIdToValidate);
-      if (detailResponse?.error || detailResponse?.success === false) {
-        return true;
-      }
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote: quoteToEdit ?? previewQuote,
+      quoteId: quoteIdToValidate,
+    });
 
-      const latestQuoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
-      const blockMessage = getBlockedQuotePaymentChangeMessage(latestQuoteDetail);
-      if (blockMessage) {
-        toast.error(blockMessage);
-        return false;
-      }
-    } catch (error) {
-      console.error("Failed to validate quote approval before send/copy", error);
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
     }
 
     return true;
   }, [
     effectiveQuoteId,
-    getBlockedQuotePaymentChangeMessage,
     hasUnsavedQuoteChanges,
     isEditMode,
+    previewQuote,
+    quoteToEdit,
     saveQuoteDraft,
   ]);
 
@@ -4902,7 +4914,7 @@ export default function CreateQuotePage() {
 
     setIsSubmittingLineItem(true);
     try {
-      const trimmedName = clampTextLength(customItemName).trim();
+      const trimmedName = customItemName.trim();
       const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, "")) || 0;
       if (!trimmedName) {
         toast.error("Name is required");
@@ -4987,7 +4999,10 @@ export default function CreateQuotePage() {
   const handleUpdateCatalogItem = async () => {
     if (!editCatalogItem || isSavingCatalogEdit) return;
 
-    const trimmedName = clampTextLength(editCatalogName).trim();
+    const trimmedName =
+      editCatalogItem.type === "line_item"
+        ? editCatalogName.trim()
+        : clampTextLength(editCatalogName).trim();
     if (!trimmedName) {
       toast.error("Name is required");
       return;
@@ -6853,9 +6868,8 @@ export default function CreateQuotePage() {
                         placeholder="Eg : Consulting Fee, Rush Delivery..."
                         value={customItemName}
                         onChange={(e) =>
-                          setCustomItemName(clampTextLength(e.target.value))
+                          setCustomItemName(e.target.value)
                         }
-                        maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                         className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
                           ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
                           : "border-[#D7D7D7] text-black placeholder:text-[#9F9FA9] focus:border-[#000]/30"
@@ -7560,8 +7574,7 @@ export default function CreateQuotePage() {
                 </p>
               </div>
 
-              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"
-                }`} />
+              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
 
               <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 lg:pt-2 space-y-6 lg:space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -7645,7 +7658,23 @@ export default function CreateQuotePage() {
                 <div className="relative">
                   <LocationPicker
                     value={address}
-                    onChange={(selectedAddress) => setAddress(selectedAddress)}
+                    onChange={(selectedAddress, details) => {
+                      setAddress(selectedAddress);
+                      const nextLatitude =
+                        details?.coordinates?.lat ?? details?.lat ?? details?.center?.[1] ?? null;
+                      const nextLongitude =
+                        details?.coordinates?.lng ?? details?.lng ?? details?.center?.[0] ?? null;
+                      setLocationLatitude(
+                        typeof nextLatitude === "number" && Number.isFinite(nextLatitude)
+                          ? nextLatitude
+                          : null
+                      );
+                      setLocationLongitude(
+                        typeof nextLongitude === "number" && Number.isFinite(nextLongitude)
+                          ? nextLongitude
+                          : null
+                      );
+                    }}
                     placeholder="Search for an address"
                     label="Address*"
                     colors={isDark ? darkThemeColors : lightThemeColors}
@@ -7743,7 +7772,7 @@ export default function CreateQuotePage() {
                             days from today.
                             {validityDays !== "custom" && (
                               <span className={`ml-2 font-medium ${isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"}`}>
-                                Quote valid until <strong>{format(parseISO(validUntil), "MM-dd-yyyy")}</strong>
+                                Quote valid until <strong>{format(parseISO(validUntil), "MMM d, yyyy")}</strong>
                               </span>
                             )}
                           </p>
@@ -7764,8 +7793,9 @@ export default function CreateQuotePage() {
                                   setValidUntil(format(date, "yyyy-MM-dd"));
                                 }
                               }}
+                              minDate={addDays(new Date(), 1)}
                               disabled={validityDays !== "custom"}
-                              format="MM-dd-yyyy"
+                              format="MMM d, yyyy"
                               isDark={isDark}
                               colors={{
                                 inputBackground: isCustomValiditySelected
@@ -7890,7 +7920,7 @@ export default function CreateQuotePage() {
                               }
                             }}
                             disabled={validityDays !== "custom"}
-                            format="MM-dd-yyyy"
+                            format="MMM d, yyyy"
                             colors={{
                               inputBackground: isCustomValiditySelected
                                 ? isDark
@@ -8027,7 +8057,7 @@ export default function CreateQuotePage() {
             {!showInvoiceActions ? (
               showReviewChangesAction ? (
                 <Button
-                  className="bg-white text-[#1B1B1B] hover:bg-[#00000033] border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all"
+                  className={`border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all disabled:opacity-70 ${isDark ? "bg-white text-[#1B1B1B] hover:bg-white/80" : "bg-black text-white! hover:bg-black/80"}`}
                   disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft || hasCurrentSavedQuoteState}
                   onClick={handleOpenReviewChangesModal}
                 >
@@ -8036,7 +8066,7 @@ export default function CreateQuotePage() {
               ) : (
                 <Button
                   className={`${view === "tax"
-                    ? "bg-white text-[#1B1B1B] hover:bg-[#00000033] border-0 shadow-lg"
+                    ? "bg-white text-[#1B1B1B] hover:bg-white/80 border-0 shadow-lg"
                     : canPrimaryAction
                       ? "bg-[#E8D1AB] text-[#101010]"
                       : isDark
@@ -8094,7 +8124,7 @@ export default function CreateQuotePage() {
                 type="button"
                 onClick={handleSaveAsDraft}
                 disabled={isCreatingQuoteDraft}
-                className="bg-white text-[#1B1B1B] hover:bg-[#00000033] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg disabled:opacity-70"
+                className={`border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl flex items-center gap-3 text-xl font-bold transition-all disabled:opacity-70 ${isDark ? "bg-white text-[#1B1B1B] hover:bg-white/80" : "bg-black text-white! hover:bg-black/80"}`}
               >
                 <div className="flex items-center justify-center">
                   <Save
@@ -8133,7 +8163,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handleConvertToBooking}
               disabled={isConvertBookingActionDisabled}
-              className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isConverting ? "Converting..." : convertBookingActionLabel}
             </Button>
@@ -8144,7 +8174,7 @@ export default function CreateQuotePage() {
                   void handleViewInvoice();
                 }}
                 disabled={isViewingInvoice || isSendingInvoice || isConverting}
-                className="flex-1 bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-[#00000033] h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
               </Button>
@@ -8154,7 +8184,7 @@ export default function CreateQuotePage() {
                   void handleSendInvoice();
                 }}
                 disabled={isViewingInvoice || isSendingInvoice || isConverting}
-                className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+                className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
               </Button>
@@ -8162,22 +8192,12 @@ export default function CreateQuotePage() {
 
           </div>
         ) : showPreviewAction ? (
-          <div className="flex flex-col lg:flex-row gap-2">
-            {showReviewChangesAction ? (
-              <Button
-                variant="default"
-                onClick={handleOpenReviewChangesModal}
-                disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid || hasCurrentSavedQuoteState}
-                className="flex-1 bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-              >
-                Review Changes
-              </Button>
-            ) : null}
+          <div className="flex flex-col gap-2">
             <Button
               variant="beige"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."
@@ -8187,7 +8207,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handleSaveAsDraft}
               disabled={(selectedClient === null) || isCreatingQuoteDraft}
-              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
             >
               <div className="flex items-center justify-center">
                 <Save
@@ -8205,7 +8225,7 @@ export default function CreateQuotePage() {
             type="button"
             onClick={handleSaveAsDraft}
             disabled={(selectedClient === null) || isCreatingQuoteDraft}
-            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
           >
             <div className="flex items-center justify-center">
               <Save
@@ -8222,7 +8242,7 @@ export default function CreateQuotePage() {
           {!shouldHideBackButton ? (
             <Button
               variant="outline"
-              className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+              className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-10 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
               onClick={handleBack}
             >
               Back
@@ -8233,7 +8253,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."
@@ -8243,7 +8263,7 @@ export default function CreateQuotePage() {
           {!showInvoiceActions ? (
             showReviewChangesAction ? (
               <Button
-                className="bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1"
+                className="bg-white text-[#1B1B1B] hover:bg-[#00000033] h-10 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1"
                 disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft || hasCurrentSavedQuoteState}
                 onClick={handleOpenReviewChangesModal}
               >
@@ -8258,7 +8278,7 @@ export default function CreateQuotePage() {
                   : isDark
                     ? "bg-[#E8D1AB] text-[#1D1D1B]"
                     : "bg-[#A4A5A6] text-white"
-                  } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1 `}
+                  } hover:opacity-90 h-10 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1 `}
                 disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
                 onClick={handlePrimaryAction}
               >
@@ -8389,9 +8409,17 @@ export default function CreateQuotePage() {
               <Input
                 value={editCatalogName}
                 onChange={(e) =>
-                  setEditCatalogName(clampTextLength(e.target.value))
+                  setEditCatalogName(
+                    editCatalogItem?.type === "line_item"
+                      ? e.target.value
+                      : clampTextLength(e.target.value)
+                  )
                 }
-                maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
+                maxLength={
+                  editCatalogItem?.type === "line_item"
+                    ? undefined
+                    : MAX_QUOTE_OPTION_LABEL_LENGTH
+                }
                 className={`h-11 bg-transparent rounded-xl ${isDark
                   ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
                   : "border-zinc-300 text-black placeholder:text-zinc-400 focus:border-zinc-400"
@@ -8517,5 +8545,3 @@ export default function CreateQuotePage() {
     </div>
   );
 }
-
-

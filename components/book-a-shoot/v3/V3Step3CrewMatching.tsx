@@ -17,6 +17,7 @@ interface Props {
   updateData: (data: Partial<BookingDataV3>) => void;
   onNext: () => void;
   onBack: () => void;
+
 }
 
 export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
@@ -77,7 +78,7 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
               <div className="p-4 flex gap-4 items-center">
                 <div className="w-[100px] h-[100px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative shrink-0">
                   <Image
-                    src={shootTypeDetails?.image || "/images/projects/interior.png"}
+                 src={data.selectedStudioImage || shootTypeDetails?.image || "/images/projects/interior.png"}
                     alt={shootTypeDetails?.title || "Shoot Type"}
                     fill
                     className="object-cover rounded-lg"

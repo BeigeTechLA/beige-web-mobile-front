@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { useAppSelector } from "@/lib/redux/hooks";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -60,9 +61,37 @@ const isPdfAttachment = (name: string, mimeType?: string | null) => {
   return /\.pdf$/i.test(String(name || ""));
 };
 
+const getInitials = (name: string) => {
+  const cleanName = String(name || "").trim();
+  if (!cleanName) return "U";
+
+  const parts = cleanName.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  return cleanName.slice(0, 2).toUpperCase();
+};
+
+const UserNameBox = ({ name, small = false }: { name: string; small?: boolean }) => {
+  const initials = getInitials(name);
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-full bg-[#E5D5B8] text-black font-bold shadow-inner ${
+        small ? "h-8 w-8 text-[10px]" : "h-10 w-10 text-xs"
+      }`}
+      aria-label={name}
+      title={name}
+    >
+      {initials}
+    </div>
+  );
+};
+
 type NoteUiItem = {
   id: number;
-  user: { name: string; avatar: string };
+  user: { id: string; name: string; avatar: string };
   timestamp: { date: string; time: string };
   message: string;
   likes: number;
@@ -76,23 +105,59 @@ type NoteUiItem = {
     filePath: string;
     mimeType?: string | null;
   }>;
-  replies: Array<{
-    id: number;
-    user: { name: string; avatar: string };
-    timestamp: { date: string; time: string };
-    message: string;
-    attachments: Array<{
-      id: number;
-      fileName: string;
-      filePath: string;
-      mimeType?: string | null;
-    }>;
-  }>;
+  replies: NoteUiItem[];
 };
 
 const OPTIMISTIC_REACTION_USER = { userId: -1, name: "You" };
 
 const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
+
+const countNotesWithReplies = (items: NoteUiItem[]): number =>
+  items.reduce((total, note) => total + 1 + countNotesWithReplies(note.replies || []), 0);
+
+const normalizeId = (value: unknown) => {
+  if (value == null) return "";
+  return String(value).trim();
+};
+
+const getStoredCurrentUserId = () => {
+  if (typeof window === "undefined") return "";
+
+  const storageKeys = ["revure_user"];
+
+  for (const key of storageKeys) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const userId = parsed?.id ?? parsed?.user?.id ?? parsed?.user_id ?? parsed?.user?.user_id;
+      if (userId) return normalizeId(userId);
+    } catch (error) {
+      console.error("Failed to read logged in user from localStorage:", error);
+    }
+  }
+
+  return "";
+};
+
+const resolveNoteUserId = (note: any) =>
+  normalizeId(
+    note?.user?.id ??
+      note?.user?.user_id ??
+      note?.created_by?.id ??
+      note?.created_by?.user_id ??
+      note?.created_by_id ??
+      note?.user_id
+  );
+
+const findNoteById = (items: NoteUiItem[], noteId: number): NoteUiItem | null => {
+  for (const note of items) {
+    if (Number(note.id) === Number(noteId)) return note;
+    const reply = findNoteById(note.replies || [], noteId);
+    if (reply) return reply;
+  }
+  return null;
+};
 
 const formatNoteTimestamp = (value: unknown) => {
   try {
@@ -109,16 +174,7 @@ const formatNoteTimestamp = (value: unknown) => {
   }
 };
 
-const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
-  const list = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.notes)
-      ? payload.notes
-      : Array.isArray(payload?.data)
-        ? payload.data
-        : [];
-
-  return list.map((note: any) => {
+const mapSingleShootNoteToUi = (note: any): NoteUiItem => {
     const ts = formatNoteTimestamp(note?.created_at || note?.createdAt);
     const replies = Array.isArray(note?.replies) ? note.replies : [];
     const reactions = Array.isArray(note?.reactions) ? note.reactions : [];
@@ -163,6 +219,7 @@ const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
     return {
       id: Number(note?.note_id || note?.id || 0),
       user: {
+        id: resolveNoteUserId(note),
         name: note?.user?.name || note?.created_by?.name || "Unknown User",
         avatar: note?.user?.avatar || note?.created_by?.avatar || FALLBACK_AVATAR,
       },
@@ -181,28 +238,80 @@ const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
             mimeType: file?.mime_type || null,
           }))
         : [],
-      replies: replies.map((reply: any) => {
-        const replyTs = formatNoteTimestamp(reply?.created_at || reply?.createdAt);
-        return {
-          id: Number(reply?.note_id || reply?.id || 0),
-          user: {
-            name: reply?.user?.name || reply?.created_by?.name || "Unknown User",
-            avatar: reply?.user?.avatar || reply?.created_by?.avatar || FALLBACK_AVATAR,
-          },
-          timestamp: replyTs,
-          message: reply?.message || reply?.note || "",
-          attachments: Array.isArray(reply?.attachments)
-            ? reply.attachments.map((file: any) => ({
-                id: Number(file?.attachment_id || 0),
-                fileName: file?.file_name || "Attachment",
-                filePath: file?.file_path || "",
-                mimeType: file?.mime_type || null,
-              }))
-            : [],
-        };
-      }),
+      replies: replies.map(mapSingleShootNoteToUi),
     };
+};
+
+const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.notes)
+      ? payload.notes
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+
+  return list.map(mapSingleShootNoteToUi);
+};
+
+const updateNoteById = (
+  items: NoteUiItem[],
+  noteId: number,
+  updater: (note: NoteUiItem) => NoteUiItem
+): NoteUiItem[] =>
+  items.map((note) => {
+    const updatedReplies = note.replies?.length
+      ? updateNoteById(note.replies, noteId, updater)
+      : note.replies;
+
+    if (Number(note.id) === noteId) {
+      return updater({ ...note, replies: updatedReplies || [] });
+    }
+
+    return updatedReplies !== note.replies
+      ? { ...note, replies: updatedReplies || [] }
+      : note;
   });
+
+const applyOptimisticReaction = (note: NoteUiItem, reaction: string): NoteUiItem => {
+  const existingMyReactions = Array.isArray(note.myReactions) ? note.myReactions : [];
+  const isTogglingSameReaction = existingMyReactions.includes(reaction);
+  const nextMyReactions = isTogglingSameReaction ? [] : [reaction];
+
+  const nextReactionCounts = { ...note.reactionCounts };
+  existingMyReactions.forEach((existingReaction) => {
+    if (!nextReactionCounts[existingReaction]) return;
+    nextReactionCounts[existingReaction] = Math.max(0, Number(nextReactionCounts[existingReaction]) - 1);
+    if (nextReactionCounts[existingReaction] <= 0) delete nextReactionCounts[existingReaction];
+  });
+
+  if (!isTogglingSameReaction) {
+    nextReactionCounts[reaction] = (Number(nextReactionCounts[reaction] || 0) || 0) + 1;
+  }
+
+  const nextReactionUsersByType: Record<string, Array<{ userId: number; name: string }>> = {};
+  Object.entries(note.reactionUsersByType || {}).forEach(([key, users]) => {
+    nextReactionUsersByType[key] = (Array.isArray(users) ? users : []).filter(
+      (user) => Number(user.userId) !== OPTIMISTIC_REACTION_USER.userId && user.name !== OPTIMISTIC_REACTION_USER.name
+    );
+  });
+
+  if (!isTogglingSameReaction) {
+    if (!nextReactionUsersByType[reaction]) nextReactionUsersByType[reaction] = [];
+    nextReactionUsersByType[reaction] = [
+      ...nextReactionUsersByType[reaction],
+      OPTIMISTIC_REACTION_USER,
+    ];
+  }
+
+  return {
+    ...note,
+    myReactions: nextMyReactions,
+    likedByMe: nextMyReactions.includes("like"),
+    likes: Number(nextReactionCounts.like || 0),
+    reactionCounts: nextReactionCounts,
+    reactionUsersByType: nextReactionUsersByType,
+  };
 };
 
 
@@ -211,14 +320,18 @@ export default function NotesDrawer({
   isOpen,
   onClose,
   shootId,
-  isDark = true
+  isDark = true,
+  onNotesCountChange,
 }: {
   isOpen: boolean;
   onClose: () => void;
   shootId?: string;
   isDark?: boolean;
+  onNotesCountChange?: (shootId: string, count: number) => void;
 }) {
+  const authUserId = useAppSelector((state) => state.auth.user?.id);
   const [notes, setNotes] = useState<NoteUiItem[]>([]);
+  const [storedCurrentUserId, setStoredCurrentUserId] = useState("");
   const [inputValue, setInputValue] = useState('');
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [loadingNotes, setLoadingNotes] = useState(false);
@@ -236,6 +349,14 @@ export default function NotesDrawer({
   const reactionPickerRef = useRef<HTMLDivElement | null>(null);
   const bookingId = String(shootId || "").replace("#", "");
   const isApiBusy = isSubmitting || isActionLoading;
+  const currentUserId = normalizeId(authUserId) || storedCurrentUserId;
+
+  useEffect(() => {
+    setStoredCurrentUserId(getStoredCurrentUserId());
+  }, []);
+
+  const canDeleteNote = (note: NoteUiItem) =>
+    Boolean(currentUserId && note.user.id && normalizeId(note.user.id) === currentUserId);
 
   const pendingAttachmentPreviews = useMemo(
     () => pendingAttachments.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
@@ -269,6 +390,7 @@ export default function NotesDrawer({
     if (!response?.success) {
       if (isEmptyNotesResponse(response)) {
         setNotes([]);
+        onNotesCountChange?.(String(shootId || ""), 0);
         if (!silent) setLoadingNotes(false);
         return;
       }
@@ -278,7 +400,9 @@ export default function NotesDrawer({
       if (!silent) setLoadingNotes(false);
       return;
     }
-    setNotes(mapShootNotesToUi(response?.data));
+    const nextNotes = mapShootNotesToUi(response?.data);
+    setNotes(nextNotes);
+    onNotesCountChange?.(String(shootId || ""), countNotesWithReplies(nextNotes));
     if (!silent) setLoadingNotes(false);
   };
 
@@ -423,7 +547,7 @@ export default function NotesDrawer({
     if (reactionPendingNoteIds.has(noteId)) return;
 
     const reaction = EMOJI_TO_REACTION[emoji] || "like";
-    const previousNoteSnapshot = notes.find((note) => Number(note.id) === noteId);
+    const previousNotesSnapshot = notes;
 
     setReactionPendingNoteIds((current) => {
       const next = new Set(current);
@@ -432,50 +556,7 @@ export default function NotesDrawer({
     });
 
     // Optimistic update for smoother UX.
-    setNotes((currentNotes) =>
-      currentNotes.map((note) => {
-        if (Number(note.id) !== noteId) return note;
-
-        const existingMyReactions = Array.isArray(note.myReactions) ? note.myReactions : [];
-        const isTogglingSameReaction = existingMyReactions.includes(reaction);
-        const nextMyReactions = isTogglingSameReaction ? [] : [reaction];
-
-        const nextReactionCounts = { ...note.reactionCounts };
-        existingMyReactions.forEach((existingReaction) => {
-          if (!nextReactionCounts[existingReaction]) return;
-          nextReactionCounts[existingReaction] = Math.max(0, Number(nextReactionCounts[existingReaction]) - 1);
-          if (nextReactionCounts[existingReaction] <= 0) delete nextReactionCounts[existingReaction];
-        });
-
-        if (!isTogglingSameReaction) {
-          nextReactionCounts[reaction] = (Number(nextReactionCounts[reaction] || 0) || 0) + 1;
-        }
-
-        const nextReactionUsersByType: Record<string, Array<{ userId: number; name: string }>> = {};
-        Object.entries(note.reactionUsersByType || {}).forEach(([key, users]) => {
-          nextReactionUsersByType[key] = (Array.isArray(users) ? users : []).filter(
-            (user) => Number(user.userId) !== OPTIMISTIC_REACTION_USER.userId && user.name !== OPTIMISTIC_REACTION_USER.name
-          );
-        });
-
-        if (!isTogglingSameReaction) {
-          if (!nextReactionUsersByType[reaction]) nextReactionUsersByType[reaction] = [];
-          nextReactionUsersByType[reaction] = [
-            ...nextReactionUsersByType[reaction],
-            OPTIMISTIC_REACTION_USER,
-          ];
-        }
-
-        return {
-          ...note,
-          myReactions: nextMyReactions,
-          likedByMe: nextMyReactions.includes("like"),
-          likes: Number(nextReactionCounts.like || 0),
-          reactionCounts: nextReactionCounts,
-          reactionUsersByType: nextReactionUsersByType,
-        };
-      })
-    );
+    setNotes((currentNotes) => updateNoteById(currentNotes, noteId, (note) => applyOptimisticReaction(note, reaction)));
 
     setShowReactionPickerId(null);
 
@@ -488,11 +569,7 @@ export default function NotesDrawer({
       // Silent sync with server truth without showing loader flicker.
       await fetchNotes({ silent: true });
     } catch (error: any) {
-      if (previousNoteSnapshot) {
-        setNotes((currentNotes) =>
-          currentNotes.map((note) => (Number(note.id) === noteId ? previousNoteSnapshot : note))
-        );
-      }
+      setNotes(previousNotesSnapshot);
       toast.error(error?.message || "Reaction not supported by backend");
     } finally {
       setReactionPendingNoteIds((current) => {
@@ -505,6 +582,12 @@ export default function NotesDrawer({
 
   const handleDeleteNote = async (noteId: number) => {
     if (!bookingId || isApiBusy) return;
+    const noteToDelete = findNoteById(notes, noteId);
+    if (!noteToDelete || !canDeleteNote(noteToDelete)) {
+      toast.error("You can only delete your own note");
+      return;
+    }
+
     setIsActionLoading(true);
     try {
       const response = await adminApi.deleteShootNote(bookingId, noteId);
@@ -553,8 +636,9 @@ export default function NotesDrawer({
             </div>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              {loadingNotes ? (
+            <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              <div className="w-fit min-w-full px-6 py-5 space-y-6">
+                {loadingNotes ? (
                 <div className="py-8 flex items-center justify-center text-white/60 text-sm">Loading notes...</div>
               ) : null}
               {isActionLoading ? (
@@ -574,14 +658,18 @@ export default function NotesDrawer({
                     onReact={handleReaction}
                     onReply={(id) => setReplyingToId(id)}
                     onDelete={handleDeleteNote}
+                    canDeleteNote={canDeleteNote}
                     onPreviewAttachment={openStoredAttachmentPreview}
-                    actionsDisabled={isApiBusy || reactionPendingNoteIds.has(note.id)}
+                    actionsDisabled={isApiBusy}
+                    isNoteActionDisabled={(noteId) => reactionPendingNoteIds.has(noteId)}
                     showReactionPickerId={showReactionPickerId}
                     setShowReactionPickerId={setShowReactionPickerId}
                     reactionPickerRef={reactionPickerRef}
                   />
-                ))
-              )}
+                  ))
+                )
+              }
+              </div>
             </div>
 
             {/* Bottom Composer */}
@@ -700,8 +788,10 @@ function NoteCard({
   onReact,
   onReply,
   onDelete,
+  canDeleteNote,
   onPreviewAttachment,
   actionsDisabled = false,
+  isNoteActionDisabled,
   showReactionPickerId,
   setShowReactionPickerId,
   reactionPickerRef
@@ -711,8 +801,10 @@ function NoteCard({
   onReact?: (messageId: string, emoji: string) => void;
   onReply?: (noteId: number) => void;
   onDelete?: (noteId: number) => void;
+  canDeleteNote?: (note: NoteUiItem) => boolean;
   onPreviewAttachment?: (attachment: { fileName: string; filePath: string; mimeType?: string | null }) => void;
   actionsDisabled?: boolean;
+  isNoteActionDisabled?: (noteId: number) => boolean;
   showReactionPickerId: string | null;
   setShowReactionPickerId: (id: string | null) => void;
   reactionPickerRef: React.RefObject<HTMLDivElement>;
@@ -720,6 +812,8 @@ function NoteCard({
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const hasReplies = note.replies && note.replies.length > 0;
+  const isCurrentNoteDisabled = actionsDisabled || Boolean(isNoteActionDisabled?.(note.id));
+  const canDeleteCurrentNote = Boolean(canDeleteNote?.(note));
 
   const formatReactionUsers = (reaction: string) => {
     const users = note.reactionUsersByType?.[reaction] || [];
@@ -751,63 +845,66 @@ function NoteCard({
   }, [showActionsMenu]);
 
   return (
-    <div className="bg-[#161616] rounded-[22px] p-5 border border-white/5 relative">
+    <div className="bg-[#161616] rounded-[22px] py-4 px-5 border border-white/5 relative w-fit max-w-none">
       {/* Parent Note */}
       <div className="flex gap-4">
-        <img
-          src={note.user.avatar}
-          alt={note.user.name}
-          className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5"
-        />
+        <div className="relative flex flex-col items-center">
+          <UserNameBox name={note.user.name} />
+          {hasReplies && (
+            <div className="w-px flex-1 bg-white/10 mt-3 mb-[-16px]" />
+          )}
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3 mb-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="text-sm font-semibold text-white truncate">{note.user.name}</span>
               <span className="text-xs text-white/30 whitespace-nowrap">
                 {note.timestamp.date} • {note.timestamp.time}
               </span>
             </div>
-            <div ref={actionsMenuRef} className="relative">
-              <button
-                type="button"
-                className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0 -mr-1 p-1"
-                onClick={() => {
-                  if (actionsDisabled) return;
-                  setShowReactionPickerId(null);
-                  setShowActionsMenu((current) => !current);
-                }}
-                disabled={actionsDisabled}
-                aria-haspopup="menu"
-                aria-expanded={showActionsMenu}
-                aria-label="More actions"
-              >
-                <MoreHorizontal size={16} />
-              </button>
-
-              {showActionsMenu ? (
-                <div
-                  className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
-                    isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
-                  }`}
-                  role="menu"
+            {canDeleteCurrentNote ? (
+              <div ref={actionsMenuRef} className="relative">
+                <button
+                  type="button"
+                  className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0 -mr-1 p-1"
+                  onClick={() => {
+                    if (isCurrentNoteDisabled) return;
+                    setShowReactionPickerId(null);
+                    setShowActionsMenu((current) => !current);
+                  }}
+                  disabled={isCurrentNoteDisabled}
+                  aria-haspopup="menu"
+                  aria-expanded={showActionsMenu}
+                  aria-label="More actions"
                 >
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
-                    onClick={() => {
-                      setShowActionsMenu(false);
-                      onDelete?.(note.id);
-                    }}
+                  <MoreHorizontal size={16} />
+                </button>
+
+                {showActionsMenu ? (
+                  <div
+                    className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
+                      isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                    }`}
+                    role="menu"
                   >
-                    <Trash2 size={14} />
-                    Delete
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        onDelete?.(note.id);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
-          <p className="text-sm text-white/60 leading-relaxed mb-3">
+          <p className="text-sm text-white/60 leading-relaxed mb-3 max-w-[440px]">
             {note.message}
           </p>
           {note.attachments.length > 0 ? (
@@ -847,7 +944,7 @@ function NoteCard({
               className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${note.likedByMe || note.likes > 0 ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white/70'
                 }`}
               onClick={() => onReact?.(note.id.toString(), "👍")}
-              disabled={actionsDisabled}
+              disabled={isCurrentNoteDisabled}
               title={formatReactionUsers("like") || undefined}
             >
               <ThumbsUp
@@ -861,15 +958,15 @@ function NoteCard({
             <button
               className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
               onClick={() => onReply?.(note.id)}
-              disabled={actionsDisabled}
+              disabled={isCurrentNoteDisabled}
             >
               Reply
             </button>
             <span className="w-px h-3 bg-white/10" />
             <button
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5 relative"
-              disabled={actionsDisabled}
-              onClick={() => setShowReactionPickerId((current) => (current === note.id.toString() ? null : note.id.toString()))}
+              disabled={isCurrentNoteDisabled}
+              onClick={() => setShowReactionPickerId(showReactionPickerId === note.id.toString() ? null : note.id.toString())}
             >
               <Smile size={14} strokeWidth={2} />
               React
@@ -886,7 +983,7 @@ function NoteCard({
                   <button
                     key={`${note.id}-picker-${emoji}`}
                     type="button"
-                    disabled={actionsDisabled}
+                    disabled={isCurrentNoteDisabled}
                     onClick={() => {
                       onReact?.(note.id.toString(), emoji);
                       setShowReactionPickerId(null);
@@ -908,7 +1005,7 @@ function NoteCard({
                   <button
                     key={`${note.id}-${reaction}`}
                     type="button"
-                    disabled={actionsDisabled}
+                    disabled={isCurrentNoteDisabled}
                     onClick={() => onReact?.(note.id.toString(), emoji)}
                     title={formatReactionUsers(reaction) || undefined}
                     className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
@@ -942,9 +1039,25 @@ function NoteCard({
 
       {/* Thread Replies */}
       {hasReplies && (
-        <div className="mt-4 ml-5 pl-5 border-l border-white/10 space-y-3">
+        <div className="mt-5 ml-[19px] pl-6 border-l border-white/10 space-y-7 w-fit pr-4">
           {note.replies.map((reply) => (
-            <NoteReply key={reply.id} reply={reply} onPreviewAttachment={onPreviewAttachment} />
+            <NoteReply
+              key={reply.id}
+              reply={reply}
+              depth={1}
+              parentUserName={note.user.name}
+              isDark={isDark}
+              onReact={onReact}
+              onReply={onReply}
+              onDelete={onDelete}
+              canDeleteNote={canDeleteNote}
+              onPreviewAttachment={onPreviewAttachment}
+              actionsDisabled={actionsDisabled}
+              isNoteActionDisabled={isNoteActionDisabled}
+              showReactionPickerId={showReactionPickerId}
+              setShowReactionPickerId={setShowReactionPickerId}
+              reactionPickerRef={reactionPickerRef}
+            />
           ))}
         </div>
       )}
@@ -955,43 +1068,142 @@ function NoteCard({
 // Thread Reply Component
 function NoteReply({
   reply,
-  onPreviewAttachment
+  depth = 1,
+  parentUserName,
+  isDark = true,
+  onReact,
+  onReply,
+  onDelete,
+  canDeleteNote,
+  onPreviewAttachment,
+  actionsDisabled = false,
+  isNoteActionDisabled,
+  showReactionPickerId,
+  setShowReactionPickerId,
+  reactionPickerRef,
 }: {
-  reply: NoteUiItem["replies"][0];
+  reply: NoteUiItem;
+  depth?: number;
+  parentUserName?: string;
+  isDark?: boolean;
+  onReact?: (messageId: string, emoji: string) => void;
+  onReply?: (noteId: number) => void;
+  onDelete?: (noteId: number) => void;
+  canDeleteNote?: (note: NoteUiItem) => boolean;
   onPreviewAttachment?: (attachment: { fileName: string; filePath: string; mimeType?: string | null }) => void;
+  actionsDisabled?: boolean;
+  isNoteActionDisabled?: (noteId: number) => boolean;
+  showReactionPickerId: string | null;
+  setShowReactionPickerId: (id: string | null) => void;
+  reactionPickerRef: React.RefObject<HTMLDivElement>;
 }) {
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+  const hasReplies = reply.replies && reply.replies.length > 0;
+  const isCurrentReplyDisabled = actionsDisabled || Boolean(isNoteActionDisabled?.(reply.id));
+  const canDeleteCurrentReply = Boolean(canDeleteNote?.(reply));
+
+  const formatReactionUsers = (reaction: string) => {
+    const users = reply.reactionUsersByType?.[reaction] || [];
+    if (!users.length) return "";
+    return users.map((user) => user.name).join(", ");
+  };
+
+  const formatReactionUsersShort = (reaction: string) => {
+    const users = reply.reactionUsersByType?.[reaction] || [];
+    if (!users.length) return "";
+    if (users.length <= 3) return users.map((user) => user.name).join(", ");
+    return `${users.slice(0, 3).map((user) => user.name).join(", ")} +${users.length - 3}`;
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
+        setShowActionsMenu(false);
+      }
+    };
+
+    if (showActionsMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showActionsMenu]);
+
   return (
-    <div className="bg-[#161616] rounded-[18px] p-4 border border-white/5">
+    <div className="relative group">
       <div className="flex gap-3">
-        <img
-          src={reply.user.avatar}
-          alt={reply.user.name}
-          className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="relative flex flex-col items-center">
+          <UserNameBox name={reply.user.name} small />
+          {hasReplies && (
+             <div className="w-px flex-1 bg-white/10 mt-2" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0 pb-1">
+          <div className="flex items-center gap-3 mb-1">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-semibold text-white truncate">{reply.user.name}</span>
-              <span className="text-xs text-white/30 whitespace-nowrap">
+              <div className="flex flex-col max-w-[280px]">
+                <span className="text-sm font-semibold text-white/90 truncate">{reply.user.name}</span>
+              </div>
+              <span className="text-[10px] text-white/25 whitespace-nowrap self-start mt-0.5">
                 {reply.timestamp.date} • {reply.timestamp.time}
               </span>
             </div>
-            <button className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0 -mr-1 p-1">
-              <MoreHorizontal size={14} />
-            </button>
+            {canDeleteCurrentReply ? (
+              <div ref={actionsMenuRef} className="relative">
+                <button
+                  type="button"
+                  className="text-white/20 hover:text-white/50 transition-colors flex-shrink-0 -mr-1 p-1"
+                  onClick={() => {
+                    if (isCurrentReplyDisabled) return;
+                    setShowReactionPickerId(null);
+                    setShowActionsMenu((current) => !current);
+                  }}
+                  disabled={isCurrentReplyDisabled}
+                  aria-haspopup="menu"
+                  aria-expanded={showActionsMenu}
+                  aria-label="More reply actions"
+                >
+                  <MoreHorizontal size={14} />
+                </button>
+
+                {showActionsMenu ? (
+                  <div
+                    className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
+                      isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                    }`}
+                    role="menu"
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        onDelete?.(reply.id);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
-          <p className="text-sm text-white/60 leading-relaxed mb-2.5">
+          <p className="text-sm text-white/50 leading-relaxed mb-2 max-w-[400px]">
             {reply.message}
           </p>
           {reply.attachments.length > 0 ? (
-            <div className="mb-2.5 flex flex-wrap gap-2">
+            <div className="mb-2 flex flex-wrap gap-2">
               {reply.attachments.map((file) => (
                 <div
                   key={`${reply.id}-attachment-${file.id}`}
-                  className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full bg-white/10 text-[#E8D1AB]"
+                  className="inline-flex items-center gap-2 text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-[#E8D1AB]/80 border border-white/5"
                 >
-                  <span className="max-w-[160px] truncate">{file.fileName}</span>
+                  <span className="max-w-[140px] truncate">{file.fileName}</span>
                   <button
                     type="button"
                     className="hover:text-white"
@@ -1016,20 +1228,108 @@ function NoteReply({
           ) : null}
 
           {/* Action Row - Smaller */}
-          <div className="flex items-center gap-1">
-            <button className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
-              Like
+          <div className="flex items-center gap-1.5 relative">
+            <button
+              className={`text-[11px] font-medium transition-colors px-0.5 ${
+                reply.likedByMe || reply.likes > 0 ? "text-[#E8D1AB]" : "text-white/30 hover:text-white/60"
+              }`}
+              onClick={() => onReact?.(reply.id.toString(), "👍")}
+              disabled={isCurrentReplyDisabled}
+              title={formatReactionUsers("like") || undefined}
+            >
+              {reply.likes > 0 ? reply.likes : "Like"}
             </button>
-            <span className="w-px h-2.5 bg-white/10" />
-            <button className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
+            <span className="w-px h-2.5 bg-white/5" />
+            <button
+              className="text-[11px] text-white/30 hover:text-white/60 font-medium transition-colors px-0.5"
+              onClick={() => onReply?.(reply.id)}
+              disabled={isCurrentReplyDisabled}
+            >
               Reply
             </button>
-            <span className="w-px h-2.5 bg-white/10" />
-            <button className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5">
+            <span className="w-px h-2.5 bg-white/5" />
+            <button
+              className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/60 font-medium transition-colors px-0.5"
+              disabled={isCurrentReplyDisabled}
+              onClick={() => setShowReactionPickerId(showReactionPickerId === reply.id.toString() ? null : reply.id.toString())}
+            >
               <Smile size={13} strokeWidth={2} />
               React
             </button>
+
+            {showReactionPickerId === reply.id.toString() && (
+              <div
+                ref={reactionPickerRef}
+                className={`absolute bottom-full left-0 mb-2 z-20 flex items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${
+                  isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                }`}
+              >
+                {QUICK_REACTIONS.map((emoji) => (
+                  <button
+                    key={`${reply.id}-picker-${emoji}`}
+                    type="button"
+                    disabled={isCurrentReplyDisabled}
+                    onClick={() => {
+                      onReact?.(reply.id.toString(), emoji);
+                      setShowReactionPickerId(null);
+                    }}
+                    className="rounded-full px-1.5 text-lg transition hover:scale-110"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {Object.keys(reply.reactionCounts || {}).length > 0 ? (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {Object.entries(reply.reactionCounts || {}).map(([reaction, count]) => {
+                const emoji = REACTION_TO_EMOJI[reaction] || "🙂";
+                const reactedByMe = reply.myReactions.includes(reaction);
+                return (
+                  <button
+                    key={`${reply.id}-${reaction}`}
+                    type="button"
+                    disabled={isCurrentReplyDisabled}
+                    onClick={() => onReact?.(reply.id.toString(), emoji)}
+                    title={formatReactionUsers(reaction) || undefined}
+                    className={`rounded-full border px-1.5 py-0 text-[10px] transition-colors ${
+                      reactedByMe
+                        ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                        : "border-white/5 bg-white/5 text-white/50 hover:bg-white/10"
+                    }`}
+                  >
+                    {emoji} {count}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {hasReplies ? (
+            <div className="mt-6 ml-[15px] pl-5 border-l border-white/10 space-y-7 w-fit pr-2">
+              {reply.replies.map((childReply) => (
+                <NoteReply
+                  key={childReply.id}
+                  reply={childReply}
+                  depth={depth + 1}
+                  parentUserName={reply.user.name}
+                  isDark={isDark}
+                  onReact={onReact}
+                  onReply={onReply}
+                  onDelete={onDelete}
+                  canDeleteNote={canDeleteNote}
+                  onPreviewAttachment={onPreviewAttachment}
+                  actionsDisabled={actionsDisabled}
+                  isNoteActionDisabled={isNoteActionDisabled}
+                  showReactionPickerId={showReactionPickerId}
+                  setShowReactionPickerId={setShowReactionPickerId}
+                  reactionPickerRef={reactionPickerRef}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

@@ -314,6 +314,10 @@ export interface SalesQuoteListItem {
   client_address?: string;
   address?: string;
   location?: string;
+  location_latitude?: number | string | null;
+  location_longitude?: number | string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   project_description?: string;
   project?: string;
   description?: string;
@@ -508,6 +512,10 @@ export interface SalesQuoteDetailData {
     end_time?: string | null;
     duration_hours?: number | string | null;
     location?: string | null;
+    location_latitude?: number | string | null;
+    location_longitude?: number | string | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
     reference_links?: string | null;
     special_instructions?: string | null;
     booking_days?: Array<{
@@ -995,6 +1003,21 @@ export const affiliateApi = {
         success: false,
         data: null,
         message: error.response?.data?.message || 'Failed to fetch booking details',
+      };
+    }
+  },
+
+  // Get project form status as guest
+  getProjectFormStatusGuest: async (projectId: number) => {
+    try {
+      const response = await api.get(`/client/project-form-status/${projectId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Form Status Guest Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || 'Failed to fetch project form status',
       };
     }
   },
@@ -2222,6 +2245,32 @@ export const adminApi = {
       };
     }
   },
+  updateShootOnboardingForm: async (payload: Record<string, unknown>) => {
+    try {
+      const response = await api.post("admin/shoots/update-onboarding-form", payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Onboarding Form Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update shoot onboarding form',
+      };
+    }
+  },
+  remindOnboardingForm: async (shootId: string | number) => {
+    try {
+      const response = await api.post(`admin/shoots/remind-onboarding-form/${shootId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Remind Onboarding Form Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to send onboarding reminder',
+      };
+    }
+  },
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {
@@ -3134,7 +3183,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
@@ -3157,7 +3206,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;

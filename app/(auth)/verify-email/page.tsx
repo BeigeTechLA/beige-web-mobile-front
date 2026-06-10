@@ -11,6 +11,14 @@ function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const email = searchParams.get("email") || ""
+  const returnTo = React.useMemo(() => {
+    const value = searchParams.get("returnTo")?.trim() || ""
+    return value.startsWith("/") ? value : ""
+  }, [searchParams])
+  const bookingEmail = React.useMemo(() => {
+    const value = searchParams.get("bookingEmail")?.trim() || ""
+    return value.toLowerCase()
+  }, [searchParams])
 
   const {
     verifyEmail,
@@ -60,7 +68,12 @@ function VerifyEmailContent() {
           if (storedEmail === email) {
             await login({ email, password });
             sessionStorage.removeItem('temp_login_credentials');
-            router.push('/affiliate/dashboard');
+            const normalizedVerifiedEmail = String(email).trim().toLowerCase()
+            if (returnTo && (!bookingEmail || bookingEmail === normalizedVerifiedEmail)) {
+              router.replace(returnTo)
+            } else {
+              router.push('/affiliate/dashboard');
+            }
             return;
           }
         } catch (e) {
@@ -69,6 +82,11 @@ function VerifyEmailContent() {
       }
 
       setTimeout(() => {
+        const normalizedVerifiedEmail = String(email).trim().toLowerCase()
+        if (returnTo && (!bookingEmail || bookingEmail === normalizedVerifiedEmail)) {
+          router.replace(returnTo)
+          return
+        }
         if (result.token) {
           router.push('/affiliate/dashboard')
         } else {

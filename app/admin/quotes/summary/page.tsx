@@ -2,6 +2,7 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
@@ -13,6 +14,7 @@ import {
   readQuoteSummarySnapshot,
   type QuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 
 export default function QuoteSummaryPage() {
   const router = useRouter();
@@ -31,6 +33,19 @@ export default function QuoteSummaryPage() {
 
     setIsPreviewOpen(true);
   };
+
+  const handleBeforeShareQuote = React.useCallback(async () => {
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote: snapshot ? buildPreviewQuoteFromSummary(snapshot) : null,
+    });
+
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
+    }
+
+    return true;
+  }, [snapshot]);
 
   return (
     <div className="relative overflow-hidden">
@@ -59,6 +74,8 @@ export default function QuoteSummaryPage() {
         open={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         quote={snapshot ? buildPreviewQuoteFromSummary(snapshot) : null}
+        onBeforeCopy={handleBeforeShareQuote}
+        onBeforeSend={handleBeforeShareQuote}
       />
     </div>
   );

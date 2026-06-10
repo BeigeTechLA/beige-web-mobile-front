@@ -632,14 +632,35 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
               </div>
               <div>
                 <span className={LABEL_STYLE}>Email Address</span>
-                <span className={VALUE_STYLE}>{partner.email || "N/A"}</span>
+                {partner.email ? (
+                  <a
+                    href={`mailto:${partner.email}`}
+                    title="Email ID"
+                    className={`${VALUE_STYLE} transition-colors hover:opacity-80`}
+                  >
+                    {partner.email}
+                  </a>
+                ) : (
+                  <span className={VALUE_STYLE}>N/A</span>
+                )}
               </div>
               <div>
                 <span className={LABEL_STYLE}>Contact Phone</span>
-                <div className={`flex items-center gap-2 text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#595959]"}`}>
-                  <Phone size={18} />
-                  <span>{partner.phone_number || partner.contact_phone || "N/A"}</span>
-                </div>
+                {partner.phone_number || partner.contact_phone ? (
+                  <a
+                    href={`tel:${String(partner.phone_number || partner.contact_phone).replace(/[^\d+]/g, "")}`}
+                    title="Phone Number"
+                    className={`flex items-center gap-2 text-sm font-medium transition-colors hover:opacity-80 ${isDark ? "text-[#E0E0E0]" : "text-[#595959]"}`}
+                  >
+                    <Phone size={18} />
+                    <span>{partner.phone_number || partner.contact_phone}</span>
+                  </a>
+                ) : (
+                  <div className={`flex items-center gap-2 text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#595959]"}`}>
+                    <Phone size={18} />
+                    <span>N/A</span>
+                  </div>
+                )}
               </div>
               <div>
                 <span className={LABEL_STYLE}>Location</span>

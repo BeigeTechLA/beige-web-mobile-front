@@ -60,10 +60,12 @@ import {
 } from "@/lib/quoteDetail";
 import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -114,6 +116,18 @@ type QuoteConvertedBookingDetailsLike = {
   location?: string | null;
   booking_days?: QuoteConvertedBookingDayLike[] | null;
 };
+
+type ManualPaymentMode =
+  | "cash"
+  | "wire"
+  | "ach"
+  | "zelle"
+  | "venmo"
+  | "cashapp"
+  | "applepay"
+  | "other"
+  | "net30";
+
 const S3_PREFIX =
   process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
@@ -130,18 +144,25 @@ const resolveS3ProofUrl = (value?: string | null) => {
   return joinAssetUrl(S3_PREFIX, rawValue);
 };
 
-const resolveSignatureSource = (rawData: any) => {
-  const nested = rawData?.data;
+const resolveSignatureSource = (rawData: unknown) => {
+  const record =
+    rawData && typeof rawData === "object" && !Array.isArray(rawData)
+      ? (rawData as Record<string, unknown>)
+      : null;
+  const nested =
+    record?.data && typeof record.data === "object" && !Array.isArray(record.data)
+      ? (record.data as Record<string, unknown>)
+      : null;
   const source =
-    rawData?.signature_base64 ??
+    record?.signature_base64 ??
     nested?.signature_base64 ??
-    rawData?.signature_path ??
+    record?.signature_path ??
     nested?.signature_path ??
-    rawData?.file_path ??
+    record?.file_path ??
     nested?.file_path ??
-    rawData?.signature_url ??
+    record?.signature_url ??
     nested?.signature_url ??
-    rawData?.file_url ??
+    record?.file_url ??
     nested?.file_url;
 
   if (!source) return null;
@@ -242,7 +263,9 @@ const mergeVersionQuoteWithPrimaryContext = (
 
   const incomingLeadId = incoming?.lead_id;
   const incomingBookingId = (incoming as Record<string, unknown>)?.booking_id;
-  const incomingActivities = Array.isArray(incoming?.activities) ? incoming.activities : [];
+   const incomingActivities = Array.isArray(incoming?.activities) && incoming.activities.length > 0 
+    ? incoming.activities 
+    : current.activities;
 
   return {
     ...incoming,
@@ -252,6 +275,7 @@ const mergeVersionQuoteWithPrimaryContext = (
       incomingLeadId !== undefined && incomingLeadId !== null && String(incomingLeadId).trim()
         ? incomingLeadId
         : current.lead_id,
+      activities: incomingActivities,
     booking_id:
       incomingBookingId !== undefined && incomingBookingId !== null && String(incomingBookingId).trim()
         ? incomingBookingId
@@ -375,6 +399,136 @@ const formatStatusLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+type QuoteVersionMeta = Record<string, unknown>;
+type QuoteChangeRequestMeta = Record<string, unknown>;
+
+const getVersionMeta = (version: unknown): QuoteVersionMeta | null =>
+  version && typeof version === "object" && !Array.isArray(version)
+    ? (version as QuoteVersionMeta)
+    : null;
+
+const normalizeVersionStatus = (version: unknown) => {
+  const versionMeta = getVersionMeta(version);
+
+  return getQuoteText(
+    versionMeta?.approval_status,
+    versionMeta?.change_request_status,
+    versionMeta?.review_status,
+    versionMeta?.version_status,
+    versionMeta?.status
+  ).toLowerCase();
+};
+
+const isRejectedVersion = (version: unknown) =>
+  ["rejected", "declined", "denied"].includes(normalizeVersionStatus(version));
+
+const isPendingVersion = (version: unknown) =>
+  ["pending", "pending_approval", "in_review", "review"].includes(normalizeVersionStatus(version));
+
+const isUsableVersion = (version: unknown) =>
+  !normalizeVersionStatus(version) || normalizeVersionStatus(version) === "approved";
+
+const getVersionDropdownLabel = (version: unknown, fallbackNumber: number) => {
+  const versionMeta = getVersionMeta(version);
+  const versionNumber = versionMeta?.version_number ?? fallbackNumber;
+  const suffix = isRejectedVersion(versionMeta)
+    ? " - Rejected"
+    : isPendingVersion(versionMeta)
+      ? " - Pending Approval"
+      : versionMeta?.is_current
+        ? " - Current"
+        : "";
+
+  return `Version ${versionNumber}${suffix}`;
+};
+
+const getVersionNumberValue = (version: unknown) => {
+  const versionNumber = getVersionMeta(version)?.version_number;
+  const parsed = Number(versionNumber);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const isCurrentVersionMeta = (version: unknown) =>
+  Boolean(getVersionMeta(version)?.is_current);
+
+const getRawVersionNumber = (version: unknown) =>
+  getVersionMeta(version)?.version_number;
+
+const extractQuoteChangeRequestRows = (data: unknown): QuoteChangeRequestMeta[] => {
+  if (Array.isArray(data)) {
+    return data as QuoteChangeRequestMeta[];
+  }
+
+  if (!data || typeof data !== "object") {
+    return [];
+  }
+
+  const record = data as Record<string, unknown>;
+  const rows = [
+    record.items,
+    record.rows,
+    record.results,
+    record.list,
+    record.data,
+  ].find(Array.isArray);
+
+  return (rows || []) as QuoteChangeRequestMeta[];
+};
+
+const mergeVersionApprovalFromChangeRequests = (
+  versions: unknown[],
+  requests: QuoteChangeRequestMeta[]
+) => {
+  if (!versions.length || !requests.length) {
+    return versions;
+  }
+
+  const sortedRequests = [...requests].sort(
+    (a, b) =>
+      new Date(String(a.created_at || 0)).getTime() -
+      new Date(String(b.created_at || 0)).getTime()
+  );
+  const firstVersionNumber = Math.min(
+    ...versions
+      .map((version) => getVersionNumberValue(version))
+      .filter((versionNumber) => versionNumber > 0)
+  );
+  const firstChangeVersionNumber = Number.isFinite(firstVersionNumber)
+    ? firstVersionNumber + 1
+    : 2;
+  const requestByVersionNumber = new Map<number, QuoteChangeRequestMeta>();
+
+  sortedRequests.forEach((request, index) => {
+    const explicitVersionNumber = Number(
+      request.version_number ??
+      request.quote_version_number ??
+      request.new_version_number
+    );
+    const versionNumber = Number.isFinite(explicitVersionNumber) && explicitVersionNumber > 0
+      ? explicitVersionNumber
+      : firstChangeVersionNumber + index;
+
+    requestByVersionNumber.set(versionNumber, request);
+  });
+
+  return versions.map((version) => {
+    const versionNumber = getVersionNumberValue(version);
+    const request = requestByVersionNumber.get(versionNumber);
+    if (!request) {
+      return version;
+    }
+
+    return {
+      ...(getVersionMeta(version) || {}),
+      approval_status: request.approval_status,
+      change_request_status: request.approval_status,
+      review_status: request.approval_status,
+      source_activity_id: request.activity_id,
+      reviewed_at: request.reviewed_at,
+    };
+  });
+};
+
 const INVOICE_ACTION_VISIBLE_STATUSES = new Set([
   "accepted",
   "approved",
@@ -452,7 +606,6 @@ const SectionShell = ({
       ) : null}
     </div>
 
-    {/* Dashed Separator Line */}
     <div className={`border-t transition-colors ${isDark ? "border-[#343434]" : "border-[#2B2B2B]"}`} />
 
     <div className="px-5 py-5 lg:px-8 lg:py-7">{children}</div>
@@ -534,7 +687,7 @@ const QuoteTopActions = ({
   isRejecting: boolean;
   isRejected: boolean;
   isConverting: boolean;
-  versions: any[];
+  versions: QuoteVersionMeta[];
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
 }) => (
@@ -549,13 +702,13 @@ const QuoteTopActions = ({
           <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
             {versions
               .map((v, index) => {
-                const rawVersionNumber = v?.version_number;
+                const rawVersionNumber = getRawVersionNumber(v);
                 if (rawVersionNumber == null) {
                   return null;
                 }
                 return (
                   <SelectItem key={`${rawVersionNumber}-${index}`} value={String(rawVersionNumber)}>
-                    Version {v?.version_number ?? index + 1}
+                    {getVersionDropdownLabel(v, index + 1)}
                   </SelectItem>
                 );
               })
@@ -597,12 +750,10 @@ const QuoteTopActions = ({
 
 const DetailRow = ({ label, value, isDark = true }: { label: string; value: string; isDark?: boolean; }) => (
   <div className="flex items-start justify-between gap-4 py-2.5 lg:py-4">
-    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"
-      }`}>
+    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
       {label}
     </p>
-    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"
-      }`}>
+    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
       {value}
     </p>
   </div>
@@ -689,7 +840,7 @@ export default function QuoteDetailsPage({
   const router = useRouter();
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [versions, setVersions] = useState<any[]>([]);
+  const [versions, setVersions] = useState<QuoteVersionMeta[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -724,6 +875,7 @@ export default function QuoteDetailsPage({
   const [isSubmittingManualPayment, setIsSubmittingManualPayment] = useState(false);
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const hasTriggeredPaymentActionRef = useRef(false);
+  const [isChangeDetailsModalOpen, setIsChangeDetailsModalOpen] = useState(false);
 
   const refreshSignedQuoteState = useCallback(async () => {
     try {
@@ -847,12 +999,42 @@ export default function QuoteDetailsPage({
         const versionsRes = await salesApi.getQuoteVersions(quoteId);
         if (versionsRes?.success && isMounted) {
           const versionsData = Array.isArray(versionsRes.data) ? versionsRes.data : versionsRes.data?.versions || [];
-          setVersions(versionsData);
+          let resolvedVersions = versionsData;
+
+          try {
+            const quoteNumberForSearch = getQuoteText(normalizedQuoteDetail.quote_number, quoteId);
+            const changeRequestsResponse = await salesApi.getQuoteChangeRequests({
+              page: 1,
+              limit: 50,
+              search: quoteNumberForSearch,
+              approval_status: "all",
+            });
+
+            if (changeRequestsResponse?.success) {
+              const quoteRequests = extractQuoteChangeRequestRows(changeRequestsResponse.data)
+                .filter((request) => {
+                  const requestQuoteId = getQuoteText(request.quote_id);
+                  const requestQuoteNumber = getQuoteText(request.quote_number);
+                  return (
+                    requestQuoteId === quoteId ||
+                    requestQuoteNumber === quoteNumberForSearch
+                  );
+                });
+              resolvedVersions = mergeVersionApprovalFromChangeRequests(versionsData, quoteRequests);
+            }
+          } catch (requestError) {
+            console.error("Failed to merge quote change request status into versions", requestError);
+          }
+
+          setVersions(resolvedVersions);
           // Set initial selected version to the current one if found
           const currentVersion =
-            versionsData.find((v: any) => v?.is_current && v?.version_number != null) ||
-            versionsData.find((v: any) => v?.version_number != null);
-          const currentVersionNumber = currentVersion?.version_number;
+            resolvedVersions.find((version) => isCurrentVersionMeta(version) && isUsableVersion(version)) ||
+            [...resolvedVersions]
+              .filter((version) => getRawVersionNumber(version) != null && isUsableVersion(version))
+              .sort((a, b) => getVersionNumberValue(b) - getVersionNumberValue(a))[0] ||
+            resolvedVersions.find((version) => getRawVersionNumber(version) != null);
+          const currentVersionNumber = getRawVersionNumber(currentVersion);
           if (currentVersionNumber != null && !selectedVersionId) {
             setSelectedVersionId(String(currentVersionNumber));
           }
@@ -895,6 +1077,32 @@ export default function QuoteDetailsPage({
           if (quoteDetail) {
             setQuote((current) =>
               mergeVersionQuoteWithPrimaryContext(current, quoteDetail)
+            );
+            setVersions((currentVersions) =>
+              currentVersions.map((version) => {
+                if (
+                  getRawVersionNumber(version) == null ||
+                  String(getRawVersionNumber(version)) !== selectedVersionId
+                ) {
+                  return version;
+                }
+
+                return {
+                  ...version,
+                  approval_status:
+                    (quoteDetail as Record<string, unknown>).approval_status ??
+                    (version as Record<string, unknown>).approval_status,
+                  change_request_status:
+                    (quoteDetail as Record<string, unknown>).change_request_status ??
+                    (version as Record<string, unknown>).change_request_status,
+                  review_status:
+                    (quoteDetail as Record<string, unknown>).review_status ??
+                    (version as Record<string, unknown>).review_status,
+                  version_status:
+                    (quoteDetail as Record<string, unknown>).version_status ??
+                    (version as Record<string, unknown>).version_status,
+                };
+              })
             );
 
             const selectedVersionNumber = Number(selectedVersionId);
@@ -1034,7 +1242,8 @@ export default function QuoteDetailsPage({
 
   const clientName = getQuoteText(quote?.client_name, "Client");
   const clientEmail = getQuoteText(quote?.client_email, quote?.guest_email, "N/A") || "N/A";
-  const clientPhone = getQuoteText(quote?.client_phone, "N/A") || "N/A";
+
+  const clientPhone = getQuoteText(quote?.client_phone, quote?.phone, "N/A") || "N/A";
   const clientAddress =
     getQuoteText(quote?.client_address, quote?.address, quote?.location, "Address not available") ||
     "Address not available";
@@ -1055,34 +1264,76 @@ export default function QuoteDetailsPage({
       ) || null
     );
   }, [selectedVersionId, versions]);
-  const latestVersionMeta = useMemo(() => {
+
+  const currentVersionActivity = useMemo(() => {
+  const activityId = (selectedVersionMeta as any)?.source_activity_id;
+  if (!activityId) return null;
+
+  const activities = (quote?.activities as any[]) || [];
+  return activities.find(a => Number(a.activity_id) === Number(activityId));
+}, [selectedVersionMeta, quote?.activities]);
+
+  const createdByName = useMemo(() => {
+    const activities = (quote?.activities as any[]) || [];
+    const createActivity = activities.find(a => a.activity_type === 'created');
+    return createActivity?.performed_by?.name || null;
+  }, [quote?.activities]); // Depends on activities
+
+  const updatedByName = useMemo(() => {
+    return currentVersionActivity?.performed_by?.name || null;
+  }, [currentVersionActivity]);
+
+  const latestUsableVersionMeta = useMemo(() => {
     if (versions.length === 0) return null;
-    const currentFlagged =
-      versions.find((version) => Boolean(version?.is_current)) || null;
-    if (currentFlagged) return currentFlagged;
 
-    return versions.reduce((latest: any, candidate: any) => {
-      const latestNo = Number(latest?.version_number || 0);
-      const candidateNo = Number(candidate?.version_number || 0);
+    const currentApprovedVersion =
+      versions.find((version) => isCurrentVersionMeta(version) && isUsableVersion(version)) || null;
+    if (currentApprovedVersion) return currentApprovedVersion;
+
+    const usableVersions = versions.filter((version) => isUsableVersion(version));
+    if (usableVersions.length === 0) return null;
+
+    return usableVersions.reduce((latest, candidate) => {
+      const latestNo = getVersionNumberValue(latest);
+      const candidateNo = getVersionNumberValue(candidate);
       return candidateNo > latestNo ? candidate : latest;
-    }, versions[0]);
+    }, usableVersions[0]);
   }, [versions]);
-  const isSelectedCurrentVersion = useMemo(() => {
+  const isSelectedVersionRejected =
+    isRejectedVersion(selectedVersionMeta) ||
+    Boolean(
+      selectedVersionMeta &&
+      isRejectedVersion({
+        approval_status: (quote as Record<string, unknown> | null)?.approval_status,
+        change_request_status: (quote as Record<string, unknown> | null)?.change_request_status,
+        review_status: (quote as Record<string, unknown> | null)?.review_status,
+        version_status: (quote as Record<string, unknown> | null)?.version_status,
+      })
+    );
+  const latestUsableVersionNumber = getRawVersionNumber(latestUsableVersionMeta) ?? null;
+  const isSelectedLatestUsableVersion = useMemo(() => {
     if (versions.length === 0) return true;
-    if (!latestVersionMeta) return false;
+    if (!latestUsableVersionMeta) return false;
 
-    const latestVersionNumber = Number(latestVersionMeta?.version_number);
+    const latestUsableNumber = getVersionNumberValue(latestUsableVersionMeta);
     const selectedVersionNumber =
-      Number(selectedVersionMeta?.version_number ?? selectedVersionId);
+      Number(getRawVersionNumber(selectedVersionMeta) ?? selectedVersionId);
 
-    if (!Number.isFinite(latestVersionNumber) || !Number.isFinite(selectedVersionNumber)) {
-      return Boolean(selectedVersionMeta?.is_current);
+    if (!Number.isFinite(latestUsableNumber) || !Number.isFinite(selectedVersionNumber)) {
+      return isCurrentVersionMeta(selectedVersionMeta) && !isSelectedVersionRejected;
     }
 
-    return selectedVersionNumber === latestVersionNumber;
-  }, [latestVersionMeta, selectedVersionId, selectedVersionMeta, versions.length]);
+    return selectedVersionNumber === latestUsableNumber;
+  }, [
+    isSelectedVersionRejected,
+    latestUsableVersionMeta,
+    selectedVersionId,
+    selectedVersionMeta,
+    versions.length,
+  ]);
   const canEditSelectedVersion =
-    isSelectedCurrentVersion &&
+    isSelectedLatestUsableVersion &&
+    !isSelectedVersionRejected &&
     !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
@@ -1300,7 +1551,8 @@ export default function QuoteDetailsPage({
     Boolean(quote?.additional_payment?.invoice_url) ||
     Boolean(signedAt);
   const canSendInvoiceFromDetails =
-    isSelectedCurrentVersion &&
+    isSelectedLatestUsableVersion &&
+    !isSelectedVersionRejected &&
     normalizedQuoteStatus !== "expired" &&
     (
       INVOICE_ACTION_VISIBLE_STATUSES.has(normalizedQuoteStatus) ||
@@ -1493,8 +1745,8 @@ export default function QuoteDetailsPage({
   };
 
   const handleViewInvoice = async () => {
-    if (!isSelectedCurrentVersion) {
-      toast.error("Invoices can only be viewed for the latest quote version.");
+    if (!isSelectedLatestUsableVersion || isSelectedVersionRejected) {
+      toast.error("Invoices can only be viewed for the latest approved quote version.");
       return;
     }
 
@@ -1572,8 +1824,8 @@ export default function QuoteDetailsPage({
   };
 
   const sendQuoteInvoiceRequest = async () => {
-    if (!isSelectedCurrentVersion) {
-      toast.error("Invoices can only be sent for the latest quote version.");
+    if (!isSelectedLatestUsableVersion || isSelectedVersionRejected) {
+      toast.error("Invoices can only be sent for the latest approved quote version.");
       return false;
     }
 
@@ -1734,7 +1986,11 @@ export default function QuoteDetailsPage({
 
   const proceedToEditQuote = (targetView: QuoteEditorView) => {
     if (!canEditSelectedVersion) {
-      toast.error("Only the latest quote version can be edited.");
+      toast.error(
+        isSelectedVersionRejected
+          ? "This version was rejected. Select the previous approved version to continue editing."
+          : "Only the latest approved quote version can be edited."
+      );
       return;
     }
 
@@ -1744,8 +2000,20 @@ export default function QuoteDetailsPage({
 
     toast.success("Opening quote editor");
     window.setTimeout(() => {
+      const query = new URLSearchParams({
+        quoteId,
+        view: targetView,
+        editMode: "full",
+        returnTo: pathname,
+      });
+
+      const selectedVersionNumberForEdit = getRawVersionNumber(selectedVersionMeta);
+      if (selectedVersionNumberForEdit != null) {
+        query.set("editVersion", String(selectedVersionNumberForEdit));
+      }
+
       router.push(
-        `${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}&editMode=full&returnTo=${encodeURIComponent(pathname)}`
+        `${baseHref}/create?${query.toString()}`
       );
     }, 450);
   };
@@ -1777,6 +2045,20 @@ export default function QuoteDetailsPage({
     }
   };
 
+  const handleBeforeShareQuote = useCallback(async () => {
+    const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
+      quote,
+      quoteId,
+    });
+
+    if (blockMessage) {
+      toast.error(blockMessage);
+      return false;
+    }
+
+    return true;
+  }, [quote, quoteId]);
+
   const topbarActions = (
     <QuoteTopActions
       onReject={() => {
@@ -1789,20 +2071,20 @@ export default function QuoteDetailsPage({
         void handlePaymentTransactionAction();
       }}
       onPreview={() => setIsPreviewOpen(true)}
-      previewDisabled={!quote || loading || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      convertDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      previewDisabled={!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      rejectDisabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      convertDisabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
       isConverting={isConverting}
-      isRejected={["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      isRejected={isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       versions={versions}
       selectedVersionId={selectedVersionId}
       onVersionChange={(val) => setSelectedVersionId(val)}
     />
   );
 
-  const selectedVersionNumber = selectedVersionMeta?.version_number ?? null;
+  const selectedVersionNumber = getRawVersionNumber(selectedVersionMeta) ?? null;
 
   return (
     <div className={`quote-editor-theme min-h-screen ${isDark ? "quote-editor-theme-dark bg-[#0f0f0f] text-white" : "quote-editor-theme-light bg-[#F4F5F7] text-black"}`}>
@@ -1817,7 +2099,7 @@ export default function QuoteDetailsPage({
           <button
             type="button"
             onClick={() => router.push(baseHref)}
-            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
+            className="flex items-center gap-2 text-sm lg:text-base text-[#D4D4D4] transition-colors hover:text-white"
           >
             <ArrowLeft size={18} />
             Back
@@ -1863,8 +2145,7 @@ export default function QuoteDetailsPage({
             }`}
           >
             <div
-              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"
-                }`}
+              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"}`}
             >
               <Loader2 size={18} className="animate-spin text-[#E8D1AB]" />
               Loading quote details...
@@ -1912,12 +2193,17 @@ export default function QuoteDetailsPage({
                         </p>
                         {selectedVersionNumber && (
                           <div className="flex flex-col items-start gap-1">
-                            <span className={`text-nowrap rounded-full px-3 py-1 text-xs font-semibold border border-[#E8D1AB]/20 ${isDark ? "text-[#E8D1AB] bg-[#E8D1AB]/10" : "text-[#71717B] bg-[#E8D1AB]/30"}`}>
-                              Quote Version {selectedVersionNumber}
+                            <span className={`text-nowrap rounded-full px-3 py-1 text-xs font-semibold border ${isSelectedVersionRejected
+                              ? "border-[#FCA5A5]/30 bg-[#FECACA] text-[#DC2626]"
+                              : isDark
+                                ? "border-[#E8D1AB]/20 text-[#E8D1AB] bg-[#E8D1AB]/10"
+                                : "border-[#E8D1AB]/20 text-[#71717B] bg-[#E8D1AB]/30"
+                              }`}>
+                              Quote Version {selectedVersionNumber}{isSelectedVersionRejected ? " - Rejected" : ""}
                             </span>
                             {quote?.edit_reason && (
                               <p className="max-w-[300px] text-[13px] italic text-[#8F8F95] line-clamp-2" title={quote.edit_reason}>
-                                "{quote.edit_reason}"
+                                {`"${(quote.edit_reason)}"`}
                               </p>
                             )}
                           </div>
@@ -1927,6 +2213,29 @@ export default function QuoteDetailsPage({
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
                       <p className="mt-2 text-xs lg:text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] lg:text-xs text-[#7E7E85]">
+                        {createdByName && (
+                            <p>
+                              Created by: <span className="text-white/80 font-medium">{String(createdByName)}</span>
+                            </p>
+                          )}
+                        {updatedByName && Number(selectedVersionNumber) > 1 && (
+                            <div className="flex items-center gap-2">
+                              <span className="hidden lg:inline text-[#4B4B4F]">|</span>
+                              <p>
+                                Updated by: <span className="text-white/80 font-medium">{String(updatedByName)}</span>
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setIsChangeDetailsModalOpen(true)}
+                                className="flex items-center gap-1 rounded-md bg-[#E8D1AB]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#E8D1AB] transition-colors hover:bg-[#E8D1AB]/20"
+                              >
+                                <Eye size={12} />
+                                View Details
+                              </button>
+                            </div>
+                          )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col lg:items-end gap-2">
@@ -1960,11 +2269,47 @@ export default function QuoteDetailsPage({
                   </div>
                 ) : null}
 
+                {isSelectedVersionRejected ? (
+                  <div className="rounded-lg lg:rounded-[20px] border border-[#FCA5A5]/25 bg-[#2A1111] p-3 lg:px-5 lg:py-4">
+                    <p className="text-xs lg:text-sm font-semibold text-[#FCA5A5]">
+                      This version was rejected. Continue with the old approved version
+                      {latestUsableVersionNumber ? `, Version ${latestUsableVersionNumber},` : ""} and edit from there.
+                    </p>
+                    {latestUsableVersionNumber ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVersionId(String(latestUsableVersionNumber))}
+                        className="mt-2 text-xs font-semibold text-[#E8D1AB] underline-offset-4 hover:underline"
+                      >
+                        Switch to Version {latestUsableVersionNumber}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm transition-colors ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
-                  <span className="break-all">{`Email ID : ${clientEmail}`}</span>
+                  <span>
+                    Email ID :{" "}
+                    <a
+                      href={`mailto:${clientEmail}`}
+                      title="Email ID"
+                      className="break-all text-white transition-colors hover:opacity-80"
+                    >
+                      {clientEmail}
+                    </a>
+                  </span>
                   <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
 
-                  <span className="break-all">{`Phone Number : ${clientPhone}`}</span>
+                  <span>
+                    Phone Number :{" "}
+                    <a
+                      href={`tel:${String(clientPhone).replace(/[^\d+]/g, "")}`}
+                      title="Phone Number"
+                      className="break-all text-white transition-colors hover:opacity-80"
+                    >
+                      {clientPhone}
+                    </a>
+                  </span>
                   <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
 
                   <span>{`Valid Until : ${validUntil}`}</span>
@@ -1973,9 +2318,10 @@ export default function QuoteDetailsPage({
                   <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
-                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span> {projectDescription}
-                </p>
+                <div className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
+                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span>
+                  <p className="mt-1 whitespace-pre-wrap">{projectDescription}</p>
+                </div>
 
                 <div className={`flex items-start gap-2 text-xs lg:text-sm ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
@@ -2052,7 +2398,17 @@ export default function QuoteDetailsPage({
                             />
                           ) : null}
 
-                          <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
+                          <Select
+                            value={manualPaymentMode}
+                            onValueChange={(value) => {
+                              const nextMode = value as ManualPaymentMode;
+                              setManualPaymentMode(nextMode);
+                              if (nextMode === "net30") {
+                                setManualPaymentType("full");
+                                setManualPaymentAmount("");
+                              }
+                            }}
+                          >
                             <SelectTrigger className={`mt-3 h-11 rounded-lg border bg-transparent px-3 text-sm transition-colors ${isDark ? "border-white/20 text-white" : "border-[#000000]/15 text-[#000000]"}`}>
                               <SelectValue placeholder="Select payment mode" />
                             </SelectTrigger>
@@ -2069,6 +2425,7 @@ export default function QuoteDetailsPage({
                               <SelectItem value="venmo">Venmo</SelectItem>
                               <SelectItem value="cashapp">CashApp</SelectItem>
                               <SelectItem value="applepay">ApplePay</SelectItem>
+                              <SelectItem value="net30">Net 30</SelectItem>
                               <SelectItem value="other">Other</SelectItem>
                             </SelectContent>
                           </Select>
@@ -2153,7 +2510,9 @@ export default function QuoteDetailsPage({
                             {manualPaymentEntries.map((entry, index) => {
                               const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
                               const paidMode = entry.data.payment_mode
-                                ? String(entry.data.payment_mode).replace(/_/g, " ")
+                                ? String(entry.data.payment_mode).toLowerCase() === "other" && entry.data.other_payment_mode
+                                  ? String(entry.data.other_payment_mode)
+                                  : String(entry.data.payment_mode).replace(/_/g, " ")
                                 : "manual";
 
                               return (
@@ -2162,7 +2521,9 @@ export default function QuoteDetailsPage({
                                   className="rounded-md border border-white/10 px-3 py-2 text-xs"
                                 >
                                   <p className="text-white/80">
-                                    {entry.data.payment_type === "partial"
+                                    {String(entry.data.payment_mode || "").toLowerCase() === "net30"
+                                      ? "Net 30 initiated"
+                                      : entry.data.payment_type === "partial"
                                       ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
                                       : "Full payment marked"}{" "}
                                     via {paidMode}
@@ -2323,7 +2684,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("discounts")}
-                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2333,7 +2694,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
-                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2427,21 +2788,20 @@ export default function QuoteDetailsPage({
 
             {/* --- FLOATING MOBILE BUTTON --- */}
             <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
-
               <Button
                 type="button"
                 onClick={handleRejectQuote}
-                disabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-                className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
+                disabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                className="h-10 rounded-lg border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
               >
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
-                {isRejecting ? "Rejecting..." : ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
+                {isRejecting ? "Rejecting..." : isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
               </Button>
               <Button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
-                disabled={(!quote || loading || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-                className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+                disabled={(!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                className="h-10 rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
               >
                 <Eye size={18} />
                 Preview Quote
@@ -2456,7 +2816,9 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
-        showShareActions={isSelectedCurrentVersion}
+        onBeforeCopy={handleBeforeShareQuote}
+        onBeforeSend={handleBeforeShareQuote}
+        showShareActions={isSelectedLatestUsableVersion && !isSelectedVersionRejected}
         paymentSummaryOverrides={previewPaymentSummaryOverrides}
       />
       <EditAccessModalComponent
@@ -2501,6 +2863,157 @@ export default function QuoteDetailsPage({
             : "Convert to Booking"
         }
       />
+       <QuoteChangeDetailsModal
+        open={isChangeDetailsModalOpen}
+        onClose={() => setIsChangeDetailsModalOpen(false)}
+        activity={currentVersionActivity}
+        versionNumber={selectedVersionNumber}
+      />
     </div>
   );
 }
+    const QuoteChangeDetailsModal = ({
+      open,
+      onClose,
+      activity,
+      versionNumber
+    }: {
+      open: boolean;
+      onClose: () => void;
+      activity: any;
+      versionNumber: string | number | null;
+    }) => {
+      if (!activity) return null;
+
+      // Accessing data based on your JSON structure
+      const audit = activity.metadata?.audit;
+      const changeSummary = activity.metadata?.change_summary;
+      
+      const changedFields = audit?.changed_fields || [];
+      const addedItems = audit?.line_items?.added || [];
+      const removedItems = audit?.line_items?.removed || [];
+      const updatedItems = audit?.line_items?.updated || []; // New: handling item modifications
+      const summaryLines = changeSummary?.summary_lines || [];
+
+      return (
+        <Dialog open={open} onOpenChange={onClose}>
+          <DialogContent className="max-w-2xl border-[#2B2B2B] bg-[#171717] text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">
+                Version {versionNumber} - Change Details
+              </DialogTitle>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm text-[#8F8F95]">
+                  {activity.message} by <span className="text-white font-medium">{activity.performed_by?.name}</span>
+                </p>
+                <span className="text-[#8F8F95] text-sm">•</span>
+                <p className="text-sm text-[#8F8F95]">{formatQuoteDate(activity.created_at)}</p>
+              </div>
+            </DialogHeader>
+
+            <div className="mt-4 max-h-[60vh] space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+              {/* 1. High Level Summary (summary_lines from JSON) */}
+              {summaryLines.length > 0 && (
+                <div className="rounded-lg bg-[#E8D1AB]/5 p-4 border border-[#E8D1AB]/10">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB] mb-2">Change Summary</h4>
+                  <ul className="space-y-1.5">
+                    {summaryLines.map((line: string, i: number) => (
+                      <li key={i} className="text-sm text-white/90 flex items-start gap-2">
+                        <span className="text-[#E8D1AB] mt-1.5 h-1 w-1 rounded-full bg-[#E8D1AB] shrink-0" />
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* 2. Main Field Updates (Tax, Total, Subtotal) */}
+              {changedFields.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">General Updates</h4>
+                  <div className="overflow-hidden rounded-xl border border-[#2B2B2B] bg-[#111111]">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-white/5 text-[#8F8F95]">
+                        <tr>
+                          <th className="px-4 py-2.5 font-medium">Field</th>
+                          <th className="px-4 py-2.5 font-medium">Previous</th>
+                          <th className="px-4 py-2.5 font-medium">New Value</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#2B2B2B]">
+                        {changedFields.map((field: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="px-4 py-3 font-medium text-white/70">{field.label}</td>
+                            <td className="px-4 py-3 text-[#FCA5A5] line-through opacity-70">{field.display_previous || "Empty"}</td>
+                            <td className="px-4 py-3 text-emerald-400 font-semibold">{field.display_new}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Line Item Changes (Added, Removed, and Updated) */}
+              {(addedItems.length > 0 || removedItems.length > 0 || updatedItems.length > 0) && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">Line Item Details</h4>
+                  <div className="space-y-2">
+                    {/* Items Added */}
+                    {addedItems.map((item: any, idx: number) => (
+                      <div key={`add-${idx}`} className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[12px] text-black font-bold">+</span>
+                          <div>
+                            <p className="text-sm font-medium text-white">{item.item_name}</p>
+                            <p className="text-[10px] text-emerald-400/70 uppercase">{item.section_type}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-400">{formatQuoteCurrency(item.line_total)}</span>
+                      </div>
+                    ))}
+
+                    {/* Items Removed */}
+                    {removedItems.map((item: any, idx: number) => (
+                      <div key={`rem-${idx}`} className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-[12px] text-black font-bold">-</span>
+                          <div>
+                            <p className="text-sm font-medium text-white/60 line-through">{item.item_name}</p>
+                            <p className="text-[10px] text-red-400/70 uppercase">{item.section_type}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold text-red-400">-{formatQuoteCurrency(item.line_total)}</span>
+                      </div>
+                    ))}
+
+                    {/* Items Updated (e.g., Sort Order or Price changes) */}
+                    {updatedItems.map((item: any, idx: number) => (
+                      <div key={`upd-${idx}`} className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-[12px] text-black font-bold">~</span>
+                          <p className="text-sm font-medium text-white">{item.identity?.item_name}</p>
+                        </div>
+                        <div className="pl-9 space-y-1">
+                          {item.changes.map((c: any, i: number) => (
+                            <p key={i} className="text-xs text-[#8F8F95]">
+                              {c.label}: <span className="line-through text-red-400/50">{c.display_previous}</span> → <span className="text-blue-400">{c.display_new}</span>
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end border-t border-[#2B2B2B] pt-4">
+              <Button onClick={onClose} className="h-10 rounded-xl bg-[#E8D1AB] px-8 text-black font-semibold hover:bg-[#E8D1AB]/90">
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    };

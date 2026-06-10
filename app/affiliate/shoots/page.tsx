@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useRouter, usePathname } from 'next/navigation';
+import Cookies from "js-cookie";
+import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
-
-import { AffiliateProfileSettings } from "@/components/affiliate/AffiliateProfileSettings";
 import { AffiliateShoots } from "@/components/affiliate/AffiliateShoots";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
+import { affiliateApi } from "@/lib/api";
 
 export default function AffiliateProfilePage() {
   const router = useRouter();
@@ -17,6 +19,7 @@ export default function AffiliateProfilePage() {
 
   const [mounted, setMounted] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingProjects, setPendingProjects] = useState<any[]>([]);
 
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [isShootFormOpen, setIsShootFormOpen] = useState(false);
@@ -24,6 +27,31 @@ export default function AffiliateProfilePage() {
 
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const fetchPendingProjectForms = async () => {
+      const token = Cookies.get("revure_token");
+      if (!token) return;
+
+      try {
+        const pendingData = await affiliateApi.getProjectFormSubmission(token);
+        if (!pendingData?.error) {
+          setPendingProjects(pendingData.projects || []);
+          setPendingCount(pendingData.count || 0);
+        } else {
+          setPendingProjects([]);
+          setPendingCount(0);
+        }
+      } catch (error) {
+        console.error("Error fetching pending project forms:", error);
+        toast.error("Failed to load pending shoot forms");
+        setPendingProjects([]);
+        setPendingCount(0);
+      }
+    };
+
+    fetchPendingProjectForms();
+  }, []);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -63,8 +91,17 @@ export default function AffiliateProfilePage() {
           onFillDetailsClick={() => setIsShootFormOpen(true)}
           pendingCount={pendingCount}
           selectedDate = {selectedDate}
+          isDark={isDark}
         />
       </div>
+
+      <AffiliateShootDetailsForm
+        isOpen={isShootFormOpen}
+        onClose={() => setIsShootFormOpen(false)}
+        projectId={pendingProjects[0]?.project_id || 0}
+        pendingProjects={pendingProjects}
+        isDark={isDark}
+      />
     </>
   )
 }

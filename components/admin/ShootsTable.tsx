@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useCallback, useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronRight,
   Loader2,
   Trash2,
   Search,
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Grid3X3,
   List,
   MoreVertical,
@@ -225,6 +226,7 @@ interface ShootsTableProps {
   externalSelectedDate?: Date | null;
   detailBasePath?: string;
   enablePriceSort?: boolean;
+  filtersReady?: boolean;
   searchQuery: string;
   setSearchQuery: (v: string) => void;
   categoryFilter: string;
@@ -265,8 +267,11 @@ export const ShootsTable = ({
   showHeaderControls = true,
   showHeaderFilters = true,
   showViewToggle = true,
+  filtersReady = true,
 }: ShootsTableProps) => {
   const SHOOTS_VIEW_MODE_KEY = "admin-shoots-view-mode";
+  const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
+  const SHOOTS_RESTORE_PAGE_KEY = "admin-shoots-restore-page-on-return-v1";
   const router = useRouter();
   const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
   const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
@@ -286,6 +291,7 @@ export const ShootsTable = ({
   const [meetingGapLoading, setMeetingGapLoading] = useState(false);
   const [meetingGapBookingIds, setMeetingGapBookingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [hasRestoredCurrentPage, setHasRestoredCurrentPage] = useState(false);
   const [internalViewMode, setInternalViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
   const [kanbanOrder, setKanbanOrder] = useState<Record<ShootStatus, string[]>>({} as Record<ShootStatus, string[]>);
@@ -295,6 +301,7 @@ export const ShootsTable = ({
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  const hasInitializedSearchResetRef = React.useRef(false);
 
   // Filtering states
   const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
@@ -311,6 +318,24 @@ export const ShootsTable = ({
   });
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    try {
+      const shouldRestorePage = window.localStorage.getItem(SHOOTS_RESTORE_PAGE_KEY) === "1";
+      if (shouldRestorePage) {
+        const savedPage = window.localStorage.getItem(SHOOTS_CURRENT_PAGE_KEY);
+        const parsedPage = savedPage ? Number(savedPage) : 1;
+        if (Number.isFinite(parsedPage) && parsedPage >= 1) {
+          setCurrentPage(Math.floor(parsedPage));
+        }
+      }
+      window.localStorage.removeItem(SHOOTS_RESTORE_PAGE_KEY);
+    } catch (error) {
+      console.error("Failed to restore shoots current page:", error);
+    } finally {
+      setHasRestoredCurrentPage(true);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -415,6 +440,17 @@ export const ShootsTable = ({
   const [fieldsToShow, setFieldsToShow] = useState<string[]>([]);
   const [hoveredShootId, setHoveredShootId] = useState<string | null>(null);
 
+  const handleNotesCountChange = useCallback((shootId: string, count: number) => {
+    const nextCount = Number.isFinite(count) ? Math.max(0, count) : 0;
+    setShoots((currentShoots) =>
+      currentShoots.map((shoot) =>
+        shoot.id === shootId
+          ? { ...shoot, notesCount: nextCount }
+          : shoot
+      )
+    );
+  }, []);
+
 
   // Sync external date with range
   useEffect(() => {
@@ -425,18 +461,35 @@ export const ShootsTable = ({
     }
   }, [externalSelectedDate]);
 
+  const fetchRangeMode = range === "custom" ? "custom" : "all";
+
   useEffect(() => {
+    if (!filtersReady) return;
+    if (!hasInitializedSearchResetRef.current) {
+      hasInitializedSearchResetRef.current = true;
+      return;
+    }
     setCurrentPage(1);
-  }, [debouncedSearchQuery]);
+  }, [debouncedSearchQuery, filtersReady]);
+
+  useEffect(() => {
+    if (!hasRestoredCurrentPage) return;
+    try {
+      window.localStorage.setItem(SHOOTS_CURRENT_PAGE_KEY, String(currentPage));
+    } catch (error) {
+      console.error("Failed to persist shoots current page:", error);
+    }
+  }, [currentPage, hasRestoredCurrentPage]);
 
   useEffect(() => {
     let isCancelled = false;
     const fetchId = ++latestFetchIdRef.current;
+    const isCustomDateRange = fetchRangeMode === "custom";
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        const params: any = { range };
+        const params: any = { range: fetchRangeMode };
         if (statusFilter !== "all") {
           params.status = statusFilter;
         }
@@ -447,7 +500,7 @@ export const ShootsTable = ({
           params.category = categoryFilter;
         }
 
-        if (externalSelectedDate && range === 'custom') {
+        if (externalSelectedDate && isCustomDateRange) {
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
@@ -542,7 +595,7 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [range, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
 
   useEffect(() => {
     if (!isMeetingGapStatusFilter(productionFilter)) {
@@ -605,10 +658,36 @@ export const ShootsTable = ({
 
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const next7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).getTime();
+    const next15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15).getTime();
+    const in1Month = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime();
+    const in2Months = new Date(now.getFullYear(), now.getMonth() + 2, now.getDate()).getTime();
+    const in6Months = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate()).getTime();
+    const in1Year = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).getTime();
+
+    const matchesRange = (shoot: ShootRecord) => {
+      if (range === "all" || range === "custom") return true;
+      if (!Number.isFinite(shoot.rawDate) || shoot.rawDate <= 0) return false;
+
+      if (range === "upcoming") return shoot.rawDate >= startOfToday;
+      if (range === "next_7_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next7Days;
+      if (range === "next_15_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next15Days;
+      if (range === "in_1_month") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Month;
+      if (range === "in_2_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in2Months;
+      if (range === "in_6_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in6Months;
+      if (range === "in_1_year") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Year;
+
+      return true;
+    };
+
     // 1. Filter
     const normalizedSearchQuery = debouncedSearchQuery.toLowerCase();
     const normalizedPhoneQuery = normalizedSearchQuery.replace(/[^\d+]/g, "");
     let result = shoots.filter((shoot) => {
+      if (!matchesRange(shoot)) return false;
+
       const normalizedPhone = shoot.phone.toLowerCase();
       const matchesSearch =
         shoot.customerName.toLowerCase().includes(normalizedSearchQuery) ||
@@ -670,7 +749,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds]);
+  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds, range]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -766,11 +845,12 @@ export const ShootsTable = ({
   const totalPages = listTotalPages;
 
   useEffect(() => {
+    if (loading) return;
     const nextPage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
     if (nextPage !== currentPage) {
       setCurrentPage(nextPage);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, totalPages, loading]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -780,6 +860,11 @@ export const ShootsTable = ({
 
   const handleRowClick = (id: string) => {
     const cleanId = id.replace('#', '');
+    try {
+      window.localStorage.setItem(SHOOTS_RESTORE_PAGE_KEY, "1");
+    } catch (error) {
+      console.error("Failed to mark shoots page for restoration:", error);
+    }
     router.push(`${detailBasePath}/${cleanId}`);
   };
 
@@ -994,14 +1079,18 @@ export const ShootsTable = ({
                     </SelectContent>
                   </Select>
                   <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
-                    <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Range" />
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                      <SelectItem value="all">All time</SelectItem>
-                      <SelectItem value="week">Week</SelectItem>
-                      <SelectItem value="month">Month</SelectItem>
-                      <SelectItem value="year">Year</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="next_7_days">Next 7 Days</SelectItem>
+                      <SelectItem value="next_15_days">Next 15 Days</SelectItem>
+                      <SelectItem value="in_1_month">In 1 Month</SelectItem>
+                      <SelectItem value="in_2_months">In 2 Months</SelectItem>
+                      <SelectItem value="in_6_months">In 6 Months</SelectItem>
+                      <SelectItem value="in_1_year">In 1 Year</SelectItem>
                       {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
                     </SelectContent>
                   </Select>
@@ -1173,7 +1262,7 @@ export const ShootsTable = ({
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
+                      className={`w-[calc(100vw-48px)] md:w-[340px] lg:w-[360px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
                       <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
@@ -1664,6 +1753,7 @@ export const ShootsTable = ({
         onClose={() => setChatOpen(null)}
         shootId={chatOpen ?? undefined}
         isDark={isDark}
+        onNotesCountChange={handleNotesCountChange}
       />
 
       <MissingFieldsModal
@@ -1683,52 +1773,87 @@ export const ShootsTable = ({
       {/* Pagination - Exact Logic Preserved */}
       {
         !loading && !meetingGapLoading && processedShoots.length > 0 && activeViewMode !== "grid" && (
-          <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
-            <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-              {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
-            </div>
-            <div className="flex gap-2 items-center">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}>Previous</button>
-              <div className="flex gap-1">
-                {(() => {
-                  const rangeArr = [];
-                  const delta = 1;
-                  const left = currentPage - delta;
-                  const right = currentPage + delta + 1;
+          <div className={`p-4 lg:p-6 border-t w-full overflow-hidden transition-colors duration-300 min-w-0 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
+            }`}>
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
 
-                  for (let i = 1; i <= totalPages; i++) {
-                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
-                      rangeArr.push(i);
-                    } else if (i === left - 1 || i === right) {
-                      rangeArr.push('...');
-                    }
-                  }
-
-                  return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
-                    page === '...' ? (
-                      <span key={`dots-${index}`} className={`px-2 py-1 text-xs ${isDark ? "text-white/30" : "text-[#999]"}`}>...</span>
-                    ) : (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page as number)}
-                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black") : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")}`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  ));
-                })()}
+              {/* Pagination Entries Info */}
+              <div className={`hidden lg:block text-sm truncate max-w-xs shrink ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
+                {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
               </div>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
-              >
-                Next
-              </button>
+
+              {/* Pagination Controls Wrapper */}
+              <div className="flex gap-2 items-center justify-center sm:justify-end w-full max-w-full min-w-0 overflow-hidden">
+
+                {/* Previous Button: Text on desktop, Icon on mobile */}
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`p-2 lg:w-auto lg:px-4 lg:py-2 text-sm font-medium rounded-lg border transition-all flex items-center justify-center shrink-0 disabled:opacity-30 ${isDark
+                    ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
+                    : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
+                    }`}
+                >
+                  <span className="hidden lg:inline">Previous</span>
+                  <ChevronLeft className="w-4 h-4 lg:hidden" />
+                </button>
+
+                {/* Page Numbers - Flex-1 wrapper eliminates viewport clipping under arrows */}
+                <div className="flex-1 sm:flex-none flex gap-1 items-center justify-center overflow-x-auto no-scrollbar min-w-0 px-1 py-0.5">
+                  {(() => {
+                    const rangeArr = [];
+                    const delta = 1;
+                    const left = currentPage - delta;
+                    const right = currentPage + delta + 1;
+
+                    for (let i = 1; i <= totalPages; i++) {
+                      if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                        rangeArr.push(i);
+                      } else if (i === left - 1 || i === right) {
+                        rangeArr.push('...');
+                      }
+                    }
+
+                    return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                      page === '...' ? (
+                        /* Rendered as an unbonded span node to save space and prevent arrow overlaps */
+                        <span
+                          key={`dots-${index}`}
+                          className={`px-1 text-center text-xs font-semibold select-none shrink-0 min-w-[16px] ${isDark ? "text-white/30" : "text-[#999]"
+                            }`}
+                        >
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page as number)}
+                          className={`w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center text-xs lg:text-sm font-medium rounded-lg transition-all shrink-0 ${currentPage === page
+                            ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")
+                            }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    ));
+                  })()}
+                </div>
+
+                {/* Next Button: Text on desktop, Icon on mobile */}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`p-2 lg:w-auto lg:px-4 lg:py-2 text-sm font-medium rounded-lg border transition-all flex items-center justify-center shrink-0 disabled:opacity-30 ${isDark
+                    ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
+                    : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
+                    }`}
+                >
+                  <span className="hidden lg:inline">Next</span>
+                  <ChevronRight className="w-4 h-4 lg:hidden" />
+                </button>
+
+              </div>
             </div>
           </div>
         )

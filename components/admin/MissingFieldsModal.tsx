@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { 
   AlertCircle, 
   CheckCircle2, 
@@ -420,6 +421,7 @@ export const MissingFieldsModal = ({
   onSaved,
   initialShootData
 }: MissingFieldsModalProps) => {
+  const router = useRouter();
   const [location, setLocation] = useState("");
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
   
@@ -437,6 +439,7 @@ export const MissingFieldsModal = ({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
   const [isSaving, setIsSaving] = useState(false);
+  const [isReminderSending, setIsReminderSending] = useState(false);
   const [saveError, setSaveError] = useState("");
   const reelRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -446,7 +449,6 @@ export const MissingFieldsModal = ({
   const isDraggingReel = useRef(false);
   const didDragReel = useRef(false);
   const suppressChipClickUntil = useRef(0);
-
   const timeOptions = useMemo(() => {
     const options = [];
     for (let hour = 0; hour < 24; hour++) {
@@ -593,6 +595,7 @@ export const MissingFieldsModal = ({
     setMultiDayTimes({});
     setSaveError("");
     setIsSaving(false);
+    setIsReminderSending(false);
     setCurrentCalendarMonth(new Date());
   }, [isOpen]);
 
@@ -780,23 +783,19 @@ export const MissingFieldsModal = ({
 
   const reelDays = useMemo(() => {
     const today = startOfDay(new Date());
-    return Array.from({ length: 21 }, (_, index) => addDays(today, index));
+    return Array.from({ length: 21 }, (_, index) => addDays(today, index - 10));
   }, []);
 
   const calendarDays = useMemo(() => {
-    const today = startOfDay(new Date());
     const start = startOfWeek(startOfMonth(currentCalendarMonth));
     const end = endOfWeek(endOfMonth(currentCalendarMonth));
-    return eachDayOfInterval({ start, end }).filter((date) => date >= today);
+    return eachDayOfInterval({ start, end });
   }, [currentCalendarMonth]);
 
   const handlePrevMonth = () => {
     setCurrentCalendarMonth((current) => {
       const previousMonth = addDays(startOfMonth(current), -1);
-      const todayMonthStart = startOfMonth(new Date());
-      return startOfMonth(previousMonth).getTime() < todayMonthStart.getTime()
-        ? todayMonthStart
-        : previousMonth;
+      return previousMonth;
     });
   };
 
@@ -817,6 +816,43 @@ export const MissingFieldsModal = ({
   );
   const needsLocation = normalizedFields.includes("location");
   const needsDate = normalizedFields.includes("date");
+  const needsOnboardingForm = normalizedFields.includes("onboarding_form");
+  const showOnboardingOnlyActions = needsOnboardingForm && !needsLocation && !needsDate;
+
+  const handleFillManually = () => {
+    const normalizedShootId = String(shootId || "").replace(/^#/, "").trim();
+    if (!normalizedShootId) {
+      toast.error("Missing shoot id. Please reopen the modal from a valid shoot.");
+      return;
+    }
+
+    onClose();
+    router.push(`/admin/shoots/${normalizedShootId}/form-details/edit`);
+  };
+
+  const handleRemindOnboardingForm = async () => {
+    const normalizedShootId = String(shootId || "").replace(/^#/, "").trim();
+    if (!normalizedShootId) {
+      toast.error("Missing shoot id. Please reopen the modal from a valid shoot.");
+      return;
+    }
+
+    try {
+      setIsReminderSending(true);
+      const response = await adminApi.remindOnboardingForm(normalizedShootId);
+
+      if (response?.success) {
+        toast.success(response?.message || "Onboarding reminder has been sent successfully.");
+      } else {
+        toast.error(response?.error || response?.message || "Failed to send onboarding reminder.");
+      }
+    } catch (error) {
+      console.error("Remind onboarding form error:", error);
+      toast.error("Failed to send onboarding reminder.");
+    } finally {
+      setIsReminderSending(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -884,6 +920,47 @@ export const MissingFieldsModal = ({
                 </div>
               </div>
             </div>
+
+            {needsOnboardingForm ? (
+              <div className={`mt-4 rounded-2xl border p-4 ${isDark ? "border-white/10 bg-black/20" : "border-black/5 bg-white"}`}>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className={`text-sm font-bold ${isDark ? "text-white" : "text-black"}`}>Onboarding form is missing</p>
+                    <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
+                      You can complete it manually now or send a reminder email later.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={handleFillManually}
+                      className="inline-flex items-center justify-center rounded-xl bg-[#E8D1AB] px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-[#ddc79f]"
+                    >
+                      Fill Manually
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemindOnboardingForm}
+                      disabled={isReminderSending}
+                      className={`inline-flex items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${
+                        isDark
+                          ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                          : "border-black/10 bg-black/[0.03] text-black hover:bg-black/[0.06]"
+                      } ${isReminderSending ? "cursor-not-allowed opacity-70" : ""}`}
+                    >
+                      {isReminderSending ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 size={16} className="animate-spin" />
+                          Sending...
+                        </span>
+                      ) : (
+                        "Remind Onboarding Form"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -964,7 +1041,6 @@ export const MissingFieldsModal = ({
                                 label="Select Date"
                                 value={selectedShootDate}
                                 onChange={handleDateChange}
-                                minDate={new Date()}
                                 sx={{ height: "72px", borderRadius: "16px" }}
                                 isDark={isDark}
                                 disablePortal={false}
@@ -1155,35 +1231,58 @@ export const MissingFieldsModal = ({
               {saveError}
             </div>
           ) : null}
-          <div className="flex flex-col sm:flex-row gap-3 justify-end">
-            <button
-              onClick={onClose}
-              disabled={isSaving}
-              className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${isSaving ? "cursor-not-allowed opacity-50" : ""}`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={hasMissingFields ? handleSave : onClose}
-              disabled={isSaving}
-              className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
-                isDark
-                  ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
-                  : "bg-black text-white hover:bg-black/90 shadow-xl"
-              } ${isSaving ? "opacity-70 cursor-not-allowed" : ""}`}
-            >
-              {hasMissingFields
-                ? isSaving
-                  ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 size={16} className="animate-spin" />
-                      Saving...
-                    </span>
-                  )
-                  : "Save Changes"
-                : "Close"}
-            </button>
-          </div>
+          {showOnboardingOnlyActions ? (
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                onClick={onClose}
+                disabled={isSaving || isReminderSending}
+                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                Close
+              </button>
+              <button
+                onClick={handleFillManually}
+                disabled={isSaving || isReminderSending}
+                className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
+                  isDark
+                    ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
+                    : "bg-black text-white hover:bg-black/90 shadow-xl"
+                } ${(isSaving || isReminderSending) ? "opacity-70 cursor-not-allowed" : ""}`}
+              >
+                Fill Manually
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                onClick={onClose}
+                disabled={isSaving || isReminderSending}
+                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={hasMissingFields ? handleSave : onClose}
+                disabled={isSaving || isReminderSending}
+                className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
+                  isDark
+                    ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
+                    : "bg-black text-white hover:bg-black/90 shadow-xl"
+                } ${(isSaving || isReminderSending) ? "opacity-70 cursor-not-allowed" : ""}`}
+              >
+                {hasMissingFields
+                  ? isSaving
+                    ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 size={16} className="animate-spin" />
+                        Saving...
+                      </span>
+                    )
+                    : "Save Changes"
+                  : "Close"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

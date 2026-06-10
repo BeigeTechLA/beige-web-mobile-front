@@ -12,13 +12,7 @@ export default function AffiliateMeetingsPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-
-      <div
-        className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
-        style={{ fontFamily: "var(--font-instrument-sans)" }}
-      >
-        <AffiliateMeetings />
-      </div>
+      <AffiliateMeetings />
     </>
   );
 }

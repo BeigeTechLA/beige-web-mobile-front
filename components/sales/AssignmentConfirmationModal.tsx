@@ -18,6 +18,14 @@ interface AssignmentConfirmationModalProps {
   isDark?: boolean;
 }
 
+interface AssignmentMissingDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm?: () => void;
+  missingDetails: string[];
+  isDark?: boolean;
+}
+
 export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalProps> = ({
   isOpen,
   onClose,
@@ -113,6 +121,79 @@ export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalPr
             className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
           >
             Confirm & Assign
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const AssignmentMissingDetailsModal: React.FC<AssignmentMissingDetailsModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  missingDetails,
+  isDark = true
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <div
+        className={`w-full max-w-md border rounded-xl p-6 shadow-2xl relative transition-colors duration-300 ${
+          isDark ? "bg-[#101010] border-white/10" : "bg-white border-[#D8D8D8]"
+        }`}
+      >
+        <button
+          onClick={onClose}
+          className={`absolute top-4 right-4 transition-colors ${
+            isDark ? "text-white/50 hover:text-white" : "text-black/40 hover:text-black"
+          }`}
+        >
+          <X size={20} />
+        </button>
+
+        <div className="flex items-center gap-3 mb-4">
+          <AlertCircle className="text-[#E8D1AB]" size={24} />
+          <h2 className={`text-lg font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+            Missing Required Details
+          </h2>
+        </div>
+
+        <p className={`text-sm mb-5 transition-colors ${isDark ? "text-white/70" : "text-black/70"}`}>
+          The following required details are missing. Do you still want to continue?
+        </p>
+
+        <div className={`border rounded-xl p-4 mb-6 transition-colors ${
+          isDark ? "bg-[#1A1A1A] border-white/5" : "bg-gray-50 border-[#E5E5E5]"
+        }`}>
+          <ul className="space-y-3">
+            {missingDetails.map((detail) => (
+              <li key={detail} className={`flex items-start gap-2 text-sm ${isDark ? "text-white/80" : "text-black/70"}`}>
+                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-[#E8D1AB] shrink-0" />
+                <span>{detail}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className={`bg-transparent border transition-all ${
+              isDark
+                ? "border-white/10 text-white hover:bg-white/5"
+                : "border-[#D8D8D8] text-black hover:bg-gray-100"
+            }`}
+          >
+            No
+          </Button>
+          <Button
+            onClick={onConfirm || onClose}
+            className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
+          >
+            Yes
           </Button>
         </div>
       </div>

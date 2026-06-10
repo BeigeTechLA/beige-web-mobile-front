@@ -53,6 +53,13 @@ export function LoginForm() {
     const value = searchParams?.get("bookingEmail")?.trim() || ""
     return value.toLowerCase()
   }, [searchParams])
+  const signupHref = React.useMemo(() => {
+    const params = new URLSearchParams()
+    if (returnTo) params.set("returnTo", returnTo)
+    if (bookingEmail) params.set("bookingEmail", bookingEmail)
+    const query = params.toString()
+    return query ? `/signup/user?${query}` : "/signup/user"
+  }, [returnTo, bookingEmail])
 
   React.useEffect(() => {
     if (hasShownAdminOnlyToast.current) return
@@ -298,7 +305,7 @@ export function LoginForm() {
         <div className="space-y-6 lg:pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
             <Link
-              href="/signup/user"
+              href={signupHref}
               onClick={() => {
                 pushToDataLayer("sign_up_started_user", {
                   type: "Action Tracking",
