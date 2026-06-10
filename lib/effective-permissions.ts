@@ -1,10 +1,14 @@
 "use client";
 
+import Cookies from "js-cookie";
 import { adminApi } from "@/lib/api";
 import {
   normalizePermissionsPayload,
   type PermissionsMap,
 } from "@/lib/permissions";
+import { setPermissions } from "@/lib/redux/features/auth/authSlice";
+import type { AppDispatch } from "@/lib/redux/store";
+import { getPortalFromPermissionsOrRoutes } from "@/lib/auth-routing";
 
 type EffectivePermissionsResult = {
   effectivePermissions: PermissionsMap;
@@ -58,11 +62,29 @@ export const fetchEffectiveUserPermissions = async (
   const customPermissions = normalizePermissionsPayload(
     customPermissionsResponse?.data ?? {},
   );
+  const effectivePermissions = mergePermissionMaps(rolePermissions, customPermissions);
 
   return {
     rolePermissions,
     customPermissions,
     hasCustomPermissions: Object.keys(customPermissions).length > 0,
-    effectivePermissions: mergePermissionMaps(rolePermissions, customPermissions),
+    effectivePermissions,
   };
+};
+
+export const syncEffectiveUserPermissions = async (
+  userId: number | string,
+  dispatch: AppDispatch,
+) => {
+  const { effectivePermissions } = await fetchEffectiveUserPermissions(userId);
+  dispatch(setPermissions(effectivePermissions));
+
+  const portal = getPortalFromPermissionsOrRoutes(effectivePermissions);
+  if (portal) {
+    Cookies.set("revure_portal", portal, { expires: 7 });
+  } else {
+    Cookies.remove("revure_portal");
+  }
+
+  return effectivePermissions;
 };

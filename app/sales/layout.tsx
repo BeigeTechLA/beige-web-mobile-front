@@ -6,10 +6,10 @@ import { toast } from "sonner";
 
 import PortalLayoutShell from "@/components/common/PortalLayoutShell";
 import { SalesStatusProvider, useSalesStatus } from "@/context/SalesStatusContext";
-import { fetchEffectiveUserPermissions } from "@/lib/effective-permissions";
-import { canAccessPortalPath, getFirstAllowedPortalPath } from "@/lib/permissions";
+import { syncEffectiveUserPermissions } from "@/lib/effective-permissions";
+import { getFirstAllowedPortalPath } from "@/lib/permissions";
+import { canAccessPortalPath } from "@/lib/portal-routing";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { setPermissions } from "@/lib/redux/features/auth/authSlice";
 import { isSalesRouteAllowedWhileInactive } from "@/lib/sales-status";
 
 function SalesLayoutContent({ children }: { children: React.ReactNode }) {
@@ -32,8 +32,7 @@ function SalesLayoutContent({ children }: { children: React.ReactNode }) {
       const userId = user?.id;
       if (userId) {
         try {
-          const { effectivePermissions } = await fetchEffectiveUserPermissions(userId);
-          dispatch(setPermissions(effectivePermissions));
+          await syncEffectiveUserPermissions(userId, dispatch);
         } catch (error) {
           console.error("SalesLayout: Error fetching permissions:", error);
         }

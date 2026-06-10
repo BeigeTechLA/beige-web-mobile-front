@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   PermissionColumnKey,
@@ -29,6 +31,12 @@ const getActionsToToggle = (row: PermissionMatrixRow) =>
 const isActionAllowed = (row: PermissionMatrixRow, key: PermissionColumnKey) =>
   !row.allowedActions?.length || row.allowedActions.includes(key);
 
+const getGroupKey = (row: PermissionMatrixRow) => {
+  const source = row.moduleKey || row.id;
+  const firstSegment = String(source || "").split("_")[0] || "misc";
+  return firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
+};
+
 export function PermissionMatrixTable({
   rows,
   onChange,
@@ -38,6 +46,26 @@ export function PermissionMatrixTable({
   onReadOnlyClick,
   onInvalidAccessAttempt,
 }: PermissionMatrixTableProps) {
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const groupedRows = useMemo(() => {
+    return rows.reduce<Record<string, PermissionMatrixRow[]>>((acc, row) => {
+      const groupKey = getGroupKey(row);
+      if (!acc[groupKey]) acc[groupKey] = [];
+      acc[groupKey].push(row);
+      return acc;
+    }, {});
+  }, [rows]);
+
+  const groupEntries = Object.entries(groupedRows);
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups((current) => ({
+      ...current,
+      [groupKey]: !current[groupKey],
+    }));
+  };
+
   const toggleSelection = (rowId: string, checked: boolean) => {
     if (readOnly) return;
     onChange?.(
@@ -156,46 +184,90 @@ export function PermissionMatrixTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="group text-white transition-colors hover:bg-white/[0.02]"
-              >
-                {showSelectionColumn ? (
-                  <td className="px-6 py-6">
-                    <Checkbox
-                      checked={row.selected}
-                      onCheckedChange={(value) =>
-                        toggleSelection(row.id, value === true)
-                      }
-                      disabled={readOnly}
-                      className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
-                    />
-                  </td>
-                ) : null}
+            {groupEntries.map(([groupKey, groupRows]) => {
+              const isExpanded = expandedGroups[groupKey] ?? true;
+              const selectedCount = groupRows.filter((row) => row.selected).length;
 
-                <td className="px-6 py-8 text-[16px] font-medium transition-colors group-hover:text-[#E5D5B8]">{row.label}</td>
+              return (
+                <Fragment key={groupKey}>
+                  <tr
+                    className="bg-white/[0.03] text-white"
+                  >
+                    <td
+                      colSpan={showSelectionColumn ? 6 : 5}
+                      className="px-6 py-4"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(groupKey)}
+                        className="flex w-full items-center justify-between gap-4 text-left"
+                      >
+                        <div className="flex items-center gap-3">
+                          {isExpanded ? (
+                            <ChevronDown size={18} className="text-[#E5D5B8]" />
+                          ) : (
+                            <ChevronRight size={18} className="text-[#E5D5B8]" />
+                          )}
+                          <span className="text-[15px] font-semibold uppercase tracking-wider text-[#E5D5B8]">
+                            {groupKey}
+                          </span>
+                          <span className="text-sm text-white/40">
+                            {selectedCount}/{groupRows.length} selected
+                          </span>
+                        </div>
+                        <span className="text-sm text-white/35">
+                          {isExpanded ? "Collapse" : "Expand"}
+                        </span>
+                      </button>
+                    </td>
+                  </tr>
 
-                {accessColumns.map((column) => (
-                  <td key={column.key} className="px-6 py-8 text-center">
-                    <div className="flex justify-center" onClick={() => readOnly && onReadOnlyClick?.()}>
-                      {isActionAllowed(row, column.key) ? (
-                        <Checkbox
-                          checked={Boolean(row.access[column.key])}
-                          onCheckedChange={(value) =>
-                            toggleAccess(row.id, column.key, value === true)
-                          }
-                          disabled={readOnly}
-                          className="h-6 w-6 rounded-md border-white/10 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
-                        />
-                      ) : (
-                        <span className="text-white/10">—</span>
-                      )}
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            ))}
+                  {isExpanded &&
+                    groupRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="group text-white transition-colors hover:bg-white/[0.02]"
+                      >
+                        {showSelectionColumn ? (
+                          <td className="px-6 py-6">
+                            <Checkbox
+                              checked={row.selected}
+                              onCheckedChange={(value) =>
+                                toggleSelection(row.id, value === true)
+                              }
+                              disabled={readOnly}
+                              className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
+                            />
+                          </td>
+                        ) : null}
+
+                        <td className="px-6 py-8 text-[16px] font-medium transition-colors group-hover:text-[#E5D5B8]">
+                          {row.label}
+                        </td>
+
+                        {accessColumns.map((column) => (
+                          <td key={column.key} className="px-6 py-8 text-center">
+                            <div className="flex justify-center" onClick={() => readOnly && onReadOnlyClick?.()}>
+                              {isActionAllowed(row, column.key) ? (
+                                <Checkbox
+                                  checked={Boolean(row.access[column.key])}
+                                  onCheckedChange={(value) =>
+                                    toggleAccess(row.id, column.key, value === true)
+                                  }
+                                  disabled={readOnly}
+                                  className="h-6 w-6 rounded-md border-white/10 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
+                                />
+                              ) : (
+                                <span className="text-white/10">—</span>
+                              )}
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

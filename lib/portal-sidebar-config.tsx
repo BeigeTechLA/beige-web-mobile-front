@@ -129,7 +129,7 @@ export const portalSidebarItems: Record<PortalKey, SidebarItem[]> = {
         { key: "users-creative-partners", name: "Creative Partners", link: "/admin/users/creative-partners", permissionKeys: ["admin_users"] },
       ],
     },
-    { key: "roles-permissions", name: "Roles & Permissions", icon: Settings, link: "/admin/roles-permissions", permissionKeys: ["roles_permissions"] },
+    { key: "roles-permissions", name: "Roles & Permissions", icon: Settings, link: "/admin/roles-permissions" },
     {
       key: "quotes",
       name: "Quotes",

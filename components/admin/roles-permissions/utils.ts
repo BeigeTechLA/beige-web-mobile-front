@@ -136,7 +136,7 @@ export const applyPermissionsToRows = (
     return {
       ...row,
       access,
-      selected: getAllowedActions(row).every((action) => access[action]),
+      selected: getAllowedActions(row).every((action) => access[action] || row.lockedActions?.includes(action)),
     };
   });
 

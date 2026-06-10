@@ -42,6 +42,13 @@ export const usePermissions = (moduleKey?: string) => {
   }
 
   const getPortalSpecificKeys = (key: string) => {
+    if (key === "dashboard") {
+      if (pathname.startsWith("/admin")) return ["admin_dashboard"];
+      if (pathname.startsWith("/sales")) return ["sales_admin_dashboard", "sales_rep_sales"];
+      if (pathname.startsWith("/affiliate")) return ["client_dashboard"];
+      if (pathname.startsWith("/production-manager")) return ["production_manager_dashboard"];
+    }
+
     if (key !== "quotes") return [key];
 
     if (pathname.startsWith("/admin")) return ["admin_quotes"];

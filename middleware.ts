@@ -5,6 +5,18 @@ import {
   getAllowedPrefixForUser,
   getDashboardPathForUser,
 } from '@/lib/auth-routing';
+import { canAccessPortalPath } from '@/lib/portal-routing';
+
+const parsePermissionsCookie = (value: string) => {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -24,6 +36,16 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  let permissions = null;
+  const permissionsCookie = request.cookies.get('revure_permissions')?.value;
+  if (permissionsCookie) {
+    try {
+      permissions = parsePermissionsCookie(permissionsCookie);
+    } catch (e) {
+      console.error('Failed to parse permissions cookie in middleware:', e);
+    }
+  }
+
   const isAuthenticated = !!(user && token);
 
   // 2. Handle Authentication Pages (Login/Signup)
@@ -35,7 +57,7 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
       }
 
-      const dashboardPath = getDashboardPathForUser(user);
+      const dashboardPath = getDashboardPathForUser(user, permissions);
       return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
     return NextResponse.next();
@@ -53,26 +75,22 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
+    if (canAccessPortalPath(pathname, permissions)) {
+      return NextResponse.next();
+    }
+
     // Role-based authorization
-    const allowedPrefix = getAllowedPrefixForUser(user);
+    const allowedPrefix = getAllowedPrefixForUser(user, permissions);
+    const allowedPath = getDashboardPathForUser(user, permissions);
 
     // If user is accessing a dashboard they don't have access to
     if (allowedPrefix && !pathname.startsWith(allowedPrefix)) {
-      const loginUrl = new URL('/login', request.url);
-      if (pathname.startsWith('/admin') && allowedPrefix !== '/admin') {
-        loginUrl.searchParams.set('adminOnly', '1');
-        loginUrl.searchParams.set('reason', 'admin_only');
-      } else {
-        loginUrl.searchParams.set('reason', 'role_mismatch');
-      }
-      loginUrl.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(new URL(allowedPath, request.url));
     }
 
     // Special case for role 4 or unknown roles trying to access protected areas
     if (!allowedPrefix) {
-      // Fallback for unknown authenticated users
-      return NextResponse.redirect(new URL(getDashboardPathForUser(user), request.url));
+      return NextResponse.redirect(new URL(allowedPath, request.url));
     }
   }
 

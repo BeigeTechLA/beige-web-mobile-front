@@ -10,6 +10,7 @@ import { useTheme } from "next-themes";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { hasModulePermission } from "@/lib/permissions";
+import { getPortalsFromPermissionsOrRoutes } from "@/lib/auth-routing";
 import {
   portalLabels,
   portalSidebarItems,
@@ -70,10 +71,6 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
   const { theme } = useTheme();
   const permissions = useAppSelector((state) => state.auth.permissions);
   const initialPath = useRef(pathname);
-  const isPrivilegedAdminAccount = Boolean(
-    user?.email === "admin@revure.com" ||
-    user?.email === "harsh.panchal@gmail.com",
-  );
 
   const [mounted, setMounted] = useState(false);
   const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
@@ -109,6 +106,12 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
     isSalesAdmin: isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined),
   }), [currentUserTypeId, user]);
 
+  const allowedPortals = useMemo(
+    () => getPortalsFromPermissionsOrRoutes(permissions),
+    [permissions],
+  );
+  const isCustomRole = allowedPortals.length > 1;
+
   const isRouteDisabled = (link?: string) =>
     Boolean(
       portal === "sales" &&
@@ -129,8 +132,18 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
       return true;
     }
 
-    if (isPrivilegedAdminAccount) {
-      return true;
+    if (isCustomRole && item.children?.length) {
+      const anyChildVisible = item.children.some((child) =>
+        Boolean(
+          child.permissionKeys?.length &&
+          hasModulePermission(permissions, child.permissionKeys, child.permissionAction ?? "view"),
+        ) ||
+        (child.isVisible ? child.isVisible(contextState) : false),
+      );
+
+      if (anyChildVisible) {
+        return true;
+      }
     }
 
     if (!item.visibleForUserTypes?.length) {
@@ -138,11 +151,40 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
     }
 
     return currentUserTypeId != null && item.visibleForUserTypes.includes(currentUserTypeId);
-  }, [currentUserTypeId, isPrivilegedAdminAccount, permissions]);
+  }, [contextState, currentUserTypeId, isCustomRole, permissions]);
 
   const visibleItems = useMemo(() => {
-    return portalSidebarItems[portal].filter((item) => canViewItem(item));
-  }, [canViewItem, portal]);
+    const sourceItems = isCustomRole
+      ? Object.values(portalSidebarItems).flat()
+      : portalSidebarItems[portal];
+
+    const seen = new Set<string>();
+    const selectedNames = new Set<string>();
+
+    return sourceItems.filter((item) => {
+      const displayIdentity = item.name.trim().toLowerCase();
+      const permissionIdentity = item.permissionKeys?.length
+        ? item.permissionKeys.map((key) => key.trim().toLowerCase()).sort().join("|")
+        : "";
+      const uniqueKey = isCustomRole
+        ? `${permissionIdentity || displayIdentity}`
+        : `${item.link ?? item.key}-${item.key}`;
+
+      if (seen.has(uniqueKey)) {
+        return false;
+      }
+
+      if (!canViewItem(item)) {
+        return false;
+      }
+
+      seen.add(uniqueKey);
+      if (isCustomRole) {
+        selectedNames.add(displayIdentity);
+      }
+      return true;
+    });
+  }, [canViewItem, isCustomRole, portal]);
 
   const getVisibleChildren = useCallback((item: SidebarItem) => {
     if (!item.children?.length) return [];
@@ -157,10 +199,6 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
         return true;
       }
 
-      if (isPrivilegedAdminAccount) {
-        return true;
-      }
-
       if (child.visibleForUserTypes?.length) {
         if (currentUserTypeId == null || !child.visibleForUserTypes.includes(currentUserTypeId)) {
           return false;
@@ -169,7 +207,7 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
 
       return child.isVisible ? child.isVisible(contextState) : !child.permissionKeys?.length;
     });
-  }, [currentUserTypeId, isPrivilegedAdminAccount, permissions, contextState]);
+  }, [currentUserTypeId, permissions, contextState]);
 
   useEffect(() => {
     setExpanded((prev) => {
@@ -279,9 +317,10 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
             const allChildrenDisabled =
               hasChildren && visibleChildren.every((child) => isRouteDisabled(child.link));
             const isDisabled = (!hasChildren && isRouteDisabled(item.link)) || allChildrenDisabled;
+            const itemKey = `${portal}-${item.link ?? item.key}-${item.key}`;
 
             return (
-              <div key={item.key}>
+              <div key={itemKey}>
                 {hasChildren ? (
                   <button
                     onClick={() => !isDisabled && toggleExpand(item.name)}
@@ -320,10 +359,11 @@ export default function PortalSidebar({ portal, onClose, salesState }: PortalSid
                     {visibleChildren.map((child) => {
                       const activeChild = childIsActive(pathname, child);
                       const childDisabled = isRouteDisabled(child.link);
+                      const childKey = `${portal}-${child.link}-${child.key}`;
 
                       return (
                         <button
-                          key={child.key}
+                          key={childKey}
                           onClick={() => handleNavigation(child.link)}
                           disabled={childDisabled}
                           className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${

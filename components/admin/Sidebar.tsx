@@ -251,16 +251,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             const hasPermissionAccess = Boolean(
               item.permissionKeys?.length && hasModulePermission(permissions, item.permissionKeys, "view"),
             );
-            const canSee = isPrivilegedAdminAccount || hasPermissionAccess;
+            const canSee = item.name === 'Roles & Permissions' || hasPermissionAccess;
             if (!canSee) return null;
 
             const visibleChildren = item.children?.filter((child) => {
               const childHasPermissionAccess = Boolean(
-                child.permissionKeys?.length && hasModulePermission(permissions, child.permissionKeys, child.permissionAction ?? "view"),
+                child.permissionKeys?.length &&
+                hasModulePermission(permissions, child.permissionKeys, child.permissionAction ?? "view"),
               );
-              if (childHasPermissionAccess || isPrivilegedAdminAccount) return true;
-              if (!child.visibleForUserTypes?.length) return !child.permissionKeys?.length;
-              return false;
+              return isPrivilegedAdminAccount || childHasPermissionAccess;
             }) ?? [];
             const hasChildren = visibleChildren.length > 0;
             const isExpanded = expanded.includes(item.name);

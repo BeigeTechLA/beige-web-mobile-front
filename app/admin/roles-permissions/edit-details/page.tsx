@@ -26,8 +26,8 @@ import {
 } from "@/components/admin/roles-permissions/utils";
 import { normalizePermissionsPayload } from "@/lib/permissions";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { setPermissions } from "@/lib/redux/features/auth/authSlice";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
+import { syncEffectiveUserPermissions } from "@/lib/effective-permissions";
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -107,10 +107,7 @@ export default function AdminRoleEditDetailsRoute() {
   const refreshLoggedInUserPermissions = async () => {
     if (loggedInUser?.id) {
       try {
-        const response = await adminApi.getUserPermissions(loggedInUser.id);
-        if (response?.success && response.data) {
-          dispatch(setPermissions(normalizePermissionsPayload(response.data)));
-        }
+        await syncEffectiveUserPermissions(loggedInUser.id, dispatch);
       } catch (err) {
         console.error("Failed to refresh logged-in user permissions:", err);
       }
@@ -167,10 +164,9 @@ export default function AdminRoleEditDetailsRoute() {
 
       const normalizedPermissions = normalizeUserPermissionsPayload(response?.data);
       const hasCustomPermissions = Object.keys(normalizedPermissions).length > 0;
-      const permissionsToApply = hasCustomPermissions ? normalizedPermissions : fallbackPermissions;
 
       const baseRows = buildPermissionRows(modules);
-      setRows(applyPermissionsToRows(baseRows, permissionsToApply));
+      setRows(applyPermissionsToRows(baseRows, fallbackPermissions));
       setUserCustomPermissions(normalizedPermissions);
       setHasUserCustomPermissions(hasCustomPermissions);
     };
@@ -241,10 +237,10 @@ export default function AdminRoleEditDetailsRoute() {
           setCreatedAt(formatDateTime(data.user.created_at));
           setUpdatedAt(formatDateTime(data.role?.updated_at || data.user.created_at));
           setRoleDescription(data.role?.description || "");
-          await loadUserPermissions({
-            nextUserId: String(userId),
-            modules,
-            fallbackPermissions: normalizeUserPermissionsPayload(data.permissions || {}),
+      await loadUserPermissions({
+        nextUserId: String(userId),
+        modules,
+        fallbackPermissions: normalizeUserPermissionsPayload(data.permissions || {}),
           });
         } else {
           setRows(buildPermissionRows());
@@ -354,11 +350,9 @@ export default function AdminRoleEditDetailsRoute() {
       ? modulesResponse.data
       : [];
     const permissionResponse = await adminApi.getUserPermissions(userId);
-    const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
-    const permissionsToApply =
-      Object.keys(normalizedPermissions).length > 0 ? normalizedPermissions : nextPermissions;
+      const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
 
-    setRows(applyPermissionsToRows(buildPermissionRows(modules), permissionsToApply));
+    setRows(applyPermissionsToRows(buildPermissionRows(modules), nextPermissions));
     setUserCustomPermissions(normalizedPermissions);
     setHasUserCustomPermissions(true);
 
@@ -409,10 +403,8 @@ export default function AdminRoleEditDetailsRoute() {
       const fallbackPermissions = normalizeUserPermissionsPayload(
         detailsResponse.data.permissions || {},
       );
-      const permissionsToApply =
-        Object.keys(normalizedPermissions).length > 0 ? normalizedPermissions : fallbackPermissions;
 
-      setRows(applyPermissionsToRows(buildPermissionRows(modules), permissionsToApply));
+      setRows(applyPermissionsToRows(buildPermissionRows(modules), fallbackPermissions));
       setUserCustomPermissions(normalizedPermissions);
       setHasUserCustomPermissions(Object.keys(normalizedPermissions).length > 0);
       setCurrentRoleLabel(

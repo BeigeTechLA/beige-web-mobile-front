@@ -2,10 +2,10 @@ import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
-import { setCredentials, logout as logoutAction, setPermissions } from '../redux/features/auth/authSlice';
+import { setCredentials, logout as logoutAction } from '../redux/features/auth/authSlice';
 import { authApi } from '../redux/features/auth/authApi';
 import { salesApi } from '../redux/features/sales/salesApi';
-import { fetchEffectiveUserPermissions } from '../effective-permissions';
+import { syncEffectiveUserPermissions } from '../effective-permissions';
 import {
   useLoginMutation,
   useRegisterMutation,
@@ -46,7 +46,7 @@ export const useAuth = () => {
   const [registerCreatorStep3Mutation, { isLoading: isStep3Loading }] = useRegisterCreatorStep3Mutation();
 
   // Only fetch current user if we have a token and no user data
-  const { data: currentUserData, refetch: refetchUser } = useGetCurrentUserQuery(undefined, {
+  const { data: currentUserData } = useGetCurrentUserQuery(undefined, {
     skip: !token || !!user,
   });
 
@@ -65,8 +65,7 @@ export const useAuth = () => {
       dispatch(setCredentials({ user: result.user, token: result.token }));
 
       try {
-        const { effectivePermissions } = await fetchEffectiveUserPermissions(result.user.id);
-        dispatch(setPermissions(effectivePermissions));
+        await syncEffectiveUserPermissions(result.user.id, dispatch);
       } catch (error) {
         console.error("Failed to fetch permissions during login:", error);
       }
@@ -140,6 +139,8 @@ export const useAuth = () => {
     // Explicitly clear cookies and localStorage just in case
     Cookies.remove('revure_token');
     Cookies.remove('revure_user');
+    Cookies.remove('revure_portal');
+    Cookies.remove('revure_permissions');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('revure_user');
     }

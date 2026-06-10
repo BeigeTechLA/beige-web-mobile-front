@@ -4,10 +4,10 @@ import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import PortalLayoutShell from "@/components/common/PortalLayoutShell";
-import { fetchEffectiveUserPermissions } from "@/lib/effective-permissions";
-import { canAccessPortalPath, getFirstAllowedPortalPath } from "@/lib/permissions";
+import { syncEffectiveUserPermissions } from "@/lib/effective-permissions";
+import { getFirstAllowedPortalPath } from "@/lib/permissions";
+import { canAccessPortalPath } from "@/lib/portal-routing";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { setPermissions } from "@/lib/redux/features/auth/authSlice";
 
 export default function AffiliateLayout({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
@@ -23,8 +23,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
       const userId = user?.id;
       if (userId) {
         try {
-          const { effectivePermissions } = await fetchEffectiveUserPermissions(userId);
-          dispatch(setPermissions(effectivePermissions));
+          await syncEffectiveUserPermissions(userId, dispatch);
         } catch (error) {
           console.error("AffiliateLayout: Error fetching permissions:", error);
         }

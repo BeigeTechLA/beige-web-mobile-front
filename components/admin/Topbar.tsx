@@ -115,14 +115,14 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
       {/* ==========================================
           DESKTOP VIEW
           ========================================== */}
-      <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4">
+      <div className="hidden lg:flex items-start justify-between px-9 py-6 gap-4">
         {/* Left: Title */}
-        <div className="flex items-center gap-6 shrink-0">
+        <div className="flex min-w-0 items-center gap-6">
           {
             isShootsPage ? (
-              <h1 className={`font-semibold text-lg ${isDark ? "text-white" : "text-[#101010]"}`}>{title || "Shoots Management"}</h1>
+              <h1 className={`min-w-0 truncate font-semibold text-lg ${isDark ? "text-white" : "text-[#101010]"}`}>{title || "Shoots Management"}</h1>
             ) : (
-              <nav className={`flex items-center gap-4 text-sm ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
+              <nav className={`min-w-0 truncate flex items-center gap-4 text-sm ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
                 {paths.map((path, index) => {
                   const isLast = index === paths.length - 1;
                   // CHANGED: Specific check for create-new-deal to show as "create new lead"
@@ -144,7 +144,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
         </div >
 
         {/* Right: Desktop Actions */}
-        < div className="flex items-center gap-3 shrink-0" >
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-3">
           {actions}
 
           {
@@ -158,9 +158,8 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
               </>
             )
           }
-
-        </div >
-      </div >
+        </div>
+      </div>
     </header >
   );
 }

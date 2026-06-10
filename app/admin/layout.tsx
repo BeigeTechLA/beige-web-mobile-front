@@ -4,10 +4,9 @@ import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import PortalLayoutShell from "@/components/common/PortalLayoutShell";
-import { fetchEffectiveUserPermissions } from "@/lib/effective-permissions";
-import { canAccessPortalPath, getFirstAllowedPortalPath } from "@/lib/permissions";
+import { syncEffectiveUserPermissions } from "@/lib/effective-permissions";
+import { canAccessAdminPath, getFirstAllowedPortalPath } from "@/lib/permissions";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { setPermissions } from "@/lib/redux/features/auth/authSlice";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
@@ -24,8 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       if (userId) {
         try {
-          const { effectivePermissions } = await fetchEffectiveUserPermissions(userId);
-          dispatch(setPermissions(effectivePermissions));
+          await syncEffectiveUserPermissions(userId, dispatch);
         } catch (error) {
           console.error("AdminLayout: Error fetching permissions:", error);
         }
@@ -40,7 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!mounted || !permissions) return;
 
-    if (!canAccessPortalPath(pathname, permissions)) {
+    if (!canAccessAdminPath(pathname, permissions)) {
       const fallbackPath = getFirstAllowedPortalPath("admin", permissions);
       if (fallbackPath && fallbackPath !== pathname) {
         router.replace(fallbackPath);

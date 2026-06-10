@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpToLine, Plus, Search } from "lucide-react";
+import { Plus, Search, UserPlus } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { RolesPermissionsPage } from "@/components/admin/RolesPermissionsPage";
@@ -20,8 +20,8 @@ export default function AdminRolesPermissionsRoute() {
           "roles-permissions": "User Roles & Permissions Management",
         }}
         actions={
-          <>
-            <div className="hidden xl:flex items-center h-12 w-[420px] rounded-xl border border-white/10 bg-[#202020] px-4 text-white/70">
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-3">
+            <div className="hidden xl:flex h-12 w-[clamp(220px,26vw,340px)] items-center rounded-xl border border-white/10 bg-[#202020] px-4 text-white/70">
               <Search size={18} className="mr-3 text-white/40" />
               <input
                 type="text"
@@ -32,19 +32,27 @@ export default function AdminRolesPermissionsRoute() {
               />
             </div>
 
-            <Button className="h-12 rounded-xl border border-white/10 bg-[#202020] px-5 text-white hover:bg-white/10">
+            {/* <Button className="h-12 shrink-0 rounded-xl border border-white/10 bg-[#202020] px-5 text-white hover:bg-white/10">
               <ArrowUpToLine size={18} />
               Export
-            </Button>
+            </Button> */}
 
             <Button
               onClick={() => router.push("/admin/roles-permissions/add-new-role")}
-              className="h-12 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
+              className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
             >
               <Plus size={18} />
               Add New Role
             </Button>
-          </>
+
+            <Button
+              onClick={() => router.push("/admin/internal-credentials")}
+              className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
+            >
+              <UserPlus size={18} />
+              Add New User
+            </Button>
+          </div>
         }
       />
 
