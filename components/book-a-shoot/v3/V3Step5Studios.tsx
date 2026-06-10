@@ -441,41 +441,6 @@ export const V3Step5Studios: React.FC<Props> = ({
   const hourlyDraftSelectionsRef = useRef<Record<string, { selectedDate: string; startTime: string; endTime: string; pricingKey?: string }>>({});
   const [hourlyDraftSelections, setHourlyDraftSelections] = useState<Record<string, { selectedDate: string; startTime: string; endTime: string; pricingKey?: string }>>({});
 
-  const syncStudios = async(next: SelectedStudio[]) => {
-    const primaryStudio = next[0];
-    const coords = primaryStudio ? await getCoords(primaryStudio.location) : null;
-
-    const studioStartDateTime = primaryStudio?.selectedDate && primaryStudio?.startTime
-      ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
-      : "";
-    const studioEndDateTime = primaryStudio?.selectedDate && primaryStudio?.endTime
-      ? `${primaryStudio.selectedDate}T${primaryStudio.endTime}:00`
-      : "";
-
-    updateData({
-      selectedStudios: next,
-      selectedStudioIds: next.map((studio) => studio.studioId),
-      selectedStudioImage: next[0]?.image || "",
-      selectedStudioName: next[0]?.name || "",
-      startDate: studioStartDateTime,
-      endDate: studioEndDateTime,
-      location: primaryStudio?.location || "",
-      locationDetails: coords ? { 
-            address: primaryStudio.location, 
-            lat: coords.lat, 
-            lng: coords.lng 
-          } : null,
-      bookingDays: primaryStudio
-        ? [{
-            date: primaryStudio.selectedDate || "",
-            startTime: primaryStudio.startTime,
-            endTime: primaryStudio.endTime,
-            durationHours: primaryStudio.quantity,
-          }]
-        : [],
-    });
-  };
-
   const filteredHourlyStudios = useMemo(() => {
     const sourceOrderMap = new Map(HOURLY_STUDIO_LIST.map((studio, index) => [studio.id, index]));
     return HOURLY_STUDIO_LIST
@@ -571,6 +536,8 @@ export const V3Step5Studios: React.FC<Props> = ({
     const localPayload = {
       selectedStudios: next,
       selectedStudioIds: next.map((studio) => studio.studioId),
+      selectedStudioImage: primaryStudio.image || "",
+      selectedStudioName: primaryStudio.name || "",
       startDate: studioStartDateTime,
       endDate: studioEndDateTime,
       location: primaryStudio.location || "",

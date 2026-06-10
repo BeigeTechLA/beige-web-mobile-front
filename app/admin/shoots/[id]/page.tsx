@@ -17,7 +17,7 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react"; // Added X icon for closing
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
@@ -529,6 +529,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
         {/* Main Content (Left Scroll Window) */}
         <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
+
           <ShootHeader
             activeTab={activeTab}
             project={project}

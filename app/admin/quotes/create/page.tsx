@@ -2723,7 +2723,7 @@ export default function CreateQuotePage() {
     selectedServices,
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
-  const shouldHideBackButton = isQuoteSaved;
+  const shouldHideBackButton = isQuoteSaved || (!isEditMode && !!createdQuoteId);
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
@@ -4914,7 +4914,7 @@ export default function CreateQuotePage() {
 
     setIsSubmittingLineItem(true);
     try {
-      const trimmedName = clampTextLength(customItemName).trim();
+      const trimmedName = customItemName.trim();
       const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, "")) || 0;
       if (!trimmedName) {
         toast.error("Name is required");
@@ -4999,7 +4999,10 @@ export default function CreateQuotePage() {
   const handleUpdateCatalogItem = async () => {
     if (!editCatalogItem || isSavingCatalogEdit) return;
 
-    const trimmedName = clampTextLength(editCatalogName).trim();
+    const trimmedName =
+      editCatalogItem.type === "line_item"
+        ? editCatalogName.trim()
+        : clampTextLength(editCatalogName).trim();
     if (!trimmedName) {
       toast.error("Name is required");
       return;
@@ -6865,9 +6868,8 @@ export default function CreateQuotePage() {
                         placeholder="Eg : Consulting Fee, Rush Delivery..."
                         value={customItemName}
                         onChange={(e) =>
-                          setCustomItemName(clampTextLength(e.target.value))
+                          setCustomItemName(e.target.value)
                         }
-                        maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                         className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
                           ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
                           : "border-[#D7D7D7] text-black placeholder:text-[#9F9FA9] focus:border-[#000]/30"
@@ -8407,9 +8409,17 @@ export default function CreateQuotePage() {
               <Input
                 value={editCatalogName}
                 onChange={(e) =>
-                  setEditCatalogName(clampTextLength(e.target.value))
+                  setEditCatalogName(
+                    editCatalogItem?.type === "line_item"
+                      ? e.target.value
+                      : clampTextLength(e.target.value)
+                  )
                 }
-                maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
+                maxLength={
+                  editCatalogItem?.type === "line_item"
+                    ? undefined
+                    : MAX_QUOTE_OPTION_LABEL_LENGTH
+                }
                 className={`h-11 bg-transparent rounded-xl ${isDark
                   ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
                   : "border-zinc-300 text-black placeholder:text-zinc-400 focus:border-zinc-400"
