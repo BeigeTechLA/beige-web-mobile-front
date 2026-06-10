@@ -812,6 +812,7 @@ export default function QuotePreviewPageShell({
       : errorMessage || "The quote preview could not be loaded.";
   const canContinueToPayment =
     hasValidPublicQuotePreview &&
+    isQuoteSigned &&
     Boolean(effectivePaymentBookingId) &&
     isPublicPaymentAllowedStatus &&
     !isMarkedFullyPaid &&
@@ -948,6 +949,11 @@ export default function QuotePreviewPageShell({
   };
 
   const handleContinueToPayment = () => {
+    if (!isQuoteSigned) {
+      toast.error("Please sign the quote before continuing to payment.");
+      return;
+    }
+
     const bookingId = effectivePaymentBookingId;
     if (!bookingId) {
       toast.error("Booking id missing for payment.");
@@ -1237,7 +1243,7 @@ export default function QuotePreviewPageShell({
                 const bookingId = findBookingId(signatureData) || findBookingId(refreshedQuote) || findBookingId(quote);
                 if (bookingId) {
                   setPaymentBookingId(bookingId);
-                  toast.success(`Booking #${bookingId} is ready. Continue to payment.`);
+                  toast.success(`Booking #${bookingId} is ready for payment.`);
                 }
               }
             } catch (error) {
