@@ -92,25 +92,21 @@ const datePickerColours = {
 
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
-const COACHELLA_SHOOT_TYPE_KEY = "coachella";
-const COACHELLA_EVENT_MESSAGE =
-  "Coachella event coverage is scheduled for April 17, 18, and 19, 2026. Date and time are pre-fixed for this event, so you do not need to select them.";
-const COACHELLA_EVENT_DATES = ["2026-04-17", "2026-04-18", "2026-04-19"];
-const COACHELLA_START_TIME = "09:00";
-const COACHELLA_END_TIME = "17:00";
+const STUDIO_SHOOT_TYPE_KEY = "studio";
+const STUDIO_MESSAGE =
+  "Studio bookings collect date, time, and studio location on the next studio selection page.";
 type ShootTypeOption = (typeof newshootTypes)[number];
-const COACHELLA_SHOOT_TYPE_OPTION: ShootTypeOption = {
-  key: COACHELLA_SHOOT_TYPE_KEY,
-  title: "Coachella",
-  details: "Video podcasts, livestreams",
-  image: "https://d1pgtgqp0jru64.cloudfront.net/Rectangle-3851.png",
+const STUDIO_SHOOT_TYPE_OPTION: ShootTypeOption = {
+  key: STUDIO_SHOOT_TYPE_KEY,
+  title: "Studio",
+  details: "Book a Beige studio by date and time",
+  image: "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
   stats: [],
 };
 
-const withCoachellaOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
-  const nonCoachellaTypes = types.filter((type) => type.key !== COACHELLA_SHOOT_TYPE_KEY);
-  // return [COACHELLA_SHOOT_TYPE_OPTION, ...nonCoachellaTypes];
-  return nonCoachellaTypes;
+const withStudioOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
+  const nonStudioTypes = types.filter((type) => type.key !== STUDIO_SHOOT_TYPE_KEY && type.key !== "coachella");
+  return [STUDIO_SHOOT_TYPE_OPTION, ...nonStudioTypes];
 };
 
 export const V3Step1ChooseService: React.FC<Props> = ({
@@ -134,7 +130,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
 
   const [availableShootTypes, setAvailableShootTypes] = useState<ShootTypeOption[]>(
-    withCoachellaOption(newshootTypes)
+    withStudioOption(newshootTypes)
   );
 
   const [timeOptions, setTimeOptions] = useState<
@@ -234,8 +230,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     [photoEditCounts, photoEditTypeOptions]
   );
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
-  const isCoachellaSelected = data.shootType === COACHELLA_SHOOT_TYPE_KEY;
-  const shouldBypassDateTime = !isEditingOnly && isCoachellaSelected;
+  const isStudioSelected = data.shootType === STUDIO_SHOOT_TYPE_KEY;
+  const shouldBypassDateTime = !isEditingOnly && isStudioSelected;
   const expectedDeliveryDate = React.useMemo(
     () => (data.expectedDeliveryDate ? parseDate(data.expectedDeliveryDate) : null),
     [data.expectedDeliveryDate]
@@ -406,13 +402,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     const isEditing = data.contentType.includes("editing");
 
     if (isVideo && isPhoto) {
-      setAvailableShootTypes(withCoachellaOption(hybridShootTypes)); // video + photo (with or without editing)
+      setAvailableShootTypes(withStudioOption(hybridShootTypes)); // video + photo (with or without editing)
     } else if (isPhoto) {
-      setAvailableShootTypes(withCoachellaOption(photoShootTypes)); // photo only OR editing + photo
+      setAvailableShootTypes(withStudioOption(photoShootTypes)); // photo only OR editing + photo
     } else if (isVideo) {
-      setAvailableShootTypes(withCoachellaOption(videoShootTypes)); // video only OR editing + video
+      setAvailableShootTypes(withStudioOption(videoShootTypes)); // video only OR editing + video
     } else if (isEditing) {
-      setAvailableShootTypes(withCoachellaOption(hybridShootTypes)); // editing only
+      setAvailableShootTypes(withStudioOption(hybridShootTypes)); // editing only
     } else {
       setAvailableShootTypes([]);
     }
@@ -922,10 +918,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         nextPhotoOptions = behindScenesPhotoEditTypes;
         nextPhotoNote = "25 edited photos per hour";
         break;
-      case COACHELLA_SHOOT_TYPE_KEY:
+      case STUDIO_SHOOT_TYPE_KEY:
         nextVideoOptions = corporateEventEditTypes;
         nextPhotoOptions = corporateEventPhotoEditTypes;
-        nextPhotoNote = "No free photo edits included for Coachella event.";
+        nextPhotoNote = "Studio photo edits are calculated from the studio booking duration.";
         break;
       default:
         break;
@@ -1322,27 +1318,21 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     // stats={type.stats}
                     selected={data.shootType === type.key}
                     onClick={() => {
-                      if (type.key === COACHELLA_SHOOT_TYPE_KEY) {
+                      if (type.key === STUDIO_SHOOT_TYPE_KEY) {
                         if (!isEditingOnly) {
-                          setBookingType("multi_day");
-                          setSelectedDates(
-                            COACHELLA_EVENT_DATES.map((date) => new Date(`${date}T00:00:00`))
-                          );
+                          setBookingType("single_day");
+                          setSelectedDates([]);
                           setSameTimingsMulti(true);
                           setMultiDayTimes({});
                           setExpandedDateKey(null);
-                          setSelectedShootDate(new Date(`${COACHELLA_EVENT_DATES[0]}T00:00:00`));
-                          setCurrentCalendarMonth(new Date(`${COACHELLA_EVENT_DATES[0]}T00:00:00`));
                           updateData({
                             shootType: type.key,
-                            bookingType: "multi_day",
-                            startDate: `${COACHELLA_EVENT_DATES[0]}T${COACHELLA_START_TIME}:00`,
-                            endDate: `${COACHELLA_EVENT_DATES[0]}T${COACHELLA_END_TIME}:00`,
-                            bookingDays: COACHELLA_EVENT_DATES.map((date) => ({
-                              date,
-                              startTime: COACHELLA_START_TIME,
-                              endTime: COACHELLA_END_TIME,
-                            })),
+                            bookingType: "single_day",
+                            startDate: "",
+                            endDate: "",
+                            bookingDays: [],
+                            location: "",
+                            locationDetails: null,
                           });
                         } else {
                           updateData({ shootType: type.key });
@@ -1351,8 +1341,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         return;
                       }
 
-                      const switchedFromCoachella = data.shootType === COACHELLA_SHOOT_TYPE_KEY;
-                      if (switchedFromCoachella && !isEditingOnly) {
+                      const switchedFromStudio = data.shootType === STUDIO_SHOOT_TYPE_KEY;
+                      if (switchedFromStudio && !isEditingOnly) {
                         setBookingType("single_day");
                         setSelectedDates([]);
                         setSameTimingsMulti(true);
@@ -1384,11 +1374,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </div>
           </div>
 
-          {isCoachellaSelected && (
+          {isStudioSelected && (
             <div className="pt-6 lg:pt-15 border-t border-white/10">
               <div className="rounded-2xl border border-[#E8D1AB]/40 bg-[#171717] px-4 py-4 lg:px-6 lg:py-5">
                 <p className="text-sm lg:text-base text-[#E8D1AB] leading-relaxed">
-                  {COACHELLA_EVENT_MESSAGE}
+                  {STUDIO_MESSAGE}
                 </p>
               </div>
             </div>

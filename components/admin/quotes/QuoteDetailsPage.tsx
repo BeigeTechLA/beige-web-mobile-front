@@ -65,6 +65,7 @@ import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -262,7 +263,9 @@ const mergeVersionQuoteWithPrimaryContext = (
 
   const incomingLeadId = incoming?.lead_id;
   const incomingBookingId = (incoming as Record<string, unknown>)?.booking_id;
-  const incomingActivities = Array.isArray(incoming?.activities) ? incoming.activities : [];
+   const incomingActivities = Array.isArray(incoming?.activities) && incoming.activities.length > 0 
+    ? incoming.activities 
+    : current.activities;
 
   return {
     ...incoming,
@@ -272,6 +275,7 @@ const mergeVersionQuoteWithPrimaryContext = (
       incomingLeadId !== undefined && incomingLeadId !== null && String(incomingLeadId).trim()
         ? incomingLeadId
         : current.lead_id,
+      activities: incomingActivities,
     booking_id:
       incomingBookingId !== undefined && incomingBookingId !== null && String(incomingBookingId).trim()
         ? incomingBookingId
@@ -602,7 +606,6 @@ const SectionShell = ({
       ) : null}
     </div>
 
-    {/* Dashed Separator Line */}
     <div className={`border-t transition-colors ${isDark ? "border-[#343434]" : "border-[#2B2B2B]"}`} />
 
     <div className="px-5 py-5 lg:px-8 lg:py-7">{children}</div>
@@ -747,12 +750,10 @@ const QuoteTopActions = ({
 
 const DetailRow = ({ label, value, isDark = true }: { label: string; value: string; isDark?: boolean; }) => (
   <div className="flex items-start justify-between gap-4 py-2.5 lg:py-4">
-    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"
-      }`}>
+    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
       {label}
     </p>
-    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"
-      }`}>
+    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
       {value}
     </p>
   </div>
@@ -874,6 +875,7 @@ export default function QuoteDetailsPage({
   const [isSubmittingManualPayment, setIsSubmittingManualPayment] = useState(false);
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const hasTriggeredPaymentActionRef = useRef(false);
+  const [isChangeDetailsModalOpen, setIsChangeDetailsModalOpen] = useState(false);
 
   const refreshSignedQuoteState = useCallback(async () => {
     try {
@@ -1240,6 +1242,7 @@ export default function QuoteDetailsPage({
 
   const clientName = getQuoteText(quote?.client_name, "Client");
   const clientEmail = getQuoteText(quote?.client_email, quote?.guest_email, "N/A") || "N/A";
+
   const clientPhone = getQuoteText(quote?.client_phone, quote?.phone, "N/A") || "N/A";
   const clientAddress =
     getQuoteText(quote?.client_address, quote?.address, quote?.location, "Address not available") ||
@@ -1261,6 +1264,25 @@ export default function QuoteDetailsPage({
       ) || null
     );
   }, [selectedVersionId, versions]);
+
+  const currentVersionActivity = useMemo(() => {
+  const activityId = (selectedVersionMeta as any)?.source_activity_id;
+  if (!activityId) return null;
+
+  const activities = (quote?.activities as any[]) || [];
+  return activities.find(a => Number(a.activity_id) === Number(activityId));
+}, [selectedVersionMeta, quote?.activities]);
+
+  const createdByName = useMemo(() => {
+    const activities = (quote?.activities as any[]) || [];
+    const createActivity = activities.find(a => a.activity_type === 'created');
+    return createActivity?.performed_by?.name || null;
+  }, [quote?.activities]); // Depends on activities
+
+  const updatedByName = useMemo(() => {
+    return currentVersionActivity?.performed_by?.name || null;
+  }, [currentVersionActivity]);
+
   const latestUsableVersionMeta = useMemo(() => {
     if (versions.length === 0) return null;
 
@@ -2077,7 +2099,7 @@ export default function QuoteDetailsPage({
           <button
             type="button"
             onClick={() => router.push(baseHref)}
-            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
+            className="flex items-center gap-2 text-sm lg:text-base text-[#D4D4D4] transition-colors hover:text-white"
           >
             <ArrowLeft size={18} />
             Back
@@ -2123,8 +2145,7 @@ export default function QuoteDetailsPage({
             }`}
           >
             <div
-              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"
-                }`}
+              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"}`}
             >
               <Loader2 size={18} className="animate-spin text-[#E8D1AB]" />
               Loading quote details...
@@ -2182,7 +2203,7 @@ export default function QuoteDetailsPage({
                             </span>
                             {quote?.edit_reason && (
                               <p className="max-w-[300px] text-[13px] italic text-[#8F8F95] line-clamp-2" title={quote.edit_reason}>
-                                {`"${quote.edit_reason}"`}
+                                {`"${(quote.edit_reason)}"`}
                               </p>
                             )}
                           </div>
@@ -2192,6 +2213,29 @@ export default function QuoteDetailsPage({
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
                       <p className="mt-2 text-xs lg:text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] lg:text-xs text-[#7E7E85]">
+                        {createdByName && (
+                            <p>
+                              Created by: <span className="text-white/80 font-medium">{String(createdByName)}</span>
+                            </p>
+                          )}
+                        {updatedByName && Number(selectedVersionNumber) > 1 && (
+                            <div className="flex items-center gap-2">
+                              <span className="hidden lg:inline text-[#4B4B4F]">|</span>
+                              <p>
+                                Updated by: <span className="text-white/80 font-medium">{String(updatedByName)}</span>
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setIsChangeDetailsModalOpen(true)}
+                                className="flex items-center gap-1 rounded-md bg-[#E8D1AB]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#E8D1AB] transition-colors hover:bg-[#E8D1AB]/20"
+                              >
+                                <Eye size={12} />
+                                View Details
+                              </button>
+                            </div>
+                          )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col lg:items-end gap-2">
@@ -2274,9 +2318,10 @@ export default function QuoteDetailsPage({
                   <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
-                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span> {projectDescription}
-                </p>
+                <div className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
+                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span>
+                  <p className="mt-1 whitespace-pre-wrap">{projectDescription}</p>
+                </div>
 
                 <div className={`flex items-start gap-2 text-xs lg:text-sm ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
@@ -2639,7 +2684,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("discounts")}
-                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2649,7 +2694,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
-                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2743,12 +2788,11 @@ export default function QuoteDetailsPage({
 
             {/* --- FLOATING MOBILE BUTTON --- */}
             <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
-
               <Button
                 type="button"
                 onClick={handleRejectQuote}
                 disabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-                className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
+                className="h-10 rounded-lg border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
               >
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
                 {isRejecting ? "Rejecting..." : isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
@@ -2757,7 +2801,7 @@ export default function QuoteDetailsPage({
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
                 disabled={(!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-                className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+                className="h-10 rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
               >
                 <Eye size={18} />
                 Preview Quote
@@ -2819,6 +2863,157 @@ export default function QuoteDetailsPage({
             : "Convert to Booking"
         }
       />
+       <QuoteChangeDetailsModal
+        open={isChangeDetailsModalOpen}
+        onClose={() => setIsChangeDetailsModalOpen(false)}
+        activity={currentVersionActivity}
+        versionNumber={selectedVersionNumber}
+      />
     </div>
   );
 }
+    const QuoteChangeDetailsModal = ({
+      open,
+      onClose,
+      activity,
+      versionNumber
+    }: {
+      open: boolean;
+      onClose: () => void;
+      activity: any;
+      versionNumber: string | number | null;
+    }) => {
+      if (!activity) return null;
+
+      // Accessing data based on your JSON structure
+      const audit = activity.metadata?.audit;
+      const changeSummary = activity.metadata?.change_summary;
+      
+      const changedFields = audit?.changed_fields || [];
+      const addedItems = audit?.line_items?.added || [];
+      const removedItems = audit?.line_items?.removed || [];
+      const updatedItems = audit?.line_items?.updated || []; // New: handling item modifications
+      const summaryLines = changeSummary?.summary_lines || [];
+
+      return (
+        <Dialog open={open} onOpenChange={onClose}>
+          <DialogContent className="max-w-2xl border-[#2B2B2B] bg-[#171717] text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">
+                Version {versionNumber} - Change Details
+              </DialogTitle>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm text-[#8F8F95]">
+                  {activity.message} by <span className="text-white font-medium">{activity.performed_by?.name}</span>
+                </p>
+                <span className="text-[#8F8F95] text-sm">•</span>
+                <p className="text-sm text-[#8F8F95]">{formatQuoteDate(activity.created_at)}</p>
+              </div>
+            </DialogHeader>
+
+            <div className="mt-4 max-h-[60vh] space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+              {/* 1. High Level Summary (summary_lines from JSON) */}
+              {summaryLines.length > 0 && (
+                <div className="rounded-lg bg-[#E8D1AB]/5 p-4 border border-[#E8D1AB]/10">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB] mb-2">Change Summary</h4>
+                  <ul className="space-y-1.5">
+                    {summaryLines.map((line: string, i: number) => (
+                      <li key={i} className="text-sm text-white/90 flex items-start gap-2">
+                        <span className="text-[#E8D1AB] mt-1.5 h-1 w-1 rounded-full bg-[#E8D1AB] shrink-0" />
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* 2. Main Field Updates (Tax, Total, Subtotal) */}
+              {changedFields.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">General Updates</h4>
+                  <div className="overflow-hidden rounded-xl border border-[#2B2B2B] bg-[#111111]">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-white/5 text-[#8F8F95]">
+                        <tr>
+                          <th className="px-4 py-2.5 font-medium">Field</th>
+                          <th className="px-4 py-2.5 font-medium">Previous</th>
+                          <th className="px-4 py-2.5 font-medium">New Value</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#2B2B2B]">
+                        {changedFields.map((field: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="px-4 py-3 font-medium text-white/70">{field.label}</td>
+                            <td className="px-4 py-3 text-[#FCA5A5] line-through opacity-70">{field.display_previous || "Empty"}</td>
+                            <td className="px-4 py-3 text-emerald-400 font-semibold">{field.display_new}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Line Item Changes (Added, Removed, and Updated) */}
+              {(addedItems.length > 0 || removedItems.length > 0 || updatedItems.length > 0) && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">Line Item Details</h4>
+                  <div className="space-y-2">
+                    {/* Items Added */}
+                    {addedItems.map((item: any, idx: number) => (
+                      <div key={`add-${idx}`} className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[12px] text-black font-bold">+</span>
+                          <div>
+                            <p className="text-sm font-medium text-white">{item.item_name}</p>
+                            <p className="text-[10px] text-emerald-400/70 uppercase">{item.section_type}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-400">{formatQuoteCurrency(item.line_total)}</span>
+                      </div>
+                    ))}
+
+                    {/* Items Removed */}
+                    {removedItems.map((item: any, idx: number) => (
+                      <div key={`rem-${idx}`} className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-[12px] text-black font-bold">-</span>
+                          <div>
+                            <p className="text-sm font-medium text-white/60 line-through">{item.item_name}</p>
+                            <p className="text-[10px] text-red-400/70 uppercase">{item.section_type}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold text-red-400">-{formatQuoteCurrency(item.line_total)}</span>
+                      </div>
+                    ))}
+
+                    {/* Items Updated (e.g., Sort Order or Price changes) */}
+                    {updatedItems.map((item: any, idx: number) => (
+                      <div key={`upd-${idx}`} className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-[12px] text-black font-bold">~</span>
+                          <p className="text-sm font-medium text-white">{item.identity?.item_name}</p>
+                        </div>
+                        <div className="pl-9 space-y-1">
+                          {item.changes.map((c: any, i: number) => (
+                            <p key={i} className="text-xs text-[#8F8F95]">
+                              {c.label}: <span className="line-through text-red-400/50">{c.display_previous}</span> → <span className="text-blue-400">{c.display_new}</span>
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end border-t border-[#2B2B2B] pt-4">
+              <Button onClick={onClose} className="h-10 rounded-xl bg-[#E8D1AB] px-8 text-black font-semibold hover:bg-[#E8D1AB]/90">
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    };

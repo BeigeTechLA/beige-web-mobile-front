@@ -12,8 +12,7 @@ export default function AffiliateProfilePage() {
   return (
     <>
       <Topbar pathname={pathname} />
-
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+      <div className="flex h-[calc(100vh-120px)] min-h-0 flex-col overflow-hidden p-4 lg:px-10 lg:py-9" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
         <AffiliateMessages />
       </div>
     </>

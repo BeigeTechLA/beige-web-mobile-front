@@ -6,7 +6,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { Video, Camera, Scissors, MapPin, Plus, Trash2, ExternalLink, Globe, Image as ImageIcon, Eye } from "lucide-react";
+import { Video, Camera, Scissors, Plus, Trash2, ExternalLink, Globe, Image as ImageIcon, Eye } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
@@ -47,7 +47,6 @@ interface FormFields {
 }
 
 export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
-  const COACHELLA_DEFAULT_LOCATION = "Indio, California, United States";
   const { user, isAuthenticated } = useAuth()
 
   // Local state for team members if not stored in main data yet
@@ -65,7 +64,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const navigationRef = useRef<HTMLDivElement>(null);
 
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
-  const isCoachella = data.shootType === "coachella";
+  const isStudio = data.shootType === "studio";
 
    const links = data.referenceLinks || [];
 
@@ -242,16 +241,10 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   // Automatically clear the location error once data.location is truthy
   useEffect(() => {
-    if ((data.location || isCoachella) && errors.includes("locationError")) {
+    if ((data.location || isStudio) && errors.includes("locationError")) {
       setErrors(prev => prev.filter(err => err !== "locationError"));
     }
-  }, [data.location, isCoachella, errors]);
-
-  useEffect(() => {
-    if (isCoachella && data.location !== COACHELLA_DEFAULT_LOCATION) {
-      updateData({ location: COACHELLA_DEFAULT_LOCATION, locationDetails: null });
-    }
-  }, [isCoachella, data.location, updateData]);
+  }, [data.location, isStudio, errors]);
   // const handleNext = async () => {
   //   if (!data.location) {
   //     toast.error("Please select a location");
@@ -307,7 +300,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   // Inside V3Step2MoreDetails.tsx
 
   const handleNext = async () => {
-    if (!isEditingOnly && !isCoachella && !data.location) {
+    if (!isEditingOnly && !isStudio && !data.location) {
       toast.error("Please select a location");
       setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return;
@@ -389,7 +382,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
       const formFields: FormFields = {
         additional_creative: data.addTeamMembers,
-        shoot_location: data.location || (isCoachella ? COACHELLA_DEFAULT_LOCATION : ""),
+        shoot_location: data.location || "",
         additional_details: data.specialInstructions,
         supporting_url: data.referenceLinks
       }
@@ -553,7 +546,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       )}
 
       {/* Location */}
-      {!isEditingOnly && (
+      {!isEditingOnly && !isStudio && (
       <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
         <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3>
         <LocationPicker
@@ -566,15 +559,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           colors={darkThemeColors}
           // error
           hasError={errors.includes("locationError")}
-          disabled={isCoachella}
+          disabled={false}
         />
-        {isCoachella && (
-          <p className="mt-3 text-sm text-[#E8D1AB] flex items-center gap-2">
-            <MapPin size={16} />
-            Location is locked for Coachella events.
-            {/* as they are exclusively held here */}
-          </p>
-        )}
       </div>
       )}
 

@@ -55,6 +55,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const batchPolicySupportedRef = useRef<boolean>(true);
   const batchMetadataSupportedRef = useRef<boolean>(true);
   const previewUrlsRef = useRef<Set<string>>(new Set());
+  const cancelUploadRef = useRef(false);
+  const activeUploadControllersRef = useRef<Set<AbortController>>(new Set());
+  const wasOpenRef = useRef(isOpen);
   const [selectionError, setSelectionError] = useState<string | null>(null);
 
   const uploadedCount = useMemo(
@@ -92,11 +95,17 @@ const UploadModal: React.FC<UploadModalProps> = ({
     };
   }, []);
   useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+
     if (!isOpen) {
       setSelectionError(null);
       setStatusMessage(null);
+    } else if (!wasOpen && !isUploading) {
+      cancelUploadRef.current = false;
+      setStatusMessage(null);
     }
-  }, [isOpen]);
+  }, [isOpen, isUploading]);
 
   if (!isOpen) return null;
 
@@ -180,14 +189,19 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const runWithRetry = async (task: () => Promise<void>) => {
+  const runWithRetry = async <T,>(task: () => Promise<T>, respectCancellation = true): Promise<T> => {
     let lastError: unknown = null;
     for (let attempt = 0; attempt < MAX_UPLOAD_RETRIES; attempt += 1) {
+      if (respectCancellation && cancelUploadRef.current) {
+        throw new Error("Upload cancelled.");
+      }
       try {
-        await task();
-        return;
+        return await task();
       } catch (error) {
         lastError = error;
+        if (respectCancellation && cancelUploadRef.current) {
+          throw error;
+        }
         if (attempt < MAX_UPLOAD_RETRIES - 1) {
           const backoff = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
           await sleep(backoff);
@@ -243,9 +257,40 @@ const UploadModal: React.FC<UploadModalProps> = ({
     uploadPolicy: { url: string; fields: Record<string, string> },
     selectedFile: File
   ) => {
-    await runWithRetry(async () => {
-      await fileManagerApi.uploadExternalFile(uploadPolicy, selectedFile);
+    const abortController = new AbortController();
+    activeUploadControllersRef.current.add(abortController);
+    try {
+      await runWithRetry(async () => {
+        await fileManagerApi.uploadExternalFile(
+          uploadPolicy,
+          selectedFile,
+          undefined,
+          abortController.signal
+        );
+      });
+    } finally {
+      activeUploadControllersRef.current.delete(abortController);
+    }
+  };
+
+  const cancelUpload = () => {
+    if (!isUploading) {
+      setSelectedFiles((prev) => {
+        prev.forEach((item) => revokePreviewUrl(item.previewUrl));
+        return [];
+      });
+      onClose();
+      return;
+    }
+
+    cancelUploadRef.current = true;
+    setStatusMessage("Cancelling upload...");
+    activeUploadControllersRef.current.forEach((controller) => controller.abort());
+    setSelectedFiles((prev) => {
+      prev.forEach((item) => revokePreviewUrl(item.previewUrl));
+      return [];
     });
+    onClose();
   };
 
   const handleUpload = async (mode: "all" | "failedOnly" = "all") => {
@@ -266,6 +311,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
     }
 
     try {
+      cancelUploadRef.current = false;
       setIsUploading(true);
       setStatusMessage(`Uploading 0/${selectedFiles.length} files...`);
       setSelectedFiles((prev) =>
@@ -309,6 +355,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
       const policyChunks = chunkArray(policyRequests, UPLOAD_POLICY_BATCH_SIZE);
       for (let index = 0; index < policyChunks.length; index += 1) {
+        if (cancelUploadRef.current) break;
         const chunk = policyChunks[index];
         setStatusMessage(
           `Preparing upload links ${index + 1}/${policyChunks.length}... Uploaded ${uploaded}/${selectedFiles.length}.`
@@ -355,6 +402,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
         // Fallback when batch endpoint is unavailable
         await runWithConcurrency(chunk, 5, async (item) => {
+          if (cancelUploadRef.current) return;
           try {
             const single = await runWithRetry(async () =>
               fileManagerApi.getExternalUploadPolicy(
@@ -378,9 +426,15 @@ const UploadModal: React.FC<UploadModalProps> = ({
       }
 
       const uploadSingle = async (item: UploadQueueItem) => {
+        if (cancelUploadRef.current) return;
         const selectedFile = item.file;
         const filepath = `${uploadPath.replace(/\/+$/, "")}/${selectedFile.name}`;
         setFileStatus(item.id, "uploading");
+
+        if (cancelUploadRef.current) {
+          setFileStatus(item.id, "queued");
+          return;
+        }
 
         if (policyFailedPaths.has(filepath) || !policyByFilePath.has(filepath)) {
           failed += 1;
@@ -404,6 +458,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
           uploaded += 1;
           setFileStatus(item.id, "uploaded");
         } catch (error: any) {
+          if (cancelUploadRef.current) {
+            setFileStatus(item.id, "queued");
+            return;
+          }
           failed += 1;
           setFileStatus(item.id, "failed", error?.message || "Upload failed.");
         }
@@ -414,7 +472,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
       };
 
       const worker = async () => {
-        while (nextIndex < filesToUpload.length) {
+        while (!cancelUploadRef.current && nextIndex < filesToUpload.length) {
           const currentIndex = nextIndex;
           nextIndex += 1;
           await uploadSingle(filesToUpload[currentIndex]);
@@ -435,15 +493,17 @@ const UploadModal: React.FC<UploadModalProps> = ({
           );
           if (batchMetadataSupportedRef.current) {
             try {
-              const response = await runWithRetry(async () =>
-                fileManagerApi.notifyExternalFilesUploadedBatch(
-                  chunk.map((item) => ({
-                    filepath: item.filepath,
-                    fileContentType: item.fileContentType,
-                    fileSize: item.fileSize,
-                    fileName: item.fileName,
-                  }))
-                )
+              const response = await runWithRetry(
+                async () =>
+                  fileManagerApi.notifyExternalFilesUploadedBatch(
+                    chunk.map((item) => ({
+                      filepath: item.filepath,
+                      fileContentType: item.fileContentType,
+                      fileSize: item.fileSize,
+                      fileName: item.fileName,
+                    }))
+                  ),
+                false
               );
               const metadataItems = Array.isArray((response as any)?.items)
                 ? (response as any).items
@@ -496,8 +556,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
           // Fallback when batch endpoint is unavailable
           await runWithConcurrency(chunk, 5, async (entry) => {
             try {
-              await runWithRetry(async () =>
-                fileManagerApi.notifyExternalFileUploaded(entry.filepath, entry.file)
+              await runWithRetry(
+                async () => fileManagerApi.notifyExternalFileUploaded(entry.filepath, entry.file),
+                false
               );
             } catch (singleError: any) {
               metadataFailed += 1;
@@ -523,6 +584,14 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
       if (uploaded > 0) {
         await onUploadComplete?.();
+      }
+
+      if (cancelUploadRef.current) {
+        setSelectedFiles((prev) =>
+          prev.map((item) => (item.status === "uploading" ? { ...item, status: "queued" } : item))
+        );
+        setStatusMessage(`Upload cancelled. Uploaded ${uploaded}/${selectedFiles.length} files.`);
+        return;
       }
 
       if (failed > 0) {
@@ -561,10 +630,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
         {/* Header */}
         <div className="relative p-3 lg:p-5">
           <button
-            onClick={() => {
-              if (isUploading) return;
-              onClose();
-            }}
+            onClick={cancelUpload}
             className={`absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
               }`}
           >
@@ -706,15 +772,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
         {/* Footer Actions */}
         <div className="flex items-center gap-3 p-3 pt-0 lg:p-5 lg:pt-3">
           <button
-            onClick={() => {
-              if (isUploading) return;
-              onClose();
-            }}
+            onClick={cancelUpload}
             className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:flex-none lg:min-w-[90px] ${isDark ? "bg-white text-black" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
               }`}
-            disabled={isUploading}
           >
-            Cancel
+            {isUploading ? "Cancel Upload" : "Cancel"}
           </button>
           <button
             onClick={handleUpload}

@@ -21,6 +21,8 @@ type CreativeWithDistance = {
   role?: string;
   availability?: string;
   location?: string;
+  email?: string;
+  phone_number?: string;
   rating?: number | string;
   hourly_rate?: number | string;
   is_beige_member?: number;
@@ -181,6 +183,7 @@ export const CreativeProfileSelectorAdd = ({
 
 
   const roleType = externalRoleType || 'videographer';
+  const hasActiveSearch = searchQuery.trim().length > 0;
   const activeBucketLimits = useMemo(
     () => CREATIVE_RADIUS_OPTIONS.filter((limit) => limit <= appliedFilters.radius),
     [appliedFilters.radius]
@@ -268,14 +271,14 @@ export const CreativeProfileSelectorAdd = ({
             project_id: projectId,
             role_type: roleType,
             search_query: debouncedSearch || undefined,
-            radius: appliedFilters.radius
+            radius: debouncedSearch ? 99999 : appliedFilters.radius
           });
         } else {
           response = await salesApi.getCrewForLead({
             lead_id: leadId || 0,
             role_type: roleType,
             search_query: debouncedSearch || undefined,
-            radius: appliedFilters.radius,
+            radius: debouncedSearch ? 99999 : appliedFilters.radius,
             latitude: Number.isFinite(currentLatitude) ? currentLatitude : undefined,
             longitude: Number.isFinite(currentLongitude) ? currentLongitude : undefined
           });
@@ -316,12 +319,27 @@ export const CreativeProfileSelectorAdd = ({
 
     fetchCreatives();
   }, [disableCrewFetch, leadId, projectId, stats?.location, currentLocation, currentLatitude, currentLongitude, roleType, debouncedSearch, appliedFilters.radius]);
-
   const selectedIds = externalSelectedIds || internalSelectedIds;
 
   const filteredCreatives = creatives.filter((creative) => {
-    const fullName = `${creative.first_name || ''} ${creative.last_name || ''} ${creative.name || ''}`.toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase());
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    if (!normalizedSearch) return true;
+
+    const searchableText = [
+      creative.first_name,
+      creative.last_name,
+      creative.name,
+      creative.email,
+      creative.phone_number,
+      creative.location,
+      creative.specialities,
+      creative.role,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchableText.includes(normalizedSearch);
   });
 
   const groupedCreatives = useMemo<RadiusBucket[]>(() => {
@@ -360,8 +378,8 @@ export const CreativeProfileSelectorAdd = ({
       items,
     };
   }, [filteredCreatives, viewMode]);
-
   const radiusFilteredCreatives = useMemo(() => {
+    if (debouncedSearch) return filteredCreatives;
     return filteredCreatives.filter((creative) => {
       const bucket = parseWorkingDistance(creative.working_distance);
 
@@ -376,6 +394,8 @@ export const CreativeProfileSelectorAdd = ({
       return bucket <= appliedFilters.radius;
     });
   }, [appliedFilters.radius, filteredCreatives]);
+
+  const visibleCreatives = hasActiveSearch ? filteredCreatives : radiusFilteredCreatives;
 
   const counts = useMemo(() => {
     let vCount = 0;
@@ -454,7 +474,7 @@ export const CreativeProfileSelectorAdd = ({
   return (
     <div className={`transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <h3 className={`text-xl font-medium transition-colors ${isDark ? "text-white/90" : "text-black/90"}`}>
+        <h3 className={`text-lg lg:text-xl font-medium transition-colors ${isDark ? "text-white/90" : "text-black/90"}`}>
           Select Creative Profile
         </h3>
 
@@ -487,13 +507,13 @@ export const CreativeProfileSelectorAdd = ({
               placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full border rounded-xl py-3 pl-10 pr-4 outline-none transition-all ${isDark
+              className={`h-10 lg:h-14 w-full border rounded-lg lg:rounded-xl py-3 pl-10 pr-4 outline-none transition-all ${isDark
                 ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50"
                 : "bg-white border-[#D8D8D8] text-black focus:border-[#E8D1AB]"
                 }`}
             />
           </div>
-            {/* <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
+          {/* <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
           <button
             onClick={() => setViewMode('list')}
             className={`p-3 transition-colors ${viewMode === 'list' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
@@ -510,7 +530,7 @@ export const CreativeProfileSelectorAdd = ({
           {/* FILTER TRIGGER */}
           <button
             onClick={() => setIsFilterOpen(true)}
-            className={`flex items-center gap-2 border px-6 py-3 rounded-xl transition-all active:scale-95 ${isDark
+            className={`flex items-center gap-2 border h-10 lg:h-14 px-6 py-3 rounded-lg lg:rounded-xl transition-all active:scale-95 ${isDark
               ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-white/5"
               : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
               }`}
@@ -521,12 +541,27 @@ export const CreativeProfileSelectorAdd = ({
         </div>
       </div>
 
+      <div className={`mb-5 rounded-xl border px-4 py-3 transition-colors ${isDark
+        ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/10 text-white"
+        : "border-[#D9C19A] bg-[#FFF8EC] text-black"
+        }`}>
+        <p className="text-sm font-medium">
+          {hasActiveSearch
+            ? "Searching all creative partners. Select any matching CP to assign them to this shoot."
+            : `Showing available CPs around the shoot location within ${appliedFilters.radius} miles.`}
+        </p>
+        <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+          {hasActiveSearch
+            ? "Clear the search to return to nearby CPs around the shoot location."
+            : "If you want a different CP, use search to find from all creative partners."}
+        </p>
+      </div>
+
       {/* Creative List Container */}
-      <div className={`border rounded-2xl p-4 md:p-8 transition-colors ${
-        isDark ? "bg-black border-white/5" : "bg-black border-[#D8D8D8]"
-      } ${viewMode === 'grid' ? "space-y-4" : "space-y-4 lg:space-y-8"}`}>
+      <div className={`border rounded-xl lg:rounded-2xl p-4 lg:p-8 transition-colors ${isDark ? "bg-black border-white/5" : "bg-white border-[#D8D8D8]"
+        } ${viewMode === 'grid' ? "space-y-4" : "space-y-4 lg:space-y-8"}`}>
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-10">
+          <div className="flex flex-col items-center justify-center py-5 lg:py-10">
             <Loader2 className="mb-4 animate-spin text-[#E8D1AB]" size={32} />
           </div>
         ) : viewMode === 'grid' ? (
@@ -538,30 +573,24 @@ export const CreativeProfileSelectorAdd = ({
                 return (
                   <div
                     key={`${bucket.lowerBound}-${bucket.upperBound}`}
-                    className={`overflow-hidden rounded-2xl border transition-colors ${
-                      isDark ? "border-white/10 bg-white/[0.02]" : "border-black/10 bg-black/[0.02]"
-                    }`}
+                    className={`overflow-hidden rounded-lg lg:rounded-2xl border transition-colors ${isDark ? "border-white/10 bg-white/[0.02]" : "border-black/10 bg-black/[0.02]"}`}
                   >
                     <button
                       type="button"
                       onClick={() => toggleBucket(bucket.upperBound)}
-                      className={`flex w-full items-center justify-between gap-3 px-4 py-4 text-left md:px-6 ${
-                        isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.03]"
-                      }`}
+                      className={`flex w-full items-center justify-between gap-3 px-3 py-4 text-left md:px-6 ${isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.03]"}`}
                     >
                       <div>
-                        <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                        <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
                           {bucket.label}
                         </p>
-                        <p className={isDark ? "text-sm text-white/45" : "text-sm text-black/45"}>
+                        <p className={isDark ? "text-xs lg:text-sm text-white/45" : "text-xs lg:text-sm text-black/45"}>
                           {bucket.items.length} creative{bucket.items.length === 1 ? "" : "s"}
                         </p>
                       </div>
                       <ChevronDown
                         size={18}
-                        className={`transition-transform ${isExpanded ? "rotate-180" : ""} ${
-                          isDark ? "text-white/60" : "text-black/60"
-                        }`}
+                        className={`transition-transform ${isExpanded ? "rotate-180" : ""} ${isDark ? "text-white/60" : "text-black/60"}`}
                       />
                     </button>
 
@@ -586,30 +615,24 @@ export const CreativeProfileSelectorAdd = ({
 
               {travelingCreatives && (
                 <div
-                  className={`overflow-hidden rounded-2xl border transition-colors ${
-                    isDark ? "border-white/10 bg-white/[0.02]" : "border-black/10 bg-black/[0.02]"
-                  }`}
+                  className={`overflow-hidden rounded-lg lg:rounded-2xl border transition-colors ${isDark ? "border-white/10 bg-white/[0.02]" : "border-black/10 bg-black/[0.02]"}`}
                 >
                   <button
                     type="button"
                     onClick={() => toggleBucket(999)}
-                    className={`flex w-full items-center justify-between gap-3 px-4 py-4 text-left md:px-6 ${
-                      isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.03]"
-                    }`}
+                    className={`flex w-full items-center justify-between gap-3 px-2 py-4 text-left md:px-6 ${isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.03]"}`}
                   >
                     <div>
-                      <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                      <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
                         {travelingCreatives.label}
                       </p>
-                      <p className={isDark ? "text-sm text-white/45" : "text-sm text-black/45"}>
+                      <p className={isDark ? "text-xs lg:text-sm text-white/45" : "text-xs lg:text-sm text-black/45"}>
                         {travelingCreatives.items.length} creative{travelingCreatives.items.length === 1 ? "" : "s"}
                       </p>
                     </div>
                     <ChevronDown
                       size={18}
-                      className={`transition-transform ${expandedBuckets.includes(999) ? "rotate-180" : ""} ${
-                        isDark ? "text-white/60" : "text-black/60"
-                      }`}
+                      className={`transition-transform ${expandedBuckets.includes(999) ? "rotate-180" : ""} ${isDark ? "text-white/60" : "text-black/60"}`}
                     />
                   </button>
 
@@ -631,13 +654,13 @@ export const CreativeProfileSelectorAdd = ({
                 </div>
               )}
             </>
-        ) : (
-            <div className={`text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
+          ) : (
+            <div className={`text-center py-4 lg:py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
               No creatives found for {roleType} in this location.
             </div>
           )
-        ) : radiusFilteredCreatives.length > 0 ? (
-          radiusFilteredCreatives.map((creative, index) => (
+        ) : visibleCreatives.length > 0 ? (
+          visibleCreatives.map((creative, index) => (
             <React.Fragment key={creative.id || index}>
               <CreativeCard
                 creative={creative}
@@ -647,12 +670,12 @@ export const CreativeProfileSelectorAdd = ({
                 isDark={isDark}
                 viewMode={viewMode}
               />
-              {viewMode === 'list' && index !== radiusFilteredCreatives.length - 1 && <Separator />}
+              {viewMode === 'list' && index !== visibleCreatives.length - 1 && <Separator />}
             </React.Fragment>
           ))
         ) : (
           <div className={`text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
-            No creatives found for {roleType} in this location.
+            {hasActiveSearch ? "No creative partners found for this search." : `No creatives found for ${roleType} in this location.`}
           </div>
         )}
       </div>
@@ -676,24 +699,22 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
   const experienceLabel = `${String(creative.shoots || 0).padStart(2, '0')} Years`;
   const locationLabel = formatLocation(creative.location);
 
-    return (
+  return (
     <div
       onClick={onToggle}
-            className={`relative group flex transition-all border rounded-2xl cursor-pointer overflow-hidden ${
-              isGrid ? "flex-col h-full min-h-[430px] p-0" : "p-4 flex-col md:flex-row items-center md:items-start gap-6"
-                } ${
-                  isGrid
-                    ? (isSelected
-                        ? (isDark ? 'bg-white/[0.08] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
-                        : (isDark ? 'bg-white/[0.08] border-white/10 hover:bg-white/[0.06]' : 'bg-transparent border-transparent hover:bg-gray-50'))
-                    : (isSelected
-                        ? (isDark ? 'bg-white/[0.04] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
-                        : (isDark ? 'bg-transparent border-transparent hover:bg-white/[0.02]' : 'bg-transparent border-transparent hover:bg-gray-50'))
-              }`}
-            >
+      className={`relative group flex transition-all border rounded-lg lg:rounded-2xl cursor-pointer overflow-hidden ${isGrid ? "flex-col h-full min-h-[430px] p-0" : "p-4 flex-col md:flex-row items-center md:items-start gap-6"
+        } ${isGrid
+          ? (isSelected
+            ? (isDark ? 'bg-white/[0.08] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
+            : (isDark ? 'bg-white/[0.08] border-white/10 hover:bg-white/[0.06]' : 'bg-transparent border-transparent hover:bg-gray-50'))
+          : (isSelected
+            ? (isDark ? 'bg-white/[0.04] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
+            : (isDark ? 'bg-transparent border-transparent hover:bg-white/[0.02]' : 'bg-transparent border-transparent hover:bg-gray-50'))
+        }`}
+    >
       {isGrid ? (
         <>
-          <div className="relative w-full overflow-hidden rounded-[22px]">
+          <div className="relative w-full overflow-hidden rounded-xl lg:rounded-[22px]">
             <div className="relative aspect-square w-full overflow-hidden">
               {imageSrc ? (
                 <img
@@ -702,7 +723,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
                   className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${!isSelected ? 'grayscale-[0.15]' : ''}`}
                 />
               ) : (
-                <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-3xl font-semibold ${!isSelected ? 'grayscale-[0.15]' : ''}`}>
+                <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-xl lg:text-3xl font-semibold ${!isSelected ? 'grayscale-[0.15]' : ''}`}>
                   {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                 </div>
               )}
@@ -710,46 +731,59 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
 
             <div className="absolute right-4 top-4">
               <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border transition-all ${
-                isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')
-                }`}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}
               >
                 {isSelected && <Check size={18} className="text-black stroke-[3px]" />}
               </div>
             </div>
           </div>
 
-          <div className="flex w-full flex-1 flex-col px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
+          <div className="flex w-full flex-1 flex-col px-4 py-4 lg:px-5 lg:pb-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                  <h3 className="truncate text-[1.35rem] leading-none font-medium text-white sm:text-[1.45rem]">
+                  <h3 className={`truncate text-lg lg:text-2xl leading-none font-medium transition-colors ${isDark ? "text-white" : "text-black"
+                    }`}>
                     {creative.name}
                   </h3>
-                  <span className="inline-flex items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-[11px] font-semibold leading-none text-white">
+                  <span className="inline-flex items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold leading-none text-white">
                     {creative.status}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-4 border-t border-white/15 pt-4 text-white/90">
+            {/* Experience and Specialities Row */}
+            <div className={`mt-2 lg:mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-2 lg:gap-4 border-t pt-4 transition-colors ${isDark ? "border-white/15 text-white/90" : "border-[#e3e3e3] text-black/80"}`}>
               <div>
-                <p className="mb-1 text-[13px] text-white/45">Experience:</p>
-                <p className="text-[15px] font-medium text-white">{experienceLabel}</p>
+                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
+                  Experience:
+                </p>
+                <p className={`text-sm lg:text-base font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                  {experienceLabel}
+                </p>
               </div>
 
-              <div className="mt-1 h-8 w-px bg-white/20" />
+              <div className={`mt-1 h-8 w-px transition-colors ${isDark ? "bg-white/20" : "bg-[#e3e3e3]"}`} />
 
               <div>
-                <p className="mb-1 text-[13px] text-white/45">Specialities:</p>
-                <p className="text-[15px] font-medium leading-tight text-white">{creative.specialities}</p>
+                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
+                  Specialities:
+                </p>
+                <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                  {creative.specialities}
+                </p>
               </div>
             </div>
 
-            <div className="mt-4 border-t border-white/15 pt-4">
-              <p className="mb-1 text-[13px] text-white/45">Location:</p>
-              <p className="text-[15px] font-medium leading-tight text-white">{locationLabel}</p>
+            {/* Location Row */}
+            <div className={`mt-4 border-t pt-4 transition-colors ${isDark ? "border-white/15" : "border-[#e3e3e3]"}`}>
+              <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
+                Location:
+              </p>
+              <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                {locationLabel}
+              </p>
             </div>
           </div>
         </>
@@ -764,7 +798,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
                 className="w-full h-full object-cover rounded-lg"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-[#E8D1AB] rounded-lg text-black text-2xl font-bold">
+              <div className="w-full h-full flex items-center justify-center bg-[#E8D1AB] rounded-lg text-black text-lg lg:text-2xl font-bold">
                 {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
               </div>
             )}
@@ -774,7 +808,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
           <div className="flex-1 w-full flex flex-col">
             <div className="flex justify-between items-center mb-3 w-full">
               <div className="flex items-center gap-3">
-                <h3 className={`font-medium transition-colors lg:text-[22px] ${isDark ? "text-white" : "text-black"}`}>
+                <h3 className={`font-medium transition-colors text-lg lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
                   {creative.name}
                 </h3>
                 <span className="bg-[#16A34A] text-[#fff] text-[10px] font-semibold px-2 py-0.5 rounded-lg capitalize">
@@ -782,16 +816,12 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
                 </span>
               </div>
 
-              <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${
-                isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')
-              }`}>
+              <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}>
                 {isSelected && <Check size={18} className="text-black stroke-[3px]" />}
               </div>
             </div>
 
-            <div className={`flex gap-4 text-sm border-t pt-3 w-full transition-colors ${
-              isDark ? "border-white/5" : "border-gray-100"
-            } flex-row`}>
+            <div className={`flex gap-4 text-sm border-t pt-3 w-full transition-colors ${isDark ? "border-white/5" : "border-gray-100"} flex-row`}>
               <div>
                 <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Experience:</p>
                 <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{(creative.shoots || 0)} Yrs</p>
@@ -813,9 +843,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
                   e.stopPropagation();
                   onViewProfile();
                 }}
-                className={`text-sm font-medium px-5 py-2 rounded-lg transition-colors w-full md:w-auto ${
-                  isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d9bc90]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
-                }`}
+                className={`text-sm font-medium px-5 py-2 rounded-lg transition-colors w-full md:w-auto ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d9bc90]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
               >
                 View Profile
               </button>
@@ -826,6 +854,4 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
     </div>
   );
 };
-
-
 

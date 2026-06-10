@@ -353,7 +353,7 @@ const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
   "Ready for Payment",
   "Payment Sent",
   "Booked",
-  "Closed – Lost",
+  "Closed - Lost",
 ];
 
 const SHOOT_STAGE_OPTIONS = [

@@ -130,6 +130,32 @@ const StatusBadge = ({ status, mobile }: { status: UserStatus; mobile?: boolean 
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
+const normalizeSearchQuery = (value: string) => value.trim().replace(/\s+/g, " ");
+
+const getCrewSearchParam = (value: string) => {
+  const tokens = normalizeSearchQuery(value).split(" ").filter(Boolean);
+  if (tokens.length <= 1) return value;
+
+  return tokens.reduce((longest, token) => (token.length > longest.length ? token : longest), tokens[0]);
+};
+
+const matchesCreativePartnerSearch = (user: CreativePartner, searchValue: string) => {
+  const tokens = normalizeSearchQuery(searchValue).toLowerCase().split(" ").filter(Boolean);
+  if (tokens.length === 0) return true;
+
+  const searchableText = [
+    user.id,
+    user.name,
+    user.email,
+    user.location,
+    user.role,
+    user.status,
+    user.joinDate,
+  ].join(" ").toLowerCase();
+
+  return tokens.every((token) => searchableText.includes(token));
+};
+
 export const CreativePartnersTable = () => {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -145,6 +171,9 @@ export const CreativePartnersTable = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const normalizedSearch = normalizeSearchQuery(debouncedSearch);
+  const hasMultiWordSearch = normalizedSearch.includes(" ");
+  const crewSearchParam = getCrewSearchParam(normalizedSearch);
   const [expandedRows, setExpandedRows] = useState(new Set());
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -230,11 +259,11 @@ export const CreativePartnersTable = () => {
       setLoading(true);
       try {
         const params: any = {
-          page: currentPage,
-          limit: limit,
+          page: hasMultiWordSearch ? 1 : currentPage,
+          limit: hasMultiWordSearch ? 200 : limit,
         };
 
-        if (debouncedSearch) params.search = debouncedSearch;
+        if (crewSearchParam) params.search = crewSearchParam;
         if (statusFilter !== "all") params.status = statusFilter;
 
         const response = await adminApi.getCrewMembers(params);
@@ -299,7 +328,15 @@ export const CreativePartnersTable = () => {
               imageUrl,
             };
           });
-          setUsers(mappedUsers);
+          const visibleUsers = normalizedSearch
+            ? mappedUsers.filter((user: CreativePartner) => matchesCreativePartnerSearch(user, normalizedSearch))
+            : mappedUsers;
+
+          setUsers(visibleUsers);
+          if (hasMultiWordSearch) {
+            setTotalRecords(visibleUsers.length);
+            setTotalPages(1);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch creative partners:", error);
@@ -309,7 +346,7 @@ export const CreativePartnersTable = () => {
     };
     if (!filtersInitialized) return;
     fetchCreativePartners();
-  }, [currentPage, limit, debouncedSearch, statusFilter, filtersInitialized]);
+  }, [currentPage, limit, normalizedSearch, hasMultiWordSearch, crewSearchParam, statusFilter, filtersInitialized]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     // Prevent navigation if clicking on action buttons
@@ -478,7 +515,10 @@ export const CreativePartnersTable = () => {
               type="text"
               placeholder="Search ..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
                 }`} />
           </div>
