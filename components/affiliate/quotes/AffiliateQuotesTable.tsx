@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Loader2, Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { format as formatDateFns } from "date-fns";
 import { SortDateButton } from "@/components/admin/SortDateButton";
@@ -362,6 +362,7 @@ export default function AffiliateQuotesTable({
   const [selectedSalesperson, setSelectedSalesperson] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const hasLoadedOnceRef = useRef(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const clientUserId = user?.id != null ? String(user.id) : "";
 
@@ -472,7 +473,7 @@ export default function AffiliateQuotesTable({
           return (
             createdAtDate !== null &&
             formatDateFns(createdAtDate, "yyyy-MM-dd") ===
-              formatDateFns(selectedDate, "yyyy-MM-dd")
+            formatDateFns(selectedDate, "yyyy-MM-dd")
           );
         })();
 
@@ -515,7 +516,7 @@ export default function AffiliateQuotesTable({
     !loading && !hasActiveFilters && !errorMessage && normalizedQuotes.length === 0;
 
   return (
-    <div className="min-h-screen">
+    <div className={`min-h-screen overflow-hidden ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
       <TopbarComponent pathname={pathname} />
 
       <div
@@ -524,27 +525,22 @@ export default function AffiliateQuotesTable({
       >
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <h1 className={`text-lg font-semibold lg:text-2xl lg:leading-[32px] ${isDark ? "text-white" : "text-[#000]"}`}>
-              Quotes
-            </h1>
-            <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
+            <h1 className="mb-2 font-semibold lg:text-2xl">Quotes Module</h1>
+            <p className={`text-xs lg:text-sm ${isDark ? "text-[#FFFFFFB2]" : "text-[#000000B2]"}`}>
               View your client-specific quotes only.
             </p>
           </div>
-
           <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
         </div>
 
         {loading ? (
           <div
-            className={`flex min-h-[320px] items-center justify-center rounded-[32px] ${
-              isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
-            }`}
+            className={`flex min-h-[320px] items-center justify-center rounded-[32px] ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
+              }`}
           >
             <div
-              className={`flex items-center gap-3 text-sm ${
-                isDark ? "text-white/70" : "text-black/70"
-              }`}
+              className={`flex items-center gap-3 text-sm ${isDark ? "text-white/70" : "text-black/70"
+                }`}
             >
               <Loader2 size={18} className="animate-spin text-[#E5D5B8]" />
               Loading quotes...
@@ -552,9 +548,8 @@ export default function AffiliateQuotesTable({
           </div>
         ) : showEmptyState ? (
           <div
-            className={`rounded-[32px] border px-6 py-20 text-center ${
-              isDark ? "border-[#3D3D3D] bg-[#161616]" : "border-[#E5E5E5] bg-white"
-            }`}
+            className={`rounded-[32px] border px-6 py-20 text-center ${isDark ? "border-[#3D3D3D] bg-[#161616]" : "border-[#E5E5E5] bg-white"
+              }`}
           >
             <h2 className={`text-xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
               No quotes found
@@ -568,9 +563,7 @@ export default function AffiliateQuotesTable({
             <div className="mb-6 flex flex-col gap-4 md:flex-row">
               <div className="relative flex-1">
                 <Search
-                  className={`absolute left-4 top-1/2 -translate-y-1/2 ${
-                    isDark ? "text-zinc-500" : "text-black/70"
-                  }`}
+                  className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-zinc-500" : "text-black/70"}`}
                   size={18}
                 />
                 <input
@@ -578,9 +571,8 @@ export default function AffiliateQuotesTable({
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   placeholder="Search by client name, quote number..."
-                  className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${
-                    isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E3E3E3] bg-white"
-                  }`}
+                  className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E3E3E3] bg-white"
+                    }`}
                 />
                 {isRefreshing && (
                   <Loader2
@@ -589,14 +581,13 @@ export default function AffiliateQuotesTable({
                   />
                 )}
               </div>
-              <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="flex gap-4 flex-row">
                 <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
                   <SelectTrigger
-                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-[#161616] text-white/70"
-                        : "border-[#E3E3E3] bg-white text-black/70"
-                    }`}
+                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${isDark
+                      ? "border-[#3D3D3D] bg-[#161616] text-white/70"
+                      : "border-[#E3E3E3] bg-white text-black/70"
+                      }`}
                   >
                     <SelectValue placeholder="All Salesperson" />
                   </SelectTrigger>
@@ -618,11 +609,10 @@ export default function AffiliateQuotesTable({
 
                 <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
                   <SelectTrigger
-                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-[#161616] text-white/70"
-                        : "border-[#E3E3E3] bg-white text-black/70"
-                    }`}
+                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${isDark
+                      ? "border-[#3D3D3D] bg-[#161616] text-white/70"
+                      : "border-[#E3E3E3] bg-white text-black/70"
+                      }`}
                   >
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
@@ -646,43 +636,37 @@ export default function AffiliateQuotesTable({
 
             {errorMessage ? (
               <div
-                className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
-                  isDark
-                    ? "border-[#5C2B2B] bg-[#2A1313] text-[#FFB4B4]"
-                    : "border-[#F5C2C7] bg-[#FFF5F5] text-[#B42318]"
-                }`}
+                className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${isDark
+                  ? "border-[#5C2B2B] bg-[#2A1313] text-[#FFB4B4]"
+                  : "border-[#F5C2C7] bg-[#FFF5F5] text-[#B42318]"
+                  }`}
               >
                 {errorMessage}
               </div>
             ) : null}
 
-            <div
-              className={`mb-20 overflow-hidden rounded-2xl md:mb-0 ${
-                isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
-              }`}
-            >
-              <table className="w-full text-left">
+            <div className={`mb-5 lg:mb-20 overflow-hidden rounded-2xl md:mb-0 ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"}`}>
+              <table className="w-full text-left border-collapse">
                 <thead>
+                  {/* Desktop Headers */}
                   <tr
-                    className={`hidden rounded-b-lg border-b text-sm capitalize md:table-row ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
-                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
-                    }`}
+                    className={`hidden rounded-b-lg border-b text-sm capitalize md:table-row ${isDark
+                      ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                      }`}
                   >
                     <th className="w-[25%] px-6 py-4 font-medium">Client Name</th>
-                    <th className="w-[18%] px-6 py-4 font-medium">Project</th>
-                    <th className="w-[12%] px-6 py-4 font-medium">Amount</th>
+                    <th className="w-[15%] px-6 py-4 font-medium">Project</th>
+                    <th className="w-[15%] px-6 py-4 font-medium">Amount</th>
                     <th className="w-[15%] px-6 py-4 font-medium">Quote Status</th>
                     <th className="w-[15%] px-6 py-4 font-medium">Valid Until</th>
                     <th className="w-[15%] px-6 py-4 font-medium">Salesperson</th>
                   </tr>
                   <tr
-                    className={`border-b text-sm md:hidden ${
-                      isDark
-                        ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
-                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
-                    }`}
+                    className={`border-b text-sm md:hidden ${isDark
+                      ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                      }`}
                   >
                     <th className="px-4 py-4 font-medium">Client Name</th>
                     <th className="px-4 py-4 text-right font-medium">Quote Status</th>
@@ -691,164 +675,180 @@ export default function AffiliateQuotesTable({
 
                 <tbody className="text-sm">
                   {paginatedQuotesData.length > 0 ? (
-                    paginatedQuotesData.map((quote) => (
-                      <tr
-                        key={quote.id}
-                        onClick={() => router.push(`/affiliate/quotes/${quote.id}`)}
-                        className={`border-b transition-colors ${
-                          isDark
-                            ? "cursor-pointer border-[#3D3D3D]/50 hover:bg-white/5"
-                            : "cursor-pointer border-[#E3E3E3] hover:bg-black/5"
-                        }`}
-                      >
-                        <td className="px-4 py-4 md:px-6">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${quote.color} font-bold text-xs`}
-                            >
-                              {quote.initials}
-                            </div>
-                            <div>
-                              <div className="font-medium">{quote.client}</div>
-                              <div
-                                className={`text-sm md:block ${
-                                  isDark ? "text-white/40" : "text-black/45"
-                                }`}
-                              >
-                                {quote.location}
-                              </div>
-                              {quote.quoteNumber ? (
-                                <div
-                                  className={`text-xs md:block ${
-                                    isDark ? "text-white/25" : "text-black/30"
-                                  }`}
-                                >
-                                  {quote.quoteNumber}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                        </td>
-                        <td
-                          className={`hidden max-w-0 w-full px-6 py-4 md:table-cell ${
-                            isDark ? "text-white" : "text-black"
-                          }`}
-                        >
-                          <p className="truncate">{quote.project}</p>
-                        </td>
-                        <td className="hidden px-6 py-4 font-medium md:table-cell">
-                          {formatCurrency(quote.amountValue)}
-                        </td>
-                        <td className="px-4 py-4 text-right md:px-6 md:text-left">
-                          <span
-                            className={`inline-flex w-fit items-center justify-center whitespace-nowrap rounded-full border px-3 py-1 text-[12px] font-medium leading-none md:text-sm ${quote.statusColor}`}
+                    paginatedQuotesData.map((quote) => {
+                      const isExpanded = expandedRowId === quote.id;
+
+                      return (
+                        <React.Fragment key={quote.id}>
+                          {/* Main Row */}
+                          <tr
+                            key={quote.id}
+                            onClick={() => {
+                              // On mobile: toggle expand. On desktop: navigate.
+                              if (window.innerWidth < 768) {
+                                setExpandedRowId(isExpanded ? null : quote.id);
+                              } else {
+                                router.push(`/affiliate/quotes/${quote.id}`)
+                              }
+                            }}
+                            className={`group cursor-pointer rounded-b-lg border-b transition-colors ${isDark ? "border-[#3D3D3D]/50 hover:bg-white/5" : "border-[#E3E3E3] hover:bg-black/5"} ${isExpanded ? (isDark ? "bg-[#202020] border-none" : "bg-[#F9F9F9] border-none") : ""}`}
                           >
-                            {quote.status}
-                          </span>
-                        </td>
-                        <td
-                          className={`hidden px-6 py-4 md:table-cell ${
-                            isDark ? "text-white" : "text-black"
-                          }`}
-                        >
-                          {quote.validUntil}
-                        </td>
-                        <td
-                          className={`hidden px-6 py-4 md:table-cell ${
-                            isDark ? "text-white" : "text-black"
-                          }`}
-                        >
-                          {quote.salesperson}
-                        </td>
-                      </tr>
-                    ))
+                            <td className="px-4 py-4 md:px-6">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors ${isExpanded
+                                    ? isDark
+                                      ? "border-[#E8D1AB] text-[#E8D1AB]"
+                                      : "border-black text-black"
+                                    : isDark
+                                      ? "border-[#4B4B4B] text-[#777674]"
+                                      : "border-[#E3E3E3] text-black"
+                                    }`}
+                                >
+                                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </div>
+                                <div className={`flex h-5 w-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-sm lg:rounded-xl ${quote.color} font-medium lg:font-semibold text-[10px] lg:text-sm`}>
+                                  {quote.initials}
+                                </div>
+                                <div>
+                                  <div className="lg:font-medium">{quote.client}</div>
+                                  {/* <div
+                                  className={`text-sm md:block ${isDark ? "text-white/40" : "text-black/45"}`}
+                                >
+                                  {quote.location}
+                                </div> */}
+                                  {quote.quoteNumber ? (
+                                    <div
+                                      className={`text-xs md:block ${isDark ? "text-white/25" : "text-black/30"
+                                        }`}
+                                    >
+                                      {quote.quoteNumber}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="hidden px-6 py-4 md:table-cell max-w-0 w-full"><p className="truncate">{quote.project}</p></td>
+                            <td className="hidden px-6 py-4 font-medium md:table-cell">
+                              {formatCurrency(quote.amountValue)}
+                            </td>
+                            <td className="px-4 py-4 text-right md:px-6 md:text-left">
+                              <span className={`inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 ${quote.statusColor}`}
+                              >
+                                {quote.status}
+                              </span>
+                            </td>
+                            <td className="hidden px-6 py-4 md:table-cell">
+                              {quote.validUntil}
+                            </td>
+                            <td className="hidden px-6 py-4 md:table-cell">{quote.salesperson}</td>
+                          </tr>
+
+                          {/* Mobile Expanded Detail Row */}
+                          {isExpanded && (
+                            <tr className={`lg:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
+                              <td colSpan={2} className="relative overflow-visible pl-14 pr-4 pb-4 pt-0">
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                                    <div>
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Project</p>
+                                      <p className={`font-medium truncate ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.project}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Amount</p>
+                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{formatCurrency(quote.amountValue)}</p>
+                                    </div>
+                                    <div>
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Valid Until</p>
+                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.validUntil}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Salesperson</p>
+                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.salesperson}</p>
+                                    </div>
+                                    <div>
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Location</p>
+                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.location}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Action</p>
+                                      <button
+                                        onClick={() => router.push(`/affiliate/quotes/${quote.id}`)}
+                                        className={`font-medium underline underline-offset-4 ${isDark ? "text-[#E8D1AB]" : "text-[#B18A00]"}`}>View Details</button>
+                                    </div>
+                                  </div>
+
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td
                         colSpan={6}
-                        className={`px-6 py-16 text-center text-sm ${
-                          isDark ? "text-white/45" : "text-black/45"
-                        }`}
+                        className={`px-6 py-16 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}
                       >
                         No quotes matched the current search or filters.
                       </td>
                     </tr>
                   )}
                 </tbody>
+
+                {/* 1. Integrated Pagination Row */}
+                {filteredQuotesData.length > 0 && totalListPages > 1 && (
+                  <tfoot>
+                    <tr className={isDark ? "bg-[#101010]" : "bg-[#fff]"}>
+                      <td colSpan={7} className="px-4 py-4 md:px-6">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-[#999]"}`}>
+                            Showing {listStartIndex + 1} to {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of {totalFilteredQuotes}
+                          </div>
+
+                          <div className="flex items-center justify-between md:justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                              disabled={safeCurrentPage === 1}
+                              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
+                                ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                                : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                                }`}
+                            >
+                              <ChevronLeft size={24} />
+                            </button>
+                            <div className="flex items-center gap-1">
+                              {paginationItems.map((item, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => typeof item === 'number' && setCurrentPage(item)}
+                                  className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all  ${safeCurrentPage === item ? ("bg-[#E5D5B8] text-black") : isDark
+                                    ? "text-white/60 hover:bg-white/5"
+                                    : "text-[#666] hover:bg-black/5"
+                                    }`}
+                                >
+                                  {item}
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setCurrentPage((prev) => Math.min(totalListPages, prev + 1))}
+                              disabled={safeCurrentPage === totalListPages}
+                              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"}`}
+                            >
+                              <ChevronRight size={24} />
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
-
-            {filteredQuotesData.length > 0 && totalListPages > 1 ? (
-              <div
-                className={`flex flex-col gap-4 rounded-2xl border px-5 py-4 md:flex-row md:items-center md:justify-between ${
-                  isDark ? "border-[#3D3D3D] bg-[#161616]" : "border-[#E5E5E5] bg-[#FFFCF6]"
-                }`}
-              >
-                <div className={`text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
-                  Showing {listStartIndex + 1} to{" "}
-                  {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of{" "}
-                  {totalFilteredQuotes} results
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    disabled={safeCurrentPage === 1}
-                    className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
-                      isDark
-                        ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
-                        : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
-                    }`}
-                  >
-                    Previous
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    {paginationItems.map((item, index) =>
-                      item === "..." ? (
-                        <span
-                          key={`pagination-gap-${index}`}
-                          className={`px-2 text-xs ${
-                            isDark ? "text-white/30" : "text-black/30"
-                          }`}
-                        >
-                          ...
-                        </span>
-                      ) : (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => setCurrentPage(item)}
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-all ${
-                            safeCurrentPage === item
-                              ? "bg-[#E5D5B8] text-black"
-                              : isDark
-                                ? "text-white/60 hover:bg-white/5 hover:text-white"
-                                : "text-[#666666] hover:bg-black/5"
-                          }`}
-                        >
-                          {item}
-                        </button>
-                      )
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((prev) => Math.min(totalListPages, prev + 1))}
-                    disabled={safeCurrentPage === totalListPages}
-                    className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
-                      isDark
-                        ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
-                        : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
-                    }`}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            ) : null}
           </>
         )}
       </div>

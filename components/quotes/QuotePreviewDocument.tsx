@@ -359,7 +359,7 @@ export default function QuotePreviewDocument({
           <p className="text-[10px] font-semibold uppercase text-[#71717B] lg:text-sm">
             Project Description
           </p>
-          <p className="mt-1 lg:mt-2 text-xs lg:text-base">{projectDescription}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-xs lg:mt-2 lg:text-base">{projectDescription}</p>
         </div>
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />

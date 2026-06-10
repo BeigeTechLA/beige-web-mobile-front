@@ -1,4 +1,5 @@
 import apiClient from "@/lib/apiClient";
+import axios from "axios";
 
 export interface ExternalChatUser {
   id?: string | number;
@@ -289,4 +290,38 @@ export const externalChatApi = {
     });
     return response.data || null;
   },
+async uploadFile(roomId: string, file: File, sender?: ExternalChatUser | null) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("roomId", roomId);
+  if (sender?.id != null) {
+    formData.append("senderId", String(sender.id));
+  }
+
+  const Cookies = (await import("js-cookie")).default;
+  const token = Cookies.get("revure_token");
+
+  const socketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "http://localhost:5002").replace(/\/+$/, "");
+  
+  const directAxios = axios.create();
+  const response = await directAxios.post(`${socketUrl}/v1/external-chat/upload`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+      "x-internal-key": process.env.NEXT_PUBLIC_INTERNAL_CHAT_KEY || "beige-internal-dev-key",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  const data = response.data?.data;
+  if (!data?.filePath && !data?.fileUrl) return null;
+
+  const s3Prefix = String(process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-dev.s3.us-east-1.amazonaws.com/beige/").replace(/\/+$/, "");
+  const fileUrl = data.fileUrl || `${s3Prefix}/${data.filePath}`;
+
+  return {
+    fileUrl,
+    fileName: data.fileName,
+    fileType: data.fileType,
+  };
+},
 };

@@ -231,15 +231,19 @@ const getServiceIcon = (name: string) => {
 const SectionShell = ({
   title,
   children,
+  isDark = true,
 }: {
   title: string;
   children: React.ReactNode;
+  isDark?: boolean;
 }) => (
-  <section className="rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
-    <div className="px-5 py-5 lg:px-8 lg:py-7">
-      <h2 className="text-[18px] font-semibold text-white lg:text-[20px]">{title}</h2>
+  <section className={`rounded-lg lg:rounded-[26px] border transition-colors ${isDark ? "border-[#2B2B2B] bg-[#171717]" : "border-[#000000]/10 bg-white"}`}>
+    <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-7">
+      <h2 className={`lg:text-lg font-semibold lg:text-xl transition-colors ${isDark ? "text-white" : "text-[#000000AD]"}`}>{title}</h2>
     </div>
-    <div className="border-t border-dashed border-[#343434]" />
+
+    <div className={`border-t transition-colors ${isDark ? "border-[#343434]" : "border-[#2B2B2B]"}`} />
+
     <div className="px-5 py-5 lg:px-8 lg:py-7">{children}</div>
   </section>
 );
@@ -254,15 +258,15 @@ const ServiceLineCard = ({
   const detailLabel = item.subtitle || (shootType ? `(${shootType})` : "");
 
   return (
-    <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-5">
+    <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4 lg:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
+          <div className="flex h-11 w-11 lg:h-14 lg:w-14 shrink-0 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
             {getServiceIcon(item.name)}
           </div>
           <div className="min-w-0 flex-1">
             <p
-              className="break-words text-[17px] font-semibold leading-7 text-white"
+              className="break-words lg:text-lg font-semibold leading-5 lg:leading-7 text-white"
               title={detailLabel ? `${item.name} - ${detailLabel}` : item.name}
             >
               {item.name}
@@ -274,14 +278,14 @@ const ServiceLineCard = ({
 
       <div className="mt-5 border-t border-[#2B2B2B]" />
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3 text-[#8F8F95]">
-          <p className="text-base">Quantity</p>
-          <p className="text-base">Duration</p>
-          <p className="text-base">Crew Size</p>
-          <p className="text-base">Estimate Pricing</p>
+      <div className="mt-5 grid gap-2 lg:gap-4 grid-cols-2">
+        <div className="space-y-2 lg:space-y-3 text-[#8F8F95]">
+          <p className="text-sm lg:text-base">Quantity</p>
+          <p className="text-sm lg:text-base">Duration</p>
+          <p className="text-sm lg:text-base">Crew Size</p>
+          <p className="text-sm lg:text-base">Estimate Pricing</p>
         </div>
-        <div className="space-y-3 text-left text-[18px] font-semibold text-white lg:text-right">
+        <div className="space-y-2 lg:space-y-3 text-left text-sm lg:lg:text-lg font-semibold text-white lg:text-right">
           <p>{String(item.quantity).padStart(2, "0")}</p>
           <p>{item.duration > 0 ? `${String(item.duration).padStart(2, "0")} Hours` : "-"}</p>
           <p>{item.crew > 0 ? String(item.crew).padStart(2, "0") : "-"}</p>
@@ -321,27 +325,27 @@ const QuoteTopActions = ({
         type="button"
         onClick={onSignAndAccept}
         disabled={signDisabled}
-        className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
+        className="h-11 rounded-lg lg:rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
       >
         {isSigning ? <Loader2 size={18} className="animate-spin" /> : <Signature size={18} />}
         {isSigning ? "Saving..." : "Sign And Accept"}
       </Button>
     ) : null}
     {showReject ? (
-    <Button
-      type="button"
-      onClick={onReject}
-      disabled={rejectDisabled}
-      className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90"
-    >
-      {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
-      {isRejecting ? "Rejecting..." : "Reject Quote"}
-    </Button>): null}
+      <Button
+        type="button"
+        onClick={onReject}
+        disabled={rejectDisabled}
+        className="hidden lg:flex h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90"
+      >
+        {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
+        {isRejecting ? "Rejecting..." : "Reject Quote"}
+      </Button>) : null}
     <Button
       type="button"
       onClick={onPreview}
       disabled={previewDisabled}
-      className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
+      className="hidden lg:flex h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed"
     >
       <Eye size={18} />
       Preview Quote
@@ -349,10 +353,14 @@ const QuoteTopActions = ({
   </div>
 );
 
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-start justify-between gap-4 py-4">
-    <p className="shrink-0 text-base text-[#8F8F95]">{label}</p>
-    <p className="max-w-[65%] break-words text-right text-base font-semibold text-white">{value}</p>
+const DetailRow = ({ label, value, isDark = true }: { label: string; value: string; isDark?: boolean; }) => (
+  <div className="flex items-start justify-between gap-4 py-2.5 lg:py-4">
+    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
+      {label}
+    </p>
+    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+      {value}
+    </p>
   </div>
 );
 
@@ -441,7 +449,7 @@ export default function AffiliateQuoteDetailsPage({
   const isFixedDiscount = ["fixed", "fixed_amount"].includes(discountType);
   const rawDiscountAmount = quote
     ? getQuoteNumber(quote.discount_amount) ??
-      (discountType.includes("percent") ? subtotal * (discountValue / 100) : discountValue)
+    (discountType.includes("percent") ? subtotal * (discountValue / 100) : discountValue)
     : 0;
   const discountAmount = Math.min(rawDiscountAmount, subtotal);
   const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
@@ -615,7 +623,7 @@ export default function AffiliateQuoteDetailsPage({
         void handleRejectQuote();
       }}
       onPreview={() => setIsPreviewOpen(true)}
-      showSignAndAccept={!["accepted","rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      showSignAndAccept={!["accepted", "rejected", "cancelled"].includes(normalizedQuoteStatus)}
       showReject={!["accepted", "rejected", "cancelled"].includes(normalizedQuoteStatus)}
       signDisabled={!quote || loading || isSigning || normalizedQuoteStatus === "accepted"}
       isSigning={isSigning}
@@ -639,11 +647,10 @@ export default function AffiliateQuoteDetailsPage({
 
   return (
     <div
-      className={`quote-editor-theme min-h-screen ${
-        isDark
-          ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
-          : "quote-editor-theme-light bg-[#F4F5F7] text-black"
-      }`}
+      className={`quote-editor-theme min-h-screen ${isDark
+        ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+        : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+        }`}
     >
       <TopbarComponent pathname={pathname} actions={topbarActions} breadcrumbOverrides={breadcrumbOverrides} />
 
@@ -654,7 +661,7 @@ export default function AffiliateQuoteDetailsPage({
           <button
             type="button"
             onClick={() => router.push(baseHref)}
-            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
+            className="flex items-center gap-2 text-sm lg:text-base text-[#D4D4D4] transition-colors hover:text-white"
           >
             <ArrowLeft size={18} />
             Back
@@ -662,16 +669,29 @@ export default function AffiliateQuoteDetailsPage({
         </div>
 
         {loading ? (
-          <div className="flex min-h-[360px] items-center justify-center rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
-            <div className="flex items-center gap-3 text-base text-[#D4D4D8]">
+          <div className={`flex min-h-[360px] items-center justify-center rounded-[26px] border transition-colors ${isDark
+            ? "border-[#2B2B2B] bg-[#171717]"
+            : "border-[#000000]/10 bg-white"
+            }`}
+          >
+            <div
+              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"}`}
+            >
               <Loader2 size={18} className="animate-spin text-[#E8D1AB]" />
               Loading quote details...
             </div>
           </div>
         ) : !quote ? (
-          <div className="rounded-[26px] border border-[#2B2B2B] bg-[#171717] p-8 text-center">
-            <p className="text-xl font-semibold text-white">Quote details unavailable</p>
-            <p className="mt-3 text-sm text-[#A1A1AA]">
+          <div
+            className={`rounded-[26px] border p-8 text-center transition-colors ${isDark
+              ? "border-[#2B2B2B] bg-[#171717]"
+              : "border-[#000000]/10 bg-white"
+              }`}
+          >
+            <p className={`text-xl font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+              Quote details unavailable
+            </p>
+            <p className={`mt-3 text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
               {errorMessage || "The selected quote could not be loaded."}
             </p>
             <Button
@@ -683,35 +703,35 @@ export default function AffiliateQuoteDetailsPage({
             </Button>
           </div>
         ) : (
-          <div className="space-y-6">
-            <SectionShell title="Client Information">
-              <div className="flex flex-col gap-6">
+          <div className="space-y-3 lg:space-y-6 pb-12 lg:pb-0">
+            <SectionShell title="Client Information" isDark={isDark}>
+              <div className="flex flex-col gap-3 lg:gap-6">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 items-start gap-4">
-                    <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[22px] bg-[#F3D9A7] text-[24px] font-semibold text-black">
+                    <div className="flex h-12 w-12 lg:h-[74px] lg:w-[74px] shrink-0 items-center justify-center rounded-xl lg:rounded-[22px] bg-[#F3D9A7] text-lg lg:text-2xl font-semibold text-black">
                       {getInitials(clientName)}
                     </div>
                     <div className="min-w-0">
-                      <p className="break-words text-[26px] font-semibold leading-tight text-white">
+                      <p className="break-words text-lg lg:text-[26px] font-semibold leading-tight text-white">
                         {clientName}
                       </p>
-                      <p className="mt-1 text-[24px] font-medium text-[#D8BC87]">
+                      <p className="mt-1 lg:text-[24px] font-medium text-[#D8BC87]">
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
-                      <p className="mt-2 text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
+                      <p className="mt-2 text-xs lg:text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
+                  <div className="flex flex-col lg:items-end gap-2">
                     <span
-                      className={`inline-flex h-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
+                      className={`inline-flex h-fit w-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
                         quoteStatus
                       )}`}
                     >
                       {formatStatusLabel(quoteStatus)}
                     </span>
                     {signatureBase64 && !["rejected", "cancelled"].includes(normalizedQuoteStatus) ? (
-                      <div className="mt-3 flex flex-col items-end gap-2">
-                        <div className="rounded-lg border border-white/10 bg-white p-2">
+                      <div className="mt-3 flex flex-col items-center lg:items-end gap-2">
+                        <div className="border border-white/10 rounded-lg p-2 bg-white">
                           <Image
                             src={signatureBase64}
                             alt="Signature"
@@ -729,36 +749,42 @@ export default function AffiliateQuoteDetailsPage({
                 </div>
 
                 {isConvertedToBooking ? (
-                  <div className="rounded-[20px] border border-[#86EFAC]/20 bg-[#DCFCE7] px-5 py-4">
-                    <p className="text-sm font-semibold text-[#166534]">{conversionMessage}</p>
+                  <div className="rounded-lg lg:rounded-[20px] border border-[#86EFAC]/20 bg-[#DCFCE7] p-3 lg:px-5 lg:py-4">
+                    <p className="text-xs lg:text-sm font-semibold text-[#166534]">
+                      {conversionMessage}
+                    </p>
                     {conversionMetaLabel ? (
                       <p className="mt-1 text-xs text-[#15803D]">{conversionMetaLabel}</p>
                     ) : null}
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#9B9BA1]">
+                <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm transition-colors ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
                   <span className="break-all">{`Email ID : ${clientEmail}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
                   <span className="break-all">{`Phone Number : ${clientPhone}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
                   <span>{`Valid Until : ${validUntil}`}</span>
-                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                  <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
                   <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className="break-words text-sm leading-7 text-[#B3B3B8]">
-                  <span className="text-[#8F8F95]">Project Description :</span> {projectDescription}
-                </p>
+                <div className={`break-words text-xs lg:text-sm leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#000000]/70"}`}>
+                  <span className={isDark ? "text-[#8F8F95]" : "text-[#000000]/70"}>Project Description :</span>
+                  <p className="mt-1 whitespace-pre-wrap">{projectDescription}</p>
+                </div>
 
-                <div className="flex items-start gap-2 text-sm text-[#9B9BA1]">
+                <div className={`flex items-start gap-2 text-xs lg:text-sm ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
                   <span className="break-words">{clientAddress}</span>
                 </div>
               </div>
             </SectionShell>
 
-            <SectionShell title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}>
+            <SectionShell
+              title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
+              isDark={isDark}
+            >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
                   {serviceItems.map((item) => (
@@ -770,17 +796,23 @@ export default function AffiliateQuoteDetailsPage({
               )}
             </SectionShell>
 
-            <SectionShell title="Add-On Includes">
+            <SectionShell
+              title="Add-On Includes"
+              isDark={isDark}
+            >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
                   {addonItems.map((item) => (
                     <div
                       key={item.id}
                       title={`${item.name} x ${item.quantity}`}
-                      className="min-w-0 max-w-full rounded-[14px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 sm:max-w-[360px]"
+                      className={`min-w-0 max-w-full rounded-lg lg:rounded-[14px] border p-3 lg:px-5 lg:py-4 sm:max-w-[360px] transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111]"
+                        : "border-[#000000]/10 bg-white"
+                        }`}
                     >
-                      <p className="truncate text-[18px] font-medium text-[#D8BC87]">{item.name}</p>
-                      <p className="mt-1 text-sm text-[#8F8F95]">Qty: {item.quantity}</p>
+                      <p className="truncate text-sm lg:text-lg font-medium text-[#D8BC87]">{item.name}</p>
+                      <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>Qty: {item.quantity}</p>
                     </div>
                   ))}
                 </div>
@@ -789,14 +821,19 @@ export default function AffiliateQuoteDetailsPage({
               )}
             </SectionShell>
 
-            <SectionShell title="Logistics">
+            <SectionShell title="Logistics"
+              isDark={isDark}
+            >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
                   {logisticsItems.map((item) => (
                     <div
                       key={item.id}
                       title={item.name}
-                      className="min-w-0 max-w-full rounded-[14px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 text-[18px] text-[#9B9BA1] sm:max-w-[360px]"
+                      className={`min-w-0 max-w-full rounded-lg lg:rounded-[14px] border p-3 lg:px-5 lg:py-4 text-sm lg:text-lg sm:max-w-[360px] transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111] text-[#9B9BA1]"
+                        : "border-[#000000]/10 bg-white text-[#000000]/60"
+                        }`}
                     >
                       <p className="truncate">{item.name}</p>
                     </div>
@@ -807,21 +844,27 @@ export default function AffiliateQuoteDetailsPage({
               )}
             </SectionShell>
 
-            <SectionShell title="Custom Line Item">
+            <SectionShell
+              title="Custom Line Item"
+              isDark={isDark}
+            >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
                   {customItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex flex-col gap-3 rounded-[18px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
+                      className={`flex flex-col gap-1.5 lg:gap-3 rounded-lg lg:rounded-[18px] border p-3 lg:px-5 lg:py-4 lg:flex-row lg:items-center lg:justify-between transition-colors ${isDark
+                        ? "border-[#2B2B2B] bg-[#111111]"
+                        : "border-[#000000]/10 bg-white"
+                        }`}
                     >
                       <span
-                        className="min-w-0 flex-1 break-words pr-0 text-[20px] font-medium text-white lg:pr-6"
+                        className="min-w-0 flex-1 break-words pr-0 text-sm lg:text-[20px] font-medium text-white lg:pr-6"
                         title={item.name}
                       >
                         {item.name}
                       </span>
-                      <span className="shrink-0 text-[22px] font-semibold text-[#D8BC87]">
+                      <span className="shrink-0 text-sm lg:text-[22px] font-semibold text-[#D8BC87]">
                         {formatQuoteCurrency(item.amount)}
                       </span>
                     </div>
@@ -832,83 +875,108 @@ export default function AffiliateQuoteDetailsPage({
               )}
             </SectionShell>
 
-            <SectionShell title="Other Details">
-              <div className="space-y-6">
-                <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
+            <SectionShell
+              title="Other Details"
+              isDark={isDark}
+            >
+              <div className="space-y-3 lg:space-y-6">
+                <div className="inline-flex rounded-lg lg:rounded-2xl border border-[#2B2B2B] bg-[#111111] p-1">
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("discounts")}
-                    className={`rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${
-                      otherDetailsTab === "discounts" ? "bg-[#E8D1AB] text-black" : "text-[#8F8F95]"
-                    }`}
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
+                      ? "bg-[#E8D1AB] text-black"
+                      : "text-[#8F8F95]"
+                      }`}
                   >
                     Discounts
                   </button>
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
-                    className={`rounded-[12px] px-5 py-2.5 text-sm font-semibold transition-colors ${
-                      otherDetailsTab === "tax" ? "bg-[#E8D1AB] text-black" : "text-[#8F8F95]"
-                    }`}
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
+                      ? "bg-[#E8D1AB] text-black"
+                      : "text-[#8F8F95]"
+                      }`}
                   >
                     Tax
                   </button>
                 </div>
 
                 {otherDetailsTab === "discounts" ? (
-                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
+                  <div
+                    className={`rounded-lg lg:rounded-[22px] border px-4 lg:px-5 py-2 transition-colors ${isDark
+                      ? "border-[#2B2B2B] bg-[#111111]"
+                      : "border-[#000000]/10 bg-white"
+                      }`}
+                  >
                     <div className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
-                        <p className="text-[24px] font-semibold text-white">Discount Type</p>
-                        <p className="mt-1 text-sm text-[#8F8F95]">
+                        <p className={`lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+                          Discount Type
+                        </p>
+                        <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
                           {isFixedDiscount ? "$ off subtotal" : "% off subtotal"}
                         </p>
                       </div>
-                      <div className="inline-flex items-center gap-3 rounded-[16px] bg-[#1A1A1A] px-4 py-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#E8D1AB] text-black">
+
+                      {/* Type Badge Metric Display */}
+                      <div className={`inline-flex items-center gap-3 rounded-lg lg:rounded-2xl px-4 py-3 transition-colors ${isDark ? "bg-[#1A1A1A]" : "bg-[#000000]/[0.02] border border-[#000000]/5"}`}>
+                        <div className={`flex h-11 w-11 items-center justify-center rounded-xl transition-colors bg-[#E8D1AB] text-black`}>
                           {isFixedDiscount ? <DollarSign size={20} /> : <Percent size={20} />}
                         </div>
                         <div>
-                          <p className="text-[18px] font-semibold text-white">
+                          <p className={`lg:text-lg font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                             {isFixedDiscount ? "Fixed Amount" : "Percentage"}
                           </p>
-                          <p className="text-sm text-[#8F8F95]">
+                          <p className={`text-xs lg:text-sm transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
                             {isFixedDiscount ? formatQuoteCurrency(discountValue) : `${discountValue}%`}
                           </p>
                         </div>
                       </div>
                     </div>
-                    <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Discount Amount" value={formatQuoteCurrency(discountAmount)} />
-                    <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
+
+                    {/* Row Data Metrics Panels */}
+                    <div className={`border-t transition-colors ${isDark ? "border-[#2B2B2B]" : "border-[#000000]/10"}`} />
+                    <DetailRow
+                      label="Discount Amount"
+                      value={formatQuoteCurrency(discountAmount)}
+                      isDark={isDark}
+                    />
+
+                    <div className={`border-t transition-colors ${isDark ? "border-[#2B2B2B]" : "border-[#000000]/10"}`} />
+                    <DetailRow
+                      label="Total After Discount"
+                      value={formatQuoteCurrency(discountedSubtotal)}
+                      isDark={isDark}
+                    />
                   </div>
                 ) : (
-                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
-                    <DetailRow label="Tax Type" value={taxType} />
+                  <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
+                    <DetailRow label="Tax Type" value={taxType} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Tax Rate" value={`${taxRate}%`} />
+                    <DetailRow label="Tax Rate" value={`${taxRate}%`} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} />
+                    <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} isDark={isDark} />
                   </div>
                 )}
 
-                <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
-                  <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} />
+                <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
+                  <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} isDark={isDark} />
                   {discountAmount > 0 ? (
                     <>
                       <div className="border-t border-[#2B2B2B]" />
-                      <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
+                      <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} isDark={isDark} />
                     </>
                   ) : null}
                   <div className="border-t border-[#2B2B2B]" />
-                  <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} />
+                  <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} isDark={isDark} />
                 </div>
 
                 {terms.length > 0 ? (
-                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-5">
-                    <p className="text-[18px] font-semibold text-white">Terms & Conditions</p>
-                    <div className="mt-4 space-y-2 text-sm leading-7 text-[#B3B3B8]">
+                  <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4 lg:p-5">
+                    <p className="lg:text-lg font-semibold text-white">Terms & Conditions</p>
+                    <div className={`mt-4 lg:space-y-2 text-xs lg:text-sm leading-4 lg:leading-7 ${isDark ? "text-[#B3B3B8]" : "text-[#71717B]"}`}>
                       {terms.map((term, index) => (
                         <p key={`${term}-${index}`}>{term}</p>
                       ))}
@@ -917,6 +985,28 @@ export default function AffiliateQuoteDetailsPage({
                 ) : null}
               </div>
             </SectionShell>
+
+            {/* --- FLOATING MOBILE BUTTON --- */}
+            <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
+              <Button
+                type="button"
+                onClick={handleRejectQuote}
+                disabled={!quote || loading || isRejecting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                className="h-10 rounded-lg border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
+              >
+                {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
+                {isRejecting ? "Rejecting..." : "Reject Quote"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setIsPreviewOpen(true)}
+                disabled={!quote || loading}
+                className="h-10 rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+              >
+                <Eye size={18} />
+                Preview Quote
+              </Button>
+            </div>
           </div>
         )}
       </div>

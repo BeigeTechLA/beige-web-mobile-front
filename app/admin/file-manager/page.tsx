@@ -565,8 +565,7 @@ export default function AdminFolderManagerPage() {
           <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
             {/* Search Input Container Block */}
             <div className="relative flex-1 max-w-xl">
-              <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"
-                }`} />
+              <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
               <input
                 type="text"
                 placeholder="Search folder..."

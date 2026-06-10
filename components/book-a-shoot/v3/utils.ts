@@ -6,7 +6,6 @@ export type EditTypeCount = {
 export const PHOTO_EDIT_ADDON_SET_SIZE = 25;
 
 export const getPhotoEditsIncludedPerHour = (shootType?: string) => {
-  if (shootType === "coachella") return 0;
   return shootType === "wedding" ? 50 : 25;
 };
 

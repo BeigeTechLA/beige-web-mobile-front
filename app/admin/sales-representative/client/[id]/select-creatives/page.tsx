@@ -8,9 +8,10 @@ import { useAssignCrewFromLeadMutation } from "@/lib/redux/features/sales/salesA
 import Topbar from "@/components/admin/Topbar";
 import { toast } from "sonner";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
-import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
+import { AssignmentConfirmationModal, AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import { salesApi } from "@/lib/api";
 import { useTheme } from "next-themes";
+import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
 
 export default function ClientSelectCreativesPage() {
   const router = useRouter();
@@ -24,6 +25,9 @@ export default function ClientSelectCreativesPage() {
   const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [missingDetails, setMissingDetails] = useState<string[]>([]);
+  const [isMissingDetailsModalOpen, setIsMissingDetailsModalOpen] = useState(false);
+  const [assignmentDetails, setAssignmentDetails] = useState<Record<string, unknown> | null>(null);
   const [assignCrew, { isLoading }] = useAssignCrewFromLeadMutation();
 
   useEffect(() => setMounted(true), []);
@@ -34,6 +38,7 @@ export default function ClientSelectCreativesPage() {
       if (leadId) {
         try {
           const response = await salesApi.getClientLeadStats(leadId);
+          setAssignmentDetails(response?.data || response);
           if (response?.data?.fulfillment_stats) {
             const vReq = parseInt(response.data.fulfillment_stats.videographer?.split('/')[1] || "0");
             const pReq = parseInt(response.data.fulfillment_stats.photographer?.split('/')[1] || "0");
@@ -55,6 +60,13 @@ export default function ClientSelectCreativesPage() {
 
     if (selectedCreativeIds.length === 0) {
       toast.error("Please select at least one creative");
+      return;
+    }
+
+    const currentMissingDetails = getCpAssignmentMissingDetails(assignmentDetails);
+    if (currentMissingDetails.length > 0) {
+      setMissingDetails(currentMissingDetails);
+      setIsMissingDetailsModalOpen(true);
       return;
     }
 
@@ -87,12 +99,15 @@ export default function ClientSelectCreativesPage() {
           toast.error(response.message || "Failed to assign crew");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to assign crew", error);
-      if (error?.data?.errors && Array.isArray(error.data.errors)) {
-        toast.error(error.data.errors.join(", "));
-      } else if (error?.data?.message) {
-        toast.error(error.data.message);
+      const data = typeof error === "object" && error !== null && "data" in error
+        ? (error as { data?: { errors?: string[]; message?: string } }).data
+        : undefined;
+      if (data?.errors && Array.isArray(data.errors)) {
+        toast.error(data.errors.join(", "));
+      } else if (data?.message) {
+        toast.error(data.message);
       } else {
         toast.error("An error occurred while assigning crew");
       }
@@ -141,6 +156,13 @@ export default function ClientSelectCreativesPage() {
         onConfirm={executeAssignment}
         videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+        isDark={isDark}
+      />
+
+      <AssignmentMissingDetailsModal
+        isOpen={isMissingDetailsModalOpen}
+        onClose={() => setIsMissingDetailsModalOpen(false)}
+        missingDetails={missingDetails}
         isDark={isDark}
       />
 

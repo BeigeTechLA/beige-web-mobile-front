@@ -91,13 +91,12 @@ const getClientIdentifier = (client: ClientDropdownItem | null | undefined) =>
     getClientEmail(client)
   );
 
+
 const parseExpiryDate = (value: string) => {
   if (!value) return null;
-
-  const parsedDate = new Date(`${value}T00:00:00`);
+  const parsedDate = new Date(`${value}T23:59:59`);
   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
-
 
 type AddCreditPointsModalProps = {
   open: boolean;

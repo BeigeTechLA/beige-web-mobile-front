@@ -2723,7 +2723,7 @@ export default function CreateQuotePage() {
     selectedServices,
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
-  const shouldHideBackButton = isQuoteSaved;
+  const shouldHideBackButton = isQuoteSaved || (!isEditMode && !!createdQuoteId);
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
@@ -3724,9 +3724,16 @@ export default function CreateQuotePage() {
     await saveQuoteDraft("save", { suppressRedirect: true, openPreview: true });
   };
 
+  const noQuoteChangesMessage = "No changes made, modify anything to save it";
+
   const handleSaveQuote = async () => {
     if (!quoteReviewValidation.isValid) {
       toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
       return;
     }
 
@@ -3739,12 +3746,22 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     setIsReviewChangesModalOpen(true);
   };
 
   const handleSaveAsNewVersion = async () => {
     if (!effectiveQuoteId) {
       toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
       return;
     }
 
@@ -3766,6 +3783,11 @@ export default function CreateQuotePage() {
   };
 
   const handleConfirmReviewChanges = async () => {
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     if (quoteVersionNumber !== null && quoteVersionNumber > 1) {
       await handleSaveAsNewVersion();
       return;
@@ -3863,6 +3885,11 @@ export default function CreateQuotePage() {
         : "Continue";
 
   const handleSaveAsDraft = async () => {
+    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+      toast.error(noQuoteChangesMessage);
+      return;
+    }
+
     await saveQuoteDraft("draft");
   };
 
@@ -4887,7 +4914,7 @@ export default function CreateQuotePage() {
 
     setIsSubmittingLineItem(true);
     try {
-      const trimmedName = clampTextLength(customItemName).trim();
+      const trimmedName = customItemName.trim();
       const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, "")) || 0;
       if (!trimmedName) {
         toast.error("Name is required");
@@ -4972,7 +4999,10 @@ export default function CreateQuotePage() {
   const handleUpdateCatalogItem = async () => {
     if (!editCatalogItem || isSavingCatalogEdit) return;
 
-    const trimmedName = clampTextLength(editCatalogName).trim();
+    const trimmedName =
+      editCatalogItem.type === "line_item"
+        ? editCatalogName.trim()
+        : clampTextLength(editCatalogName).trim();
     if (!trimmedName) {
       toast.error("Name is required");
       return;
@@ -6838,9 +6868,8 @@ export default function CreateQuotePage() {
                         placeholder="Eg : Consulting Fee, Rush Delivery..."
                         value={customItemName}
                         onChange={(e) =>
-                          setCustomItemName(clampTextLength(e.target.value))
+                          setCustomItemName(e.target.value)
                         }
-                        maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                         className={`h-15 lg:h-21 bg-transparent rounded-xl pl-7 text-base ${isDark
                           ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
                           : "border-[#D7D7D7] text-black placeholder:text-[#9F9FA9] focus:border-[#000]/30"
@@ -8028,7 +8057,7 @@ export default function CreateQuotePage() {
             {!showInvoiceActions ? (
               showReviewChangesAction ? (
                 <Button
-                  className="bg-white text-[#1B1B1B] hover:bg-[#00000033] border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all"
+                  className={`border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all disabled:opacity-70 ${isDark ? "bg-white text-[#1B1B1B] hover:bg-white/80" : "bg-black text-white! hover:bg-black/80"}`}
                   disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft || hasCurrentSavedQuoteState}
                   onClick={handleOpenReviewChangesModal}
                 >
@@ -8095,7 +8124,7 @@ export default function CreateQuotePage() {
                 type="button"
                 onClick={handleSaveAsDraft}
                 disabled={isCreatingQuoteDraft}
-                className="bg-white text-[#1B1B1B] hover:bg-[#00000033] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg disabled:opacity-70"
+                className={`border-0 shadow-lg h-[62px] min-w-[166px] rounded-xl flex items-center gap-3 text-xl font-bold transition-all disabled:opacity-70 ${isDark ? "bg-white text-[#1B1B1B] hover:bg-white/80" : "bg-black text-white! hover:bg-black/80"}`}
               >
                 <div className="flex items-center justify-center">
                   <Save
@@ -8134,7 +8163,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handleConvertToBooking}
               disabled={isConvertBookingActionDisabled}
-              className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isConverting ? "Converting..." : convertBookingActionLabel}
             </Button>
@@ -8145,7 +8174,7 @@ export default function CreateQuotePage() {
                   void handleViewInvoice();
                 }}
                 disabled={isViewingInvoice || isSendingInvoice || isConverting}
-                className="flex-1 bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+                className="flex-1 bg-white text-[#1B1B1B] hover:bg-[#00000033] h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
               </Button>
@@ -8155,7 +8184,7 @@ export default function CreateQuotePage() {
                   void handleSendInvoice();
                 }}
                 disabled={isViewingInvoice || isSendingInvoice || isConverting}
-                className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+                className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
               >
                 {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
               </Button>
@@ -8163,22 +8192,12 @@ export default function CreateQuotePage() {
 
           </div>
         ) : showPreviewAction ? (
-          <div className="flex flex-col lg:flex-row gap-2">
-            {showReviewChangesAction ? (
-              <Button
-                variant="default"
-                onClick={handleOpenReviewChangesModal}
-                disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid || hasCurrentSavedQuoteState}
-                className="flex-1 bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
-              >
-                Review Changes
-              </Button>
-            ) : null}
+          <div className="flex flex-col gap-2">
             <Button
               variant="beige"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."
@@ -8188,7 +8207,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handleSaveAsDraft}
               disabled={(selectedClient === null) || isCreatingQuoteDraft}
-              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+              className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
             >
               <div className="flex items-center justify-center">
                 <Save
@@ -8206,7 +8225,7 @@ export default function CreateQuotePage() {
             type="button"
             onClick={handleSaveAsDraft}
             disabled={(selectedClient === null) || isCreatingQuoteDraft}
-            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
           >
             <div className="flex items-center justify-center">
               <Save
@@ -8223,7 +8242,7 @@ export default function CreateQuotePage() {
           {!shouldHideBackButton ? (
             <Button
               variant="outline"
-              className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+              className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-10 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
               onClick={handleBack}
             >
               Back
@@ -8234,7 +8253,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-14 py-5 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 !h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isPreviewLoading
                 ? "Loading Preview..."
@@ -8244,7 +8263,7 @@ export default function CreateQuotePage() {
           {!showInvoiceActions ? (
             showReviewChangesAction ? (
               <Button
-                className="bg-white text-[#1B1B1B] hover:bg-[#00000033] h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1"
+                className="bg-white text-[#1B1B1B] hover:bg-[#00000033] h-10 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1"
                 disabled={!quoteReviewValidation.isValid || isCreatingQuoteDraft || hasCurrentSavedQuoteState}
                 onClick={handleOpenReviewChangesModal}
               >
@@ -8259,7 +8278,7 @@ export default function CreateQuotePage() {
                   : isDark
                     ? "bg-[#E8D1AB] text-[#1D1D1B]"
                     : "bg-[#A4A5A6] text-white"
-                  } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1 `}
+                  } hover:opacity-90 h-10 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md flex-1 `}
                 disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
                 onClick={handlePrimaryAction}
               >
@@ -8390,9 +8409,17 @@ export default function CreateQuotePage() {
               <Input
                 value={editCatalogName}
                 onChange={(e) =>
-                  setEditCatalogName(clampTextLength(e.target.value))
+                  setEditCatalogName(
+                    editCatalogItem?.type === "line_item"
+                      ? e.target.value
+                      : clampTextLength(e.target.value)
+                  )
                 }
-                maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
+                maxLength={
+                  editCatalogItem?.type === "line_item"
+                    ? undefined
+                    : MAX_QUOTE_OPTION_LABEL_LENGTH
+                }
                 className={`h-11 bg-transparent rounded-xl ${isDark
                   ? "border-[#4A4A4A] text-white placeholder:text-[#666666] focus:border-[#A78857]"
                   : "border-zinc-300 text-black placeholder:text-zinc-400 focus:border-zinc-400"

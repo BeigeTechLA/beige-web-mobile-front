@@ -258,7 +258,7 @@ export default function ClientDetailPage() {
       const queryParams = new URLSearchParams();
       if (dateStr) queryParams.set("date", dateStr);
       if (roles) queryParams.set("role_type", roles);
-      queryParams.set("radius", "50");
+      queryParams.set("radius", "99999"); 
       if (latitude !== undefined && longitude !== undefined) {
         queryParams.set("latitude", String(latitude));
         queryParams.set("longitude", String(longitude));

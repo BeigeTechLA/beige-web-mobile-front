@@ -260,12 +260,12 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
         const contentTypeRaw = b.content_type || b.event_type || b.skills_needed || "";
         const normalizedBookingDays = Array.isArray(b.booking_days)
           ? b.booking_days
-              .map((day: any) => ({
-                date: day?.date || day?.event_date || null,
-                start_time: (day?.start_time || day?.startTime || "").slice(0, 8),
-                end_time: (day?.end_time || day?.endTime || "").slice(0, 8),
-              }))
-              .filter((day: any) => day.date)
+            .map((day: any) => ({
+              date: day?.date || day?.event_date || null,
+              start_time: (day?.start_time || day?.startTime || "").slice(0, 8),
+              end_time: (day?.end_time || day?.endTime || "").slice(0, 8),
+            }))
+            .filter((day: any) => day.date)
           : [];
         const isMultiDayBooking =
           b.booking_type === "multi_day" ||
@@ -298,12 +298,12 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
 
       const normalizedBookingDays = Array.isArray(b.booking_days)
         ? b.booking_days
-            .map((day: any) => ({
-              date: day?.date || day?.event_date || null,
-              start_time: (day?.start_time || day?.startTime || "").slice(0, 8),
-              end_time: (day?.end_time || day?.endTime || "").slice(0, 8),
-            }))
-            .filter((day: any) => day.date)
+          .map((day: any) => ({
+            date: day?.date || day?.event_date || null,
+            start_time: (day?.start_time || day?.startTime || "").slice(0, 8),
+            end_time: (day?.end_time || day?.endTime || "").slice(0, 8),
+          }))
+          .filter((day: any) => day.date)
         : [];
       const shouldInitMultiDay =
         b.booking_type === "multi_day" ||
@@ -669,7 +669,7 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
   const photographerTarget = useMemo(() => formData.contentType.includes("photographer") ? (extraTeam["photographer"] || 0) + 1 : 0, [formData.contentType, extraTeam]);
 
   return (
-    <div className={`text-white font-sans ${isModal ? "" : (isDark ? "bg-[#101010] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-white" : "bg-[#F4F5F7] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-black")}`}>
+    <div className={`font-sans ${isModal ? "" : (isDark ? "bg-[#101010] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-white" : "bg-[#F4F5F7] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-black")}`}>
       {!isModal && (
         <Button onClick={() => router.back()} className={`transition-colors flex items-center gap-2 mb-8 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}>
           <ArrowLeft size={24} />
@@ -1102,7 +1102,7 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
                     Includes {photoEditSummary.includedCount} free photo edits
                   </div>
                   {photoEditSummary.extraCount > 0 && (
-                    <div className={`rounded-xl px-4 py-3 text-sm ${isDark ? "bg-[#211F1C] text-[#E8D1AB]" : "bg-white text-[#323232]"}`}>
+                    <div className={`rounded-lg lg:rounded-xl px-4 py-3 text-sm ${isDark ? "bg-[#211F1C] text-[#E8D1AB]" : "bg-white text-[#323232]"}`}>
                       + {photoEditSummary.extraCount} Added Extra
                     </div>
                   )}
@@ -1120,7 +1120,10 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
           {availableRolesToAdd.map((role) => (
             <div key={role.id} className={`flex items-center justify-between p-4 rounded-xl ${isDark ? "bg-white/5 text-white/60" : "bg-black/5 text-black/60"}`}>
               <div className="flex items-center gap-3">{role.icon}<span className="text-lg font-medium">{role.label}</span></div>
-              <QuantityControl value={extraTeam[role.id] || 0} onIncrease={() => handleExtraTeamChange(role.id, 1)} onDecrease={() => handleExtraTeamChange(role.id, -1)} />
+              <QuantityControl
+                value={extraTeam[role.id] || 0}
+                onIncrease={() => handleExtraTeamChange(role.id, 1)}
+                onDecrease={() => handleExtraTeamChange(role.id, -1)} />
             </div>
           ))}
         </div>

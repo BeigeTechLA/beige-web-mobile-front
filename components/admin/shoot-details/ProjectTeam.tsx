@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useCallback, useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
-import { Plus, User, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import AddPostProductionTeamModal from "./AddPostProductionTeamModal";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
@@ -21,10 +20,25 @@ interface TeamMember {
   bgColor?: string;
 }
 
+interface AssignedPostProductionMember {
+  post_production_member_id?: number;
+  post_production_member?: {
+    first_name?: string;
+    last_name?: string;
+    full_name?: string;
+    role?: string;
+  };
+}
+
 const BG_COLORS = ["bg-[#FFFAC2]", "bg-[#F3E8FF]", "bg-[#E0F2FE]", "bg-[#FCE7F3]", "bg-[#DCFCE7]"];
 
-export default function ProjectTeam({ projectId, assignedMembers }: { projectId: string; assignedMembers?: any[] }) {
-  const router = useRouter();
+interface ProjectTeamProps {
+  projectId: string;
+  assignedMembers?: AssignedPostProductionMember[];
+  onRequestAssignment?: (continueAction: () => void) => void;
+}
+
+export default function ProjectTeam({ projectId, assignedMembers, onRequestAssignment }: ProjectTeamProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -37,11 +51,11 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
   }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
-  const mapMembers = (members: any[]) => {
-    return members.map((m: any, idx: number) => {
+  const mapMembers = (members: AssignedPostProductionMember[]) => {
+    return members.map((m, idx: number) => {
       const profile = m.post_production_member || {};
       return {
-        id: m.post_production_member_id,
+        id: Number(m.post_production_member_id || idx),
         name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.full_name || "Unknown",
         role: profile.role || "Post Production",
         bgColor: BG_COLORS[idx % BG_COLORS.length]
@@ -49,7 +63,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
     });
   };
 
-  const fetchTeamMembers = async () => {
+  const fetchTeamMembers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await adminApi.getProjectDetails(projectId);
@@ -61,10 +75,10 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
       const members = projectData.assignedPostProductionMembers || [];
 
       if (Array.isArray(members)) {
-        const mappedMembers = members.map((m: any, idx: number) => {
+        const mappedMembers = members.map((m: AssignedPostProductionMember, idx: number) => {
           const profile = m.post_production_member || {};
           return {
-            id: m.post_production_member_id,
+            id: Number(m.post_production_member_id || idx),
             name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.full_name || "Unknown",
             role: profile.role || "Post Production",
             bgColor: BG_COLORS[idx % BG_COLORS.length]
@@ -77,7 +91,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
     if (assignedMembers) {
@@ -86,12 +100,21 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
     } else if (projectId) {
       fetchTeamMembers();
     }
-  }, [projectId, assignedMembers]);
+  }, [projectId, assignedMembers, fetchTeamMembers]);
 
   const handleMemberAdded = () => {
     fetchTeamMembers();
     setIsModalOpen(false);
   }
+
+  const handleOpenAssignment = () => {
+    if (onRequestAssignment) {
+      onRequestAssignment(() => setIsModalOpen(true));
+      return;
+    }
+
+    setIsModalOpen(true);
+  };
 
   if (!mounted) return null;
 
@@ -138,7 +161,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
       {!hasTeam && (
         <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30 py-10 lg:py-0">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleOpenAssignment}
             className={cn(
               "w-12 h-12 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg",
               isDark ? "bg-[#E8D1AB] shadow-[#E8D1AB]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
@@ -159,7 +182,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
         <>
           {/* Add Button in Top Right for List View */}
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleOpenAssignment}
             className={cn(
               "absolute top-6 right-6 z-30 transition-colors",
               isDark ? "text-[#E8D1AB] hover:text-white" : "text-[#E8D1AB] hover:text-black"
@@ -231,7 +254,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
           <div className="flex flex-col lg:flex-row gap-4 mb-4">
             <Button
               className={`h-12 px-4 lg:px-7 transition-all duration-300 font-medium bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]`}
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenAssignment}
             >
               <Plus /> Add More Team Members
             </Button>

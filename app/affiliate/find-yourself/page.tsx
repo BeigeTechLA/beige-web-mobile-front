@@ -9,6 +9,7 @@ import Topbar from "@/components/admin/Topbar";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import { affiliateApi } from "@/lib/api";
 import { fileManagerApi, isCommonEventWorkspaceId } from "@/lib/fileManagerApi";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 interface WorkspaceItem {
   externalId: string;
@@ -118,6 +119,7 @@ const fileToOptimizedBase64 = (file: File) =>
 
 export default function AffiliateFindYourselfPage() {
   const pathname = usePathname();
+  const { isDark } = useResolvedTheme();
   const [loading, setLoading] = useState(true);
   const [isFaceScanning, setIsFaceScanning] = useState(false);
   const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
@@ -711,23 +713,21 @@ export default function AffiliateFindYourselfPage() {
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
         <div className="space-y-2">
-          <h1 className="text-white text-lg lg:text-2xl font-semibold">Find Yourself</h1>
-          <p className="text-white/70 text-xs lg:text-sm">
+          <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>
+            Find Yourself</h1>
+          <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
             Upload your photo or use camera, then we run a fast scan on your selected folders.
           </p>
-          {/* <p className="text-[#E8D1AB] text-xs">
-            Your available folders: {loading ? "Loading..." : workspaces.length}
-          </p> */}
-          <p className="text-white/50 text-[11px]">
+          <p className={`${isDark ? "text-white/50" : "text-black/40"} text-xs`}>
             Old folders are auto-indexed in background while you scan, so each next scan gets faster.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#111111] p-4 lg:p-6">
+        <div className={`rounded-lg lg:rounded-2xl border p-4 lg:p-6 ${isDark ? "border-white/10 bg-[#111111]" : "bg-white border-[#DFDDDD]"}`}>
           <div className="flex flex-col gap-2" ref={workspaceDropdownRef}>
             <div className="flex flex-wrap items-center gap-2">
               <div className="w-full max-w-xl">
-                <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
+                <div className={`mb-1 text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-white/40" : "text-black/40"}`} >
                   Scan Folders
                 </div>
                 <button
@@ -737,34 +737,37 @@ export default function AffiliateFindYourselfPage() {
                     if (!isWorkspaceDropdownOpen) setWorkspaceSearchTerm("");
                   }}
                   disabled={isFaceScanning || loading}
-                  className={`h-14 w-full relative rounded-2xl px-4 py-4 flex items-center justify-between border transition-colors ${isFaceScanning || loading
+                  className={`h-10 lg:h-14 w-full relative rounded-lg lg:rounded-2xl px-4 py-4 flex items-center justify-between border transition-colors ${isFaceScanning || loading
+                    ? isDark
                       ? "cursor-not-allowed opacity-60 border-white/20 bg-[#171717]"
-                      : "cursor-pointer border-white/40 bg-[#171717]"
-                    }`}
+                      : "cursor-not-allowed opacity-60 border-zinc-200 bg-zinc-100"
+                    : isDark
+                      ? "cursor-pointer border-white/40 bg-[#171717] hover:bg-[#1E1E1E]"
+                      : "cursor-pointer border-zinc-300 bg-white hover:bg-zinc-50 shadow-sm"}`}
                 >
-                  <span className="text-sm text-white/90">
+                  <span className={`text-xs lg:text-sm ${isDark ? "text-white/90" : "text-black/70"}`}>
                     {selectedWorkspaceCount
                       ? `${selectedWorkspaceCount} folder${selectedWorkspaceCount === 1 ? "" : "s"} selected`
                       : "Select folders"}
                   </span>
                   {isWorkspaceDropdownOpen ? (
-                    <ChevronUp className="text-white flex-shrink-0" size={18} />
+                    <ChevronUp className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`} size={18} />
                   ) : (
-                    <ChevronDown className="text-white flex-shrink-0" size={18} />
+                    <ChevronDown className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`} size={18} />
                   )}
                 </button>
               </div>
             </div>
 
             {isWorkspaceDropdownOpen ? (
-              <div className="max-h-72 overflow-auto rounded-xl border border-white/10 bg-[#171717] p-2">
+              <div className={`max-h-72 overflow-auto rounded-xl border p-2 ${isDark ? "border-white/10 bg-[#171717]" : "border-black/20 bg-[#F4F5F7]"}`}>
                 <div className="mb-2 px-2">
                   <input
                     type="text"
                     value={workspaceSearchTerm}
                     onChange={(event) => setWorkspaceSearchTerm(event.target.value)}
                     placeholder="Search folders..."
-                    className="h-10 w-full rounded-lg border border-white/10 bg-[#111111] px-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB]"
+                    className={`h-10 w-full rounded-lg border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] ${isDark ? "border-white/10 bg-[#111111] text-white placeholder:text-white/40" : "border-black/10 bg-white text-black placeholder:text-black/40"}`}
                   />
                 </div>
                 <div className="mb-2 flex flex-wrap items-center gap-2 px-2">
@@ -772,9 +775,13 @@ export default function AffiliateFindYourselfPage() {
                     type="button"
                     onClick={handleSelectAllWorkspaces}
                     disabled={isFaceScanning || loading || !workspaces.length}
-                    className={`rounded-md border border-white/15 px-2 py-1 text-[11px] ${isFaceScanning || loading || !workspaces.length
+                    className={`rounded-md border border-white/15 px-2 py-1 text-xs ${isFaceScanning || loading || !workspaces.length
+                      ? isDark
                         ? "cursor-not-allowed text-white/40 opacity-60"
-                        : "text-white/80 hover:bg-white/10"
+                        : "cursor-not-allowed text-black/40 opacity-60"
+                      : isDark
+                        ? "text-white/80 hover:bg-white/10"
+                        : "text-black/80 hover:bg-black/10"
                       }`}
                   >
                     Select all
@@ -783,9 +790,13 @@ export default function AffiliateFindYourselfPage() {
                     type="button"
                     onClick={() => setSelectedWorkspaceIds([])}
                     disabled={isFaceScanning || loading || !selectedWorkspaceCount}
-                    className={`rounded-md border border-white/15 px-2 py-1 text-[11px] ${isFaceScanning || loading || !selectedWorkspaceCount
+                    className={`rounded-md border border-white/15 px-2 py-1 text-xs ${isFaceScanning || loading || !selectedWorkspaceCount
+                      ? isDark
                         ? "cursor-not-allowed text-white/40 opacity-60"
-                        : "text-white/80 hover:bg-white/10"
+                        : "cursor-not-allowed text-black/40 opacity-60"
+                      : isDark
+                        ? "text-white/80 hover:bg-white/10"
+                        : "text-black/80 hover:bg-black/10"
                       }`}
                   >
                     Clear
@@ -801,34 +812,26 @@ export default function AffiliateFindYourselfPage() {
                         key={workspace.externalId}
                         type="button"
                         onClick={() => handleToggleWorkspace(workspace.externalId)}
-                        className={`mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition ${isSelected ? "bg-[#FFFCE8] text-black" : "text-white/70 hover:bg-white/5"
-                          }`}
+                        className={`mb-1 flex w-full items-center gap-3 rounded-xl px-1.5 lg:px-3 py-2 text-left transition ${isSelected ? "bg-[#FFFCE8] text-black" : (isDark ? "text-white/70 hover:bg-white/5" : "text-black/70 hover:bg-black/5")}`}
                       >
-                        <div
-                          className={`h-4 w-4 rounded-[4px] border flex items-center justify-center transition-colors ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : "border-white/50"
-                            }`}
-                        >
+                        <div className={`h-4 w-4 rounded-sm border flex items-center justify-center transition-colors ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : (isDark ? "border-white/50" : "border-black/40")}`}>
                           {isSelected ? <Check size={11} className="text-black" strokeWidth={3} /> : null}
                         </div>
-                        <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                          <span className="truncate text-sm">{workspace.title}</span>
+                        <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 lg:gap-2">
+                          <span className="truncate text-xs lg:text-sm">{workspace.title}</span>
                           <div className="flex items-center gap-2">
-                            <span
-                              className={`shrink-0 text-[10px] ${isSelected ? "text-black/65" : "text-white/45"
-                                }`}
-                            >
+                            <span className={`shrink-0 text-[10px] ${isSelected ? "text-black/65" : (isDark ? "text-white/45" : "text-black/45")}`}>
                               {workspace.isCommonEvent ? "Common Event" : "Project"}
                             </span>
                             <span
-                              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${
-                                indexLabel === "Ready"
-                                  ? isSelected
-                                    ? "bg-black/10 text-black/70"
-                                    : "bg-emerald-500/20 text-emerald-200"
-                                  : isSelected
+                              className={`shrink-0 rounded-full px-1.5 lg:px-2 py-0.5 text-[10px] ${indexLabel === "Ready"
+                                ? isSelected
                                   ? "bg-black/10 text-black/70"
-                                  : "bg-amber-500/20 text-amber-200"
-                              }`}
+                                  : "bg-emerald-500/20 text-emerald-200"
+                                : isSelected
+                                  ? "bg-black/10 text-black/70"
+                                  : "bg-amber-400/20 text-amber-800"
+                                }`}
                             >
                               {indexLabel}
                             </span>
@@ -838,16 +841,16 @@ export default function AffiliateFindYourselfPage() {
                     );
                   })
                 ) : (
-                  <p className="px-2 py-1 text-xs text-white/60">No folders available.</p>
+                  <p className={`px-2 py-1 text-xs ${isDark ? "text-white/60" : "text-black/40"}`}>No folders available.</p>
                 )}
               </div>
             ) : null}
 
-            <p className="text-[11px] text-white/50">
+            <p className={`${isDark ? "text-white/50" : "text-black/40"} text-xs`}>
               Fast scan mode: up to {FAST_SCAN_CANDIDATE_LIMIT} candidates per selected folder.
             </p>
             {selectedWorkspaceCount ? (
-              <p className="text-[11px] text-[#E8D1AB]/90">
+              <p className="text-xs text-[#E8D1AB]/90">
                 Folder status: {selectedWorkspaceIndexSummary.ready} ready,{" "}
                 {selectedWorkspaceIndexSummary.preparing} preparing
                 {isIndexStatusLoading ? " (updating...)" : ""}
@@ -865,7 +868,12 @@ export default function AffiliateFindYourselfPage() {
             />
             <label
               htmlFor="affiliate-find-yourself-upload"
-              className={`inline-flex items-center rounded-lg border border-white/20 px-3 py-2 text-sm text-white transition ${canStartScan ? "cursor-pointer hover:bg-white/10" : "pointer-events-none opacity-60"
+              className={`inline-flex items-center rounded-lg border px-3 py-2 text-xs lg:text-sm  transition 
+                ${isDark ? "border-white/20 text-white" : "text-black border-black/10"}
+                ${canStartScan
+                  ? isDark ?
+                    "cursor-pointer hover:bg-white/10" : "cursor-pointer hover:bg-black/10"
+                  : "pointer-events-none opacity-60"
                 }`}
             >
               {isFaceScanning ? "Scanning..." : "Upload Face Photo"}
@@ -874,7 +882,12 @@ export default function AffiliateFindYourselfPage() {
               type="button"
               onClick={handleOpenCamera}
               disabled={!canStartScan}
-              className={`inline-flex items-center gap-1 rounded-lg border border-white/20 px-3 py-2 text-sm text-white transition ${canStartScan ? "hover:bg-white/10" : "pointer-events-none opacity-60"
+              className={`inline-flex items-center rounded-lg border px-3 py-2 text-xs lg:text-sm gap-1 transition 
+                ${isDark ? "border-white/20 text-white" : "text-black border-black/10"}
+                ${canStartScan
+                  ? isDark ?
+                    "cursor-pointer hover:bg-white/10" : "cursor-pointer hover:bg-black/10"
+                  : "pointer-events-none opacity-60"
                 }`}
             >
               <Camera size={14} />
@@ -886,17 +899,17 @@ export default function AffiliateFindYourselfPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#111111] p-4 lg:p-6">
+        <div className={`rounded-lg lg:rounded-2xl border p-4 lg:p-6 ${isDark ? "border-white/10 bg-[#111111]" : "bg-white border-[#DFDDDD]"}`}>
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm font-medium text-[#E8D1AB]">Matched photos</p>
-            <p className="text-xs text-white/60">
+            <p className={`${isDark ? "text-white/50" : "text-black/40"} text-xs`}>
               {resultCount} results {isHydratingPreviews ? "| loading previews..." : ""}
             </p>
           </div>
 
           {isFaceScanning ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="animate-spin text-white/60" size={26} />
+              <Loader2 className={`animate-spin ${isDark ? "text-white/60" : "text-black/60"}`} size={26} />
             </div>
           ) : faceMatches.length ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -920,20 +933,20 @@ export default function AffiliateFindYourselfPage() {
                         />
                       </div>
                     ) : (
-                      <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
+                      <div className={`flex aspect-23/18 w-full items-center justify-center text-xs ${isDark ? " text-white/50 bg-[#0f0f0f]" : " text-black/50 bg-[#F4F5F7]"}`}>
                         Click to load preview
                       </div>
                     )}
                   </button>
                   <div className="space-y-1 p-2 text-xs">
-                    <p className="text-white/90">
+                    <p className={isDark ? "text-white/90" : "text-black/80"}>
                       Matches: {Math.round((match.confidence || 0) * 100)}%
                     </p>
                     <p className="text-[#E8D1AB] truncate">{match.workspaceTitle}</p>
                     <button
                       type="button"
                       onClick={() => handleDownloadMatchedImage(match)}
-                      className="mt-1 inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-white/85 hover:bg-white/10"
+                      className={`mt-1 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${isDark ? "text-white/85 hover:bg-white/10 border-white/15" : "text-black/75 hover:bg-black/10 border-black/15"}`}
                     >
                       <Download size={12} />
                       Download
@@ -943,8 +956,8 @@ export default function AffiliateFindYourselfPage() {
               ))}
             </div>
           ) : (
-            <div className="py-10 text-center text-sm text-white/60">
-              <Search className="mx-auto mb-2 text-white/30" size={20} />
+            <div className={`py-10 text-center text-sm ${isDark ? "text-white/60" : "text-black/40"}`}>
+              <Search className={`mx-auto mb-2 ${isDark ? "text-white/30" : "text-black/30"}`} size={20} />
               No matches yet. Upload or scan your face photo to start.
             </div>
           )}
@@ -952,25 +965,32 @@ export default function AffiliateFindYourselfPage() {
       </div>
 
       {isCameraOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4">
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-[#111111]">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <h3 className="text-sm font-semibold text-white">Face Scan Camera</h3>
+        <div className={`fixed inset-0 z-[80] flex items-center justify-center p-4 transition-colors ${isDark ? "bg-black/85" : "bg-white/75"}`}>
+          <div className={`w-full max-w-xl overflow-hidden rounded-lg lg:rounded-2xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#111111]" : "border-black/15 bg-white"}`}>
+
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between border-b px-4 py-3 transition-colors ${isDark ? "border-white/10" : "border-white/5 bg-white/5"}`}>
+              <h3 className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>Face Scan Camera</h3>
               <button
                 type="button"
                 onClick={handleCloseCamera}
-                className="rounded-md border border-white/10 px-2 py-1 text-xs text-white/80 hover:bg-white/10"
+                className={`rounded-md border px-2 py-1 text-xs transition-colors ${isDark
+                  ? "border-white/10 text-white/80 hover:bg-white/10"
+                  : "border-white/20 text-white hover:bg-white/10"
+                  }`}
               >
                 Close
               </button>
             </div>
+
+            {/* Video Workspace Panel */}
             <div className="p-4">
-              <div className="aspect-video overflow-hidden rounded-xl bg-black">
+              <div className={`aspect-video overflow-hidden rounded-lg lg:rounded-xl relative ${isDark ? "bg-white" : "bg-white"}`}>
                 {isCameraProcessing ? (
                   <div className="flex h-full w-full items-center justify-center">
                     <div className="text-center">
-                      <Loader2 className="mx-auto animate-spin text-white/70" size={28} />
-                      <p className="mt-2 text-xs text-white/65">Scanning your face in selected folders...</p>
+                      <Loader2 className={`mx-auto animate-spin ${isDark ? "text-white/70" : "text-black/70"}`} size={28} />
+                      <p className={`mt-2 text-xs ${isDark ? "text-white/65" : "text-black/65"}`}>Scanning your face in selected folders...</p>
                     </div>
                   </div>
                 ) : (
@@ -980,7 +1000,7 @@ export default function AffiliateFindYourselfPage() {
               {cameraError && !isCameraProcessing ? (
                 <p className="mt-3 text-xs text-red-300">{cameraError}</p>
               ) : (
-                <p className="mt-3 text-xs text-white/60">
+                <p className={`mt-3 text-xs transition-colors ${isDark ? "text-white/60" : "text-black/50"}`}>
                   {isCameraProcessing
                     ? "Processing capture. Please wait..."
                     : "Keep your face centered, then capture to scan selected folders."}
@@ -993,9 +1013,9 @@ export default function AffiliateFindYourselfPage() {
                       type="button"
                       onClick={handleSwitchCamera}
                       disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
-                      className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${cameraError || isFaceScanning || isCameraProcessing
-                          ? "cursor-not-allowed opacity-50"
-                          : "hover:bg-white/10"
+                      className={`rounded-lg border px-3 py-2 text-xs ${isDark ? "border-white/10 text-white/80" : "border-black/10 text-black/80"} ${cameraError || isFaceScanning || isCameraProcessing
+                        ? "cursor-not-allowed opacity-50"
+                        : isDark ? "hover:bg-white/10" : "hover:bg-black/5"
                         }`}
                     >
                       {cameraFacingMode === "user" ? "Back Camera" : "Front Camera"}
@@ -1004,8 +1024,7 @@ export default function AffiliateFindYourselfPage() {
                       type="button"
                       onClick={handleCloseCamera}
                       disabled={isCameraProcessing}
-                      className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
-                        }`}
+                      className={`rounded-lg border px-3 py-2 text-xs ${isDark ? "border-white/10 text-white/80" : "border-black/10 text-black/80"} ${isCameraProcessing ? "cursor-not-allowed opacity-50" : isDark ? "hover:bg-white/10" : "hover:bg-black/5"}`}
                     >
                       Cancel
                     </button>
@@ -1016,8 +1035,9 @@ export default function AffiliateFindYourselfPage() {
                     type="button"
                     onClick={handleCloseCamera}
                     disabled={isCameraProcessing}
-                    className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${isMobileViewport ? "hidden" : "inline-flex"
-                      } ${isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+                    className={`rounded-lg border px-3 py-2 text-xs ${isDark ? "border-white/10 text-white/80" : "border-black/10 text-black/80"} ${isMobileViewport ? "hidden" : "inline-flex"} 
+                    ${isCameraProcessing ? "cursor-not-allowed opacity-50" :
+                        isDark ? "hover:bg-white/10" : "hover:bg-black/5"
                       }`}
                   >
                     Cancel
@@ -1048,6 +1068,7 @@ export default function AffiliateFindYourselfPage() {
         contentType={viewerType}
         fileUrl={viewerUrl}
         fileMetaId={viewerMetaId}
+        isDark={isDark}
       />
     </>
   );
