@@ -1,10 +1,12 @@
 name: Deploy Frontend Dev
 
 on:
-  push:
-    branches:
-      - development
   workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: true
+        default: development
 
 concurrency:
   group: deploy-dev
@@ -19,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Setup SSH key
         env:
