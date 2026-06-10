@@ -526,12 +526,12 @@ export const ShootsTable = ({
                 : project.event_location?.address?.trim?.() || project.location?.address?.trim?.() || "";
           const missingFields = Array.isArray(project.needs_attention?.missing_fields)
             ? project.needs_attention.missing_fields.filter((field: string) => {
-                const normalizedField = String(field).toLowerCase();
-                if ((normalizedField === "location" || normalizedField === "event_location") && resolvedLocation) {
-                  return false;
-                }
-                return true;
-              })
+              const normalizedField = String(field).toLowerCase();
+              if ((normalizedField === "location" || normalizedField === "event_location") && resolvedLocation) {
+                return false;
+              }
+              return true;
+            })
             : [];
 
           // Sorting Helpers
@@ -897,9 +897,9 @@ export const ShootsTable = ({
           rawDate: updated.rawDate ?? shoot.rawDate,
           needsAttention: updated.remainingMissingFields.length > 0
             ? {
-                required: true,
-                missing_fields: updated.remainingMissingFields,
-              }
+              required: true,
+              missing_fields: updated.remainingMissingFields,
+            }
             : undefined,
         };
       })
@@ -1153,101 +1153,101 @@ export const ShootsTable = ({
         <>
           {/* MOBILE ONLY VIEW */}
           {activeViewMode === "list" && (
-            <div className={`lg:hidden transition-colors duration-300 ${isDark ? "bg-[#111111]" : ""}`}>
-              <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
-                <span>Customer Name</span>
-                <span>Status</span>
-              </div>
+              <div className={`lg:hidden transition-colors duration-300 ${isDark ? "bg-[#111111]" : ""}`}>
+                <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
+                  <span>Customer Name</span>
+                  <span>Status</span>
+                </div>
 
-              <div className="flex flex-col">
-                {currentShoots.map((shoot, idx) => (
-                  <MobileShootRow
-                    key={idx}
-                    shoot={shoot}
-                    onRowClick={handleRowClick}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          {/* ) : (
-            <div className="lg:hidden p-4">
-              <div className="space-y-4">
-                {kanbanColumns.map((column) => (
-                  <div key={column.status} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className={`text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                        {column.status}
-                      </h4>
-                      <span className={`text-xs ${isDark ? "text-[#777777]" : "text-[#9A9A9A]"}`}>
-                        {column.totalItems}
-                      </span>
-                    </div>
+                <div className="flex flex-col">
+                  {currentShoots.map((shoot, idx) => {
+                    const missingFields = shoot.needsAttention?.missing_fields || [];
+                    const isCurrentMenuOpen = openCardActionId === shoot.id;
 
-                    <div className="grid grid-cols-1 gap-3">
-                      {column.items.map((shoot, idx) => (
-                        <div
-                          key={`${column.status}-${idx}`}
-                          onClick={() => handleRowClick(shoot.id)}
-                          className={`rounded-2xl border p-4 transition-colors ${isDark
-                            ? "border-[#2F2F2F] bg-[#151515]"
-                            : "border-[#EAE3D6] bg-[#FFFCF8]"
-                            }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-semibold text-sm shrink-0 ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
-                                }`}>
-                                {shoot.initials}
-                              </div>
-                              <div className="min-w-0">
-                                <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#111111]"}`}>
-                                  {shoot.customerName}
-                                </p>
-                                <p className={`text-xs mt-1 ${isDark ? "text-[#8B8B8B]" : "text-[#777777]"}`}>
-                                  {shoot.id} • {shoot.date}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteClick(e, shoot.id)}
-                                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"
-                                  }`}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRowClick(shoot.id);
-                                }}
-                                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#B9B9B9] hover:bg-white/10 hover:text-white" : "text-[#666] hover:bg-[#F8F4EA] hover:text-black"
-                                  }`}
-                              >
-                                <ChevronRight size={16} />
-                              </button>
-                            </div>
+                    return (
+                      /* CHANGED: Added relative positioning and dynamic z-index to the parent wrapper row */
+                      <div
+                        key={idx}
+                        className={`relative block w-full !overflow-visible ${isCurrentMenuOpen ? "z-[100]" : "z-10"}`}
+                      >
+                        {/* Only passing the values the child component actually needs */}
+                        <MobileShootRow
+                          shoot={shoot}
+                          openCardActionId={openCardActionId}
+                          setOpenCardActionId={setOpenCardActionId}
+                        />
+
+                        {/* Context Floating Action Menu - COMPLETELY PRESERVED STYLES AND HANDLERS */}
+                        {isCurrentMenuOpen && (
+                          <div
+                            /* FIX 2: Anchor the menu directly below the expanded row contents layout */
+                            className={`absolute right-5 bottom-4 z-[200] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
+                              }`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenCardActionId(null);
+                                handleRowClick(shoot.id);
+                              }}
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
+                                }`}
+                            >
+                              <ChevronRight size={16} /> Open details
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenCardActionId(null);
+                                setFieldsToShow(missingFields);
+                                setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                setSelectedShootDataForMissingFields(shoot.sourceProject || null);
+                                setIsMissingFieldsModalOpen(true);
+                              }}
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-[#8C6A00] hover:bg-[#F8F4EA]"
+                                }`}
+                            >
+                              <AlertCircle size={16} />
+                              Actions
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenCardActionId(null);
+                                setChatOpen(shoot.id);
+                              }}
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
+                                }`}
+                            >
+                              <MessageCirclePlus size={16} />
+                              Notes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenCardActionId(null);
+                                handleDeleteClick(e, shoot.id);
+                              }}
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                }`}
+                            >
+                              <Trash2 size={16} />
+                              Delete
+                            </button>
                           </div>
-
-                          <div className="mt-4 flex items-center justify-between gap-3">
-                            <div>
-                              <p className={`text-xs ${isDark ? "text-[#727272]" : "text-[#8B8B8B]"}`}>{shoot.category}</p>
-                              <p className={`mt-1 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>{shoot.price}</p>
-                            </div>
-                            <StatusBadge status={shoot.status} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )} */}
-
+            )
+          }
           {activeViewMode === "grid" ? (
             <div className="relative block pt-0">
               <div
@@ -1313,105 +1313,104 @@ export const ShootsTable = ({
                           const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
 
                           return (
-                          <div
-                            key={`${column.status}-${idx}`}
-                            onClick={() => handleRowClick(shoot.id)}
-                            draggable
-                            onDragStart={() => {
-                              setDraggedShootId(shoot.id);
-                              setDraggedStatus(column.status);
-                            }}
-                            onDragEnd={() => {
-                              stopColumnAutoScroll();
-                              setDraggedShootId(null);
-                              setDraggedStatus(null);
-                            }}
-                            onDragOver={(e) => {
-                              if (draggedStatus !== column.status) return;
-                              handleColumnDragOver(e, column.status);
-                              e.stopPropagation();
-                            }}
-                            onDrop={(e) => {
-                              if (draggedStatus !== column.status || !draggedShootId) return;
-                              e.preventDefault();
-                              e.stopPropagation();
-                              reorderKanbanItems(column.status, draggedShootId, shoot.id);
-                              stopColumnAutoScroll();
-                              setDraggedShootId(null);
-                              setDraggedStatus(null);
-                            }}
-                            className={`group cursor-pointer rounded-2xl transition-all duration-200 ${isDark
-                              ? "bg-[#202020] hover:bg-[#1A1A1A]"
-                              : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
-                              } ${draggedShootId === shoot.id ? "opacity-50 scale-95" : "opacity-100"}`}
-                          >
-                            <div className="flex items-start justify-between gap-3 p-5">
-                              <div className="flex min-w-0 flex-1 items-center gap-3">
-                                <div className={`shrink-0 w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl`}>
-                                  {shoot.initials}
+                            <div
+                              key={`${column.status}-${idx}`}
+                              onClick={() => handleRowClick(shoot.id)}
+                              draggable
+                              onDragStart={() => {
+                                setDraggedShootId(shoot.id);
+                                setDraggedStatus(column.status);
+                              }}
+                              onDragEnd={() => {
+                                stopColumnAutoScroll();
+                                setDraggedShootId(null);
+                                setDraggedStatus(null);
+                              }}
+                              onDragOver={(e) => {
+                                if (draggedStatus !== column.status) return;
+                                handleColumnDragOver(e, column.status);
+                                e.stopPropagation();
+                              }}
+                              onDrop={(e) => {
+                                if (draggedStatus !== column.status || !draggedShootId) return;
+                                e.preventDefault();
+                                e.stopPropagation();
+                                reorderKanbanItems(column.status, draggedShootId, shoot.id);
+                                stopColumnAutoScroll();
+                                setDraggedShootId(null);
+                                setDraggedStatus(null);
+                              }}
+                              className={`group cursor-pointer rounded-2xl transition-all duration-200 ${isDark
+                                ? "bg-[#202020] hover:bg-[#1A1A1A]"
+                                : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
+                                } ${draggedShootId === shoot.id ? "opacity-50 scale-95" : "opacity-100"}`}
+                            >
+                              <div className="flex items-start justify-between gap-3 p-5">
+                                <div className="flex min-w-0 flex-1 items-center gap-3">
+                                  <div className={`shrink-0 w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl`}>
+                                    {shoot.initials}
+                                  </div>
+                                  <div className="min-w-0 pt-1">
+                                    <h4 className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
+                                      {shoot.customerName}
+                                    </h4>
+                                    <p className={`mt-1 text-sm font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                      {shoot.date}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div className="min-w-0 pt-1">
-                                  <h4 className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
-                                    {shoot.customerName}
-                                  </h4>
-                                  <p className={`mt-1 text-sm font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                    {shoot.date}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="relative shrink-0" data-card-actions>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
-                                  }}
-                                  className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
-                                  aria-label="Card actions"
-                                >
-                                  <MoreVertical size={24} />
-                                </button>
-
-                                {openCardActionId === shoot.id && (
-                                  <div
-                                    className={`absolute right-0 top-9 z-20 min-w-[150px] rounded-xl border p-1 shadow-xl ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
-                                      }`}
-                                    onClick={(e) => e.stopPropagation()}
+                                <div className="relative shrink-0" data-card-actions>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
+                                    }}
+                                    className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                                    aria-label="Card actions"
                                   >
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenCardActionId(null);
-                                        handleRowClick(shoot.id);
-                                      }}
-                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
+                                    <MoreVertical size={24} />
+                                  </button>
+
+                                  {openCardActionId === shoot.id && (
+                                    <div
+                                      className={`absolute right-0 top-9 z-20 min-w-[150px] rounded-xl border p-1 shadow-xl ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
                                         }`}
+                                      onClick={(e) => e.stopPropagation()}
                                     >
-                                      <ChevronRight size={16} />
-                                      Open details
-                                    </button>
-                                    <button
-                                      type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenCardActionId(null);
-                                        setFieldsToShow(shoot.needsAttention?.missing_fields || []);
-                                        setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
-                                        setIsMissingFieldsModalOpen(true);
-                                      }}
-                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-[#8C6A00] hover:bg-[#F8F4EA]"
-                                        }`}
-                                    >
-                                      <AlertCircle size={16} />
-                                      Actions
-                                    </button>
-                                    <button
+                                      <button
                                         type="button"
-                                    onClick={(e) => {
+                                        onClick={(e) => {
                                           e.stopPropagation();
                                           setOpenCardActionId(null);
-                                          setChatOpen(shoot.id); 
+                                          handleRowClick(shoot.id);
+                                        }}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
+                                          }`}
+                                      >
+                                        <ChevronRight size={16} />
+                                        Open details
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenCardActionId(null);
+                                          setFieldsToShow(shoot.needsAttention?.missing_fields || []);
+                                          setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                          setIsMissingFieldsModalOpen(true);
+                                        }}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-[#8C6A00] hover:bg-[#F8F4EA]"}`}
+                                      >
+                                        <AlertCircle size={16} />
+                                        Actions
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenCardActionId(null);
+                                          setChatOpen(shoot.id);
                                         }}
                                         className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
                                       >
@@ -1419,129 +1418,127 @@ export const ShootsTable = ({
                                         Notes {shoot.notesCount > 0 ? `(${shoot.notesCount})` : ""}
                                       </button>
 
-                                    <button
-                                      type="button"
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenCardActionId(null);
+                                          handleDeleteClick(e, shoot.id);
+                                        }}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                          }`}
+                                      >
+                                        <Trash2 size={16} />
+                                        Delete
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              {/* DIVIDER */}
+                              <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                              {/* BODY */}
+                              <div className="space-y-4 p-5">
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot ID</p>
+                                  <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.id}</p>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Category</p>
+                                  <p className={`text-sm text-right font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.category}</p>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Price</p>
+                                  <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.price}</p>
+                                </div>
+                              </div>
+
+                              {/* DIVIDER */}
+                              <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+
+                              {/* FOOTER */}
+                              <div
+                                className="flex items-center justify-between p-5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <StatusBadge status={shoot.status} />
+
+                                {shoot.needsAttention?.required && (
+                                  <div className="relative">
+                                    {/* 1. THE PILL:  */}
+                                    <span
+                                      onMouseEnter={() => setHoveredShootId(`grid-${shoot.id}`)}
+                                      onMouseLeave={() => setHoveredShootId(null)}
                                       onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenCardActionId(null);
-                                        handleDeleteClick(e, shoot.id);
+                                        e.stopPropagation(); // Prevent opening shoot details
+                                        setFieldsToShow(missingFields);
+                                        setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                        setSelectedShootDataForMissingFields(shoot.sourceProject || null);
+                                        setIsMissingFieldsModalOpen(true);
                                       }}
-                                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                      className={`cursor-pointer text-[10px] font-medium px-2 py-0.5 rounded-full transition-transform hover:scale-105 ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"
                                         }`}
                                     >
-                                      <Trash2 size={16} />
-                                      Delete
-                                    </button>
+                                      Missing Info
+                                    </span>
+
+                                    {/* 2. THE TOOLTIP */}
+                                    <AnimatePresence>
+                                      {hoveredShootId === `grid-${shoot.id}` && (
+                                        <motion.div
+                                          initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                                          exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                                          transition={{ duration: 0.15, ease: "easeOut" }}
+                                          className={`absolute bottom-full right-0 mb-2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none ${isDark ? "bg-[#222] border border-white/10 text-white" : "bg-white border border-gray-200 text-black"
+                                            }`}
+                                        >
+                                          <div className="flex flex-col gap-1">
+                                            <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1 flex items-center justify-between gap-4">
+                                              Attention Required
+                                            </span>
+                                            {missingFields.map((field, i) => (
+                                              <span key={i} className="flex items-center gap-1.5">
+                                                <span className="w-1 h-1 rounded-full bg-red-500" />
+                                                {toTitleCase(field)}
+                                              </span>
+                                            ))}
+                                          </div>
+                                          <div className={`absolute top-full right-4 border-4 border-transparent ${isDark ? "border-t-[#222]" : "border-t-white"}`} />
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
                                   </div>
                                 )}
-                              </div>
-                            </div>
-                            {/* DIVIDER */}
-                            <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
-                            {/* BODY */}
-                            <div className="space-y-4 p-5">
-                              <div className="flex items-center justify-between gap-3">
-                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot ID</p>
-                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.id}</p>
-                              </div>
-                              <div className="flex items-center justify-between gap-3">
-                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Category</p>
-                                <p className={`text-sm text-right font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.category}</p>
-                              </div>
-                              <div className="flex items-center justify-between gap-3">
-                                <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Price</p>
-                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.price}</p>
-                              </div>
-                            </div>
-
-                            {/* DIVIDER */}
-                            <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
-                            
-                            {/* FOOTER */}
-                            <div
-                              className="flex items-center justify-between p-5"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <StatusBadge status={shoot.status} />
-                              
-                              {shoot.needsAttention?.required && (
-                                <div className="relative">
-                                  {/* 1. THE PILL:  */}
-                                  <span 
-                                    onMouseEnter={() => setHoveredShootId(`grid-${shoot.id}`)}
-                                    onMouseLeave={() => setHoveredShootId(null)}
-                                    onClick={(e) => {
-                                      e.stopPropagation(); // Prevent opening shoot details
-                                      setFieldsToShow(missingFields);
-                                      setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
-                                      setSelectedShootDataForMissingFields(shoot.sourceProject || null);
-                                      setIsMissingFieldsModalOpen(true);
-                                    }}
-                                    className={`cursor-pointer text-[10px] font-medium px-2 py-0.5 rounded-full transition-transform hover:scale-105 ${
-                                      isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"
-                                    }`}
-                                  >
-                                    Missing Info
-                                  </span>
-
-                                  {/* 2. THE TOOLTIP */}
-                                  <AnimatePresence>
-                                    {hoveredShootId === `grid-${shoot.id}` && (
-                                      <motion.div
-                                        initial={{ opacity: 0, y: 4, scale: 0.98 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }} 
-                                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
-                                        transition={{ duration: 0.15, ease: "easeOut" }} 
-                                          className={`absolute bottom-full right-0 mb-2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none ${
-                                          isDark ? "bg-[#222] border border-white/10 text-white" : "bg-white border border-gray-200 text-black"
-                                        }`}
-                                      >                                      
-                                        <div className="flex flex-col gap-1">
-                                          <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1 flex items-center justify-between gap-4">
-                                            Attention Required
-                                          </span>
-                                          {missingFields.map((field, i) => (
-                                            <span key={i} className="flex items-center gap-1.5">
-                                              <span className="w-1 h-1 rounded-full bg-red-500" />
-                                              {toTitleCase(field)}
-                                            </span>
-                                          ))}
-                                        </div>
-                                        <div className={`absolute top-full right-4 border-4 border-transparent ${isDark ? "border-t-[#222]" : "border-t-white"}`} />
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              )}
-
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setChatOpen(shoot.id);
-                                }}
-                                className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/5 transition-colors"
-                              >
-                                {shoot.notesCount > 0 ? (
-                                  <>
-                                    <span className={`${isDark ? "text-white" : "text-[#222]"} text-base leading-none`}>
-                                      {shoot.notesCount}
-                                    </span>
-                                    <MessageCirclePlus
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setChatOpen(shoot.id);
+                                  }}
+                                  className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/5 transition-colors"
+                                >
+                                  {shoot.notesCount > 0 ? (
+                                    <>
+                                      <span className={`${isDark ? "text-white" : "text-[#222]"} text-base leading-none`}>
+                                        {shoot.notesCount}
+                                      </span>
+                                      <MessageCirclePlus
+                                        size={18}
+                                        className={`${isDark ? "text-[#CFCFCF]" : "text-[#666]"} transition-colors`}
+                                      />
+                                    </>
+                                  ) : (
+                                    <CirclePlus
                                       size={18}
-                                      className={`${isDark ? "text-[#CFCFCF]" : "text-[#666]"} transition-colors`}
+                                      className={`${isDark ? "text-[#AFAFAF]" : "text-[#777]"} transition-colors`}
                                     />
-                                  </>
-                                ) : (
-                                  <CirclePlus
-                                    size={18}
-                                    className={`${isDark ? "text-[#AFAFAF]" : "text-[#777]"} transition-colors`}
-                                  />
-                                )}
-                              </button>
+                                  )}
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          ); 
+                          );
                         })}
                       </div>
                     </div>
@@ -1596,44 +1593,43 @@ export const ShootsTable = ({
                       >
                         <td className={`py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                           <div className="flex items-center gap-2">
-                            <div 
-                             className="w-8 h-8 shrink-0 flex items-center justify-center relative"
-                             onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
-                             onMouseLeave={() => setHoveredShootId(null)}>
+                            <div
+                              className="w-8 h-8 shrink-0 flex items-center justify-center relative"
+                              onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
+                              onMouseLeave={() => setHoveredShootId(null)}>
                               {hasMissingFields && (
                                 <div>
-                                <Lottie animationData={animationData} loop={true} />
-                                {/* Tooltip */}
+                                  <Lottie animationData={animationData} loop={true} />
+                                  {/* Tooltip */}
                                   <AnimatePresence>
                                     {hoveredShootId === `list-${shoot.id}` && (
                                       <motion.div
-                                      initial={{ opacity: 0, x: -10 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      exit={{ opacity: 0, x: -10 }}
-                                      
-                                      className={`absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none 
-                                        ${isDark 
-                                          ? "bg-[#222] border border-white/10 text-white" 
-                                          : "bg-white border border-gray-200 text-black"
-                                        }`}
-                                    >                                      
-                                      <div className="flex flex-col gap-1">
-                                        <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1">
-                                          Attention Required:
-                                        </span>
-                                        {missingFields.map((field, i) => (
-                                          <span key={i} className="flex items-center gap-1.5">
-                                            <span className="w-1 h-1 rounded-full bg-red-500" /> 
-                                            {toTitleCase(field)}
-                                          </span>
-                                        ))}
-                                      </div>
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -10 }}
 
-                                      {/* Tooltip Arrow */}
-                                      <div className={`absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent ${
-                                        isDark ? "border-t-[#222]" : "border-t-white"
-                                      }`} />
-                                    </motion.div>
+                                        className={`absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none 
+                                        ${isDark
+                                            ? "bg-[#222] border border-white/10 text-white"
+                                            : "bg-white border border-gray-200 text-black"
+                                          }`}
+                                      >
+                                        <div className="flex flex-col gap-1">
+                                          <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1">
+                                            Attention Required:
+                                          </span>
+                                          {missingFields.map((field, i) => (
+                                            <span key={i} className="flex items-center gap-1.5">
+                                              <span className="w-1 h-1 rounded-full bg-red-500" />
+                                              {toTitleCase(field)}
+                                            </span>
+                                          ))}
+                                        </div>
+
+                                        {/* Tooltip Arrow */}
+                                        <div className={`absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent ${isDark ? "border-t-[#222]" : "border-t-white"
+                                          }`} />
+                                      </motion.div>
                                     )}
                                   </AnimatePresence>
                                 </div>
@@ -1676,8 +1672,7 @@ export const ShootsTable = ({
 
                             {openCardActionId === shoot.id && (
                               <div
-                                className={`absolute right-0 top-9 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
-                                  }`}
+                                className={`absolute right-0 top-9 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <button
@@ -1692,17 +1687,17 @@ export const ShootsTable = ({
                                 >
                                   <ChevronRight size={16} />                                  Open details
                                 </button>
-                                
+
                                 <button
                                   type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenCardActionId(null);
-                                  setFieldsToShow(missingFields);
-                                  setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
-                                  setSelectedShootDataForMissingFields(shoot.sourceProject || null);
-                                  setIsMissingFieldsModalOpen(true);
-                                }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenCardActionId(null);
+                                    setFieldsToShow(missingFields);
+                                    setSelectedShootIdForMissingFields(getApiShootId(shoot.id));
+                                    setSelectedShootDataForMissingFields(shoot.sourceProject || null);
+                                    setIsMissingFieldsModalOpen(true);
+                                  }}
                                   className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-[#8C6A00] hover:bg-[#F8F4EA]"}`}
                                 >
                                   <AlertCircle size={16} />
