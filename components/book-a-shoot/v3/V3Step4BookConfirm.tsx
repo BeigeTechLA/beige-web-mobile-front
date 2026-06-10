@@ -268,6 +268,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         : newshootTypes;
 
   const shootInfo: ShootTypeProps = (() => {
+    if (isStudioBooking && primaryStudio?.image) {
+      return {
+        title: primaryStudio.name || "Studio",
+        details: "Studio shoot",
+        image: primaryStudio.image,
+      };
+    }
+
     const fallbackPools = [
       ...newshootTypes,
       ...videoShootTypes,
