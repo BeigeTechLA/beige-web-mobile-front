@@ -2609,6 +2609,8 @@ export default function CreateQuotePage() {
     selectedServices,
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
+  const shouldHideBackButton = isQuoteSaved || (!isEditMode && !!createdQuoteId);
+
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
@@ -4879,6 +4881,7 @@ export default function CreateQuotePage() {
       <div className="px-4 pb-30 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
         {/* Navigation & Progress Header */}
         <div className="flex justify-between items-center mb-7">
+          {!shouldHideBackButton ? (
           <button
             onClick={handleBack}
             className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
@@ -4886,7 +4889,8 @@ export default function CreateQuotePage() {
             <ArrowLeft size={18} />
             Back
           </button>
-
+          ):(<div/>
+        )}
           <div className="text-right">
             {view === "tax" && (
               <Button
@@ -7548,6 +7552,7 @@ export default function CreateQuotePage() {
         {/* Footer Actions */}
         <div className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
           <div className="flex gap-4">
+            {!shouldHideBackButton && (
           <Button
             variant="outline"
             className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
@@ -7555,6 +7560,7 @@ export default function CreateQuotePage() {
           >
             Back
           </Button>
+          )}
           {!showInvoiceActions ? (
             showReviewChangesAction ? (
               <Button
@@ -7753,6 +7759,7 @@ export default function CreateQuotePage() {
                 : "Preview Quote"}
             </Button>
           ) : null}
+          {!shouldHideBackButton && (
           <Button
             variant="outline"
             className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
@@ -7760,6 +7767,7 @@ export default function CreateQuotePage() {
           >
             Back
           </Button>
+          )}
           {!showInvoiceActions ? (
             showReviewChangesAction ? (
               <Button

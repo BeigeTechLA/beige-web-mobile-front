@@ -133,17 +133,16 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
   }
 
   return (
-    <div className="flex h-full -m-6 lg:-m-10 relative">
-
-      {/* Main Content (Left) */}
-      <div className="flex-1 p-6 pb-50 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+    <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
+      {/* Main Content (Left Scroll Window) */}
+      <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
         <AffiliateShootHeader
           activeTab={activeTab}
           project={project}
           projectId={shootId}
           onBack={onBack}
         />
-        
+
         <Button
           className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
             ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
@@ -154,13 +153,13 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
           View Project Timeline
         </Button>
 
-        <div className={`rounded-lg lg:rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
+        <div className={`rounded-lg lg:rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
           <AffiliateShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
-          <div className="px-5 py-6 lg:py-9">
+          <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
             {activeTab === "Overview" && (
               <>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+                <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
                   <AffiliateProjectTeam projectId={shootId} />
                   <AffiliateAssignedCP projectId={shootId} />
                 </div>
@@ -169,22 +168,28 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
             )}
 
             {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-              <AffiliatePreProductionTab isDark={isDark} projectId={shootId} />
+              <div className="px-5">
+                <AffiliatePreProductionTab projectId={shootId} />
+              </div>
             )}
 
             {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-              <AffiliatePostProductionTab isDark={isDark} projectId={shootId} />
+              <div className="px-5">
+                <AffiliatePostProductionTab projectId={shootId} />
+              </div>
             )}
 
             {activeTab === "Meetings" && (
               <>
                 <AffiliateMeetingSchedule role="client" orderId={shootId} />
-                <AffiliateMeetingOverviewChart isDark={isDark} />
+                <AffiliateMeetingOverviewChart />
               </>
             )}
 
             {activeTab === "Messages" && (
-              <AffiliateMessagesTab bookingId={shootId} />
+              <div className="px-5">
+                <AffiliateMessagesTab bookingId={shootId} />
+              </div>
             )}
           </div>
         </div>
@@ -197,7 +202,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
       {/* Mobile Timeline Overlay */}
       {isTimelineOpen && (
-        <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
+        <div className={`lg:hidden fixed inset-0 z-[100] flex justify-end  ${isDark ? "bg-black/80" : "bg-white/80"}`}>
           <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
 
           <div className={`relative w-[85%] max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
@@ -217,7 +222,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
       )}
 
       {/* Floating Mobile Action Buttons (Dev 1) */}
-      <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+      <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-[#F4F5F7] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
         <div className="flex gap-2">
           {canDelete && (
             <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
@@ -234,7 +239,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
         </div>
         <Button
           onClick={() => router.push(`${shootBasePath}/${shootId}/form-details`)}
-          className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
+          className={`w-full h-14 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
         >
           <Eye size={18} /> View Form Details
         </Button>

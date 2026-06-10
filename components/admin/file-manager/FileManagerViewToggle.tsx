@@ -45,8 +45,7 @@ export function FileManagerViewToggle({
         </Button>
 
         {isOpen && (
-          <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden transition-colors ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#D7D7D7]"
-            }`}>
+          <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden transition-colors ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#D7D7D7]"}`}>
             {VIEW_OPTIONS.map((option) => {
               const Icon = option.icon;
               const isSelected = viewMode === option.mode;
@@ -78,8 +77,7 @@ export function FileManagerViewToggle({
       </div>
 
       {/* Large Desktop Horizontal Layout Control Grid */}
-      <div className={`hidden lg:flex flex-wrap items-center rounded-lg w-full md:w-fit border transition-colors ${isDark ? "bg-[#202020] border-white/5" : "bg-white border-white"
-        }`}>
+      <div className={`hidden lg:flex flex-wrap items-center rounded-lg w-full md:w-fit border transition-colors ${isDark ? "bg-[#202020] border-white/5" : "bg-white border-white"}`}>
         {VIEW_OPTIONS.map((option, index) => {
           const Icon = option.icon;
           const isSelected = viewMode === option.mode;

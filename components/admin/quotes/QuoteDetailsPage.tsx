@@ -607,7 +607,6 @@ const SectionShell = ({
       ) : null}
     </div>
 
-    {/* Dashed Separator Line */}
     <div className={`border-t transition-colors ${isDark ? "border-[#343434]" : "border-[#2B2B2B]"}`} />
 
     <div className="px-5 py-5 lg:px-8 lg:py-7">{children}</div>
@@ -752,12 +751,10 @@ const QuoteTopActions = ({
 
 const DetailRow = ({ label, value, isDark = true }: { label: string; value: string; isDark?: boolean; }) => (
   <div className="flex items-start justify-between gap-4 py-2.5 lg:py-4">
-    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"
-      }`}>
+    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
       {label}
     </p>
-    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"
-      }`}>
+    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
       {value}
     </p>
   </div>
@@ -2107,7 +2104,7 @@ export default function QuoteDetailsPage({
           <button
             type="button"
             onClick={() => router.push(baseHref)}
-            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
+            className="flex items-center gap-2 text-sm lg:text-base text-[#D4D4D4] transition-colors hover:text-white"
           >
             <ArrowLeft size={18} />
             Back
@@ -2153,8 +2150,7 @@ export default function QuoteDetailsPage({
             }`}
           >
             <div
-              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"
-                }`}
+              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"}`}
             >
               <Loader2 size={18} className="animate-spin text-[#E8D1AB]" />
               Loading quote details...
@@ -2693,7 +2689,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("discounts")}
-                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2703,7 +2699,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
-                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
