@@ -399,6 +399,19 @@ const formatStatusLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+const toPaymentNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
 type QuoteVersionMeta = Record<string, unknown>;
 type QuoteChangeRequestMeta = Record<string, unknown>;
 
@@ -1361,7 +1374,12 @@ export default function QuoteDetailsPage({
 
     return Number.isInteger(activityLeadId) && activityLeadId > 0 ? activityLeadId : null;
   }, [quote]);
-  const { data: linkedLeadDetails, refetch: refetchLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
+  const {
+    data: linkedLeadDetails,
+    isFetching: isFetchingLinkedLeadDetails,
+    isLoading: isLoadingLinkedLeadDetails,
+    refetch: refetchLeadDetails,
+  } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
     skip: !quoteLeadId,
   });
   const refreshQuotePrimaryContext = useCallback(async () => {
@@ -1505,14 +1523,39 @@ export default function QuoteDetailsPage({
         new Date(String(a.createdAt || 0)).getTime()
     );
   }, [linkedLeadDetails?.activities, quote?.activities]);
-  const leadPaymentStatus = String(linkedLeadDetails?.payment_status || "").toLowerCase();
-  const totalPaymentAmount = Number(finalTotal || linkedLeadDetails?.pricing_breakdown?.total || 0);
+  const quoteRecord = quote as Record<string, unknown> | null;
+  const leadPaymentStatus = String(linkedLeadDetails?.payment_status || "").trim().toLowerCase();
+  const paymentSummary = quoteRecord?.payment_summary && typeof quoteRecord.payment_summary === "object"
+    ? (quoteRecord.payment_summary as Record<string, unknown>)
+    : null;
+  const quotePaymentStatus = String(
+    quote?.additional_payment?.payment_status ||
+    paymentSummary?.payment_status ||
+    quoteRecord?.payment_status ||
+    ""
+  ).trim().toLowerCase();
+  const totalPaymentAmount = Math.max(
+    0,
+    toPaymentNumber(finalTotal) ??
+    toPaymentNumber(linkedLeadDetails?.pricing_breakdown?.total) ??
+    0
+  );
 
   // Account for previous payments from lead or quote context
-  const leadCollectedAmount = Number(linkedLeadDetails?.collected_amount) || 0;
-  const quotePreviouslyPaid = Number(quote?.additional_payment?.previously_paid_amount) || 0;
-  const summaryPaidAmount = Number(quote?.payment_summary?.paid_amount) || 0;
-  const summaryCreditUsedAmount = Number(quote?.payment_summary?.credit_used_amount) || 0;
+  const leadCollectedAmount = Math.max(0, toPaymentNumber(linkedLeadDetails?.collected_amount) ?? 0);
+  const quotePreviouslyPaid = Math.max(
+    0,
+    toPaymentNumber(quote?.additional_payment?.previously_paid_amount) ?? 0
+  );
+  const summaryPaidAmount = Math.max(0, toPaymentNumber(paymentSummary?.paid_amount) ?? 0);
+  const summaryCreditUsedAmount = Math.max(
+    0,
+    toPaymentNumber(paymentSummary?.credit_used_amount) ?? 0
+  );
+  const summaryDueAmountValue =
+    toPaymentNumber(paymentSummary?.due_amount) ??
+    toPaymentNumber(paymentSummary?.pending_amount);
+  const summaryDueAmount = Math.max(0, summaryDueAmountValue ?? 0);
   const effectivePreviouslyPaid = Math.max(
     leadCollectedAmount + summaryCreditUsedAmount,
     quotePreviouslyPaid + summaryCreditUsedAmount,
@@ -1525,23 +1568,48 @@ export default function QuoteDetailsPage({
     const numeric = Number(entry.data.amount || 0);
     return sum + (Number.isFinite(numeric) ? numeric : 0);
   }, 0);
-  const quotePaymentStatus = String(quote?.additional_payment?.payment_status || "").toLowerCase();
-  const quoteOutstandingAmount = Number(quote?.additional_payment?.outstanding_amount) || 0;
-
+  const quoteOutstandingAmountValue = toPaymentNumber(quote?.additional_payment?.outstanding_amount);
+  const quoteOutstandingAmount = Math.max(0, quoteOutstandingAmountValue ?? 0);
+  const hasExplicitOutstandingAmount =
+    quoteOutstandingAmountValue !== null || summaryDueAmountValue !== null;
+  const explicitOutstandingAmount =
+    quoteOutstandingAmountValue !== null ? quoteOutstandingAmount : summaryDueAmount;
+  const hasExplicitPartialPaymentStatus = [
+    "partially_paid",
+    "partial_paid",
+    "partially paid",
+    "pending",
+    "payment_pending",
+  ].includes(quotePaymentStatus);
+  const hasPaidLeadStatus = ["paid", "success", "completed"].includes(leadPaymentStatus);
+  const paidAmountCandidate = Math.max(effectivePreviouslyPaid, partialPaidFromActivity);
+  const isPaymentContextLoading =
+    Boolean(quoteLeadId) && !linkedLeadDetails && (isLoadingLinkedLeadDetails || isFetchingLinkedLeadDetails);
+  const isQuoteDetailsLoading = loading || isPaymentContextLoading;
+  const isPartiallyPaid =
+    hasExplicitPartialPaymentStatus ||
+    summaryDueAmount > 0 ||
+    (paidAmountCandidate > 0 && totalPaymentAmount > 0 && paidAmountCandidate < totalPaymentAmount) ||
+    (paidAmountCandidate > 0 && explicitOutstandingAmount > 0);
   const hasFullPayment =
-    (hasFullPaymentFromActivity || ["paid", "success", "completed"].includes(leadPaymentStatus)) &&
-    quotePaymentStatus !== "pending" &&
-    quoteOutstandingAmount <= 0;
-  const paidAmount = hasFullPayment ? totalPaymentAmount : (effectivePreviouslyPaid || partialPaidFromActivity);
-  const pendingAmount = totalPaymentAmount - paidAmount;
-  const isPartiallyPaid = !hasFullPayment && paidAmount > 0 && pendingAmount > 0;
+    !isPaymentContextLoading &&
+    !isPartiallyPaid &&
+    (
+      hasFullPaymentFromActivity ||
+      (hasPaidLeadStatus && hasExplicitOutstandingAmount && explicitOutstandingAmount <= 0) ||
+      (paidAmountCandidate > 0 && totalPaymentAmount > 0 && paidAmountCandidate >= totalPaymentAmount)
+    );
+  const paidAmount = hasFullPayment ? totalPaymentAmount : paidAmountCandidate;
+  const pendingAmount = Math.max(totalPaymentAmount - paidAmount, explicitOutstandingAmount);
   const latestManualPaymentEntry = manualPaymentEntries[0] || null;
   const canTakeManualPayment = !hasFullPayment && pendingAmount > 0;
   const displayStatus = hasFullPayment
     ? "Paid"
     : isPartiallyPaid
       ? "Partially Paid"
-      : quoteStatus;
+      : ["paid", "success", "completed"].includes(normalizedQuoteStatus)
+        ? "Pending"
+        : quoteStatus;
   const normalizedDisplayStatus = displayStatus.trim().toLowerCase();
   const hasInvoiceablePaymentContext =
     effectivePreviouslyPaid > 0 ||
@@ -2071,10 +2139,10 @@ export default function QuoteDetailsPage({
         void handlePaymentTransactionAction();
       }}
       onPreview={() => setIsPreviewOpen(true)}
-      previewDisabled={!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      rejectDisabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      convertDisabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      previewDisabled={!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      rejectDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      convertDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      paymentDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
       isConverting={isConverting}
       isRejected={isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
@@ -2105,7 +2173,7 @@ export default function QuoteDetailsPage({
             Back
           </button>
 
-          {!loading && quote && (
+          {!isQuoteDetailsLoading && quote && (
             <div className="flex lg:flex-wrap items-center gap-3">
               {canViewInvoiceFromDetails && (
                 <Button
@@ -2138,7 +2206,7 @@ export default function QuoteDetailsPage({
           )}
         </div>
 
-        {loading ? (
+        {isQuoteDetailsLoading ? (
           <div className={`flex min-h-[360px] items-center justify-center rounded-[26px] border transition-colors ${isDark
             ? "border-[#2B2B2B] bg-[#171717]"
             : "border-[#000000]/10 bg-white"
@@ -2791,7 +2859,7 @@ export default function QuoteDetailsPage({
               <Button
                 type="button"
                 onClick={handleRejectQuote}
-                disabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                disabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
                 className="h-10 rounded-lg border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
               >
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
@@ -2800,7 +2868,7 @@ export default function QuoteDetailsPage({
               <Button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
-                disabled={(!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                disabled={(!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
                 className="h-10 rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
               >
                 <Eye size={18} />

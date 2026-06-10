@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   ArrowUpToLine,
   BadgeDollarSign,
+  ChevronDown,
   Coins,
   Loader2,
   Wallet,
@@ -58,6 +59,7 @@ export default function AffiliateFinancesPage() {
   const [historyStatus, setHistoryStatus] = useState("All");
   const [creditSummary, setCreditSummary] = useState<ClientCreditSummary | null>(null);
   const [creditHistory, setCreditHistory] = useState<ClientCreditHistoryEntry[]>([]);
+  const [expandedId, setExpandedId] = useState<string | number | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -172,6 +174,11 @@ export default function AffiliateFinancesPage() {
     });
   }, [creditHistory, historyMonth, historyStatus, selectedDate]);
 
+  const toggleExpand = (e: React.MouseEvent, id: string | number) => {
+    e.stopPropagation();
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   const metrics = [
     {
       id: "available",
@@ -194,7 +201,7 @@ export default function AffiliateFinancesPage() {
       label: "Total Credits",
       value: formatCurrency(
         (Number(creditSummary?.available_credit_amount || 0) || 0) +
-          (Number(creditSummary?.used_credit_amount || 0) || 0)
+        (Number(creditSummary?.used_credit_amount || 0) || 0)
       ),
       helperText: "Approved + Used credits",
       helperTooltip: "Excluding expired credits. Only approved and used (non-expired) credits are included in this total.",
@@ -216,18 +223,10 @@ export default function AffiliateFinancesPage() {
       >
         <div className="flex justify-between items-start lg:items-end gap-4">
           <div>
-            <h1
-              className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${
-                isDark ? "text-white" : "text-[#000]"
-              }`}
-            >
+            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-black"}`}>
               Credit Points
             </h1>
-            <p
-              className={`text-xs lg:text-sm transition-colors duration-100 ${
-                isDark ? "text-white/70" : "text-[#000000B2]"
-              }`}
-            >
+            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
               Track credit points usage across shoots and invoices
             </p>
           </div>
@@ -237,17 +236,11 @@ export default function AffiliateFinancesPage() {
           />
         </div>
 
-        <section
-          className={`rounded-[24px] border p-5 lg:p-6 transition-colors ${
-            isDark
-              ? "border-[#2D2D2D] bg-[#171717]"
-              : "border-[#E5E5E5] bg-[#FCFBF7]"
-          }`}
-        >
+        <section className={`rounded-[24px] border p-5 lg:p-6 transition-colors ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
           <div className="mb-5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-7 w-[3px] rounded-full bg-[#E5D5B8]" />
-              <h2 className={`text-lg font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+              <div className="h-6 w-[3px] rounded-full bg-[#E5D5B8]" />
+              <h2 className={`text-sm lg:text-lg font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
                 Overview
               </h2>
             </div>
@@ -269,7 +262,7 @@ export default function AffiliateFinancesPage() {
             </select> */}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
+          <div className={`grid grid-cols-1 lg:grid-cols-3 mb-10 rounded-2xl p-4 ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}`}>
             {metrics.map((metric) => {
               const Icon = metric.icon;
               const isActive = activeMetricId === metric.id;
@@ -286,30 +279,25 @@ export default function AffiliateFinancesPage() {
                       setActiveMetricId(metric.id);
                     }
                   }}
-                  className={`rounded-2xl border p-5 lg:p-6 text-left transition-all min-h-[182px] cursor-pointer ${
-                    isActive
-                      ? isDark
-                        ? "border-[#AE936A] bg-[#E5D1AA] text-[#171717]"
-                        : "border-[#E8D1AB] bg-[linear-gradient(145deg,#F8EBCF_0%,#F3DFC0_100%)]"
-                      : isDark
-                      ? "border-[#242424] bg-[#101010] hover:border-[#3A3A3A]"
-                      : "border-[#EFE7DB] bg-white hover:border-[#E5D5B8]"
-                  }`}
+                  className={`relative group cursor-pointer rounded-lg p-4 border transition-all duration-200 ${isActive
+                    ? 'bg-[#ECD7B4] text-[#171717] border-transparent'
+                    : (isDark ? 'bg-[#101010] text-white border-transparent hover:border-white/30' : 'bg-[#F4F5F7] text-[#323232] border-transparent hover:border-[#ECD7B4]')
+                    }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex justify-between items-start mb-6">
                     <p className={`text-sm font-medium ${isActive ? "text-[#171717]" : isDark ? "text-white/90" : "text-[#171717]"}`}>
                       {metric.label}
                     </p>
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isActive ? "bg-[#171717] text-[#E8D1AB]" : metric.iconWrapClass}`}>
-                      <Icon size={18} />
+                    <div className={`p-2 rounded-full ${isActive ? 'bg-[#171717] text-[#E8D1AB]' : (isDark ? 'bg-[#2C2C2C] text-white/60' : 'bg-white text-[#E8D1AB]')}`}>
+                      <Icon size={20} />
                     </div>
                   </div>
 
-                  <p className={`mt-8 text-[48px] leading-none tracking-[-0.03em] font-semibold ${isActive ? "text-[#171717]" : isDark ? "text-white" : "text-[#171717]"}`}>
+                  <p className={`text-[26px] font-bold mb-2 h-8 w-12 animate-pulse rounded ${isActive ? "text-[#171717]" : isDark ? "text-white" : "text-[#171717]"}`}>
                     {metric.value}
                   </p>
-                  <div className="mt-4 flex items-center gap-2">
-                    <p className={`text-sm ${isActive ? "text-[#171717]/75" : isDark ? "text-[#A5A5A5]" : "text-[#6F6F6F]"}`}>
+                  <div className="text-xs flex gap-1 items-center">
+                    <p className={`font-bold ${isActive ? "text-[#171717]/75" : isDark ? "text-[#A5A5A5]" : "text-[#6F6F6F]"}`}>
                       {metric.helperText}
                     </p>
                     {metric.helperTooltip ? (
@@ -326,21 +314,11 @@ export default function AffiliateFinancesPage() {
           </div>
         </section>
 
-        <section
-          className={`overflow-visible rounded-[24px] border transition-colors ${
-            isDark
-              ? "border-[#2D2D2D] bg-[#171717]"
-              : "border-[#E5E5E5] bg-[#FCFBF7]"
-          }`}
-        >
-          <div
-            className={`flex flex-col gap-4 border-b px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6 ${
-              isDark ? "border-[#2A2A2A]" : "border-[#ECE2D3]"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-7 w-[3px] rounded-full bg-[#E5D5B8]" />
-              <h2 className={`text-lg font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+        <section className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"}`}>
+          <div className={`flex flex-col lg:flex-row lg:justify-between lg:items-center p-5 border-b transition-colors duration-300 gap-4 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"}`}>
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-[3px] rounded-full bg-[#E5D5B8]" />
+              <h2 className={`text-sm lg:text-lg font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>
                 Credit Transactions
               </h2>
             </div>
@@ -377,10 +355,134 @@ export default function AffiliateFinancesPage() {
             </select>
           </div> */}
 
-          <div className="hidden overflow-x-auto lg:block">
+          {/*  MOBILE VIEW (Card Accordion)  */}
+          <div className="lg:hidden flex-grow">
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="animate-spin text-[#E8D1AB]" />
+              </div>
+            ) : filteredTransactions.length > 0 ? (
+              <>
+                {/* Header Sticky Strip */}
+                <div className={`flex justify-between text-sm font-medium p-4 rounded-b-2xl border-b transition-colors duration-200 ${isDark ? "text-[#E8D1AB] bg-[#101010] border-b-white/5" : "text-black bg-[#FFFCF6] border-b-black/10"}`}>
+                  <span>Transaction Description</span>
+                  <span>Amount</span>
+                </div>
+
+                {/* Row List Iteration Grid */}
+                {filteredTransactions.map((entry) => {
+                  const isDebit = entry.direction === "debit" || entry.entry_type === "credit_used";
+                  const DirectionIcon = isDebit ? ArrowUpRight : ArrowDownLeft;
+                  const isRowExpanded = expandedId === entry.account_credit_ledger_id;
+
+                  console.log(entry);
+                  return (
+                    <div
+                      key={entry.account_credit_ledger_id}
+                      className={`p-4 ${(isRowExpanded ? (isDark ? "bg-white/5" : "bg-black/5") : "")}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          {/* Expand Toggle Trigger Arrow */}
+                          <button
+                            type="button"
+                            onClick={(e) => toggleExpand(e, entry?.account_credit_ledger_id || "")}
+                            className={`w-6 h-6 flex items-center justify-center rounded-full border transition-all duration-200 shrink-0 ${isRowExpanded
+                              ? "rotate-180 border-[#E8D1AB] text-[#E8D1AB]"
+                              : isDark ? "border-white/20 text-white/40" : "border-black/30 text-black/40"
+                              }`}
+                          >
+                            <ChevronDown size={16} />
+                          </button>
+
+                          {/* Direction Flow Indicator Avatar Icon */}
+                          <div className={`w-8 h-8 flex items-center justify-center rounded-full shrink-0 transition-colors ${isDebit
+                            ? "bg-[#FF7A7A]/15 text-[#FF7A7A]"
+                            : "bg-[#3CB371]/15 text-[#3CB371]"
+                            }`}>
+                            <DirectionIcon size={18} />
+                          </div>
+
+                          {/* Title and Short Description Text Strings */}
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-[#323232]"}`}>
+                              {transactionLabel(entry.entry_type)}
+                            </p>
+                            {/* <p className={`text-xs truncate ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              {entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source || "-")}
+                            </p> */}
+                          </div>
+                        </div>
+
+                        {/* Running Ledger Price Label */}
+                        <div className="text-right shrink-0">
+                          <p className={`font-semibold ${isDebit ? "text-[#FF7A7A]" : "text-[#3CB371]"}`}>
+                            {isDebit ? "-" : "+"}
+                            {formatCurrency(entry.amount || 0)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Expandable Meta Panel Drawer Content block */}
+                      {isRowExpanded && (
+                        <div className="mt-4 grid grid-cols-2 gap-y-4 px-2 text-left animate-in fade-in slide-in-from-top-1 duration-200">
+                          <div>
+                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              Booking Name
+                            </p>
+                            <p className={`text-xs wrap-normal ${isDark ? "text-white/" : "text-[#323232]"}`}>
+                              {entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source || "-")}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              Direction
+                            </p>
+                            <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>
+                              {isDebit ? "Outgoing" : "Incoming"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              Date
+                            </p>
+                            <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>
+                              {formatDate(entry.created_at)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              Status
+                            </p>
+                            <div className="flex justify-end mt-0.5">
+                              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${entry.status === "approved"
+                                ? "bg-emerald-500/10 text-emerald-500"
+                                : entry.status === "rejected"
+                                  ? "bg-red-500/10 text-red-400"
+                                  : "bg-orange-500/10 text-orange-400"
+                                }`}>
+                                {entry.status || "pending"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            ) : (
+              <div className={`text-center py-10 text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
+                No credit transactions found.
+              </div>
+            )}
+          </div>
+
+          {/*  DESKTOP VIEW (Standard Table)  */}
+          <div className="hidden lg:block w-full overflow-x-auto flex-grow">
             <table className="w-full text-left">
-              <thead className={isDark ? "bg-[#101010]" : "bg-[#FFF9EE]"}>
-                <tr className={`text-sm ${isDark ? "text-[#E9D2A9]" : "text-[#7E5E2A]"}`}>
+              <thead className={isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}>
+                <tr className={`text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
                   <th className="px-6 py-5 font-medium">Flow</th>
                   <th className="px-6 py-5 font-medium">Date</th>
                   <th className="px-6 py-5 font-medium">Transaction</th>
@@ -389,11 +491,11 @@ export default function AffiliateFinancesPage() {
                   <th className="px-6 py-5 text-right font-medium">Amount</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="p-5">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="h-[300px] text-center align-middle">
-                      <div className="flex h-full min-h-[300px] items-center justify-center">
+                    <td colSpan={6} className="text-center py-10">
+                      <div className="flex justify-center items-center">
                         <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
                       </div>
                     </td>
@@ -411,15 +513,14 @@ export default function AffiliateFinancesPage() {
                     return (
                       <tr
                         key={entry.account_credit_ledger_id}
-                        className={`border-t ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F1E7D9] hover:bg-[#FFFDF9]"}`}
+                        className={`${isDark ? " hover:bg-white/[0.02]" : " hover:bg-black/[0.03]"}`}
                       >
                         <td className="px-6 py-5 text-[15px]">
                           <div className="flex items-center gap-2">
-                            <span className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                              isDebit
-                                ? "bg-[#FF7A7A]/15 text-[#FF7A7A]"
-                                : "bg-[#3CB371]/15 text-[#3CB371]"
-                            }`}>
+                            <span className={`flex h-8 w-8 items-center justify-center rounded-full ${isDebit
+                              ? "bg-[#FF7A7A]/15 text-[#FF7A7A]"
+                              : "bg-[#3CB371]/15 text-[#3CB371]"
+                              }`}>
                               <DirectionIcon size={15} />
                             </span>
                             <span className={`text-xs font-medium ${isDark ? "text-white/70" : "text-[#666]"}`}>
@@ -437,13 +538,12 @@ export default function AffiliateFinancesPage() {
                           {entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source || "-")}
                         </td>
                         <td className="px-6 py-5 text-[15px]">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
-                            entry.status === "approved"
-                              ? "bg-emerald-500/10 text-emerald-500"
-                              : entry.status === "rejected"
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${entry.status === "approved"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : entry.status === "rejected"
                               ? "bg-red-500/10 text-red-400"
                               : "bg-orange-500/10 text-orange-400"
-                          }`}>
+                            }`}>
                             {entry.status || "pending"}
                           </span>
                         </td>
@@ -457,70 +557,6 @@ export default function AffiliateFinancesPage() {
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div className="space-y-3 p-4 lg:hidden">
-            {loading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
-              </div>
-            ) : filteredTransactions.length === 0 ? (
-              <div className={`py-10 text-center ${isDark ? "text-white/50" : "text-[#777]"}`}>
-                No credit transactions found.
-              </div>
-            ) : (
-              filteredTransactions.map((entry) => {
-                const isDebit = entry.direction === "debit" || entry.entry_type === "credit_used";
-                const DirectionIcon = isDebit ? ArrowUpRight : ArrowDownLeft;
-                return (
-                  <article
-                    key={entry.account_credit_ledger_id}
-                    className={`rounded-[20px] border p-4 ${
-                      isDark ? "border-[#252525] bg-[#111111]" : "border-[#EFE4D6] bg-white"
-                    }`}
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                          isDebit
-                            ? "bg-[#FF7A7A]/15 text-[#FF7A7A]"
-                            : "bg-[#3CB371]/15 text-[#3CB371]"
-                        }`}>
-                          <DirectionIcon size={15} />
-                        </span>
-                        <p className={`text-xs font-medium ${isDark ? "text-white/70" : "text-[#666]"}`}>
-                          {isDebit ? "Outgoing" : "Incoming"}
-                        </p>
-                      </div>
-                      <p className={`font-semibold ${isDebit ? "text-[#FF7A7A]" : "text-[#3CB371]"}`}>
-                        {isDebit ? "-" : "+"}
-                        {formatCurrency(entry.amount || 0)}
-                      </p>
-                    </div>
-                    <p className={`font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
-                      {transactionLabel(entry.entry_type)}
-                    </p>
-                    <p className={`text-sm ${isDark ? "text-[#9F9F9F]" : "text-[#6F6F6F]"}`}>
-                      {entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source || "-")}
-                    </p>
-                    <div className="mt-2 flex items-center justify-between">
-                      <p className={`text-xs ${isDark ? "text-white/50" : "text-[#777]"}`}>
-                        {formatDate(entry.created_at)}
-                      </p>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${
-                        entry.status === "approved"
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : entry.status === "rejected"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-orange-500/10 text-orange-400"
-                      }`}>
-                        {entry.status || "pending"}
-                      </span>
-                    </div>
-                  </article>
-                );
-              })
-            )}
           </div>
         </section>
       </div>
