@@ -194,6 +194,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     setQuotePreviewData(null);
 
     try {
+      await salesApi.getQuoteDetail(convertedSalesQuoteId);
       const versionsResponse = await salesApi.getQuoteVersions(convertedSalesQuoteId);
       const versionsData = Array.isArray(versionsResponse?.data)
         ? versionsResponse.data
@@ -221,6 +222,50 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
       if (!quoteDetail) {
         throw new Error("Quote preview data is unavailable");
+      }
+
+      const rawData = detailResponse?.data as any;
+      const nested = rawData?.data as any;
+
+      let sigSource =
+        rawData?.signature_base64 ??
+        nested?.signature_base64 ??
+        rawData?.signature_path ??
+        nested?.signature_path ??
+        rawData?.signature ??
+        nested?.signature ??
+        rawData?.signature_url ??
+        nested?.signature_url ??
+        rawData?.file_path ??
+        nested?.file_path ??
+        rawData?.file_url ??
+        nested?.file_url;
+
+      if (!sigSource) {
+        try {
+          const sigResponse = await salesApi.getSignatureByQuote(convertedSalesQuoteId);
+          if (sigResponse?.success && sigResponse?.data) {
+            const sigData = sigResponse.data as any;
+            sigSource = sigData?.signature_base64 ?? sigData?.signature_path ?? sigData?.signature ?? sigData?.signature_url;
+          }
+        } catch (err) {
+          console.error("Failed to fetch signature from dedicated API", err);
+        }
+      }
+
+      if (sigSource && typeof sigSource === 'string') {
+        const s3Prefix = "https://d2jhn32fsulyac.cloudfront.net/";
+        const trimmedSource = sigSource.trim();
+        let fullUrl = trimmedSource;
+
+        if (!trimmedSource.startsWith('http') && !trimmedSource.startsWith('data:')) {
+          const normalizedPath = trimmedSource.replace(/^\/+/, "");
+          fullUrl = `${s3Prefix.replace(/\/+$/, "")}/${normalizedPath}`;
+        }
+
+        quoteDetail.signature_base64 = fullUrl;
+        (quoteDetail as any).signature_url = fullUrl;
+        (quoteDetail as any).signature_path = trimmedSource;
       }
 
       setQuotePreviewData(quoteDetail);
