@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { salesApi, adminApi } from '@/lib/api';
-import { Search, SlidersHorizontal, Check, Loader2, List, LayoutGrid, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, Check, Loader2, List, ChevronDown, Grid2x2 } from 'lucide-react';
 import { CreativeFilterModal, CREATIVE_RADIUS_OPTIONS } from './CreativeFilterModal';
 import { Separator } from '@/src/components/landing/Separator';
 
@@ -513,21 +513,32 @@ export const CreativeProfileSelectorAdd = ({
                 }`}
             />
           </div>
-          {/* <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-3 transition-colors ${viewMode === 'list' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
-          >
-            <List size={20} />
-          </button>
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-3 transition-colors ${viewMode === 'grid' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
-          >
-            <LayoutGrid size={20} />
-          </button>
-        </div>  */}
-          {/* FILTER TRIGGER */}
+          {/* List and Grid view */}
+          <div className={`flex items-center justify-center border h-10 lg:h-14 rounded-lg lg:rounded-xl transition-all ${isDark ? "bg-[#1A1A1A] border-white/10" : "bg-white border-[#D8D8D8]"}`}>
+            <div className={`relative flex p-1 rounded-md lg:rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-black/5"}`}>
+              <div
+                className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-md lg:rounded-lg transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"}`}
+                style={{
+                  transform: viewMode === "grid" ? "translateX(100%)" : "translateX(0%)",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`relative z-10 inline-flex items-center justify-center rounded-md lg:rounded-lg px-3 py-2 lg:px-4 lg:py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "list" ? "text-black" : isDark ? "text-white/60 hover:text-white" : "text-[#666666] hover:text-black"}`}
+              >
+                <List size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`relative z-10 inline-flex items-center justify-center rounded-md lg:rounded-lg px-3 py-2 lg:px-4 lg:py-3 text-sm font-medium transition-colors duration-300 ${viewMode === "grid" ? "text-black" : isDark ? "text-white/60 hover:text-white" : "text-[#666666] hover:text-black"}`}
+              >
+                <Grid2x2 size={18} />
+              </button>
+            </div>
+          </div>
+
           <button
             onClick={() => setIsFilterOpen(true)}
             className={`flex items-center gap-2 border h-10 lg:h-14 px-6 py-3 rounded-lg lg:rounded-xl transition-all active:scale-95 ${isDark
@@ -558,7 +569,7 @@ export const CreativeProfileSelectorAdd = ({
       </div>
 
       {/* Creative List Container */}
-      <div className={`border rounded-xl lg:rounded-2xl p-4 lg:p-8 transition-colors ${isDark ? "bg-black border-white/5" : "bg-white border-[#D8D8D8]"
+      <div className={`border rounded-xl lg:rounded-2xl transition-colors ${isDark ? "bg-black border-white/5" : "bg-white border-[#D8D8D8]"
         } ${viewMode === 'grid' ? "space-y-4" : "space-y-4 lg:space-y-8"}`}>
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-5 lg:py-10">
@@ -595,7 +606,7 @@ export const CreativeProfileSelectorAdd = ({
                     </button>
 
                     {isExpanded && (
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 px-4 pb-4 md:px-6 md:pb-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-4 pb-4 md:px-6 md:pb-6">
                         {bucket.items.map((creative, index) => (
                           <CreativeCard
                             key={`${creative.id}-${index}`}
@@ -637,7 +648,7 @@ export const CreativeProfileSelectorAdd = ({
                   </button>
 
                   {expandedBuckets.includes(999) && (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 px-4 pb-4 md:px-6 md:pb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4 pb-4 md:px-6 md:pb-6">
                       {travelingCreatives.items.map((creative, index) => (
                         <CreativeCard
                           key={`${creative.id}-${index}`}
@@ -702,88 +713,89 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
   return (
     <div
       onClick={onToggle}
-      className={`relative group flex transition-all border rounded-lg lg:rounded-2xl cursor-pointer overflow-hidden ${isGrid ? "flex-col h-full min-h-[430px] p-0" : "p-4 flex-col md:flex-row items-center md:items-start gap-6"
+      className={`relative group flex transition-all rounded-[12px] lg:rounded-2xl cursor-pointer overflow-hidden ${isGrid
+        ? "flex-col h-full min-h-[385px] p-0 border-[0.5px]"
+        : "p-4 flex-col md:flex-row items-center md:items-start gap-4"
         } ${isGrid
           ? (isSelected
-            ? (isDark ? 'bg-white/[0.08] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
-            : (isDark ? 'bg-white/[0.08] border-white/10 hover:bg-white/[0.06]' : 'bg-transparent border-transparent hover:bg-gray-50'))
+            ? (isDark ? 'bg-white/[0.08] border-[#E8D1AB]' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
+            : (isDark ? 'bg-white/[0.08] border-white/10 hover:bg-white/[0.06]' : 'bg-transparent border-white/10 hover:bg-gray-50'))
           : (isSelected
-            ? (isDark ? 'bg-white/[0.04] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
-            : (isDark ? 'bg-transparent border-transparent hover:bg-white/[0.02]' : 'bg-transparent border-transparent hover:bg-gray-50'))
+            ? (isDark ? 'bg-white/[0.04]' : 'bg-[#E8D1AB]/5')
+            : (isDark ? 'bg-transparent hover:bg-white/[0.02]' : 'bg-transparent hover:bg-gray-50'))
         }`}
     >
       {isGrid ? (
         <>
-          <div className="relative w-full overflow-hidden rounded-xl lg:rounded-[22px]">
-            <div className="relative aspect-square w-full overflow-hidden">
-              {imageSrc ? (
-                <img
-                  src={imageSrc}
-                  alt={creative.name}
-                  className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${!isSelected ? 'grayscale-[0.15]' : ''}`}
-                />
-              ) : (
-                <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-xl lg:text-3xl font-semibold ${!isSelected ? 'grayscale-[0.15]' : ''}`}>
-                  {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                </div>
-              )}
-            </div>
-
-            <div className="absolute right-4 top-4">
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}
-              >
-                {isSelected && <Check size={18} className="text-black stroke-[3px]" />}
+          <div className="absolute inset-0 w-full h-full">
+            {imageSrc ? (
+              <img
+                src={imageSrc}
+                alt={creative.name}
+                className={`w-full h-[80%] object-cover transition-transform duration-500 ${!isSelected ? 'grayscale-[0.15]' : ''}`}
+              />
+            ) : (
+              <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-6xl font-semibold ${!isSelected ? 'grayscale-[0.15]' : ''}`}>
+                {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="flex w-full flex-1 flex-col px-4 py-4 lg:px-5 lg:pb-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-3">
-                  <h3 className={`truncate text-lg lg:text-2xl leading-none font-medium transition-colors ${isDark ? "text-white" : "text-black"
-                    }`}>
-                    {creative.name}
-                  </h3>
-                  <span className="inline-flex items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold leading-none text-white">
-                    {creative.status}
-                  </span>
-                </div>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to top,rgba(0,0,0,0.98) 0%,rgba(0,0,0,0.95) 20%,rgba(0,0,0,0.85) 40%,rgba(0,0,0,0.55) 60%,rgba(0,0,0,0.15) 80%,rgba(0,0,0,0) 100%)'
+            }}
+          />
+
+          <div className="absolute bottom-0 left-0 right-0 px-5 pb-6 z-10">
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <div className="flex items-center gap-3 min-w-0">
+                <h3 className="text-[18px] font-normal text-white truncate">
+                  {creative.name}
+                </h3>
+
+                <span className="inline-flex items-center justify-center h-[18px] px-2 rounded-[7px] bg-[#16A34A] text-white text-[9px] font-semibold whitespace-nowrap">
+                  {creative.status}
+                </span>
+              </div>
+
+              <div
+                className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[3px] border-[0.5px] transition-all ${isSelected
+                  ? "bg-[#E8D1AB] border-[#DDDDDD]"
+                  : "bg-transparent border-[#DDDDDD]"
+                  }`}
+              >
+                {isSelected && (
+                  <Check size={28} className="text-black stroke-[3]" />
+                )}
               </div>
             </div>
 
-            {/* Experience and Specialities Row */}
-            <div className={`mt-2 lg:mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-2 lg:gap-4 border-t pt-4 transition-colors ${isDark ? "border-white/15 text-white/90" : "border-[#e3e3e3] text-black/80"}`}>
+            <div className="w-full h-px bg-white/[0.12] mb-3" />
+
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-8">
               <div>
-                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
+                <p className="text-white/55 text-sm mb-2">
                   Experience:
                 </p>
-                <p className={`text-sm lg:text-base font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
+
+                <p className="text-white text-sm font-medium">
                   {experienceLabel}
                 </p>
               </div>
 
-              <div className={`mt-1 h-8 w-px transition-colors ${isDark ? "bg-white/20" : "bg-[#e3e3e3]"}`} />
+              <div className="w-px self-stretch bg-white/20" />
 
               <div>
-                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
+                <p className="text-white/55 text-sm mb-2">
                   Specialities:
                 </p>
-                <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
+
+                <p className="text-white text-sm font-medium leading-snug">
                   {creative.specialities}
                 </p>
               </div>
-            </div>
-
-            {/* Location Row */}
-            <div className={`mt-4 border-t pt-4 transition-colors ${isDark ? "border-white/15" : "border-[#e3e3e3]"}`}>
-              <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                Location:
-              </p>
-              <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                {locationLabel}
-              </p>
             </div>
           </div>
         </>
