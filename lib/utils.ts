@@ -355,3 +355,120 @@ export const getBookingDetails = (data: BookingData) => {
     sortedBookingDays
   };
 };
+
+export const formatCurrency = (amount: number | string | null | undefined) => {
+  if (amount === undefined || amount === null || Number.isNaN(Number(amount))) {
+    return "$0.00";
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(Number(amount));
+};
+
+/**
+ * Formats an ISO date string into "Today", "Tomorrow", or "MM/DD/YYYY".
+ * * @param dateString - The ISO date string (e.g., "2026-04-21T12:43:27.000Z")
+ * @returns A string representation: "Today", "Tomorrow", or absolute date in "MM/DD/YYYY"
+ */
+export const formatRelativeOrAbsoluteDate = (dateString: string): string => {
+  if (!dateString) return "—";
+
+  const inputDate = new Date(dateString);
+
+  // Return original string if the date parsing fails
+  if (isNaN(inputDate.getTime())) return dateString;
+
+  // Get midnight today in local time
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get midnight tomorrow in local time
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Normalize the input date to midnight local time for pure calendar day comparison
+  const compareDate = new Date(inputDate);
+  compareDate.setHours(0, 0, 0, 0);
+
+  // 1. Check if the calendar date is Today
+  if (compareDate.getTime() === today.getTime()) {
+    return "Today";
+  }
+
+  // 2. Check if the calendar date is Tomorrow
+  if (compareDate.getTime() === tomorrow.getTime()) {
+    return "Tomorrow";
+  }
+
+  // 3. Fallback to MM/DD/YYYY format padding numbers with leading zeros
+  const month = String(inputDate.getMonth() + 1).padStart(2, "0");
+  const day = String(inputDate.getDate()).padStart(2, "0");
+  const year = inputDate.getFullYear();
+
+  return `${month}/${day}/${year}`;
+};
+
+/**
+ * Evaluates a numeric parameter against two threshold boundaries (x and y)
+ * and returns the corresponding color hex code.
+ * * @param param - The number value to evaluate
+ * @param x - The upper threshold boundary limit
+ * @param y - The lower threshold boundary limit
+ * @returns Color hex code string ('#10B981')
+ */
+export const getColorThreshold = (param: number, x: number, y: number): string => {
+  // 1. Condition for > x
+  if (param > x) {
+    return "#10B981";
+  }
+
+  // 2. Condition for x >= param >= y
+  if (param <= x && param >= y) {
+    return "#FFC87B";
+  }
+
+  // 3. Condition for < y (Fallback catch-all execution boundary)
+  return "#FF7B7B";
+};
+
+/**
+ * Evaluates an ISO string or Date object and returns a hex color code based on its recency:
+ * - Today or next 2 days: "#10B981" (Green)
+ * - Between 3 and 7 days (exclusive of 7): "#FFC87B" (Yellow/Orange)
+ * - 7 or more days into the future: "#91B8F9" (Blue)
+ *
+ * @param dateParam - The target date to evaluate (ISO string or Date object)
+ * @returns Hex color code string
+ */
+export const getDateColorThreshold = (dateParam: string | Date): string => {
+  if (!dateParam) return "#91B8F9"; // Fallback color if date is missing
+
+  const targetDate = new Date(dateParam);
+  if (isNaN(targetDate.getTime())) return "#91B8F9"; // Fallback if date is invalid
+
+  // Normalize today's date to midnight local time
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+
+  // Normalize target date to midnight local time to isolate pure calendar days
+  const targetMidnight = new Date(targetDate);
+  targetMidnight.setHours(0, 0, 0, 0);
+
+  // Calculate the difference in milliseconds and convert to whole days
+  const diffInMs = targetMidnight.getTime() - todayMidnight.getTime();
+  const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
+
+  // Condition 1: Today or within the next 2 days (Days: 0, 1, 2)
+  if (diffInDays >= 0 && diffInDays <= 2) {
+    return "#10B981";
+  }
+
+  // Condition 2: More than 2 days but fewer than 7 days (Days: 3, 4, 5, 6)
+  if (diffInDays > 2 && diffInDays < 7) {
+    return "#FFC87B";
+  }
+
+  // Condition 3: Greater than or equal to 7 days, or any past dates
+  return "#91B8F9";
+};
