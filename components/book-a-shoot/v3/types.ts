@@ -30,9 +30,16 @@ export type BookingDataV3 = {
     timeZone?: string;
   }[];
   // Service & Content
-  contentType: ("videographer" | "photographer" | "cinematographer" | "editing")[];
+  contentType: ("videographer" | "photographer" | "cinematographer" | "editing" | "studio")[];
   shootType: string;
-  
+
+  // Studio specific data
+  bookingFor: "production" | "audio" | "event" | string;
+  projectName: string;
+  description: string;
+  isBrowsingCreators?: boolean;
+  isBrowsingStudios?: boolean;
+
   // Date & Time
   startDate: string;
   endDate: string;
@@ -112,4 +119,5 @@ export const initialDataV3: BookingDataV3 = {
   extraRoleSelections: {},
   budgetMin: 100,
   budgetMax: 20000,
+  isBrowsingCreators: false,
 };

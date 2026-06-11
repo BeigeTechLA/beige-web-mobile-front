@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
-  onNext: () => void;
+  onNext: (isBrowsingStudios?: boolean) => void;
   onBack: () => void;
 }
 
@@ -49,6 +49,7 @@ interface FormFields {
 export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
   const { user, isAuthenticated } = useAuth()
 
+  console.log(data);
   // Local state for team members if not stored in main data yet
   // In a real app, we might want to store this in data.teamIncluded or similar structure
   // For now, let's derive initial state from data.contentType
@@ -62,11 +63,12 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const locationRef = useRef<HTMLDivElement>(null);
   const detailsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
+  const studioRef = useRef<HTMLDivElement>(null);
 
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
   const isStudio = data.shootType === "studio";
 
-   const links = data.referenceLinks || [];
+  const links = data.referenceLinks || [];
 
   const [newLink, setNewLink] = useState("");
   const [showAllPreviews, setShowAllPreviews] = useState(true);
@@ -79,7 +81,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   const handleAddLink = () => {
     if (!newLink.trim()) return;
-    
+
     // Normalize if needed but standard is to keep what user put and validate
     const normalized = normalizeUrl(newLink);
     if (!isValidUrl(normalized)) {
@@ -88,8 +90,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     }
 
     if (links.includes(normalized)) {
-       toast.error("This link is already added");
-       return;
+      toast.error("This link is already added");
+      return;
     }
 
     updateData({ referenceLinks: [...links, normalized] });
@@ -123,8 +125,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
     // Pinterest
     if (normalizedUrl.includes("pinterest.com") || normalizedUrl.includes("pin.it")) {
-        // Pinterest doesn't embed well in iframes due to CSP, but we can try the widget or just show a nice placeholder
-        return null; 
+      // Pinterest doesn't embed well in iframes due to CSP, but we can try the widget or just show a nice placeholder
+      return null;
     }
 
     const youtubeMatch = normalizedUrl.match(
@@ -217,12 +219,12 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       booking_form_fields: formFields
     });
   }, [])
-    
+
   const handleRemoveAllExtra = () => {
-    updateData({ 
-        addTeamMembers: false,
-        extraRoleSelections: {}, // Clear persisted counts
-        teamIncluded: [] 
+    updateData({
+      addTeamMembers: false,
+      extraRoleSelections: {}, // Clear persisted counts
+      teamIncluded: []
     });
     setExtraTeam({}); // Clear local UI state
     scrollToRef(locationRef);
@@ -343,7 +345,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       } = {
         booking_id: data.bookingId,
         crew_roles: crewRoles,
-        description: data.specialInstructions, 
+        description: data.specialInstructions,
         reference_links: data.referenceLinks.filter(l => l.trim() !== ""),
       };
 
@@ -433,6 +435,14 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     }, 100);
   };
 
+  const handleBrowseStudios = async () => {
+    // Update state so it's saved for back-navigation later
+    updateData({ isBrowsingStudios: true });
+
+    // Pass true directly to ensure the parent acts on it immediately
+    onNext(true);
+  }
+
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
 
@@ -469,103 +479,103 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       </div>
       {/* Add More Team Members */}
       {!isEditingOnly && (
-      <div ref={extraTeamRef}>
-        <div className="flex flex-col gap-3 lg:gap-6">
-          <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
-          <div className="flex gap-2 lg:gap-6">
-            <button
-              onClick={() => updateData({ addTeamMembers: true })}
-              // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-            >
-              <span className="font-medium text-sm lg:text-lg pr-2">
-                Yes
-              </span>
-              <div
-                className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${data.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+        <div ref={extraTeamRef}>
+          <div className="flex flex-col gap-3 lg:gap-6">
+            <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
+            <div className="flex gap-2 lg:gap-6">
+              <button
+                onClick={() => updateData({ addTeamMembers: true })}
+                // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
-                {data.addTeamMembers && (
-                  <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                )}
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                {handleRemoveAllExtra}
-                updateData({ addTeamMembers: false });
-                setExtraTeam({});
-                updateData({ teamIncluded: [] });
-                scrollToRef(locationRef);
-              }}
-              // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-            >
-              <span className="font-medium text-sm lg:text-lg pr-2">
-                No
-              </span>
-              <div
-                className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${!data.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                <span className="font-medium text-sm lg:text-lg pr-2">
+                  Yes
+                </span>
+                <div
+                  className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${data.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                >
+                  {data.addTeamMembers && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  { handleRemoveAllExtra }
+                  updateData({ addTeamMembers: false });
+                  setExtraTeam({});
+                  updateData({ teamIncluded: [] });
+                  scrollToRef(locationRef);
+                }}
+                // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
-                {!data.addTeamMembers && (
-                  <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                )}
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {data.addTeamMembers && (
-          <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
-            <div className="flex flex-col gap-4">
-              {availableRolesToAdd.length > 0 ? (
-                availableRolesToAdd.map((role) => (
-                  <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">
-                        {role.icon}
-                      </div>
-                      <div>
-                        <div className="text-lg font-medium text-white">{role.label}</div>
-                        {/* <div className="text-sm text-[#E8D1AB]">${role.price.toFixed(2)}</div> */}
-                      </div>
-                    </div>
-                    <QuantityControl
-                      value={extraTeam[role.id] || 0}
-                      onIncrease={() => handleExtraTeamChange(role.id, 1)}
-                      onDecrease={() => handleExtraTeamChange(role.id, -1)}
-                    />
-                  </div>
-                ))
-              ) : (
-                <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
-              )}
+                <span className="font-medium text-sm lg:text-lg pr-2">
+                  No
+                </span>
+                <div
+                  className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${!data.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                >
+                  {!data.addTeamMembers && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
             </div>
           </div>
-        )}
-      </div>
+
+          {data.addTeamMembers && (
+            <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
+              <div className="flex flex-col gap-4">
+                {availableRolesToAdd.length > 0 ? (
+                  availableRolesToAdd.map((role) => (
+                    <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">
+                          {role.icon}
+                        </div>
+                        <div>
+                          <div className="text-lg font-medium text-white">{role.label}</div>
+                          {/* <div className="text-sm text-[#E8D1AB]">${role.price.toFixed(2)}</div> */}
+                        </div>
+                      </div>
+                      <QuantityControl
+                        value={extraTeam[role.id] || 0}
+                        onIncrease={() => handleExtraTeamChange(role.id, 1)}
+                        onDecrease={() => handleExtraTeamChange(role.id, -1)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Location */}
       {!isEditingOnly && !isStudio && (
-      <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3>
-        <LocationPicker
-          value={data.location}
-          onChange={(address, details) => {
-            updateData({ location: address, locationDetails: details });
-            if (address) scrollToRef(detailsRef); // Scroll to details once location set
-          }}
-          placeholder="Search for a location"
-          colors={darkThemeColors}
-          // error
-          hasError={errors.includes("locationError")}
-          disabled={false}
-        />
-      </div>
+        <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
+          <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3>
+          <LocationPicker
+            value={data.location}
+            onChange={(address, details) => {
+              updateData({ location: address, locationDetails: details });
+              if (address) scrollToRef(detailsRef); // Scroll to details once location set
+            }}
+            placeholder="Search for a location"
+            colors={darkThemeColors}
+            // error
+            hasError={errors.includes("locationError")}
+            disabled={false}
+          />
+        </div>
       )}
 
       {/* Details Form */}
-      <div ref={detailsRef} className="pt-6 lg:pt-15 border-t border-white/10 flex flex-col gap-4 lg:gap-10">
+      <div ref={detailsRef} className="py-6 lg:py-15 border-y border-white/10 flex flex-col gap-4 lg:gap-10">
         <div className="relative">
           <label
             htmlFor="specialInstructions"
@@ -582,7 +592,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           />
         </div>
 
-         <div className="flex flex-col gap-6 pt-6">
+        <div className="flex flex-col gap-6 pt-6">
           <div className="relative flex flex-col gap-4">
             <label
               htmlFor="referenceLinks-input"
@@ -590,7 +600,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
             >
               Supporting Links
             </label>
-            
+
             <div className="flex gap-2 items-center">
               <input
                 id="referenceLinks-input"
@@ -600,7 +610,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
                 placeholder="Share any links to inspo or reference content."
                 className="w-full rounded-[12px] border border-white/30 px-4 py-4 text-white outline-none focus:border-white/60 transition-all bg-[#101010] text-sm lg:text-base"
               />
-              <button 
+              <button
                 onClick={handleAddLink}
                 className="h-[56px] lg:h-[60px] px-6 bg-[#E8D1AB] text-black rounded-[12px] font-medium hover:bg-[#dcb98a] transition-colors whitespace-nowrap flex items-center justify-center gap-2"
               >
@@ -611,27 +621,27 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
             {links.length > 0 && (
               <div className="flex items-center justify-between mt-2 px-1">
-                 <div className="flex flex-col">
-                    <h4 className="text-xs font-semibold text-white/90 uppercase tracking-widest">Added References</h4>
-                    <p className="text-[10px] text-white/40">{links.length} link{links.length > 1 ? 's' : ''} total</p>
-                 </div>
-                 <div className="flex items-center gap-3">
-                    {links.length > 1 && (
-                        <button 
-                            onClick={() => updateData({ referenceLinks: [] })}
-                            className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors uppercase tracking-wider font-medium"
-                        >
-                            Clear All
-                        </button>
-                    )}
-                    <button 
-                        onClick={() => setShowAllPreviews(!showAllPreviews)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-medium ${showAllPreviews ? "bg-white/10 border-white/20 text-white" : "bg-[#E8D1AB] border-transparent text-black"}`}
+                <div className="flex flex-col">
+                  <h4 className="text-xs font-semibold text-white/90 uppercase tracking-widest">Added References</h4>
+                  <p className="text-[10px] text-white/40">{links.length} link{links.length > 1 ? 's' : ''} total</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {links.length > 1 && (
+                    <button
+                      onClick={() => updateData({ referenceLinks: [] })}
+                      className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors uppercase tracking-wider font-medium"
                     >
-                        {showAllPreviews ? <Eye size={14} /> : <Eye size={14} />}
-                        {showAllPreviews ? "Hide Previews" : "Show All Previews"}
+                      Clear All
                     </button>
-                 </div>
+                  )}
+                  <button
+                    onClick={() => setShowAllPreviews(!showAllPreviews)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-medium ${showAllPreviews ? "bg-white/10 border-white/20 text-white" : "bg-[#E8D1AB] border-transparent text-black"}`}
+                  >
+                    {showAllPreviews ? <Eye size={14} /> : <Eye size={14} />}
+                    {showAllPreviews ? "Hide Previews" : "Show All Previews"}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -645,15 +655,15 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
                   return (
                     <div key={index} className="relative group rounded-xl overflow-hidden border border-white/10 bg-[#171717] h-[220px] flex flex-col">
                       <div className="absolute top-2 right-2 z-20 flex gap-1 transform translate-y-1 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-                        <a 
-                          href={normalized} 
-                          target="_blank" 
+                        <a
+                          href={normalized}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="p-1.5 bg-black/60 backdrop-blur-md rounded-lg text-white/70 hover:text-white border border-white/10"
                         >
                           <ExternalLink size={14} />
                         </a>
-                        <button 
+                        <button
                           onClick={() => removeLinkField(index)}
                           className="p-1.5 bg-black/60 backdrop-blur-md rounded-lg text-white/70 hover:text-red-400 border border-white/10"
                         >
@@ -672,39 +682,39 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
                             loading="lazy"
                           />
                         ) : isImage ? (
-                          <img 
-                            src={normalized} 
-                            alt="Preview" 
+                          <img
+                            src={normalized}
+                            alt="Preview"
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                             onError={(e) => {
-                                // Fallback if image fails to load
-                                (e.target as HTMLImageElement).style.display = 'none';
-                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                              // Fallback if image fails to load
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                             }}
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20 group-hover:text-white/40 transition-colors">
                             <div className="relative">
-                                <Globe size={48} strokeWidth={1} />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                     <img 
-                                        src={`https://www.google.com/s2/favicons?domain=${new URL(normalized).hostname}&sz=32`} 
-                                        alt=""
-                                        className="w-6 h-6 rounded-sm opacity-80"
-                                        onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
-                                    />
-                                </div>
+                              <Globe size={48} strokeWidth={1} />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <img
+                                  src={`https://www.google.com/s2/favicons?domain=${new URL(normalized).hostname}&sz=32`}
+                                  alt=""
+                                  className="w-6 h-6 rounded-sm opacity-80"
+                                  onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+                                />
+                              </div>
                             </div>
-                           
+
                           </div>
                         )}
-                        
+
                         {/* Fallback for broken images */}
                         {isImage && (
-                             <div className="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/20">
-                                <ImageIcon size={48} strokeWidth={1} />
-                                <span className="text-[9px] uppercase tracking-[0.2em] font-medium">Image Reference</span>
-                            </div>
+                          <div className="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/20">
+                            <ImageIcon size={48} strokeWidth={1} />
+                            <span className="text-[9px] uppercase tracking-[0.2em] font-medium">Image Reference</span>
+                          </div>
                         )}
                       </div>
 
@@ -725,8 +735,41 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
               </div>
             )}
           </div>
+        </div>
       </div>
-      </div>
+
+      {/* Need a Studio: conditionally shown when Studios is not selected in step 1 */}
+      {(!data.contentType.includes("studio")) && (
+        <div ref={studioRef} className="bg-[#101010] border border-[#FFFFFF4D] rounded-xl p-3 lg:p-5 flex justify-between items-center">
+          <div className="flex gap-4 items-center ">
+            <div className="bg-[#171717] rounded-xl p-4.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42" fill="none">
+                <path d="M10.5 38.5V7C10.5 6.07174 10.8687 5.1815 11.5251 4.52513C12.1815 3.86875 13.0717 3.5 14 3.5H28C28.9283 3.5 29.8185 3.86875 30.4749 4.52513C31.1313 5.1815 31.5 6.07174 31.5 7V38.5H10.5Z" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10.5 21H7C6.07174 21 5.1815 21.3687 4.52513 22.0251C3.86875 22.6815 3.5 23.5717 3.5 24.5V35C3.5 35.9283 3.86875 36.8185 4.52513 37.4749C5.1815 38.1313 6.07174 38.5 7 38.5H10.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M31.5 15.75H35C35.9283 15.75 36.8185 16.1187 37.4749 16.7751C38.1312 17.4315 38.5 18.3217 38.5 19.25V35C38.5 35.9283 38.1312 36.8185 37.4749 37.4749C36.8185 38.1313 35.9283 38.5 35 38.5H31.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M17.5 10.5H24.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M17.5 17.5H24.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M17.5 24.5H24.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M17.5 31.5H24.5" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-lg lg:text-xl text-white font-medium">
+                Need a Studio?
+              </p>
+              <p className="text-[#A9A9A9] text-xs lg:text-sm">
+                Add a professional studio to your booking and get 15% off
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={handleBrowseStudios}
+            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] flex items-center justify-center text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          >
+            Browse Studios
+          </Button>
+        </div>
+      )}
 
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
