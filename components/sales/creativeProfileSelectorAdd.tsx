@@ -277,7 +277,7 @@ export const CreativeProfileSelectorAdd = ({
           response = await salesApi.getCrewForLead({
             lead_id: leadId || 0,
             role_type: roleType,
-            search_query: undefined,
+            search_query: debouncedSearch || undefined,
             radius: debouncedSearch ? 99999 : appliedFilters.radius,
             latitude: Number.isFinite(currentLatitude) ? currentLatitude : undefined,
             longitude: Number.isFinite(currentLongitude) ? currentLongitude : undefined
@@ -854,5 +854,4 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
     </div>
   );
 };
-
 
