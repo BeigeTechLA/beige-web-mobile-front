@@ -158,6 +158,7 @@ export interface AffiliateValidationResponse {
 
 export interface AffiliateInfo {
   affiliate_id: number;
+  client_id?: number | null;
   referral_code: string;
   status: 'active' | 'paused' | 'suspended';
   total_referrals: number;
@@ -167,6 +168,13 @@ export interface AffiliateInfo {
   paid_earnings: number;
   payout_method?: 'bank_transfer' | 'paypal' | 'stripe';
   payout_details?: Record<string, unknown>;
+  client?: {
+    client_id: number;
+    user_id: number;
+    name: string;
+    email: string;
+    phone_number: string;
+  } | null;
   created_at: string;
 }
 

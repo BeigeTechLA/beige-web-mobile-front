@@ -16,10 +16,12 @@ import ShareResourceModal from "@/components/admin/file-manager/ShareResourceMod
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
+import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
   getDisplayInitials,
+  isCommonEventWorkspaceId,
   mapExternalFoldersToUi,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
@@ -34,6 +36,7 @@ export default function AdminFolderDetailsPage() {
   const pathname = usePathname();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const { isDark } = useResolvedTheme();
 
   const [workspaceName, setWorkspaceName] = useState("");
@@ -80,7 +83,12 @@ export default function AdminFolderDetailsPage() {
       setFolders(
         mapExternalFoldersToUi(
           workspaceData.folders,
-          (folder) => `/admin/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+          (folder) =>
+            isCommonEventWorkspace
+              ? `/admin/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
+                folder.name
+              )}`
+              : `/admin/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
         )
       );
     } catch (err: any) {
@@ -150,6 +158,7 @@ export default function AdminFolderDetailsPage() {
   };
 
   const getSelectedFolderPhase = () => {
+    if (isCommonEventWorkspace) return undefined;
     if (!selectedFolder?.title) return "root";
     return selectedFolder.title.toLowerCase().includes("post") ? "post" : "pre";
   };
@@ -159,6 +168,7 @@ export default function AdminFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
         phase: getSelectedFolderPhase(),
+        path: isCommonEventWorkspace ? selectedFolder.rawName || selectedFolder.title : undefined,
       });
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
@@ -300,7 +310,9 @@ export default function AdminFolderDetailsPage() {
                   </div>
                 </div>
 
-                {viewMode === "grid" ? (
+                {visibleFolders.length === 0 ? (
+                  <EmptyFolderState isDark={isDark} />
+                ) : viewMode === "grid" ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                     {visibleFolders.map((folder) => (
                       <FolderCard
@@ -318,7 +330,8 @@ export default function AdminFolderDetailsPage() {
                           setSelectedFolder(folder);
                           try {
                             const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
-                              phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                              phase: isCommonEventWorkspace ? undefined : folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                              path: isCommonEventWorkspace ? folder.rawName || folder.title : undefined,
                             });
                             if (result?.url) {
                               window.open(result.url, "_blank", "noopener,noreferrer");
@@ -336,7 +349,8 @@ export default function AdminFolderDetailsPage() {
                           setShareResource({
                             resourceType: "folder",
                             externalId: String(projectId || ""),
-                            phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                            phase: isCommonEventWorkspace ? undefined : folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                            path: isCommonEventWorkspace ? folder.rawName || folder.title : undefined,
                             label: folder.title,
                           });
                           setIsShareModalOpen(true);
@@ -463,6 +477,7 @@ export default function AdminFolderDetailsPage() {
                 resourceType: "folder",
                 externalId: String(projectId || ""),
                 phase: getSelectedFolderPhase(),
+                path: isCommonEventWorkspace ? selectedFolder.rawName || selectedFolder.title : undefined,
                 label: selectedFolder.title,
               });
               setIsShareModalOpen(true);
