@@ -195,6 +195,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
     try {
       const versionsResponse = await salesApi.getQuoteVersions(convertedSalesQuoteId);
+      const quoteDetailResponse = await salesApi.getQuoteDetail(convertedSalesQuoteId);
+
       const versionsData = Array.isArray(versionsResponse?.data)
         ? versionsResponse.data
         : versionsResponse?.data?.versions || [];
@@ -218,6 +220,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         : await salesApi.getQuoteDetail(convertedSalesQuoteId);
 
       const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+
+      if (quoteDetail && quoteDetailResponse?.data) {
+        const rawDetail = quoteDetailResponse.data;
+
+        (quoteDetail as any).signature_base64 = rawDetail.signature_base64;
+        (quoteDetail as any).signer_name = rawDetail.signer_name;
+        (quoteDetail as any).signed_at = rawDetail.signed_at;
+      }
 
       if (!quoteDetail) {
         throw new Error("Quote preview data is unavailable");
