@@ -238,15 +238,34 @@ export default function ClientDetailPage() {
       const roles = formData.contentType.filter(t => t !== 'editing').join(',');
 
       const citySearch = getCityName();
+      const latitude =
+        formData.locationDetails?.coordinates?.lat ??
+        formData.locationDetails?.lat ??
+        formData.locationDetails?.center?.[1] ??
+        undefined;
+      const longitude =
+        formData.locationDetails?.coordinates?.lng ??
+        formData.locationDetails?.lng ??
+        formData.locationDetails?.center?.[0] ??
+        undefined;
 
-      if (!citySearch) {
+      if (!citySearch && (latitude === undefined || longitude === undefined)) {
         setCrewList([]);
         setIsLoadingCrew(false);
         return;
       }
 
+      const queryParams = new URLSearchParams();
+      if (dateStr) queryParams.set("date", dateStr);
+      if (roles) queryParams.set("role_type", roles);
+      queryParams.set("radius", "99999"); 
+      if (latitude !== undefined && longitude !== undefined) {
+        queryParams.set("latitude", String(latitude));
+        queryParams.set("longitude", String(longitude));
+      }
+
       const response = await fetch(
-        `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`,
+        `${API_BASE_URL}/admin/get-crew-for-lead/?${queryParams.toString()}`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -266,7 +285,7 @@ export default function ClientDetailPage() {
     } finally {
       setIsLoadingCrew(false);
     }
-  }, [formData.startDate, formData.contentType, formData.location, getCityName]);
+  }, [formData.startDate, formData.contentType, formData.location, formData.locationDetails, getCityName]);
 
   // Trigger fetch when inputs change
   useEffect(() => {
@@ -274,7 +293,7 @@ export default function ClientDetailPage() {
       fetchAvailableCrew();
     }, 800);
     return () => clearTimeout(timer);
-  }, [formData.startDate, formData.contentType, formData.location, fetchAvailableCrew]);
+  }, [formData.startDate, formData.contentType, formData.location, formData.locationDetails, fetchAvailableCrew]);
 
 
   const fetchSalesReps = useCallback(async () => {

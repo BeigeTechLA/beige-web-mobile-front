@@ -1,31 +1,26 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ChevronDown, Calendar, X } from "lucide-react";
-import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
+import { X } from "lucide-react";
 import { BasicDropdown } from "../admin/BasicDropdown";
+
+export const CREATIVE_RADIUS_OPTIONS = [10, 50, 100, 150, 200] as const;
+export type CreativeRadiusOption = (typeof CREATIVE_RADIUS_OPTIONS)[number];
 
 interface FilterProps {
   isOpen: boolean;
   onClose: () => void;
-  onApply: (filters: { radius: number }) => void; 
-  isDark?: boolean; // Prop received from the selector parent
+  onApply?: (filters: { radius: number }) => void;
+  value?: number;
+  isDark?: boolean;
 }
 
-export const CreativeFilterModal = ({ isOpen, onClose, onApply, isDark = true }: FilterProps) => {
-  // --- Local Filter State ---
-  const [minRadius, setMinRadius] = useState(10);
-  const [maxRadius, setMaxRadius] = useState(200);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [shootType, setShootType] = useState("");
+const DEFAULT_RADIUS = 50;
+
+export const CreativeFilterModal = ({ isOpen, onClose, onApply, value, isDark = true }: FilterProps) => {
+  const [selectedRadius, setSelectedRadius] = useState<number>(value ?? DEFAULT_RADIUS);
   const [speciality, setSpeciality] = useState("");
 
-  const MIN_LIMIT = 0;
-  const MAX_LIMIT = 200;
-  const STEP = 5;
-
-  // --- Placeholder Data ---
-  const shootTypeOptions = ["Wedding", "Commercial", "Portrait", "Event", "Product"];
   const specialityOptions = ["Videography", "Photography", "Drone", "Editing"];
 
   // Prevent scrolling when sidebar is open
@@ -34,16 +29,31 @@ export const CreativeFilterModal = ({ isOpen, onClose, onApply, isDark = true }:
     return () => { document.body.style.overflow = "unset"; };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedRadius(value ?? DEFAULT_RADIUS);
+    }
+  }, [isOpen, value]);
+
+  const selectedRadiusIndex = Math.max(
+    0,
+    CREATIVE_RADIUS_OPTIONS.findIndex((radius) => radius === selectedRadius)
+  );
+  const selectedRadiusPct = (selectedRadiusIndex / (CREATIVE_RADIUS_OPTIONS.length - 1)) * 100;
+
+  const handleRadiusChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const index = Number(event.target.value);
+    const nextRadius = CREATIVE_RADIUS_OPTIONS[index] ?? DEFAULT_RADIUS;
+    setSelectedRadius(nextRadius);
+  };
+
   const handleApplyClick = () => {
-    onApply({ radius: maxRadius }); // Send the max radius to the parent
+    onApply?.({ radius: selectedRadius });
     onClose();
   };
 
   const handleReset = () => {
-    setMinRadius(10);
-    setMaxRadius(200);
-    setSelectedDate(null);
-    setShootType("");
+    setSelectedRadius(DEFAULT_RADIUS);
     setSpeciality("");
   };
 
@@ -142,7 +152,7 @@ export const CreativeFilterModal = ({ isOpen, onClose, onApply, isDark = true }:
             />
           </div> */}
 
-          {/* DUAL Location Radius Slider */}
+          {/* Fixed Location Radius Slider */}
           <div className={`relative border rounded-xl p-6 pt-8 transition-colors ${
             isDark ? "border-white/20" : "border-gray-200"
           }`}>
@@ -152,57 +162,54 @@ export const CreativeFilterModal = ({ isOpen, onClose, onApply, isDark = true }:
               Location Radius
             </label>
 
-            <div className="relative w-full h-10 flex items-center">
-              {/* The Visual Track */}
-              <div className={`absolute w-full h-1 rounded-lg ${
-                isDark ? "bg-white/10" : "bg-gray-200"
-              }`} />
-
-              {/* The Active Range Highlight */}
+            <div className="relative px-1 pt-6">
+              <div className={`absolute left-1 right-1 top-10 h-1 rounded-full ${isDark ? "bg-white/10" : "bg-gray-200"}`} />
               <div
-                className="absolute h-1 bg-[#E8D1AB] rounded-lg"
+                className="absolute left-1 top-10 h-1 rounded-full bg-[#E8D1AB]"
                 style={{
-                  left: `${(minRadius / MAX_LIMIT) * 100}%`,
-                  right: `${100 - (maxRadius / MAX_LIMIT) * 100}%`
+                  width: `${selectedRadiusPct}%`,
                 }}
               />
 
-              {/* Min Range Input */}
               <input
                 type="range"
-                min={MIN_LIMIT}
-                max={MAX_LIMIT}
-                step={STEP}
-                value={minRadius}
-                onChange={(e) => setMinRadius(Math.min(Number(e.target.value), maxRadius - STEP))}
-                className={`absolute w-full h-1 appearance-none bg-transparent pointer-events-none z-20 
-                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:border-2 cursor-pointer 
-                  ${isDark ? "[&::-webkit-slider-thumb]:border-[#0A0A0A]" : "[&::-webkit-slider-thumb]:border-black/30 shadow-md"}`}
+                min={0}
+                max={CREATIVE_RADIUS_OPTIONS.length - 1}
+                step={1}
+                value={selectedRadiusIndex}
+                onChange={handleRadiusChange}
+                className={`relative z-10 h-10 w-full appearance-none bg-transparent
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_rgba(0,0,0,0.2)]
+                  [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-[#E8D1AB]`}
               />
 
-              {/* Max Range Input */}
-              <input
-                type="range"
-                min={MIN_LIMIT}
-                max={MAX_LIMIT}
-                step={STEP}
-                value={maxRadius}
-                onChange={(e) => setMaxRadius(Math.max(Number(e.target.value), minRadius + STEP))}
-                className={`absolute w-full h-1 appearance-none bg-transparent pointer-events-none z-20 
-                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:border-2 cursor-pointer 
-                  ${isDark ? "[&::-webkit-slider-thumb]:border-[#0A0A0A]" : "[&::-webkit-slider-thumb]:border-black/30 shadow-md"}`}
-              />
+              <div className="relative mt-4 h-5 text-[11px] font-medium sm:text-xs">
+                {CREATIVE_RADIUS_OPTIONS.map((radius, index) => {
+                  const left = (index / (CREATIVE_RADIUS_OPTIONS.length - 1)) * 100;
+                  const isEdge = index === 0 || index === CREATIVE_RADIUS_OPTIONS.length - 1;
+
+                  return (
+                    <span
+                      key={radius}
+                      className={`absolute top-0 transition-colors ${
+                        selectedRadius === radius ? "text-[#E8D1AB]" : isDark ? "text-white/40" : "text-black/40"
+                      }`}
+                      style={{
+                        left: `${left}%`,
+                        transform: isEdge ? (index === 0 ? "translateX(0%)" : "translateX(-100%)") : "translateX(-50%)",
+                      }}
+                    >
+                      {radius}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="flex justify-between mt-2 text-xs font-medium">
-              <div className="text-left">
-                <span className={isDark ? "text-white/40 block mb-1" : "text-black/40 block mb-1"}>Minimum</span>
-                <span className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>{minRadius} Miles</span>
-              </div>
-              <div className="text-right">
-                <span className={isDark ? "text-white/40 block mb-1" : "text-black/40 block mb-1"}>Maximum</span>
-                <span className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>{maxRadius} Miles</span>
-              </div>
+            <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+              isDark ? "border-white/10 bg-white/5 text-white/70" : "border-gray-200 bg-gray-50 text-black/60"
+            }`}>
+              Selected radius: <span className="font-semibold text-[#E8D1AB]">{selectedRadius} miles</span>
             </div>
           </div>
         </div>

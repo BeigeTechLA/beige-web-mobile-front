@@ -13,14 +13,21 @@ import PreProductionTab from "@/components/admin/shoot-details/PreProductionTab"
 import PostProductionTab from "@/components/admin/shoot-details/PostProductionTab";
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
+import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
+import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
-import { adminApi } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react"; // Added X icon for closing
+import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useTheme } from "next-themes";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
+import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getQuoteNumber } from "@/lib/quoteDetail";
+import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
+import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 
 type SkillOption = {
   id?: number | string;
@@ -39,18 +46,77 @@ type ProjectDetails = {
   end_time?: string;
   event_start_time?: string;
   total_paid_amount?: string | number;
+  total_value_amount?: string | number;
+  converted_quote_amount?: string | number;
   payment_status?: string | null;
   payment_id?: string | number | null;
+  converted_sales_quote_id?: string | number | null;
   event_location?: string;
-  location?: string;
+  location?: string | { address?: string } | null;
   city?: string;
   state?: string;
   country?: string;
+  needs_attention?: {
+    required?: boolean;
+    missing_fields?: string[];
+  } | null;
   lead_id?: string | number;
   assignedCrew?: unknown[];
   assigned_crews?: unknown[];
   assigned_post_production_members?: unknown[];
   [key: string]: unknown;
+};
+
+type QuoteVersionItem = {
+  version_number?: number | string | null;
+  is_current?: boolean | null;
+  approval_status?: string | null;
+  change_request_status?: string | null;
+  review_status?: string | null;
+  [key: string]: unknown;
+};
+
+const isUsableQuoteVersion = (version: QuoteVersionItem) => {
+  const status = String(
+    version.approval_status ||
+    version.change_request_status ||
+    version.review_status ||
+    ""
+  ).trim().toLowerCase();
+
+  return !status || status === "approved";
+};
+
+const resolveLatestQuoteDetail = async (quoteId: string) => {
+  const versionsResponse = await salesApi.getQuoteVersions(quoteId);
+  const versionsData = Array.isArray(versionsResponse?.data)
+    ? versionsResponse.data
+    : versionsResponse?.data?.versions || [];
+
+  const latestVersion = versionsData.reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
+    const latestNo = Number(latest?.version_number || 0);
+    const candidateNo = Number(candidate?.version_number || 0);
+    return candidateNo > latestNo ? candidate : latest;
+  }, (versionsData.find((version: QuoteVersionItem) => version?.is_current) || versionsData[0] || null) as QuoteVersionItem | null);
+
+  const versionId = latestVersion?.version_number != null ? String(latestVersion.version_number) : null;
+  const detailResponse = versionId
+    ? await salesApi.getQuoteVersionDetail(quoteId, versionId)
+    : await salesApi.getQuoteDetail(quoteId);
+
+  return unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+};
+
+const getConvertedQuoteAmount = async (quoteId: string) => {
+  const quoteDetail = await resolveLatestQuoteDetail(quoteId);
+
+  return getQuoteNumber(
+    quoteDetail?.final_total,
+    quoteDetail?.total_amount,
+    quoteDetail?.amount_after_tax,
+    quoteDetail?.amount_after_discount,
+    quoteDetail?.total
+  );
 };
 
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -70,6 +136,12 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [isAssignmentMissingDetailsModalOpen, setIsAssignmentMissingDetailsModalOpen] = useState(false);
+  const [pendingAssignmentAction, setPendingAssignmentAction] = useState<(() => void) | null>(null);
+  const [isQuotePreviewOpen, setIsQuotePreviewOpen] = useState(false);
+  const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
+  const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
 
 
   // 3. Helper to update the URL when a tab is clicked
@@ -88,6 +160,80 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const bookingId =
     project?.booking_id || project?.stream_project_booking_id || id;
+  const convertedSalesQuoteId = String(project?.converted_sales_quote_id || "").trim() || null;
+  const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
+    ? project.needs_attention.missing_fields
+    : [];
+  const hasFormDetails = !missingFields.includes("onboarding_form");
+  const assignmentMissingDetails =
+    project?.needs_attention?.required ? getCpAssignmentMissingDetails(project) : [];
+
+  const handleAssignmentRequest = (continueAction: () => void) => {
+    if (assignmentMissingDetails.length > 0) {
+      setPendingAssignmentAction(() => continueAction);
+      setIsAssignmentMissingDetailsModalOpen(true);
+      return;
+    }
+
+    continueAction();
+  };
+
+  const handleConfirmAssignmentWithMissingDetails = () => {
+    setIsAssignmentMissingDetailsModalOpen(false);
+    const action = pendingAssignmentAction;
+    setPendingAssignmentAction(null);
+    action?.();
+  };
+
+  const handlePreviewConvertedQuote = async () => {
+    if (!convertedSalesQuoteId) {
+      toast.error("Converted quote is not available");
+      return;
+    }
+
+    setIsQuotePreviewOpen(true);
+    setIsLoadingQuotePreview(true);
+    setQuotePreviewData(null);
+
+    try {
+      const versionsResponse = await salesApi.getQuoteVersions(convertedSalesQuoteId);
+      const versionsData = Array.isArray(versionsResponse?.data)
+        ? versionsResponse.data
+        : versionsResponse?.data?.versions || [];
+
+      const latestVersion =
+        versionsData.find((version: QuoteVersionItem) => version?.is_current && isUsableQuoteVersion(version)) ||
+        versionsData
+          .filter((version: QuoteVersionItem) => isUsableQuoteVersion(version))
+          .reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
+            const latestNo = Number(latest?.version_number || 0);
+            const candidateNo = Number(candidate?.version_number || 0);
+            return candidateNo > latestNo ? candidate : latest;
+          }, null) ||
+        null;
+
+      const versionId =
+        latestVersion?.version_number != null ? String(latestVersion.version_number) : null;
+
+      const detailResponse = versionId
+        ? await salesApi.getQuoteVersionDetail(convertedSalesQuoteId, versionId)
+        : await salesApi.getQuoteDetail(convertedSalesQuoteId);
+
+      const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+
+      if (!quoteDetail) {
+        throw new Error("Quote preview data is unavailable");
+      }
+
+      setQuotePreviewData(quoteDetail);
+    } catch (error) {
+      console.error("Failed to load converted quote preview", error);
+      toast.error(error instanceof Error ? error.message : "Failed to load quote preview");
+      setIsQuotePreviewOpen(false);
+    } finally {
+      setIsLoadingQuotePreview(false);
+    }
+  };
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -147,8 +293,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             }
           }
 
-          setProject({
+          const nextProject: ProjectDetails = {
             ...projectData,
+            payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
+            payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
             manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
@@ -159,7 +307,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               projectData?.assigned_post_production_members ||
               [],
             skills_needed: skillsText || projectData.skills_needed
-          });
+          };
+
+          const quoteId = String(nextProject.converted_sales_quote_id || "").trim();
+          if (quoteId) {
+            try {
+              const convertedQuoteAmount = await getConvertedQuoteAmount(quoteId);
+              if (convertedQuoteAmount !== undefined) {
+                nextProject.converted_quote_amount = convertedQuoteAmount;
+              }
+            } catch (error) {
+              console.error("Failed to resolve converted quote amount:", error);
+            }
+          }
+
+          setProject(nextProject);
         }
       } catch (error) {
         console.error("Failed to fetch shoot details:", error);
@@ -193,6 +355,67 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleMissingFieldsSaved = (updated: {
+    shootId: string;
+    location?: string;
+    bookingType: "single_day" | "multi_day";
+    dateLabel?: string;
+    rawDate?: number;
+    startTime?: string;
+    endTime?: string;
+    bookingDays?: Array<{
+      date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+    remainingMissingFields: string[];
+  }) => {
+    setProject((prev) => {
+      if (!prev) return prev;
+
+      const next: ProjectDetails = {
+        ...prev,
+        needs_attention:
+          updated.remainingMissingFields.length > 0
+            ? {
+              required: true,
+              missing_fields: updated.remainingMissingFields,
+            }
+            : undefined,
+      };
+
+      if (updated.location) {
+        next.location = updated.location;
+        next.event_location = updated.location;
+      }
+
+      if (updated.bookingType === "single_day" && updated.rawDate) {
+        next.event_date = new Date(updated.rawDate).toISOString().slice(0, 10);
+        next.start_time = updated.startTime || next.start_time;
+        next.end_time = updated.endTime || next.end_time;
+      }
+
+      if (updated.bookingType === "multi_day" && updated.bookingDays?.length) {
+        const firstDay = updated.bookingDays[0];
+        next.event_date = firstDay.date;
+        next.start_time = firstDay.start_time;
+        next.end_time = firstDay.end_time;
+        next.booking_days = updated.bookingDays.map((day) => ({
+          date: day.date,
+          event_date: day.date,
+          start_time: day.start_time,
+          end_time: day.end_time,
+        }));
+      }
+
+      return next;
+    });
+
+    if (updated.remainingMissingFields.length === 0) {
+      setIsMissingFieldsModalOpen(false);
+    }
+  };
+
   const handleViewInvoice = async () => {
     const numericBookingId = Number(bookingId);
 
@@ -211,28 +434,34 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
-      const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
-      const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${numericBookingId}?t=${Date.now()}`;
-      const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${numericBookingId}?download=1&t=${Date.now()}`;
       const isManualInvoice =
         String(invoicePdfUrl || "").includes("manual=1") ||
         String(hostedInvoiceUrl || "").includes("manual=1");
+      const brandedPdfUrl = buildBeigeInvoiceUrl(numericBookingId, {
+        manual: isManualInvoice,
+        cacheBust: true,
+      });
+      const brandedDownloadUrl = buildBeigeInvoiceUrl(numericBookingId, {
+        manual: isManualInvoice,
+        download: true,
+        cacheBust: true,
+      });
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         toast.error("Preview URL not available");
         return;
       }
 
-      if (hostedInvoiceUrl) {
+      if (hostedInvoiceUrl && !invoicePdfUrl) {
         window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
       }
 
       if (invoicePdfUrl) {
         if (isManualInvoice) {
-          window.open(invoicePdfUrl || proxiedPdfUrl, "_blank", "noopener,noreferrer");
+          window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
         } else {
           const link = document.createElement("a");
-          link.href = proxiedDownloadUrl || proxiedPdfUrl;
+          link.href = brandedDownloadUrl;
           link.target = "_blank";
           link.rel = "noopener noreferrer";
           link.click();
@@ -269,6 +498,15 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             ><FileText size={14} />
               {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
             </Button>
+            {convertedSalesQuoteId ? (
+              <Button
+                onClick={handlePreviewConvertedQuote}
+                className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+              >
+                <Eye size={14} />
+                Preview Quote
+              </Button>
+            ) : null}
             {canDelete && (
               <Button
                 className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
@@ -295,10 +533,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         }
       />
 
-      <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-4 lg:-m-10 relative">
-        {/* Main Content (Left) */}
-        <div className="flex-1 p-4 pb-30 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] ">
-          <ShootHeader activeTab={activeTab} project={project} projectId={id} />
+      <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
+        {/* Main Content (Left Scroll Window) */}
+        <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
+
+          <ShootHeader
+            activeTab={activeTab}
+            project={project}
+            projectId={id}
+            convertedSalesQuoteId={convertedSalesQuoteId}
+            missingFields={missingFields}
+            hasFormDetails={hasFormDetails}
+            onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
+          />
           <Button
             className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
               ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
@@ -309,14 +556,23 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             View Project Timeline
           </Button>
 
-          <div className={`rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
+          <div className={`rounded-lg lg:rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
             <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
-                    <AssignedCP projectId={id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+                    <ProjectTeam
+                      projectId={id}
+                      assignedMembers={project?.assigned_post_production_members}
+                      onRequestAssignment={handleAssignmentRequest}
+                    />
+                    <AssignedCP
+                      projectId={id}
+                      leadId={project?.lead_id}
+                      assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+                      onRequestAssignment={handleAssignmentRequest}
+                    />
                   </div>
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} />
@@ -325,13 +581,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               )}
 
               {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-                <div className={`px-5`}>
+                <div className="px-5">
                   <PreProductionTab projectId={String(bookingId)} />
                 </div>
               )}
 
               {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-                <div className={`px-5`}>
+                <div className="px-5">
                   <PostProductionTab projectId={String(bookingId)} />
                 </div>
               )}
@@ -346,7 +602,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               )}
 
               {activeTab === "Messages" && (
-                <div className={`px-5`}>
+                <div className="px-5">
                   <MessagesTab
                     role="admin"
                     bookingId={project?.booking_id || project?.stream_project_booking_id || id}
@@ -360,43 +616,69 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               )}
             </div>
           </div>
+
+          <MissingFieldsModal
+            isOpen={isMissingFieldsModalOpen}
+            onClose={() => setIsMissingFieldsModalOpen(false)}
+            isDark={isDark}
+            fields={missingFields}
+            shootId={id}
+            initialShootData={project}
+            onSaved={handleMissingFieldsSaved}
+          />
+
+          <AssignmentMissingDetailsModal
+            isOpen={isAssignmentMissingDetailsModalOpen}
+            onClose={() => {
+              setIsAssignmentMissingDetailsModalOpen(false);
+              setPendingAssignmentAction(null);
+            }}
+            onConfirm={handleConfirmAssignmentWithMissingDetails}
+            missingDetails={assignmentMissingDetails}
+            isDark={isDark}
+          />
         </div>
 
-        {/* Right Sidebar (Timeline) */}
-        <div className="hidden lg:block h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        {/* Right Sidebar (Timeline Desktop Only) */}
+        <div className="hidden lg:block h-full overflow-y-auto no-scrollbar shrink-0">
           <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
         </div>
 
-        {/* Mobile Timeline Overlay (Conditional) */}
-        {
-          isTimelineOpen && (
-            <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
-              {/* Close Backdrop Click */}
-              <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
-
-              <div className={`relative max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
-                <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
-                  <X size={20} />
-                </button>
-
-                <div className="h-full overflow-y-auto">
-                  <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
-                </div>
+        {/* Mobile Timeline Overlay Drawer */}
+        {isTimelineOpen && (
+          <div className={`lg:hidden fixed inset-0 z-[100] flex justify-end ${isDark ? "bg-black/80" : "bg-white/80"}`}>
+            <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
+            <div className={`relative max-w-sm w-full h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+              <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 z-10 ${isDark ? "text-white/60" : "text-black/60"}`}>
+                <X size={20} />
+              </button>
+              <div className="h-full overflow-y-auto">
+                <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
               </div>
             </div>
-          )
+          </div>
+        )
         }
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
-        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-[#F4F5F7] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+          {/* View Invoice Button */}
           <Button
             onClick={handleViewInvoice}
             disabled={isViewingInvoice}
-            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-black text-white hover:bg-black/80 border border-black'}`}
+            className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-black text-white hover:bg-black/80 border border-black'}`}
           >
             {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
           </Button>
-          <div className="flex gap-2">
+          {convertedSalesQuoteId ? (
+            <Button
+              onClick={handlePreviewConvertedQuote}
+              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#18321D] text-[#86EFAC] hover:bg-[#1D3B23] border border-[#86EFAC]/20 shadow-[0_8px_30px_rgb(0,0,0,0.35)]' : 'bg-[#F0FFF4] text-[#166534] hover:bg-[#E7F8EC] border border-[#86EFAC]/30'}`}
+            >
+              <Eye size={18} /> Preview Quote
+            </Button>
+          ) : null}
+          <div className="flex gap-2 w-full">
             {canDelete && (
               <Button onClick={handleDelete} className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
                 Cancel Shoot
@@ -411,13 +693,25 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               </Button>
             )}
           </div>
-          <Button
-            onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
-            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
-          >
-            <Eye size={18} /> View Form Details
-          </Button>
+
+          {/* Conditional Form Details Button */}
+          {hasFormDetails ? (
+            <Button
+              onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
+              className={`w-full h-14 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
+            >
+              <Eye size={18} /> View Form Details
+            </Button>
+          ) : null}
         </div>
+
+        <QuotePreviewModal
+          open={isQuotePreviewOpen}
+          onClose={() => setIsQuotePreviewOpen(false)}
+          quote={quotePreviewData}
+          quoteId={convertedSalesQuoteId}
+          isLoading={isLoadingQuotePreview}
+        />
       </div>
     </>
   );

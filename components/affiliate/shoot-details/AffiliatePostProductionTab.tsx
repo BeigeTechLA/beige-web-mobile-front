@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ChevronDown,
-  ExternalLink,
   FileArchive,
   FileImage,
   FileSpreadsheet,
@@ -17,14 +16,17 @@ import {
   LayoutGrid,
   List,
   Loader2,
+  ExternalLink,
   Play,
   Presentation,
+  FolderOpen,
 } from "lucide-react";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 interface AffiliatePostProductionTabProps {
   projectId: string;
@@ -110,6 +112,7 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
   const [viewerMetaId, setViewerMetaId] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
+  const { isDark } = useResolvedTheme();
   const loadPostProduction = async () => {
     try {
       setLoading(true);
@@ -197,40 +200,52 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
 
   return (
     <div className="space-y-6">
+      {/* Header Section */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-[#111111] border border-[#222222] flex items-center justify-center text-[#999999]">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${isDark ? "bg-[#2F2D2D] border-[#2F2D2D] text-[#ffffff]" : "bg-[#F0F0F0] border-[#E3E3E3] text-[#666666]"
+            }`}>
             <FolderSearch size={20} />
           </div>
-          <span className="text-sm lg:text-lg font-medium text-[#E0E0E0]">Uploaded Folders</span>
+          <span className={`text-sm lg:text-lg font-medium transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#171717]"}`}>
+            Uploaded Folders
+          </span>
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-3 px-4 py-2 bg-[#1A1A1A] border border-[#222222] rounded-lg text-[#E0E0E0] text-sm hover:bg-[#222222] transition-colors">
+          <button className={`flex items-center gap-3 px-4 py-2 border rounded-lg text-sm transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33] text-[#FFFFFF] hover:bg-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+            }`}>
             <span>Status</span>
             <ChevronDown size={16} />
           </button>
 
+          {/* Mobile Layout Dropdown Control */}
           <div className="md:hidden relative">
             <Button
               onClick={() => setIsOpen((prev) => !prev)}
-              className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+              className={`flex items-center gap-2 border p-2 h-8 rounded-lg transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33] text-white" : "bg-white border-[#E3E3E3] text-[#171717]"}`}
             >
               {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
             </Button>
 
             {isOpen && (
-              <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+              <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#E3E3E3]"}`}>
                 <button
                   onClick={() => handleViewChange("grid")}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid"
+                    ? isDark ? "bg-white/10 text-white" : "bg-zinc-100 text-black font-medium"
+                    : isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-zinc-50"
+                    }`}
                 >
                   <Grid3X3 size={18} />
                   Grid View
                 </button>
                 <button
                   onClick={() => handleViewChange("list")}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list"
+                    ? isDark ? "bg-white/10 text-white" : "bg-zinc-100 text-black font-medium"
+                    : isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-zinc-50"
+                    }`}
                 >
                   <List size={18} />
                   List View
@@ -239,12 +254,15 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
             )}
           </div>
 
-          <div className="hidden lg:flex bg-[#1A1A1A] border border-[#222222] rounded-lg p-1">
+          {/* Desktop Layout View Mode Selector */}
+          <div className={`hidden lg:flex border rounded-lg transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33]" : "bg-[#F4F5F7] border-[#FFFFFF33]"}`}>
             <button
               onClick={() => handleViewChange("grid")}
               className={cn(
-                "p-2 rounded-md transition-all",
-                viewMode === "grid" ? "bg-[#E5D5B8] text-black" : "text-[#666666] hover:text-[#E0E0E0]"
+                "py-2.5 px-5 rounded-md transition-all",
+                viewMode === "grid"
+                  ? "bg-[#E8D1AB] text-black"
+                  : isDark ? "text-white hover:text-[#E0E0E0]" : "text-[#000000] hover:text-black/80"
               )}
             >
               <LayoutGrid size={18} />
@@ -252,8 +270,10 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
             <button
               onClick={() => handleViewChange("list")}
               className={cn(
-                "p-2 rounded-md transition-all",
-                viewMode === "list" ? "bg-[#E5D5B8] text-black" : "text-[#666666] hover:text-[#E0E0E0]"
+                "py-2.5 px-5 rounded-md transition-all",
+                viewMode === "list"
+                  ? "bg-[#E8D1AB] text-black"
+                  : isDark ? "text-white hover:text-[#E0E0E0]" : "text-[#000000] hover:text-black/80"
               )}
             >
               <List size={18} />
@@ -263,18 +283,22 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
       </div>
 
       {currentPath && (
-        <button onClick={handleBack} className="text-white hover:text-white/80 transition-colors flex items-center gap-2">
+        <button
+          onClick={handleBack}
+          className="text-white hover:text-white/80 transition-colors flex items-center gap-2"
+        >
           <ArrowLeft size={18} />
           <span className="text-sm font-medium">Back</span>
         </button>
       )}
 
+      {/* Content State Engine */}
       {loading ? (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center">
-          <Loader2 className="animate-spin text-white/50" size={28} />
+        <div className={`border rounded-2xl min-h-[280px] flex items-center justify-center ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#DFDDDD]"}`}>
+          <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/40"}`} size={28} />
         </div>
       ) : error ? (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center text-red-300 text-sm">
+        <div className={`border rounded-2xl min-h-[280px] flex items-center justify-center text-sm ${isDark ? "bg-[#111111] border-[#222222] text-red-300" : "bg-white border-[#DFDDDD] text-red-600"}`}>
           {error}
         </div>
       ) : (
@@ -290,22 +314,22 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                         const nextPath = [currentPath, folder.name].filter(Boolean).join("/");
                         setCurrentPath(nextPath);
                       }}
-                      className="text-left cursor-pointer bg-[#111111] border border-[#222222] rounded-2xl overflow-hidden group hover:border-[#333333] transition-colors"
+                      className={`text-left cursor-pointer border rounded-2xl overflow-hidden group transition-colors ${isDark ? "bg-[#202020] border-[#222222] hover:border-[#333333]" : "bg-[#F4F5F7] border-[#F4F5F7] hover:border-[#F0F0F0] shadow-sm"}`}
                     >
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
                             <Folder className="text-[#E5D5B8] w-8 h-8" />
                             <div>
-                              <h3 className="text-[#E0E0E0] font-semibold text-base group-hover:text-[#E5D5B8] transition-colors">
+                              <h3 className={`font-semibold text-base group-hover:text-[#E8D1AB] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>
                                 {prettifyFolderName(folder.name)}
                               </h3>
-                              <p className="text-[#666666] text-xs mt-0.5">
+                              <p className={`text-xs mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black/50"}`}>
                                 {folder.fileCount || 0} Items
                               </p>
                             </div>
                           </div>
-                          <ExternalLink className="text-white/40" size={16} />
+                          <ExternalLink className={isDark ? "text-white" : "text-black/40"} size={16} />
                         </div>
                       </div>
                     </button>
@@ -324,9 +348,9 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                         <button
                           key={file.id}
                           onClick={() => handleOpenFile(file)}
-                          className="text-left border border-[#222222] bg-[#0A0A0A] rounded-xl p-3 lg:p-4 flex items-center gap-4 w-full lg:w-[360px] group relative hover:border-[#444] transition-colors"
+                          className={`text-left border rounded-xl p-3 lg:p-4 flex items-center gap-4 w-full lg:w-[360px] group relative transition-colors ${isDark ? "border-[#222222] bg-[#0A0A0A] hover:border-[#444]" : "border-[#E3E3E3] bg-[#F9F9F9] hover:border-[#B5B5B5]"}`}
                         >
-                          <div className="w-14 h-14 rounded-lg bg-[#161616] shrink-0 flex items-center justify-center overflow-hidden border border-[#222222]">
+                          <div className={`w-14 h-14 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border ${isDark ? "bg-[#161616] border-[#222222]" : "bg-[#F0F0F0] border-[#E3E3E3]"}`}>
                             {previewUrls[file.id] && isImageFile(file.contentType, file.name) ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
@@ -354,7 +378,7 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                                 <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${meta.badgeClass}`}>
                                   <FileIcon size={20} className={meta.accentClass} />
                                 </div>
-                                <span className="text-[10px] uppercase tracking-wide text-white/70">
+                                <span className={`text-[10px] uppercase tracking-wide ${isDark ? "text-white/70" : "text-black/70"}`}>
                                   {meta.label}
                                 </span>
                               </div>
@@ -362,10 +386,10 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-white text-sm lg:text-base font-medium leading-tight mb-1 truncate" title={file.name}>
+                            <h4 className={`text-sm lg:text-base font-medium leading-tight mb-1 truncate ${isDark ? "text-white" : "text-black"}`} title={file.name}>
                               {file.name}
                             </h4>
-                            <span className="text-[#E5D5B8] text-sm underline underline-offset-4">View File</span>
+                            <span className="text-[#E8D1AB] text-sm underline underline-offset-4">View File</span>
                           </div>
                         </button>
                       );
@@ -375,19 +399,20 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                   <EmptyFileState
                     title="No File Uploaded"
                     description="No files have been uploaded for this project yet."
+                    isDark={isDark}
                   />
                 )
               ) : null}
             </>
           ) : (
-            <div className="bg-[#111111] border border-[#222222] rounded-2xl overflow-hidden">
+            <div className={`border rounded-2xl overflow-hidden ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
               <table className="hidden lg:table w-full text-left">
                 <thead>
-                  <tr className="border-b border-[#222222]">
-                    <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[50%]">Name</th>
-                    <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[20%]">Type</th>
-                    <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[20%]">Files</th>
-                    <th className="px-6 py-4 text-[#888888] font-medium text-sm text-right w-[10%]">Action</th>
+                  <tr className={`border-b ${isDark ? "bg-[#202020] border-[#222222]" : "border-[#DFDDDD] bg-[#F4F5F7]"}`}>
+                    <th className={`px-6 py-4 font-medium text-sm w-[50%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Name</th>
+                    <th className={`px-6 py-4 text-[#888888] font-medium text-sm w-[20%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Type</th>
+                    <th className={`px-6 py-4 text-[#888888] font-medium text-sm w-[20%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Files</th>
+                    <th className={`px-6 py-4 text-[#888888] font-medium text-sm text-right w-[10%] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -398,20 +423,20 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                         const nextPath = [currentPath, folder.name].filter(Boolean).join("/");
                         setCurrentPath(nextPath);
                       }}
-                      className="cursor-pointer border-b border-[#222222] hover:bg-[#161616] transition-colors"
+                      className={`cursor-pointer transition-colors ${isDark ? "hover:bg-[#222222]" : "hover:bg-zinc-50"}`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-[#1A1A1A] flex items-center justify-center border border-[#222222]">
-                            <Folder size={20} className="text-[#999999]" />
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${isDark ? "bg-[#FFFFFF15] border-[#222222]" : "bg-[#F4F5F7] border-[#F4F5F7]"}`}>
+                            <Folder size={20} className="text-[#E8D1AB]" />
                           </div>
-                          <span className="text-[#E0E0E0] font-medium">{prettifyFolderName(folder.name)}</span>
+                          <span className={`font-medium ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{prettifyFolderName(folder.name)}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-[#E0E0E0] text-sm">Folder</td>
-                      <td className="px-6 py-4 text-[#E0E0E0] text-sm">{folder.fileCount || 0}</td>
+                      <td className={`px-4 py-1.5 rounded-full text-xs font-medium ${isDark ? "bg-[#202020] text-[#fff]" : "bg-[#F5F5F5] text-black/80"}`}>Folder</td>
+                      <td className={`px-6 py-4 text-[#E0E0E0] text-sm ${isDark ? "text-white" : "text-black"}`}>{folder.fileCount || 0}</td>
                       <td className="px-6 py-4 text-right">
-                        <ExternalLink className="inline-block text-white/40" size={16} />
+                        <ExternalLink className={`inline-block ${isDark ? "text-white" : "text-black"}`} size={16} />
                       </td>
                     </tr>
                   ))}
@@ -419,20 +444,24 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                     <tr
                       key={file.id}
                       onClick={() => handleOpenFile(file)}
-                      className="cursor-pointer border-b border-[#222222] hover:bg-[#161616] transition-colors"
+                      className={`cursor-pointer border-b last:border-0 transition-colors ${isDark ? "border-[#222222] hover:bg-[#161616]" : "border-[#E3E3E3] hover:bg-zinc-50"}`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-[#1A1A1A] flex items-center justify-center border border-[#222222]">
-                            <FileText size={20} className="text-[#E5D5B8]" />
+                          <div className={`w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center border transition-colors ${isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-[#F5F5F5] border-[#E3E3E3]"}`}>
+                            <FileText size={20} className="text-[#E8D1AB]" />
                           </div>
-                          <span className="text-[#E0E0E0] font-medium">{file.name}</span>
+                          <span className={`font-medium ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{file.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-[#E0E0E0] text-sm">File</td>
-                      <td className="px-6 py-4 text-[#E0E0E0] text-sm">-</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-4 py-1.5 rounded-full text-xs font-medium ${isDark ? "bg-[#1A1A1A] text-[#E0E0E0]" : "bg-[#F5F5F5] text-black/80"}`}>
+                          File
+                        </span>
+                      </td>
+                      <td className={`px-6 py-4 text-sm ${isDark ? "text-[#E0E0E0]" : "text-black/80"}`}>-</td>
                       <td className="px-6 py-4 text-right">
-                        <ExternalLink className="inline-block text-white/40" size={16} />
+                        <ExternalLink className={`inline-block ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
                       </td>
                     </tr>
                   ))}
@@ -442,6 +471,7 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                         <EmptyFileState
                           title="No File Uploaded"
                           description="No files have been uploaded for this project yet."
+                          isDark={isDark}
                         />
                       </td>
                     </tr>
@@ -457,34 +487,35 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
                       const nextPath = [currentPath, folder.name].filter(Boolean).join("/");
                       setCurrentPath(nextPath);
                     }}
-                    className="w-full text-left rounded-xl border border-[#222222] bg-[#0A0A0A] px-4 py-4"
+                    className={`w-full text-left rounded-xl border px-4 py-4 ${isDark ? "border-[#222222] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-[#F9F9F9]"}`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-white font-medium">{prettifyFolderName(folder.name)}</div>
-                        <div className="text-xs text-[#888] mt-1">{folder.fileCount || 0} Items</div>
+                        <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{prettifyFolderName(folder.name)}</div>
+                        <div className={`text-xs mt-1 ${isDark ? "text-[#888]" : "text-black/50"}`}>{folder.fileCount || 0} Items</div>
                       </div>
-                      <ExternalLink className="text-white/40" size={16} />
+                      <ExternalLink className={isDark ? "text-white/40" : "text-black/40"} size={16} />
                     </div>
                   </button>
                 )) : files.length > 0 ? files.map((file) => (
                   <button
                     key={file.id}
                     onClick={() => handleOpenFile(file)}
-                    className="w-full text-left rounded-xl border border-[#222222] bg-[#0A0A0A] px-4 py-4"
+                    className={`w-full text-left rounded-xl border px-4 py-4 ${isDark ? "border-[#222222] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-[#F9F9F9]"}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-white font-medium">{file.name}</div>
-                        <div className="text-xs text-[#888] mt-1">File</div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`font-medium truncate ${isDark ? "text-white" : "text-black"}`}>{file.name}</div>
+                        <div className={`text-xs mt-1 ${isDark ? "text-[#888]" : "text-black/50"}`}>File</div>
                       </div>
-                      <ExternalLink className="text-white/40" size={16} />
+                      <ExternalLink className={`shrink-0 ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
                     </div>
                   </button>
                 )) : (
                   <EmptyFileState
                     title="No File Uploaded"
                     description="No files have been uploaded for this project yet."
+                    isDark={isDark}
                   />
                 )}
               </div>
@@ -503,6 +534,7 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
         fileUrl={viewerUrl}
         contentType={viewerType}
         fileMetaId={viewerMetaId}
+        isDark={isDark}
       />
     </div>
   );

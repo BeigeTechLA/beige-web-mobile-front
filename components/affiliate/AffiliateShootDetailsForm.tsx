@@ -295,6 +295,7 @@ interface AffiliateShootDetailsFormProps {
   hideAffiliateStep?: boolean;
   redirectTo?: string;
   isDark?: boolean;
+  onSubmitSuccess?: (payload?: any) => void;
 }
 
 export const AffiliateShootDetailsForm = ({
@@ -304,7 +305,8 @@ export const AffiliateShootDetailsForm = ({
   pendingProjects = [],
   hideAffiliateStep = false,
   redirectTo,
-  isDark: isDarkProp
+  isDark: isDarkProp,
+  onSubmitSuccess
 }: AffiliateShootDetailsFormProps) => {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
@@ -641,6 +643,9 @@ export const AffiliateShootDetailsForm = ({
 
       if (response.success) {
         toast.success(response.message || "Project form submitted successfully!");
+        if (typeof onSubmitSuccess === "function") {
+          onSubmitSuccess(response?.data || null);
+        }
         handleClose();
         if (redirectTo) {
           router.push(redirectTo);
@@ -729,107 +734,110 @@ export const AffiliateShootDetailsForm = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={`max-w-4xl p-0 overflow-hidden max-h-[90vh] flex flex-col transition-colors duration-300 [&>button]:hidden ${isDark
-        ? "bg-[#0A0A0A] border-white/10 shadow-[0_0_50px_rgba(232,209,171,0.1)]"
-        : "bg-white border-zinc-200 shadow-xl"
-        }`}>
+      <DialogContent
+        className={`max-w-[90vw] lg:max-w-4xl p-0 overflow-hidden max-h-[90vh] flex flex-col transition-colors duration-300 [&>button]:hidden no-scrollbar ${isDark
+          ? "bg-[#0A0A0A] border-white/10 shadow-[0_0_50px_rgba(232,209,171,0.1)] text-white"
+          : "bg-white border-zinc-200 shadow-2xl text-black"
+          }`}
+      >
 
-        {/* Header */}
-        <DialogHeader className={`p-6 lg:p-8 border-b flex flex-row items-center justify-between space-y-0 shrink-0 ${isDark ? "border-white/5 bg-gradient-to-r from-white/5 to-transparent" : "border-zinc-100 bg-zinc-50/50"
-          }`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB]/20" : "bg-[#BFA780]/10 border-[#BFA780]/20"
-              }`}>
-              <Sparkles className={"text-[#E8D1AB]"} size={20} />
+        <DialogHeader className={`p-4 lg:p-8 border-b flex flex-row items-center justify-between space-y-0 shrink-0 ${isDark ? "border-white/5 bg-gradient-to-r from-white/5 to-transparent" : "border-zinc-100 bg-zinc-50/50"}`}>
+          <div className="flex items-center gap-2 lg:gap-3 min-w-0 flex-1">
+            <div className={`shrink-0 w-9 h-9 lg:w-10 lg:h-10 rounded-lg lg:rounded-xl flex items-center justify-center border ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB]/20" : "bg-[#BFA780]/10 border-[#BFA780]/20"}`}>
+              <Sparkles className="text-[#E8D1AB] shrink-0" size={20} />
             </div>
-            <div>
-              <DialogTitle className={`text-xl font-bold ${isDark ? "text-white" : "text-zinc-900"}`}>
+            <div className="min-w-0">
+              <DialogTitle className={`text-base lg:text-xl font-bold truncate ${isDark ? "text-white" : "text-black"}`}>
                 Project Details
               </DialogTitle>
-              <p className={`text-xs uppercase tracking-widest font-semibold mt-0.5 ${isDark ? "text-white/40" : "text-zinc-400"}`}>
+              <p className={`text-[10px] lg:text-xs uppercase tracking-widest font-bold mt-0.5 ${isDark ? "text-white/40" : "text-zinc-400"}`}>
                 Step {step} of {totalSteps}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex gap-1.5 px-3">
+
+          <div className="flex items-center gap-2 lg:gap-4 shrink-0">
+            {/* Dynamic Progress Indicator Bars */}
+            <div className="flex gap-1 lg:gap-1.5 px-1 lg:px-3">
               {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
                 <div
                   key={s}
                   className={`h-1.5 rounded-full transition-all duration-500 ${s === step
-                    ? (isDark ? "w-8 bg-[#E8D1AB]" : "w-8 bg-[#BFA780]")
+                    ? (isDark ? "w-6 lg:w-8 bg-[#E8D1AB]" : "w-6 lg:w-8 bg-[#BFA780]")
                     : s < step
-                      ? (isDark ? "w-4 bg-[#E8D1AB]/40" : "w-4 bg-[#BFA780]/40")
-                      : (isDark ? "w-4 bg-white/10" : "w-4 bg-zinc-200")
+                      ? (isDark ? "w-3 lg:w-4 bg-[#E8D1AB]/40" : "w-3 lg:w-4 bg-[#BFA780]/40")
+                      : (isDark ? "w-3 lg:w-4 bg-white/10" : "w-3 lg:w-4 bg-zinc-200")
                     }`}
                 />
               ))}
             </div>
             <button
               onClick={handleClose}
-              className={`p-2 rounded-full transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/5" : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100"}`}
+              type="button"
+              className={`p-2 rounded-full transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/5" : "text-zinc-400 hover:text-black hover:bg-zinc-100"}`}
             >
               <X size={20} />
             </button>
           </div>
         </DialogHeader>
 
-        <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto no-scrollbar">
+        {/* --- SCROLLABLE CONTAINER BODY --- */}
+        <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto no-scrollbar min-h-0">
           <AnimatePresence mode="wait">
+
+            {/* STEP 1: INITIAL WELCOME SCREEN */}
             {step === 1 && (
               <motion.div
                 key="step1"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="p-6 lg:p-10 space-y-8"
+                className="p-6 lg:p-10 space-y-4 lg:space-y-8"
               >
-                <div className="space-y-4">
-                  <h1 className={`text-2xl lg:text-3xl font-bold tracking-tight leading-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
+                <div className="space-y-3 lg:space-y-4">
+                  <h1 className={`text-lg lg:text-2xl lg:text-3xl font-bold tracking-tight leading-tight ${isDark ? "text-white" : "text-black"}`}>
                     Welcome Aboard! <br />
                     <span className="text-[#E8D1AB]">Tell Us About Your Project</span>
                   </h1>
-                  <div className={`space-y-3 text-sm leading-relaxed max-w-md ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                  <div className={`space-y-2 lg:space-y-3 text-xs lg:text-sm leading-relaxed max-w-md ${isDark ? "text-white/50" : "text-zinc-500"}`}>
                     <p>Thank you for choosing Beige. We are thrilled to kickstart the planning of your project.</p>
-                    <p className={`border-l-2 pl-4 py-1 italic ${isDark ? "border-[#E8D1AB]/30" : "border-[#BFA780]/30"}`}>
+                    <p className={`border-l-2 pl-3 lg:pl-4 py-1 italic ${isDark ? "border-[#E8D1AB]/30" : "border-[#BFA780]/30"}`}>
                       Please take a few moments to complete this form so we can prepare your shoot flawlessly.
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4 lg:space-y-6">
                   {isProjectLoading && (
-                    <div className={`flex items-center gap-3 rounded-2xl border transition-colors duration-300 px-5 py-4 text-sm ${isDark
-                      ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/5 text-[#E8D1AB]"
-                      : "border-[#E8D1AB]/80 bg-[#E8D1AB]/80 text-black"
+                    <div className={`flex items-center gap-3 rounded-lg lg:rounded-2xl border transition-colors duration-300 px-4 py-3 lg:px-5 lg:py-4 text-xs lg:text-sm ${isDark ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/5 text-[#E8D1AB]" : "border-[#E8D1AB]/40 bg-[#FFFDF9] text-[#8A7656]"
                       }`}>
-                      <Loader2 className={`h-4 w-4 animate-spin `} />
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                       Loading project details...
                     </div>
                   )}
 
                   {/* Project Selection Dropdown */}
                   {pendingProjects.length > 0 && (
-                    <div className="space-y-3">
-                      <Label className={`text-xs font-bold uppercase tracking-[0.2em] ml-1 ${isDark ? "text-white/40" : "text-zinc-400"}`}>
+                    <div className="space-y-2 lg:space-y-3">
+                      <Label className={`text-[10px] lg:text-xs font-bold uppercase tracking-[0.2em] ml-1 ${isDark ? "text-white/40" : "text-zinc-400"}`}>
                         Select Project <span className="text-red-500">*</span>
                       </Label>
                       <Select
                         value={selectedProjectId?.toString()}
                         onValueChange={(value) => setSelectedProjectId(Number(value))}
                       >
-                        <SelectTrigger className={`w-full h-14 text-lg rounded-2xl px-6 transition-all ${isDark ? "bg-[#111] border-white/5 text-white hover:bg-[#151515]" : "bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+                        <SelectTrigger className={`w-full h-12 lg:h-14 lg:text-lg rounded-lg lg:rounded-2xl px-4 lg:px-6 transition-all outline-none focus:ring-0 ${isDark ? "bg-[#111] border-white/5 text-white hover:bg-[#151515]" : "bg-white border-zinc-200 text-black hover:bg-zinc-50"
                           }`}>
                           <SelectValue placeholder="Select a project..." />
                         </SelectTrigger>
-                        <SelectContent className={isDark ? "bg-[#0A0A0A] border-white/10 text-white" : "bg-white border-zinc-200 text-zinc-900"}>
+                        <SelectContent className={`max-w-xs lg:max-w-none ${isDark ? "bg-[#0A0A0A] border-white/10 text-white" : "bg-white border-zinc-200 text-black"}`}>
                           {pendingProjects.map((project) => (
                             <SelectItem
                               key={project.project_id}
                               value={project.project_id.toString()}
                               className="focus:bg-[#E8D1AB] focus:text-black cursor-pointer"
                             >
-                              {project.project_name}
+                              {project.project_name} (Project ID: {project.project_id})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -840,69 +848,66 @@ export const AffiliateShootDetailsForm = ({
               </motion.div>
             )}
 
-            {/* Form Step 2 Example with Inputs */}
+            {/* STEP 2: PROJECT DETAIL OVERVIEW INPUTS */}
             {step === 2 && (
               <motion.div
                 key="step2"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="p-6 lg:p-10 space-y-10"
+                className="p-6 lg:p-10 space-y-6 lg:space-y-10"
               >
-                {/* Section Header */}
-                <div className="rounded-2xl overflow-hidden border border-[#E8D1AB]/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-                  <div className="bg-[#E8D1AB] p-5">
-                    <h3 className="text-xl font-bold text-black uppercase tracking-wider flex items-center gap-2">
+                {/* Context Section Header */}
+                <div className={`rounded-lg lg:rounded-2xl overflow-hidden border border-[#E8D1AB]/20 shadow-md ${isDark ? "shadow-[0_4px_20px_rgba(0,0,0,0.3)]" : "shadow-zinc-200/50"}`}>
+                  <div className="bg-[#E8D1AB] p-3 lg:p-5">
+                    <h3 className="text-lg lg:text-xl font-bold text-black uppercase tracking-wider flex items-center gap-2">
                       YOUR PROJECT
                     </h3>
                   </div>
-                  <div className={`p-6 backdrop-blur-md space-y-3 ${isDark ? "bg-[#111]/80" : "bg-zinc-50/80"}`}>
-                    <p className={`text-sm leading-relaxed ${isDark ? "text-white/80" : "text-zinc-600"}`}>
+                  <div className={`p-4 lg:p-6 backdrop-blur-md space-y-3 ${isDark ? "bg-[#111]/80" : "bg-zinc-50/80"}`}>
+                    <p className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white/80" : "text-zinc-600"}`}>
                       In this section we kindly request that you share <span className={`${isDark ? "text-white" : "text-black"} font-bold`}>all the important details</span> with our production team, to truly <span className={`${isDark ? "text-white" : "text-black"} font-bold`}>understand your vision</span> and deliver the desired results you're hoping for.
                     </p>
                   </div>
                 </div>
 
-                {/* Onsite Contact */}
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
-                  <div className="space-y-4">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                {/* Field Block: Contacts Box */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 lg:space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                  <div className="space-y-2 lg:space-y-4">
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Email Address
                     </Label>
-                    <div className="relative group">
-                      <Input
-                        placeholder="Your email"
-                        value={formData.email}
-                        onChange={(e) => updateFormData("email", e.target.value)}
-                        className={`${darkFieldClass(isDark)} h-10`}
-                      />
-                    </div>
+                    <Input
+                      type="email"
+                      placeholder="Your email"
+                      value={formData.email}
+                      onChange={(e) => updateFormData("email", e.target.value)}
+                      className={`${darkFieldClass(isDark)} h-11 text-xs lg:text-sm rounded-xl px-4`}
+                    />
                   </div>
 
-                  <div className="space-y-4">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                  <div className="space-y-2 lg:space-y-4">
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Onsite Point of Contact (Name and Phone Number) <span className="text-red-500">*</span>
                     </Label>
-                    <div className="relative group">
-                      <Input
-                        placeholder="Your answer"
-                        value={formData.onsiteContact}
-                        onChange={(e) => updateFormData("onsiteContact", e.target.value)}
-                        className={`${darkFieldClass(isDark)} h-10`}
-                      />
-                    </div>
+                    <Input
+                      placeholder="Your answer"
+                      value={formData.onsiteContact}
+                      onChange={(e) => updateFormData("onsiteContact", e.target.value)}
+                      className={`${darkFieldClass(isDark)} h-11 text-xs lg:text-sm rounded-xl px-4`}
+                    />
                   </div>
                 </div>
 
-                {/* About Project - Shoot Types */}
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Shoot Categories Chexboxes */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 lg:space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       About Your Project <span className="text-red-500">*</span>
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>What type of shoot or event is your project about?</p>
+                    <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>What type of shoot or event is your project about?</p>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-3 lg:space-y-4 pt-1">
                     {shootTypeOptions.map((option) => (
                       <div key={option} className="flex items-center gap-3">
                         <Checkbox
@@ -915,26 +920,24 @@ export const AffiliateShootDetailsForm = ({
                               : currentTypes.filter((t) => t !== option);
                             updateFormData("shootTypes", newTypes);
                           }}
-                          className={`w-5 h-5 ${isDark ? "border-white/20 data-[state=checked]:text-black" : "border-zinc-300"} data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB]`}
+                          className={`w-5 h-5 rounded-md shrink-0 ${isDark ? "border-white/20 data-[state=checked]:text-black" : "border-zinc-300"} data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB]`}
                         />
-                        <div className="flex-1 flex items-center gap-2">
-                          <Label htmlFor={option} className={`text-sm cursor-pointer whitespace-nowrap ${isDark ? "text-white/80" : "text-zinc-700"}`}>
-                            {option}
-                          </Label>
-                        </div>
+                        <Label htmlFor={option} className={`text-xs lg:text-sm cursor-pointer whitespace-normal leading-tight ${isDark ? "text-white/80" : "text-zinc-700"}`}>
+                          {option}
+                        </Label>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Conditional "Other" Description Field */}
+                {/* Conditional "Other" Description Text Box */}
                 {(formData.shootTypes || []).includes("Other:") && (
-                  <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 animate-in fade-in slide-in-from-top-4 duration-300 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                  <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 animate-in fade-in slide-in-from-top-4 duration-300 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                     <div className="space-y-1">
-                      <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                      <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                         About Your Project
                       </Label>
-                      <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                      <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                         If you selected the option "Other", please describe your shoot or event.
                       </p>
                     </div>
@@ -942,33 +945,33 @@ export const AffiliateShootDetailsForm = ({
                       placeholder="Your answer"
                       value={formData.otherShootType}
                       onChange={(e) => updateFormData("otherShootType", e.target.value)}
-                      className={`${darkTextareaClass(isDark)} resize-y`}
+                      className={`${darkTextareaClass(isDark)} min-h-[90px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                     />
                   </div>
                 )}
 
-                {/* Brief Overview */}
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Project Overview Textarea */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Brief Overview <span className="text-red-500">*</span>
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
-                      We invite you to give us an overview about your project by sharing how is it going to be and any other logistical details.
-                      <br />
-                      <span className="italic opacity-80 mt-1 block font-normal">Ex. "My birthday is going to take place at the Nobu restaurant LA from 5pm to 9pm.."</span>
-                    </p>
+                    <div className={`text-xs lg:text-sm space-y-1 ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                      <p>We invite you to give us an overview about your project by sharing how is it going to be and any other logistical details.</p>
+                      <span className="italic opacity-80 mt-1 block font-normal text-[11px] lg:text-xs">Ex. "My birthday is going to take place at the Nobu restaurant LA from 5pm to 9pm.."</span>
+                    </div>
                   </div>
                   <Textarea
                     placeholder="Your answer"
                     value={formData.projectOverview}
                     onChange={(e) => updateFormData("projectOverview", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[100px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
-                  <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                {/* Field Block: Attendees Count Number Box */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-3 lg:space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                  <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                     Number of People Attending/Participating <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -980,57 +983,52 @@ export const AffiliateShootDetailsForm = ({
                       const val = e.target.value.replace(/[^0-9]/g, "");
                       updateFormData("numPeople", val);
                     }}
-                    className={`${darkFieldClass(isDark)} h-10`}
+                    className={`${darkFieldClass(isDark)} h-11 text-xs lg:text-sm rounded-xl px-4`}
                   />
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Agenda Flow Tracker */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Agenda of the Event <span className="text-red-500">*</span>
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                    <p className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       Let us know of the program flow of the event to better understand your expectations and align with them.
-                      <br />
-                      Example:
-                      <br />
-                      6 pm: Entrance
-                      <br />
-                      7 pm: Dance
-                      <br />
-                      8 pm: Dinner
-                      <br />
-                      <br />
-                      If you do not have any yet, please write 'TBD'
+                      <span className="block mt-1.5 font-normal text-[11px] lg:text-xs opacity-90 leading-normal">
+                        Example:<br />
+                        6 pm: Entrance | 7 pm: Dance | 8 pm: Dinner<br /><br />
+                        If you do not have any yet, please write 'TBD'
+                      </span>
                     </p>
                   </div>
                   <Textarea
                     placeholder="Your answer"
                     value={formData.agenda}
                     onChange={(e) => updateFormData("agenda", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[110px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
               </motion.div>
             )}
 
+            {/* STEP 3: PHYSICAL LOCATIONS & SHOOT SPECIFICATIONS */}
             {step === 3 && (
               <motion.div
                 key="step3"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="p-6 lg:p-10 space-y-10"
+                className="p-4 lg:p-6 lg:p-10 space-y-6 lg:space-y-10"
               >
-                {/* Location Section */}
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Exact Location Box */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Location <span className="text-red-500">*</span>
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                    <p className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       If you know where your event/shoot is going to take place, please share the <span className="font-bold">exact address</span>.
-                      <br />
                       If it's more than one location, please share the addresses in <span className="font-bold">chronological order</span>.
                     </p>
                   </div>
@@ -1038,20 +1036,22 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.address}
                     onChange={(e) => updateFormData("address", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[90px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
-                  <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                {/* Field Block: Location Specification Type Checkboxes */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                  <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                     Location Specification <span className="text-red-500">*</span>
                   </Label>
-                  <div className="space-y-4">
+                  <div className="space-y-3 lg:space-y-4 pt-1">
                     {locationSpecOptions.map((opt) => (
                       <div key={opt} className="flex items-center gap-3">
                         <Checkbox
                           id={opt}
                           checked={(formData.locationSpec || []).includes(opt)}
+                          // onOpenChange={handleClose}
                           onCheckedChange={(checked) => {
                             const currentSpecs = formData.locationSpec || [];
                             const newSpecs = checked
@@ -1059,20 +1059,21 @@ export const AffiliateShootDetailsForm = ({
                               : currentSpecs.filter((t) => t !== opt);
                             updateFormData("locationSpec", newSpecs);
                           }}
-                          className={`w-5 h-5 ${isDark ? "border-white/20 data-[state=checked]:text-black" : "border-zinc-300"} data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB]`}
+                          className={`w-5 h-5 rounded-md shrink-0 ${isDark ? "border-white/20 data-[state=checked]:text-black" : "border-zinc-300"} data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB]`}
                         />
-                        <Label htmlFor={opt} className={`text-sm cursor-pointer ${isDark ? "text-white/80" : "text-zinc-700"}`}>{opt}</Label>
+                        <Label htmlFor={opt} className={`text-xs lg:text-sm cursor-pointer whitespace-normal ${isDark ? "text-white/80" : "text-zinc-700"}`}>{opt}</Label>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Reference Scouting Link Box */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Location Scouting
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                    <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       If you selected the option of "Location Scouting", please provide any references of what you're looking for.
                     </p>
                   </div>
@@ -1080,75 +1081,68 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.scoutingRefs}
                     onChange={(e) => updateFormData("scoutingRefs", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[90px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
 
-                {/* Shoot Specs */}
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
-                  <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
-                      Shot List <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex items-start justify-between gap-4">
-                      <p className={`text-sm flex-1 ${isDark ? "text-white/70" : "text-zinc-700"}`}>
-                        If you have a shot list in mind (or an idea of the shots that <span className="italic">must</span> be taken), please share it below.
-                        <br />
-                        Example:
-                        <br />
-                        Close shots of the product
-                        <br />
-                        Wide angle shots of the venue and so on
-                        <br />
-                        <br />
-                        If you do not have any yet, please write 'TBD'
-                      </p>
+                {/* Field Block: Dynamic AI Generation Shotlist */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                  <div className="space-y-2">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+                      <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
+                        Shot List <span className="text-red-500">*</span>
+                      </Label>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-[#E8D1AB]/20 text-[#E8D1AB] hover:bg-[#E8D1AB]/10 h-8 gap-2 shrink-0"
+                        className="border-[#E8D1AB]/30 text-[#E8D1AB] hover:bg-[#E8D1AB]/10 h-8 gap-1.5 shrink-0 w-full lg:w-auto justify-center text-xs"
                         onClick={() => toast.info("AI Generation feature coming soon!")}
                       >
-                        <Sparkles size={14} />
+                        <Sparkles size={12} />
                         Generate with AI
                       </Button>
                     </div>
+                    <p className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white/70" : "text-zinc-600"}`}>
+                      If you have a shot list in mind (or an idea of the shots that <span className="italic">must</span> be taken), please share it below.
+                      <span className="block mt-1 text-[11px] lg:text-xs font-normal opacity-80">Ex: Close shots of the product, Wide angle shots of the venue, etc. If none, write 'TBD'.</span>
+                    </p>
                   </div>
                   <Textarea
                     placeholder="Your answer"
                     value={formData.shotList}
                     onChange={(e) => updateFormData("shotList", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[100px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Visual Portfolio References */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Visual References <span className="text-red-500">*</span>
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
-                      If you have video or photo samples that you'd like to recreate, please share a link for our team to view.
-                      <br />
-                      here: <a href="https://vimeo.com/beigemedia" target="_blank" rel="noopener noreferrer" className="text-[#E8D1AB] underline">https://vimeo.com/beigemedia</a>.
-                      <br />
-                      If you do not have any yet, please write 'TBD'
+                    <p className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                      If you have video or photo samples that you'd like to recreate, please share a link for our team to view. Check our work here:{" "}
+                      <a href="https://vimeo.com/beigemedia" target="_blank" rel="noopener noreferrer" className="text-[#E8D1AB] underline break-all">
+                        https://vimeo.com/beigemedia
+                      </a>. If none, write 'TBD'.
                     </p>
                   </div>
                   <Textarea
                     placeholder="Your answer"
                     value={formData.visualRefs}
                     onChange={(e) => updateFormData("visualRefs", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[90px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Technical Custom Requirements Box */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Specific Instructions
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                    <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       Please let us know if you have any specific instructions (or requirements) for our creative partner on the day of the shoot e.g. specific video or photo gear, add-on services, check-in procedures
                     </p>
                   </div>
@@ -1156,16 +1150,17 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.specificInstructions}
                     onChange={(e) => updateFormData("specificInstructions", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[90px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Dress Code Policy Field */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-3 lg:space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Any Specific Dress Code for your Creative Partner <span className="text-red-500">*</span>
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                    <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       If there isn't any, Please write 'None'. If this is the case, please note your creative partner will show up Casual / Semi - Professional
                     </p>
                   </div>
@@ -1173,16 +1168,17 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.dressCode}
                     onChange={(e) => updateFormData("dressCode", e.target.value)}
-                    className={`${darkFieldClass(isDark)} h-10`}
+                    className={`${darkFieldClass(isDark)} h-11 text-xs lg:text-sm rounded-xl px-4`}
                   />
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                {/* Field Block: Miscellaneous Information Box */}
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-4 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Additional Information
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                    <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       If you have a particular request or any information you'd like us to know about, please share it here
                     </p>
                   </div>
@@ -1190,50 +1186,49 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.additionalInfo}
                     onChange={(e) => updateFormData("additionalInfo", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[90px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
               </motion.div>
             )}
 
+            {/* STEP 4: EDITING & POST PRODUCTION SPECS */}
             {step === 4 && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="space-y-6 px-6 lg:p-8"
+                className="p-4 lg:p-8 space-y-6"
               >
                 <div className={`rounded-xl overflow-hidden border transition-colors ${isDark ? "border-[#673ab7]/30" : "border-zinc-200 shadow-sm"}`}>
                   <div className="bg-[#E8D1AB] p-4 text-center">
-                    <h3 className="text-black font-bold uppercase tracking-wider text-sm">POST PRODUCTION</h3>
+                    <h3 className="text-black font-bold uppercase tracking-wider text-xs lg:text-sm">POST PRODUCTION</h3>
                   </div>
                   <div className={`p-6 lg:p-8 text-center ${isDark ? "bg-[#111]" : "bg-zinc-50/50"}`}>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                    <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       If you have a vision for your edited video (or photos), this is the space for you to share!
                     </p>
                   </div>
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
-                  <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
-                      Share here your creative ideas for Post Production with us!
-                    </Label>
-                  </div>
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-3 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                  <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
+                    Share here your creative ideas for Post Production with us!
+                  </Label>
                   <Textarea
                     placeholder="Your answer"
                     value={formData.postProductionIdeas}
                     onChange={(e) => updateFormData("postProductionIdeas", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[110px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
 
-                <div className={`p-6 lg:p-8 rounded-2xl border space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
+                <div className={`p-4 lg:p-8 rounded-lg lg:rounded-2xl border space-y-3 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="space-y-1">
-                    <Label className={`text-base font-medium block ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    <Label className={`text-sm lg:text-base font-medium block ${isDark ? "text-white" : "text-black"}`}>
                       Songs
                     </Label>
-                    <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                    <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       Are there particular songs or audio clips you'd like to include in your edited video?
                     </p>
                   </div>
@@ -1241,47 +1236,55 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.preferredSongs}
                     onChange={(e) => updateFormData("preferredSongs", e.target.value)}
-                    className={`${darkTextareaClass(isDark)} resize-y`}
+                    className={`${darkTextareaClass(isDark)} min-h-[110px] text-xs lg:text-sm rounded-xl p-4 resize-y`}
                   />
                 </div>
               </motion.div>
             )}
 
+            {/* STEP 5: AFFILIATE PROGRAM BENEFITS & INTELLECTUAL RIGHTS */}
             {step === 5 && (
               <motion.div
                 key="step5"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="p-6 lg:p-10 space-y-10"
+                className="p-4 lg:p-6 lg:p-10 space-y-6 lg:space-y-10"
               >
-                {/* Intro Affiliate Program Section */}
-                <div className="p-8 lg:p-10 rounded-3xl bg-[#E8D1AB]/5 border border-[#E8D1AB]/20 space-y-8 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                {/* Promo Affiliate System Container */}
+                <div className={`p-5 lg:p-8 lg:p-10 rounded-2xl lg:rounded-3xl border space-y-6 lg:space-y-8 relative overflow-hidden group transition-all duration-300 ${isDark ? "bg-[#E8D1AB]/5 border-[#E8D1AB]/20" : "bg-[#FDFBF7] border-[#E8D1AB]/40 shadow-sm"
+                  }`}>
+                  {/* Graphic Element Badge background mask */}
+                  <div className="absolute top-0 right-0 p-4 lg:p-8 opacity-[0.03] lg:opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
                     <Users size={120} className="text-[#E8D1AB]" />
                   </div>
-                  <div className="space-y-4 relative z-10">
-                    <h4 className="text-[#E8D1AB] font-bold uppercase tracking-widest text-sm">Affiliate Program</h4>
-                    <h3 className={`text-2xl lg:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
+
+                  <div className="space-y-3 lg:space-y-4 relative z-10">
+                    <h4 className="text-[#B38F43] dark:text-[#E8D1AB] font-bold uppercase tracking-widest text-xs">Affiliate Program</h4>
+                    <h3 className={`text-lg lg:text-2xl lg:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                       Invite friends and earn rewards with Beige.
                     </h3>
-                    <p className={`text-lg leading-relaxed max-w-2xl ${isDark ? "text-white/80" : "text-zinc-600"}`}>
+                    <p className={`text-sm lg:text-lg leading-relaxed max-w-2xl ${isDark ? "text-white/80" : "text-zinc-600"}`}>
                       Share your referral code and get <span className="text-[#E8D1AB] font-bold">10% of the booking value</span> when they complete a booking. They’ll also receive <span className="text-[#E8D1AB] font-bold">10% off</span> their booking, so both of you benefit.
                     </p>
-                    <p className={`${isDark ? "text-white/60" : "text-black/60"} text-sm`}>
+                    <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/60" : "text-zinc-500"}`}>
                       Your referral code is available in your dashboard once you create an account and log in.
                     </p>
                   </div>
 
                   {showReferralCode ? (
-                    <div className={`p-6 rounded-2xl border flex items-center justify-between gap-4 animate-in fade-in zoom-in duration-300 ${isDark ? "bg-white/5 border-[#E8D1AB]/30" : "bg-[#FFF8EC] border-[#E8D1AB]/40"}`}>
+                    <div className={`p-4 lg:p-6 rounded-lg lg:rounded-2xl border flex flex-col lg:flex-row lg:items-center justify-between gap-4 animate-in fade-in zoom-in duration-300 ${isDark ? "bg-white/5 border-[#E8D1AB]/30" : "bg-[#FFF8EC] border-[#E8D1AB]/40 shadow-inner"
+                      }`}>
                       <div className="space-y-1">
-                        <p className="text-xs text-[#E8D1AB] uppercase tracking-widest font-bold">Your Unique Code</p>
-                        <p className={`text-3xl font-black tracking-widest leading-none ${isDark ? "text-white" : "text-zinc-900"}`}>{referralCode || "GETTING CODE..."}</p>
+                        <p className="text-[10px] lg:text-xs text-[#B38F43] dark:text-[#E8D1AB] uppercase tracking-widest font-bold">Your Unique Code</p>
+                        <p className={`text-2xl lg:text-3xl font-black tracking-widest leading-none ${isDark ? "text-white" : "text-black"}`}>
+                          {referralCode || "GETTING CODE..."}
+                        </p>
                       </div>
                       <Button
                         variant="outline"
-                        className="border-[#E8D1AB]/20 text-[#E8D1AB] hover:bg-[#E8D1AB]/10 h-12 rounded-xl"
+                        type="button"
+                        className="border-[#E8D1AB]/40 text-[#B38F43] dark:text-[#E8D1AB] hover:bg-[#E8D1AB]/10 h-11 lg:h-12 rounded-xl text-xs lg:text-sm font-bold w-full lg:w-auto"
                         onClick={() => {
                           navigator.clipboard.writeText(referralCode);
                           toast.success("Referral code copied to clipboard!");
@@ -1292,34 +1295,39 @@ export const AffiliateShootDetailsForm = ({
                     </div>
                   ) : (
                     <Button
-                      className="h-14 px-8 bg-[#E8D1AB] hover:bg-[#d4bc94] text-black font-bold rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-[#E8D1AB]/10 flex items-center gap-3 text-lg relative z-10"
+                      type="button"
+                      className="h-12 lg:h-14 px-6 lg:px-8 bg-[#E8D1AB] hover:bg-[#d4bc94] text-black font-bold rounded-lg lg:rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.99] shadow-md flex items-center justify-center lg:justify-start gap-2 text-sm lg:text-lg relative z-10 w-full lg:w-auto"
                       onClick={() => setShowReferralCode(true)}
                     >
                       Get Your Referral Code
-                      <ArrowRight size={20} />
+                      <ArrowRight size={20} className="shrink-0" />
                     </Button>
                   )}
                 </div>
 
-                {/* Rights Section */}
-                <div className={`p-8 lg:p-10 rounded-3xl space-y-8 ${isDark ? "bg-[#111]/50 border border-white/5" : "bg-zinc-50 border border-zinc-200"}`}>
-                  <div className="space-y-2">
-                    <h4 className={`text-xl font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-zinc-900"}`}>RIGHTS</h4>
-                    <div className="h-1 w-20 bg-[#E8D1AB] rounded-full" />
+                {/* Legal IP Rights Disclaimer Box */}
+                <div className={`p-5 lg:p-8 lg:p-10 rounded-2xl lg:rounded-3xl border space-y-5 lg:space-y-6 ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-200"}`}>
+                  <div className="space-y-1.5">
+                    <h4 className={`text-base lg:text-xl font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>RIGHTS</h4>
+                    <div className="h-1 w-16 bg-[#E8D1AB] rounded-full" />
                   </div>
 
-                  <div className={`space-y-6 text-sm leading-relaxed ${isDark ? "text-white/70" : "text-zinc-500"}`}>
+                  <div className={`space-y-4 lg:space-y-5 text-xs lg:text-sm leading-relaxed ${isDark ? "text-white/70" : "text-zinc-600"}`}>
                     <p>
                       BEIGE shall own and retain all right, title, and interest in and to all deliverables, including all copyrights and other intellectual property rights.
                     </p>
                     <p>
                       Client is granted a non-exclusive, worldwide, royalty-free license to use the deliverables for private use, including social media, website, and portfolio use.
                     </p>
-                    <div className={`pt-4 p-4 rounded-xl border italic ${isDark ? "bg-white/5 border-white/10 text-white/60" : "bg-zinc-100/50 border-zinc-200 text-zinc-500"}`}>
+                    <div className={`p-4 rounded-xl border italic leading-relaxed font-medium ${isDark ? "bg-white/5 border-white/10 text-white/60" : "bg-zinc-100/60 border-zinc-200 text-zinc-500"
+                      }`}>
                       "Private use refers to non-commercial use by an individual or organization, where the deliverables are not used for direct or indirect financial gain or commercial promotion."
                     </div>
-                    <p className={`font-medium ${isDark ? "text-white/90" : "text-zinc-900"}`}>
-                      For commercial-use rights, please contact our team at: <span className="text-[#E8D1AB] selection:bg-[#E8D1AB] selection:text-black">contact@beigetech.io</span>
+                    <p className={`font-semibold text-xs lg:text-sm pt-1 ${isDark ? "text-white/90" : "text-black"}`}>
+                      For commercial-use rights, please contact our team at:{" "}
+                      <span className="text-[#B38F43] dark:text-[#E8D1AB] underline select-all break-all">
+                        contact@beigetech.io
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -1328,14 +1336,19 @@ export const AffiliateShootDetailsForm = ({
           </AnimatePresence>
         </div>
 
-        <div className={`p-6 lg:p-8 border-t flex items-center justify-between gap-4 transition-colors ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"
-          }`}>
-          <div className="flex items-center gap-3">
+        {/* --- FIXED ACTION NAVIGATION FOOTER --- */}
+        <div
+          className={`p-4 lg:p-8 border-t flex items-center justify-between gap-4 shrink-0 transition-colors ${isDark ? "bg-[#111]/50 border-white/5" : "bg-zinc-50 border-zinc-100"
+            }`}
+        >
+          <div className="flex items-center gap-2 lg:gap-3">
             {step > 1 && (
               <Button
                 onClick={handleBack}
                 variant="outline"
-                className={`h-10 rounded-lg px-6 ${isDark ? "border-white/10 text-white hover:bg-white/5" : "border-zinc-200 text-zinc-700"}`}
+                type="button"
+                className={`h-10 rounded-lg px-4 lg:px-6 text-xs lg:text-sm font-bold transition-colors ${isDark ? "border-white/10 text-white hover:bg-white/5" : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
               >
                 Back
               </Button>
@@ -1343,11 +1356,12 @@ export const AffiliateShootDetailsForm = ({
             <Button
               onClick={handleNext}
               disabled={isSubmitting}
-              className={`h-10 rounded-lg px-6 transition-all min-w-[100px] font-medium ${isDark ? "bg-white text-black hover:bg-white/90" : "bg-zinc-600 text-white hover:bg-zinc-800"
+              type="button"
+              className={`h-10 rounded-lg px-5 lg:px-6 text-xs lg:text-sm font-bold transition-all min-w-[90px] lg:min-w-[100px] flex justify-center items-center gap-1.5 ${isDark ? "bg-white text-black hover:bg-white/90" : "bg-zinc-700 text-white hover:bg-zinc-800 shadow-sm"
                 }`}
             >
               {isSubmitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 (step === 5 || (step === 4 && hideAffiliateStep)) ? "Submit" : "Next"
               )}
@@ -1356,7 +1370,8 @@ export const AffiliateShootDetailsForm = ({
 
           <button
             onClick={handleClear}
-            className="text-[#E8D1AB] hover:underline transition-all text-sm font-medium"
+            type="button"
+            className="text-[#B38F43] dark:text-[#E8D1AB] hover:underline transition-all text-xs lg:text-sm font-bold tracking-wide cursor-pointer"
           >
             Clear form
           </button>

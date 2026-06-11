@@ -19,6 +19,26 @@ import { Loader2, X } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 
+type SkillOption = {
+  id?: string | number;
+  name?: string;
+  skill_name?: string;
+  title?: string;
+};
+
+type ProjectDetails = {
+  project_name?: string;
+  skills_needed?: string | Array<string | number> | null;
+  payment_status?: string | null;
+  payment_id?: string | number | null;
+  lead_details?: unknown;
+  assignedCrew?: unknown[];
+  assigned_crews?: unknown[];
+  assignedPostProductionMembers?: unknown[];
+  assigned_post_production_members?: unknown[];
+  [key: string]: unknown;
+};
+
 export default function SalesShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -26,7 +46,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
   const searchParams = useSearchParams();
   const { id } = use(params);
   const activeTab = searchParams.get("tab") || "Overview";
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
 const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
@@ -49,14 +69,14 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
         const skillsMap: Record<number, string> = {};
         if (skillsResponse && skillsResponse.data) {
           const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
+          skillsList.forEach((s: SkillOption) => {
             const name = s.name || s.skill_name || s.title;
             if (s.id && name) skillsMap[s.id] = name;
           });
         }
 
         const responseData = projectResponse?.data || null;
-        let projectData = responseData?.project || responseData || projectResponse;
+        const projectData: ProjectDetails = responseData?.project || responseData || projectResponse;
 
         if (projectData) {
           let skillsText = "";
@@ -76,7 +96,7 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
 
               if (Array.isArray(parsedIds)) {
                 skillsText = parsedIds
-                  .map((skillId: any) => skillsMap[Number(skillId)])
+                  .map((skillId: string | number) => skillsMap[Number(skillId)])
                   .filter(Boolean)
                   .join(", ");
               } else if (typeof parsedIds === "string") {
@@ -90,6 +110,8 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
 
           setProject({
             ...projectData,
+            payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
+            payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
             assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
             assignedPostProductionMembers:

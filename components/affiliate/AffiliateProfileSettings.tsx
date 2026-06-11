@@ -110,7 +110,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
       <div className={`rounded-lg lg:rounded-2xl p-4 md:p-10 border transition-colors ${
         isDark ? "bg-[#111] border-white/5" : "bg-white border-zinc-200"
       }`}>
-        <h2 className={`text-xl font-bold tracking-tight mb-4 lg:mb-8 transition-colors ${
+        <h2 className={`lg:text-xl font-bold tracking-tight mb-4 lg:mb-8 transition-colors ${
           isDark ? "text-white" : "text-[#171717]"
         }`}>
           Security Settings
@@ -126,7 +126,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
                   type={showCurrentPassword ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className={`pr-12 h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
+                  className={`pr-12 h-10 lg:h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
                     isDark 
                       ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50" 
                       : "bg-[#F9F9F9] border-zinc-200 text-black focus:border-[#E8D1AB]"
@@ -155,7 +155,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
                   type={showNewPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className={`pr-12 h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
+                  className={`pr-12 h-10 lg:h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
                     isDark 
                       ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50" 
                       : "bg-[#F9F9F9] border-zinc-200 text-black focus:border-[#E8D1AB]"
@@ -184,7 +184,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`pr-12 h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
+                  className={`pr-12 h-10 lg:h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
                     isDark 
                       ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50" 
                       : "bg-[#F9F9F9] border-zinc-200 text-black focus:border-[#E8D1AB]"
@@ -211,7 +211,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
             <Button
               type="submit"
               disabled={isLoading}
-              className="h-14 lg:h-[72px] bg-[#E8D1AB] text-black font-medium text-lg rounded-xl flex-1 min-w-[140px] lg:min-w-[240px]"
+              className="h-10 lg:h-14 lg:h-[72px] bg-[#E8D1AB] text-black font-medium lg:text-lg rounded-lg lg:rounded-xl flex-1 min-w-[140px] lg:min-w-[240px]"
             >
               {isLoading ? "Updating Password..." : "Update Password"}
             </Button>

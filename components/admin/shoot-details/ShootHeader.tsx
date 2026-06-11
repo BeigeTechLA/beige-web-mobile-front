@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, AlertCircle, Eye } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,6 @@ import { fileManagerApi } from "@/lib/fileManagerApi";
 import {
   getProjectDateText,
   getPaymentStatusMeta,
-  getProjectFolderLink,
   getProjectScheduleTimeText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
@@ -36,11 +35,19 @@ type ShootHeaderProject = {
   end_time?: string;
   event_start_time?: string;
   total_paid_amount?: string | number;
+  total_value_amount?: string | number;
+  converted_sales_quote_id?: string | number | null;
+  converted_quote_amount?: string | number;
+  converted_quote_total?: string | number;
   event_location?: string;
   location?: string;
   city?: string;
   state?: string;
   country?: string;
+  needs_attention?: {
+    required?: boolean;
+    missing_fields?: string[];
+  } | null;
   [key: string]: unknown;
 };
 
@@ -49,13 +56,45 @@ const parseAmount = (value: unknown): number => {
   return Number.isFinite(amount) ? amount : 0;
 };
 
+const getAmount = (...values: unknown[]): number | undefined => {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+
 interface ShootHeaderProps {
   activeTab?: string;
   project?: ShootHeaderProject;
   projectId?: string;
+  convertedSalesQuoteId?: string | null;
+  missingFields?: string[];
+  hasFormDetails?: boolean;
+  onOpenMissingFields?: () => void;
 }
 
-export default function ShootHeader({ activeTab = "Overview", project, projectId }: ShootHeaderProps) {
+export default function ShootHeader({
+  activeTab = "Overview",
+  project,
+  projectId,
+  convertedSalesQuoteId = null,
+  missingFields = [],
+  hasFormDetails = false,
+  onOpenMissingFields,
+}: ShootHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
@@ -69,54 +108,111 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
   const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
+  const isConvertedBooking = !!(project?.is_quote_converted_booking || project?.converted_sales_quote_id);
+  const convertedTotalValue = parseAmount(project?.total_value_amount);
+  const convertedPaidAmount = parseAmount(project?.total_paid_amount);
   const pricingBreakdown =
     (project?.pricing_breakdown as Record<string, unknown> | undefined) ||
     ((project?.lead_details as Record<string, unknown> | undefined)?.pricing_breakdown as Record<string, unknown> | undefined) ||
     {};
+  const projectQuote = asRecord(project?.sales_quote) || asRecord(project?.quote);
+  const primaryQuote =
+    asRecord(project?.primary_quote) ||
+    asRecord(asRecord(project?.booking)?.primary_quote) ||
+    asRecord((project?.lead_details as Record<string, unknown> | undefined)?.primary_quote);
+  const customQuote =
+    asRecord(project?.custom_quote) ||
+    asRecord((project?.lead_details as Record<string, unknown> | undefined)?.custom_quote);
+  const projectConvertedSalesQuoteId = String(project?.converted_sales_quote_id || "").trim() || null;
+  const isQuoteBasedShoot = Boolean(convertedSalesQuoteId || projectConvertedSalesQuoteId);
+  const lockedQuoteAmount = isQuoteBasedShoot
+    ? getAmount(
+      project?.converted_quote_amount,
+      project?.converted_quote_total,
+      projectQuote?.final_total,
+      projectQuote?.total_amount,
+      projectQuote?.amount_after_tax,
+      projectQuote?.total,
+      primaryQuote?.final_total,
+      primaryQuote?.total_amount,
+      primaryQuote?.total,
+      customQuote?.final_total,
+      customQuote?.total_amount,
+      customQuote?.total,
+      project?.total_value_amount,
+      project?.total_paid_amount
+    )
+    : undefined;
   const manualPaymentSummary =
     (project?.manual_payment_summary as Record<string, unknown> | undefined) ||
     ((project?.lead_details as Record<string, unknown> | undefined)?.manual_payment_summary as Record<string, unknown> | undefined) ||
     {};
 
   const subtotalValue = parseAmount(pricingBreakdown.subtotal);
+  const isFullyDiscountedShoot = parseAmount(pricingBreakdown.total) === 0 && parseAmount(pricingBreakdown.subtotal) > 0;
   const totalBeforeCredit = parseAmount(pricingBreakdown.total_before_credit);
   const discountValue = parseAmount(pricingBreakdown.discount);
   const creditAppliedValue = parseAmount(pricingBreakdown.credit_applied);
   const totalAfterCredit = parseAmount(pricingBreakdown.total_after_credit);
-  const totalValue =
-    totalBeforeCredit ||
-    subtotalValue ||
-    Math.max(parseAmount(pricingBreakdown.total) + discountValue + creditAppliedValue, 0) ||
-    parseAmount(project?.total_paid_amount);
-  const totalReductionValue = Math.max(discountValue + creditAppliedValue, 0);
-  const finalValue =
-    totalAfterCredit ||
-    parseAmount(pricingBreakdown.total) ||
-    Math.max(totalValue - totalReductionValue, 0);
+  const totalValue = isConvertedBooking
+    ? convertedTotalValue
+    : (totalBeforeCredit ||
+      subtotalValue ||
+      Math.max(parseAmount(pricingBreakdown.total) + discountValue + creditAppliedValue, 0) ||
+      parseAmount(project?.total_paid_amount));
+
+  const totalReductionValue = isFullyDiscountedShoot
+    ? discountValue
+    : isConvertedBooking
+      ? 0
+      : Math.max(discountValue + creditAppliedValue, 0);
+
+  const finalValue = isFullyDiscountedShoot
+    ? 0
+    : isConvertedBooking
+      ? convertedTotalValue
+      : (totalAfterCredit ||
+        parseAmount(pricingBreakdown.total) ||
+        Math.max(totalValue - totalReductionValue, 0));
+
   const isFullyPaidByManualSummary = Boolean(manualPaymentSummary.hasFullPayment);
-  const effectivePaymentStatus = isFullyPaidByManualSummary
+  let effectivePaymentStatus = isFullyPaidByManualSummary
     ? getPaymentStatusMeta("paid", project?.payment_id)
     : paymentStatus;
+
+  if (isConvertedBooking) {
+    const isFullyDiscounted = parseAmount(pricingBreakdown.total) === 0 && parseAmount(pricingBreakdown.subtotal) > 0;
+    const statusKey = isFullyDiscounted
+      ? "paid"
+      : convertedPaidAmount >= convertedTotalValue && convertedTotalValue > 0
+        ? "paid"
+        : convertedPaidAmount > 0
+          ? "pending"
+          : "unpaid";
+    effectivePaymentStatus = getPaymentStatusMeta(statusKey, project?.payment_id);
+  }
+
   const manualPaidAmount = parseAmount(manualPaymentSummary.paidAmount);
   const manualPendingAmount = parseAmount(manualPaymentSummary.pendingAmount);
   const hasMeaningfulManualProgress =
     Boolean(manualPaymentSummary.hasFullPayment) ||
     Boolean(manualPaymentSummary.isPartiallyPaid) ||
     manualPaidAmount > 0;
+
   const isPaidStatus = String(effectivePaymentStatus.label || "").toLowerCase() === "paid";
-  const paidAmountValue = hasMeaningfulManualProgress
-    ? manualPaidAmount
-    : isPaidStatus
-      ? finalValue
-      : 0;
-  const pendingAmountValue = hasMeaningfulManualProgress
-    ? manualPendingAmount
-    : Math.max(finalValue - paidAmountValue, 0);
-  const folderLink = workspaceFolderLink || getProjectFolderLink(project);
+
+  const paidAmountValue = isConvertedBooking
+    ? convertedPaidAmount
+    : (hasMeaningfulManualProgress
+      ? manualPaidAmount
+      : isPaidStatus
+        ? finalValue
+        : 0);
+
+  const pendingAmountValue = isFullyDiscountedShoot ? 0 : Math.max(finalValue - paidAmountValue, 0);
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
@@ -125,13 +221,28 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
     project?.event_location ||
     [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") ||
     "No location specified";
+  const guestEmail = String(
+    project?.guest_email ||
+    (project?.lead_details as Record<string, unknown> | undefined)?.guest_email ||
+    project?.email ||
+    ""
+  ).trim();
+  const resolvedClientId = Number(
+    project?.client_id ||
+    project?.client_record_id ||
+    (project?.lead_details as Record<string, unknown> | undefined)?.client_id ||
+    0
+  ) || null;
+  const descriptionText = project?.description
+    ? project.description.replace(/Matching Method:.*$/gm, "").trim()
+    : "";
   const totalValueText = `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const totalReductionText = `$${totalReductionValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const finalValueText = `$${finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const paidAmountText = `$${paidAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const pendingAmountText = `$${pendingAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  React.useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
 
     const loadWorkspaceSummary = async () => {
@@ -141,13 +252,11 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
         const response = await fileManagerApi.getExternalWorkspace(projectId);
         if (!isMounted) return;
 
-        setWorkspaceFolderLink(response.workspace.consoleUrl || "");
         setWorkspaceFileCount(
           typeof response.workspace.fileCount === "number" ? response.workspace.fileCount : null
         );
-      } catch (error) {
+      } catch {
         if (!isMounted) return;
-        setWorkspaceFolderLink("");
         setWorkspaceFileCount(null);
       }
     };
@@ -163,6 +272,100 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
+  const hasMissingFields = missingFields.length > 0;
+  const renderDescription = (text: string) => {
+    if (!text) return <span>No description available.</span>;
+
+    const lines = text.split(/\r?\n/);
+    const elements: React.ReactNode[] = [];
+
+    lines.forEach((line, lineIndex) => {
+      if (line.includes("[BEIGE_STUDIO_META]")) {
+        const jsonStr = line.replace("[BEIGE_STUDIO_META]", "");
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const meta = Array.isArray(parsed) ? parsed[0] : parsed;
+
+          if (meta) {
+            if (meta.name) {
+              elements.push(<div key="meta-name" className="font-medium mb-1">{meta.name}</div>);
+            }
+            if (meta.location) {
+              elements.push(<div key="meta-location" className="mb-2">{meta.location}</div>);
+            }
+
+            elements.push(
+              <div key="meta-row-1" className="flex flex-wrap gap-x-8 gap-y-1 mb-1">
+                {meta.priceLabel && <span>Pricing: {meta.priceLabel}</span>}
+                {meta.totalPrice && <span>Total Price: ${meta.totalPrice}</span>}
+              </div>
+            );
+
+            elements.push(
+              <div key="meta-row-2" className="flex flex-wrap gap-x-8 gap-y-1 mb-2">
+                {meta.selectedDate && <span>Date: {meta.selectedDate}</span>}
+                {meta.startTime && meta.endTime && <span>Time: {meta.startTime} - {meta.endTime}</span>}
+              </div>
+            );
+          }
+        } catch (e) {
+          elements.push(<div key={`description-line-${lineIndex}`}>{line}</div>);
+        }
+      }
+      else {
+        const phoneMatch = line.match(/^(\s*Phone\s*:\s*)(.+)$/i);
+        const emailMatch = line.match(/^(\s*Email\s*:\s*)(.+)$/i);
+
+        if (phoneMatch) {
+          const phoneValue = phoneMatch[2].trim();
+          const telValue = phoneValue.replace(/[^\d+]/g, "");
+
+          elements.push(
+            <div key={`description-line-${lineIndex}`} className="flex items-center gap-2">
+              <span>{phoneMatch[1]}</span>
+              <a
+                href={`tel:${telValue}`}
+                className="break-all transition-colors hover:opacity-80"
+                title={`Call ${phoneValue}`}
+                aria-label={`Call ${phoneValue}`}
+              >
+                {phoneValue}
+              </a>
+            </div>
+          );
+        } else if (emailMatch) {
+          const emailValue = emailMatch[2].trim();
+
+          elements.push(
+            <div key={`description-line-${lineIndex}`} className="flex items-center gap-2">
+              <span>{emailMatch[1]}</span>
+              <a
+                href={`mailto:${emailValue}`}
+                className="break-all transition-colors hover:opacity-80"
+                title="Email ID"
+                aria-label={`Email ${emailValue}`}
+              >
+                {emailValue}
+              </a>
+            </div>
+          );
+        } else if (line.trim()) {
+          elements.push(<div key={`description-line-${lineIndex}`}>{line}</div>);
+        }
+
+      }
+    });
+
+    return elements;
+  };
+
+  const handleViewClientDetails = () => {
+    if (resolvedClientId) {
+      router.push(`/admin/users/clients/${resolvedClientId}`);
+      return;
+    }
+    toast.error("This user is not available in our BEIGE members.");
+  };
 
   const handleDelete = async () => {
     if (!projectId) return;
@@ -188,7 +391,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   if (!mounted) return null;
 
   return (
-    <div>
+    <div data-active-tab={activeTab}>
       <button
         onClick={() => router.back()}
         className={`lg:hidden transition-colors flex items-center gap-2 mb-5 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
@@ -210,13 +413,15 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
         </div>
 
         <div className="flex gap-3">
-          <Button
-            variant="outline"
-            className="bg-[#2C2C2C] border-none text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0] rounded-lg h-10 px-4 gap-2"
-            onClick={() => router.push(`${shootBasePath}/${projectId}/form-details`)}
-          >
-            <Eye className="w-4 h-4" /> View Form Details
-          </Button>
+          {hasFormDetails ? (
+            <Button
+              variant="outline"
+              className="bg-[#2C2C2C] border-none text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0] rounded-lg h-10 px-4 gap-2"
+              onClick={() => router.push(`${shootBasePath}/${projectId}/form-details`)}
+            >
+              <Eye className="w-4 h-4" /> View Form Details
+            </Button>
+          ) : null}
           {canEdit && (
             <Button
               onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
@@ -225,6 +430,12 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
               Edit Shoot
             </Button>
           )}
+          {/* <Button
+            onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
+            className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
+          >
+            Edit Shoot
+          </Button> */}
         </div>
       </div>
 
@@ -240,25 +451,65 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
       {/* Hero Section */}
       <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
-          <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"
-            }`}>
+          <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"}`}>
             {getInitials(project?.project_name)}
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                {project?.project_name || "Untitled Project"}
-                {project?.skills_needed && project.skills_needed !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({project.skills_needed})</span>}
-              </h1>
-              <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
-                {resolvedStatusLabel}
-              </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                    {project?.project_name || "Untitled Project"}
+                    {project?.skills_needed && project.skills_needed !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({project.skills_needed})</span>}
+                  </h1>
+                  <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
+                    {resolvedStatusLabel}
+                  </span>
+                  {convertedSalesQuoteId ? (
+                    <span className="border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534] text-xs font-semibold px-3 py-1 rounded-full">
+                      Converted to Booking
+                    </span>
+                  ) : null}
+                </div>
+                <div className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
+                  {renderDescription(descriptionText)}
+                </div>
+
+                {guestEmail ? (
+                  <div className="mt-2 max-w-3xl flex items-center gap-1 flex-wrap">
+                    <span className={`text-sm leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
+                      Email Id :
+                    </span>
+                    <a
+                      href={`mailto:${guestEmail}`}
+                      className={`text-sm leading-relaxed break-all transition-colors hover:opacity-80 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}
+                      title="Email ID"
+                      aria-label={`Email ${guestEmail}`}
+                    >
+                      {guestEmail}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleViewClientDetails}
+                      className={`text-xs font-medium underline underline-offset-2 ml-1 ${isDark ? "text-[#E8D1AB] hover:text-[#F2E2C2]" : "text-[#7A5A00] hover:text-[#5E4300]"}`}
+                    >
+                      View Client Details
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              {hasMissingFields ? (
+                <button
+                  type="button"
+                  onClick={onOpenMissingFields}
+                  className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-[#E8D1AB]/25 bg-[#FFF4DA] px-3 py-2 text-xs font-semibold text-[#7A5A00] transition-colors hover:bg-[#FFEFC5] lg:mt-0 lg:self-start"
+                >
+                  <AlertCircle size={14} />
+                  Attention Needed
+                </button>
+              ) : null}
             </div>
-            <p className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
-              {project?.description
-                ? project.description.replace(/Matching Method:.*$/gm, '').trim()
-                : "No description available."}
-            </p>
           </div>
         </div>
 

@@ -359,7 +359,7 @@ export default function QuotePreviewDocument({
           <p className="text-[10px] font-semibold uppercase text-[#71717B] lg:text-sm">
             Project Description
           </p>
-          <p className="mt-1 lg:mt-2 text-xs lg:text-base">{projectDescription}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-xs lg:mt-2 lg:text-base">{projectDescription}</p>
         </div>
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
@@ -502,7 +502,7 @@ export default function QuotePreviewDocument({
               <button
                 type="button"
                 onClick={onOpenServiceAgreement}
-                className="text-[#E8D5B5] underline hover:text-[#f3e4cd] cursor-pointer text-left"
+                className={`underline hover:text-[#f3e4cd] cursor-pointer text-left ${isDark ? "text-[#E8D5B5]" : "text-[#d4a75d]"} `}
               >
                 Service Agreement & Terms of Engagement.
               </button>

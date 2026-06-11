@@ -21,6 +21,18 @@ type ProjectFulfillmentStats = {
   location?: string;
 };
 
+type FulfillmentStats = {
+  fulfillment_stats?: {
+    videographer?: string;
+    photographer?: string;
+  };
+  location?: string;
+  needs_attention?: {
+    missing_fields?: string[];
+  };
+  [key: string]: unknown;
+};
+
 export default function AddCreativesPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -39,6 +51,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
+  const [stats, setStats] = useState<FulfillmentStats | null>(null);
 
   const [assignCrew, { isLoading }] = useAssignCrewFromShootMutation();
 
@@ -59,10 +72,10 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         const response = await adminApi.getProjectFulfillmentStats(projectId);
         // `adminApi.getProjectFulfillmentStats` already returns `response.data`
         // BUT if the backend actually returns `{ success: true, data: { ... } }` inside that data:
-        const stats: ProjectFulfillmentStats =
-          response?.success && response?.data ? response.data : response;
+        const stats = (response?.success && response?.data ? response.data : response) as FulfillmentStats;
 
         if (stats) {
+          setStats(stats);
           // Parse fulfillment stats like "0/2" => videographer needed = 2
           const vReq = parseInt(stats.fulfillment_stats?.videographer?.split('/')[1] || "0");
           const pReq = parseInt(stats.fulfillment_stats?.photographer?.split('/')[1] || "0");
@@ -119,15 +132,13 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       }
     } catch (error: unknown) {
       console.error("Failed to assign crew", error);
-      const errorData =
-        typeof error === "object" && error !== null && "data" in error
-          ? (error as { data?: { errors?: string[]; message?: string } }).data
-          : undefined;
-
-      if (errorData?.errors && Array.isArray(errorData.errors)) {
-        toast.error(errorData.errors.join(", "));
-      } else if (errorData?.message) {
-        toast.error(errorData.message);
+      const data = typeof error === "object" && error !== null && "data" in error
+        ? (error as { data?: { errors?: string[]; message?: string } }).data
+        : undefined;
+      if (data?.errors && Array.isArray(data.errors)) {
+        toast.error(data.errors.join(", "));
+      } else if (data?.message) {
+        toast.error(data.message);
       } else {
         toast.error("An error occurred while assigning crew");
       }
