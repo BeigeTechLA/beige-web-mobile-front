@@ -8,6 +8,7 @@ import {
   CheckSquare,
   Download,
   ExternalLink,
+  Calendar,
   FolderOpen,
   Grid3X3,
   History,
@@ -34,6 +35,7 @@ import {
   fileManagerApi,
   inferWorkspaceCategory,
   isCommonEventWorkspaceId,
+  isVisibleToNonAdminByVisibleUntil,
   isRecentWithinHours,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -49,12 +51,14 @@ interface WorkspaceCard {
   userInitials: string;
   category: string;
   updatedAtRaw?: string;
+  visibleUntil?: string | null;
   consoleUrl?: string | null;
 }
 
 interface BrowserFolder {
   name: string;
   title: string;
+  path?: string;
   fileCount: number;
   lastOpened: string;
 }
@@ -204,7 +208,8 @@ export default function AffiliateFileManager() {
 
       const mapped = externalWorkspaces
         .filter((workspace) =>
-          isCommonEventWorkspaceId(workspace.externalId) ||
+          (isCommonEventWorkspaceId(workspace.externalId) &&
+            isVisibleToNonAdminByVisibleUntil(workspace.visibleUntil)) ||
           projectMap.has(String(workspace.externalId))
         )
         .map((workspace) => {
@@ -219,6 +224,7 @@ export default function AffiliateFileManager() {
               workspace.folderName || project?.project_name
             ),
             updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
+            visibleUntil: workspace.visibleUntil || null,
             consoleUrl: workspace.consoleUrl,
           };
         });
@@ -239,9 +245,10 @@ export default function AffiliateFileManager() {
     try {
       setIsPhaseLoading(true);
       setError(null);
+      const isCommonEventWorkspace = isCommonEventWorkspaceId(workspace.externalId);
       const response = await fileManagerApi.getExternalWorkspaceFiles(
         workspace.externalId,
-        phase,
+        isCommonEventWorkspace ? undefined : phase,
         path || undefined
       );
 
@@ -249,6 +256,7 @@ export default function AffiliateFileManager() {
         (response.folders || []).map((folder) => ({
           name: folder.name,
           title: prettifyFolderName(folder.name),
+          path: folder.path,
           fileCount: Number(folder.fileCount || 0),
           lastOpened: folder.updatedAt || folder.createdAt || "",
         }))
@@ -284,6 +292,7 @@ export default function AffiliateFileManager() {
         (response.folders || []).map((folder) => ({
           name: folder.name,
           title: prettifyFolderName(folder.name),
+          path: folder.path,
           fileCount: Number(folder.fileCount || 0),
           lastOpened: folder.updatedAt || folder.createdAt || "",
         }))
@@ -688,6 +697,8 @@ export default function AffiliateFileManager() {
       items = items.filter((workspace) =>
         isRecentWithinHours(workspace.updatedAtRaw, 24 * 5)
       );
+    } else if (selectedTab === "Common events") {
+      items = items.filter((workspace) => isCommonEventWorkspaceId(workspace.externalId));
     }
     // else if (selectedTab === "Shared" || selectedTab === "Trash") {
     //   items = [];
@@ -731,10 +742,14 @@ export default function AffiliateFileManager() {
     setVisibleFileCount(FILES_PAGE_SIZE);
   }, [selectedWorkspace?.externalId, selectedPhase, selectedPath, searchTerm, phaseFiles.length]);
 
+  const isSelectedWorkspaceCommonEvent = Boolean(
+    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
+  );
+
   const breadcrumb = useMemo(() => {
     const items = ["File Manager"];
     if (selectedWorkspace) items.push(selectedWorkspace.title);
-    if (selectedPhase) {
+    if (selectedPhase && !isSelectedWorkspaceCommonEvent) {
       items.push(selectedPhase === "pre" ? "Pre Production" : "Post Production");
     }
     if (selectedPath) {
@@ -744,12 +759,9 @@ export default function AffiliateFileManager() {
         .forEach((segment) => items.push(prettifyFolderName(segment)));
     }
     return items;
-  }, [selectedWorkspace, selectedPhase, selectedPath]);
+  }, [isSelectedWorkspaceCommonEvent, selectedWorkspace, selectedPhase, selectedPath]);
 
   const canRunFaceScan = Boolean(
-    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
-  );
-  const isSelectedWorkspaceCommonEvent = Boolean(
     selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
   );
   const canUploadInSelectedPhase = Boolean(
@@ -932,6 +944,7 @@ export default function AffiliateFileManager() {
   const renderWorkspacePhases = () => {
     if (!selectedWorkspace) return null;
 
+    const isCommonEventWorkspace = isCommonEventWorkspaceId(selectedWorkspace.externalId);
     const preFolder = workspaceFolders.find(
       (folder) => folder.title === "Pre Production"
     );
@@ -939,10 +952,18 @@ export default function AffiliateFileManager() {
       (folder) => folder.title === "Post Production"
     );
 
-    const phaseCards = [
-      { id: "pre", title: "Pre Production", fileCount: preFolder?.fileCount || 0 },
-      { id: "post", title: "Post Production", fileCount: postFolder?.fileCount || 0 },
-    ];
+    const phaseCards = isCommonEventWorkspace
+      ? workspaceFolders.map((folder) => ({
+        id: folder.name,
+        title: folder.title,
+        path: folder.name,
+        fileCount: folder.fileCount || 0,
+        lastOpened: folder.lastOpened,
+      }))
+      : [
+        { id: "pre", title: "Pre Production", fileCount: preFolder?.fileCount || 0 },
+        { id: "post", title: "Post Production", fileCount: postFolder?.fileCount || 0 },
+      ];
 
     if (isPhaseLoading) {
       return (
@@ -1096,14 +1117,14 @@ export default function AffiliateFileManager() {
                   title={phase.title}
                   fileCount={phase.fileCount}
                   lastOpened={formatRelativeTime(
-                    (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
+                    ("lastOpened" in phase ? phase.lastOpened : phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
                     selectedWorkspace.lastOpened
                   )}
                   userInitials={selectedWorkspace.userInitials}
                   onOpenLinkModal={() => { }}
                   onOpen={() => {
-                    setSelectedPhase(phase.id as "pre" | "post");
-                    setSelectedPath("");
+                    setSelectedPhase(isCommonEventWorkspace ? "pre" : phase.id as "pre" | "post");
+                    setSelectedPath(isCommonEventWorkspace ? String(phase.path || phase.title) : "");
                     setSearchTerm("");
                   }}
                   showMenu={false}
@@ -1112,8 +1133,12 @@ export default function AffiliateFileManager() {
             </div>
           ) : (
             <EmptyFileState
-              title="No matching folders"
-              description="Try another search term to find the project phase."
+              title={isCommonEventWorkspace ? "No Folder Created" : "No matching folders"}
+              description={
+                isCommonEventWorkspace
+                  ? "No creative partner folders are available in this event yet."
+                  : "Try another search term to find the project phase."
+              }
               isDark={isDark}
             />
           )}
@@ -1148,7 +1173,11 @@ export default function AffiliateFileManager() {
                   {selectedWorkspace?.title}
                 </h1>
                 <span
-                  className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border flex items-center gap-1.5 h-fit w-fit transition-colors ${selectedPhase === "post"
+                  className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border flex items-center gap-1.5 h-fit w-fit transition-colors ${isSelectedWorkspaceCommonEvent
+                    ? isDark
+                      ? "bg-[#E5D5B8]/15 text-[#E8D1AB] border-[#E5D5B8]/20"
+                      : "bg-[#FFF7E8] text-[#8A6A32] border-[#E8D1AB]/50"
+                    : selectedPhase === "post"
                     ? isDark
                       ? "bg-[#E8D2FB] text-[#540B94] border-white/5"
                       : "bg-[#F3E8FF] text-[#540B94] border-black/5"
@@ -1157,7 +1186,7 @@ export default function AffiliateFileManager() {
                       : "bg-[#FCE7F3] text-[#9D174D] border-black/5"
                     }`}
                 >
-                  {selectedPhase === "post" ? "Post Production" : "Pre Production"}
+                  {isSelectedWorkspaceCommonEvent ? "Common Event Folder" : selectedPhase === "post" ? "Post Production" : "Pre Production"}
                 </span>
                 <span
                   className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${canUploadInSelectedPhase
@@ -1404,6 +1433,7 @@ export default function AffiliateFileManager() {
               {[
                 { name: "All Files", icon: FolderOpen },
                 { name: "Linked to folders", icon: Link },
+                { name: "Common events", icon: Calendar },
                 { name: "Recent", icon: History },
                 // { name: "Shared", icon: Share2 },
                 // { name: "Trash", icon: Trash2 },

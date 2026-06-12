@@ -76,6 +76,7 @@ interface ExternalWorkspaceSummary {
   isCommonEvent?: boolean;
   eventId?: string | number;
   eventName?: string;
+  visibleUntil?: string | null;
 }
 
 interface ExternalWorkspaceFolder {
@@ -193,6 +194,7 @@ interface CommonEventResponse {
     eventSlug: string;
     externalId: string;
     rootPath?: string | null;
+    visibleUntil?: string | null;
     createdAt?: string;
     updatedAt?: string;
   }>;
@@ -204,6 +206,7 @@ interface CreateCommonEventResponse {
     eventName: string;
     eventSlug: string;
     externalId: string;
+    visibleUntil?: string | null;
     workspace?: ExternalWorkspaceSummary | null;
   };
 }
@@ -344,6 +347,8 @@ export interface UiFolderItem {
   type?: string;
   resourcePath?: string;
   updatedAtRaw?: string;
+  visibleUntil?: string | null;
+  rawName?: string;
 }
 
 const DEFAULT_FILE_MANAGER_BASE_PATH = "/production-manager/file-manager";
@@ -545,11 +550,17 @@ export const fileManagerApi = {
     return response.data.workspaces || [];
   },
 
-  async listExternalWorkspacesPaginated(options?: { page?: number; limit?: number; search?: string }) {
+  async listExternalWorkspacesPaginated(options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    workspaceType?: "common-events" | "visibility-expired";
+  }) {
     const params: Record<string, string | number> = {};
     if (options?.page) params.page = options.page;
     if (options?.limit) params.limit = options.limit;
     if (options?.search) params.search = options.search;
+    if (options?.workspaceType) params.workspaceType = options.workspaceType;
 
     const response = await apiClient.get<ExternalWorkspacesResponse>(
       "external-file-manager/workspaces",
@@ -573,11 +584,20 @@ export const fileManagerApi = {
     return response.data || [];
   },
 
-  async createCommonEvent(eventName: string, externalId?: string) {
+  async createCommonEvent(eventName: string, options?: { externalId?: string; visibleUntil?: string | null }) {
     const response = await apiClient.post<CreateCommonEventResponse>("external-file-manager/common-events", {
       eventName,
-      externalId,
+      externalId: options?.externalId,
+      visibleUntil: options?.visibleUntil || null,
     });
+    return response.data;
+  },
+
+  async updateCommonEventVisibility(eventExternalId: string, visibleUntil?: string | null) {
+    const response = await apiClient.patch<CreateCommonEventResponse>(
+      `external-file-manager/common-events/${eventExternalId}`,
+      { visibleUntil: visibleUntil || null }
+    );
     return response.data;
   },
 
@@ -1099,6 +1119,18 @@ export const slugToWorkspaceName = (slug?: string) => {
 export const isCommonEventWorkspaceId = (workspaceId?: string | number) =>
   String(workspaceId || "").toLowerCase().startsWith("event_");
 
+export const isVisibleToNonAdminByVisibleUntil = (visibleUntil?: string | null) => {
+  if (!visibleUntil) return true;
+
+  const [year, month, day] = String(visibleUntil).slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return true;
+
+  const visibleThrough = new Date(year, month - 1, day, 23, 59, 59, 999);
+  if (Number.isNaN(visibleThrough.getTime())) return true;
+
+  return Date.now() <= visibleThrough.getTime();
+};
+
 export const mapExternalWorkspaceToFolderCard = (
   workspace: ExternalWorkspaceSummary,
   basePath: string
@@ -1113,6 +1145,7 @@ export const mapExternalWorkspaceToFolderCard = (
   href: `${basePath}/${workspace.externalId}`,
   resourcePath: workspace.rootPath,
   updatedAtRaw: workspace.updatedAt || workspace.createdAt,
+  visibleUntil: workspace.visibleUntil || null,
 });
 
 export const mapExternalFoldersToUi = (
@@ -1122,6 +1155,7 @@ export const mapExternalFoldersToUi = (
   folders.map((folder) => ({
     id: folder.path,
     title: prettifyExternalFolderName(folder.name),
+    rawName: folder.name,
     fileCount: folder.fileCount || 0,
     category: folder.folderType || "folder",
     isLinked: true,

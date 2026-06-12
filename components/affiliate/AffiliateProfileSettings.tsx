@@ -1,25 +1,44 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
-import { useChangePasswordMutation, useChangePasswordClientMutation } from "@/lib/redux/features/auth/authApi";
+import { useChangePasswordClientMutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
+import Cookies from "js-cookie";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { affiliateApi } from "@/lib/api";
 
 export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }) => {
   const [changePasswordClient, { isLoading }] = useChangePasswordClientMutation();
   const { user } = useAuth();
+  const [clientId, setClientId] = useState<number | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    const loadAffiliateClientId = async () => {
+      const token = Cookies.get("revure_token");
+      if (!token) return;
+
+      try {
+        const affiliateInfo = await affiliateApi.getMyAffiliate(token);
+        setClientId(affiliateInfo.client_id || affiliateInfo.client?.client_id || null);
+      } catch (error) {
+        console.error("Failed to fetch affiliate client ID:", error);
+      }
+    };
+
+    loadAffiliateClientId();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +73,12 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to change password");
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "data" in err
+          ? (err as { data?: { message?: string } }).data?.message
+          : undefined;
+      toast.error(message || "Failed to change password");
     }
   };
 
@@ -101,7 +124,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
             }`}>User ID</p>
             <p className={`font-mono lg:text-lg tracking-wider transition-colors ${
               isDark ? "text-white/50" : "text-zinc-500"
-            }`}>#{user?.id}</p>
+            }`}>#{clientId || user?.id}</p>
           </div>
         </div>
       </div>
