@@ -104,6 +104,7 @@ const resolveStudioMedia = (media: unknown) => {
 const resolveStudioCardImages = (studio: Record<string, unknown>) => {
   const sourceCandidates = [
     studio.media,
+    studio.gallery_preview,
     studio.studio_media,
     studio.studioMedia,
     studio.gallery,
@@ -166,7 +167,8 @@ const StudioCard = ({ studio, isDark }: StudioCardProps) => {
       <div className="flex flex-col md:flex-row gap-6">
 
         {/* Image Section with Carousel */}
-        <div className="w-full md:w-[360px] overflow-hidden h-full">
+        <div className="w-full md:w-[360px] overflow-hidden h-full"
+        onClick={(e) => e.stopPropagation()}>
           {/* Main Display Image */}
           {allImages.length > 0 ? (
             <>
