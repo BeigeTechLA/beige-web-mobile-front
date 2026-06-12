@@ -4,35 +4,47 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { ShootCPRow } from "./CPPayoutTable";
-import { formatCurrency } from "@/lib/utils";
+import { DatePickerFloating } from "../DatePickerFloating";
 
-export type ModifyPayoutModalProps = {
+import { formatCurrency } from "@/lib/utils";
+import { set } from "date-fns";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
+
+export type AdvancePaymentModalProps = {
   isOpen: boolean;
   onClose: () => void;
   rowContext: ShootCPRow | null;
-  onSubmit: (payload: { reason: string; payoutAmount: string }) => void;
+  onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => void;
   isSubmitting?: boolean;
 };
 
-export default function ModifyPayoutModal({
+export default function AdvancePaymentModal({
   onSubmit,
   isSubmitting = false,
   isOpen,
   onClose,
   rowContext
-}: ModifyPayoutModalProps) {
+}: AdvancePaymentModalProps) {
   const { isDark } = useResolvedTheme();
   const [notes, setNotes] = useState<string>("");
-  const [payoutAmount, setPayoutAmount] = useState<string>("");
+  const [advanceAmount, setAdvanceAmount] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState<Date | null>(null);
 
   if (!isOpen) {
     return null;
   }
 
+  const handleDateChange = (date: Date | null) => {
+    if (!date) {
+      setPaymentDate(null);
+      return;
+    }
+    setPaymentDate(set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 }));
+  };
+
   return (
-    <div className={`fixed inset-0 z-[140] flex items-center justify-center p-3 backdrop-blur-md lg:p-5 ${isDark ? "bg-black/82" : "bg-white/82"}`}>
+    <div className={`fixed inset-0 z-[140] flex items-center justify-center p-3 backdrop-blur-md lg:p-5 ${isDark ? "bg-black/82":"bg-white/82"}`}>
       <div className={`relative max-h-[90vh] w-full lg:max-w-xl overflow-y-auto rounded-[16px] border transition-colors duration-200 ${isDark
         ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
         : "border-[#D7D7D7] bg-white text-black shadow-2xl"
@@ -42,7 +54,7 @@ export default function ModifyPayoutModal({
         <div className={`sticky top-0 inset-x-0 flex items-center z-20 justify-between border-b p-4 lg:p-7 ${isDark ? "border-white/40" : "border-[#D7D7D7]"}`}>
 
           <h2 className={`pr-4 text-lg lg:text-3xl font-bold ${isDark ? "text-white" : "text-black"}`}>
-            Modify Payout
+            Advance Payment
           </h2>
           <button
             type="button"
@@ -57,42 +69,37 @@ export default function ModifyPayoutModal({
         <div className="space-y-3 lg:space-y-7 p-4 lg:p-7">
           <div className={`rounded-xl border px-4 py-3.5 lg:px-5 lg:py-4 border-[#E8D1AB33] bg-[#E8D1AB33]`}>
             <p className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>
-              Modify the compensation amount. A mandatory reason must be provided for audit compliance.
+              Total Compensation for Ethan Cole
+            </p>
+            <p className="mt-1 text-[#E8D1AB] text-lg lg:text-2xl font-bold">
+              {formatCurrency(rowContext?.cpPayout || 6250)}
             </p>
           </div>
 
-          <div className="flex flex-col gap-2.5">
-            <p className={`${isDark ? "text-white" : "text-black"} text-xs lg:text-sm`}>
-              Shoot Information
-            </p>
-            <div className={`text-sm lg:text-base font-medium flex justify-between p-3 lg:p-4 rounded-lg border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F2F3F5] border-[#8E8E8E]"}`}>
-              <div className="flex flex-col gap-2 ">
-                <p className={isDark ? "text-white" : "text-black"}>
-                  {rowContext?.shootName || "Corporate Shoot"}
-                </p>
-                <p className={`capitalize ${isDark ? "text-white/50" : "text-black/50"}`}>
-                  {rowContext?.category || "Videography"}
-                </p>
+          <div>
+            <div className={`rounded-2xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
+              <div className="absolute -top-3 left-3 px-2 text-sm lg:text-base z-10">
+                <span className={`px-2 font-medium ${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"}`}>
+                  New Payout Amount*
+                </span>
               </div>
-              <div className={`flex items-center rounded-full border-[1px] px-3 py-2 lg:px-5 lg:py-3 text-[#E8D1AB] ${isDark ? "bg-black border-white/20" : "bg-white border-black/20"}`}>
-                Current Payout: {formatCurrency(rowContext?.cpPayout || 12500)}
-              </div>
+              <input
+                value={advanceAmount}
+                onChange={(event) => setAdvanceAmount(event.target.value)}
+                placeholder="$0"
+                className={`h-12 lg:h-16 w-full resize-none border-0 bg-transparent px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white placeholder:text-white/50" : "text-black placeholder:text-[#9F9FA9]"}`}
+              />
             </div>
+            <p className={`mt-2 lg:mt-3 ml-1 text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Remaining Balance : <span className={`text-sm lg:text-base text-[#10B981] font-semibold`}>{formatCurrency(4250)}</span></p>
           </div>
 
-          <div className={`rounded-2xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
-            <div className="absolute -top-3 left-3 px-2 text-sm lg:text-base z-10">
-              <span className={`px-2 font-medium ${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"}`}>
-                New Payout Amount*
-              </span>
-            </div>
-            <input
-              value={payoutAmount}
-              onChange={(event) => setPayoutAmount(event.target.value)}
-              placeholder="$0"
-              className={`h-12 lg:h-16 w-full resize-none border-0 bg-transparent px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white placeholder:text-white/50" : "text-black placeholder:text-[#9F9FA9]"}`}
-            />
-          </div>
+          <DatePickerFloating
+            selectedDate={paymentDate}
+            onDateChange={handleDateChange}
+            width="w-full"
+            classnames={`!rounded-2xl h-14 lg:h-20 w-full resize-none px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white " : "text-black "}`}
+            labelClasses={`${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"} text-sm lg:text-base z-10 px-1`}
+          />
 
           <div className={`rounded-2xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
             <div className="absolute -top-3 left-3 px-2 text-sm lg:text-base z-10">
@@ -116,7 +123,7 @@ export default function ModifyPayoutModal({
             variant="outline"
             onClick={onClose}
             className={`h-10 lg:h-12 rounded-lg border px-5 text-sm font-semibold transition-colors w-full lg:text-base ${isDark
-              ? "border-[#4A4A4F] bg-[#141414] text-white hover:bg-[#1A1A1A]"
+              ? "border-[#262626] bg-[#1F1F1F] text-white hover:bg-[#1A1A1A]"
               : "border-[#D7D7D7] bg-white text-black hover:bg-[#F4F5F7]"
               }`}
           >
@@ -127,12 +134,12 @@ export default function ModifyPayoutModal({
             disabled={isSubmitting || !notes.trim()}
             onClick={() => {
               console.log("Modification Submission Fired");
-              onSubmit({ reason: notes, payoutAmount: payoutAmount });
+              onSubmit({ reason: notes, advanceAmount: advanceAmount, paymentDate: paymentDate });
               onClose();
             }}
             className="h-10 lg:h-12 w-full rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base"
           >
-            Save Changes
+            Save Advance
           </Button>
         </div>
       </div>

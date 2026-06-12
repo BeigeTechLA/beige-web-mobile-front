@@ -21,6 +21,7 @@ import SuccessModal from "@/components/admin/finances/SuccessModal";
 import PaymentMethodSelectionModal from "@/components/admin/finances/PaymentMethodSelection";
 import AddReceiptModal, { ReceiptPayload } from "@/components/admin/finances/AddReceiptModal";
 import AddCompendationModal from "@/components/admin/finances/AddCompensationModal";
+import AdvancePaymentModal from "@/components/admin/finances/AdvancePaymentModal";
 
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 
@@ -195,6 +196,7 @@ export default function AdminFinancesPage() {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isPaymentSelectionOpen, setPaymentSelectionOpen] = useState(false);
+  const [isAdvanceOpen, setIsAdvanceOpen] = useState(false);
 
   // Submitting Loaders States
   const [isModifySubmitting, setIsModifySubmitting] = useState(false);
@@ -413,6 +415,15 @@ export default function AdminFinancesPage() {
           type={dataType}
         />
 
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => setIsAddCompOpen(true)}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Add Compensation
+          </Button>
+        </div>
         {/* Modal Components to be rendered on this page */}
         {/* CompensationDetails */}
         <CompensationModal
@@ -475,6 +486,16 @@ export default function AdminFinancesPage() {
           isOpen={isPaymentSelectionOpen}
           onClose={() => setPaymentSelectionOpen(false)}
         />
+
+        <AdvancePaymentModal
+          isOpen={isAdvanceOpen}
+          onClose={() => setIsAdvanceOpen(false)}
+          rowContext={selectedRow}
+          isSubmitting={isModifySubmitting}
+          onSubmit={handleModifySubmit}
+        />
+
+
       </div>
     </>
   );

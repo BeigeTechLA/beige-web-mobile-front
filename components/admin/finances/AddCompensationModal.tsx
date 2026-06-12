@@ -93,9 +93,12 @@ export default function AddCompensationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#101010CC] font-sans backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#101010CC] font-sans backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0">
       {/* Slide-Over Drawer Container Panel */}
-      <div className="relative h-full w-full lg:max-w-3xl bg-[#000000] text-white shadow-2xl flex flex-col border border-[#FFFFFF66] rounded-l-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
+      <div className={`relative h-full w-full lg:max-w-3xl flex flex-col border rounded-lg lg:rounded-r-none lg:rounded-l-2xl overflow-y-auto animate-in slide-in-from-right duration-200 ${isDark
+        ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
+        : "border-[#D7D7D7] bg-white text-black shadow-2xl"
+        }`}>
         {/* Header Block Section */}
         <div className="sticky top-0 inset-x-0 flex items-center z-20 justify-between p-6 lg:px-9 lg:py-10 bg-[#000000] border-b border-[#CACACA]">
           <h2 className="text-lg lg:text-3xl font-bold tracking-tight">
@@ -122,7 +125,7 @@ export default function AddCompensationModal({
             </div>
             <div
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex h-11 lg:h-[82px] w-full items-center justify-between cursor-pointer text-sm lg:text-base"
+              className="flex h-11 lg:h-16 w-full items-center justify-between cursor-pointer text-sm lg:text-base"
             >
               <span className={`${selectedShootId ? (isDark ? "text-white" : "text-black") : (isDark ? "text-white/40" : "text-black/40")}`}>
                 {currentShoot ? currentShoot.name : "Select Shoot to Proceed"}
@@ -280,7 +283,7 @@ export default function AddCompensationModal({
                             <input
                               type="text"
                               defaultValue={creator.base}
-                              className={`h-14 lg:h-[82px] w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
+                              className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
                             />
                           </div>
 
@@ -294,7 +297,7 @@ export default function AddCompensationModal({
                               <input
                                 type="text"
                                 defaultValue={creator.editing}
-                                className={`h-14 lg:h-[82px] w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
+                                className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
                               />
                             </div>
                             <div className={`relative rounded-xl border px-4 py-2 mt-2 ${isDark ? "border-[#5A5A5F] bg-[#0C0C0C]/40" : "border-[#e5e5e5] bg-[#D7D7D7]/40 "}`}>
@@ -304,7 +307,7 @@ export default function AddCompensationModal({
                               <input
                                 type="text"
                                 defaultValue={creator.travel}
-                                className={`h-14 lg:h-[82px] w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
+                                className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
                               />
                             </div>
                           </div>
@@ -316,17 +319,17 @@ export default function AddCompensationModal({
                             <input
                               type="text"
                               defaultValue={creator.bonus}
-                              className={`h-14 lg:h-[82px] w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
+                              className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
                             />
                           </div>
 
-                          <div className={`relative rounded-xl border px-4 py-2 mt-2 ${isDark ? "border-[#5A5A5F] bg-[#0C0C0C]/40" : "border-[#e5e5e5] bg-[#D7D7D7]/40 "}`}>
+                          <div className={`relative rounded-xl border px-4 py-3 mt-2 ${isDark ? "border-[#5A5A5F] bg-[#0C0C0C]/40" : "border-[#e5e5e5] bg-[#D7D7D7]/40 "}`}>
                             <div className={`absolute -top-2.5 left-3 px-2 text-sm lg:text-base z-10  ${isDark ? "bg-[#0C0C0C] text-white/60" : "bg-[#D7D7D7] text-black/60"}`}>
                               Notes
                             </div>
                             <textarea
                               placeholder="Add specific details or audit descriptions..."
-                              className={`h-14 lg:h-[82px] w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
+                              className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white " : "text-black "}`}
                             />
                           </div>
 

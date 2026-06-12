@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { X, CheckCircle2, Edit3, XCircle, Clock } from "lucide-react";
 import { ShootCPRow } from "@/components/admin/finances/CPPayoutTable";
 import { formatCurrency } from "@/lib/utils";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 interface CompensationItem {
   id: string;
@@ -37,6 +38,8 @@ export default function CompensationModal({
   onRejectClick
 }: CompensationModalProps) {
   const [selectedCreators, setSelectedCreators] = useState<string[]>(["c1"]);
+
+  const { isDark } = useResolvedTheme()
 
   if (!isOpen || !rowContext) return null;
 
@@ -73,15 +76,18 @@ export default function CompensationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#101010CC] font-sans backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#101010CC] font-sans backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0">
       {/* Backdrop Trigger Dismissal */}
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Slide-Over Drawer Container Panel */}
-      <div className="relative h-full w-full lg:max-w-3xl bg-[#000000] text-white shadow-2xl flex flex-col border border-[#FFFFFF66] rounded-l-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
+      <div className={`relative h-full w-full lg:max-w-3xl flex flex-col border rounded-lg lg:rounded-r-none lg:rounded-l-2xl overflow-y-auto animate-in slide-in-from-right duration-200 ${isDark
+        ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
+        : "border-[#D7D7D7] bg-white text-black shadow-2xl"
+        }`}>
         {/* Header Block Section */}
-        <div className="sticky top-0 inset-x-0 flex items-start justify-between p-6 lg:px-9 lg:py-10  bg-[#000000]  border-b border-[#CACACA]">
-          <div className="flex flex-col gap-2 lg:gap-4">
+        <div className="sticky top-0 inset-x-0 flex items-start justify-between p-5 lg:px-9 lg:py-10 bg-[#000000]  border-b border-[#CACACA]">
+          <div className="flex flex-col gap-1.5 lg:gap-4">
             <h2 className="text-lg lg:text-3xl font-bold tracking-tight">
               {rowContext.shootName || "Corporate Shoot"}
             </h2>
@@ -97,31 +103,30 @@ export default function CompensationModal({
           </button>
         </div>
 
-
-        <div className="space-y-3 lg:space-y-5 p-6 lg:p-9">
+        <div className="space-y-3 lg:space-y-5 p-5 lg:p-9">
           {/* Quick Statistics Horizontal Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3">
+            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-2.5 lg:p-4">
               <p className="text-sm text-white">Total CP Payout</p>
-              <p className="text-lg lg:text-2xl font-bold text-[#83B7FA] mt-1">
+              <p className="text-lg lg:text-2xl font-bold text-[#83B7FA] mt-0.5 lg:mt-1">
                 {formatCurrency(rowContext.cpPayout || 12500)}
               </p>
             </div>
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-4">
+            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-2.5 lg:p-4">
               <p className="text-sm text-white">Shoot Amount</p>
-              <p className="text-lg lg:text-2xl font-bold text-[#C97DFF] mt-1">
+              <p className="text-lg lg:text-2xl font-bold text-[#C97DFF] mt-0.5 lg:mt-1">
                 {formatCurrency(rowContext.shootBudget || 50000)}
               </p>
             </div>
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-4">
+            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-2.5 lg:p-4">
               <p className="text-sm text-white">Margin</p>
-              <p className="text-lg lg:text-2xl font-bold text-[#10B981] mt-1">
+              <p className="text-lg lg:text-2xl font-bold text-[#10B981] mt-0.5 lg:mt-1">
                 {rowContext.margin || "18.5"}%
               </p>
             </div>
           </div>
 
-          <div className="flex-1 space-y-3 lg:space-y-5 bg-[#171717] border border-[#3D3D3D] rounded-lg p-4">
+          <div className="flex-1 space-y-3 lg:space-y-5 bg-[#171717] border border-[#3D3D3D] rounded-lg p-3 lg:p-4">
             {/* Dynamic Itemization List Module */}
             <div className="space-y-3">
               <h3 className="lg:text-lg text-white text-semibold capitalize">
@@ -134,20 +139,25 @@ export default function CompensationModal({
                   return (
                     <div
                       key={creator.id}
-                      className={`flex gap-3 border rounded-lg p-4 bg-[#141414] transition-all ${isChecked ? "border-[#E8D1AB]" : "border-[#FFFFFF33]"}`}
+                      className={`flex gap-3 border rounded-lg p-3 lg:p-4 bg-[#141414] transition-all ${isChecked ? "border-[#E8D1AB]" : "border-[#FFFFFF33]"}`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleCheckboxChange(creator.id)}
-                        className="mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB]"
+                        className="hidden lg:block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB]"
                       />
 
                       <div className="space-y-2 lg:space-y-4 w-full">
                         {/* Header Row Line item info */}
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-start gap-3">
-
+                             <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleCheckboxChange(creator.id)}
+                        className="lg:hidden block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB]"
+                      />
                             <div>
                               <h4 className="text-sm lg:text-base font-medium text-[#E8D1AB]">
                                 {creator.name}
@@ -161,7 +171,7 @@ export default function CompensationModal({
                         </div>
 
                         {/* Financial Metric Allocation Subgrid */}
-                        <div className="grid grid-cols-4 gap-2 lg:py-4 border-y border-[#FFFFFF33] text-left">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 py-2.5 lg:py-4 border-y border-[#FFFFFF33] text-left">
                           <div>
                             <p className="text-xs lg:text-sm text-white/50">Base Payout</p>
                             <p className="text-xs lg:text-sm text-white font-medium">
@@ -196,7 +206,7 @@ export default function CompensationModal({
                         {/* Pre-Shoot Advance Section Drawer */}
                         {creator.hasAdvance && (
                           <div className="space-y-3">
-                            <div className="flex items-center justify-between bg-[#FFFBEB] rounded-lg p-3">
+                            <div className="flex flex-col lg:flex-row items-start gap-2 lg:items-center lg:justify-between bg-[#FFFBEB] rounded-lg p-3">
                               <div className="text-xs lg:text-sm">
                                 <p className="font-medium text-[#7B3306]">
                                   Approval Pending for the Advance Payment
@@ -219,22 +229,29 @@ export default function CompensationModal({
 
                         {/* Context Action Button Panel inside individual active items */}
                         {!creator.hasAdvance && isChecked && (
-                          <div className="grid grid-cols-3 gap-2 mt-4 animate-in fade-in duration-150">
+                          <div className="flex flex-col gap-3">
                             <button
                               onClick={onApproveClick}
-                              className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
+                              className="lg:hidden flex h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
                               <CheckCircle2 size={16} /> Approve
                             </button>
-                            <button
-                              onClick={onModifyClick}
-                              className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
-                              <Edit3 size={16} /> Modify
-                            </button>
-                            <button
-                              onClick={onRejectClick}
-                              className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
-                              <XCircle size={16} /> Reject
-                            </button>
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:mt-4 animate-in fade-in duration-150">
+                              <button
+                                onClick={onApproveClick}
+                                className="hidden lg:flex h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
+                                <CheckCircle2 size={16} /> Approve
+                              </button>
+                              <button
+                                onClick={onModifyClick}
+                                className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
+                                <Edit3 size={16} /> Modify
+                              </button>
+                              <button
+                                onClick={onRejectClick}
+                                className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
+                                <XCircle size={16} /> Reject
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -280,14 +297,14 @@ export default function CompensationModal({
             </h3>
             <div className="flex items-start gap-3 text-xs lg:text-sm">
               <Clock size={20} className="text-[#99A1AF] shrink-0" />
-              <div className="flex-1 flex justify-between gap-4">
+              <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
                 <span className="text-white">Created shoot and assigned CPs</span>
                 <span className="text-white/50 whitespace-nowrap text-xs">28-05-2026 14:32 • Admin User</span>
               </div>
             </div>
             <div className="flex items-start gap-3 text-xs lg:text-sm">
               <Clock size={20} className="text-[#99A1AF] shrink-0" />
-              <div className="flex-1 flex justify-between gap-4">
+              <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
                 <span className="text-white">Submitted to Finance for approval</span>
                 <span className="text-white/50 whitespace-nowrap text-xs">28-05-2026 14:45 • Admin User</span>
               </div>
@@ -296,24 +313,31 @@ export default function CompensationModal({
         </div>
 
         {/* Persistent Base Sticky Double Action Control Drawer */}
-        <div className="sticky bottom-0 inset-x-0 bg-[#0C0C0C] lg:p-9 grid grid-cols-3 gap-2.5 z-10 mt-auto">
+        <div className="sticky bottom-0 inset-x-0 bg-[#0C0C0C] p-5 lg:p-9 flex flex-col gap-3 z-10 mt-auto">
           <button
-            onClick={onApproveClick}
-            className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
-            <CheckCircle2 size={16} /> Approve All
-          </button>
-          <button
-            onClick={onModifyClick}
-            className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
-            <Edit3 size={16} /> Modify
-          </button>
-          <button
-            onClick={onRejectClick}
-            className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
-            <XCircle size={16} /> Reject All
-          </button>
-        </div>
+              onClick={onApproveClick}
+              className="h-12 rounded-lg lg:hidden flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
+              <CheckCircle2 size={16} /> Approve All
+            </button>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <button
+              onClick={onApproveClick}
+              className="h-12 rounded-lg hidden lg:flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
+              <CheckCircle2 size={16} /> Approve All
+            </button>
+            <button
+              onClick={onModifyClick}
+              className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
+              <Edit3 size={16} /> Modify
+            </button>
+            <button
+              onClick={onRejectClick}
+              className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
+              <XCircle size={16} /> Reject All
+            </button>
+          </div>
 
+        </div>
       </div>
     </div>
   );
