@@ -580,6 +580,7 @@ export interface SalesQuoteInvoiceData {
   projectTitle?: string;
   invoiceUrl?: string | null;
   invoicePdf?: string | null;
+  receiptUrl?: string | null;
   invoiceNumber?: string | null;
   totalAmount?: number | string;
   isPaid?: boolean;

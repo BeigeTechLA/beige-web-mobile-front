@@ -1836,6 +1836,7 @@ export default function QuoteDetailsPage({
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
+      const receiptUrl = response.data?.receiptUrl || null;
       const isPaidDocument = response.data?.isPaid === true || shouldUseReceiptActions;
       const invoiceBookingId =
         response.data?.booking_id !== undefined &&
@@ -1867,9 +1868,9 @@ export default function QuoteDetailsPage({
       }
 
       const openUrl =
-        shouldOpenManualReceipt
-          ? brandedPdfUrl
-          : hostedInvoiceUrl || brandedPdfUrl || invoicePdfUrl;
+        isPaidDocument
+          ? (shouldOpenManualReceipt ? brandedPdfUrl : receiptUrl || invoicePdfUrl || hostedInvoiceUrl)
+          : invoicePdfUrl || brandedPdfUrl || hostedInvoiceUrl;
 
       if (!openUrl) {
         throw new Error(`${isPaidDocument ? "Receipt" : "Invoice"} URL is not available`);
