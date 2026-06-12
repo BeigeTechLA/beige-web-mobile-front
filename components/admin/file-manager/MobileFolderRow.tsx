@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, FolderOpen, LinkIcon, MoreVertical, Unlink } from "lucide-react";
+import { CalendarX, ChevronDown, FolderOpen, LinkIcon, MoreVertical, Unlink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/src/components/landing/ui/button";
 
@@ -11,6 +11,7 @@ interface FolderEntry {
   fileCount?: number;
   category?: string;
   isLinked?: boolean;
+  visibilityExpired?: boolean;
   type?: string;
   lastOpened: string;
 }
@@ -21,7 +22,7 @@ export const MobileFolderRow = ({
   isDark = true
 }: {
   folder: FolderEntry;
-  handleOpenMenu: (e: React.MouseEvent<any>, folderTitle?: string) => void;
+  handleOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, folderTitle?: string) => void;
   isDark?: boolean;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -107,11 +108,19 @@ export const MobileFolderRow = ({
                 <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{folder.lastOpened}</p>
               </div>
               {
-                folder?.isLinked && (
+                (folder?.isLinked || folder?.visibilityExpired) && (
                   <div className="">
                     <p className={`text-xs mb-1 ${isDark ? "text-white/40" : "text-[#727272]"}`}>Status</p>
                     {/* Status Badge */}
-                    {folder.isLinked ? (
+                    {folder.visibilityExpired ? (
+                      <p className={`w-fit px-2 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${isDark
+                          ? "bg-amber-500/15 text-amber-200 border border-amber-400/20"
+                          : "bg-amber-50 text-amber-700 border border-amber-200"
+                        }`}>
+                        <CalendarX size={16} />
+                        Visibility expired
+                      </p>
+                    ) : folder.isLinked ? (
                       <p className={`w-fit px-2 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${isDark
                           ? "bg-[#D4FFE4] text-[#16A34A] border border-[#6ce9a6]/20"
                           : "bg-emerald-50 text-emerald-700 border border-emerald-200"

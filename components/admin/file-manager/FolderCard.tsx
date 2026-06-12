@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation'; // Added imports
-import { FolderOpen, MoreVertical, Link as LinkIcon, Unlink } from 'lucide-react';
+import { CalendarX, FolderOpen, MoreVertical, Link as LinkIcon, Unlink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FileActionMenu from './FileActionMenu';
 import { useResolvedTheme } from '@/lib/useResolvedTheme';
@@ -20,6 +20,8 @@ interface FolderCardProps {
   onDelete?: () => void;
   onRename?: () => void;
   onShare?: () => void;
+  onEditVisibility?: () => void;
+  visibilityExpired?: boolean;
 }
 
 export const FolderCard: React.FC<FolderCardProps> = ({
@@ -36,7 +38,9 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   onDownload,
   onDelete,
   onRename,
-  onShare
+  onShare,
+  onEditVisibility,
+  visibilityExpired = false
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -123,10 +127,10 @@ export const FolderCard: React.FC<FolderCardProps> = ({
         </div>
 
         {/* Badges */}
-        {(category?.trim() || isLinked) && (
+        {(category?.trim() || isLinked || visibilityExpired) && (
           <div className="mt-4 flex min-w-0 flex-nowrap items-center gap-2">
             {category?.trim() ? (
-              <span className={`min-w-0 max-w-[170px] shrink truncate rounded-full border px-4 py-1.5 text-xs font-medium ${isDark
+              <span className={`min-w-0 ${visibilityExpired ? "max-w-[140px]" : "max-w-[170px]"} shrink truncate rounded-full border px-4 py-1.5 text-xs font-medium ${isDark
                 ? "border-white/5 bg-black/40 text-white"
                 : "border-[#F0F0F0] bg-[#F0F0F0] text-[#929292]"
                 }`}>
@@ -134,7 +138,15 @@ export const FolderCard: React.FC<FolderCardProps> = ({
               </span>
             ) : null}
 
-            {isLinked ? (
+            {visibilityExpired ? (
+              <span className={`shrink-0 px-2 py-1.5 rounded-full text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap ${isDark
+                ? "bg-amber-500/15 text-amber-200 border border-amber-400/20"
+                : "bg-amber-50 text-amber-700 border border-amber-200"
+                }`}>
+                <CalendarX size={15} />
+                Visibility expired
+              </span>
+            ) : isLinked ? (
               <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 whitespace-nowrap bg-[#D4FFE4] text-[#16A34A] border border-[#6ce9a6]/20`}>
                 <LinkIcon size={16} />
                 Linked
@@ -176,6 +188,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
           onShare={onShare}
           onDelete={onDelete}
           onRename={onRename}
+          onEditVisibility={onEditVisibility}
           isDark={isDark}
         />
       )}

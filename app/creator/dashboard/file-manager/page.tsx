@@ -6,6 +6,7 @@ import { useViewMode } from "@/hooks/useViewMode";
 import {
   Grid3X3,
   History,
+  Calendar,
   Link,
   List,
   Loader2,
@@ -26,6 +27,7 @@ import {
   fileManagerApi,
   getDisplayInitials,
   isCommonEventWorkspaceId,
+  isVisibleToNonAdminByVisibleUntil,
   isRecentWithinHours,
   mapExternalWorkspaceToFolderCard,
   type UiFolderItem,
@@ -163,6 +165,7 @@ export default function CreatorFileManagerPage() {
   const tabs = [
     { name: "All Files", icon: FolderOpen },
     { name: "Linked to folders", icon: Link },
+    { name: "Common events", icon: Calendar },
     { name: "Recent", icon: History },
     // { name: "Shared", icon: Share2 },
     // { name: "Trash", icon: Trash2 },
@@ -196,9 +199,15 @@ export default function CreatorFileManagerPage() {
       setAssignedProjects(assignmentMap);
 
       const projectWorkspaces = data.filter(
-        (workspace) =>
-          isCommonEventWorkspaceId(workspace.externalId) ||
-          assignmentMap.has(String(workspace.externalId))
+        (workspace) => {
+          const isCommonEventWorkspace = isCommonEventWorkspaceId(workspace.externalId);
+
+          if (isCommonEventWorkspace) {
+            return isVisibleToNonAdminByVisibleUntil(workspace.visibleUntil);
+          }
+
+          return assignmentMap.has(String(workspace.externalId));
+        }
       );
 
       const workspaceIds = new Set(projectWorkspaces.map((workspace) => String(workspace.externalId)));
@@ -242,6 +251,8 @@ export default function CreatorFileManagerPage() {
 
     if (selectedTab === "Linked to folders") {
       items = items.filter((item) => item.isLinked);
+    } else if (selectedTab === "Common events") {
+      items = items.filter((item) => isCommonEventWorkspaceId(item.id));
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
     }

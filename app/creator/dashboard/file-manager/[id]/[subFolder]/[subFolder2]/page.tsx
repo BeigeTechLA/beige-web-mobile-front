@@ -84,6 +84,8 @@ export default function CreatorSubFolderDetailsPage() {
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
+  const isPhaseRoute = phaseSlug === "pre-production" || phaseSlug === "post-production";
+  const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -131,7 +133,7 @@ export default function CreatorSubFolderDetailsPage() {
       setError(null);
       const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
         projectId,
-        phaseSlug === "post-production" ? "post" : "pre",
+        isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre",
         currentFolderPath
       );
       setWorkspaceName(workspaceData.workspace.folderName);
@@ -155,7 +157,7 @@ export default function CreatorSubFolderDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentFolderPath, phaseSlug, projectId]);
+  }, [currentFolderPath, isCommonEventRootFolder, phaseSlug, projectId]);
 
   useEffect(() => {
     let mounted = true;
@@ -375,7 +377,7 @@ export default function CreatorSubFolderDetailsPage() {
     if (!trimmed) return;
     try {
       await fileManagerApi.createExternalFolder(projectId, trimmed, {
-        phase: phaseSlug === "post-production" ? "post" : "pre",
+        phase: isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre",
         path: currentFolderPath,
       });
       toast.success("Folder created");
@@ -614,13 +616,13 @@ export default function CreatorSubFolderDetailsPage() {
 			                    onOpenLinkModal={() => undefined}
 			                    href={folder.href}
                           onShare={() => {
-                            setShareResource({
-                              resourceType: "folder",
-                              externalId: String(projectId || ""),
-                              phase: phaseSlug === "post-production" ? "post" : "pre",
-                              path: String(folder.resourcePath || ""),
-                              label: folder.title,
-                            });
+	                            setShareResource({
+	                              resourceType: "folder",
+	                              externalId: String(projectId || ""),
+	                              phase: isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre",
+	                              path: String(folder.resourcePath || ""),
+	                              label: folder.title,
+	                            });
                             setIsShareModalOpen(true);
                           }}
 			                    onDelete={
@@ -884,11 +886,13 @@ export default function CreatorSubFolderDetailsPage() {
 	        isOpen={isUploadModalOpen}
 	        onClose={() => setIsUploadModalOpen(false)}
 	        folderName={folderTitle}
-	        uploadPath={
-	          canUpload && workspaceName
-	            ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${currentFolderPath}`
-	            : undefined
-	        }
+		        uploadPath={
+		          canUpload && workspaceName
+		            ? isCommonEventRootFolder
+                  ? `${workspaceName}/${currentFolderPath}`
+                  : `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${currentFolderPath}`
+		            : undefined
+		        }
 	        onUploadComplete={loadFiles}
 	      />
 
