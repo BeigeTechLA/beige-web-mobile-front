@@ -2271,6 +2271,139 @@ export const adminApi = {
       };
     }
   },
+  createStudio: async (payload: any) => {
+    try {
+      const response = await api.post('admin/studios', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Studio Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create studio',
+      };
+    }
+  },
+  uploadStudioMedia: async (files: File | File[]) => {
+    try {
+      const formData = new FormData();
+
+      if (Array.isArray(files)) {
+        files.forEach((file) => formData.append("studio_media", file));
+      } else {
+        formData.append("studio_media", files);
+      }
+
+      const response = await api.post("admin/studios/media/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Upload Studio Media Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to upload studio media',
+      };
+    }
+  },
+  updateStudio: async (id: string | number, payload: any) => {
+    try {
+      const response = await api.put(`admin/studios/${id}`, payload);
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update studio';
+      const status = error.response?.status;
+      const isRouteNotFound = status === 404 || status === 405 || /route not found|not found|method not allowed/i.test(String(errorMessage));
+
+      if (isRouteNotFound) {
+        try {
+          const fallbackResponse = await api.patch(`admin/studios/${id}`, payload);
+          return fallbackResponse.data;
+        } catch (fallbackError: any) {
+          console.error('Update Studio Error:', fallbackError.response?.data || fallbackError.message);
+          return {
+            success: false,
+            data: null,
+            error: fallbackError.response?.data?.message || errorMessage || 'Failed to update studio',
+          };
+        }
+      }
+
+      console.error('Update Studio Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: errorMessage,
+      };
+    }
+  },
+  getStudios: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+    try {
+      const response = await api.get('admin/studios', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studios Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch studios',
+      };
+    }
+  },
+  getStudioById: async (id: string | number) => {
+    try {
+      const response = await api.get(`admin/studios/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studio Detail Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch studio details',
+      };
+    }
+  },
+  getStudioDashboard: async (params: { month?: string } = {}) => {
+    try {
+      const response = await api.get('admin/studios/dashboard', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studio Dashboard Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch studio dashboard',
+      };
+    }
+  },
+  getStudioRequests: async (params: { page?: number; limit?: number; status?: string; search?: string } = {}) => {
+    try {
+      const response = await api.get('admin/studios/requests', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studio Requests Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch studio requests',
+      };
+    }
+  },
+  updateStudioRequestStatus: async (requestId: number | string, action: "approve" | "reject") => {
+    try {
+      const response = await api.patch(`admin/studios/requests/${requestId}/status`, { action });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Studio Request Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update studio request status',
+      };
+    }
+  },
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {

@@ -155,7 +155,7 @@ export default function AdminStudiosPage() {
           {
             activeTab === "Operations" ? (
               <div className="space-y-3 lg:space-y-5">
-                <OverviewChart isDark={isDark} />
+                <OverviewChart isDark={isDark} externalSelectedDate={selectedDate} />
                 <OverallBookingsStack isDark={isDark} />
                 <EarningsTable isDark={isDark} />
               </div>

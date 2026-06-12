@@ -1,17 +1,22 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import { SquareCheck, X } from "lucide-react";
 
 interface StudioGalleryProps {
   items: string[];
   autoplay?: boolean;
   isDark?: boolean;
+  coverImage?: string | null;
+  onCoverSelect?: (image: string) => void;
 }
 
-export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: StudioGalleryProps) => {
+const getValidImages = (items: string[]) => items.filter((item) => typeof item === "string" && item.trim());
+const isImageUrl = (url: string) => /\.(jpe?g|png|gif|webp|avif|bmp|svg)$/i.test(url.split("?")[0] || "");
+
+export const StudioGallery = ({ items = [], coverImage = null, onCoverSelect }: StudioGalleryProps) => {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const progress = useMotionValue(0);
   const smoothProgress = useSpring(progress, { damping: 30, stiffness: 200 });
@@ -61,6 +66,10 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
     };
   }, [handlePointerDown, handlePointerMove, handlePointerUp]);
 
+  const galleryItems = getValidImages(items);
+  const imageItems = galleryItems.filter(isImageUrl);
+  const resolvedCover = coverImage && galleryItems.includes(coverImage) ? coverImage : imageItems[0] || galleryItems[0] || null;
+
   return (
     <section className="relative overflow-hidden select-none flex flex-col items-center justify-center lg:min-h-[850px] pb-10">
       <div
@@ -69,15 +78,18 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
         style={{ touchAction: "pan-y" }}
       >
         <div className="relative w-full h-full flex items-center justify-center [transform-style:preserve-3d]">
-          {items.map((item, i) => (
+          {galleryItems.map((item, i) => (
             <Card
               key={i}
               item={item}
               index={i}
-              total={items.length}
+              total={galleryItems.length}
               progress={smoothProgress}
               onSelect={() => setSelectedImage(item)}
               windowWidth={windowWidth}
+              isCover={item === resolvedCover}
+              canSetCover={isImageUrl(item)}
+              onCoverSelect={onCoverSelect}
             />
           ))}
         </div>
@@ -89,7 +101,7 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 md:p-10"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 md:p-10"
             onClick={() => setSelectedImage(null)}
           >
             <motion.button
@@ -104,7 +116,7 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
               className="relative w-full max-w-6xl h-[85vh] rounded-[20px] overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <Image src={selectedImage} alt="Preview" fill className="object-contain" priority />
+              <img src={selectedImage} alt="Preview" className="absolute inset-0 h-full w-full object-contain" />
             </motion.div>
           </motion.div>
         )}
@@ -113,7 +125,7 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
   );
 };
 
-const Card = ({ item, index, total, progress, onSelect, windowWidth }: any) => {
+const Card = ({ item, index, total, progress, onSelect, windowWidth, isCover, canSetCover, onCoverSelect }: any) => {
   const [isCentered, setIsCentered] = useState(false);
 
   useEffect(() => {
@@ -169,13 +181,7 @@ const Card = ({ item, index, total, progress, onSelect, windowWidth }: any) => {
       className="absolute rounded-[20px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] cursor-pointer group w-[250px] h-[300px] md:w-[320px] md:h-[450px] xl:w-[500px] lg:h-[650px]"
     >
       <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-105">
-        <Image
-          src={item}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 250px, (max-width: 1024px) 340px, 432px"
-        />
+        <img src={item} alt="" className="absolute inset-0 h-full w-full object-cover" />
       </div>
       {/* <div className="absolute inset-0 z-20 bg-gradient-to-b from-transparent via-transparent to-black/30" /> */}
       <motion.div 
@@ -189,21 +195,30 @@ const Card = ({ item, index, total, progress, onSelect, windowWidth }: any) => {
       />
       <div className="absolute inset-0 z-10 border-[1.5px] border-white/5 rounded-[20px]" />
 
-      {isCentered && (
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30">
+      <div
+        className={`absolute bottom-5 left-1/2 -translate-x-1/2 z-30 transition-opacity ${
+          isCentered ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        }`}
+      >
+        {isCover ? (
+          <div className="flex gap-1.5 items-center rounded-full bg-black/45 px-3 py-1.5 text-[#E8D1AB] text-xs md:text-sm backdrop-blur-sm">
+            <SquareCheck />
+            Cover Image
+          </div>
+        ) : canSetCover && onCoverSelect ? (
           <button
+            type="button"
             onClick={(e) => {
-              e.stopPropagation(); // Prevents opening the large preview
-              console.log("Setting cover:", item);
-              // Handle cover logic here
+              e.stopPropagation();
+              onCoverSelect(item);
             }}
-            className="flex gap-1.5 items-center text-[#E8D1AB] text-xs md:text-sm transition-opacity whitespace-nowrap active:scale-95"
+            className="flex gap-1.5 items-center rounded-full bg-black/45 px-3 py-1.5 text-[#E8D1AB] text-xs md:text-sm backdrop-blur-sm whitespace-nowrap active:scale-95"
           >
             <SquareCheck />
             Set as Cover Image
           </button>
-        </div>
-      )}
+        ) : null}
+      </div>
     </motion.div>
   );
 };

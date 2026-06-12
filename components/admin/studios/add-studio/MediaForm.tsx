@@ -1,85 +1,200 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element, react/no-unescaped-entities */
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Plus, Image as ImageIcon, PlayCircle, X, ChevronDown } from "lucide-react";
+import { Plus, PlayCircle, X } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { adminApi } from "@/lib/api";
 
 interface Props {
   isDark?: boolean;
+  studioData: any;
+  setStudioData: (data: any) => void;
 }
 
 interface MediaFile {
   id: string;
   url: string;
   type: "image" | "video";
-  status: "uploaded" | "uploading";
+  status: "uploaded" | "uploading" | "error";
+  is_cover?: boolean;
+  fileName?: string;
+  clientId?: string;
 }
 
-export default function MediaUploadForm({ isDark = true }: Props) {
-  const [files, setFiles] = useState<MediaFile[]>([
-    { id: "1", url: "https://images.unsplash.com/photo-1497366216548-37526070297c", type: "image", status: "uploaded" },
-    { id: "2", url: "https://images.unsplash.com/photo-1497366811353-6870744d04b2", type: "image", status: "uploaded" },
-    { id: "3", url: "https://images.unsplash.com/photo-1556761175-b413da4baf72", type: "image", status: "uploaded" },
-  ]);
+const STUDIO_MEDIA_BASE_URL = "https://d2jhn32fsulyac.cloudfront.net/";
 
-  const [preferredAge, setPreferredAge] = useState("");
-  const [wifiName, setWifiName] = useState("");
-  const [wifiPassword, setWifiPassword] = useState("");
+const normalizeMediaUrl = (url: string) => {
+  const trimmed = String(url || "").trim();
+  if (!trimmed) return "";
+  if (/^(blob:|https?:\/\/|data:)/i.test(trimmed)) return trimmed;
+  const normalizedPath = trimmed.replace(/^assets\/studio\//i, "").replace(/^\/+/, "");
+  return `${STUDIO_MEDIA_BASE_URL}${normalizedPath}`;
+};
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map((file) => ({
-      id: Math.random().toString(36).substr(2, 9),
-      url: URL.createObjectURL(file),
-      type: file.type.startsWith("video") ? ("video" as const) : ("image" as const),
-      status: "uploading" as const,
-    }));
-    setFiles((prev) => [...prev, ...newFiles]);
+const inferMediaType = (url: string) => {
+  return /\.(mp4|mov|webm|m4v)$/i.test(url) ? "video" : "image";
+};
 
-    newFiles.forEach((f) => {
-      setTimeout(() => {
-        setFiles((current) =>
-          current.map((item) => (item.id === f.id ? { ...item, status: "uploaded" } : item))
-        );
-      }, 2000);
+const extractUploadedUrls = (response: any): string[] => {
+  const payload = response?.data ?? response;
+  const candidates = [
+    payload?.data,
+    payload?.urls,
+    payload?.media,
+    payload?.items,
+    payload?.result,
+    payload,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (item && typeof item === "object") {
+            return item.url || item.path || item.location || item.media_url || "";
+          }
+          return "";
+        })
+        .filter(Boolean);
+    }
+
+    if (typeof candidate === "string" && candidate.trim()) {
+      return [candidate];
+    }
+  }
+
+  return [];
+};
+
+const mapStudioMedia = (media: any[] = []): MediaFile[] =>
+  media.map((item: any, index: number) => {
+    const url = normalizeMediaUrl(String(item?.url ?? item ?? ""));
+    return {
+      id: String(item?.id ?? item?.studio_media_id ?? index),
+      url,
+      type: item?.type ?? inferMediaType(url),
+      status: item?.status ?? "uploaded",
+      is_cover: Boolean(item?.is_cover),
+      fileName: item?.fileName,
+      clientId: item?.clientId,
+    };
+  });
+
+export default function MediaUploadForm({ isDark = true, studioData, setStudioData }: Props) {
+  const files: MediaFile[] = mapStudioMedia(studioData.media || []);
+
+  const syncMedia = useCallback((updater: (current: MediaFile[]) => MediaFile[]) => {
+    setStudioData((prev: any) => {
+      const currentFiles = mapStudioMedia(prev.media || []);
+      const nextFiles = updater(currentFiles);
+      return {
+        ...prev,
+        media: nextFiles,
+      };
     });
-  }, []);
+  }, [setStudioData]);
+
+  const setPreferredAge = (v: string) => setStudioData((prev: any) => ({ ...prev, preferred_age: v }));
+  const setWifiName = (v: string) => setStudioData((prev: any) => ({ ...prev, wifi_name: v }));
+  const setWifiPassword = (v: string) => setStudioData((prev: any) => ({ ...prev, wifi_password: v }));
+
+  const removeFile = useCallback((id: string) => {
+    syncMedia((current) => {
+      const target = current.find((item) => item.id === id);
+      if (target?.url?.startsWith("blob:")) {
+        URL.revokeObjectURL(target.url);
+      }
+      return current.filter((item) => item.id !== id);
+    });
+  }, [syncMedia]);
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!acceptedFiles.length) return;
+
+    const batchId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const localItems: MediaFile[] = acceptedFiles.map((file, index) => ({
+      id: `${batchId}-${index}`,
+      clientId: `${batchId}-${index}`,
+      url: URL.createObjectURL(file),
+      type: file.type.startsWith("video") ? "video" : "image",
+      status: "uploading",
+      fileName: file.name,
+    }));
+
+    syncMedia((current) => [...current, ...localItems]);
+
+    try {
+      const response = await adminApi.uploadStudioMedia(acceptedFiles);
+      if (response?.success === false) {
+        throw new Error(response?.error || "Upload failed");
+      }
+
+      const uploadedUrls = extractUploadedUrls(response);
+
+      if (!uploadedUrls.length) {
+        throw new Error("Upload succeeded but no media URLs were returned");
+      }
+
+      syncMedia((current) =>
+        current.map((item) => {
+          const localIndex = localItems.findIndex((pending) => pending.id === item.id);
+          if (localIndex === -1) return item;
+
+          const nextUrl = normalizeMediaUrl(uploadedUrls[localIndex] || item.url);
+          if (item.url.startsWith("blob:") && nextUrl !== item.url) {
+            URL.revokeObjectURL(item.url);
+          }
+
+          return {
+            ...item,
+            url: nextUrl,
+            status: "uploaded",
+          };
+        })
+      );
+    } catch (error) {
+      console.error("Studio media upload failed:", error);
+      syncMedia((current) =>
+        current.map((item) =>
+          localItems.some((pending) => pending.id === item.id)
+            ? { ...item, status: "error" }
+            : item
+        )
+      );
+    }
+  }, [syncMedia]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { "image/*": [".jpeg", ".jpg", ".png"], "video/*": [".mp4"] },
-    maxSize: 50 * 1024 * 1024, // 50MB limit
+    accept: { "image/*": [".jpeg", ".jpg", ".png"], "video/*": [".mp4", ".mov", ".webm"] },
+    maxSize: 50 * 1024 * 1024,
   });
 
-  const removeFile = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-  };
+  const preferredAge = studioData.preferred_age;
+  const wifiName = studioData.wifi_name;
+  const wifiPassword = studioData.wifi_password;
 
-  // Theme Styles
   const textColor = isDark ? "text-white" : "text-black";
   const subTextColor = isDark ? "text-[#FFFFFFB2]" : "text-[#71717B]";
   const labelBg = isDark ? "bg-[#101010]" : "bg-white";
   const borderColor = isDark ? "border-[#FFFFFF80]" : "border-[#D7D7D7]";
 
+  const hasUploading = files.some((file) => file.status === "uploading");
+
   return (
     <div className="space-y-5 lg:space-y-9 transition-colors duration-200">
       <section className={`space-y-6 p-4 lg:p-8 border rounded-xl transition-colors duration-200 ${borderColor}`}>
-        {/* 1. Main Dropzone Area */}
         <div
           {...getRootProps()}
           className={`relative w-full h-[300px] flex flex-col items-center justify-center cursor-pointer transition-all ${isDragActive ? "bg-[#E8D1AB]/5 " : "bg-transparent"}`}
         >
           <Input {...getInputProps()} />
 
-          {/* Animated Icon Stack */}
           <div className="relative w-32 h-32 lg:h-50 lg:w-65">
             <Image
               src={"/images/misc/MediaFormAsset.png"}
@@ -97,9 +212,8 @@ export default function MediaUploadForm({ isDark = true }: Props) {
           </p>
         </div>
 
-        {/* 2. Preview Scroll Section */}
         <div className={`p-4 border border-dashed rounded-md ${isDark ? "border-[#FFFFFF4D]" : "border-gray-300"}`}>
-          <div className="flex justify-between ">
+          <div className="flex justify-between">
             <div className="flex items-center gap-4 overflow-x-auto pb-2 no-scrollbar">
               {files.map((file) => (
                 <div
@@ -114,7 +228,6 @@ export default function MediaUploadForm({ isDark = true }: Props) {
                     </div>
                   )}
 
-                  {/* Uploading Overlay */}
                   {file.status === "uploading" && (
                     <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-4">
                       <span className="text-[10px] text-white mb-2">Uploading</span>
@@ -124,7 +237,12 @@ export default function MediaUploadForm({ isDark = true }: Props) {
                     </div>
                   )}
 
-                  {/* Remove Button */}
+                  {file.status === "error" && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <span className="text-[10px] text-red-300 font-medium">Upload failed</span>
+                    </div>
+                  )}
+
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -138,11 +256,9 @@ export default function MediaUploadForm({ isDark = true }: Props) {
               ))}
             </div>
 
-
-            {/* 3. Add Button */}
             <div
               {...getRootProps()}
-              className={` bg-[#E8D1AB] w-[96px] h-[80px] rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#E8D1AB]/80 transition-colors shrink-0`}
+              className={`bg-[#E8D1AB] w-[96px] h-[80px] rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#E8D1AB]/80 transition-colors shrink-0 ${hasUploading ? "opacity-70 pointer-events-none" : ""}`}
             >
               <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
                 <Plus className="text-[#E8D1AB]" size={32} />
@@ -151,9 +267,9 @@ export default function MediaUploadForm({ isDark = true }: Props) {
           </div>
         </div>
       </section>
+
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
-      {/* 2. Who's allowed in your space? */}
       <section className="space-y-5 lg:space-y-9">
         <div>
           <h2 className={`text-lg lg:text-xl font-medium ${textColor}`}>Who's allowed in your space?</h2>
@@ -181,7 +297,6 @@ export default function MediaUploadForm({ isDark = true }: Props) {
 
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
-      {/* 3. Wifi Name and Password Section */}
       <section className="space-y-5 lg:space-y-9">
         <div>
           <h2 className={`text-lg lg:text-xl font-medium ${textColor}`}>What's your wifi name and password?</h2>
@@ -215,6 +330,7 @@ export default function MediaUploadForm({ isDark = true }: Props) {
           </div>
         </div>
       </section>
+
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
     </div>
   );

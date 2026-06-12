@@ -102,15 +102,54 @@ const ADDITIONAL_TERMS: TermItem[] = [
 ]
 
 
-export default function TermsConditions({ isDark = true }: { isDark?: boolean }) {
-  // State to track checked items by their ID
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+interface Props {
+  isDark?: boolean;
+  studioData: any;
+  setStudioData: (data: any) => void;
+}
+
+export default function TermsConditions({ isDark = true, studioData, setStudioData }: Props) {
+  // --- State Syncing ---
+  const checkedItems: Record<string, boolean> = {
+    "window-refunded": studioData.policies?.cancellation_and_refund?.cancellation_window_refunded,
+    "host-cancellations": studioData.policies?.cancellation_and_refund?.host_studio_cancellations,
+    "user-responsibility": studioData.policies?.safety?.user_responsibility,
+    "conduct-compliance": studioData.policies?.safety?.conduct_and_compliance,
+    "trust-protection": studioData.policies?.safety?.trust_and_protection,
+    "studio-expectations": studioData.policies?.cleanliness?.studio_expectation,
+    "guest-responsibility": studioData.policies?.cleanliness?.guest_responsibility,
+    "damage-liability": studioData.policies?.additional?.damage_liability,
+    "health-safety": studioData.policies?.additional?.health_and_safety,
+    "good-neighbor-policy": studioData.policies?.additional?.good_neighbor_policy,
+  };
 
   const toggleCheckbox = (id: string) => {
-    setCheckedItems((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    const map: Record<string, { category: string; field: string }> = {
+      "window-refunded": { category: "cancellation_and_refund", field: "cancellation_window_refunded" },
+      "host-cancellations": { category: "cancellation_and_refund", field: "host_studio_cancellations" },
+      "user-responsibility": { category: "safety", field: "user_responsibility" },
+      "conduct-compliance": { category: "safety", field: "conduct_and_compliance" },
+      "trust-protection": { category: "safety", field: "trust_and_protection" },
+      "studio-expectations": { category: "cleanliness", field: "studio_expectation" },
+      "guest-responsibility": { category: "cleanliness", field: "guest_responsibility" },
+      "damage-liability": { category: "additional", field: "damage_liability" },
+      "health-safety": { category: "additional", field: "health_and_safety" },
+      "good-neighbor-policy": { category: "additional", field: "good_neighbor_policy" },
+    };
+
+    const target = map[id];
+    if (target) {
+      setStudioData({
+        ...studioData,
+        policies: {
+          ...studioData.policies,
+          [target.category]: {
+            ...studioData.policies?.[target.category],
+            [target.field]: !checkedItems[id]
+          }
+        }
+      });
+    }
   };
 
   const TermSection = ({ items }: { items: TermItem[] }) => (

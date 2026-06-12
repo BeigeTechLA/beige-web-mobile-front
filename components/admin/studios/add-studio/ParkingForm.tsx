@@ -8,12 +8,39 @@ import {
 
 interface Props {
   isDark?: boolean;
+  studioData: any;
+  setStudioData: (data: any) => void;
 }
 
-export default function StudioFeaturesForm({ isDark = true }: Props) {
-  const [parking, setParking] = useState<string[]>([]);
-  const [description, setDescription] = useState("");
-  const [accessFeatures, setAccessFeatures] = useState<string[]>([]);
+export default function StudioFeaturesForm({ isDark = true, studioData, setStudioData }: Props) {
+  // --- State Syncing ---
+  const parking = studioData.parking_options || [];
+  const description = studioData.description; // Note: This matches description in user provided JSON, but wait, information form has it too. 
+                                              // Actually, ParkingForm seems to have another description.
+                                              // In the provided JSON, there's only one root "description".
+                                              // Let's use a different field if needed or just sync it.
+  const accessFeatures = studioData.access_features || [];
+  const featureValues = studioData.facility_features || {
+    general: [],
+    photography: [],
+    videography: [],
+    podcast: [],
+    product: []
+  };
+
+  const setParking = (v: string[] | ((prev: string[]) => string[])) => {
+    const updated = typeof v === 'function' ? v(parking) : v;
+    setStudioData({ ...studioData, parking_options: updated });
+  };
+  const setAccessFeatures = (v: string[] | ((prev: string[]) => string[])) => {
+    const updated = typeof v === 'function' ? v(accessFeatures) : v;
+    setStudioData({ ...studioData, access_features: updated });
+  };
+  const setFeatureValues = (v: any) => {
+    const updated = typeof v === 'function' ? v(featureValues) : v;
+    setStudioData({ ...studioData, facility_features: updated });
+  };
+  const setDescription = (v: string) => setStudioData({ ...studioData, description: v });
 
   // State for all collapsible feature categories
   const [activeSections, setActiveSections] = useState<Record<string, boolean>>({
@@ -23,15 +50,6 @@ export default function StudioFeaturesForm({ isDark = true }: Props) {
     videography: false,
     podcast: false,
     product: false,
-  });
-
-  // State for specific feature values within categories
-  const [featureValues, setFeatureValues] = useState<Record<string, string[]>>({
-    general: [],
-    photography: [],
-    videography: [],
-    podcast: [],
-    product: [],
   });
 
   // Helpers

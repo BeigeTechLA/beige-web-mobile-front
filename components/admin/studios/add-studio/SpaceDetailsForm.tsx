@@ -10,41 +10,69 @@ import { QuantityControl } from "@/components/book-a-shoot";
 
 interface Props {
   isDark?: boolean;
+  studioData: any;
+  setStudioData: (data: any) => void;
 }
 
-export default function SpaceDetailsForm({ isDark = true }: Props) {
+export default function SpaceDetailsForm({ isDark = true, studioData, setStudioData }: Props) {
+  // --- State Syncing ---
   const [useDefault, setUseDefault] = useState<boolean>(true);
-  const [activities, setActivities] = useState({
-    production: true,
-    event: false,
-    recreation: false,
-    meetings: false,
-  });
-  const [counts, setCounts] = useState({
+  
+  const activities = {
+    production: studioData.activities?.includes('production'),
+    event: studioData.activities?.includes('event'),
+    recreation: studioData.activities?.includes('recreation'),
+    meetings: studioData.activities?.includes('meetings'),
+  };
+
+  const setActivitiesRaw = (newActivities: any) => {
+    const updated = typeof newActivities === 'function' ? newActivities(activities) : newActivities;
+    const activityArray = Object.keys(updated).filter(k => updated[k]);
+    setStudioData({ ...studioData, activities: activityArray });
+  };
+
+  const counts = studioData.space_basics || {
     guests: 0,
     bedrooms: 0,
     beds: 0,
     bathrooms: 0,
-  });
-  const [amenities, setAmenities] = useState<string[]>([]);
-  const [highlights, setHighlights] = useState<string[]>([]);
+  };
+
+  const amenities = studioData.amenities || [];
+  const highlights = studioData.description_tags || [];
 
   // --- Helpers ---
   const toggleAmenity = (id: string) => {
-    setAmenities(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
+    const updated = amenities.includes(id) ? amenities.filter((a: string) => a !== id) : [...amenities, id];
+    setStudioData({ ...studioData, amenities: updated });
   };
 
   const toggleHighlight = (id: string) => {
-    setHighlights(prev => {
-      if (prev.includes(id)) return prev.filter(h => h !== id);
-      if (prev.length < 2) return [...prev, id];
-      return prev;
+    let updated = highlights;
+    if (highlights.includes(id)) {
+      updated = highlights.filter((h: string) => h !== id);
+    } else if (highlights.length < 2) {
+      updated = [...highlights, id];
+    }
+    setStudioData({ ...studioData, description_tags: updated });
+  };
+
+  const updateCount = (key: string, delta: number) => {
+    setStudioData({
+      ...studioData,
+      space_basics: {
+        ...counts,
+        [key]: Math.max(0, (counts[key] || 0) + delta)
+      }
     });
   };
 
-  const updateCount = (key: keyof typeof counts, delta: number) => {
-    setCounts(prev => ({ ...prev, [key]: Math.max(0, prev[key] + delta) }));
+  const setCounts = (v: any) => {
+    const updated = typeof v === 'function' ? v(counts) : v;
+    setStudioData({ ...studioData, space_basics: updated });
   };
+
+  const setActivities = (v: any) => setActivitiesRaw(v);
 
 
   const textColor = isDark ? "text-white" : "text-black";
@@ -127,7 +155,7 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
         </div>
 
         <div className={`rounded-xl border ${borderColor} overflow-hidden p-4 lg:p-8 space-y-3 lg:space-y-6`}>
-          {Object.entries(counts).map(([key, value], idx) => (
+          {(Object.entries(counts) as [string, number][]).map(([key, value], idx) => (
             <div key={key} className=" space-y-3 lg:space-y-6">
               <div className={`flex items-center justify-between `}>
                 <div className="flex items-center gap-4">
@@ -135,7 +163,7 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
                     onClick={() => {
                       // If current value is 0, set to 1. If > 0, set to 0.
                       const newValue = value > 0 ? 0 : 1;
-                      setCounts(prev => ({ ...prev, [key]: newValue }));
+                      setCounts((prev: any) => ({ ...prev, [key]: newValue }));
                     }}
                     className="focus:outline-none"
                   >
@@ -147,9 +175,9 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
                   <span className={`lg:text-lg capitalize font-light ${textColor}`}>{key}</span>
                 </div>
                 <QuantityControl
-                  value={0}
-                  onIncrease={() => updateCount(key as any, 1)}
-                  onDecrease={() => updateCount(key as any, -1)}
+                  value={value}
+                  onIncrease={() => updateCount(key, 1)}
+                  onDecrease={() => updateCount(key, -1)}
                 />
               </div>
               {idx !== (Object.entries(counts).length - 1) &&

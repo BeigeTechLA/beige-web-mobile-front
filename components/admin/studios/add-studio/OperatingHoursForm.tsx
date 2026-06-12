@@ -13,6 +13,8 @@ import { Separator } from "@/src/components/landing/Separator";
 
 interface Props {
   isDark?: boolean;
+  studioData: any;
+  setStudioData: (data: any) => void;
 }
 
 type DayConfig = {
@@ -21,14 +23,14 @@ type DayConfig = {
 };
 
 const RULES_LIST = [
-  { id: "smoking", label: "Smoking and Drugs Allowed" },
-  { id: "alcohol", label: "Alcohol Allowed" },
-  { id: "cooking", label: "Cooking Allowed" },
-  { id: "electricity", label: "Electricity usage Allowed" },
-  { id: "externalFood", label: "External Food /Catering Allowed" },
-  { id: "pets", label: "Pets Allowed" },
+  { id: "smoking_and_drugs_allowed", label: "Smoking and Drugs Allowed" },
+  { id: "alcohol_allowed", label: "Alcohol Allowed" },
+  { id: "cooking_allowed", label: "Cooking Allowed" },
+  { id: "electricity_usage_allowed", label: "Electricity usage Allowed" },
+  { id: "external_food_allowed", label: "External Food /Catering Allowed" },
+  { id: "pets_allowed", label: "Pets Allowed" },
 ]
-// --- Custom Radio Component using your SVG ---
+
 const CustomRadio = ({ selected }: { selected: boolean }) => {
   if (selected) {
     return (
@@ -59,46 +61,75 @@ const CustomRadio = ({ selected }: { selected: boolean }) => {
   );
 };
 
-export default function OperatingHoursForm({ isDark = true }: Props) {
-  // --- Operating Hours State ---
-  const [is24Hrs, setIs24Hrs] = useState(false);
+export default function OperatingHoursForm({ isDark = true, studioData, setStudioData }: Props) {
+  // --- State Syncing ---
   const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  
+  const operatingHours = studioData.operating_hours || [];
+  const schedule: Record<string, { isOpen: boolean; setHours: boolean }> = DAYS.reduce((acc, day, idx) => {
+    const existing = operatingHours.find((h: any) => h.day_of_week === idx);
+    return {
+      ...acc,
+      [day]: {
+        isOpen: existing ? existing.is_open : true,
+        setHours: existing ? !!(existing.opens_at || existing.closes_at) : false
+      }
+    };
+  }, {});
 
-  const [selectedDays, setSelectedDays] = useState<string[]>(["Monday"]);
-  const [schedule, setSchedule] = useState<Record<string, { isOpen: boolean; setHours: boolean }>>(
-    DAYS.reduce((acc, day) => ({ ...acc, [day]: { isOpen: day !== "Sunday", setHours: day === "Monday" } }), {})
-  );
+  const setSchedule = (newSched: any) => {
+    const updatedSched = typeof newSched === 'function' ? newSched(schedule) : newSched;
+    const newOperatingHours = DAYS.map((day, idx) => ({
+      day_of_week: idx,
+      is_open: updatedSched[day].isOpen,
+      opens_at: updatedSched[day].isOpen ? (updatedSched[day].opens_at || "10:00:00") : null,
+      closes_at: updatedSched[day].isOpen ? (updatedSched[day].closes_at || "22:00:00") : null
+    }));
+    setStudioData({ ...studioData, operating_hours: newOperatingHours });
+  };
 
-  // --- Space Rules State ---
-  const [rules, setRules] = useState<Record<string, boolean | null>>({
-    smoking: false,
-    alcohol: true,
-    cooking: true,
-    electricity: true,
-    externalFood: false,
-    pets: null,
-  });
+  const [is24Hrs, setIs24Hrs] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<string[]>(DAYS.filter(d => schedule[d].isOpen));
 
-  const [customRule, setCustomRule] = useState("");
+  const rules = studioData.house_rules || {};
+  const updateRule = (key: string, val: boolean) => {
+    setStudioData({
+      ...studioData,
+      house_rules: {
+        ...studioData.house_rules,
+        [key]: val
+      }
+    });
+  };
+
+  const customRule = (studioData.house_rules?.custom_rules || [])[0] || "";
+  const setCustomRule = (v: string) => {
+    setStudioData({
+      ...studioData,
+      house_rules: {
+        ...studioData.house_rules,
+        custom_rules: [v]
+      }
+    });
+  };
+
   const [studio, setStudio] = useState("");
   const [openingTime, setOpeningTime] = useState("");
   const [closingTime, setClosingTime] = useState("");
 
-  // 2. Add this helper function
   const toggleCheckbox = (day: string) => {
     setSelectedDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     );
   };
 
-  // Helpers
   const toggleDay = (day: string) => {
-    setSchedule(prev => ({
+    setSchedule((prev: any) => ({
       ...prev,
       [day]: { ...prev[day], isOpen: !prev[day].isOpen }
     }));
   };
-  // Toggle All Days (Header Checkbox)
+
   const toggleAllDays = () => {
     if (selectedDays.length === DAYS.length) {
       setSelectedDays([]);
@@ -108,14 +139,10 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
   };
 
   const toggleSetHours = (day: string) => {
-    setSchedule(prev => ({
+    setSchedule((prev: any) => ({
       ...prev,
       [day]: { ...prev[day], setHours: !prev[day].setHours }
     }));
-  };
-
-  const updateRule = (key: string, val: boolean) => {
-    setRules(prev => ({ ...prev, [key]: val }));
   };
 
   // Theme Styles

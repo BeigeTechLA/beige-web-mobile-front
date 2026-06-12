@@ -1,7 +1,7 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React, { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import React from "react";
 import { DynamicCountrySelect } from "@/components/investors/CountryDropdown";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,19 +11,93 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LocationPicker, darkThemeColors, lightThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 
 interface Props {
   isDark?: boolean;
+  studioData: any;
+  setStudioData: (data: any) => void;
 }
 
-export default function SpaceAddressForm({ isDark = true }: Props) {
-  // --- State Management ---
-  const [address, setAddress] = useState("");
-  const [apartment, setApartment] = useState("");
-  const [city, setCity] = useState("");
-  const [zipCode, setZipCode] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState("United States");
-  const [state, setState] = useState("California");
+export default function SpaceAddressForm({ isDark = true, studioData, setStudioData }: Props) {
+  // --- State Syncing ---
+  const updateAddress = (field: string, value: any) => {
+    setStudioData({
+      ...studioData,
+      address: {
+        ...studioData.address,
+        [field]: value
+      }
+    });
+  };
+
+  const updateLocationFromMapbox = (address: string, details?: any) => {
+    const context = Array.isArray(details?.context) ? details.context : [];
+    const findByPrefix = (prefix: string) => context.find((item: any) => item?.id?.startsWith(prefix));
+
+    const place = findByPrefix("place.");
+    const region = findByPrefix("region.");
+    const country = findByPrefix("country.");
+    const postcode = findByPrefix("postcode.");
+    const coordinates = details?.coordinates || details;
+
+    setStudioData({
+      ...studioData,
+      location: address || "",
+      address: {
+        ...studioData.address,
+        line1: address || studioData.address.line1,
+        city: place?.text || studioData.address.city,
+        state: region?.short_code ? String(region.short_code).split(".").pop()?.toUpperCase() || region.text : studioData.address.state,
+        country: country?.text || studioData.address.country,
+        zipCode: postcode?.text || studioData.address.zipCode,
+        latitude: Number(coordinates?.lat ?? coordinates?.latitude ?? studioData.address.latitude),
+        longitude: Number(coordinates?.lng ?? coordinates?.longitude ?? studioData.address.longitude),
+      },
+      locationDetails: details || null,
+    });
+  };
+
+  const clearLocation = () => {
+    setStudioData({
+      ...studioData,
+      location: "",
+      locationDetails: null,
+      address: {
+        ...studioData.address,
+        line1: "",
+        city: "",
+        state: studioData.address.state,
+        country: studioData.address.country,
+        zipCode: "",
+        latitude: "",
+        longitude: "",
+      },
+    });
+  };
+
+  const address = studioData.address.line1;
+  const apartment = studioData.address.line2;
+  const city = studioData.address.city;
+  const zipCode = studioData.address.zipCode;
+  const selectedCountry = studioData.address.country;
+  const state = studioData.address.state;
+  const fullLocation = studioData.location || [
+    studioData.address.line1,
+    studioData.address.line2,
+    studioData.address.city,
+    studioData.address.state,
+    studioData.address.zipCode,
+    studioData.address.country,
+  ].filter(Boolean).join(", ");
+  const mapColors = isDark ? darkThemeColors : lightThemeColors;
+
+  const setAddress = (v: string) => updateAddress('line1', v);
+  const setApartment = (v: string) => updateAddress('line2', v);
+  const setCity = (v: string) => updateAddress('city', v);
+  const setZipCode = (v: string) => updateAddress('zipCode', v);
+  const setSelectedCountry = (v: string) => updateAddress('country', v);
+  const setState = (v: string) => updateAddress('state', v);
 
   // --- Theme Styles ---
   const textColor = isDark ? "text-white" : "text-black";
@@ -127,9 +201,22 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
         </div>
 
         {/* Map Container */}
-        <div className={`relative w-full h-[400px] lg:h-[500px] rounded-2xl overflow-hidden border ${borderColor}`}>
-          {/* Add Map component here */}
-
+        <div className="w-full">
+          <LocationPicker
+            value={fullLocation}
+            onChange={(address, details) => {
+              if (!address) {
+                clearLocation();
+                return;
+              }
+              updateLocationFromMapbox(address, details);
+            }}
+            placeholder="Search for a location"
+            label="Do we have the right spot?"
+            colors={mapColors}
+            hasError={false}
+            disabled={false}
+          />
         </div>
       </section>
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />

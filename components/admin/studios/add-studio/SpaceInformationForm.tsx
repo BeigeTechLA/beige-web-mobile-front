@@ -8,27 +8,51 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   isDark?: boolean;
+  studioData: any;
+  setStudioData: (data: any) => void;
 }
 
-export default function SpaceInformationForm({ isDark = true }: Props) {
-  // --- State Management ---
-  const [spaceTitle, setSpaceTitle] = useState("");
-  const [brandName, setBrandName] = useState("");
-  const [description, setDescription] = useState("");
-  const [secondaryTypes, setSecondaryTypes] = useState<string[]>([]);
-  const [suggestedType, setSuggestedType] = useState("");
+export default function SpaceInformationForm({ isDark = true, studioData, setStudioData }: Props) {
+  // --- State Syncing ---
+  const spaceTitle = studioData.studio_name ?? "";
+  const brandName = studioData.brand_name ??"";
+  const description = studioData.description??"";
+  const secondaryTypes = Array.isArray(studioData.supported_shoot_types) 
+    ? studioData.supported_shoot_types 
+    : [];
+  const suggestedType = studioData.suggested_type??"";
 
-  // --- Second Half State ---
-  const [dimensions, setDimensions] = useState({
-    propertySize: "",
-    height: "",
-    width: "",
-    length: "",
-    floorNumber: ""
-  });
-  const [overnightStays, setOvernightStays] = useState<boolean>(true);
-  const [securityEnabled, setSecurityEnabled] = useState(true);
-  const [securityDesc, setSecurityDesc] = useState("");
+  const dimensions = {
+    propertySize: studioData.square_feet??"",
+    height: studioData.height?? "",
+    width: studioData.width?? "",
+    length: studioData.length?? "",
+    floorNumber: studioData.main_floor_number?? ""
+  };
+  const overnightStays = studioData.overnight_stays_allowed??false;
+  const securityEnabled = studioData.security_recording_enabled??false;
+  const securityDesc = studioData.security_recording_description??"";
+
+  const setSpaceTitle = (v: string) => setStudioData({ ...studioData, studio_name: v });
+  const setBrandName = (v: string) => setStudioData({ ...studioData, brand_name: v });
+  const setDescription = (v: string) => setStudioData({ ...studioData, description: v });
+  const setSecondaryTypes = (v: string[]) => setStudioData({ ...studioData, supported_shoot_types: v });
+  const setSuggestedType = (v: string) => setStudioData({ ...studioData, suggested_type: v });
+
+  const updateDimension = (key: string, val: string) => {
+    const map: Record<string, string> = {
+      propertySize: 'square_feet',
+      height: 'height',
+      width: 'width',
+      length: 'length',
+      floorNumber: 'main_floor_number'
+    };
+    setStudioData({ ...studioData, [map[key]]: val });
+  };
+
+  const setOvernightStays = (v: boolean) => setStudioData({ ...studioData, overnight_stays_allowed: v });
+  const setSecurityEnabled = (v: boolean) => setStudioData({ ...studioData, security_recording_enabled: v });
+  const setSecurityDesc = (v: string) => setStudioData({ ...studioData, security_recording_description: v });
 
   // --- Theme Styles ---
   const textColor = isDark ? "text-white" : "text-black";
@@ -38,16 +62,15 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
 
   const TYPES = ["Photography", "Product Shoot", "Videography", "Podcast"];
 
-  const toggleType = (type: string) => {
-    setSecondaryTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
-  };
+    const toggleType = (type: string) => {
+      const currentTypes = Array.isArray(secondaryTypes) ? secondaryTypes : [];
+      
+      const newTypes = currentTypes.includes(type)
+        ? currentTypes.filter((t: string) => t !== type)
+        : [...currentTypes, type];
 
-  const updateDimension = (key: keyof typeof dimensions, val: string) => {
-    setDimensions(prev => ({ ...prev, [key]: val }));
-  };
-
+      setSecondaryTypes(newTypes);
+    };
   return (
     <div className="space-y-5 lg:space-y-9 transition-colors duration-200 mt-4 lg:mt-8">
       {/* 1. Titles Section */}

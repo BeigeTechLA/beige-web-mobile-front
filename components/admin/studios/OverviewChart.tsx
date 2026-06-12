@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -104,6 +105,110 @@ interface OverviewChartProps {
   isDark?: boolean;
 }
 
+const formatMoney = (value: number | string | null | undefined) => {
+  const numericValue = Number(value ?? 0);
+  return `$${numericValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const formatPlainNumber = (value: number | string | null | undefined) => {
+  const numericValue = Number(value ?? 0);
+  if (!Number.isFinite(numericValue)) return "0";
+  return numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
+};
+
+const firstNumber = (source: Record<string, any>, keys: string[], fallback = 0) => {
+  for (const key of keys) {
+    const value = source?.[key];
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const firstString = (source: Record<string, any>, keys: string[], fallback = "") => {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return fallback;
+};
+
+const extractData = (response: any) => {
+  const root = response?.data ?? response;
+  return root?.data ?? root ?? {};
+};
+
+const extractChartPoints = (source: Record<string, any>) => {
+  const chartSource =
+    source?.chart ||
+    source?.chart_data ||
+    source?.monthly ||
+    source?.monthly_chart ||
+    source?.revenue_chart ||
+    source?.graph ||
+    source?.series ||
+    [];
+
+  const list = Array.isArray(chartSource) ? chartSource : [];
+
+  return list.map((item: any, index: number) => ({
+    name: firstString(item, ["name", "month", "label", "period"], `P${index + 1}`),
+    revenue: firstNumber(item, ["revenue", "total_revenue", "value", "amount", "total"], 0),
+    bookings: firstNumber(item, ["bookings", "total_bookings", "count"], 0),
+    avg: firstNumber(item, ["avg", "average", "avg_booking_value", "average_booking_value"], 0),
+    overtime: firstNumber(item, ["overtime", "overtime_revenue", "overtime_amount"], 0),
+  }));
+};
+
+const extractMetrics = (source: Record<string, any>) => {
+  const overview = source?.overview || source?.metrics || source?.summary || source;
+
+  const revenue = firstNumber(overview, ["total_revenue", "revenue", "revenue_total", "totalRevenue"], 0);
+  const bookings = firstNumber(overview, ["total_bookings", "bookings", "booking_count", "totalBookings"], 0);
+  const avgBookingValue = firstNumber(
+    overview,
+    ["avg_booking_value", "average_booking_value", "avgBookingValue", "averageBookingValue"],
+    bookings > 0 ? revenue / bookings : 0,
+  );
+  const overtimeRevenue = firstNumber(
+    overview,
+    ["overtime_revenue", "overtime", "overtime_amount", "total_overtime_revenue"],
+    0,
+  );
+
+  const growthFallback = firstNumber(overview, ["growth", "growth_rate"], 0);
+  return [
+    {
+      id: 'revenue',
+      label: 'Total Revenue',
+      value: formatMoney(revenue),
+      growth: firstNumber(overview, ["revenue_growth", "growth_revenue"], growthFallback),
+      icon: CustomDollarIcon,
+    },
+    {
+      id: 'bookings',
+      label: 'Total Bookings',
+      value: formatPlainNumber(bookings).padStart(2, "0"),
+      growth: firstNumber(overview, ["bookings_growth", "growth_bookings"], growthFallback),
+      icon: CustomCalendarIcon,
+    },
+    {
+      id: 'avg',
+      label: 'Avg. Booking Value',
+      value: formatMoney(avgBookingValue),
+      growth: firstNumber(overview, ["avg_booking_value_growth", "growth_avg_booking_value"], growthFallback),
+      icon: CustomGraphIcon,
+    },
+    {
+      id: 'overtime',
+      label: 'Overtime Revenue',
+      value: formatPlainNumber(overtimeRevenue),
+      growth: firstNumber(overview, ["overtime_growth", "growth_overtime"], growthFallback),
+      icon: CustomClockIcon,
+    },
+  ];
+};
+
 export default function OverviewChart({ externalSelectedDate, isDark = true }: OverviewChartProps) {
   const router = useRouter();
   const [activeMetric, setActiveMetric] = useState('revenue');
@@ -113,14 +218,55 @@ export default function OverviewChart({ externalSelectedDate, isDark = true }: O
   const [range, setRange] = useState('all');
   const [chartData, setChartData] = useState<any[]>(placeholderChartData);
 
-  // 1. Sync the Select UI when the external date changes
+  const monthParam = format(externalSelectedDate ?? new Date(), "yyyy-MM");
+
   useEffect(() => {
     if (externalSelectedDate) {
       setRange('custom');
     } else if (range === 'custom') {
       setRange('all');
     }
-  }, [externalSelectedDate]);
+  }, [externalSelectedDate, range]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchDashboard = async () => {
+      setIsLoading(true);
+      setIsChartLoading(true);
+
+      try {
+        const response = await adminApi.getStudioDashboard({ month: monthParam });
+        const payload = extractData(response);
+
+        if (!cancelled) {
+          const nextMetrics = extractMetrics(payload);
+          const nextChartData = extractChartPoints(payload);
+
+          setMetrics(nextMetrics.length ? nextMetrics : initialMetrics);
+          setChartData(nextChartData.length ? nextChartData : placeholderChartData);
+          setActiveMetric((current) => (nextMetrics.some((metric) => metric.id === current) ? current : nextMetrics[0]?.id || 'revenue'));
+        }
+      } catch (error) {
+        console.error("Failed to load studio dashboard:", error);
+        if (!cancelled) {
+          setMetrics(initialMetrics);
+          setChartData(placeholderChartData);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+          setIsChartLoading(false);
+        }
+      }
+    };
+
+    fetchDashboard();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [monthParam]);
 
 
   const getGrowthLabel = () => {

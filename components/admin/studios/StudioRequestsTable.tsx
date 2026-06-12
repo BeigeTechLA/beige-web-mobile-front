@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, ChevronDown, ChevronUp, Loader2, Trash2, CircleAlert } from "lucide-react";
-import { adminApi } from "@/lib/api";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { toast } from "sonner";
-import { useTheme } from "next-themes";
+
+import { adminApi } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -18,81 +18,8 @@ import { StudioStatusBadge } from "./StudioStatusBadge";
 import { DeleteConfirmationModal } from "../DeleteConfirmationModal";
 import { getInitials } from "@/lib/utils";
 
-// Placehoolder data
-const studioRequests: StudioRecord[] = [
-  {
-    id: "studio1",
-    hostName: "Prince Carter",
-    spaceName: "Hollywood Production Hub",
-    location: "New York, NY",
-    spaceType: "Video Studio",
-    capacity: "04 - 05 ppl",
-    status: "Approved",
-    date: "Jan 13, 2026",
-  },
-  {
-    id: "studio2",
-    hostName: "Ethan Carter",
-    spaceName: "Sunset Creative Studio",
-    location: "Los Angeles, CA",
-    spaceType: "Photo Studio",
-    capacity: "20 - 25 ppl",
-    status: "Pending",
-    date: "Jan 13, 2026",
-  },
-  {
-    id: "studio3",
-    hostName: "Daniel Roberts",
-    spaceName: "Sunset Creative Studio",
-    location: "Los Angeles, CA",
-    spaceType: "Multi-purpose",
-    capacity: "20 - 25 ppl",
-    status: "Rejected",
-    date: "Jan 13, 2026",
-  },
-  {
-    id: "studio4",
-    hostName: "Ethan Carter",
-    spaceName: "Sunset Creative Studio",
-    location: "Los Angeles, CA",
-    spaceType: "Photo Studio",
-    capacity: "20 - 25 ppl",
-    status: "Pending",
-    date: "Jan 13, 2026",
-  },
-  {
-    id: "studio5",
-    hostName: "Prince Carter",
-    spaceName: "Hollywood Production Hub",
-    location: "New York, NY",
-    spaceType: "Video Studio",
-    capacity: "04 - 05 ppl",
-    status: "Approved",
-    date: "Jan 13, 2026",
-  },
-  {
-    id: "studio6",
-    hostName: "Prince Carter",
-    spaceName: "Hollywood Production Hub",
-    location: "New York, NY",
-    spaceType: "Video Studio",
-    capacity: "04 - 05 ppl",
-    status: "Approved",
-    date: "Jan 13, 2026",
-  },
-  {
-    id: "studio7",
-    hostName: "Daniel Roberts",
-    spaceName: "Sunset Creative Studio",
-    location: "Los Angeles, CA",
-    spaceType: "Multi-purpose",
-    capacity: "20 - 25 ppl",
-    status: "Rejected",
-    date: "Jan 13, 2026",
-  },
-];
-
-type Status = "Approved" | "Pending" | "Rejected";
+type Status = "Approved" | "Pending" | "Rejected" | "Unknown";
+type RequestAction = "approve" | "reject";
 
 interface StudioRecord {
   id: string;
@@ -105,29 +32,224 @@ interface StudioRecord {
   date: string;
 }
 
+const normalizeStatus = (value?: string | null): Status => {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (normalized === "approved" || normalized === "accept" || normalized === "accepted") {
+    return "Approved";
+  }
+
+  if (normalized === "rejected" || normalized === "declined" || normalized === "deny") {
+    return "Rejected";
+  }
+
+  if (normalized === "pending" || normalized === "requested" || normalized === "review" || normalized === "new") {
+    return "Pending";
+  }
+
+  return "Unknown";
+};
+
+const extractRows = (payload: unknown): unknown[] => {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+
+  const record = payload as Record<string, unknown>;
+  const data = record.data;
+  const nestedData = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const candidates = [
+    data,
+    nestedData?.data,
+    nestedData?.items,
+    nestedData?.results,
+    record.items,
+    record.results,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  return [];
+};
+
+const asString = (value: unknown, fallback = "") => {
+  if (value === null || value === undefined) return fallback;
+  const text = String(value).trim();
+  return text || fallback;
+};
+
+const buildLocation = (row: Record<string, unknown>) => {
+  const direct =
+    asString(row.location) ||
+    asString(row.full_address) ||
+    asString(row.address);
+
+  if (direct) return direct;
+
+  const city = asString(row.city);
+  const state = asString(row.state);
+  const country = asString(row.country);
+  const zip = asString(row.zip_code) || asString(row.zipCode);
+  const parts = [city, state, country, zip].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : "Unknown location";
+};
+
+const buildSpaceType = (row: Record<string, unknown>) => {
+  const direct = asString(row.spaceType) || asString(row.space_type) || asString(row.category);
+  if (direct) return direct;
+
+  const supported = row.supported_shoot_types;
+  if (Array.isArray(supported)) {
+    return supported.join(", ") || "Studio";
+  }
+
+  if (typeof supported === "string") {
+    try {
+      const parsed = JSON.parse(supported);
+      if (Array.isArray(parsed)) {
+        return parsed.join(", ") || "Studio";
+      }
+    } catch {
+      return supported;
+    }
+  }
+
+  return "Studio";
+};
+
+const buildCapacity = (row: Record<string, unknown>) => {
+  const direct = asString(row.capacity);
+  if (direct) return direct;
+
+  const min = asString(row.minimum_capacity);
+  const max = asString(row.maximum_capacity);
+  if (min || max) {
+    return `${min || "0"} - ${max || "0"} ppl`;
+  }
+
+  const people = asString(row.people_capacity) || asString(row.max_capacity);
+  return people ? `${people} ppl` : "N/A";
+};
+
+const buildDate = (row: Record<string, unknown>) => {
+  const rawDate =
+    row.created_at ||
+    row.createdAt ||
+    row.requested_at ||
+    row.requestedAt ||
+    row.updated_at ||
+    row.updatedAt ||
+    row.date;
+
+  if (typeof rawDate === "string") {
+    const parsed = parseISO(rawDate);
+    if (isValid(parsed)) {
+      return format(parsed, "MMM dd, yyyy");
+    }
+    return rawDate;
+  }
+
+  if (rawDate instanceof Date && isValid(rawDate)) {
+    return format(rawDate, "MMM dd, yyyy");
+  }
+
+  return "Unknown date";
+};
+
+const buildStudioRecord = (row: unknown): StudioRecord => {
+  const data = (row ?? {}) as Record<string, unknown>;
+  const id = asString(data.id) || asString(data.studio_id) || asString(data.request_id) || asString(data.uuid);
+
+  const hostName =
+    asString(data.hostName) ||
+    asString(data.host_name) ||
+    asString(data.owner_name) ||
+    asString(data.created_by_name) ||
+    asString((data.user as Record<string, unknown> | undefined)?.name) ||
+    asString((data.host as Record<string, unknown> | undefined)?.name) ||
+    "Unknown host";
+
+  const spaceName =
+    asString(data.spaceName) ||
+    asString(data.studio_name) ||
+    asString(data.space_name) ||
+    asString(data.name) ||
+    "Untitled Studio";
+
+  const status = normalizeStatus(
+    asString(data.approval_status) ||
+      asString(data.request_status) ||
+      asString(data.status) ||
+      asString(data.approvalStatus)
+  );
+
+  return {
+    id: id || spaceName,
+    hostName,
+    spaceName,
+    location: buildLocation(data),
+    spaceType: buildSpaceType(data),
+    capacity: buildCapacity(data),
+    status,
+    date: buildDate(data),
+  };
+};
+
 export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
   const router = useRouter();
 
-  const [studios, setShoots] = useState<StudioRecord[]>(studioRequests);
+  const [studios, setStudios] = useState<StudioRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const itemsPerPage = 10;
 
-  // Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [shootToDelete, setShootToDelete] = useState<string | null>(null);
 
-  // New filtering states
   const [range, setRange] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [searchQuery] = useState("");
 
-  const totalPages = Math.ceil(studios.length / itemsPerPage);
+  const loadRequests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const apiStatus = status === "all" ? undefined : status;
+      const response = await adminApi.getStudioRequests({
+        status: apiStatus,
+        search: searchQuery || undefined,
+      });
+
+      const rows = extractRows(response);
+      const mapped = rows.map(buildStudioRecord).filter((row) => row.status !== "Unknown");
+      const filtered = status === "all"
+        ? mapped
+        : mapped.filter((row) => row.status === status);
+
+      setStudios(filtered);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Failed to fetch studio requests", error);
+      toast.error("Failed to fetch studio requests");
+      setStudios([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, status]);
+
+  useEffect(() => {
+    void loadRequests();
+  }, [loadRequests]);
+
+  const totalPages = Math.max(1, Math.ceil(studios.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentStudios = studios.slice(startIndex, startIndex + itemsPerPage);
+  const currentStudios = useMemo(
+    () => studios.slice(startIndex, startIndex + itemsPerPage),
+    [studios, startIndex]
+  );
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -145,17 +267,39 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
     setIsDeleteModalOpen(true);
   };
 
+  const handleRequestAction = async (e: React.MouseEvent, id: string, action: RequestAction) => {
+    e.stopPropagation();
+    setActionLoadingId(id);
+
+    try {
+      const response = await adminApi.updateStudioRequestStatus(id, action);
+
+      if (response?.success === false) {
+        toast.error(response?.error || `Failed to ${action} studio request`);
+        return;
+      }
+
+      toast.success(`Studio request ${action === "approve" ? "approved" : "rejected"} successfully`);
+      await loadRequests();
+    } catch (error) {
+      console.error(`Failed to ${action} studio request`, error);
+      toast.error(`Failed to ${action} studio request`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!shootToDelete) return;
 
-    const cleanId = shootToDelete.replace('#', '');
+    const cleanId = shootToDelete.replace("#", "");
     setIsDeleting(true);
 
     try {
       const response = await adminApi.deleteProject(cleanId);
       if (response?.success || response?.message === "Project deleted successfully") {
-        setShoots(prev => prev.filter(studio => studio.id !== shootToDelete));
-        toast.success("Shoot deleted successfully");
+        setStudios((prev) => prev.filter((studio) => studio.id !== shootToDelete));
+        toast.success("Studio deleted successfully");
       } else {
         toast.error(response?.error || "Failed to delete studio");
       }
@@ -170,14 +314,15 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
   };
 
   const handleRowClick = (id: string) => {
-    const cleanId = id.replace('#', '');
-    router.push(`/admin/studios/${cleanId}`);
+    const cleanId = id.replace("#", "");
+    router.push(`/admin/studio-management/${cleanId}`);
   };
+
+  const isActionBusy = (id: string) => actionLoadingId === id;
 
   return (
     <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-[#FFF] border-[#E3E3E3]"
       }`}>
-      {/* Header Controls */}
       <div className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 gap-4 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
         }`}>
         <div className="flex items-center gap-2">
@@ -196,7 +341,6 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
               <SelectItem value="week">Week</SelectItem>
               <SelectItem value="month">Month</SelectItem>
               <SelectItem value="year">Year</SelectItem>
-              {/* <SelectItem value="custom">Custom</SelectItem> */}
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>
@@ -211,14 +355,14 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
               <SelectItem value="Rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
-
         </div>
       </div>
 
-      {/* MOBILE VIEW */}
       <div className="lg:hidden flex-grow space-y-4">
         {loading ? (
-          <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#E8D1AB]" /></div>
+          <div className="flex justify-center py-10">
+            <Loader2 className="animate-spin text-[#E8D1AB]" />
+          </div>
         ) : currentStudios.length > 0 ? (
           <>
             <div className={`flex justify-between text-sm font-medium p-4 mb-4 rounded-b-2xl border-b ${isDark ? "text-[#E8D1AB] bg-[#101010] border-b-white/5" : "text-[#BFA780] bg-[#FFFCF6] border-b-[#E3E3E3]"
@@ -236,7 +380,9 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
                     >
                       {expandedId === studio.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                     </button>
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#F5F5F5] text-black font-semibold text-sm">{getInitials(studio.hostName)}</div>
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#F5F5F5] text-black font-semibold text-sm">
+                      {getInitials(studio.hostName)}
+                    </div>
                     <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>{studio.hostName}</p>
                   </div>
                   <StudioStatusBadge status={studio.status} mobile />
@@ -259,65 +405,82 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Capacity</p>
                       <p className={`text-sm ${isDark ? "text-[#F6A554]" : "text-[#323232]"}`}>{studio.capacity}</p>
                     </div>
-                    <div className="">
+                    <div>
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
-                      <>
-                        {
-                          studio.status === "Approved" ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => handleDeleteClick(e, studio.id)}
-                                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                              <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
-                                <ChevronRight size={24} />
-                              </button>
-                            </div>
-                          ) : studio.status === "Rejected" ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                // onClick={(e) => handleDeleteClick(e, studio.id)}
-                                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
-                              >
-                                <CircleAlert size={18} />
-                              </button>
-                              <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
-                                <ChevronRight size={24} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <button
-                                // onClick={(e) => handleDeleteClick(e, studio.id)}
-                                className={`px-3 h-8 flex items-center justify-center text-xs rounded-lg transition-colors ${isDark ? "bg-[#EBFFF0] hover:bg-white/10 text-[#16A34A]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
-                              >
-                                Accept
-                              </button>
-                              <button
-                                // onClick={(e) => handleDeleteClick(e, studio.id)}
-                                className={`flex items-center justify-center text-xs rounded-lg transition-colors underline ${isDark ? "text-[#F98A84]" : "text-[#32323266]"} hover:text-red-500`}
-                              >
-                                Decline
-                              </button>
-                              <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
-                                <ChevronRight size={24} />
-                              </button>
-                            </div>
-                          )
-                        }
-                      </>
+                      {studio.status === "Approved" ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleDeleteClick(e, studio.id)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowClick(studio.id);
+                            }}
+                            className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}
+                          >
+                            <ChevronRight size={24} />
+                          </button>
+                        </div>
+                      ) : studio.status === "Rejected" ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                          >
+                            <CircleAlert size={18} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowClick(studio.id);
+                            }}
+                            className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}
+                          >
+                            <ChevronRight size={24} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            disabled={isActionBusy(studio.id)}
+                            onClick={(e) => handleRequestAction(e, studio.id, "approve")}
+                            className={`px-3 h-8 flex items-center justify-center text-xs rounded-lg transition-colors disabled:opacity-60 ${isDark ? "bg-[#EBFFF0] hover:bg-white/10 text-[#16A34A]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                          >
+                            {isActionBusy(studio.id) ? "..." : "Accept"}
+                          </button>
+                          <button
+                            disabled={isActionBusy(studio.id)}
+                            onClick={(e) => handleRequestAction(e, studio.id, "reject")}
+                            className={`flex items-center justify-center text-xs rounded-lg transition-colors underline disabled:opacity-60 ${isDark ? "text-[#F98A84]" : "text-[#32323266]"} hover:text-red-500`}
+                          >
+                            {isActionBusy(studio.id) ? "..." : "Decline"}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowClick(studio.id);
+                            }}
+                            className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}
+                          >
+                            <ChevronRight size={24} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
             ))}
           </>
-        ) : <div className="text-center py-10 text-white/50">No studios found.</div>}
+        ) : (
+          <div className={`text-center py-10 ${isDark ? "text-white/50" : "text-zinc-400"}`}>No studio requests found.</div>
+        )}
       </div>
 
-      {/* DESKTOP VIEW */}
       <div className="hidden lg:block w-full overflow-x-auto flex-grow">
         <table className="w-full text-left border-separate border-spacing-0 overflow-hidden rounded-2xl">
           <thead className={isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}>
@@ -334,20 +497,19 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
           <tbody className="p-5">
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-10">
+                <td colSpan={7} className="text-center py-10">
                   <div className="flex justify-center items-center">
                     <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
                   </div>
                 </td>
               </tr>
             ) : currentStudios.length > 0 ? (
-              currentStudios.map((studio, idx) => (
+              currentStudios.map((studio) => (
                 <tr
-                  key={idx}
+                  key={studio.id}
                   onClick={() => handleRowClick(studio.id)}
                   className={`group transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
                 >
-                  {/* Studio Info */}
                   <td className="py-2 lg:py-4 px-4">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[#F5F5F5] text-black font-semibold text-lg">
@@ -362,62 +524,81 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
                   <td className={`py-2 lg:py-4 px-4 text-base ${isDark ? "text-white/90" : "text-[#323232]"}`}>{studio.spaceName}</td>
                   <td className={`py-2 lg:py-4 px-4 text-base font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>{studio.location}</td>
                   <td className={`py-2 lg:py-4 px-4 font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>{studio.spaceType}</td>
-
                   <td className={`py-2 lg:py-4 px-4 text-base font-medium ${isDark ? "text-[#F6A554]" : "text-[#323232]"}`}>{studio.capacity}</td>
-                  <td className="py-2 lg:py-4 px-4"><StudioStatusBadge status={studio.status} /></td>
+                  <td className="py-2 lg:py-4 px-4">
+                    <StudioStatusBadge status={studio.status} />
+                  </td>
                   <td className="py-2 lg:py-4 px-4 text-right">
-                    {
-                      studio.status === "Approved" ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={(e) => handleDeleteClick(e, studio.id)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                          <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
-                            <ChevronRight size={24} />
-                          </button>
-                        </div>
-                      ) : studio.status === "Rejected" ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            // onClick={(e) => handleDeleteClick(e, studio.id)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
-                          >
-                            <CircleAlert size={18} />
-                          </button>
-                          <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
-                            <ChevronRight size={24} />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            // onClick={(e) => handleDeleteClick(e, studio.id)}
-                            className={`px-3 h-8 flex items-center justify-center text-xs rounded-lg transition-colors ${isDark ? "bg-[#EBFFF0] hover:bg-white/10 text-[#16A34A]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
-                          >
-                            Accept
-                          </button>
-                          <button
-                            // onClick={(e) => handleDeleteClick(e, studio.id)}
-                            className={`flex items-center justify-center text-xs rounded-lg transition-colors underline ${isDark ? "text-[#F98A84]" : "text-[#32323266]"} hover:text-red-500`}
-                          >
-                            Decline
-                          </button>
-                          <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
-                            <ChevronRight size={24} />
-                          </button>
-                        </div>
-                      )
-                    }
+                    {studio.status === "Approved" ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => handleDeleteClick(e, studio.id)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(studio.id);
+                          }}
+                          className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}
+                        >
+                          <ChevronRight size={24} />
+                        </button>
+                      </div>
+                    ) : studio.status === "Rejected" ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                        >
+                          <CircleAlert size={18} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(studio.id);
+                          }}
+                          className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}
+                        >
+                          <ChevronRight size={24} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          disabled={isActionBusy(studio.id)}
+                          onClick={(e) => handleRequestAction(e, studio.id, "approve")}
+                          className={`px-3 h-8 flex items-center justify-center text-xs rounded-lg transition-colors disabled:opacity-60 ${isDark ? "bg-[#EBFFF0] hover:bg-white/10 text-[#16A34A]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                        >
+                          {isActionBusy(studio.id) ? "..." : "Accept"}
+                        </button>
+                        <button
+                          disabled={isActionBusy(studio.id)}
+                          onClick={(e) => handleRequestAction(e, studio.id, "reject")}
+                          className={`flex items-center justify-center text-xs rounded-lg transition-colors underline disabled:opacity-60 ${isDark ? "text-[#F98A84]" : "text-[#32323266]"} hover:text-red-500`}
+                        >
+                          {isActionBusy(studio.id) ? "..." : "Decline"}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(studio.id);
+                          }}
+                          className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}
+                        >
+                          <ChevronRight size={24} />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-white/50">
-                  No Studios found.
+                <td colSpan={7} className={`text-center py-10 ${isDark ? "text-white/50" : "text-zinc-400"}`}>
+                  No studio requests found.
                 </td>
               </tr>
             )}
@@ -425,7 +606,6 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
         </table>
       </div>
 
-      {/* Pagination Controls */}
       {!loading && studios.length > 0 && (
         <div className={`flex justify-between items-center p-4 border-t transition-colors duration-300 ${isDark ? "bg-[#101010] border-white/5" : "bg-white border-[#E3E3E3]"
           }`}>
@@ -443,42 +623,44 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
             </button>
             <div className="flex gap-1">
               {(() => {
-                const range = [];
+                const pages: Array<number | "..."> = [];
                 const delta = 1;
                 const left = currentPage - delta;
                 const right = currentPage + delta + 1;
 
                 for (let i = 1; i <= totalPages; i++) {
                   if (i === 1 || i === totalPages || (i >= left && i < right)) {
-                    range.push(i);
+                    pages.push(i);
                   } else if (i === left - 1 || i === right) {
-                    range.push('...');
+                    pages.push("...");
                   }
                 }
 
-                return range.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
-                  page === '...' ? (
-                    <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs">...</span>
-                  ) : (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page as number)}
-                      className={`min-w-[32px] h-8 flex items-center justify-center text-xs font-medium rounded-lg transition-all border ${currentPage === page
-                        ? "bg-[#E5D5B8] text-black border-[#E5D5B8]"
-                        : isDark ? "bg-transparent text-white/60 border-transparent hover:bg-white/5" : "bg-transparent text-[#323232] border-transparent hover:bg-black/5"
-                        }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                ));
+                return pages
+                  .filter((value, index, arr) => value !== "..." || arr[index - 1] !== "...")
+                  .map((page, index) =>
+                    page === "..." ? (
+                      <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`min-w-[32px] h-8 flex items-center justify-center text-xs font-medium rounded-lg transition-all border ${currentPage === page
+                          ? "bg-[#E5D5B8] text-black border-[#E5D5B8]"
+                          : isDark ? "bg-transparent text-white/60 border-transparent hover:bg-white/5" : "bg-transparent text-[#323232] border-transparent hover:bg-black/5"
+                          }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  );
               })()}
             </div>
 
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed transition-all${isDark ? "bg-[#1A1A1A] text-white/60 border-white/5 hover:bg-white/10" : "bg-white text-[#323232] border-[#E3E3E3] hover:bg-zinc-50"
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isDark ? "bg-[#1A1A1A] text-white/60 border-white/5 hover:bg-white/10" : "bg-white text-[#323232] border-[#E3E3E3] hover:bg-zinc-50"
                 }`}
             >
               Next
@@ -486,11 +668,12 @@ export const StudioRequestsTable = ({ isDark }: { isDark: boolean }) => {
           </div>
         </div>
       )}
+
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
-        title="Delete Shoot"
+        title="Delete Studio"
         description="Are you sure you want to delete this studio? This action cannot be undone."
         isLoading={isDeleting}
       />

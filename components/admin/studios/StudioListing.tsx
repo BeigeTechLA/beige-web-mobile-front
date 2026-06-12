@@ -11,55 +11,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StudioCard from "./StudioCard";
+import { adminApi } from "@/lib/api";
 
 interface StudioData {
-  id: string;
-  name: string;
+  studio_id: number;
+  studio_name: string;
   status: 'Active' | 'Inactive';
-  hourlyRate: number;
-  overtimeRate: number;
-  minBooking: number;
-  bufferTiming: number;
-  images: string[];
-  supportedTypes: string[];
+  hourly_rate: number;
+  overtime_rate: number;
+  minimum_booking_hours: number;
+  buffer_time_minutes: number;
+  media: { studio_media_id: number; url: string; is_cover: boolean }[];
+  supported_shoot_types: string | string[];
   isBeta?: boolean;
 }
-
-const dummyStudios: StudioData[] = [
-  {
-    id: "1",
-    name: "Sunset Creative Studio",
-    status: "Active",
-    hourlyRate: 85,
-    overtimeRate: 100,
-    minBooking: 2,
-    bufferTiming: 30,
-    images: [
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3",
-      "https://images.unsplash.com/photo-1584622650111-993a426fbf0a",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858",
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3",
-    ],
-    supportedTypes: ["Photography", "Videography", "Product"],
-  },
-  {
-    id: "2",
-    name: "Industrial Loft 42",
-    status: "Active",
-    hourlyRate: 120,
-    overtimeRate: 150,
-    minBooking: 4,
-    bufferTiming: 60,
-    images: [
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e",
-      "https://images.unsplash.com/photo-1513694203232-719a280e022f",
-      "https://images.unsplash.com/photo-1554995207-c18c203602cb",
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e",
-    ],
-    supportedTypes: ["Commercial", "Fashion", "Podcast"],
-  }
-];
-
 interface ListingProps {
   externalSelectedDate?: Date | null;
   isDark?: boolean;
@@ -69,6 +34,20 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
 
   const [range, setRange] = useState('all');
   const [status, setStatus] = useState<string>("all");
+  const [studios, setStudios] = useState<StudioData[]>([]);
+  const [loading, setLoading] = useState(false);
+
+ useEffect(() => {
+  const fetchStudios = async () => {
+    setLoading(true);
+    const res = await adminApi.getStudios({ status: status !== 'all' ? status : undefined });
+    if (res?.success && res?.data) {
+      setStudios(res.data);
+    }
+    setLoading(false);
+  };
+  fetchStudios();
+}, [status]);
 
   return (
     <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden min-h-[400px] h-full flex flex-col ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#FFF] border-[#E3E3E3]"
@@ -124,12 +103,23 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
         </div>
       </div>
       <div className="p-2 lg:p-5 flex flex-col gap-2.5">
-        {dummyStudios.map((studio) => {
-          return <a key={studio.id} href={`/admin/studio-management/${studio.id}`} className="block">
-            <StudioCard studio={studio} isDark={isDark} />
-          </a>
-        })}
-
+        <div className="p-2 lg:p-5 flex flex-col gap-2.5">
+          {loading ? (
+            <p className={`text-center py-10 ${isDark ? "text-white/50" : "text-zinc-400"}`}>Loading...</p>
+          ) : studios.length === 0 ? (
+            <p className={`text-center py-10 ${isDark ? "text-white/50" : "text-zinc-400"}`}>No studios found.</p>
+          ) : (
+           studios.map((studio) => (
+              <div
+                key={studio.studio_id}
+                onClick={() => window.location.href = `/admin/studio-management/${studio.studio_id}`}
+                className="block cursor-pointer"
+              >
+                <StudioCard studio={studio} isDark={isDark} />
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
