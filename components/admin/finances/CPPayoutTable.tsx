@@ -5,7 +5,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { formatRelativeOrAbsoluteDate, getColorThreshold, getDateColorThreshold, getInitials } from "@/lib/utils";
-import { FinanceStatusBadge } from "../admin/finances/FinanceStatusBadge";
+import { FinanceStatusBadge } from "./FinanceStatusBadge";
 import {
   Select,
   SelectContent,
@@ -41,7 +41,7 @@ interface CPPayoutTableProps {
   rows?: ShootCPRow[];
   loading?: boolean;
   type: "shoots" | "creators";
-  onRowClick: (row: string) => void;
+  onRowClick: (row: ShootCPRow) => void;
 }
 
 const formatCurrency = (amount: number) => {

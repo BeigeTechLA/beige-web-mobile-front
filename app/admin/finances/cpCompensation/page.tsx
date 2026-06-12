@@ -1,18 +1,26 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpToLine, BadgeDollarSign, CircleDollarSign, Clock, Coins, Plus, Search, ShieldAlert, TrendingUp, Users } from "lucide-react";
+import { CircleDollarSign, Clock, ShieldAlert, TrendingUp, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 
 import { Button } from "@/src/components/landing/ui/button";
-import CPPayoutTable, { ShootCPRow } from "@/components/affiliate/CPPayoutTable";
+import CPPayoutTable, { ShootCPRow } from "@/components/admin/finances/CPPayoutTable";
 import FinanceMetricCards from "@/components/affiliate/FinanceMetricCards";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
+import CompensationModal from "@/components/admin/finances/CompensationModal";
+import ModifyPayoutModal from "@/components/admin/finances/ModifyPayoutModal";
+import RejectPayoutModal from "@/components/admin/finances/RejectPayoutModal";
+import ApprovePayoutModal from "@/components/admin/finances/ApprovePayoutModal";
+import SuccessModal from "@/components/admin/finances/SuccessModal";
+import PaymentMethodSelectionModal from "@/components/admin/finances/PaymentMethodSelection";
+import AddReceiptModal, { ReceiptPayload } from "@/components/admin/finances/AddReceiptModal";
+import AddCompendationModal from "@/components/admin/finances/AddCompensationModal";
 
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 
@@ -116,7 +124,7 @@ const MOCK_CREATORS_DATA: ShootCPRow[] = [
     creatorRoles: ["Colorist", "Editor"],
     customerName: "Airbox Tech",
     customerEmail: "ops@airbox.com",
-    avatarImage:  "",
+    avatarImage: "",
     category: "videography",
     shootBudget: 24000,
     cpPayout: 4200,
@@ -132,7 +140,7 @@ const MOCK_CREATORS_DATA: ShootCPRow[] = [
     creatorRoles: ["Product Photographer"],
     customerName: "Revurge Fitness",
     customerEmail: "campaigns@revurge.io",
-    avatarImage:  "",
+    avatarImage: "",
     category: "photography",
     shootBudget: 6000,
     cpPayout: 950,
@@ -176,6 +184,29 @@ export default function AdminFinancesPage() {
   const [activeMetricId, setActiveMetricId] = useState("available");
   const [metricRange, setMetricRange] = useState("Month");
   const [dataType, setDataType] = useState<TabType>("shoots");
+  const [selectedRow, setSelectedRow] = useState<ShootCPRow | null>(null);
+
+  // Visibility States
+  const [isCompOpen, setIsCompOpen] = useState(false);
+  const [isAddCompOpen, setIsAddCompOpen] = useState(false);
+  const [isModifyOpen, setIsModifyOpen] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [isApproveOpen, setIsApproveOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [isPaymentSelectionOpen, setPaymentSelectionOpen] = useState(false);
+
+  // Submitting Loaders States
+  const [isModifySubmitting, setIsModifySubmitting] = useState(false);
+  const [isRejectSubmitting, setIsRejectSubmitting] = useState(false);
+  const [isApproveSubmitting, setIsApproveSubmitting] = useState(false);
+  const [isSuccessSubmitting, setIsSuccessSubmitting] = useState(false);
+  const [isReceiptSubmitting, setIsReceiptSubmitting] = useState(false);
+
+  // Success Text States Configuration
+  const [successTitle, setSuccessTitle] = useState("");
+  const [successSubtext, setSuccessSubtext] = useState("");
+  const [successButtonText, setSuccessButtonText] = useState("");
 
   const metrics = [
     {
@@ -208,13 +239,108 @@ export default function AdminFinancesPage() {
     },
   ];
 
-  const handleRowClick = useCallback((id: string) => {
-    if (id) {
-      console.log("Clicked Row ID:", id);
-      return;
+  const handleRowClick = (row: ShootCPRow) => {
+    setSelectedRow(row);
+    setIsCompOpen(true);
+  };
+
+  const handleOpenModify = () => {
+    setIsModifyOpen(true);
+    setIsCompOpen(false);
+  };
+
+  const handleOpenApprove = () => {
+    setIsApproveOpen(true);
+    setIsCompOpen(false);
+  };
+
+  const handleOpenReject = () => {
+    setIsRejectOpen(true);
+    setIsCompOpen(false);
+  };
+
+  const handleOpenReceipt = () => {
+    setIsReceiptOpen(true);
+    setIsCompOpen(false);
+  };
+
+  const handleAddCompensation = () => {
+    setIsAddCompOpen(true);
+  };
+
+  // --- SUBMISSION LIFECYCLE INTERCEPTORS ---
+
+  const handleModifySubmit = async () => {
+    setIsModifySubmitting(true);
+    try {
+      // Simulate API patch request pipeline
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      setIsModifyOpen(false);
+
+      setSuccessTitle("Payout Modify Successfully");
+      setSuccessSubtext(`The payout has been Modified`);
+      setSuccessButtonText("");
+      setIsSuccessOpen(true);
+    } catch (error) {
+      toast.error("Failed to alter payout values");
+    } finally {
+      setIsModifySubmitting(false);
     }
-    toast.error("Invalid entry key targeted");
-  }, []);
+  };
+
+  const handleApproveSubmit = async () => {
+    setIsApproveSubmitting(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      setIsApproveOpen(false);
+
+      setSuccessTitle("Payout Approved Successfully");
+      setSuccessSubtext("The payout has been approved for 2 Creative Partners and is now ready for payment processing.");
+      setSuccessButtonText("");
+      setIsSuccessOpen(true);
+    } catch (error) {
+      toast.error("Approval transaction failed");
+    } finally {
+      setIsApproveSubmitting(false);
+    }
+  };
+
+  const handleRejectSubmit = async () => {
+    setIsRejectSubmitting(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      setIsRejectOpen(false);
+
+      setSuccessTitle("Payout Reject Successfully");
+      setSuccessSubtext("The payout has been Rejected");
+      setSuccessButtonText("");
+      setIsSuccessOpen(true);
+    } catch (error) {
+      toast.error("Rejection workflow error");
+    } finally {
+      setIsRejectSubmitting(false);
+    }
+  };
+
+  // <-- 4. Handle Add Receipt Form Submission Async Lifecycle
+  const handleReceiptSubmit = async (payload: ReceiptPayload) => {
+    setIsReceiptSubmitting(true);
+    try {
+      console.log("Submitting Receipt Data Form Context: ", payload);
+      // Simulate backend endpoint save transaction delay
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setIsReceiptOpen(false);
+
+      setSuccessTitle("Receipt Added Successfully");
+      setSuccessSubtext("Success Message");
+      setSuccessButtonText(""); // Empty text triggers the outside click to close
+      setIsSuccessOpen(true);
+    } catch (error) {
+      toast.error("Failed to register payment receipt document");
+    } finally {
+      setIsReceiptSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (dataType === "shoots") {
@@ -234,7 +360,7 @@ export default function AdminFinancesPage() {
               type="button"
               variant="beige"
               className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
-              onClick={() => { }}
+              onClick={() => setIsAddCompOpen(true)}
             >
               Add Compensation
             </Button>
@@ -281,10 +407,73 @@ export default function AdminFinancesPage() {
         />
 
         <CPPayoutTable
-          rows={tableData} // Change 'initialRows' to 'rows'
+          rows={tableData}
           loading={loading}
           onRowClick={handleRowClick}
           type={dataType}
+        />
+
+        {/* Modal Components to be rendered on this page */}
+        {/* CompensationDetails */}
+        <CompensationModal
+          isOpen={isCompOpen}
+          onClose={() => setIsCompOpen(false)}
+          rowContext={selectedRow}
+          onModifyClick={handleOpenModify}
+          onApproveClick={handleOpenApprove}
+          onRejectClick={handleOpenReject}
+        />
+
+        <AddCompendationModal
+          isOpen={isAddCompOpen}
+          onClose={() => setIsAddCompOpen(false)}
+        />
+
+        {/* Secondary Execution Action Modal Layer */}
+        <ModifyPayoutModal
+          isOpen={isModifyOpen}
+          onClose={() => setIsModifyOpen(false)}
+          rowContext={selectedRow}
+          isSubmitting={isModifySubmitting}
+          onSubmit={handleModifySubmit}
+        />
+
+        <RejectPayoutModal
+          isOpen={isRejectOpen}
+          onClose={() => setIsRejectOpen(false)}
+          rowContext={selectedRow}
+          isSubmitting={isRejectSubmitting}
+          onSubmit={handleRejectSubmit}
+        />
+
+        <ApprovePayoutModal
+          isOpen={isApproveOpen}
+          onClose={() => setIsApproveOpen(false)}
+          rowContext={selectedRow}
+          isSubmitting={isApproveSubmitting}
+          onSubmit={handleApproveSubmit}
+        />
+
+        <AddReceiptModal
+          isOpen={isReceiptOpen}
+          onClose={() => setIsReceiptOpen(false)}
+          rowContext={selectedRow}
+          isSubmitting={isReceiptSubmitting}
+          onSubmit={handleReceiptSubmit}
+        />
+
+        <SuccessModal
+          isSubmitting={isSuccessSubmitting}
+          isOpen={isSuccessOpen}
+          onSubmit={() => setIsSuccessOpen(false)}
+          title={successTitle}
+          subtext={successSubtext}
+          buttonText={successButtonText}
+        />
+
+        <PaymentMethodSelectionModal
+          isOpen={isPaymentSelectionOpen}
+          onClose={() => setPaymentSelectionOpen(false)}
         />
       </div>
     </>
