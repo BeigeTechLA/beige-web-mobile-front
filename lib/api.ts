@@ -2381,9 +2381,9 @@ export const adminApi = {
     }
   },
 
-  getPermissionModules: async () => {
+  getPermissionModules: async (params: { scope?: string } = {}) => {
     try {
-      const response = await api.get('admin/permissions/modules');
+      const response = await api.get('admin/permissions/modules', { params });
       return response.data;
     } catch (error: any) {
       console.error('Get Permission Modules Error:', error.response?.data || error.message);
