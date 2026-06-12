@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
   ArrowLeft,
@@ -43,6 +43,7 @@ import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
   getDisplayInitials,
+  isCommonEventWorkspaceId,
   mapExternalFilesToUi,
   mapExternalFoldersToUi,
   slugToWorkspaceName,
@@ -140,9 +141,17 @@ const getPhaseRelativePath = (resourcePath?: string, fallbackName?: string) => {
 export default function AdminFileManagerPhasePage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string; subFolder: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
+  const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
+  const isPhaseRoute = phaseSlug === "pre-production" || phaseSlug === "post-production";
+  const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
+  const rootFolderPath = useMemo(
+    () => String(searchParams.get("path") || slugToWorkspaceName(phaseSlug) || "").trim(),
+    [phaseSlug, searchParams]
+  );
   const isPreProduction = phaseSlug !== "post-production";
   const { isDark } = useResolvedTheme();
 
@@ -189,8 +198,12 @@ export default function AdminFileManagerPhasePage() {
     try {
       setLoading(true);
       setError(null);
-      const phase = phaseSlug === "post-production" ? "post" : "pre";
-      const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(projectId, phase);
+      const phase = isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre";
+      const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
+        projectId,
+        phase,
+        isCommonEventRootFolder ? rootFolderPath : undefined
+      );
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
@@ -215,11 +228,31 @@ export default function AdminFileManagerPhasePage() {
     return () => {
       mounted = false;
     };
-  }, [projectId, phaseSlug]);
+  }, [projectId, phaseSlug, isCommonEventRootFolder, rootFolderPath]);
 
   const viewState = useMemo(() => {
     if (!workspaceName) {
       return { title: "Folder", kind: "folders" as const, folders: [], files: [] };
+    }
+
+    if (isCommonEventRootFolder) {
+      return {
+        title: rootFolderPath || slugToWorkspaceName(phaseSlug),
+        kind: workspaceFolders.length > 0 ? "mixed" as const : "files" as const,
+        folders: mapExternalFoldersToUi(
+          workspaceFolders,
+          (folder) => {
+            const childPath = [rootFolderPath, folder.name].filter(Boolean).join("/");
+            const slug = folder.name.toLowerCase().replace(/\s+/g, "-");
+            const query = new URLSearchParams();
+            if (childPath) query.set("path", childPath);
+            if (folder.name) query.set("name", String(folder.name));
+            const queryString = query.toString();
+            return `/admin/file-manager/${projectId}/${phaseSlug}/${slug}${queryString ? `?${queryString}` : ""}`;
+          }
+        ),
+        files: mapExternalFilesToUi(workspaceFiles),
+      };
     }
 
     if (phaseSlug === "post-production") {
@@ -257,7 +290,7 @@ export default function AdminFileManagerPhasePage() {
       ),
       files: mapExternalFilesToUi(workspaceFiles),
     };
-  }, [phaseSlug, projectId, workspaceFiles, workspaceFolders, workspaceName]);
+  }, [isCommonEventRootFolder, phaseSlug, projectId, rootFolderPath, workspaceFiles, workspaceFolders, workspaceName]);
 
   const filteredFolders = useMemo(() => {
     let items = viewState.folders;
@@ -372,13 +405,18 @@ export default function AdminFileManagerPhasePage() {
     });
   };
 
-  const currentPhase = phaseSlug === "post-production" ? "post" : "pre";
+  const currentPhase = isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre";
   const defaultUploadPath = workspaceName
-    ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
+    ? isCommonEventRootFolder
+      ? `${workspaceName}/${rootFolderPath}`
+      : `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
     : undefined;
 
   const getSelectedFolderPath = () => {
     if (!selectedFolder) return undefined;
+    if (isCommonEventRootFolder) {
+      return [rootFolderPath, selectedFolder.rawName || selectedFolder.title].filter(Boolean).join("/");
+    }
     return getPhaseRelativePath(selectedFolder.resourcePath, selectedFolder.title);
   };
 
@@ -419,7 +457,10 @@ export default function AdminFileManagerPhasePage() {
     if (!isPreProduction) return;
     try {
       const folderName = name.trim();
-      await fileManagerApi.createExternalFolder(projectId, folderName, { phase: currentPhase });
+      await fileManagerApi.createExternalFolder(projectId, folderName, {
+        phase: currentPhase,
+        path: isCommonEventRootFolder ? rootFolderPath : undefined,
+      });
       toast.success("Folder created");
       setIsCreateFolderModalOpen(false);
       setUploadFolderLabel(folderName);

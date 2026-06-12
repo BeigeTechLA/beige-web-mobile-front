@@ -819,18 +819,32 @@ export default function AffiliateFindYourselfPage() {
                         </div>
                         <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 lg:gap-2">
                           <span className="truncate text-xs lg:text-sm">{workspace.title}</span>
-                          <div className="flex items-center gap-2">
-                            <span className={`shrink-0 text-[10px] ${isSelected ? "text-black/65" : (isDark ? "text-white/45" : "text-black/45")}`}>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${
+                              isSelected
+                                ? "border-black/10 bg-black/5 text-black/65"
+                                : workspace.isCommonEvent
+                                  ? isDark
+                                    ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                                    : "border-[#E8D1AB]/45 bg-[#FFF7E8] text-[#7A5A24]"
+                                  : isDark
+                                    ? "border-white/10 bg-white/[0.06] text-white/60"
+                                    : "border-black/10 bg-black/[0.04] text-black/55"
+                            }`}>
                               {workspace.isCommonEvent ? "Common Event" : "Project"}
                             </span>
                             <span
-                              className={`shrink-0 rounded-full px-1.5 lg:px-2 py-0.5 text-[10px] ${indexLabel === "Ready"
+                              className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${indexLabel === "Ready"
                                 ? isSelected
-                                  ? "bg-black/10 text-black/70"
-                                  : "bg-emerald-500/20 text-emerald-200"
+                                  ? "border-black/10 bg-black/5 text-black/70"
+                                  : isDark
+                                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                                    : "border-emerald-600/15 bg-emerald-50 text-emerald-700"
                                 : isSelected
-                                  ? "bg-black/10 text-black/70"
-                                  : "bg-amber-400/20 text-amber-800"
+                                  ? "border-black/10 bg-black/5 text-black/70"
+                                  : isDark
+                                    ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                                    : "border-amber-600/15 bg-amber-50 text-amber-700"
                                 }`}
                             >
                               {indexLabel}

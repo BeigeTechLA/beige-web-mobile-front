@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
   ArrowLeft,
@@ -87,10 +87,17 @@ const getFileMeta = (contentType?: string, title?: string) => {
 export default function CreatorFileManagerPhasePage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string; subFolder: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
+  const isPhaseRoute = phaseSlug === "pre-production" || phaseSlug === "post-production";
+  const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
+  const rootFolderPath = useMemo(
+    () => String(searchParams.get("path") || slugToWorkspaceName(phaseSlug) || "").trim(),
+    [phaseSlug, searchParams]
+  );
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -140,8 +147,12 @@ export default function CreatorFileManagerPhasePage() {
     try {
       setLoading(true);
       setError(null);
-      const phase = phaseSlug === "post-production" ? "post" : "pre";
-      const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(projectId, phase);
+      const phase = isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre";
+      const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
+        projectId,
+        phase,
+        isCommonEventRootFolder ? rootFolderPath : undefined
+      );
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
@@ -163,7 +174,7 @@ export default function CreatorFileManagerPhasePage() {
     } finally {
       setLoading(false);
     }
-  }, [phaseSlug, projectId]);
+  }, [isCommonEventRootFolder, phaseSlug, projectId, rootFolderPath]);
 
   useEffect(() => {
     let mounted = true;
@@ -182,6 +193,23 @@ export default function CreatorFileManagerPhasePage() {
   const viewState = useMemo(() => {
     if (!workspaceName) {
       return { title: "Folder", kind: "folders" as const, folders: [], files: [] };
+    }
+
+    if (isCommonEventRootFolder) {
+      return {
+        title: rootFolderPath || slugToWorkspaceName(phaseSlug),
+        kind: workspaceFolders.length > 0 ? "mixed" as const : "files" as const,
+        folders: mapExternalFoldersToUi(
+          workspaceFolders as never[],
+          (folder) => {
+            const childPath = [rootFolderPath, folder.name].filter(Boolean).join("/");
+            return `/creator/dashboard/file-manager/${projectId}/${phaseSlug}/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
+              childPath
+            )}`;
+          }
+        ),
+        files: mapExternalFilesToUi(workspaceFiles as never[]),
+      };
     }
 
     if (phaseSlug === "post-production") {
@@ -211,7 +239,7 @@ export default function CreatorFileManagerPhasePage() {
       ),
       files: mapExternalFilesToUi(workspaceFiles as never[]),
     };
-  }, [phaseSlug, projectId, workspaceFiles, workspaceFolders, workspaceName]);
+  }, [isCommonEventRootFolder, phaseSlug, projectId, rootFolderPath, workspaceFiles, workspaceFolders, workspaceName]);
 
   const filteredFolders = useMemo(() => {
     let items = viewState.folders;
@@ -293,15 +321,25 @@ export default function CreatorFileManagerPhasePage() {
     };
   }, [visibleFiles]);
 
-  const currentPhase = phaseSlug === "post-production" ? "post" : "pre";
+  const currentPhase = isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre";
   const defaultUploadPath = workspaceName
-    ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
+    ? isCommonEventRootFolder
+      ? `${workspaceName}/${rootFolderPath}`
+      : `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
     : undefined;
   const isCommonEventPreProductionRoot =
     isCommonEventWorkspace && phaseSlug === "pre-production";
   const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot;
   const canDeleteFolders = isCommonEventWorkspace;
   const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
+  const getFolderActionPath = (folder?: UiFolderItem | null) => {
+    if (!folder) return undefined;
+    if (isCommonEventRootFolder) {
+      return [rootFolderPath, folder.rawName || folder.title].filter(Boolean).join("/");
+    }
+    const slug = folder.href?.split("/").filter(Boolean).pop();
+    return currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined;
+  };
 
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
@@ -474,7 +512,10 @@ export default function CreatorFileManagerPhasePage() {
     const trimmed = name.trim();
     if (!trimmed) return;
     try {
-      await fileManagerApi.createExternalFolder(projectId, trimmed, { phase: currentPhase });
+      await fileManagerApi.createExternalFolder(projectId, trimmed, {
+        phase: currentPhase,
+        path: isCommonEventRootFolder ? rootFolderPath : undefined,
+      });
       toast.success("Folder created");
       await loadPhase();
     } catch (err: unknown) {
@@ -780,10 +821,9 @@ export default function CreatorFileManagerPhasePage() {
                       onDownload={async () => {
                         setSelectedFolder(folder);
                         try {
-                          const slug = folder.href?.split("/").filter(Boolean).pop();
                           const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
                             phase: currentPhase,
-                            path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+                            path: getFolderActionPath(folder),
                           });
                           if (result?.url) {
                             window.open(result.url, "_blank", "noopener,noreferrer");
@@ -802,12 +842,11 @@ export default function CreatorFileManagerPhasePage() {
                           : undefined
                       }
                       onShare={() => {
-                        const slug = folder.href?.split("/").filter(Boolean).pop();
                         setShareResource({
                           resourceType: "folder",
                           externalId: String(projectId || ""),
                           phase: currentPhase,
-                          path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+                          path: getFolderActionPath(folder),
                           label: folder.title,
                         });
                         setIsShareModalOpen(true);
@@ -904,12 +943,13 @@ export default function CreatorFileManagerPhasePage() {
                               : undefined
                           }
                           onShare={() => {
-                            setShareResource({
-                              resourceType: "folder",
-                              externalId: String(projectId || ""),
-                              phase: currentPhase,
-                              label: folder.title,
-                            });
+                          setShareResource({
+                            resourceType: "folder",
+                            externalId: String(projectId || ""),
+                            phase: currentPhase,
+                            path: getFolderActionPath(folder),
+                            label: folder.title,
+                          });
                             setIsShareModalOpen(true);
                           }}
                         />
@@ -1068,10 +1108,9 @@ export default function CreatorFileManagerPhasePage() {
           href={selectedFolder.href}
           onDownload={async () => {
             try {
-              const slug = selectedFolder.href?.split("/").filter(Boolean).pop();
               const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
                 phase: currentPhase,
-                path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+                path: getFolderActionPath(selectedFolder),
               });
               if (result?.url) {
                 window.open(result.url, "_blank", "noopener,noreferrer");
@@ -1089,12 +1128,11 @@ export default function CreatorFileManagerPhasePage() {
               : undefined
           }
           onShare={() => {
-            const slug = selectedFolder.href?.split("/").filter(Boolean).pop();
             setShareResource({
               resourceType: "folder",
               externalId: String(projectId || ""),
               phase: currentPhase,
-              path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+              path: getFolderActionPath(selectedFolder),
               label: selectedFolder.title,
             });
             setIsShareModalOpen(true);
