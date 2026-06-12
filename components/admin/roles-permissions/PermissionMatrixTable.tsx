@@ -98,7 +98,22 @@ export function PermissionMatrixTable({
 
   const toggleAllRows = (checked: boolean) => {
     if (readOnly) return;
-    onChange?.(rows.map((row) => ({ ...row, selected: checked })));
+    onChange?.(
+      rows.map((row) => {
+        const updatedAccess = { ...row.access };
+        const actionsToToggle = row.allowedActions || accessColumns.map((c) => c.key);
+
+        actionsToToggle.forEach((action) => {
+          updatedAccess[action] = checked;
+        });
+
+        return {
+          ...row,
+          selected: checked,
+          access: updatedAccess,
+        };
+      }),
+    );
   };
 
   return (

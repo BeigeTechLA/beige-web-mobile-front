@@ -57,6 +57,14 @@ export const buildPermissionRows = (
   });
 };
 
+const getAllowedActions = (row: PermissionMatrixRow) =>
+  row.allowedActions?.length ? row.allowedActions : ALL_ACTIONS;
+
+const isRowFullySelected = (row: PermissionMatrixRow) => {
+  const allowedActions = getAllowedActions(row);
+  return allowedActions.every((action) => Boolean(row.access[action]));
+};
+
 export const applyPermissionsToRows = (
   rows: PermissionMatrixRow[],
   permissions: RolePermissionsMap = {},
@@ -79,7 +87,7 @@ export const applyPermissionsToRows = (
     return {
       ...row,
       access,
-      selected: Object.values(access).some(Boolean),
+      selected: isRowFullySelected({ ...row, access }),
     };
   });
 

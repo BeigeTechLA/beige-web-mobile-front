@@ -54,20 +54,25 @@ const normalizeUserPermissionsPayload = (value: unknown): UserPermissionsMap =>
 const resolvePermissionScope = (value?: string | null) => {
   const normalized = (value || "").toLowerCase();
 
-  if (normalized.includes("admin")) return "admin";
-  if (normalized.includes("sales")) return "sales";
+  if (normalized === "sales_admin" || normalized.includes("sales admin")) return "sales_admin";
+  if (normalized === "sales_rep" || normalized.includes("sales rep") || normalized.includes("sales representative")) return "sales_rep";
+  if (normalized === "production_manager" || normalized.includes("production manager")) return "production_manager";
+  if (normalized === "creative_partner" || normalized.includes("creative partner")) return "creative_partner";
+  if (normalized === "client") return "client";
+  if (normalized === "admin") return "admin";
+
+  if (normalized.includes("sales")) return "sales_rep";
   if (
+    normalized.includes("creative") ||
     normalized.includes("crew") ||
     normalized.includes("creator") ||
-    normalized.includes("production") ||
     normalized.includes("editor") ||
     normalized.includes("videographer") ||
     normalized.includes("photographer") ||
     normalized.includes("director")
   ) {
-    return "crew";
+    return "creative_partner";
   }
-  if (normalized.includes("client")) return "client";
 
   return "admin";
 };
@@ -119,6 +124,19 @@ export default function AdminRoleEditDetailsRoute() {
       } catch (err) {
         console.error("Failed to refresh logged-in user permissions:", err);
       }
+    }
+  };
+
+  const syncActivePermissions = async (userIdToRefresh?: string | number) => {
+    if (!userIdToRefresh) return;
+
+    try {
+      const response = await adminApi.getUserPermissions(userIdToRefresh);
+      if (response?.success && response.data) {
+        dispatch(setPermissions(normalizePermissionsPayload(response.data)));
+      }
+    } catch (err) {
+      console.error("Failed to sync active permissions:", err);
     }
   };
 
@@ -354,6 +372,8 @@ export default function AdminRoleEditDetailsRoute() {
       return;
     }
 
+    await syncActivePermissions(userId);
+
     const baseRows = await loadPermissionRows(permissionScope);
     const permissionResponse = await adminApi.getUserPermissions(userId);
     const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
@@ -396,14 +416,16 @@ export default function AdminRoleEditDetailsRoute() {
       return;
     }
 
+    await syncActivePermissions(userId);
+
     const detailsResponse = await adminApi.getUserRoleDetails(userId);
     if (detailsResponse?.success && detailsResponse?.data) {
-      const baseRows = await loadPermissionRows(resolvePermissionScope(selectedRoleLabel || currentRoleLabel));
-      const permissionResponse = await adminApi.getUserPermissions(userId);
-      const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
       const fallbackPermissions = normalizeUserPermissionsPayload(
         detailsResponse.data.permissions || {},
       );
+      const baseRows = await loadPermissionRows(resolvePermissionScope(selectedRoleLabel || currentRoleLabel));
+      const permissionResponse = await adminApi.getUserPermissions(userId);
+      const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
       const permissionsToApply =
         Object.keys(normalizedPermissions).length > 0 ? normalizedPermissions : fallbackPermissions;
 

@@ -2,23 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
-import { PermissionMatrixTable } from "@/components/admin/roles-permissions/PermissionMatrixTable";
-import {
-  PermissionColumnKey,
-  PermissionMatrixRow,
-} from "@/components/admin/roles-permissions/types";
+import { useState } from "react";
 import { adminApi } from "@/lib/api";
-import { buildPermissionRows, extractPermissionsFromRows } from "@/components/admin/roles-permissions/utils";
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 
 export function RoleCreatePage() {
   const router = useRouter();
-  const [rows, setRows] = useState<PermissionMatrixRow[]>([]);
   const [roleName, setRoleName] = useState("");
   const [description, setDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -31,11 +23,7 @@ export function RoleCreatePage() {
     tone: "default",
   });
 
-  const openModal = (
-    title: string,
-    description: string,
-    tone: "default" | "danger" | "success" = "default",
-  ) => {
+  const openModal = (title: string, description: string, tone: "default" | "danger" | "success" = "default") => {
     setModalState({
       isOpen: true,
       title,
@@ -43,31 +31,6 @@ export function RoleCreatePage() {
       tone,
     });
   };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadPermissionModules = async () => {
-      setIsLoadingPermissions(true);
-      const response = await adminApi.getPermissionModules();
-
-      if (!mounted) return;
-
-      if (response?.success && Array.isArray(response.data)) {
-        setRows(buildPermissionRows(response.data));
-      } else {
-        setRows(buildPermissionRows());
-      }
-
-      setIsLoadingPermissions(false);
-    };
-
-    void loadPermissionModules();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const handleSave = async () => {
     if (!roleName.trim()) {
@@ -80,7 +43,6 @@ export function RoleCreatePage() {
     const payload = {
       name: roleName,
       description: description,
-      permissions: extractPermissionsFromRows(rows),
     };
 
     try {
@@ -100,17 +62,6 @@ export function RoleCreatePage() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleInvalidAccessAttempt = (
-    row: PermissionMatrixRow,
-    key: PermissionColumnKey,
-  ) => {
-    openModal(
-      "View Access Required",
-      `Please enable View Access for ${row.label} before turning on ${key.charAt(0).toUpperCase() + key.slice(1)} Access.`,
-      "default",
-    );
   };
 
   return (
@@ -151,18 +102,6 @@ export function RoleCreatePage() {
             />
           </div>
         </div>
-
-        <PermissionMatrixTable
-          rows={rows}
-          onChange={setRows}
-          showSelectionColumn
-          onInvalidAccessAttempt={handleInvalidAccessAttempt}
-          className="mt-12"
-        />
-
-        {isLoadingPermissions ? (
-          <p className="mt-4 text-sm text-white/40">Loading permission modules...</p>
-        ) : null}
 
         <div className="mt-12 flex flex-col gap-4 sm:flex-row">
           <button
