@@ -1855,22 +1855,34 @@ export default function QuoteDetailsPage({
       const isManualInvoiceUrl =
         typeof hostedInvoiceUrl === "string" &&
         /\/beige_invoice\/|[?&]manual=(1|true)\b/i.test(hostedInvoiceUrl);
-      const shouldOpenManualReceipt =
-        isPaidDocument && Boolean(invoiceBookingId) && (isManualInvoiceUrl || isManualInvoicePdf);
-      const brandedPdfUrl = invoiceBookingId
+      const isManualReceiptUrl =
+        typeof receiptUrl === "string" &&
+        /\/beige_invoice\/|[?&](manual|receipt)=(1|true)\b/i.test(receiptUrl);
+      const isManualDocument = isManualInvoiceUrl || isManualInvoicePdf || isManualReceiptUrl;
+      const shouldUseInlineBeigeDocument =
+        Boolean(invoiceBookingId);
+      const inlineDocumentUrl = shouldUseInlineBeigeDocument && invoiceBookingId
         ? buildBeigeInvoiceUrl(invoiceBookingId, {
-            manual: isManualInvoicePdf || shouldOpenManualReceipt,
+            manual: isManualDocument && !isPaidDocument,
+            receipt: isManualDocument && isPaidDocument,
             cacheBust: true,
           })
         : null;
-      if (!hostedInvoiceUrl && !invoicePdfUrl) {
+      if (!hostedInvoiceUrl && !invoicePdfUrl && !receiptUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
+      const viewerUrl = inlineDocumentUrl
+        ? `/pdf-viewer?${new URLSearchParams({
+            url: inlineDocumentUrl,
+            title: isPaidDocument ? "Receipt" : "Invoice",
+          }).toString()}`
+        : null;
       const openUrl =
-        isPaidDocument
-          ? (shouldOpenManualReceipt ? brandedPdfUrl : receiptUrl || invoicePdfUrl || hostedInvoiceUrl)
-          : invoicePdfUrl || brandedPdfUrl || hostedInvoiceUrl;
+        viewerUrl ||
+        (isPaidDocument
+          ? invoicePdfUrl || hostedInvoiceUrl || receiptUrl
+          : hostedInvoiceUrl || invoicePdfUrl);
 
       if (!openUrl) {
         throw new Error(`${isPaidDocument ? "Receipt" : "Invoice"} URL is not available`);
