@@ -18,7 +18,10 @@ import {
   ChevronRight,
   Pencil,
   Trash2,
-  Info
+  Info,
+  Eye,
+  CheckCircle,
+  Video
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -48,6 +51,7 @@ import { getProject } from "@/lib/api";
 import { toast } from "sonner";
 import { MobileRow } from "@/components/creator-profile/MobileRow";
 import { StatCard } from "@/components/admin/StatCard";
+import { Videocam } from "@mui/icons-material";
 
 export default function RequestsShootsPage() {
   const router = useRouter();
@@ -348,13 +352,25 @@ export default function RequestsShootsPage() {
 
 
   return (
-    <div className="mx-auto space-y-4 lg:space-y-8 pb-12 text-white">
-      {/* Header */}
+        <div 
+          className="mx-auto space-y-4 lg:space-y-8 pb-12 text-white border border-[#E8D1AB]/30 rounded-2xl p-4 lg:p-8 relative"
+          style={{
+            boxShadow: `
+              0 0 0 1px rgba(232, 209, 171, 0.25),
+              0 0 30px rgba(232, 209, 171, 0.15),
+              0 0 80px rgba(232, 209, 171, 0.10),
+              0 0 150px rgba(232, 209, 171, 0.06),
+              inset 0 0 60px rgba(232, 209, 171, 0.04),
+              inset 0 0 20px rgba(232, 209, 171, 0.06)
+            `
+          }}
+        >
+       {/* Header */}
       <div className="space-y-4 lg:space-y-8">
         {/* 1. Simple Header: Title & Description */}
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold">Requests & Shoots</h1>
-          <p className="text-white/60">Manage your production schedule and requests</p>
+          <p className="text-white/60">Manage your project requests and confirmed assignments</p>
         </div>
 
         {/* 2. Tabs */}
@@ -381,40 +397,84 @@ export default function RequestsShootsPage() {
           </button>
         </div>
 
-        {/* 3. Stats Cards Section */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Pending Requests"
-            value={computedStats?.pendingRequests ?? dashboardStats?.pendingRequests || 0}
-            icon={Clock}
-            iconColor="text-yellow-500"
-            valueColor="text-yellow-500"
-            hoverBorder="hover:border-yellow-500/30"
-          />
-          <StatCard
-            label="Confirmed Shoots"
-            value={computedStats?.confirmedRequests ?? dashboardStats?.confirmedRequests || 0}
-            icon={Camera}
-            iconColor="text-[#E8D1AB]"
-            hoverBorder="hover:border-[#E8D1AB]/30"
-          />
-          <StatCard
-            label="Completed"
-            value={computedStats?.completedShoots ?? dashboardStats?.completedShoots || 0}
-            icon={CheckCircle2}
-            iconColor="text-green-400"
-            valueColor="text-green-400"
-            hoverBorder="hover:border-green-400/30"
-          />
-          <StatCard
-            label="Declined"
-            value={computedStats?.declinedRequests ?? dashboardStats?.declinedRequests || 0}
-            icon={Ban}
-            iconColor="text-red-400"
-            valueColor="text-red-400"
-            hoverBorder="hover:border-red-400/30"
-          />
+      {/* 3. Stats Cards Section */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        
+        {/* Pending Shoots */}
+        <div className="relative overflow-hidden bg-[#0D0D0D] border border-white/10 rounded-[1.25rem] p-4 lg:p-5 flex justify-between items-center min-h-[105px] group">
+          {/* Exact Top-Left Lighting Effect from Screenshot */}
+          <div 
+          className="absolute -top-10 -left-10 w-22 h-22 bg-[#E8D1AB]/15 blur-[15px] rounded-full pointer-events-none" 
+        />
+          
+          <div className="space-y-1 relative z-10">
+            <p className="text-[#E8D1AB] text-[13px] lg:text-[14px] font-bold tracking-tight">Pending Shoots</p>
+            <h3 className="text-3xl lg:text-4xl font-bold text-white tracking-tighter">
+              {computedStats?.pendingRequests ?? dashboardStats?.pendingRequests || 0}
+            </h3>
+          </div>
+
+          <div className="w-11 h-11 lg:w-12 lg:h-12 bg-[#F9F6F0] rounded-[14px] flex items-center justify-center relative z-10 shadow-sm shrink-0">
+            <CheckCircle className="text-[#A39071] h-7 w-7" strokeWidth={1.5} />
+          </div>
         </div>
+
+        {/* Confirmed Shoots */}
+        <div className="relative overflow-hidden bg-[#0D0D0D] border border-white/10 rounded-[1.25rem] p-4 lg:p-5 flex justify-between items-center min-h-[105px] group">
+          <div 
+          className="absolute -top-10 -left-10 w-22 h-22 bg-[#E8D1AB]/15 blur-[15px] rounded-full pointer-events-none" 
+        />
+          
+          
+          <div className="space-y-1 relative z-10">
+            <p className="text-white text-[13px] lg:text-[14px] font-medium tracking-tight">Confirmed Shoots</p>
+            <h3 className="text-3xl lg:text-4xl font-bold text-white tracking-tighter">
+              {computedStats?.confirmedRequests ?? dashboardStats?.confirmedRequests || 0}
+            </h3>
+          </div>
+
+          <div className="w-11 h-11 lg:w-12 lg:h-12 bg-[#F9F6F0] rounded-[14px] flex items-center justify-center relative z-10 shadow-sm shrink-0">
+            <Camera className="text-[#A39071] h-6 w-6" strokeWidth={1.5} />
+          </div>
+        </div>
+
+        {/* Completed Shoots */}
+        <div className="relative overflow-hidden bg-[#0D0D0D] border border-white/10 rounded-[1.25rem] p-4 lg:p-5 flex justify-between items-center min-h-[105px] group">
+          <div 
+          className="absolute -top-10 -left-10 w-22 h-22 bg-[#E8D1AB]/15 blur-[15px] rounded-full pointer-events-none" 
+        />
+          
+          
+          <div className="space-y-1 relative z-10">
+            <p className="text-white text-[13px] lg:text-[14px] font-medium tracking-tight">Completed Shoots</p>
+            <h3 className="text-3xl lg:text-4xl font-bold text-white tracking-tighter">
+              {computedStats?.completedShoots ?? dashboardStats?.completedShoots || 0}
+            </h3>
+          </div>
+
+          <div className="w-11 h-11 lg:w-12 lg:h-12 bg-[#F9F6F0] rounded-[14px] flex items-center justify-center relative z-10 shadow-sm shrink-0">
+            <Video className="text-[#A39071] h-6 w-6" strokeWidth={1.5} />
+          </div>
+        </div>
+
+        {/* Declined */}
+        <div className="relative overflow-hidden bg-[#0D0D0D] border border-white/10 rounded-[1.25rem] p-4 lg:p-5 flex justify-between items-center min-h-[105px] group">
+          <div 
+          className="absolute -top-10 -left-10 w-22 h-22 bg-[#E8D1AB]/15 blur-[15px] rounded-full pointer-events-none" 
+        />
+          
+          <div className="space-y-1 relative z-10">
+            <p className="text-white text-[13px] lg:text-[14px] font-medium tracking-tight">Declined</p>
+            <h3 className="text-3xl lg:text-4xl font-bold text-white tracking-tighter">
+              {computedStats?.declinedRequests ?? dashboardStats?.declinedRequests || 0}
+            </h3>
+          </div>
+
+          <div className="w-11 h-11 lg:w-12 lg:h-12 bg-[#F9F6F0] rounded-[14px] flex items-center justify-center relative z-10 shadow-sm shrink-0">
+            <Ban className="text-[#A39071] h-6 w-6" strokeWidth={1.5} />
+          </div>
+        </div>
+      </div>
 
         {/* 3. Filter Bar: Search, Select, and View Toggle */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -509,8 +569,10 @@ export default function RequestsShootsPage() {
               {filteredProjects.map((item) => (
                 <div
                   key={item.project_id}
+                  overflow-hidden
                   className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6 hover:border-[#E8D1AB]/40 transition-all group"
                 >
+                  {/* Status + Recently updated */}
                   <div className="flex justify-between items-start mb-4">
                     <span
                       className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
@@ -523,52 +585,101 @@ export default function RequestsShootsPage() {
                     >
                       {item.status}
                     </span>
-                    <span className="text-white/20 text-xs italic">Recently updated</span>
+                    <span className="text-white/20 text-xs">Recently updated</span>
                   </div>
 
-                  <h3 className="text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors capitalize">
+                  {/* Project Name */}
+                  <h3 className="text-xl font-bold mb-3 group-hover:text-[#E8D1AB] transition-colors capitalize">
                     {item.project_name || item.title || "Untitled Project"}
                   </h3>
 
-                  <div className="space-y-3 mb-4 lg:mb-6">
-                    <div className="flex items-center gap-3 text-white/60 text-sm">
-                      <CalendarIcon size={16} className="text-[#E8D1AB]" />
+                  {/* Date + Location inline */}
+                  <div className="flex items-center gap-4 text-white/60 text-sm mb-4">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon size={14} className="text-[#E8D1AB]" />
                       <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-white/60 text-sm">
-                      <MapPin size={16} className="text-[#E8D1AB]" />
-                      <span className="truncate">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={14} className="text-[#E8D1AB]" />
+                      <span className="truncate max-w-[140px]">
                         {formatLocation(item.event_location || item.location)}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                    <Button
-                      onClick={() => handleOpenProjectDetails(item.project_id)}
-                      className="bg-transparent border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-6"
-                    >
-                      View Details
-                    </Button>
 
-                    {item.status === "Pending" && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="icon"
-                          onClick={() => setAcceptShootEvent(item)}
-                          className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
-                        >
-                          <Check size={18} />
-                        </Button>
-                        <Button
-                          size="icon"
-                          onClick={() => setDeclineShootEvent(item)}
-                          className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"
-                        >
-                          <X size={18} />
-                        </Button>
+                  {/* Earnings Section — only on Shoots tab */}
+                  {activeTab === "shoots" && (
+                    <>
+                      {/* Divider */}
+                      <div className="border-t border-white/5 mb-4" />
+
+                      {/* Tentative Earning */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-white/50 text-sm">Tentative Earning</span>
+                        <span className="text-[#E8D1AB] text-xl font-bold">$1,200</span>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Advance Paid + Remaining Balance */}
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-green-900/30 border border-green-800/40 rounded-lg px-4 py-3 flex items-center justify-between">
+                          <span className="text-green-400 text-xs font-medium">Advance Paid</span>
+                          <span className="text-green-400 font-bold text-sm">$300</span>
+                        </div>
+                        <div className="bg-red-900/30 border border-red-800/40 rounded-lg px-4 py-3 flex items-center justify-between">
+                          <span className="text-red-400 text-xs font-medium">Remaining Balance</span>
+                          <span className="text-red-400 font-bold text-sm">$1,250</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Divider */}
+                  <div className="border-t border-white/5 pt-4" />
+
+                  {/* Action Buttons */}
+                  {activeTab === "shoots" ? (
+                    <div className="flex items-center gap-3 pt-1">
+                      <Button
+                        onClick={() => handleOpenProjectDetails(item.project_id)}
+                        className="flex-1 bg-[#1A1A1A] border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white"
+                      >
+                        View Details
+                      </Button>
+                      <Button
+                        className="flex-1 bg-[#1A1A1A] border border-[#E8D1AB]/30 text-[#E8D1AB] hover:bg-[#3A3020] hover:border-[#E8D1AB]/60 flex items-center gap-2 transition-all"                      >
+                        <Eye/>
+                        View Earnings
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between pt-1">
+                      <Button
+                        onClick={() => handleOpenProjectDetails(item.project_id)}
+                        className="bg-transparent border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-6"
+                      >
+                        View Details
+                      </Button>
+
+                      {item.status === "Pending" && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="icon"
+                            onClick={() => setAcceptShootEvent(item)}
+                            className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
+                          >
+                            <Check size={18} />
+                          </Button>
+                          <Button
+                            size="icon"
+                            onClick={() => setDeclineShootEvent(item)}
+                            className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"
+                          >
+                            <X size={18} />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
