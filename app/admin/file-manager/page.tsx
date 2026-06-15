@@ -962,6 +962,7 @@ export default function AdminFolderManagerPage() {
           title="Create Common Event"
           description="Create a common folder for admin uploads and affiliate access"
           showVisibilityUntil
+          allowPastVisibleUntil
           submitLabel="Create Folder"
           submittingLabel={isCreatingEvent ? "Creating..." : "Creating..."}
           isDark={isDark}
@@ -978,6 +979,7 @@ export default function AdminFolderManagerPage() {
           initialName={selectedFolder?.title || ""}
           initialVisibleUntil={selectedFolder?.visibleUntil || null}
           showVisibilityUntil
+          allowPastVisibleUntil
           nameDisabled
           submitLabel="Save Date"
           submittingLabel="Saving..."

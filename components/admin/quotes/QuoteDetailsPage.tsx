@@ -1632,6 +1632,7 @@ export default function QuoteDetailsPage({
       hasInvoiceablePaymentContext
     );
   const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
+  const shouldUseReceiptActions = hasFullPayment;
 
   const ensureBookingForPayment = useCallback(async () => {
     if (resolvedBookingId) {
@@ -1839,6 +1840,8 @@ export default function QuoteDetailsPage({
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
+      const receiptUrl = response.data?.receiptUrl || null;
+      const isPaidDocument = response.data?.isPaid === true || shouldUseReceiptActions;
       const invoiceBookingId =
         response.data?.booking_id !== undefined &&
           response.data?.booking_id !== null &&
@@ -1853,43 +1856,51 @@ export default function QuoteDetailsPage({
       const isManualInvoicePdf =
         typeof invoicePdfUrl === "string" &&
         /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
-      const brandedPdfUrl = invoiceBookingId
+      const isManualInvoiceUrl =
+        typeof hostedInvoiceUrl === "string" &&
+        /\/beige_invoice\/|[?&]manual=(1|true)\b/i.test(hostedInvoiceUrl);
+      const isManualReceiptUrl =
+        typeof receiptUrl === "string" &&
+        /\/beige_invoice\/|[?&](manual|receipt)=(1|true)\b/i.test(receiptUrl);
+      const isManualDocument = isManualInvoiceUrl || isManualInvoicePdf || isManualReceiptUrl;
+      const shouldUseInlineBeigeDocument =
+        Boolean(invoiceBookingId);
+      const inlineDocumentUrl = shouldUseInlineBeigeDocument && invoiceBookingId
         ? buildBeigeInvoiceUrl(invoiceBookingId, {
-            manual: isManualInvoicePdf,
+            manual: isManualDocument && !isPaidDocument,
+            receipt: isManualDocument && isPaidDocument,
             cacheBust: true,
           })
         : null;
-      const brandedDownloadUrl = invoiceBookingId
-        ? buildBeigeInvoiceUrl(invoiceBookingId, {
-            manual: isManualInvoicePdf,
-            download: true,
-            cacheBust: true,
-          })
-        : null;
-
-      if (!hostedInvoiceUrl && !invoicePdfUrl) {
+      if (!hostedInvoiceUrl && !invoicePdfUrl && !receiptUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl && !invoicePdfUrl) {
-        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      const viewerUrl = inlineDocumentUrl
+        ? `/pdf-viewer?${new URLSearchParams({
+            url: inlineDocumentUrl,
+            title: isPaidDocument ? "Receipt" : "Invoice",
+          }).toString()}`
+        : null;
+      const openUrl =
+        viewerUrl ||
+        (isPaidDocument
+          ? invoicePdfUrl || hostedInvoiceUrl || receiptUrl
+          : hostedInvoiceUrl || invoicePdfUrl);
+
+      if (!openUrl) {
+        throw new Error(`${isPaidDocument ? "Receipt" : "Invoice"} URL is not available`);
       }
 
-      if (invoicePdfUrl) {
-        const link = document.createElement("a");
-        if (!brandedDownloadUrl && !brandedPdfUrl) {
-          throw new Error("Invoice PDF URL is not available");
-        }
-        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.click();
-      }
-
-      toast.success("Invoice opened successfully");
+      const link = document.createElement("a");
+      link.href = openUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.click();
+      toast.success(`${isPaidDocument ? "Receipt" : "Invoice"} opened successfully`);
     } catch (error) {
-      console.error("Failed to preview invoice", error);
-      toast.error(error instanceof Error ? error.message : "Failed to preview invoice");
+      console.error("Failed to preview invoice or receipt", error);
+      toast.error(error instanceof Error ? error.message : "Failed to preview invoice or receipt");
     } finally {
       setIsViewingInvoice(false);
     }
@@ -2190,7 +2201,9 @@ export default function QuoteDetailsPage({
                   className={`h-11 rounded-xl border px-5 w-full lg:w-auto ${isDark ? "border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]" : "border-[#0000004D] bg-white text-black hover:bg-[#F4F5F7]"}`}
                 >
                   {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
-                  {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+                  {isViewingInvoice
+                    ? `Opening ${shouldUseReceiptActions ? "Receipt" : "Invoice"}...`
+                    : `View ${shouldUseReceiptActions ? "Receipt" : "Invoice"}`}
                 </Button>
               )}
               {canSendInvoiceFromDetails && (
@@ -2203,7 +2216,9 @@ export default function QuoteDetailsPage({
                   className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 w-full lg:w-auto"
                 >
                   {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
-                  {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+                  {isSendingInvoice
+                    ? `Sending ${shouldUseReceiptActions ? "Receipt" : "Invoice"}...`
+                    : `Send ${shouldUseReceiptActions ? "Receipt" : "Invoice"}`}
                 </Button>
               )}
             </div>

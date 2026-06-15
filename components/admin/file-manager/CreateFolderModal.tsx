@@ -14,6 +14,7 @@ interface CreateFolderModalProps {
   initialName?: string;
   initialVisibleUntil?: string | null;
   showVisibilityUntil?: boolean;
+  allowPastVisibleUntil?: boolean;
   nameDisabled?: boolean;
   submitLabel?: string;
   submittingLabel?: string;
@@ -29,6 +30,7 @@ export const CreateFolderModal = ({
   initialName = "",
   initialVisibleUntil = null,
   showVisibilityUntil = false,
+  allowPastVisibleUntil = false,
   nameDisabled = false,
   submitLabel = "Create Folder",
   submittingLabel = "Creating...",
@@ -149,8 +151,9 @@ export const CreateFolderModal = ({
                       label=""
                       value={visibleUntil}
                       onChange={setVisibleUntil}
-                      minDate={new Date()}
+                      minDate={allowPastVisibleUntil ? undefined : new Date()}
                       format="MMM d, yyyy"
+                      placeholder="MM DD YYYY"
                       isDark={isDark}
                       colors={{
                         inputBackground: "transparent",

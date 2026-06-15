@@ -22,6 +22,7 @@ import {
   fileManagerApi,
   getDisplayInitials,
   isCommonEventWorkspaceId,
+  isVisibleToNonAdminByVisibleUntil,
   mapExternalFoldersToUi,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
@@ -42,6 +43,7 @@ export default function AdminFolderDetailsPage() {
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
+  const [workspaceVisibleUntil, setWorkspaceVisibleUntil] = useState<string | null>(null);
   const [folders, setFolders] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,12 +76,14 @@ export default function AdminFolderDetailsPage() {
         setWorkspaceName("");
         setWorkspaceCode(String(projectId || ""));
         setWorkspaceConsoleUrl(null);
+        setWorkspaceVisibleUntil(null);
         setFolders([]);
         return;
       }
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
+      setWorkspaceVisibleUntil(workspaceData.workspace.visibleUntil || null);
       setFolders(
         mapExternalFoldersToUi(
           workspaceData.folders,
@@ -111,6 +115,27 @@ export default function AdminFolderDetailsPage() {
       mounted = false;
     };
   }, [projectId]);
+
+  const isVisibilityExpired =
+    isCommonEventWorkspace &&
+    Boolean(workspaceVisibleUntil) &&
+    !isVisibleToNonAdminByVisibleUntil(workspaceVisibleUntil);
+  const statusBadge = isVisibilityExpired
+    ? {
+        label: "Visibility expired",
+        className: "bg-[#4A3400] text-[#FACC15] border-[#F59E0B]/35",
+      }
+    : isCommonEventWorkspace
+      ? {
+          label: "Common Event",
+          className: isDark
+            ? "bg-black text-white border-white/10"
+            : "bg-gray-100 text-gray-900 border-gray-200",
+        }
+      : {
+          label: "Active Project",
+          className: "bg-[#D4FFE4] text-[#16A34A] border-[#6ce9a6]/20",
+        };
 
   const visibleFolders = useMemo(() => {
     let items = [...folders];
@@ -239,8 +264,8 @@ export default function AdminFolderDetailsPage() {
                       <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                         {workspaceName}
                       </h1>
-                      <span className="hidden lg:block px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
-                        Active Project
+                      <span className={`hidden lg:block px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs lg:font-medium border h-fit w-fit ${statusBadge.className}`}>
+                        {statusBadge.label}
                       </span>
                     </div>
 
@@ -250,8 +275,8 @@ export default function AdminFolderDetailsPage() {
                       {workspaceCode}
                     </p>
 
-                    <span className="mt-2 block lg:hidden px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
-                      Active Project
+                    <span className={`mt-2 block lg:hidden px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs lg:font-medium border h-fit w-fit ${statusBadge.className}`}>
+                      {statusBadge.label}
                     </span>
                     {/* {workspaceConsoleUrl ? (
                     <a

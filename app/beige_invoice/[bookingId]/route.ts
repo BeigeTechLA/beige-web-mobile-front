@@ -21,9 +21,14 @@ export async function GET(
     `${API_BASE_URL.replace(/\/$/, "")}/sales/invoice-pdf/${parsedBookingId}`
   );
   const manual = request.nextUrl.searchParams.get("manual");
+  const receipt = request.nextUrl.searchParams.get("receipt");
   const download = request.nextUrl.searchParams.get("download");
+  const forceDownload =
+    String(download || "").toLowerCase() === "1" ||
+    String(download || "").toLowerCase() === "true";
 
   if (manual) sourceUrl.searchParams.set("manual", manual);
+  if (receipt) sourceUrl.searchParams.set("receipt", receipt);
   if (download) sourceUrl.searchParams.set("download", download);
 
   try {
@@ -46,15 +51,19 @@ export async function GET(
     const pdfBuffer = await upstreamResponse.arrayBuffer();
     const contentType =
       upstreamResponse.headers.get("content-type") || "application/pdf";
-    const contentDisposition =
-      upstreamResponse.headers.get("content-disposition") ||
-      `inline; filename="beige-invoice-${parsedBookingId}.pdf"`;
+    const upstreamDisposition = upstreamResponse.headers.get("content-disposition") || "";
+    const upstreamFilename = upstreamDisposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1];
+    const safeFilename = decodeURIComponent(
+      String(upstreamFilename || `beige-invoice-${parsedBookingId}.pdf`).replace(/"/g, "")
+    );
+    const contentDisposition = `${forceDownload ? "attachment" : "inline"}; filename="${safeFilename}"`;
 
     return new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": contentDisposition,
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
