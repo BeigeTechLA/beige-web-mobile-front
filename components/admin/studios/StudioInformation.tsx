@@ -44,26 +44,10 @@ interface DaySchedule {
   open: string;
   close: string;
   isOpen: boolean;
+  is24Hours?: boolean;
 }
 
-const amenities: Amenity[] = [
-  { icon: Leaf, label: "Garden view" },
-  { icon: Monitor, label: "Kitchen" },
-  { icon: Wifi, label: "Wifi" },
-  { icon: Bone, label: "Pets allowed" },
-  { icon: Disc, label: "Free washer - in building" },
-  { icon: Flame, label: "Dryer" },
-  { icon: Wind, label: "Central air conditioning" },
-  { icon: Video, label: "Security cameras on property" },
-  { icon: Refrigerator, label: "Refrigerator" },
-  { icon: Bike, label: "Bicycles" },
-  { icon: Coffee, label: "Coffee maker" },
-  { icon: Music, label: "Sound system" },
-  { icon: Tv, label: '65" HDTV' },
-  { icon: Utensils, label: "Cooking basics" },
-  { icon: Car, label: "Free parking" },
-  { icon: Shield, label: "First aid kit" },
-];
+
 
 const days = [
   "Monday",
@@ -75,18 +59,6 @@ const days = [
   "Sunday",
 ];
 
-const fallbackSchedule: Record<string, DaySchedule> = {
-  Monday: { open: "10:00 am", close: "10:00 pm", isOpen: true },
-  Tuesday: { open: "10:00 am", close: "10:00 pm", isOpen: true },
-  Wednesday: { open: "10:00 am", close: "10:00 pm", isOpen: true },
-  Thursday: { open: "10:00 am", close: "10:00 pm", isOpen: true },
-  Friday: { open: "10:00 am", close: "10:00 pm", isOpen: true },
-  Saturday: { open: "10:00 am", close: "10:00 pm", isOpen: true },
-  Sunday: { open: "10:00 am", close: "10:00 pm", isOpen: true },
-};
-
-const fallbackDescription =
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 
 const toArray = (value: unknown, fallback: any[] = []) => {
   if (Array.isArray(value)) return value;
@@ -98,6 +70,30 @@ const toArray = (value: unknown, fallback: any[] = []) => {
     return fallback;
   }
 };
+const format12Hour = (timeStr: string) => {
+  if (!timeStr) return "";
+  const [hours24, minutes] = timeStr.split(':').map(Number);
+  
+  if (isNaN(hours24)) return timeStr; 
+
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12; 
+  const formattedMinutes = minutes.toString().padStart(2, "0");
+
+  return `${hours12}:${formattedMinutes} ${period}`;
+};
+
+const timeToMinutes = (timeStr?: string) => {
+  if (!timeStr) return 0;
+  const [hours = "0", minutes = "0"] = String(timeStr).split(":");
+  const h = Number(hours);
+  const m = Number(minutes);
+  if (Number.isNaN(h) || Number.isNaN(m)) return 0;
+  return h * 60 + m;
+};
+
+const isTwentyFourHours = (open?: string, close?: string) =>
+  timeToMinutes(open) === 0 && timeToMinutes(close) === 23 * 60 + 45;
 
 export const StudioInformation = ({ information, isDark = false }: StudioInformationProps) => {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -105,14 +101,14 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
 
   const data = information || {};
   const address = data.address || {};
-  const description = data.description || fallbackDescription;
-  const titleText = data.studio_name || "Entire rental unit";
-  const hostText = data.brand_name || "Ghazal";
+  const description = data.description  || "";
+  const titleText = data.studio_name ;
+  const hostText = data.brand_name ;
   const guestCount = data.space_basics?.guests ?? data.guests ?? 2;
   const bedroomCount = data.space_basics?.bedrooms ?? data.bedrooms ?? 1;
   const bedCount = data.space_basics?.beds ?? data.beds ?? 1;
   const bathCount = data.space_basics?.bathrooms ?? data.bathrooms ?? 1;
-  const rawAmenities = Array.isArray(data.amenities) && data.amenities.length ? data.amenities : amenities;
+  const rawAmenities = Array.isArray(data.amenities) ? data.amenities : [];
   const sourceAmenities = rawAmenities.map((item: any) => {
     if (item && typeof item === "object" && "icon" in item && "label" in item) {
       return item;
@@ -125,20 +121,26 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
   });
   const visibleAmenities = isAmenitiesExpanded ? sourceAmenities : sourceAmenities.slice(0, 10);
   const operatingHours = toArray(data.operating_hours, []);
-  const schedule = operatingHours.length
+  const schedule = operatingHours.length > 0
     ? days.reduce<Record<string, DaySchedule>>((acc, day, idx) => {
         const hour = operatingHours.find((entry: any) => entry?.day_of_week === idx);
+        const dayIs24Hours = isTwentyFourHours(hour?.opens_at, hour?.closes_at);
+        
         acc[day] = {
-          open: hour?.opens_at ? String(hour.opens_at).slice(0, 5) : "10:00 am",
-          close: hour?.closes_at ? String(hour.closes_at).slice(0, 5) : "10:00 pm",
-          isOpen: hour ? hour.is_open !== false : true,
+          open: dayIs24Hours ? "24 Hours" : (hour?.opens_at ? format12Hour(String(hour.opens_at)) : ""),
+          close: dayIs24Hours ? "" : (hour?.closes_at ? format12Hour(String(hour.closes_at)) : ""),
+          isOpen: hour?.is_open ?? false,
+          is24Hours: dayIs24Hours,
         };
         return acc;
       }, {})
-    : fallbackSchedule;
-  const isLongComment = description.length > 250;
-  const mapLatitude = Number(address?.latitude ?? data.latitude ?? 0);
-  const mapLongitude = Number(address?.longitude ?? data.longitude ?? 0);
+    : null;
+    const isLongComment = (description?.length ?? 0) > 250;
+    const mapLatitude = Number(address?.latitude ?? data.latitude ?? 0);
+    const mapLongitude = Number(address?.longitude ?? data.longitude ?? 0);
+    const [isAddressExpanded, setIsAddressExpanded] = useState(false);
+    const fullAddress = address.full_address || `${address.city || ''} ${address.state || ''} ${address.country || ''}`.trim() || "Location details provided after booking";
+    const isLongAddress = (fullAddress?.length ?? 0) > 150;
 
   return (
     <section className="relative overflow-hidden">
@@ -154,7 +156,7 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
               `${bedroomCount} bedroom`,
               `${bedCount} bed`,
               `${bathCount} bath`,
-            ].map((item, idx) => (
+            ].filter(Boolean).map((item, idx) => (
               <div key={idx} className="flex gap-3">
                 <p className={`text-sm lg:text-base ${isDark ? "text-[#FFF]" : "text-zinc-400"}`}>
                   {item}
@@ -168,6 +170,8 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
             ))}
           </div>
         </div>
+        {hostText && (
+
         <div className="relative inline-block">
           <Image
             src={"/images/crew/CREW(4).png"}
@@ -187,6 +191,7 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
             />
           </div>
         </div>
+        )}
       </div>
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
@@ -220,6 +225,8 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
       {/* Description */}
+      {description ? (
+        <>
       <div className="max-w-4xl space-y-4 lg:space-y-7">
         <p className={`text-sm lg:text-base leading-relaxed ${!isDescriptionExpanded && isLongComment ? "line-clamp-4" : ""}`}>
           {description}
@@ -239,8 +246,12 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
         )}
       </div>
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+      </>
+      ):null}
 
       {/* What this place offers */}
+      {sourceAmenities.length > 0 && (
+        <>
       <div className="space-y-4 lg:space-y-8">
         <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
           What this place offers
@@ -260,7 +271,6 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
             </div>
           ))}
         </div>
-
         <button
           onClick={() => setIsAmenitiesExpanded(!isAmenitiesExpanded)}
           className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all active:scale-95 ${isDark ? "bg-[#f3e3ce] text-black hover:bg-[#e2d1b1]" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"}`}
@@ -269,8 +279,13 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
         </button>
       </div>
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+      </>
+      )}
 
       {/* Operating Hours */}
+
+      {schedule && (
+      <>
       <div className="space-y-4 lg:space-y-8">
         <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
           Operating Hours
@@ -292,7 +307,15 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
                   </div>
 
                   <div className={`lg:text-lg ${isDark ? "text-[#FFFFFF99]" : "text-zinc-500"}`}>
-                    {dayData.isOpen ? `${dayData.open} - ${dayData.close}` : <span className="italic opacity-60">Closed</span>}
+                    {dayData.isOpen ? (
+                      dayData.is24Hours ? (
+                        "24 Hours"
+                      ) : (
+                        `${dayData.open} - ${dayData.close}`
+                      )
+                    ) : (
+                      <span className="italic opacity-60">Closed</span>
+                    )}
                   </div>
                 </div>
               );
@@ -301,9 +324,13 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
         </div>
       </div>
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+      </>
+      )}
 
       {/* Where you'll be */}
-      <div className="space-y-4 lg:space-y-6">
+      {(mapLatitude || fullAddress) && (
+        <>      
+        <div className="space-y-4 lg:space-y-6">
         <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
           Where you&apos;ll be
         </h2>
@@ -315,9 +342,28 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
             className="rounded-2xl"
           />
         </div>
+          <div className="space-y-2">
+          <p className="lg:text-lg font-medium">
+            {address.city ? `${address.city}, ${address.state}, ${address.country}` : "Location Details"}
+          </p>
+          <p className={`text-sm lg:text-base leading-relaxed ${isDark ? "text-[#FFFFFFAD]" : "text-black/60"} ${!isAddressExpanded && isLongAddress ? 'line-clamp-2' : ''}`}>
+            {fullAddress}
+          </p>
+          {isLongAddress && (
+            <button
+              onClick={() => setIsAddressExpanded(!isAddressExpanded)}
+              className="flex items-center gap-1 text-sm font-medium underline decoration-2 underline-offset-4"
+            >
+              {isAddressExpanded ? "Show less" : "Show more"}
+              <ChevronRight size={14} strokeWidth={3} className={isAddressExpanded ? "-rotate-90 transition-transform" : "rotate-0 transition-transform"} />
+            </button>
+          )}
+        </div>
       </div>
 
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+      </>
+      )} 
       <ReviewsComponent isDark={isDark} />
     </section>
   );

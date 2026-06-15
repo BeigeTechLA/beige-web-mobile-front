@@ -15,10 +15,8 @@ interface Props {
 export default function StudioFeaturesForm({ isDark = true, studioData, setStudioData }: Props) {
   // --- State Syncing ---
   const parking = studioData.parking_options || [];
-  const description = studioData.description; // Note: This matches description in user provided JSON, but wait, information form has it too. 
-                                              // Actually, ParkingForm seems to have another description.
-                                              // In the provided JSON, there's only one root "description".
-                                              // Let's use a different field if needed or just sync it.
+  const parkingDescription = studioData.parking_description || "";
+  const setParkingDescription = (v: string) => setStudioData({ ...studioData, parking_description: v });  
   const accessFeatures = studioData.access_features || [];
   const featureValues = studioData.facility_features || {
     general: [],
@@ -40,7 +38,6 @@ export default function StudioFeaturesForm({ isDark = true, studioData, setStudi
     const updated = typeof v === 'function' ? v(featureValues) : v;
     setStudioData({ ...studioData, facility_features: updated });
   };
-  const setDescription = (v: string) => setStudioData({ ...studioData, description: v });
 
   // State for all collapsible feature categories
   const [activeSections, setActiveSections] = useState<Record<string, boolean>>({
@@ -153,8 +150,8 @@ export default function StudioFeaturesForm({ isDark = true, studioData, setStudi
           <span className={`text-sm lg:text-base ${subTextColor}`}>Description</span>
         </div>
         <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={parkingDescription}
+          onChange={(e) => setParkingDescription(e.target.value)}
           className={`w-full min-h-[158px] rounded-xl p-6 pt-8 text-sm lg:text-base border transition-all resize-none focus:outline-none ${isDark
             ? "bg-[#101010] border-[#FFFFFF80] text-white focus:border-[#E8D1AB]/50"
             : "bg-white border-[#D7D7D7] text-black focus:border-[#E8D1AB]"

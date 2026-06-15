@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { ChevronDown, Home, Sparkles, DoorOpen, Calendar } from "lucide-react";
 import {
   Select,
@@ -16,11 +16,6 @@ interface Props {
   studioData: any;
   setStudioData: (data: any) => void;
 }
-
-type DayConfig = {
-  isOpen: boolean;
-  setHours: boolean;
-};
 
 const RULES_LIST = [
   { id: "smoking_and_drugs_allowed", label: "Smoking and Drugs Allowed" },
@@ -64,6 +59,17 @@ const CustomRadio = ({ selected }: { selected: boolean }) => {
 export default function OperatingHoursForm({ isDark = true, studioData, setStudioData }: Props) {
   // --- State Syncing ---
   const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const studioName = studioData.studio_name ?? "Studio";
+  const timeToMinutes = (timeStr: string) => {
+    const [hours = "0", minutes = "0"] = String(timeStr).split(":");
+    const h = Number(hours);
+    const m = Number(minutes);
+    if (Number.isNaN(h) || Number.isNaN(m)) return 0;
+    return h * 60 + m;
+  };
+
+  const is24HourRange = (opens: string, closes: string) =>
+    opens === "00:00:00" && closes === "23:45:00";
   
   const operatingHours = studioData.operating_hours || [];
   const schedule: Record<string, { isOpen: boolean; setHours: boolean }> = DAYS.reduce((acc, day, idx) => {
@@ -77,18 +83,114 @@ export default function OperatingHoursForm({ isDark = true, studioData, setStudi
     };
   }, {});
 
-  const setSchedule = (newSched: any) => {
-    const updatedSched = typeof newSched === 'function' ? newSched(schedule) : newSched;
-    const newOperatingHours = DAYS.map((day, idx) => ({
-      day_of_week: idx,
-      is_open: updatedSched[day].isOpen,
-      opens_at: updatedSched[day].isOpen ? (updatedSched[day].opens_at || "10:00:00") : null,
-      closes_at: updatedSched[day].isOpen ? (updatedSched[day].closes_at || "22:00:00") : null
-    }));
-    setStudioData({ ...studioData, operating_hours: newOperatingHours });
+  const handleSaveHours = (opens: string, closes: string) => {
+    // Optional: Add logic here to prevent closes < opens if desired
+    
+    const hours = [...(studioData.operating_hours || [])];
+    const existingIdx = hours.findIndex((h: any) => h.day_of_week === activeDayIdx);
+
+    const updatedDay = {
+      day_of_week: activeDayIdx,
+      is_open: true,
+      opens_at: opens,
+      closes_at: closes
+    };
+
+    if (existingIdx > -1) {
+      hours[existingIdx] = updatedDay;
+    } else {
+      hours.push(updatedDay);
+    }
+    setStudioData({ ...studioData, operating_hours: hours });
   };
 
-  const [is24Hrs, setIs24Hrs] = useState(false);
+  const timeOptions = React.useMemo(() => {
+    const options = [];
+    for (let i = 0; i < 24; i++) {
+      for (let j = 0; j < 60; j += 15) {
+        const hh = i.toString().padStart(2, "0"), mm = j.toString().padStart(2, "0");
+        options.push({ 
+          key: `${hh}:${mm}:00`, 
+          value: `${i % 12 === 0 ? 12 : i % 12}:${mm} ${i >= 12 ? "PM" : "AM"}` 
+        });
+      }
+    }
+    return options;
+  }, []);
+
+  const [activeDayIdx, setActiveDayIdx] = useState(1); 
+  const [draftOpens, setDraftOpens] = useState("10:00:00");
+  const [draftCloses, setDraftCloses] = useState("22:00:00");
+  const [is24HoursSelected, setIs24HoursSelected] = useState(false);
+  const hasInitialized24Hours = useRef(false);
+  const previousOperatingHoursRef = useRef<any[] | null>(null);
+  const openingTimeMinutes = timeToMinutes(draftOpens);
+  const closingTimeOptions = React.useMemo(() => {
+    return timeOptions.filter((option) => timeToMinutes(option.key) > openingTimeMinutes);
+  }, [openingTimeMinutes, timeOptions]);
+  const isActually24Hrs = 
+    studioData.operating_hours?.length === 7 &&
+    studioData.operating_hours.every(
+      (h: any) => h.is_open && h.opens_at === "00:00:00" && h.closes_at === "23:45:00"
+    );
+
+  // Load saved data into draft when switching days
+  React.useEffect(() => {
+    const currentSaved = studioData.operating_hours?.find((h: any) => h.day_of_week === activeDayIdx);
+    if (currentSaved) {
+      setDraftOpens(currentSaved.opens_at || "10:00:00");
+      setDraftCloses(currentSaved.closes_at || "22:00:00");
+    }
+  }, [activeDayIdx, studioData.operating_hours]);
+
+  React.useEffect(() => {
+    if (is24HoursSelected) return;
+
+    if (!closingTimeOptions.length) {
+      if (draftCloses !== "") {
+        setDraftCloses("");
+      }
+      return;
+    }
+
+    const hasValidSelection = closingTimeOptions.some((option) => option.key === draftCloses);
+    if (!hasValidSelection) {
+      setDraftCloses(closingTimeOptions[0].key);
+    }
+  }, [closingTimeOptions, draftCloses, is24HoursSelected]);
+
+  React.useEffect(() => {
+    if (hasInitialized24Hours.current) return;
+    if (!Array.isArray(studioData.operating_hours) || studioData.operating_hours.length === 0) return;
+
+    setIs24HoursSelected(isActually24Hrs);
+    hasInitialized24Hours.current = true;
+  }, [isActually24Hrs, studioData.operating_hours]);
+
+  const commitSelectionToMainState = () => {
+  const hours = [...(studioData.operating_hours || [])];
+  const existingIdx = hours.findIndex((h: any) => h.day_of_week === activeDayIdx);
+
+  const updatedDay = {
+    day_of_week: activeDayIdx,
+    is_open: true,
+    opens_at: draftOpens,
+    closes_at: draftCloses
+  };
+
+  if (existingIdx > -1) {
+    hours[existingIdx] = updatedDay;
+  } else {
+    hours.push(updatedDay);
+  }
+  setStudioData({ ...studioData, operating_hours: hours });
+};
+
+
+const getActiveDayData = () => {
+  return studioData.operating_hours?.find((h: any) => h.day_of_week === activeDayIdx) || 
+         { day_of_week: activeDayIdx, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" };
+};
   const [selectedDays, setSelectedDays] = useState<string[]>(DAYS.filter(d => schedule[d].isOpen));
 
   const rules = studioData.house_rules || {};
@@ -113,37 +215,88 @@ export default function OperatingHoursForm({ isDark = true, studioData, setStudi
     });
   };
 
-  const [studio, setStudio] = useState("");
-  const [openingTime, setOpeningTime] = useState("");
-  const [closingTime, setClosingTime] = useState("");
-
+ 
   const toggleCheckbox = (day: string) => {
     setSelectedDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     );
   };
 
-  const toggleDay = (day: string) => {
-    setSchedule((prev: any) => ({
-      ...prev,
-      [day]: { ...prev[day], isOpen: !prev[day].isOpen }
+  const toggleDay = (idx: number) => {
+  const hours = [...(studioData.operating_hours || [])];
+  const existingIdx = hours.findIndex((h: any) => h.day_of_week === idx);
+
+  if (existingIdx > -1) {
+    // Toggle existing entry
+    hours[existingIdx] = { 
+      ...hours[existingIdx], 
+      is_open: !hours[existingIdx].is_open 
+    };
+  } else {
+    // Add new entry as open
+    hours.push({ 
+      day_of_week: idx, 
+      is_open: true, 
+      opens_at: "10:00:00", 
+      closes_at: "22:00:00" 
+    });
+  }
+  setStudioData({ ...studioData, operating_hours: hours });
+}; 
+
+ // Toggle all days Open/Closed
+  const toggleAllDays = () => {
+    const allOpened = DAYS.every((_, idx) => 
+      studioData.operating_hours?.find((h: any) => h.day_of_week === idx)?.is_open
+    );
+
+    const newHours = DAYS.map((_, idx) => ({
+      day_of_week: idx,
+      is_open: !allOpened,
+      opens_at: "10:00:00",
+      closes_at: "22:00:00"
     }));
+
+    setStudioData({ ...studioData, operating_hours: newHours });
   };
 
-  const toggleAllDays = () => {
-    if (selectedDays.length === DAYS.length) {
-      setSelectedDays([]);
+  const isAllDaysSelected = studioData.operating_hours?.length === 7 && 
+    studioData.operating_hours.every((h: any) => h.is_open);
+
+  const handleToggle24Hours = () => {
+    if (is24HoursSelected) {
+      const restoredHours = previousOperatingHoursRef.current?.length
+        ? previousOperatingHoursRef.current
+        : DAYS.map((_, idx) => ({
+            day_of_week: idx,
+            is_open: true,
+            opens_at: "10:00:00",
+            closes_at: "22:00:00",
+          }));
+
+      previousOperatingHoursRef.current = null;
+      setStudioData({ ...studioData, operating_hours: restoredHours });
+      setIs24HoursSelected(false);
     } else {
-      setSelectedDays(DAYS);
+      previousOperatingHoursRef.current = [...(studioData.operating_hours || [])];
+
+      const all24 = DAYS.map((_, idx) => ({
+        day_of_week: idx,
+        is_open: true,
+        opens_at: "00:00:00",
+        closes_at: "23:45:00",
+      }));
+      setStudioData({ ...studioData, operating_hours: all24 });
+      setIs24HoursSelected(true);
     }
   };
 
-  const toggleSetHours = (day: string) => {
-    setSchedule((prev: any) => ({
-      ...prev,
-      [day]: { ...prev[day], setHours: !prev[day].setHours }
-    }));
+  const getTimeLabel = (value?: string) => {
+    if (!value) return "";
+    const match = timeOptions.find((t) => t.key === value);
+    return match?.value || value;
   };
+
 
   // Theme Styles
   const textColor = isDark ? "text-white" : "text-black";
@@ -165,143 +318,190 @@ export default function OperatingHoursForm({ isDark = true, studioData, setStudi
             }`}>
             <div className="flex items-center gap-2">
               <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-              <p className={isDark ? "text-white" : "text-[#323232]"}>Test Studio - Los Angeles</p>
+              <p className={isDark ? "text-white" : "text-[#323232]"}>{studioName}</p>
             </div>
 
+           {/* Inside the Header part of Operating Hours section */}
             <div className="flex gap-3">
               <button
-                onClick={() => setIs24Hrs(!is24Hrs)}
-                className="flex items-center gap-2 group"
+                onClick={handleToggle24Hours} // Changed from local state toggle to the logic above
+                className="flex items-center gap-2 group cursor-pointer"
               >
-                {/* UPDATED RADIO DESIGN */}
-                <CustomRadio selected={is24Hrs} />
+                {/* Use the derived state isActually24Hrs for the radio selection */}
+                <CustomRadio selected={is24HoursSelected} />
                 <span className={`text-sm lg:text-base ${textColor}`}>Set as 24 hrs</span>
               </button>
             </div>
-          </div>
-
-          {/* All Days */}
+            </div>
+          {/* All Days Checkbox */}
           <div className={`p-5 ${isDark ? "bg-[#171717]" : "bg-[#FFFCF6]"} rounded-b-2xl border-b border-b-[#3D3D3D]`}>
             <div className="flex items-center gap-3">
               <div
                 onClick={toggleAllDays}
-                className={`w-5 h-5 border rounded cursor-pointer flex items-center justify-center transition-all shrink-0 ${selectedDays.length === DAYS.length
-                  ? "bg-[#E8D1AB] border-[#E8D1AB]"
-                  : isDark ? "border-[#DDDDDD]" : "border-[#D7D7D7]"
-                  }`}
+                className={`w-5 h-5 border rounded flex items-center justify-center transition-all shrink-0 ${
+                  isAllDaysSelected // Use the new helper here
+                    ? "bg-[#E8D1AB] border-[#E8D1AB]"
+                    : isDark ? "border-[#DDDDDD]" : "border-[#D7D7D7]"
+                } cursor-pointer`}
               >
-                {selectedDays.length === DAYS.length && (
+                {isAllDaysSelected && (
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <path d="M10 3L4.5 8.5L2 6" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
               </div>
-              <span className={`text-sm font-medium text-[#E8D1AB]`}>Days</span>
+              <span className={`text-sm font-medium text-[#E8D1AB]`}>Select All Days</span>
             </div>
           </div>
 
           <div className="p-5 space-y-4 lg:space-y-8">
-            {DAYS.map((day) => (
-              <div key={day} className="grid grid-cols-3 gap-4 items-center w-full">
-                <div className="flex items-center gap-3 w-full">
-                  <div
-                    onClick={() => toggleCheckbox(day)}
-                    className={`w-5 h-5 border rounded cursor-pointer flex items-center justify-center transition-all shrink-0 ${selectedDays.includes(day)
-                      ? "bg-[#E8D1AB] border-[#E8D1AB]"
-                      : isDark ? "border-[#DDDDDD]" : "border-[#D7D7D7]"
+             {DAYS.map((day, idx) => {
+              const dayData = studioData.operating_hours?.find((h: any) => h.day_of_week === idx);
+              const isOpen = dayData?.is_open ?? false; // Default to closed if not in array
+
+              return (
+                <div key={day} className="grid grid-cols-3 gap-4 items-center w-full">
+                  {/* 1. The Checkbox (Now toggles Open/Close status) */}
+                  <div className="flex items-center gap-3 w-full">
+                    <div
+                      onClick={() => toggleDay(idx)} // Clicking the checkbox toggles the day
+                      className={`w-5 h-5 border rounded cursor-pointer flex items-center justify-center transition-all shrink-0 ${
+                        isOpen ? "bg-[#E8D1AB] border-[#E8D1AB]" : "border-[#DDDDDD]"
                       }`}
-                  >
-                    {selectedDays.includes(day) && (
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M10 3L4.5 8.5L2 6" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
+                    >
+                      {isOpen && (
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M10 3L4.5 8.5L2 6" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className={`text-sm lg:text-base ${textColor}`}>{day}</span>
                   </div>
-                  <span className={`text-sm lg:text-base ${textColor}`}>{day}</span>
-                </div>
 
-                <div className="flex items-center gap-6 w-full">
-                  <button
-                    onClick={() => toggleDay(day)}
-                    className={`w-10 h-7 rounded-lg transition-colors relative ${schedule[day].isOpen ? "bg-[#E8D1AB]" : "bg-[#484646]"
+                  {/* 2. The Toggle Switch */}
+                  <div className="flex items-center gap-6 w-full">
+                    <button
+                      onClick={() => toggleDay(idx)}
+                      className={`w-10 h-7 rounded-lg transition-colors relative ${
+                        isOpen
+                          ? "bg-[#E8D1AB]"
+                          : "bg-[#484646]"
                       }`}
-                  >
-                    <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-md transition-transform ${schedule[day].isOpen ? "translate-x-3.5" : ""
+                    >
+                      <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-md transition-transform ${
+                        isOpen ? "translate-x-3.5" : ""
                       }`} />
-                  </button>
-                  <span className={`text-sm lg:text-base ${textColor}`}>{schedule[day].isOpen ? "Open" : "Close"}</span>
-                </div>
+                    </button>
+                    <span className={`text-sm lg:text-base ${textColor}`}>{isOpen ? "Open" : "Close"}</span>
+                  </div>
 
-                <div className="flex items-center gap-6 w-full">
-                  {/* Set Hours Radio */}
-                  {
-                    schedule[day].isOpen && (
-                      <div className="flex items-center gap-2 cursor-pointer w-full" onClick={() => toggleSetHours(day)}>
-                        <CustomRadio selected={schedule[day].setHours} />
+                  {/* 3. Set Hours Radio (Switches the right panel) */}
+                  <div className="flex items-center gap-6 w-full">
+                    {isOpen && (
+                      <div
+                        className="flex items-center gap-2 w-full cursor-pointer"
+                        onClick={() => setActiveDayIdx(idx)}
+                      >
+                        <CustomRadio selected={activeDayIdx === idx} />
                         <span className={`text-sm lg:text-base ${textColor}`}>Set Hours</span>
                       </div>
-                    )
-                  }
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* Right Column: Custom Hours Form */}
+        
+                {/* Right Column: Custom Hours Form */}
         <div className={`lg:col-span-7 border ${borderColor} rounded-2xl ${cardBg}`}>
-          <div className={` p-5 flex flex-row items-center transition-colors duration-300 gap-2 border-b  rounded-2xl ${isDark ? "bg-[#171717] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
-            }`}>
+          <div className={`p-5 flex flex-row items-center transition-colors duration-300 gap-2 border-b rounded-t-2xl ${isDark ? "bg-[#171717] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"}`}>
             <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-            <p className={isDark ? "text-white" : "text-[#323232]"}>Set Custom Hours (Monday)</p>
+            <p className={textColor}>Set Custom Hours ({DAYS[activeDayIdx] || "Select a Day"})</p>
           </div>
 
           <div className="space-y-5 lg:space-y-9 p-5 pt-9">
-            <div className="relative">
-              <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                <span className={`text-sm font-medium ${subTextColor}`}>Select Studios</span>
-              </div>
-              <Select value={studio} onValueChange={(val) => setStudio(val)}>
-                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="" />
-                </SelectTrigger>
-                <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  <SelectItem value="studio1">Studio 1</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+            
+            {/* 1. Opening Time Select */}
             <div className="relative">
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
                 <span className={`text-sm font-medium ${subTextColor}`}>Select Opening Time</span>
               </div>
-              <Select value={studio} onValueChange={(val) => setStudio(val)}>
-                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="" />
+                <Select 
+                disabled={is24HoursSelected}
+                value={draftOpens} 
+                onValueChange={(val) => setDraftOpens(val)}
+              >
+                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${is24HoursSelected ? "opacity-50 cursor-not-allowed" : ""}`}>
+                  <SelectValue placeholder="Select Time" />
                 </SelectTrigger>
-                <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  <SelectItem value="studio1">Studio 1</SelectItem>
+                <SelectContent className={isDark ? "bg-[#111] text-white border-[#333]" : "bg-white"}>
+                  {timeOptions.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.value}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* 2. Closing Time Select */}
             <div className="relative">
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
                 <span className={`text-sm font-medium ${subTextColor}`}>Select Closing Time</span>
               </div>
-              <Select value={studio} onValueChange={(val) => setStudio(val)}>
-                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="" />
+              <Select 
+                value={draftCloses || undefined} 
+                disabled={is24HoursSelected} 
+                onValueChange={(val) => setDraftCloses(val)}
+              >
+                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50  ${is24HoursSelected ? "opacity-50 cursor-not-allowed" : ""} transition-all`}>
+                  <SelectValue placeholder="Select Time" />
                 </SelectTrigger>
-                <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  <SelectItem value="studio1">Studio 1</SelectItem>
+                <SelectContent className={isDark ? "bg-[#111] text-white border-[#333]" : "bg-white"}>
+                  {closingTimeOptions.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.value}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {!is24HoursSelected && !closingTimeOptions.length && (
+                <p className={`mt-2 text-xs ${subTextColor}`}>No closing times are available after the selected opening time.</p>
+              )}
             </div>
 
-            <button className="bg-[#E8D1AB] text-black text-lg lg:text-xl font-medium px-8 py-2.5 rounded-lg hover:bg-[#d9c39e] transition-colors">
-              Save
+            <button 
+              onClick={commitSelectionToMainState}
+              disabled={is24HoursSelected || !draftCloses || timeToMinutes(draftCloses) <= openingTimeMinutes}
+              className={`${is24HoursSelected || !draftCloses || timeToMinutes(draftCloses) <= openingTimeMinutes ? "opacity-50 cursor-not-allowed bg-gray-400" : "bg-[#E8D1AB]"} text-black text-lg lg:text-xl font-medium px-8 py-2.5 rounded-lg hover:bg-[#d9c39e] transition-colors `}>
+              {is24HoursSelected ? "24 Hours Active" : "Save"}
             </button>
+
+            {/* Confirmed Schedule Summary (Shows only after clicking Save) */}
+            {studioData.operating_hours?.some((h: any) => h.is_open) && (
+              <div className="mt-8 p-6 rounded-xl border border-white/10 bg-white/5">
+                <p className={`text-xs font-bold uppercase tracking-widest mb-4 opacity-50 ${textColor}`}>
+                  Confirmed Schedule
+                </p>
+                <div className="space-y-3">
+                  {DAYS.map((day, idx) => {
+                    const saved = studioData.operating_hours?.find((h: any) => h.day_of_week === idx);
+                    if (!saved || !saved.is_open) return null;
+                    const is24Hours = is24HourRange(saved.opens_at, saved.closes_at);
+                    return (
+                      <div key={day} className="flex justify-between items-center text-sm border-b border-white/5 pb-2 last:border-0">
+                        <span className={`font-medium ${textColor}`}>{day}</span>
+                        <span className="text-[#E8D1AB]">
+                          {is24Hours ? "24 Hours" : `${getTimeLabel(saved.opens_at)} - ${getTimeLabel(saved.closes_at)}`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

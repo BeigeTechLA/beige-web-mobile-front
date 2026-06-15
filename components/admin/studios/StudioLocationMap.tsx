@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Map, { Marker } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MapPin } from "lucide-react"; 
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -64,29 +65,22 @@ export default function StudioLocationMap({
 
   return (
     <Map
-      latitude={viewState.latitude}
-      longitude={viewState.longitude}
-      zoom={viewState.zoom}
+      {...viewState}
       onMove={(evt) => setViewState(evt.viewState)}
       mapStyle={mapStyle}
       mapboxAccessToken={MAPBOX_TOKEN}
       className={`h-full w-full ${className}`}
       dragRotate={false}
-      onClick={(evt) => {
-        if (!draggable || !onLocationChange) return;
-        const nextLatitude = evt.lngLat.lat;
-        const nextLongitude = evt.lngLat.lng;
-        onLocationChange(nextLatitude, nextLongitude);
-        setViewState((prev) => ({
-          ...prev,
-          latitude: nextLatitude,
-          longitude: nextLongitude,
-        }));
-      }}
+      dragPan={false}
+      scrollZoom={false}
+      doubleClickZoom={false}
+      touchZoomRotate={false}
+      keyboard={false}
     >
       <Marker
         latitude={viewState.latitude}
         longitude={viewState.longitude}
+        anchor="bottom"
         draggable={draggable}
         onDragEnd={(evt) => {
           if (!onLocationChange) return;
@@ -100,9 +94,25 @@ export default function StudioLocationMap({
           }));
         }}
       >
-        <div
-          className={`h-4 w-4 rounded-full border-2 ${isDark ? "border-[#E8D1AB] bg-[#101010] shadow-[0_0_0_6px_rgba(232,209,171,0.15)]" : "border-[#101010] bg-[#E8D1AB] shadow-[0_0_0_6px_rgba(16,16,16,0.12)]"}`}
-        />
+        {/* Container for Icon + Dot */}
+        <div className="flex flex-col items-center group cursor-pointer">
+          {/* Lucide Map Pin Icon */}
+          <MapPin
+            size={30}
+            strokeWidth={2.5}
+            className={`drop-shadow-sm transition-transform duration-200 group-hover:scale-110 ${
+              isDark ? "text-[#E8D1AB]" : "text-[#101010]"
+            }`}
+          />
+          
+          <div
+            className={`-mt-1 h-3.5 w-3.5 rounded-full border-2 transition-all duration-200 ${
+              isDark 
+                ? "border-[#E8D1AB] bg-[#101010] shadow-[0_0_0_6px_rgba(232,209,171,0.15)] group-hover:shadow-[0_0_0_8px_rgba(232,209,171,0.25)]" 
+                : "border-[#101010] bg-[#E8D1AB] shadow-[0_0_0_6px_rgba(16,16,16,0.12)] group-hover:shadow-[0_0_0_8px_rgba(16,16,16,0.2)]"
+            }`}
+          />
+        </div>
       </Marker>
     </Map>
   );
