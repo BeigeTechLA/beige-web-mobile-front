@@ -3,7 +3,7 @@ name: Deploy Frontend Staging
 on:
   push:
     branches:
-      - file-m/version
+      - staging
   workflow_dispatch:
 
 concurrency:
