@@ -4,30 +4,32 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
+  Zap,
   Video,
   Camera,
-  Scissors,
+  PenLine,
   Radio,
   MapPin,
   Package,
-  Zap,
-  Plus,
-  Trash2,
+  ChevronUp,
+  ChevronDown,
   Pencil,
+  Trash2,
+  Info,
+  RefreshCw,
+  Search,
+  Plus,
   Check,
   X,
-  Search,
   Loader2,
-  ChevronDown,
-  AlertCircle,
-  RefreshCw,
 } from "lucide-react";
-import { toast } from "sonner";
-import { salesApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { salesApi } from "@/lib/api";
 
+// ============ TYPES ============
 type SectionKey = "service" | "addon" | "logistics";
 
 interface PricingItem {
@@ -43,44 +45,7 @@ interface CatalogData {
   logistics: PricingItem[];
 }
 
-interface SectionMeta {
-  label: string;
-  sub: string;
-  rateLabel: string;
-  sectionType: string;
-  rateType: string;
-  rateUnit: string | null;
-}
-
-const SECTION_META: Record<SectionKey, SectionMeta> = {
-  service: {
-    label: "Services",
-    sub: "Per-hour rates for core production services",
-    rateLabel: "per hour",
-    sectionType: "service",
-    rateType: "per_hour",
-    rateUnit: "per hour",
-  },
-  addon: {
-    label: "Add-ons",
-    sub: "Fixed rates for optional upgrades and extras",
-    rateLabel: "fixed",
-    sectionType: "addon",
-    rateType: "fixed",
-    rateUnit: "fixed",
-  },
-  logistics: {
-    label: "Logistics",
-    sub: "Travel, equipment and permit costs",
-    rateLabel: "fixed",
-    sectionType: "logistics",
-    rateType: "fixed",
-    rateUnit: "fixed",
-  },
-};
-
-const SECTION_KEYS: SectionKey[] = ["service", "addon", "logistics"];
-
+// ============ CONSTANTS ============
 const PROTECTED_SERVICES = [
   "videography",
   "photography",
@@ -89,6 +54,31 @@ const PROTECTED_SERVICES = [
   "studio",
 ];
 
+const SECTION_META: Record<SectionKey, { label: string; sub: string; sectionType: string; rateType: string; rateUnit: string | null }> = {
+  service: {
+    label: "Services",
+    sub: "Per-Hour rates for core production services.",
+    sectionType: "service",
+    rateType: "per_hour",
+    rateUnit: "per hour",
+  },
+  addon: {
+    label: "Add-ons",
+    sub: "Fixed rates for optional upgrades and extras.",
+    sectionType: "addon",
+    rateType: "fixed",
+    rateUnit: "fixed",
+  },
+  logistics: {
+    label: "Logistics",
+    sub: "Travels, Equipment's and permit costs.",
+    sectionType: "logistics",
+    rateType: "fixed",
+    rateUnit: "fixed",
+  },
+};
+
+// ============ HELPERS ============
 const formatCurrency = (value: number) =>
   `$${value.toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -111,7 +101,7 @@ const getServiceIcon = (label: string) => {
   const normalized = label.toLowerCase();
   if (normalized.includes("video")) return Video;
   if (normalized.includes("photo")) return Camera;
-  if (normalized.includes("edit")) return Scissors;
+  if (normalized.includes("edit")) return PenLine;
   if (normalized.includes("live")) return Radio;
   if (normalized.includes("studio") || normalized.includes("location")) return MapPin;
   return Zap;
@@ -128,16 +118,22 @@ const getSectionIcon = (section: SectionKey) => {
   }
 };
 
-interface ItemRowProps {
+// ============ SERVICE ROW COMPONENT ============
+const ServiceRow = ({
+  item,
+  section,
+  onSave,
+  onDelete,
+  isProtected,
+  isDark = true,
+}: {
   item: PricingItem;
   section: SectionKey;
   onSave: (id: string, name: string, rate: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   isProtected: boolean;
   isDark?: boolean;
-}
-
-function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }: ItemRowProps) {
+}) => {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.label);
   const [price, setPrice] = useState(item.price.toFixed(2));
@@ -176,31 +172,25 @@ function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }
   };
 
   const ServiceIcon = section === "service" ? getServiceIcon(item.label) : getSectionIcon(section);
+  const unitLabel = SECTION_META[section].rateUnit === "per hour" ? "per hour" : "fixed";
 
   return (
     <div
-      className={`group rounded-lg border px-4 py-3 transition-all duration-200 ${editing
+      className={`group rounded-[16px] min-h-[64px] px-4 py-3 transition-all duration-200 ${editing
         ? isDark
-          ? "border-[#8E826A]/50 bg-black/80"
-          : "border-zinc-400 bg-zinc-50"
+          ? "bg-[#1a1a1a] border border-[rgba(229,208,166,0.3)]"
+          : "bg-zinc-50 border border-zinc-300"
         : isDark
-          ? "border-[#3D3D3D] bg-black hover:border-white/20"
-          : "border-[#D7D7D7] bg-[#F4F5F7] hover:border-zinc-300"
+          ? "bg-[#000000] hover:bg-[#0a0a0a]"
+          : "bg-white hover:bg-zinc-50 border border-zinc-200"
         }`}
     >
       <div className="flex items-center gap-3">
         {/* Icon Area */}
-        <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-all ${editing
-            ? isDark
-              ? "border border-[#8E826A]/30 bg-[#2A251E] text-[#E8D1AB]"
-              : "border border-zinc-300 bg-zinc-200 text-zinc-800"
-            : isDark
-              ? "bg-[#302E2E] text-[#E8D1AB]"
-              : "bg-zinc-100 text-zinc-700"
-            }`}
-        >
-          <ServiceIcon size={16} />
+        <div className={`w-[36px] h-[36px] rounded-[8px] flex items-center justify-center flex-shrink-0 ${isDark ? "bg-[#302E2E]" : "bg-zinc-100"}`}>
+          <span className={isDark ? "text-[#E5D0A6]" : "text-zinc-700"}>
+            <ServiceIcon className="w-4 h-4" />
+          </span>
         </div>
 
         {/* Name and Meta text */}
@@ -212,134 +202,158 @@ function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }
               onChange={(e) => setName(e.target.value.slice(0, 80))}
               onKeyDown={handleKeyDown}
               maxLength={80}
-              className={`h-10 rounded-xl text-sm transition-colors ${isDark
-                ? "border-white/10 bg-[#0F0F0F] text-white placeholder:text-white/30 focus:border-[#8E826A]"
-                : "border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500"
+              className={`h-9 rounded-lg text-sm focus:border-[#E5D0A6] ${isDark
+                ? "bg-[#0F0F0F] border-white/10 text-white"
+                : "bg-white border-zinc-300 text-zinc-900"
                 }`}
             />
           ) : (
-            <div className="flex min-w-0 items-center gap-3">
-              <span className={`min-w-0 truncate text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-zinc-900"}`}>
+            <div className="flex items-center gap-2">
+              <span className={`text-[14px] font-semibold truncate ${isDark ? "text-white" : "text-zinc-900"}`}>
                 {item.label}
               </span>
-              {isProtected ? (
-                <span className={`hidden shrink-0 items-center justify-center self-center rounded-full border px-2.5 py-1 leading-none text-[10px] font-semibold capitalize tracking-wider sm:inline-flex ${isDark ? "border-[#E8D1AB26] bg-[#E8D1AB26] text-[#E8D1AB]" : "border-zinc-300 bg-zinc-100 text-zinc-700"}`}>
+              {isProtected && (
+                <span className={`px-2 py-0.5 rounded-[46px] text-[11px] font-medium flex-shrink-0 ${isDark
+                  ? "bg-[rgba(229,208,166,0.12)] text-[#E5D0A6]"
+                  : "bg-zinc-100 text-zinc-700"
+                  }`}>
                   Default
                 </span>
-              ) : null}
+              )}
             </div>
           )}
-          <p className={`text-xs ${isDark ? "text-white/40" : "text-zinc-400"} ${editing ? "hidden" : "mt-0.5"}`}>
-            {SECTION_META[section].rateLabel}
-          </p>
+          {!editing && (
+            <span className={`text-[12px] ${isDark ? "text-[rgba(255,255,255,0.45)]" : "text-zinc-500"}`}>
+              {unitLabel}
+            </span>
+          )}
         </div>
 
         {/* Desktop Price Display */}
         <div className={`hidden lg:block shrink-0 ${editing ? "w-24 sm:w-28" : "w-24 text-right sm:w-32"}`}>
           {editing ? (
             <div className="relative">
-              <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>$</span>
+              <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>
+                $
+              </span>
               <Input
                 value={price}
                 onChange={(e) => setPrice(sanitizeCurrencyInput(e.target.value))}
                 onKeyDown={handleKeyDown}
                 inputMode="decimal"
-                className={`h-10 rounded-xl pl-6 text-sm font-semibold ${isDark
-                  ? "border-white/10 bg-[#0F0F0F] text-[#E8D1AB] focus:border-[#8E826A]"
-                  : "border-zinc-300 bg-white text-zinc-900 focus:border-zinc-500"
+                className={`h-9 rounded-lg pl-6 text-sm font-semibold focus:border-[#E5D0A6] ${isDark
+                  ? "bg-[#0F0F0F] border-white/10 text-[#E5D0A6]"
+                  : "bg-white border-zinc-300 text-zinc-900"
                   }`}
               />
             </div>
           ) : (
-            <span className={`lg:text-lg font-bold tabular-nums ${isDark ? "text-[#E8D1AB]" : "text-zinc-900"}`}>
+            <span className={`text-[18px] font-semibold tabular-nums ${isDark ? "text-[#E5D0A6]" : "text-zinc-900"}`}>
               {formatCurrency(item.price)}
             </span>
           )}
         </div>
 
-        {/* Control Button Actions */}
-        <div className={`flex shrink-0 items-center justify-end gap-2 lg:pl-2.5 ${editing ? "w-20" : "w-[4.5rem] sm:w-18"}`}>
+        {/* Control Button Actions - FIXED WIDTH (w-20 = 80px) to prevent layout shift */}
+        <div className="flex shrink-0 items-center justify-end gap-2 lg:pl-2.5 w-25">
           {editing ? (
             <>
               <button
                 onClick={handleCancel}
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isDark ? "bg-[#161616] text-white/50 hover:text-white" : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"}`}
+                className={`w-[34px] h-[34px] rounded-[8px] flex items-center justify-center transition-colors ${isDark
+                  ? "bg-[#141414] border border-[rgba(255,255,255,0.06)] hover:bg-[#1a1a1a] text-[rgba(255,255,255,0.7)]"
+                  : "bg-zinc-200 border border-zinc-300 hover:bg-zinc-300 text-zinc-600"
+                  }`}
               >
-                <X size={14} />
+                <X className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving || !name.trim()}
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all disabled:opacity-50 ${isDark
-                  ? "border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] hover:bg-[#1E381E]"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                className={`w-[34px] h-[34px] rounded-[8px] flex items-center justify-center transition-colors disabled:opacity-50 ${isDark
+                  ? "bg-[#1A2E1A] border border-[#2D4A2D] hover:bg-[#1E381E] text-[#4ADE80]"
+                  : "bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-600"
                   }`}
               >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
+                {saving ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                )}
               </button>
             </>
           ) : (
             <>
               <button
                 onClick={() => setEditing(true)}
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all ${isDark
-                  ? "bg-[#161616] text-white/55 hover:text-[#E8D1AB] sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
-                  : "bg-zinc-100 text-zinc-600 hover:text-zinc-900 sm:border-transparent sm:bg-transparent sm:text-zinc-400 sm:opacity-0 sm:group-hover:border-zinc-200 sm:group-hover:bg-zinc-100 sm:group-hover:opacity-100"
+                className={`w-[34px] h-[34px] rounded-[8px] flex items-center justify-center transition-colors ${isDark
+                  ? "bg-[#141414] border border-[rgba(255,255,255,0.06)] hover:bg-[#1a1a1a] text-[rgba(255,255,255,0.7)]"
+                  : "bg-zinc-100 border border-zinc-200 hover:bg-zinc-200 text-zinc-600"
                   }`}
               >
-                <Pencil size={14} />
+                <Pencil className="w-3.5 h-3.5" />
               </button>
-              {!isProtected ? (
+              {!isProtected && (
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all disabled:opacity-50 ${isDark
-                    ? "bg-[#161616] text-white/55 hover:text-[#EF4444] sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
-                    : "bg-white text-zinc-600 hover:text-red-600 sm:border-transparent sm:bg-transparent sm:text-zinc-400 sm:opacity-0 sm:group-hover:border-zinc-200 sm:group-hover:bg-zinc-100 sm:group-hover:opacity-100"
+                  className={`w-[34px] h-[34px] rounded-[8px] flex items-center justify-center transition-colors disabled:opacity-50 ${isDark
+                    ? "bg-[#141414] border border-[rgba(255,255,255,0.06)] hover:bg-[#2a1a1a] text-[rgba(255,255,255,0.7)] hover:text-[#EF4444]"
+                    : "bg-zinc-100 border border-zinc-200 hover:bg-red-50 text-zinc-600 hover:text-red-600"
                     }`}
                 >
-                  {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  {deleting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
                 </button>
-              ) : null}
+              )}
             </>
           )}
         </div>
       </div>
 
-      {/* Mobile only */}
-      <div className={`lg:hidden shrink-0 mt-5 ${editing ? "w-24 sm:w-28" : "w-24 sm:w-32"}`}>
+      {/* Mobile only Price Display */}
+      <div className="lg:hidden shrink-0 mt-5 w-full sm:w-32">
         {editing ? (
-          <div className="relative">
-            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>$</span>
+          <div className="relative w-full">
+            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>
+              $
+            </span>
             <Input
               value={price}
               onChange={(e) => setPrice(sanitizeCurrencyInput(e.target.value))}
               onKeyDown={handleKeyDown}
               inputMode="decimal"
-              className={`h-10 rounded-xl pl-6 text-sm font-semibold ${isDark
-                ? "border-white/10 bg-[#0F0F0F] text-[#E8D1AB] focus:border-[#8E826A]"
-                : "border-zinc-300 bg-white text-zinc-900 focus:border-zinc-500"
+              className={`h-9 rounded-lg pl-6 text-sm font-semibold w-full focus:border-[#E5D0A6] ${isDark
+                ? "bg-[#0F0F0F] border-white/10 text-[#E5D0A6]"
+                : "bg-white border-zinc-300 text-zinc-900"
                 }`}
             />
           </div>
         ) : (
-          <span className={`font-bold tabular-nums ${isDark ? "text-[#E8D1AB]" : "text-zinc-900"}`}>
+          <span className={`text-[18px] font-semibold tabular-nums ${isDark ? "text-[#E5D0A6]" : "text-zinc-900"}`}>
             {formatCurrency(item.price)}
           </span>
         )}
       </div>
     </div>
   );
-}
+};
 
-interface AddItemFormProps {
+// ============ ADD ITEM FORM COMPONENT ============
+const AddItemForm = ({
+  section,
+  onAdd,
+  onClose,
+  isDark = true,
+}: {
   section: SectionKey;
   onAdd: (name: string, rate: number) => Promise<void>;
   onClose: () => void;
   isDark?: boolean;
-}
-
-function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProps) {
+}) => {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -364,24 +378,18 @@ function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProp
   const meta = SECTION_META[section];
 
   return (
-    <div
-      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 animate-in fade-in slide-in-from-top-2 duration-200 ${isDark
-          ? "border-[#8E826A]/25 bg-[#1D1A15]"
-          : "border-zinc-200 bg-zinc-50"
-        }`}
-    >
-      {/* Plus Icon Container */}
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${isDark
-            ? "border-[#8E826A]/25 bg-[#2A251E] text-[#E8D1AB]"
-            : "border-zinc-300 bg-zinc-200 text-zinc-700"
-          }`}
-      >
-        <Plus size={14} strokeWidth={3} />
+    <div className={`rounded-[16px] px-4 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-200 ${isDark
+      ? "border border-[rgba(229,208,166,0.2)] bg-[#1D1A15]"
+      : "border border-zinc-200 bg-zinc-50"
+      }`}>
+      <div className={`w-[36px] h-[36px] rounded-[8px] flex items-center justify-center flex-shrink-0 ${isDark
+        ? "bg-[#2A251E] border border-[rgba(229,208,166,0.2)] text-[#E5D0A6]"
+        : "bg-zinc-200 border border-zinc-300 text-zinc-700"
+        }`}>
+        <Plus className="w-4 h-4" strokeWidth={3} />
       </div>
 
-      {/* Name Input */}
-      <div className="min-w-0 flex-1">
+      <div className="flex-1 min-w-0">
         <Input
           ref={nameRef}
           value={name}
@@ -389,167 +397,215 @@ function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProp
           onKeyDown={handleKeyDown}
           placeholder={`Enter ${meta.label.slice(0, -1).toLowerCase()} name...`}
           maxLength={80}
-          className={`h-10 rounded-xl text-sm transition-colors ${isDark
-              ? "border-white/10 bg-[#0F0F0F] text-white placeholder:text-white/30 focus:border-[#8E826A]"
-              : "border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500"
+          className={`h-9 rounded-lg text-sm focus:border-[#E5D0A6] ${isDark
+            ? "bg-[#0F0F0F] border-white/10 text-white placeholder:text-white/30"
+            : "bg-white border-zinc-300 text-zinc-900 placeholder:text-zinc-400"
             }`}
         />
       </div>
 
-      {/* Price Input Container */}
-      <div className="relative w-28 shrink-0">
-        <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>$</span>
+      <div className="relative w-[100px] flex-shrink-0">
+        <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"
+          }`}>
+          $
+        </span>
         <Input
           value={price}
           onChange={(e) => setPrice(sanitizeCurrencyInput(e.target.value))}
           onKeyDown={handleKeyDown}
           placeholder="0.00"
           inputMode="decimal"
-          className={`h-10 rounded-xl pl-6 text-sm font-semibold transition-colors ${isDark ? "border-white/10 bg-[#0F0F0F] text-[#E8D1AB] placeholder:text-white/30 focus:border-[#8E826A]" : "border-zinc-300 bg-white text-black placeholder:text-[#0000004D] focus:border-[#00000080]"}`}
+          className={`h-9 rounded-lg pl-6 text-sm font-semibold focus:border-[#E5D0A6] ${isDark
+            ? "bg-[#0F0F0F] border-white/10 text-[#E5D0A6] placeholder:text-white/30"
+            : "bg-white border-zinc-300 text-zinc-900 placeholder:text-zinc-400"
+            }`}
         />
       </div>
 
-      {/* Action Controls */}
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <button
           onClick={onClose}
-          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-colors ${isDark
-              ? "border-white/10 bg-[#1B1B1B] text-white/50 hover:text-white"
-              : "border-zinc-200 bg-zinc-200 text-zinc-600 hover:bg-zinc-300 hover:text-zinc-900"
+          className={`w-[34px] h-[34px] rounded-[8px] flex items-center justify-center transition-colors ${isDark
+            ? "bg-[#141414] border border-[rgba(255,255,255,0.06)] hover:bg-[#1a1a1a] text-[rgba(255,255,255,0.7)]"
+            : "bg-zinc-200 border border-zinc-300 hover:bg-zinc-300 text-zinc-600"
             }`}
         >
-          <X size={14} />
+          <X className="w-3.5 h-3.5" />
         </button>
-
         <button
           onClick={handleAdd}
           disabled={saving || !name.trim() || !price}
-          className={`flex h-8 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${isDark
-              ? "border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] hover:bg-[#1E381E]"
-              : "border-[#0DC752] bg-[#0DC752] text-black hover:bg-[#0DC752]/80"
+          className={`h-[34px] px-3 rounded-[8px] flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark
+            ? "bg-[#1A2E1A] border border-[#2D4A2D] hover:bg-[#1E381E] text-[#4ADE80]"
+            : "bg-emerald-500 border border-emerald-500 hover:bg-emerald-600 text-white"
             }`}
         >
-          {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={3} />}
-          {saving ? "Adding..." : "Add"}
+          {saving ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+          )}
+          <span className="text-xs font-semibold">
+            {saving ? "Adding..." : "Add"}
+          </span>
         </button>
       </div>
     </div>
   );
-}
+};
 
-interface PricingSectionProps {
-  section: SectionKey;
-  items: PricingItem[];
-  onSave: (id: string, name: string, rate: number) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-  onAdd: (section: SectionKey, name: string, rate: number) => Promise<void>;
-  searchQuery: string;
-  defaultExpanded?: boolean;
-  isDark?: boolean;
-}
-
-function PricingSection({
-  section,
+// ============ ACCORDION SECTION COMPONENT ============
+const AccordionSectionComponent = ({
+  sectionKey,
   items,
   onSave,
   onDelete,
   onAdd,
   searchQuery,
-  defaultExpanded = true,
-  isDark = true
-}: PricingSectionProps) {
+  isExpanded,
+  onToggle,
+  isDark = true,
+}: {
+  sectionKey: SectionKey;
+  items: PricingItem[];
+  onSave: (id: string, name: string, rate: number) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onAdd: (section: SectionKey, name: string, rate: number) => Promise<void>;
+  searchQuery: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isDark?: boolean;
+}) => {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const meta = SECTION_META[section];
-  const Icon = getSectionIcon(section);
+  const meta = SECTION_META[sectionKey];
+  const Icon = getSectionIcon(sectionKey);
+
   const filtered = items.filter((item) =>
     item.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const avgPrice = items.length ? items.reduce((sum, item) => sum + item.price, 0) / items.length : 0;
+
+  const avgPrice = items.length
+    ? items.reduce((sum, item) => sum + item.price, 0) / items.length
+    : 0;
 
   return (
-    <div className={`overflow-hidden rounded-lg lg:rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.18)] p-4 lg:p-6 transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
-      <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between transition-colors duration-100`}>
+    <div className={`rounded-[16px] overflow-hidden border transition-colors ${isDark
+      ? "bg-[#151515] border-[rgba(255,255,255,0.08)]"
+      : "bg-white border-zinc-200"
+      }`}>
+      <div className="px-5 py-4 flex items-center justify-between">
         <button
-          onClick={() => setExpanded((prev) => !prev)}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          onClick={onToggle}
+          className="flex items-center gap-3 flex-1 text-left"
         >
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors ${isDark ? "bg-[#302E2E] text-[#E8D1AB]" : "bg-[#E8D1AB] text-black"}`}>
-            <Icon size={24} />
+          <div className={`w-[36px] h-[36px] rounded-[8px] flex items-center justify-center flex-shrink-0 border ${isDark
+            ? "bg-[#302E2E] border-[rgba(255,255,255,0.06)] text-[#E5D0A6]"
+            : "bg-zinc-100 border-zinc-200 text-zinc-700"
+            }`}>
+            <Icon className="w-4 h-4" />
           </div>
-
-          <div className="min-w-0 flex-1">
+          <div>
             <div className="flex items-center gap-2">
-              <h2 className={`text-sm lg:text-base font-semibold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>{meta.label}</h2>
-              <span className={`rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-semibold transition-colors ${isDark ? "bg-[#302E2E] text-white/60" : "bg-zinc-200 text-zinc-600"}`}>
+              <h3 className={`text-[16px] font-semibold ${isDark ? "text-white" : "text-zinc-900"
+                }`}>
+                {meta.label}
+              </h3>
+              <span className={`w-[20px] h-[20px] rounded-[48px] flex items-center justify-center text-[11px] font-medium ${isDark
+                ? "bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)]"
+                : "bg-zinc-200 text-zinc-600"
+                }`}>
                 {items.length}
               </span>
             </div>
-            <p className={`mt-0.5 text-xs lg:text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>{meta.sub}</p>
+            <p className={`text-[13px] mt-0.5 ${isDark ? "text-[rgba(255,255,255,0.5)]" : "text-zinc-500"
+              }`}>
+              {meta.sub}
+            </p>
           </div>
-
-          <ChevronDown
-            className={`w-5 h-5 lg:w-7 lg:h-7 ml-auto shrink-0 transition-all duration-300 ${isDark ? "text-white/40" : "text-zinc-400"} ${expanded ? "rotate-180" : ""}`}
-          />
         </button>
 
-        <div className="flex w-full items-center justify-between gap-4 sm:w-auto sm:justify-end">
-          {items.length > 0 ? (
-            <span className={`text-lg ${isDark ? "text-white/50" : "text-zinc-400"}`}>
-              avg <span className={`font-semibold ${isDark ? "text-[#E8D1AB]" : "text-zinc-900"}`}>{formatCurrency(avgPrice)}</span>
-            </span>
-          ) : null}
-
-          <Button
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onToggle}
+            className={`transition-colors ${isDark
+              ? "text-[rgba(255,255,255,0.6)] hover:text-white"
+              : "text-zinc-400 hover:text-zinc-600"
+              }`}
+          >
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
+          {items.length > 0 && (
+            <div className={`text-[14px] ${isDark ? "text-[rgba(255,255,255,0.5)]" : "text-zinc-500"
+              }`}>
+              avg{" "}
+              <span className={`text-[18px] font-normal ${isDark ? "text-[#E5D0A6]" : "text-zinc-900"
+                }`}>
+                {formatCurrency(avgPrice)}
+              </span>
+            </div>
+          )}
+          <button
             onClick={() => {
-              setExpanded(true);
-              setShowAddForm((prev) => !prev);
+              if (!isExpanded) {
+                onToggle();
+                setTimeout(() => setShowAddForm(true), 100);
+              } else {
+                setShowAddForm((prev) => !prev);
+              }
             }}
-            className={`h-10 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-sm font-semibold transition-all ${showAddForm
+            className={`h-[38px] px-4 rounded-[8px] font-semibold text-[13px] flex items-center gap-1.5 transition-colors ${showAddForm
               ? isDark
-                ? "border border-white/10 bg-[#24201A] text-[#E8D1AB] hover:bg-[#2B261F]"
-                : "border border-zinc-200 bg-zinc-100 text-zinc-800 hover:bg-zinc-200"
+                ? "bg-[#24201A] border border-white/10 text-[#E5D0A6] hover:bg-[#2B261F]"
+                : "bg-zinc-100 border border-zinc-200 text-zinc-700 hover:bg-zinc-200"
               : isDark
-                ? "border border-[#E5D5B8] bg-[#E5D5B8] text-black hover:bg-[#d9c8a6]"
-                : "border border-black bg-black text-white hover:bg-zinc-900"
+                ? "bg-[#E5D0A6] text-black hover:bg-[#d4bf96]"
+                : "bg-zinc-900 text-white hover:bg-zinc-800"
               }`}
           >
             {showAddForm ? (
               <>
-                <X size={13} /> Cancel
+                <X className="w-3.5 h-3.5" /> Cancel
               </>
             ) : (
               <>
-                <Plus size={13} strokeWidth={3} /> Add New
+                <Plus className="w-3.5 h-3.5" /> Add New
               </>
             )}
-          </Button>
+          </button>
         </div>
       </div>
 
-      {expanded ? (
+      {isExpanded && (
         <>
-          <hr className={` my-4 lg:my-6 ${isDark ? "border-white/10" : "border-black/10"}`} />
-          <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-            {showAddForm ? (
+          <div className={`mx-5 border-t ${isDark ? "border-[rgba(255,255,255,0.08)]" : "border-zinc-200"
+            }`} />
+          <div className="p-5 pt-4 space-y-2.5">
+            {showAddForm && (
               <AddItemForm
-                section={section}
+                section={sectionKey}
                 onAdd={async (name, rate) => {
-                  await onAdd(section, name, rate);
+                  await onAdd(sectionKey, name, rate);
                   setShowAddForm(false);
                 }}
                 onClose={() => setShowAddForm(false)}
                 isDark={isDark}
               />
-            ) : null}
+            )}
 
             {filtered.length === 0 && !showAddForm ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${isDark ? "border-white/10 bg-[#202020] text-white/30" : "border-zinc-200 bg-zinc-50 text-zinc-400"
+                <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-full border ${isDark
+                  ? "border-white/10 bg-[#202020] text-white/30"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-400"
                   }`}>
-                  <Icon size={20} />
+                  <Icon className="w-5 h-5" />
                 </div>
-                <p className={`text-sm ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                <p className={`text-sm ${isDark ? "text-white/50" : "text-zinc-500"
+                  }`}>
                   {searchQuery
                     ? `No results for "${searchQuery}"`
                     : "No items yet. Click Add New to get started."}
@@ -557,28 +613,30 @@ function PricingSection({
               </div>
             ) : (
               filtered.map((item) => (
-                <ItemRow
+                <ServiceRow
                   key={item.id}
                   item={item}
-                  section={section}
+                  section={sectionKey}
                   onSave={onSave}
                   onDelete={onDelete}
+                  isProtected={sectionKey === "service" && isProtectedService(item.label)}
                   isDark={isDark}
-                  isProtected={section === "service" && isProtectedService(item.label)}
                 />
               ))
             )}
           </div>
         </>
-      ) : null}
+      )}
     </div>
   );
-}
+};
 
+// ============ MAIN PAGE COMPONENT ============
 export default function QuotePricingPage() {
   const pathname = usePathname();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
   const [data, setData] = useState<CatalogData>({
     service: [],
     addon: [],
@@ -586,12 +644,18 @@ export default function QuotePricingPage() {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | SectionKey>("all");
-  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    service: true,
+    addon: false,
+    logistics: false,
+  });
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Determine if dark mode based on theme
   const isDark = !mounted || theme === "dark";
 
   const fetchCatalog = useCallback(async () => {
@@ -636,7 +700,9 @@ export default function QuotePricingPage() {
 
   const handleSave = useCallback(
     async (id: string, name: string, rate: number) => {
-      const section = SECTION_KEYS.find((key) => data[key].some((item) => item.id === id));
+      const section = (["service", "addon", "logistics"] as SectionKey[]).find((key) =>
+        data[key].some((item) => item.id === id)
+      );
       if (!section) return;
 
       const meta = SECTION_META[section];
@@ -670,7 +736,9 @@ export default function QuotePricingPage() {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const section = SECTION_KEYS.find((key) => data[key].some((item) => item.id === id));
+      const section = (["service", "addon", "logistics"] as SectionKey[]).find((key) =>
+        data[key].some((item) => item.id === id)
+      );
       const item = section ? data[section].find((entry) => entry.id === id) : null;
 
       if (!section || !item) return;
@@ -721,6 +789,7 @@ export default function QuotePricingPage() {
           ...prev,
           [section]: [...prev[section], newItem],
         }));
+        setExpandedSections((prev) => ({ ...prev, [section]: true }));
         toast.success(`${name} added to ${meta.label}`);
       } else {
         toast.error("Failed to add item");
@@ -730,101 +799,129 @@ export default function QuotePricingPage() {
     }
   }, []);
 
+  const toggleSection = (id: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
   const totalItems = Object.values(data).flat().length;
-  const visibleSections: SectionKey[] = activeTab === "all" ? SECTION_KEYS : [activeTab];
-  const tabs: Array<{ key: "all" | SectionKey; label: string; count: number }> = [
-    { key: "all", label: "All", count: totalItems },
-    { key: "service", label: "Services", count: data.service.length },
-    { key: "addon", label: "Add-ons", count: data.addon.length },
-    { key: "logistics", label: "Logistics", count: data.logistics.length },
+  const visibleSections: SectionKey[] = activeTab === "all" ? ["service", "addon", "logistics"] : [activeTab];
+
+  const tabs = [
+    { id: "all" as const, label: "All", count: totalItems },
+    { id: "service" as const, label: "Services", count: data.service.length },
+    { id: "addon" as const, label: "Add Ons", count: data.addon.length },
+    { id: "logistics" as const, label: "Logistics", count: data.logistics.length },
   ];
 
   return (
-    <>
+    <div
+      className={`min-h-screen transition-colors ${isDark ? "bg-[#0a0a0a] text-white" : "bg-white text-zinc-900"
+        }`}
+      style={{ fontFamily: '"Instrument Sans", sans-serif' }}
+    >
       <Topbar
         pathname={pathname}
         breadcrumbOverrides={{ create: "Master Pricing" }}
         actions={
-          <Button
-            onClick={fetchCatalog}
-            disabled={loading}
-            className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors ${isDark ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10" : "border border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E3E3E3]"}`}
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={fetchCatalog}
+              disabled={loading}
+              className={`text-[14px] font-medium h-[48px] rounded-[8px] transition-colors ${isDark
+                ? "text-white bg-[#202020] border border-white/20 hover:bg-white/10"
+                : "text-zinc-700 bg-zinc-100 border border-zinc-200 hover:bg-zinc-200"
+                }`}
+            >
+              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </Button>
+          </div>
         }
       />
 
-      <div
-        className="overflow-hidden p-4 pb-20 lg:p-6 lg:px-10 lg:py-9 space-y-6"
-        style={{ fontFamily: "var(--font-instrument-sans)" }}
-      >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1
-              className={`mb-1 text-lg font-semibold transition-colors duration-100 lg:text-2xl lg:leading-[32px] ${isDark ? "text-white" : "text-black"}`}
-            >
-              Master Pricing
-            </h1>
-            <p
-              className={`text-xs transition-colors duration-100 lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}
-            >
-              Manage default quote pricing for services, add-ons, and logistics in one place.
-            </p>
+      <main className="relative overflow-hidden">
+        <div className="px-8 py-8 max-w-[1400px]">
+          {/* Header Section */}
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h1 className={`text-[24px] font-semibold leading-tight tracking-tight ${isDark ? "text-white" : "text-zinc-900"
+                }`}>
+                Master Pricing
+              </h1>
+              <p className={`text-[14px] mt-1.5 ${isDark ? "text-[rgba(255,255,255,0.55)]" : "text-zinc-500"
+                }`}>
+                Manage default quote pricing for services, add-ons, and logistics in one place.
+              </p>
+            </div>
+            <div className={`w-[110px] h-[60px] rounded-[16px] border flex flex-col items-center justify-center transition-colors ${isDark
+              ? "border-[rgba(255,255,255,0.1)] bg-[#151515]"
+              : "border-zinc-200 bg-zinc-50"
+              }`}>
+              <span className={`text-[20px] font-semibold ${isDark ? "text-[#E5D0A6]" : "text-zinc-900"
+                }`}>
+                {totalItems}
+              </span>
+              <span className={`text-[12px] mt-0.5 ${isDark ? "text-[rgba(255,255,255,0.5)]" : "text-zinc-500"
+                }`}>
+                Total Items
+              </span>
+            </div>
           </div>
 
-          <div className={`rounded-lg lg:rounded-2xl border px-4 py-3 text-center shadow-[0_8px_30px_rgba(0,0,0,0.12)] lg:min-w-32 transition-colors duration-100 ${isDark ? "border-[#807E7E] bg-[#171717]" : "border-[#DFDDDD] bg-white"}`}>
-            <p className={`text-lg font-semibold leading-none ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{totalItems}</p>
-            <p className={`text-xs ${isDark ? "text-[#FFFFFF99]" : "text-[#000000B2]"}`}>Total Items</p>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Search Input Wrapper */}
-            <div className="relative w-full max-w-md">
-              <Search
-                size={15}
-                className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-zinc-400"}`}
-              />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+          {/* Search and Filters */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className="relative flex-1 max-w-[600px]">
+              <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? "text-[rgba(255,255,255,0.4)]" : "text-zinc-400"
+                }`} />
+              <input
+                type="text"
                 placeholder="Search pricing items..."
-                className={`h-11 rounded-lg lg:rounded-2xl text-sm pl-9 transition-colors duration-100 ${isDark
-                  ? "border-white/10 bg-[#111111] text-white placeholder:text-white/30 focus:border-[#8E826A]"
-                  : "border-zinc-200 bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full h-[44px] rounded-[16px] pl-10 pr-4 text-[14px] focus:outline-none transition-colors ${isDark
+                  ? "bg-[#151515] border border-[rgba(255,255,255,0.08)] text-white placeholder:text-[rgba(255,255,255,0.35)] focus:border-[rgba(229,208,166,0.3)]"
+                  : "bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400"
                   }`}
               />
-              {search ? (
+              {searchQuery && (
                 <button
-                  onClick={() => setSearch("")}
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${isDark ? "text-white/35 hover:text-white/70" : "text-zinc-400 hover:text-zinc-600"}`}
-                >
-                  <X size={14} />
-                </button>
-              ) : null}
-            </div>
-
-            {/* Tabs Row */}
-            <div className="flex flex-wrap gap-2">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 rounded-lg lg:rounded-2xl border px-4 py-2 text-sm font-medium transition-all ${activeTab === tab.key
-                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-[#101010]"
-                    : isDark
-                      ? "border-white/10 bg-[#111111] text-white/70 hover:border-white/20 hover:text-white"
-                      : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                  onClick={() => setSearchQuery("")}
+                  className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors ${isDark
+                    ? "text-[rgba(255,255,255,0.4)] hover:text-white/70"
+                    : "text-zinc-400 hover:text-zinc-600"
                     }`}
                 >
-                  {tab.label}
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`h-[44px] px-4 rounded-[16px] flex items-center gap-2 text-[14px] font-medium transition-colors ${activeTab === tab.id
+                    ? isDark
+                      ? "bg-[#E5D0A6] text-black"
+                      : "bg-zinc-900 text-white"
+                    : isDark
+                      ? "bg-[#151515] border border-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.75)] hover:bg-[#1a1a1a]"
+                      : "bg-zinc-50 border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                    }`}
+                >
+                  <span>{tab.label}</span>
                   <span
-                    className={`rounded-sm lg:rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-colors ${activeTab === tab.key
-                      ? "bg-[#FFFFFF4D] [#101010]"
-                      : isDark ? "bg-white/5 text-white/50" : "bg-zinc-200/60 text-zinc-500"
+                    className={`w-[24px] px-1.5 py-0.5 rounded-[8px] text-[11px] font-medium ${activeTab === tab.id
+                      ? isDark
+                        ? "bg-black/15 text-black"
+                        : "bg-white/20 text-white"
+                      : isDark
+                        ? "bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)]"
+                        : "bg-zinc-200 text-zinc-600"
                       }`}
                   >
                     {tab.count}
@@ -834,68 +931,69 @@ export default function QuotePricingPage() {
             </div>
           </div>
 
-          {search ? (
-            <p className={`mt-3 text-sm ${isDark ? "text-white/50" : "text-zinc-400"}`}>
+          {searchQuery && (
+            <p className={`mb-3 text-sm ${isDark ? "text-white/50" : "text-zinc-500"
+              }`}>
               Searching across all sections
             </p>
-          ) : null}
-        </div>
+          )}
 
-        {/* Loader / Content Area */}
-        {loading ? (
-          <div className={`flex flex-col items-center justify-center gap-4 rounded-3xl border py-24 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"
-            }`}>
-            <Loader2 size={32} className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-zinc-800"}`} />
-            <p className={`text-sm ${isDark ? "text-white/55" : "text-zinc-500"}`}>Loading pricing data...</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {visibleSections.map((section) => (
-              <PricingSection
-                key={section}
-                section={section}
-                items={data[section]}
-                onSave={handleSave}
-                onDelete={handleDelete}
-                onAdd={handleAdd}
-                searchQuery={search}
-                defaultExpanded={activeTab !== "all" || section === "service"}
-                isDark={isDark}
-              />
-            ))}
+          {/* Accordion Sections */}
+          {loading ? (
+            <div className={`flex flex-col items-center justify-center gap-4 rounded-[16px] border py-24 transition-colors ${isDark
+              ? "border-white/10 bg-[#151515]"
+              : "border-zinc-200 bg-zinc-50"
+              }`}>
+              <Loader2 size={32} className={`animate-spin ${isDark ? "text-[#E5D0A6]" : "text-zinc-600"
+                }`} />
+              <p className={`text-sm ${isDark ? "text-white/55" : "text-zinc-500"
+                }`}>
+                Loading pricing data...
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {visibleSections.map((sectionKey) => (
+                <AccordionSectionComponent
+                  key={sectionKey}
+                  sectionKey={sectionKey}
+                  items={data[sectionKey]}
+                  onSave={handleSave}
+                  onDelete={handleDelete}
+                  onAdd={handleAdd}
+                  searchQuery={searchQuery}
+                  isExpanded={expandedSections[sectionKey]}
+                  onToggle={() => toggleSection(sectionKey)}
+                  isDark={isDark}
+                />
+              ))}
 
-            {/* Sync Footer Banner */}
-            <div className={`flex items-start gap-3 rounded-lg lg:rounded-3xl border p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"}`}>
-              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg lg:rounded-2xl transition-colors ${isDark ? "bg-[#302E2E] text-[#E8D1AB]" : "bg-[#E8D1AB] text-black"}`}>
-                <AlertCircle size={24} />
-              </div>
-              <div>
-                <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>
-                  Prices sync automatically
-                </p>
-                <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>
-                  Any rate you update here becomes the default for new quotes. Existing saved quotes stay unchanged.
-                </p>
+              {/* Price Sync Card */}
+              <div className={`mt-4 rounded-[16px] px-5 py-4 flex items-center gap-4 border transition-colors ${isDark
+                ? "bg-[#151515] border-[rgba(255,255,255,0.08)]"
+                : "bg-zinc-50 border-zinc-200"
+                }`}>
+                <div className={`w-[36px] h-[36px] rounded-[8px] flex items-center justify-center flex-shrink-0 border ${isDark
+                  ? "bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.06)] text-[#E5D0A6]"
+                  : "bg-zinc-100 border-zinc-200 text-zinc-700"
+                  }`}>
+                  <Info className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-[15px] font-semibold ${isDark ? "text-white" : "text-zinc-900"
+                    }`}>
+                    Price Sync Automatically
+                  </h3>
+                  <p className={`text-[13px] mt-0.5 ${isDark ? "text-[rgba(255,255,255,0.5)]" : "text-zinc-500"
+                    }`}>
+                    Any rates you update here becomes default for new quote. Existing saved quotes stay unchanged.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* --- FLOATING MOBILE BUTTON PANEL --- */}
-        <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white"}`}>
-          <Button
-            onClick={fetchCatalog}
-            disabled={loading}
-            className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors w-full shadow-sm ${isDark
-              ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10"
-              : "border border-zinc-200 bg-zinc-100 text-zinc-800 hover:bg-zinc-200"
-              }`}
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-            Refresh
-          </Button>
+          )}
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
