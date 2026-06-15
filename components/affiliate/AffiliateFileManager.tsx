@@ -1122,7 +1122,7 @@ export default function AffiliateFileManager() {
                   Linked
                 </span>
                 <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium border text-[#E8D1AB] bg-[#1A1A1A] border-white/5`}>
-                  View Only
+                  View Onlyy
                 </span>
               </div>
             </div>
@@ -1436,7 +1436,7 @@ export default function AffiliateFileManager() {
                       : "bg-black/[0.04] text-[#B38F43] border-black/5"
                     }`}
                 >
-                  {canUploadInSelectedPhase ? "Upload Enabled" : "View Only"}
+                  {canUploadInSelectedPhase ? "Upload Enabled" : "View Onlyy"}
                 </span>
               </div>
 
