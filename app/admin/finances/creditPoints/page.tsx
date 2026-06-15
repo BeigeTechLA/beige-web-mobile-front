@@ -567,7 +567,9 @@ export default function AdminFinancesPage() {
           : { guest_email: resolvedGuestEmail }),
         amount: parsedAmount,
         credit_type: toCreditTypeApiValue(creditForm.creditType),
-        expires_at: creditForm.expiryDate || undefined,
+        expires_at: creditForm.expiryDate
+          ? `${creditForm.expiryDate}T23:59:59+05:30`
+          : undefined,
         reason: creditForm.reason.trim(),
         notes: creditForm.notes.trim() || undefined,
         restrictions_json: allowedUsageContexts.length

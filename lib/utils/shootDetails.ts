@@ -42,9 +42,12 @@ export const getPaymentStatusMeta = (
   paymentStatus?: string | null,
   paymentId?: string | number | null,
 ) => {
-  const normalized = (paymentStatus || (paymentId ? "paid" : "pending")).toLowerCase();
+  const normalized = String(paymentStatus || (paymentId ? "paid" : "pending"))
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ");
 
-  if (["paid", "success", "completed"].includes(normalized)) {
+  if (["paid", "success", "succeeded", "complete", "completed", "fully paid"].includes(normalized)) {
     return {
       label: "Paid",
       className: "text-[#22C55E]",
@@ -59,12 +62,12 @@ export const getPaymentStatusMeta = (
   }
 
   return {
-    label: normalized.charAt(0).toUpperCase() + normalized.slice(1),
+    label: normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "Pending",
     className: "text-yellow-400",
   };
 };
 
-export const getProjectFolderLink = (project: any) => {
+export const getProjectFolderLink = (project: Record<string, unknown> | null | undefined) => {
   return (
     project?.reference_links ||
     project?.folderLink ||
@@ -83,7 +86,7 @@ const toCount = (...values: unknown[]) => {
   return 0;
 };
 
-export const getShootFilesText = (project: any) => {
+export const getShootFilesText = (project: Record<string, unknown> | null | undefined) => {
   const imageCount = toCount(
     project?.totalImageFiles,
     project?.total_image_files,

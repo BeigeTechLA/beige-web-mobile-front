@@ -17,13 +17,16 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react"; // Added X icon for closing
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getQuoteNumber } from "@/lib/quoteDetail";
+import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
+import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 
 type SkillOption = {
   id?: number | string;
@@ -42,6 +45,8 @@ type ProjectDetails = {
   end_time?: string;
   event_start_time?: string;
   total_paid_amount?: string | number;
+  total_value_amount?: string | number;
+  converted_quote_amount?: string | number;
   payment_status?: string | null;
   payment_id?: string | number | null;
   converted_sales_quote_id?: string | number | null;
@@ -81,6 +86,38 @@ const isUsableQuoteVersion = (version: QuoteVersionItem) => {
   return !status || status === "approved";
 };
 
+const resolveLatestQuoteDetail = async (quoteId: string) => {
+  const versionsResponse = await salesApi.getQuoteVersions(quoteId);
+  const versionsData = Array.isArray(versionsResponse?.data)
+    ? versionsResponse.data
+    : versionsResponse?.data?.versions || [];
+
+  const latestVersion = versionsData.reduce((latest: QuoteVersionItem | null, candidate: QuoteVersionItem) => {
+    const latestNo = Number(latest?.version_number || 0);
+    const candidateNo = Number(candidate?.version_number || 0);
+    return candidateNo > latestNo ? candidate : latest;
+  }, (versionsData.find((version: QuoteVersionItem) => version?.is_current) || versionsData[0] || null) as QuoteVersionItem | null);
+
+  const versionId = latestVersion?.version_number != null ? String(latestVersion.version_number) : null;
+  const detailResponse = versionId
+    ? await salesApi.getQuoteVersionDetail(quoteId, versionId)
+    : await salesApi.getQuoteDetail(quoteId);
+
+  return unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+};
+
+const getConvertedQuoteAmount = async (quoteId: string) => {
+  const quoteDetail = await resolveLatestQuoteDetail(quoteId);
+
+  return getQuoteNumber(
+    quoteDetail?.final_total,
+    quoteDetail?.total_amount,
+    quoteDetail?.amount_after_tax,
+    quoteDetail?.amount_after_discount,
+    quoteDetail?.total
+  );
+};
+
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
@@ -98,6 +135,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [isAssignmentMissingDetailsModalOpen, setIsAssignmentMissingDetailsModalOpen] = useState(false);
+  const [pendingAssignmentAction, setPendingAssignmentAction] = useState<(() => void) | null>(null);
   const [isQuotePreviewOpen, setIsQuotePreviewOpen] = useState(false);
   const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
   const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
@@ -124,6 +163,26 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     ? project.needs_attention.missing_fields
     : [];
   const hasFormDetails = !missingFields.includes("onboarding_form");
+  const assignmentMissingDetails =
+    project?.needs_attention?.required ? getCpAssignmentMissingDetails(project) : [];
+
+  const handleAssignmentRequest = (continueAction: () => void) => {
+    if (assignmentMissingDetails.length > 0) {
+      setPendingAssignmentAction(() => continueAction);
+      setIsAssignmentMissingDetailsModalOpen(true);
+      return;
+    }
+
+    continueAction();
+  };
+
+  const handleConfirmAssignmentWithMissingDetails = () => {
+    setIsAssignmentMissingDetailsModalOpen(false);
+    const action = pendingAssignmentAction;
+    setPendingAssignmentAction(null);
+    action?.();
+  };
+
   const handlePreviewConvertedQuote = async () => {
     if (!convertedSalesQuoteId) {
       toast.error("Converted quote is not available");
@@ -136,6 +195,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
     try {
       const versionsResponse = await salesApi.getQuoteVersions(convertedSalesQuoteId);
+      const quoteDetailResponse = await salesApi.getQuoteDetail(convertedSalesQuoteId);
+
       const versionsData = Array.isArray(versionsResponse?.data)
         ? versionsResponse.data
         : versionsResponse?.data?.versions || [];
@@ -159,6 +220,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         : await salesApi.getQuoteDetail(convertedSalesQuoteId);
 
       const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+
+      if (quoteDetail && quoteDetailResponse?.data) {
+        const rawDetail = quoteDetailResponse.data;
+
+        (quoteDetail as any).signature_base64 = rawDetail.signature_base64;
+        (quoteDetail as any).signer_name = rawDetail.signer_name;
+        (quoteDetail as any).signed_at = rawDetail.signed_at;
+      }
 
       if (!quoteDetail) {
         throw new Error("Quote preview data is unavailable");
@@ -232,8 +301,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             }
           }
 
-          setProject({
+          const nextProject: ProjectDetails = {
             ...projectData,
+            payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
+            payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
             manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
@@ -244,7 +315,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               projectData?.assigned_post_production_members ||
               [],
             skills_needed: skillsText || projectData.skills_needed
-          });
+          };
+
+          const quoteId = String(nextProject.converted_sales_quote_id || "").trim();
+          if (quoteId) {
+            try {
+              const convertedQuoteAmount = await getConvertedQuoteAmount(quoteId);
+              if (convertedQuoteAmount !== undefined) {
+                nextProject.converted_quote_amount = convertedQuoteAmount;
+              }
+            } catch (error) {
+              console.error("Failed to resolve converted quote amount:", error);
+            }
+          }
+
+          setProject(nextProject);
         }
       } catch (error) {
         console.error("Failed to fetch shoot details:", error);
@@ -454,6 +539,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
         {/* Main Content (Left Scroll Window) */}
         <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
+
           <ShootHeader
             activeTab={activeTab}
             project={project}
@@ -473,14 +559,23 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             View Project Timeline
           </Button>
 
-          <div className={`rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
+          <div className={`rounded-lg lg:rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
             <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
-                    <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+                    <ProjectTeam
+                      projectId={id}
+                      assignedMembers={project?.assigned_post_production_members}
+                      onRequestAssignment={handleAssignmentRequest}
+                    />
+                    <AssignedCP
+                      projectId={id}
+                      leadId={project?.lead_id}
+                      assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+                      onRequestAssignment={handleAssignmentRequest}
+                    />
                   </div>
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} />
@@ -534,6 +629,17 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             initialShootData={project}
             onSaved={handleMissingFieldsSaved}
           />
+
+          <AssignmentMissingDetailsModal
+            isOpen={isAssignmentMissingDetailsModalOpen}
+            onClose={() => {
+              setIsAssignmentMissingDetailsModalOpen(false);
+              setPendingAssignmentAction(null);
+            }}
+            onConfirm={handleConfirmAssignmentWithMissingDetails}
+            missingDetails={assignmentMissingDetails}
+            isDark={isDark}
+          />
         </div>
 
         {/* Right Sidebar (Timeline Desktop Only) */}
@@ -558,48 +664,47 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         }
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
-        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-[#F4F5F7] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
+          {/* View Invoice Button */}
           <Button
             onClick={handleViewInvoice}
             disabled={isViewingInvoice}
-            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-black text-white hover:bg-black/80 border border-black'}`}
+            className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-black text-white hover:bg-black/80 border border-black'}`}
           >
             {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
           </Button>
+
+          {/* Preview Quote Button */}
           {convertedSalesQuoteId ? (
             <Button
               onClick={handlePreviewConvertedQuote}
-              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#18321D] text-[#86EFAC] hover:bg-[#1D3B23] border border-[#86EFAC]/20 shadow-[0_8px_30px_rgb(0,0,0,0.35)]' : 'bg-[#F0FFF4] text-[#166534] hover:bg-[#E7F8EC] border border-[#86EFAC]/30'}`}
+              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#18321D] text-[#86EFAC] hover:bg-[#1D3B23] border border-[#86EFAC]/20 shadow-[0_8px_30px_rgb(0,0,0,0.35)]' : 'bg-[#F0FFF4] text-[#166534] hover:bg-[#E7F8EC] border border-[#86EFAC]/30'}`}
             >
               <Eye size={18} /> Preview Quote
             </Button>
           ) : null}
-          <div className="flex gap-2">
-            <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
+
+          {/* Grid Row: Cancel & Edit Operations */}
+          <div className="flex gap-2 w-full">
+            <Button
+              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}
+            >
               Cancel Shoot
             </Button>
-            <div className="flex gap-2">
-              <Button className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
-                Cancel Shoot
-              </Button>
-              <Button
-                onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
-                className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
-              >
-                Edit Shoot
-              </Button>
-            </div>
+
             <Button
-              onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
-              className={`w-full h-13 rounded-md font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] border border-white/10' : 'bg-[#F3F3F3] text-zinc-600 border border-[#E3E3E3]'}`}
+              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
+              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
             >
-              <Eye size={16} /> View Form Details
+              Edit Shoot
             </Button>
           </div>
+
+          {/* Conditional Form Details Button */}
           {hasFormDetails ? (
             <Button
               onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
-              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
+              className={`w-full h-14 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
             >
               <Eye size={18} /> View Form Details
             </Button>

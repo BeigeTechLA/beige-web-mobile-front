@@ -8,6 +8,7 @@ import {
   CheckSquare,
   Download,
   ExternalLink,
+  Calendar,
   FolderOpen,
   Grid3X3,
   History,
@@ -35,9 +36,13 @@ import {
   fileManagerApi,
   inferWorkspaceCategory,
   isCommonEventWorkspaceId,
+  isVisibleToNonAdminByVisibleUntil,
   isRecentWithinHours,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { MobileFolderRow } from "../admin/file-manager/MobileFolderRow";
+import { MobileWorkspaceRow } from "./file-manager/AffiliateMobileRow";
 
 interface WorkspaceCard {
   externalId: string;
@@ -47,12 +52,14 @@ interface WorkspaceCard {
   userInitials: string;
   category: string;
   updatedAtRaw?: string;
+  visibleUntil?: string | null;
   consoleUrl?: string | null;
 }
 
 interface BrowserFolder {
   name: string;
   title: string;
+  path?: string;
   fileCount: number;
   lastOpened: string;
 }
@@ -168,6 +175,8 @@ export default function AffiliateFileManager() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
 
+  const { isDark } = useResolvedTheme()
+
   const loadRoot = async () => {
     const token = Cookies.get("revure_token");
     if (!token) {
@@ -207,7 +216,8 @@ export default function AffiliateFileManager() {
 
       const mapped = externalWorkspaces
         .filter((workspace) =>
-          isCommonEventWorkspaceId(workspace.externalId) ||
+          (isCommonEventWorkspaceId(workspace.externalId) &&
+            isVisibleToNonAdminByVisibleUntil(workspace.visibleUntil)) ||
           projectMap.has(String(workspace.externalId))
         )
         .map((workspace) => {
@@ -222,6 +232,7 @@ export default function AffiliateFileManager() {
               workspace.folderName || project?.project_name
             ),
             updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
+            visibleUntil: workspace.visibleUntil || null,
             consoleUrl: workspace.consoleUrl,
           };
         });
@@ -242,9 +253,10 @@ export default function AffiliateFileManager() {
     try {
       setIsPhaseLoading(true);
       setError(null);
+      const isCommonEventWorkspace = isCommonEventWorkspaceId(workspace.externalId);
       const response = await fileManagerApi.getExternalWorkspaceFiles(
         workspace.externalId,
-        phase,
+        isCommonEventWorkspace ? undefined : phase,
         path || undefined
       );
 
@@ -252,6 +264,7 @@ export default function AffiliateFileManager() {
         (response.folders || []).map((folder) => ({
           name: folder.name,
           title: prettifyFolderName(folder.name),
+          path: folder.path,
           fileCount: Number(folder.fileCount || 0),
           lastOpened: folder.updatedAt || folder.createdAt || "",
         }))
@@ -326,6 +339,7 @@ export default function AffiliateFileManager() {
         (response.folders || []).map((folder) => ({
           name: folder.name,
           title: prettifyFolderName(folder.name),
+          path: folder.path,
           fileCount: Number(folder.fileCount || 0),
           lastOpened: folder.updatedAt || folder.createdAt || "",
         }))
@@ -808,9 +822,15 @@ export default function AffiliateFileManager() {
         className="hidden"
         onChange={handleFaceScanFile}
       />
+
+      {/* Upload Photo Trigger Label */}
       <label
         htmlFor={uploadInputId}
-        className={`inline-flex cursor-pointer items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
+        className={`inline-flex cursor-pointer items-center rounded-lg border px-3 py-1.5 text-xs transition-all ${isFaceScanning
+          ? "pointer-events-none opacity-60"
+          : isDark
+            ? "border-white/20 text-white hover:bg-white/10"
+            : "border-black/15 text-black bg-white hover:bg-black/[0.02]"
           }`}
       >
         {isFaceScanning ? "Scanning..." : "Upload Face Photo"}
@@ -819,7 +839,11 @@ export default function AffiliateFileManager() {
         type="button"
         onClick={handleOpenCamera}
         disabled={isFaceScanning}
-        className={`inline-flex items-center gap-1 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
+        className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs transition-all ${isFaceScanning
+          ? "pointer-events-none opacity-40"
+          : isDark
+            ? "border-white/20 text-white hover:bg-white/10"
+            : "border-black/15 text-black bg-white hover:bg-black/[0.02]"
           }`}
       >
         <Camera size={14} />
@@ -873,6 +897,8 @@ export default function AffiliateFileManager() {
       items = items.filter((workspace) =>
         isRecentWithinHours(workspace.updatedAtRaw, 24 * 5)
       );
+    } else if (selectedTab === "Common events") {
+      items = items.filter((workspace) => isCommonEventWorkspaceId(workspace.externalId));
     }
     // else if (selectedTab === "Shared" || selectedTab === "Trash") {
     //   items = [];
@@ -916,10 +942,14 @@ export default function AffiliateFileManager() {
     setVisibleFileCount(FILES_PAGE_SIZE);
   }, [selectedWorkspace?.externalId, selectedPhase, selectedPath, searchTerm, phaseFiles.length]);
 
+  const isSelectedWorkspaceCommonEvent = Boolean(
+    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
+  );
+
   const breadcrumb = useMemo(() => {
     const items = ["File Manager"];
     if (selectedWorkspace) items.push(selectedWorkspace.title);
-    if (selectedPhase) {
+    if (selectedPhase && !isSelectedWorkspaceCommonEvent) {
       items.push(selectedPhase === "pre" ? "Pre Production" : "Post Production");
     }
     if (selectedPath) {
@@ -929,12 +959,9 @@ export default function AffiliateFileManager() {
         .forEach((segment) => items.push(prettifyFolderName(segment)));
     }
     return items;
-  }, [selectedWorkspace, selectedPhase, selectedPath]);
+  }, [isSelectedWorkspaceCommonEvent, selectedWorkspace, selectedPhase, selectedPath]);
 
   const canRunFaceScan = Boolean(
-    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
-  );
-  const isSelectedWorkspaceCommonEvent = Boolean(
     selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
   );
   const canUploadInSelectedPhase = Boolean(
@@ -949,15 +976,15 @@ export default function AffiliateFileManager() {
   const renderRoot = () => {
     if (loading) {
       return (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center">
-          <Loader2 className="animate-spin text-white/50" size={28} />
+        <div className={`border rounded-lg lg:rounded-2xl min-h-[280px] flex items-center justify-center ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E5E5E5]"}`}>
+          <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/50"}`} size={28} />
         </div>
       );
     }
 
     if (error) {
       return (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center text-red-300 text-sm">
+        <div className={`border rounded-lg lg:rounded-2xl min-h-[280px] flex items-center justify-center ${isDark ? "bg-[#111111] border-[#222222] text-red-300" : "text-[#F03434] bg-white border-[#E5E5E5]"}`}>
           {error}
         </div>
       );
@@ -968,6 +995,7 @@ export default function AffiliateFileManager() {
         <EmptyFileState
           title="No File Uploaded"
           description="No files have been uploaded for this project yet."
+          isDark={isDark}
         />
       );
     }
@@ -976,41 +1004,40 @@ export default function AffiliateFileManager() {
       return (
         <div className="flex flex-col gap-3">
           <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse rounded-xl">
               <thead>
-                <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                  <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                <tr className={`text-sm font-normal cursor-pointer transition-colors duration-200 ${isDark
+                  ? "bg-[#202020] text-[#E8D1AB]"
+                  : "bg-[#FFFCF6] text-[#000000]"
+                  }`}>
+                  <th className="rounded-t-xl py-5 px-6 font-medium">Name</th>
                   <th className="py-5 px-6 font-medium">Category</th>
                   <th className="py-5 px-6 font-medium">Files</th>
                   <th className="py-5 px-6 font-medium">Status</th>
                   <th className="py-5 px-6 font-medium">Last Updated</th>
-                  <th className="py-5 px-6 font-medium text-right rounded-r-xl">
-                    Action
-                  </th>
+                  <th className="py-5 px-6 font-medium text-right rounded-t-xl">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={`${isDark ? "bg-[#171717]" : "bg-white"} transition-colors duration-200`}>
                 {filteredWorkspaces.map((workspace) => (
                   <tr
                     key={workspace.externalId}
-                    className="items-center cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    className={`items-center cursor-pointer transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
                     onClick={() => openWorkspace(workspace)}
                   >
-                    <td className="py-5 px-6 text-white flex gap-2 items-center">
-                      <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
-                        <FolderOpen
-                          className="text-[#E8D1AB] fill-[#E8D1AB]/20"
-                          size={24}
-                        />
+                    {/* Folder Name & Icon Block */}
+                    <td className={`py-5 px-6 flex gap-2 items-center min-w-0 {isDark ? "text-white" : "text-black"}`}>
+                      <div className={`h-10 w-10 flex items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-transparent"}`}>
+                        <FolderOpen className={"text-[#E8D1AB] fill-[#E8D1AB]/20"} size={24} />
                       </div>
-                      <span className="text-sm font-semibold">{workspace.title}</span>
+                      <span className="text-sm font-semibold truncate max-w-[220px]" title={workspace.title}>{workspace.title}</span>
                     </td>
-                    <td className="py-5 px-6 text-white text-[15px]">
-                      <span className="px-4 py-1.5 rounded-xl bg-[#171717] text-white text-xs font-medium">
+                    <td className="py-5 px-6 text-base">
+                      <span className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-colors ${isDark ? "bg-[#171717] text-white" : "bg-[#F4F5F7] text-[#727272]"}`}>
                         {workspace.category}
                       </span>
                     </td>
-                    <td className="py-5 px-6 text-white">
+                    <td className={`py-5 px-6 font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
                       {String(workspace.fileCount).padStart(2, "0")}
                     </td>
                     <td className="py-5 px-6">
@@ -1019,11 +1046,11 @@ export default function AffiliateFileManager() {
                         Linked
                       </span>
                     </td>
-                    <td className="py-5 px-6 text-white/80">
+                    <td className="py-5 px-6">
                       Updated {formatRelativeTime(workspace.lastOpened)}
                     </td>
                     <td className="py-5 px-6 text-right">
-                      <ExternalLink className="inline-block text-white/40" size={16} />
+                      <ExternalLink className={`inline-block ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
                     </td>
                   </tr>
                 ))}
@@ -1033,43 +1060,13 @@ export default function AffiliateFileManager() {
 
           <div className="lg:hidden space-y-3">
             {filteredWorkspaces.map((workspace) => (
-              <button
+              <MobileWorkspaceRow
                 key={workspace.externalId}
-                onClick={() => openWorkspace(workspace)}
-                className="w-full bg-[#171717] rounded-xl border border-white/5 overflow-hidden mb-3 text-left"
-              >
-                <div className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-white/5 flex items-center justify-center rounded-lg">
-                      <FolderOpen
-                        className="text-[#E8D1AB] fill-[#E8D1AB]/10"
-                        size={20}
-                      />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-white truncate max-w-[180px]">
-                        {workspace.title}
-                      </div>
-                      <div className="text-white/40 text-xs mt-1">
-                        {String(workspace.fileCount).padStart(2, "0")} Files
-                      </div>
-                    </div>
-                  </div>
-                  <ExternalLink className="text-white/40" size={18} />
-                </div>
-                <div className="border-t border-white/5 bg-black/20 p-4 grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-white/40 text-xs mb-1">Category</p>
-                    <p className="text-white font-medium">{workspace.category}</p>
-                  </div>
-                  <div>
-                    <p className="text-white/40 text-xs mb-1">Last Updated</p>
-                    <p className="text-white font-medium">
-                      Updated {formatRelativeTime(workspace.lastOpened)}
-                    </p>
-                  </div>
-                </div>
-              </button>
+                workspace={workspace}
+                isDark={isDark}
+                openWorkspace={(ws) => openWorkspace(ws as WorkspaceCard)}
+                formatRelativeTime={formatRelativeTime}
+              />
             ))}
           </div>
         </div>
@@ -1079,13 +1076,18 @@ export default function AffiliateFileManager() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
         {filteredWorkspaces.map((workspace) => (
+
           <button
             key={workspace.externalId}
             onClick={() => openWorkspace(workspace)}
-            className="w-full lg:max-w-[350px] bg-[#18181b] rounded-xl lg:rounded-3xl border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group text-left"
+            className={`w-full h-full lg:max-w-[350px] rounded-xl lg:rounded-3xl border cursor-pointer transition-all group flex flex-col overflow-hidden ${isDark
+              ? "bg-[#18181b] border-white/5 shadow-xl hover:border-white/20 hover:bg-[#1c1c20]"
+              : "bg-white border-[#e3e3e3] shadow-sm hover:border-[#D7D7D7] hover:shadow-md"
+              }`}
           >
-            <div className="p-5">
-              <div className="flex items-start justify-between gap-1">
+            {/* Top Section */}
+            <div className="p-5 flex-1">
+              <div className="flex items-start justify-between">
                 <div className="flex gap-3 items-start min-w-0">
                   <div className="shrink-0">
                     <FolderOpen
@@ -1093,37 +1095,43 @@ export default function AffiliateFileManager() {
                       size={24}
                     />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-white font-semibold text-sm leading-tight break-words">
+                  <div className="min-w-0 flex flex-col items-start">
+                    <h3
+                      className={`font-semibold text-sm leading-tight truncate transition-colors ${isDark ? "text-white" : "text-black"}`}
+                      title={workspace.title}
+                    >
                       {workspace.title}
                     </h3>
-                    <p className="text-[#E8D1AB]/60 text-sm mt-1">
+                    <p className={`text-sm mt-1 ${isDark ? "text-[#E8D1AB]/60" : "text-[#000000]"}`}>
                       {String(workspace.fileCount).padStart(2, "0")} Files
                     </p>
                   </div>
                 </div>
-                <ExternalLink className="text-white/40 mt-1 shrink-0" size={16} />
+                <ExternalLink className={`mt-1 shrink-0 ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
               </div>
 
-              <div className="flex flex-wrap gap-2 mt-4">
-                <span className="px-4 py-1.5 rounded-full bg-black/40 text-white text-xs font-medium border border-white/5">
+              <div className="mt-4 flex min-w-0 flex-nowrap items-center gap-2">
+                <span className={`min-w-0 max-w-[170px] shrink truncate rounded-full border px-4 py-1.5 text-xs font-medium ${isDark
+                  ? "border-white/5 bg-black/40 text-white"
+                  : "border-[#F0F0F0] bg-[#F0F0F0] text-[#929292]"
+                  }`}>
                   {workspace.category}
                 </span>
-                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#6ce9a6]/20 bg-[#D4FFE4] px-2 py-1 text-[11px] font-medium leading-none text-[#16A34A]">
+                <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 whitespace-nowrap bg-[#D4FFE4] text-[#16A34A] border border-[#6ce9a6]/20`}>
                   <LinkIcon size={16} />
                   Linked
                 </span>
-                <span className="px-2 py-1.5 rounded-full bg-[#1A1A1A] text-[#E8D1AB] text-xs font-medium border border-white/5">
+                <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium border text-[#E8D1AB] bg-[#1A1A1A] border-white/5`}>
                   View Only
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center border-t border-t-white/50 p-5 gap-3">
+            <div className={`mt-auto flex items-center p-5 gap-3 border-t ${isDark ? "border-t-white/10" : "border-t-[#D7D7D7]"}`}>
               <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-[#000] text-base">
                 {workspace.userInitials}
               </div>
-              <span className="text-[#CDC5C5] text-sm">
+              <span className={`text-sm ${isDark ? "text-[#CDC5C5]" : "text-[#000000]"}`}>
                 Updated {formatRelativeTime(workspace.lastOpened)}
               </span>
             </div>
@@ -1136,6 +1144,7 @@ export default function AffiliateFileManager() {
   const renderWorkspacePhases = () => {
     if (!selectedWorkspace) return null;
 
+    const isCommonEventWorkspace = isCommonEventWorkspaceId(selectedWorkspace.externalId);
     const preFolder = workspaceFolders.find(
       (folder) => folder.title === "Pre Production"
     );
@@ -1143,15 +1152,23 @@ export default function AffiliateFileManager() {
       (folder) => folder.title === "Post Production"
     );
 
-    const phaseCards = [
-      { id: "pre", title: "Pre Production", fileCount: preFolder?.fileCount || 0 },
-      { id: "post", title: "Post Production", fileCount: postFolder?.fileCount || 0 },
-    ];
+    const phaseCards = isCommonEventWorkspace
+      ? workspaceFolders.map((folder) => ({
+        id: folder.name,
+        title: folder.title,
+        path: folder.name,
+        fileCount: folder.fileCount || 0,
+        lastOpened: folder.lastOpened,
+      }))
+      : [
+        { id: "pre", title: "Pre Production", fileCount: preFolder?.fileCount || 0 },
+        { id: "post", title: "Post Production", fileCount: postFolder?.fileCount || 0 },
+      ];
 
     if (isPhaseLoading) {
       return (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center">
-          <Loader2 className="animate-spin text-white/50" size={28} />
+        <div className={`border rounded-lg lg:rounded-2xl min-h-[280px] flex items-center justify-center ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E5E5E5]"}`}>
+          <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/50"}`} size={28} />
         </div>
       );
     }
@@ -1160,34 +1177,46 @@ export default function AffiliateFileManager() {
       phase.title.toLowerCase().includes(searchTerm.trim().toLowerCase())
     );
 
-	    return (
-	      <div className="space-y-8">
-	        <div>
-            <div className="mb-5 flex items-center justify-end">
-              {canUploadInSelectedPhase ? (
-                <Button
-                  onClick={() => setIsUploadModalOpen(true)}
-                  className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-                >
-                  <Upload size={18} /> Upload Files
-                </Button>
-              ) : null}
-            </div>
-	          <div className="flex items-start gap-5 mb-2 lg:mb-6">
-            <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
+    return (
+      <div className="space-y-4 lg:space-y-8">
+        <div>
+          <div className="mb-3 lg:mb-5 flex items-center justify-end">
+            {canUploadInSelectedPhase ? (
+              <Button
+                onClick={() => setIsUploadModalOpen(true)}
+                className={`border transition-colors ${isDark
+                  ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                  : "border-black/15 bg-white text-black hover:bg-zinc-50 shadow-sm"
+                  }`}
+              >
+                <Upload size={18} /> Upload Files
+              </Button>
+            ) : null}
+          </div>
+          <div className="flex items-start gap-5 mb-2 lg:mb-6">
+            <div className={`h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl flex items-center justify-center text-lg lg:text-[30px] font-medium transition-colors ${isDark ? "bg-[#C8E1FF] text-black" : "bg-[#DDEBFF] text-black shadow-inner"
+              }`}>
               {selectedWorkspace.userInitials}
             </div>
-            <div className="min-w-0 text-white max-w-3xl flex-1">
+            <div className={`min-w-0 max-w-3xl flex-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
               <div className="flex flex-row lg:items-center gap-2">
                 <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                   {selectedWorkspace.title}
                 </h1>
-                <span className="px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
+
+                {/* Project Status Pill */}
+                <span className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs lg:font-medium border h-fit w-fit transition-colors ${isDark
+                  ? "bg-[#D4FFE4] text-[#16A34A] border-[#6ce9a6]/20"
+                  : "bg-[#E6FBF0] text-[#15803D] border-[#15803D]/10"
+                  }`}>
                   Active Project
                 </span>
               </div>
-              <p className="text-xs lg:text-sm text-[#D0D0D0]">
-                <span className="text-[#AAA7A7]">Project Code: </span>
+
+              {/* Project Code Row */}
+              <p className={`text-xs lg:text-sm mt-0.5 transition-colors ${isDark ? "text-[#D0D0D0]" : "text-zinc-600"
+                }`}>
+                <span className={isDark ? "text-[#AAA7A7]" : "text-zinc-400"}>Project Code: </span>
                 {selectedWorkspace.externalId}
               </p>
               {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input") : null}
@@ -1221,15 +1250,18 @@ export default function AffiliateFileManager() {
 
         <div className="pb-20 lg:pb-0">
           {canRunFaceScan && faceMatches.length > 0 ? (
-            <div className="mb-6 rounded-xl border border-white/10 bg-[#141414] p-4">
-              <p className="mb-3 text-sm font-medium text-[#E8D1AB]">
+            <div className={`mb-6 rounded-xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#141414] p-4" : "border-black/5 bg-white shadow-xs p-4"
+              }`}>
+              <p className={`mb-3 text-sm font-medium transition-colors ${isDark ? "text-[#E8D1AB]" : "text-[#B38F43]"
+                }`}>
                 Your matched photos ({faceMatches.length})
               </p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {faceMatches.map((match) => (
                   <div
                     key={match.path}
-                    className="overflow-hidden rounded-lg border border-white/10 bg-black/20 text-left"
+                    className={`overflow-hidden rounded-lg border text-left transition-all duration-300 ${isDark ? "border-white/10 bg-black/20" : "border-black/5 bg-zinc-100/70"
+                      }`}
                   >
                     <button
                       type="button"
@@ -1237,7 +1269,8 @@ export default function AffiliateFileManager() {
                       className="w-full text-left"
                     >
                       {match.url ? (
-                        <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
+                        <div className={`aspect-23/18 w-full flex items-center justify-center transition-colors ${isDark ? "bg-[#0f0f0f]" : "bg-zinc-200"
+                          }`}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={match.url}
@@ -1246,17 +1279,25 @@ export default function AffiliateFileManager() {
                           />
                         </div>
                       ) : (
-                        <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
+                        <div className={`flex aspect-23/18 w-full items-center justify-center text-xs transition-colors ${isDark ? "text-white/50 bg-[#0f0f0f]" : "text-black/40 bg-zinc-200"
+                          }`}>
                           Preview unavailable
                         </div>
                       )}
                     </button>
-                    <div className="p-2 text-xs text-white/70">
-                      Confidence: {Math.round((match.confidence || 0) * 100)}%
+
+                    <div className={`p-2 text-xs flex flex-col items-start gap-2 transition-colors ${isDark ? "text-white/70" : "text-zinc-700"
+                      }`}>
+                      <span>
+                        Confidence: {Math.round((match.confidence || 0) * 100)}%
+                      </span>
                       <button
                         type="button"
                         onClick={() => handleDownloadMatchedImage(match)}
-                        className="mt-2 inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-white/85 hover:bg-white/10"
+                        className={`inline-flex items-center gap-1 rounded-md border mt-2 text-xs px-2 py-1 transition-all ${isDark
+                          ? "border-white/15 text-white/85 hover:bg-white/10"
+                          : "border-black/15 text-zinc-800 bg-white hover:bg-zinc-50"
+                          }`}
                       >
                         <Download size={12} />
                         Download
@@ -1276,14 +1317,14 @@ export default function AffiliateFileManager() {
                   title={phase.title}
                   fileCount={phase.fileCount}
                   lastOpened={formatRelativeTime(
-                    (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
+                    ("lastOpened" in phase ? phase.lastOpened : phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
                     selectedWorkspace.lastOpened
                   )}
                   userInitials={selectedWorkspace.userInitials}
                   onOpenLinkModal={() => { }}
                   onOpen={() => {
-                    setSelectedPhase(phase.id as "pre" | "post");
-                    setSelectedPath("");
+                    setSelectedPhase(isCommonEventWorkspace ? "pre" : phase.id as "pre" | "post");
+                    setSelectedPath(isCommonEventWorkspace ? String(phase.path || phase.title) : "");
                     setSearchTerm("");
                   }}
                   showMenu={false}
@@ -1292,8 +1333,13 @@ export default function AffiliateFileManager() {
             </div>
           ) : (
             <EmptyFileState
-              title="No matching folders"
-              description="Try another search term to find the project phase."
+              title={isCommonEventWorkspace ? "No Folder Created" : "No matching folders"}
+              description={
+                isCommonEventWorkspace
+                  ? "No creative partner folders are available in this event yet."
+                  : "Try another search term to find the project phase."
+              }
+              isDark={isDark}
             />
           )}
         </div>
@@ -1304,8 +1350,8 @@ export default function AffiliateFileManager() {
   const renderPhaseBrowser = () => {
     if (isPhaseLoading) {
       return (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center">
-          <Loader2 className="animate-spin text-white/50" size={28} />
+        <div className={`border rounded-lg lg:rounded-2xl min-h-[280px] flex items-center justify-center ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E5E5E5]"}`}>
+          <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/50"}`} size={28} />
         </div>
       );
     }
@@ -1352,39 +1398,57 @@ export default function AffiliateFileManager() {
 
         <div>
           <div className="flex items-start gap-5 mb-2 lg:mb-6">
-            <div className="h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-lg lg:text-[30px] font-medium">
+            {/* Initials Placeholder Avatar */}
+            <div className={`h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl flex items-center justify-center text-lg lg:text-[30px] font-medium transition-colors ${isDark ? "bg-[#C8E1FF] text-black" : "bg-[#DDEBFF] text-black"
+              }`}>
               {selectedWorkspace?.userInitials}
             </div>
-            <div className="min-w-0 text-white max-w-3xl flex-1">
-              <div className="flex flex-row lg:items-center gap-2">
+
+            {/* Metadata Details Area */}
+            <div className={`min-w-0 max-w-3xl flex-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
+              <div className="flex flex-row flex-wrap lg:items-center gap-2">
                 <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                   {selectedWorkspace?.title}
                 </h1>
                 <span
-                  className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border border-white/5 flex items-center gap-1.5 h-fit w-fit ${
-                    selectedPhase === "post"
-                      ? "bg-[#E8D2FB] text-[#540B94]"
-                      : "bg-[#FDF4FF] text-[#C026D3]"
-                  }`}
+                  className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border flex items-center gap-1.5 h-fit w-fit transition-colors ${isSelectedWorkspaceCommonEvent
+                    ? isDark
+                      ? "bg-[#E5D5B8]/15 text-[#E8D1AB] border-[#E5D5B8]/20"
+                      : "bg-[#FFF7E8] text-[#8A6A32] border-[#E8D1AB]/50"
+                    : selectedPhase === "post"
+                    ? isDark
+                      ? "bg-[#E8D2FB] text-[#540B94] border-white/5"
+                      : "bg-[#F3E8FF] text-[#540B94] border-black/5"
+                    : isDark
+                      ? "bg-[#FDF4FF] text-[#C026D3] border-white/5"
+                      : "bg-[#FCE7F3] text-[#9D174D] border-black/5"
+                    }`}
                 >
-                  {selectedPhase === "post" ? "Post Production" : "Pre Production"}
+                  {isSelectedWorkspaceCommonEvent ? "Common Event Folder" : selectedPhase === "post" ? "Post Production" : "Pre Production"}
                 </span>
                 <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 ${
-                    canUploadInSelectedPhase
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${canUploadInSelectedPhase
+                    ? isDark
                       ? "bg-[#D4FFE4] text-[#16A34A] border-[#6ce9a6]/20"
-                      : "bg-[#1A1A1A] text-[#E8D1AB]"
-                  }`}
+                      : "bg-[#E6FBF0] text-[#15803D] border-[#15803D]/10"
+                    : isDark
+                      ? "bg-[#1A1A1A] text-[#E8D1AB] border-white/5"
+                      : "bg-black/[0.04] text-[#B38F43] border-black/5"
+                    }`}
                 >
                   {canUploadInSelectedPhase ? "Upload Enabled" : "View Only"}
                 </span>
               </div>
-              <p className="text-xs lg:text-sm text-[#D0D0D0]">
-                <span className="text-[#AAA7A7]">Project Code: </span>
+
+              {/* Unique Identifier String */}
+              <p className={`text-xs lg:text-sm mt-0.5 transition-colors ${isDark ? "text-[#D0D0D0]" : "text-black/70"
+                }`}>
+                <span className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Project Code: </span>
                 {selectedWorkspace?.externalId}
               </p>
-	              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
-	              {/* {selectedWorkspace?.consoleUrl ? (
+
+              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
+              {/* {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -1398,116 +1462,144 @@ export default function AffiliateFileManager() {
           </div>
         </div>
 
-        {filteredFiles.length > 0 ? (
-          <div className="flex flex-wrap justify-end gap-2">
-            {isRevisionVersionBrowser ? (
-              <Button
-                className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
-                disabled={Boolean(reviewingFilePath)}
-                onClick={async () => {
-                  for (const file of visibleFiles) {
-                    await handleReviewRevisionFile(file, "approve");
-                  }
-                }}
-              >
-                <Check size={16} />
-                Approve All
-              </Button>
-            ) : null}
-            {isSelectionMode && isRawFootageBrowser ? (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  const visiblePaths = visibleFiles.map((file) => file.filepath).filter(Boolean);
-                  const allSelected =
-                    visiblePaths.length > 0 &&
-                    visiblePaths.every((path) => selectedFilePaths.includes(path));
+       {filteredFiles.length > 0 ? (
+  <div className="flex flex-wrap justify-end gap-2">
+    {isRevisionVersionBrowser ? (
+      <Button
+        className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
+        disabled={Boolean(reviewingFilePath)}
+        onClick={async () => {
+          for (const file of visibleFiles) {
+            await handleReviewRevisionFile(file, "approve");
+          }
+        }}
+      >
+        <Check size={16} />
+        Approve All
+      </Button>
+    ) : null}
 
-                  setSelectedFilePaths((prev) => {
-                    if (allSelected) return prev.filter((path) => !visiblePaths.includes(path));
-                    return Array.from(new Set([...prev, ...visiblePaths]));
-                  });
-                }}
-                className="gap-2 h-10 px-4 rounded-lg border border-white/10 bg-[#202020] text-white/70 hover:text-white hover:border-white/20"
-              >
-                <span
-                  className={`flex h-4 w-4 items-center justify-center rounded border ${
-                    visibleFiles.length > 0 &&
-                    visibleFiles.every((file) => selectedFilePaths.includes(file.filepath || ""))
-	                      ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
-	                      : "border-white/50 text-transparent"
-	                  }`}
-	                >
-                  <CheckSquare size={12} />
-                </span>
-                <span>Select All</span>
-              </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              onClick={() => {
-                const nextMode = !isSelectionMode;
-                setIsSelectionMode(nextMode);
-                if (!nextMode) setSelectedFilePaths([]);
-              }}
-              className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
-                ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
-                : "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
-                }`}
-            >
-              <CheckSquare size={18} />
-              <span>{isSelectionMode ? "Cancel" : "Select"}</span>
-              </Button>
-            </div>
-          ) : null}
+    {isSelectionMode && isRawFootageBrowser ? (
+      <Button
+        variant="ghost"
+        onClick={() => {
+          const visiblePaths = visibleFiles
+            .map((file) => file.filepath)
+            .filter(Boolean);
 
-        {canRunFaceScan && faceMatches.length > 0 ? (
-          <div className="rounded-xl border border-white/10 bg-[#141414] p-4">
-            <p className="mb-3 text-sm font-medium text-[#E8D1AB]">
-              Your matched photos ({faceMatches.length})
-            </p>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {faceMatches.map((match) => (
-                <div
-                  key={match.path}
-                  className="overflow-hidden rounded-lg border border-white/10 bg-black/20 text-left"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleOpenMatchedImage(match)}
-                    className="w-full text-left"
+          const allSelected =
+            visiblePaths.length > 0 &&
+            visiblePaths.every((path) => selectedFilePaths.includes(path));
+
+          setSelectedFilePaths((prev) => {
+            if (allSelected) {
+              return prev.filter((path) => !visiblePaths.includes(path));
+            }
+
+            return Array.from(new Set([...prev, ...visiblePaths]));
+          });
+        }}
+        className={`gap-2 h-10 px-4 rounded-lg border transition-all ${
+          isDark
+            ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+            : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
+        }`}
+      >
+        <span
+          className={`flex h-4 w-4 items-center justify-center rounded border ${
+            visibleFiles.length > 0 &&
+            visibleFiles.every((file) =>
+              selectedFilePaths.includes(file.filepath || "")
+            )
+              ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
+              : isDark
+                ? "border-white/50 text-transparent"
+                : "border-black/40 text-transparent"
+          }`}
+        >
+          <CheckSquare size={12} />
+        </span>
+        <span>Select All</span>
+      </Button>
+    ) : null}
+
+    <Button
+      variant="ghost"
+      onClick={() => {
+        const nextMode = !isSelectionMode;
+        setIsSelectionMode(nextMode);
+        if (!nextMode) setSelectedFilePaths([]);
+      }}
+      className={`gap-2 h-10 px-4 rounded-lg border transition-all ${
+        isSelectionMode
+          ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+          : isDark
+            ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+            : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
+      }`}
+    >
+      <CheckSquare size={18} />
+      <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+    </Button>
+  </div>
+) : null}
+
+        {
+          canRunFaceScan && faceMatches.length > 0 ? (
+            <div className={`rounded-lg lg:rounded-xl border transition-all duration-300 p-4 ${isDark ? "border-white/10 bg-[#141414]" : "border-black/5 bg-white"}`}>
+              <p className={`mb-3 text-sm font-medium transition-colors ${isDark ? "text-[#E8D1AB]" : "text-[#B38F43]"}`}>
+                Your matched photos ({faceMatches.length})
+              </p>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {faceMatches.map((match) => (
+                  <div
+                    key={match.path}
+                    className={`overflow-hidden rounded-lg border text-left transition-all duration-300 ${isDark ? "border-white/10 bg-black/20" : "border-black/5 bg-black/[0.02]"}`}
                   >
-                    {match.url ? (
-                      <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={match.url}
-                          alt="Matched face result"
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
-                        Preview unavailable
-                      </div>
-                    )}
-                  </button>
-                  <div className="p-2 text-xs text-white/70">
-                    Confidence: {Math.round((match.confidence || 0) * 100)}%
                     <button
                       type="button"
-                      onClick={() => handleDownloadMatchedImage(match)}
-                      className="mt-2 inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-white/85 hover:bg-white/10"
+                      onClick={() => handleOpenMatchedImage(match)}
+                      className="w-full text-left"
                     >
-                      <Download size={12} />
-                      Download
+                      {match.url ? (
+                        <div className={`aspect-23/18 w-full flex items-center justify-center transition-colors ${isDark ? "bg-[#0f0f0f]" : "bg-black/[0.06]"}`}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={match.url}
+                            alt="Matched face result"
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className={`flex aspect-23/18 w-full items-center justify-center text-xs transition-colors ${isDark ? "text-white/50 bg-[#0f0f0f]" : "text-black/40 bg-black/[0.06]"}`}>
+                          Preview unavailable
+                        </div>
+                      )}
                     </button>
+
+                    <div className={`p-2 text-xs flex flex-col items-start gap-2 transition-colors ${isDark ? "text-white/70" : "text-black/80"}`}>
+                      <span>
+                        Confidence: {Math.round((match.confidence || 0) * 100)}%
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadMatchedImage(match)}
+                        className={`inline-flex items-center gap-1 rounded-md border text-xs px-2 py-1 transition-all ${isDark
+                          ? "border-white/15 text-white/85 hover:bg-white/10"
+                          : "border-black/15 text-black bg-white hover:bg-black/[0.02] shadow-2xs"
+                          }`}
+                      >
+                        <Download size={12} />
+                        Download
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null
+        }
 
         {filteredFolders.length > 0 ? (
           <div>
@@ -1542,46 +1634,53 @@ export default function AffiliateFileManager() {
             {filteredFiles.length > 0 ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-	                  {visibleFiles.map((file) => (
-                    (() => {
-                      const statusBadge = getFileStatusBadge(file);
-                      const canReviewVersionFile =
-                        isRevisionVersionBrowser &&
-                        String(file.metadata?.editStatus || "").toLowerCase() !== "approved";
-                      return (
-	                    <FileCard
-	                      key={file.id}
-	                      file={{
-	                        ...file,
-	                        previewUrl: previewUrls[file.id],
-	                        lastOpened: formatRelativeTime(file.lastOpened),
-                          statusLabel: statusBadge.label,
-                          statusClassName: statusBadge.className,
-	                      }}
-	                      onOpen={() => handleOpenFile(file)}
-	                      onDownload={() => handleDownloadFile(file)}
-	                      isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
-	                      onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
-                        onApprove={
-                          canReviewVersionFile && reviewingFilePath !== file.filepath
-                            ? () => handleReviewRevisionFile(file, "approve")
-                            : undefined
-                        }
-                        onRequestRevision={
-                          canReviewVersionFile && reviewingFilePath !== file.filepath
-                            ? () => handleReviewRevisionFile(file, "request_revision")
-                            : undefined
-                        }
-	                    />
-                      );
-                    })()
-	                  ))}
+                  {visibleFiles.map((file) => {
+  const statusBadge = getFileStatusBadge(file);
+
+  const canReviewVersionFile =
+    isRevisionVersionBrowser &&
+    String(file.metadata?.editStatus || "").toLowerCase() !== "approved";
+
+  return (
+    <FileCard
+      key={file.id}
+      file={{
+        ...file,
+        previewUrl: previewUrls[file.id],
+        lastOpened: formatRelativeTime(file.lastOpened),
+        statusLabel: statusBadge.label,
+        statusClassName: statusBadge.className,
+      }}
+      onOpen={() => handleOpenFile(file)}
+      onDownload={() => handleDownloadFile(file)}
+      isSelected={
+        isSelectionMode && selectedFilePaths.includes(file.filepath || "")
+      }
+      onSelect={
+        isSelectionMode
+          ? () => toggleFileSelection(file.filepath || "")
+          : undefined
+      }
+      onApprove={
+        canReviewVersionFile && reviewingFilePath !== file.filepath
+          ? () => handleReviewRevisionFile(file, "approve")
+          : undefined
+      }
+      onRequestRevision={
+        canReviewVersionFile && reviewingFilePath !== file.filepath
+          ? () => handleReviewRevisionFile(file, "request_revision")
+          : undefined
+      }
+      isDark={isDark}
+    />
+  );
+})}
                 </div>
                 {hasMoreFiles ? (
                   <div className="flex justify-center">
                     <Button
                       type="button"
-                      className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                      className={`border ${isDark ? "border-white/20 bg-[#202020] text-white hover:bg-white/10" : "border-black/20 bg-[#F0F0F0] text-black hover:bg-black/10"}`}
                       onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
                     >
                       View More
@@ -1589,16 +1688,17 @@ export default function AffiliateFileManager() {
                   </div>
                 ) : null}
               </div>
-	            ) : (
-	              <EmptyFileState
-	                title="No File Uploaded"
-	                description="No files have been uploaded for this project yet."
-                  onAction={canUploadInSelectedPhase ? () => setIsUploadModalOpen(true) : undefined}
-                  actionLabel={canUploadInSelectedPhase ? "Upload Files" : undefined}
-	              />
-	            )}
-	          </div>
-	        ) : null}
+            ) : (
+              <EmptyFileState
+                title="No File Uploaded"
+                description="No files have been uploaded for this project yet."
+                onAction={canUploadInSelectedPhase ? () => setIsUploadModalOpen(true) : undefined}
+                actionLabel={canUploadInSelectedPhase ? "Upload Files" : undefined}
+                isDark={isDark}
+              />
+            )}
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -1609,11 +1709,11 @@ export default function AffiliateFileManager() {
       style={{ fontFamily: "var(--font-instrument-sans)" }}
     >
       <div className="flex justify-between items-center mb-3 lg:mb-6">
-        <div>
-          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1 text-white">
+        <div className={`w-full transition-colors duration-200 ${isDark ? "text-white" : "text-black"}`}>
+          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">
             File Manager
           </h1>
-          <p className="text-xs lg:text-sm text-white/70">
+          <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#727272]"}`}>
             Live project folders from your booked and paid shoots.
           </p>
         </div>
@@ -1623,71 +1723,91 @@ export default function AffiliateFileManager() {
       {(selectedWorkspace || selectedPhase) && (
         <button
           onClick={handleBack}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2"
+          className={`transition-colors flex items-center gap-2 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/80"}`}
         >
           <ArrowLeft size={18} />
           <span className="text-sm font-medium">Back</span>
         </button>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 text-sm text-white/60">
-        {breadcrumb.map((item, index) => (
-          <React.Fragment key={`${item}-${index}`}>
-            {index > 0 && <span>/</span>}
-            <span
-              className={index === breadcrumb.length - 1 ? "text-white font-medium" : ""}
-            >
-              {item}
-            </span>
-          </React.Fragment>
-        ))}
+      <div className={`flex flex-wrap items-center gap-2 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+        {breadcrumb.map((item, index) => {
+          const isLast = index === breadcrumb.length - 1;
+          return (
+            <React.Fragment key={`${item}-${index}`}>
+              {index > 0 && (
+                <span className={`transition-colors ${isDark ? "text-white/30" : "text-black/25"}`}>
+                  /
+                </span>
+              )}
+              <span className={`transition-colors font-medium ${isLast ? isDark ? "text-white" : "text-black" : ""}`}>
+                {item}
+              </span>
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {!selectedWorkspace && (
         <>
           <div className="flex flex-col lg:flex-row gap-4 justify-between items-center w-full mb-4 lg:mb-9">
-            <div className="flex flex-nowrap items-center gap-1.5 lg:gap-3 bg-[#171717] p-1.5 rounded-xl w-full lg:w-fit overflow-x-auto no-scrollbar scroll-smooth">
+            <div className={`w-full lg:w-fit overflow-x-auto no-scrollbar scroll-smooth transition-colors duration-200 ${isDark ? "bg-[#171717]" : "bg-white"} flex flex-nowrap items-center gap-1.5 lg:gap-3 p-1.5 rounded-xl`}>
               {[
                 { name: "All Files", icon: FolderOpen },
                 { name: "Linked to folders", icon: Link },
+                { name: "Common events", icon: Calendar },
                 { name: "Recent", icon: History },
                 // { name: "Shared", icon: Share2 },
                 // { name: "Trash", icon: Trash2 },
-              ].map((tab) => (
-                <Button
-                  key={tab.name}
-                  onClick={() => setSelectedTab(tab.name)}
-                  className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${selectedTab === tab.name
-                      ? "bg-white text-black shadow-lg scale-[1.02]"
-                      : "text-white/60 hover:bg-white/10 hover:text-white"
-                    }`}
-                >
-                  <tab.icon size={20} className="shrink-0" />
-                  <span className="leading-none">{tab.name}</span>
-                </Button>
-              ))}
+              ].map((tab) => {
+                const isActive = selectedTab === tab.name;
+                return (
+                  <Button
+                    key={tab.name}
+                    onClick={() => setSelectedTab(tab.name)}
+                    className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${isActive
+                      ? isDark
+                        ? "bg-white text-black shadow-lg scale-[1.02]"
+                        : "bg-black text-[#E8D1AB] shadow-md scale-[1.02] hover:bg-black/90"
+                      : isDark
+                        ? "bg-transparent text-white/60 hover:bg-white/10 hover:text-white"
+                        : "bg-transparent text-[#B1B1B1] hover:bg-black/5 hover:text-black"
+                      }`}
+                  >
+                    <tab.icon size={20} className="shrink-0" />
+                    <span className="leading-none">{tab.name}</span>
+                  </Button>
+                )
+              })}
             </div>
 
-            <div className="w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base text-[#8F8F8F] bg-[#171717]/50 px-4 py-2 rounded-lg border border-white/5">
+            <div className={`w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base px-4 py-2 rounded-lg border transition-colors duration-200 ${isDark
+              ? "text-[#8F8F8F] bg-[#171717]/50 border-white/5"
+              : "text-[#000000] bg-white border-white"
+              }`}>
               <span className="whitespace-nowrap">Projects:</span>
               <p className="font-medium">
                 <span className="text-[#E8D1AB]">{workspaces.length}</span>
-                <span className="mx-1">total</span>
+                <span className={`mx-1 ${isDark ? "text-[#8F8F8F]" : "text-[#000000]"}`}>total</span>
               </p>
             </div>
           </div>
 
           <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
             <div className="relative flex-1 max-w-xl">
-              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+              <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
               <input
                 type="text"
                 placeholder="Search folder..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                  ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                  : "bg-white border-[#E3E3E3] text-black placeholder:text-[#9F9FA9] focus:ring-[#D7D7D7] focus:border-[#D7D7D7]"
+                  }`}
               />
             </div>
+
             <div className="flex gap-2">
               {/* <BasicDropdown
                 label="Status"
@@ -1699,22 +1819,25 @@ export default function AffiliateFileManager() {
               <div className="md:hidden relative">
                 <Button
                   onClick={() => setIsViewMenuOpen((prev) => !prev)}
-                  className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+                  className={`flex items-center gap-2 p-2 h-8 rounded-lg border transition-colors ${isDark
+                    ? "bg-[#202020] border-white/10 text-white hover:bg-[#2c2c2c]"
+                    : "bg-white border-[#D7D7D7] text-black hover:bg-[#F4F5F7]"
+                    }`}
                 >
                   {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
                 </Button>
 
                 {isViewMenuOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                  <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden transition-colors ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#D7D7D7]"}`}>
                     <button
                       onClick={() => {
                         setViewMode("grid");
                         setIsViewMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid"
-                          ? "bg-white/10 text-white"
-                          : "text-white/60 hover:bg-white/5"
-                        }`}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors text-left ${viewMode === "grid"
+                        ? isDark ? "bg-white/10 text-white" : "bg-black/5 text-black font-medium"
+                        : isDark ? "text-white/60 hover:bg-white/5" : "text-[#727272] hover:bg-black/5"}
+                      `}
                     >
                       <Grid3X3 size={18} />
                       Grid View
@@ -1724,10 +1847,10 @@ export default function AffiliateFileManager() {
                         setViewMode("list");
                         setIsViewMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list"
-                          ? "bg-white/10 text-white"
-                          : "text-white/60 hover:bg-white/5"
-                        }`}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors text-left ${viewMode === "list"
+                        ? isDark ? "bg-white/10 text-white" : "bg-black/5 text-black font-medium"
+                        : isDark ? "text-white/60 hover:bg-white/5" : "text-[#727272] hover:bg-black/5"}
+                      `}
                     >
                       <List size={18} />
                       List View
@@ -1736,12 +1859,16 @@ export default function AffiliateFileManager() {
                 )}
               </div>
 
-              <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
+              <div className={`hidden lg:flex flex-wrap items-center rounded-lg w-full md:w-fit border transition-colors ${isDark ? "bg-[#202020] border-white/5" : "bg-white border-white"}`}>
                 <Button
                   onClick={() => setViewMode("grid")}
                   className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === "grid"
+                    ? isDark
                       ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                      : "bg-transparent text-white/40 hover:text-white"
+                      : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                    : isDark
+                      ? "bg-transparent text-white/40 hover:text-white"
+                      : "bg-transparent text-black hover:text-black/80"
                     }`}
                 >
                   <Grid3X3 size={20} />
@@ -1749,8 +1876,12 @@ export default function AffiliateFileManager() {
                 <Button
                   onClick={() => setViewMode("list")}
                   className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === "list"
+                    ? isDark
                       ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                      : "bg-transparent text-white/40 hover:text-white"
+                      : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+                    : isDark
+                      ? "bg-transparent text-white/40 hover:text-white"
+                      : "bg-transparent text-black hover:text-black/80"
                     }`}
                 >
                   <List size={20} />
@@ -1763,7 +1894,7 @@ export default function AffiliateFileManager() {
 
       {selectedWorkspace && (
         <div className="relative max-w-xl">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
+          <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
           <input
             type="text"
             placeholder={
@@ -1771,7 +1902,10 @@ export default function AffiliateFileManager() {
             }
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-[#18181b] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+            className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+              ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+              : "bg-white border-[#E3E3E3] text-black placeholder:text-[#9F9FA9] focus:ring-[#D7D7D7] focus:border-[#D7D7D7]"
+              }`}
           />
         </div>
       )}
@@ -1782,92 +1916,192 @@ export default function AffiliateFileManager() {
         renderRoot()
       )}
 
-      {editRequestSentCount > 0 ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-          <div className="relative w-full max-w-[430px] overflow-hidden rounded-3xl border border-white/10 bg-[#0A0A0A] px-6 pb-8 pt-10 text-center shadow-2xl">
-            {/* Soft background glow */}
-            <div className="pointer-events-none absolute left-1/2 top-10 h-32 w-32 -translate-x-1/2 rounded-full bg-[#E8D1AB]/10 blur-[50px]" />
-            
-            {/* SVG Checkmark and Confetti */}
-            <div className="relative mx-auto mb-6 flex h-32 w-32 items-center justify-center">
-              <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg" className="overflow-visible">
-                {/* Gold Confetti Diamond */}
-                <path d="M 45 35 L 48 40 L 45 45 L 42 40 Z" fill="#E8D1AB" />
-                {/* Purple Confetti Diamond */}
-                <path d="M 98 32 L 101 37 L 98 42 L 95 37 Z" fill="#A78BFA" />
-                {/* Blue Confetti Star */}
-                <path d="M 28 55 L 30 58 L 33 55 L 30 52 Z" fill="#60A5FA" />
-                {/* Green Confetti Star */}
-                <path d="M 112 55 L 114 58 L 117 55 L 114 52 Z" fill="#34D399" />
-                {/* Pink Confetti circle */}
-                <circle cx="30" cy="85" r="3.5" fill="#F472B6" />
-                {/* Orange Confetti circle */}
-                <circle cx="110" cy="85" r="4.5" fill="#FB923C" />
-                {/* Light Blue Confetti circle */}
-                <circle cx="70" cy="22" r="3.5" fill="#38BDF8" />
-                
-                {/* Curved confetti lines */}
-                <path d="M 35 40 Q 32 30 40 25" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" fill="none" />
-                <path d="M 105 40 Q 108 30 100 25" stroke="#34D399" strokeWidth="2" strokeLinecap="round" fill="none" />
-
-                {/* Main Beige Badge Circle */}
-                <circle cx="70" cy="70" r="36" fill="#E8D1AB" />
-                
-                {/* Black Checkmark inside Circle */}
-                <path
-                  d="M 57 70 L 66 79 L 83 60"
-                  stroke="#000000"
-                  strokeWidth="5.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </svg>
-            </div>
-            
-            <h2 className="text-xl font-bold text-white tracking-wide">Edits Request Sent Successfully</h2>
-            <p className="mx-auto mt-3 max-w-[310px] text-sm leading-6 text-white/60">
-              Your selected files have been sent for edits. The assigned team will review and start the requested changes shortly.
-            </p>
-            <Button
-              className="mt-8 h-12 w-full rounded-xl bg-[#E8D1AB] text-sm font-semibold text-black hover:bg-[#D4C3A3] transition-colors"
-              onClick={() => {
-                setEditRequestSentCount(0);
-                setSelectedPhase("post");
-                setSelectedPath("Edits/Selected for Edits");
-                setSearchTerm("");
-              }}
-            >
-              Open Edit Folder
-            </Button>
-          </div>
+      {selectedFilePaths.length > 0 ? (
+  <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
+    <div
+      className={`flex items-center justify-between gap-4 rounded-2xl border p-4 shadow-2xl transition-all duration-300 ${
+        isDark
+          ? "border-[#E8D1AB]/50 bg-[#171717]"
+          : "border-[#B38F43]/40 bg-white"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
+          {selectedFilePaths.length}
         </div>
-      ) : null}
+        <span
+          className={`font-medium transition-colors ${
+            isDark ? "text-white" : "text-black"
+          }`}
+        >
+          Files selected
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          className={`gap-2 transition-colors ${
+            isDark
+              ? "text-white/70 hover:text-white"
+              : "text-black/60 hover:text-black"
+          }`}
+          onClick={() => {
+            setSelectedFilePaths([]);
+            setIsSelectionMode(false);
+          }}
+        >
+          Clear
+        </Button>
+
+        <div
+          className={`mx-1 h-6 w-[1px] transition-colors ${
+            isDark ? "bg-white/10" : "bg-black/10"
+          }`}
+        />
+
+        <Button
+          className={`gap-2 border transition-all ${
+            isDark
+              ? "border-white/10 bg-white/10 text-white hover:bg-white/20"
+              : "border-black/10 bg-black text-white hover:bg-black/90 shadow-sm"
+          }`}
+          onClick={handleBatchDownload}
+        >
+          <Download size={18} />
+          Download
+        </Button>
+      </div>
+    </div>
+  </div>
+) : null}
+
+{editRequestSentCount > 0 ? (
+  <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+    <div className="relative w-full max-w-[430px] overflow-hidden rounded-3xl border border-white/10 bg-[#0A0A0A] px-6 pb-8 pt-10 text-center shadow-2xl">
+      {/* Soft background glow */}
+      <div className="pointer-events-none absolute left-1/2 top-10 h-32 w-32 -translate-x-1/2 rounded-full bg-[#E8D1AB]/10 blur-[50px]" />
+
+      {/* SVG Checkmark and Confetti */}
+      <div className="relative mx-auto mb-6 flex h-32 w-32 items-center justify-center">
+        <svg
+          width="140"
+          height="140"
+          viewBox="0 0 140 140"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="overflow-visible"
+        >
+          {/* Gold Confetti Diamond */}
+          <path d="M 45 35 L 48 40 L 45 45 L 42 40 Z" fill="#E8D1AB" />
+
+          {/* Purple Confetti Diamond */}
+          <path d="M 98 32 L 101 37 L 98 42 L 95 37 Z" fill="#A78BFA" />
+
+          {/* Blue Confetti Star */}
+          <path d="M 28 55 L 30 58 L 33 55 L 30 52 Z" fill="#60A5FA" />
+
+          {/* Green Confetti Star */}
+          <path d="M 112 55 L 114 58 L 117 55 L 114 52 Z" fill="#34D399" />
+
+          {/* Pink Confetti circle */}
+          <circle cx="30" cy="85" r="3.5" fill="#F472B6" />
+
+          {/* Orange Confetti circle */}
+          <circle cx="110" cy="85" r="4.5" fill="#FB923C" />
+
+          {/* Light Blue Confetti circle */}
+          <circle cx="70" cy="22" r="3.5" fill="#38BDF8" />
+
+          {/* Curved confetti lines */}
+          <path
+            d="M 35 40 Q 32 30 40 25"
+            stroke="#FBBF24"
+            strokeWidth="2"
+            strokeLinecap="round"
+            fill="none"
+          />
+          <path
+            d="M 105 40 Q 108 30 100 25"
+            stroke="#34D399"
+            strokeWidth="2"
+            strokeLinecap="round"
+            fill="none"
+          />
+
+          {/* Main Beige Badge Circle */}
+          <circle cx="70" cy="70" r="36" fill="#E8D1AB" />
+
+          {/* Black Checkmark inside Circle */}
+          <path
+            d="M 57 70 L 66 79 L 83 60"
+            stroke="#000000"
+            strokeWidth="5.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </svg>
+      </div>
+
+      <h3 className="relative text-xl font-semibold text-white">
+        Edit request sent
+      </h3>
+
+      <p className="relative mt-2 text-sm text-white/60">
+        {editRequestSentCount}{" "}
+        {editRequestSentCount === 1 ? "file has" : "files have"} been sent for
+        revision.
+      </p>
+
+      <Button
+        className="relative mt-6 w-full rounded-xl bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
+        onClick={() => {
+          setEditRequestSentCount(0);
+        }}
+      >
+        Done
+      </Button>
+    </div>
+  </div>
+) : null}
 
       {isCameraOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4">
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-[#111111]">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <h3 className="text-sm font-semibold text-white">Face Scan Camera</h3>
+        <div className={`fixed inset-0 z-[80] flex items-center justify-center p-4 transition-colors duration-300 ${isDark ? "bg-black/85" : "bg-black/75 backdrop-blur-xs"
+          }`}>
+          <div className={`w-full max-w-xl overflow-hidden rounded-lg lg:rounded-2xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#111111]" : "border-black/15 bg-[#F0f0f0]"}`}>
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between border-b px-4 py-3 transition-colors ${isDark ? "border-white/10" : "border-white/5 bg-white/5"
+              }`}>
+              <h3 className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>Face Scan Camera</h3>
               <button
                 type="button"
                 onClick={handleCloseCamera}
-                className="rounded-md border border-white/10 px-2 py-1 text-xs text-white/80 hover:bg-white/10"
+                className={`rounded-md border px-2 py-1 text-xs transition-colors ${isDark
+                  ? "border-white/10 text-white/80 hover:bg-white/10"
+                  : "border-black/10 text-black hover:bg-black/10"
+                  }`}
               >
                 Close
               </button>
             </div>
+
+            {/* Camera Body Canvas Workspace */}
             <div className="p-4">
               {cameraError && !isCameraProcessing ? (
-                <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
+                <div className={`rounded-lg border p-3 text-sm mb-3 transition-colors ${isDark
+                  ? "border-red-400/30 bg-red-500/10 text-red-200"
+                  : "border-red-500/20 bg-red-500/15 text-red-100"
+                  }`}>
                   {cameraError}
                 </div>
               ) : null}
+
               {isCameraProcessing ? (
-                <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-white/10 bg-black">
+                <div className={`flex aspect-video w-full items-center justify-center rounded-lg border transition-colors ${isDark ? "bg-black border-white/10" : "bg-white border-black/5"}`}>
                   <div className="text-center">
-                    <Loader2 className="mx-auto animate-spin text-white/70" size={28} />
-                    <p className="mt-2 text-xs text-white/65">Scanning your face...</p>
+                    <Loader2 className={`mx-auto animate-spin ${isDark ? "text-white/70" : "text-black/70"}`} size={28} />
+                    <p className={`mt-2 text-xs ${isDark ? "text-white/65" : "text-black/60"}`}>Scanning your face...</p>
                   </div>
                 </div>
               ) : (
@@ -1876,7 +2110,7 @@ export default function AffiliateFileManager() {
                   autoPlay
                   muted
                   playsInline
-                  className="aspect-video w-full rounded-lg border border-white/10 bg-black object-cover"
+                  className={`aspect-video w-full object-cover rounded-lg border transition-colors ${isDark ? "bg-black border-white/10" : "bg-white border-black/5"}`}
                 />
               )}
               <div className="mt-3 flex items-center justify-end gap-2">
@@ -1884,7 +2118,11 @@ export default function AffiliateFileManager() {
                   type="button"
                   onClick={handleCloseCamera}
                   disabled={isCameraProcessing}
-                  className={`rounded-md border border-white/15 px-3 py-1.5 text-sm text-white ${isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+                  className={`rounded-md border px-3 py-1.5 text-sm transition-all ${isCameraProcessing
+                    ? "cursor-not-allowed opacity-40 border-white/5 text-white/40"
+                    : isDark
+                      ? "border-white/15 text-white hover:bg-white/10"
+                      : "border-black/5 text-black hover:bg-black/10"
                     }`}
                 >
                   Cancel
@@ -1894,8 +2132,8 @@ export default function AffiliateFileManager() {
                   onClick={handleCaptureFromCamera}
                   disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
                   className={`rounded-md px-3 py-1.5 text-sm ${cameraError || isFaceScanning || isCameraProcessing
-                      ? "cursor-not-allowed bg-[#E8D1AB]/30 text-black/70"
-                      : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
+                    ? "cursor-not-allowed bg-[#E8D1AB]/30 text-black/70"
+                    : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
                     }`}
                 >
                   {isFaceScanning || isCameraProcessing ? "Scanning..." : "Capture & Scan"}
@@ -1916,6 +2154,7 @@ export default function AffiliateFileManager() {
             await loadPhase(selectedWorkspace, selectedPhase, selectedPath);
           }
         }}
+        isDark={isDark}
       />
 
       <FileViewerModal
@@ -1928,6 +2167,7 @@ export default function AffiliateFileManager() {
         fileUrl={viewerUrl}
         contentType={viewerType}
         fileMetaId={viewerMetaId}
+        isDark={isDark}
       />
     </div>
   );

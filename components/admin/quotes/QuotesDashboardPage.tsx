@@ -2013,7 +2013,13 @@ export default function QuotesDashboardPage({
                       );
                     })
                   ) : (
-                    <tr><td colSpan={7} className="px-6 py-16 text-center">No results found.</td></tr>
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-6 py-16 text-center">
+                        No results found.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
 

@@ -84,6 +84,8 @@ export default function CreatorSubFolderDetailsPage() {
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
+  const isPhaseRoute = phaseSlug === "pre-production" || phaseSlug === "post-production";
+  const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -132,7 +134,7 @@ export default function CreatorSubFolderDetailsPage() {
       setError(null);
       const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
         projectId,
-        phaseSlug === "post-production" ? "post" : "pre",
+        isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre",
         currentFolderPath
       );
       setWorkspaceName(workspaceData.workspace.folderName);
@@ -174,7 +176,7 @@ export default function CreatorSubFolderDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentFolderPath, phaseSlug, projectId]);
+  }, [currentFolderPath, isCommonEventRootFolder, phaseSlug, projectId]);
 
   useEffect(() => {
     let mounted = true;
@@ -416,7 +418,7 @@ export default function CreatorSubFolderDetailsPage() {
     if (!trimmed) return;
     try {
       await fileManagerApi.createExternalFolder(projectId, trimmed, {
-        phase: phaseSlug === "post-production" ? "post" : "pre",
+        phase: isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre",
         path: currentFolderPath,
       });
       toast.success("Folder created");
@@ -903,6 +905,16 @@ export default function CreatorSubFolderDetailsPage() {
 		                    userInitials={folder.userInitials}
 			                    onOpenLinkModal={() => undefined}
 			                    href={folder.href}
+                          onShare={() => {
+	                            setShareResource({
+	                              resourceType: "folder",
+	                              externalId: String(projectId || ""),
+	                              phase: isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre",
+	                              path: String(folder.resourcePath || ""),
+	                              label: folder.title,
+	                            });
+                            setIsShareModalOpen(true);
+                          }}
 			                    onDelete={
                           canDeleteFolders
                             ? () => {
@@ -1182,21 +1194,31 @@ export default function CreatorSubFolderDetailsPage() {
         </div>
       ) : null}
 
-	      <UploadModal
-	        isOpen={isUploadModalOpen}
-	        onClose={() => {
-            setIsUploadModalOpen(false);
-            setSelectedUploadVersion(null);
-          }}
-	        folderName={isSelectedForEditsFolder || isRevisionRootFolder ? `Version${uploadModalVersion}` : folderTitle}
-	        uploadPath={
-	          uploadFolderPath
-	        }
-	        onUploadComplete={async () => {
-            await loadFiles();
-            setSelectedUploadVersion(null);
-          }}
-	      />
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => {
+          setIsUploadModalOpen(false);
+          setSelectedUploadVersion(null);
+        }}
+        folderName={
+          isSelectedForEditsFolder || isRevisionRootFolder
+            ? `Version${uploadModalVersion}`
+            : folderTitle
+        }
+        uploadPath={
+          uploadFolderPath ??
+          (canUpload && workspaceName
+            ? isCommonEventRootFolder
+              ? `${workspaceName}/${currentFolderPath}`
+              : `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"
+              }/${currentFolderPath}`
+            : undefined)
+        }
+        onUploadComplete={async () => {
+          await loadFiles();
+          setSelectedUploadVersion(null);
+        }}
+      />
 
 	      <CreateFolderModal
 	        isOpen={isCreateFolderModalOpen}
