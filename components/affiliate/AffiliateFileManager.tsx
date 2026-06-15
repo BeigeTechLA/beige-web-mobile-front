@@ -1436,7 +1436,7 @@ export default function AffiliateFileManager() {
                       : "bg-black/[0.04] text-[#B38F43] border-black/5"
                     }`}
                 >
-                  {canUploadInSelectedPhase ? "Upload Enabled" : "View Onlyy"}
+                  {canUploadInSelectedPhase ? "Upload EnabledD" : "View Onlyy"}
                 </span>
               </div>
 
