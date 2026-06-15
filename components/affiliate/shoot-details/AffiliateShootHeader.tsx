@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { ArrowLeft, Eye } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -21,9 +21,9 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
   const router = useRouter();
   const { theme } = useTheme();
   const pathname = usePathname();
-  const [mounted, setMounted] = React.useState(false);
-  const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
-  const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [workspaceFolderLink, setWorkspaceFolderLink] = useState("");
+  const [workspaceFileCount, setWorkspaceFileCount] = useState<number | null>(null);
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = workspaceFolderLink;
   const isDark = !mounted || theme === "dark";
@@ -43,11 +43,11 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
 
-  React.useEffect(() => {
+  useEffect(() => {
     setMounted(true);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
 
     const loadWorkspaceSummary = async () => {
@@ -145,11 +145,10 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
       {/* Hero Section */}
       <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
-          <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#D6E4FF] text-[#1E40AF]" : "bg-[#C8E1FF] text-[#1E40AF]"
-            }`}>
+          <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"}`}>
             {project?.project_name ? getInitials(project?.project_name) : "NA"}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="mb-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>

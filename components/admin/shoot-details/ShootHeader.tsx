@@ -128,21 +128,21 @@ export default function ShootHeader({
   const isQuoteBasedShoot = Boolean(convertedSalesQuoteId || projectConvertedSalesQuoteId);
   const lockedQuoteAmount = isQuoteBasedShoot
     ? getAmount(
-        project?.converted_quote_amount,
-        project?.converted_quote_total,
-        projectQuote?.final_total,
-        projectQuote?.total_amount,
-        projectQuote?.amount_after_tax,
-        projectQuote?.total,
-        primaryQuote?.final_total,
-        primaryQuote?.total_amount,
-        primaryQuote?.total,
-        customQuote?.final_total,
-        customQuote?.total_amount,
-        customQuote?.total,
-        project?.total_value_amount,
-        project?.total_paid_amount
-      )
+      project?.converted_quote_amount,
+      project?.converted_quote_total,
+      projectQuote?.final_total,
+      projectQuote?.total_amount,
+      projectQuote?.amount_after_tax,
+      projectQuote?.total,
+      primaryQuote?.final_total,
+      primaryQuote?.total_amount,
+      primaryQuote?.total,
+      customQuote?.final_total,
+      customQuote?.total_amount,
+      customQuote?.total,
+      project?.total_value_amount,
+      project?.total_paid_amount
+    )
     : undefined;
   const manualPaymentSummary =
     (project?.manual_payment_summary as Record<string, unknown> | undefined) ||
@@ -155,7 +155,7 @@ export default function ShootHeader({
   const discountValue = parseAmount(pricingBreakdown.discount);
   const creditAppliedValue = parseAmount(pricingBreakdown.credit_applied);
   const totalAfterCredit = parseAmount(pricingBreakdown.total_after_credit);
-  const totalValue = isConvertedBooking 
+  const totalValue = isConvertedBooking
     ? convertedTotalValue
     : (totalBeforeCredit ||
       subtotalValue ||
@@ -210,7 +210,7 @@ export default function ShootHeader({
         ? finalValue
         : 0);
 
- const pendingAmountValue = isFullyDiscountedShoot ? 0 : Math.max(finalValue - paidAmountValue, 0); 
+  const pendingAmountValue = isFullyDiscountedShoot ? 0 : Math.max(finalValue - paidAmountValue, 0);
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
@@ -221,9 +221,9 @@ export default function ShootHeader({
     "No location specified";
   const guestEmail = String(
     project?.guest_email ||
-      (project?.lead_details as Record<string, unknown> | undefined)?.guest_email ||
-      project?.email ||
-      ""
+    (project?.lead_details as Record<string, unknown> | undefined)?.guest_email ||
+    project?.email ||
+    ""
   ).trim();
   const resolvedClientId = Number(
     project?.client_id ||
@@ -240,7 +240,7 @@ export default function ShootHeader({
   const paidAmountText = `$${paidAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const pendingAmountText = `$${pendingAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  React.useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
 
     const loadWorkspaceSummary = async () => {
@@ -275,50 +275,86 @@ export default function ShootHeader({
     if (!text) return <span>No description available.</span>;
 
     const lines = text.split(/\r?\n/);
+    const elements: React.ReactNode[] = [];
 
-    return lines.map((line, lineIndex) => {
-      const phoneMatch = line.match(/^(\s*Phone\s*:\s*)(.+)$/i);
-      const emailMatch = line.match(/^(\s*Email\s*:\s*)(.+)$/i);
+    lines.forEach((line, lineIndex) => {
+      if (line.includes("[BEIGE_STUDIO_META]")) {
+        const jsonStr = line.replace("[BEIGE_STUDIO_META]", "");
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const meta = Array.isArray(parsed) ? parsed[0] : parsed;
 
-      if (phoneMatch) {
-        const phoneValue = phoneMatch[2].trim();
-        const telValue = phoneValue.replace(/[^\d+]/g, "");
+          if (meta) {
+            if (meta.name) {
+              elements.push(<div key="meta-name" className="font-medium mb-1">{meta.name}</div>);
+            }
+            if (meta.location) {
+              elements.push(<div key="meta-location" className="mb-2">{meta.location}</div>);
+            }
 
-        return (
-          <div key={`description-line-${lineIndex}`} className="flex items-center gap-2">
-            <span>{phoneMatch[1]}</span>
-            <a
-              href={`tel:${telValue}`}
-              className="break-all transition-colors hover:opacity-80"
-              title={`Call ${phoneValue}`}
-              aria-label={`Call ${phoneValue}`}
-            >
-              {phoneValue}
-            </a>
-          </div>
-        );
+            elements.push(
+              <div key="meta-row-1" className="flex flex-wrap gap-x-8 gap-y-1 mb-1">
+                {meta.priceLabel && <span>Pricing: {meta.priceLabel}</span>}
+                {meta.totalPrice && <span>Total Price: ${meta.totalPrice}</span>}
+              </div>
+            );
+
+            elements.push(
+              <div key="meta-row-2" className="flex flex-wrap gap-x-8 gap-y-1 mb-2">
+                {meta.selectedDate && <span>Date: {meta.selectedDate}</span>}
+                {meta.startTime && meta.endTime && <span>Time: {meta.startTime} - {meta.endTime}</span>}
+              </div>
+            );
+          }
+        } catch (e) {
+          elements.push(<div key={`description-line-${lineIndex}`}>{line}</div>);
+        }
       }
+      else {
+        const phoneMatch = line.match(/^(\s*Phone\s*:\s*)(.+)$/i);
+        const emailMatch = line.match(/^(\s*Email\s*:\s*)(.+)$/i);
 
-      if (emailMatch) {
-        const emailValue = emailMatch[2].trim();
+        if (phoneMatch) {
+          const phoneValue = phoneMatch[2].trim();
+          const telValue = phoneValue.replace(/[^\d+]/g, "");
 
-        return (
-          <div key={`description-line-${lineIndex}`} className="flex items-center gap-2">
-            <span>{emailMatch[1]}</span>
-            <a
-              href={`mailto:${emailValue}`}
-              className="break-all transition-colors hover:opacity-80"
-              title="Email ID"
-              aria-label={`Email ${emailValue}`}
-            >
-              {emailValue}
-            </a>
-          </div>
-        );
+          elements.push(
+            <div key={`description-line-${lineIndex}`} className="flex items-center gap-2">
+              <span>{phoneMatch[1]}</span>
+              <a
+                href={`tel:${telValue}`}
+                className="break-all transition-colors hover:opacity-80"
+                title={`Call ${phoneValue}`}
+                aria-label={`Call ${phoneValue}`}
+              >
+                {phoneValue}
+              </a>
+            </div>
+          );
+        } else if (emailMatch) {
+          const emailValue = emailMatch[2].trim();
+
+          elements.push(
+            <div key={`description-line-${lineIndex}`} className="flex items-center gap-2">
+              <span>{emailMatch[1]}</span>
+              <a
+                href={`mailto:${emailValue}`}
+                className="break-all transition-colors hover:opacity-80"
+                title="Email ID"
+                aria-label={`Email ${emailValue}`}
+              >
+                {emailValue}
+              </a>
+            </div>
+          );
+        } else if (line.trim()) {
+          elements.push(<div key={`description-line-${lineIndex}`}>{line}</div>);
+        }
+
       }
-
-      return <div key={`description-line-${lineIndex}`}>{line}</div>;
     });
+
+    return elements;
   };
 
   const handleViewClientDetails = () => {
@@ -405,8 +441,7 @@ export default function ShootHeader({
       {/* Hero Section */}
       <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
-          <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"
-            }`}>
+          <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"}`}>
             {getInitials(project?.project_name)}
           </div>
           <div className="flex-1 min-w-0">

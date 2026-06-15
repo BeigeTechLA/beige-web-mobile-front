@@ -399,6 +399,19 @@ const formatStatusLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+const toPaymentNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
 type QuoteVersionMeta = Record<string, unknown>;
 type QuoteChangeRequestMeta = Record<string, unknown>;
 
@@ -606,7 +619,6 @@ const SectionShell = ({
       ) : null}
     </div>
 
-    {/* Dashed Separator Line */}
     <div className={`border-t transition-colors ${isDark ? "border-[#343434]" : "border-[#2B2B2B]"}`} />
 
     <div className="px-5 py-5 lg:px-8 lg:py-7">{children}</div>
@@ -751,12 +763,10 @@ const QuoteTopActions = ({
 
 const DetailRow = ({ label, value, isDark = true }: { label: string; value: string; isDark?: boolean; }) => (
   <div className="flex items-start justify-between gap-4 py-2.5 lg:py-4">
-    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"
-      }`}>
+    <p className={`shrink-0 text-sm lg:text-base transition-colors ${isDark ? "text-[#8F8F95]" : "text-[#000000]/50"}`}>
       {label}
     </p>
-    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"
-      }`}>
+    <p className={`max-w-[65%] break-words text-right text-sm lg:text-base font-semibold transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
       {value}
     </p>
   </div>
@@ -1364,7 +1374,12 @@ export default function QuoteDetailsPage({
 
     return Number.isInteger(activityLeadId) && activityLeadId > 0 ? activityLeadId : null;
   }, [quote]);
-  const { data: linkedLeadDetails, refetch: refetchLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
+  const {
+    data: linkedLeadDetails,
+    isFetching: isFetchingLinkedLeadDetails,
+    isLoading: isLoadingLinkedLeadDetails,
+    refetch: refetchLeadDetails,
+  } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
     skip: !quoteLeadId,
   });
   const refreshQuotePrimaryContext = useCallback(async () => {
@@ -1508,14 +1523,39 @@ export default function QuoteDetailsPage({
         new Date(String(a.createdAt || 0)).getTime()
     );
   }, [linkedLeadDetails?.activities, quote?.activities]);
-  const leadPaymentStatus = String(linkedLeadDetails?.payment_status || "").toLowerCase();
-  const totalPaymentAmount = Number(finalTotal || linkedLeadDetails?.pricing_breakdown?.total || 0);
+  const quoteRecord = quote as Record<string, unknown> | null;
+  const leadPaymentStatus = String(linkedLeadDetails?.payment_status || "").trim().toLowerCase();
+  const paymentSummary = quoteRecord?.payment_summary && typeof quoteRecord.payment_summary === "object"
+    ? (quoteRecord.payment_summary as Record<string, unknown>)
+    : null;
+  const quotePaymentStatus = String(
+    quote?.additional_payment?.payment_status ||
+    paymentSummary?.payment_status ||
+    quoteRecord?.payment_status ||
+    ""
+  ).trim().toLowerCase();
+  const totalPaymentAmount = Math.max(
+    0,
+    toPaymentNumber(finalTotal) ??
+    toPaymentNumber(linkedLeadDetails?.pricing_breakdown?.total) ??
+    0
+  );
 
   // Account for previous payments from lead or quote context
-  const leadCollectedAmount = Number(linkedLeadDetails?.collected_amount) || 0;
-  const quotePreviouslyPaid = Number(quote?.additional_payment?.previously_paid_amount) || 0;
-  const summaryPaidAmount = Number(quote?.payment_summary?.paid_amount) || 0;
-  const summaryCreditUsedAmount = Number(quote?.payment_summary?.credit_used_amount) || 0;
+  const leadCollectedAmount = Math.max(0, toPaymentNumber(linkedLeadDetails?.collected_amount) ?? 0);
+  const quotePreviouslyPaid = Math.max(
+    0,
+    toPaymentNumber(quote?.additional_payment?.previously_paid_amount) ?? 0
+  );
+  const summaryPaidAmount = Math.max(0, toPaymentNumber(paymentSummary?.paid_amount) ?? 0);
+  const summaryCreditUsedAmount = Math.max(
+    0,
+    toPaymentNumber(paymentSummary?.credit_used_amount) ?? 0
+  );
+  const summaryDueAmountValue =
+    toPaymentNumber(paymentSummary?.due_amount) ??
+    toPaymentNumber(paymentSummary?.pending_amount);
+  const summaryDueAmount = Math.max(0, summaryDueAmountValue ?? 0);
   const effectivePreviouslyPaid = Math.max(
     leadCollectedAmount + summaryCreditUsedAmount,
     quotePreviouslyPaid + summaryCreditUsedAmount,
@@ -1528,23 +1568,48 @@ export default function QuoteDetailsPage({
     const numeric = Number(entry.data.amount || 0);
     return sum + (Number.isFinite(numeric) ? numeric : 0);
   }, 0);
-  const quotePaymentStatus = String(quote?.additional_payment?.payment_status || "").toLowerCase();
-  const quoteOutstandingAmount = Number(quote?.additional_payment?.outstanding_amount) || 0;
-
+  const quoteOutstandingAmountValue = toPaymentNumber(quote?.additional_payment?.outstanding_amount);
+  const quoteOutstandingAmount = Math.max(0, quoteOutstandingAmountValue ?? 0);
+  const hasExplicitOutstandingAmount =
+    quoteOutstandingAmountValue !== null || summaryDueAmountValue !== null;
+  const explicitOutstandingAmount =
+    quoteOutstandingAmountValue !== null ? quoteOutstandingAmount : summaryDueAmount;
+  const hasExplicitPartialPaymentStatus = [
+    "partially_paid",
+    "partial_paid",
+    "partially paid",
+    "pending",
+    "payment_pending",
+  ].includes(quotePaymentStatus);
+  const hasPaidLeadStatus = ["paid", "success", "completed"].includes(leadPaymentStatus);
+  const paidAmountCandidate = Math.max(effectivePreviouslyPaid, partialPaidFromActivity);
+  const isPaymentContextLoading =
+    Boolean(quoteLeadId) && !linkedLeadDetails && (isLoadingLinkedLeadDetails || isFetchingLinkedLeadDetails);
+  const isQuoteDetailsLoading = loading || isPaymentContextLoading;
+  const isPartiallyPaid =
+    hasExplicitPartialPaymentStatus ||
+    summaryDueAmount > 0 ||
+    (paidAmountCandidate > 0 && totalPaymentAmount > 0 && paidAmountCandidate < totalPaymentAmount) ||
+    (paidAmountCandidate > 0 && explicitOutstandingAmount > 0);
   const hasFullPayment =
-    (hasFullPaymentFromActivity || ["paid", "success", "completed"].includes(leadPaymentStatus)) &&
-    quotePaymentStatus !== "pending" &&
-    quoteOutstandingAmount <= 0;
-  const paidAmount = hasFullPayment ? totalPaymentAmount : (effectivePreviouslyPaid || partialPaidFromActivity);
-  const pendingAmount = totalPaymentAmount - paidAmount;
-  const isPartiallyPaid = !hasFullPayment && paidAmount > 0 && pendingAmount > 0;
+    !isPaymentContextLoading &&
+    !isPartiallyPaid &&
+    (
+      hasFullPaymentFromActivity ||
+      (hasPaidLeadStatus && hasExplicitOutstandingAmount && explicitOutstandingAmount <= 0) ||
+      (paidAmountCandidate > 0 && totalPaymentAmount > 0 && paidAmountCandidate >= totalPaymentAmount)
+    );
+  const paidAmount = hasFullPayment ? totalPaymentAmount : paidAmountCandidate;
+  const pendingAmount = Math.max(totalPaymentAmount - paidAmount, explicitOutstandingAmount);
   const latestManualPaymentEntry = manualPaymentEntries[0] || null;
   const canTakeManualPayment = !hasFullPayment && pendingAmount > 0;
   const displayStatus = hasFullPayment
     ? "Paid"
     : isPartiallyPaid
       ? "Partially Paid"
-      : quoteStatus;
+      : ["paid", "success", "completed"].includes(normalizedQuoteStatus)
+        ? "Pending"
+        : quoteStatus;
   const normalizedDisplayStatus = displayStatus.trim().toLowerCase();
   const hasInvoiceablePaymentContext =
     effectivePreviouslyPaid > 0 ||
@@ -1563,6 +1628,7 @@ export default function QuoteDetailsPage({
       hasInvoiceablePaymentContext
     );
   const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
+  const shouldUseReceiptActions = hasFullPayment;
 
   const ensureBookingForPayment = useCallback(async () => {
     if (resolvedBookingId) {
@@ -1770,6 +1836,8 @@ export default function QuoteDetailsPage({
 
       const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
+      const receiptUrl = response.data?.receiptUrl || null;
+      const isPaidDocument = response.data?.isPaid === true || shouldUseReceiptActions;
       const invoiceBookingId =
         response.data?.booking_id !== undefined &&
           response.data?.booking_id !== null &&
@@ -1784,43 +1852,51 @@ export default function QuoteDetailsPage({
       const isManualInvoicePdf =
         typeof invoicePdfUrl === "string" &&
         /[?&]manual=(1|true)\b/i.test(invoicePdfUrl);
-      const brandedPdfUrl = invoiceBookingId
+      const isManualInvoiceUrl =
+        typeof hostedInvoiceUrl === "string" &&
+        /\/beige_invoice\/|[?&]manual=(1|true)\b/i.test(hostedInvoiceUrl);
+      const isManualReceiptUrl =
+        typeof receiptUrl === "string" &&
+        /\/beige_invoice\/|[?&](manual|receipt)=(1|true)\b/i.test(receiptUrl);
+      const isManualDocument = isManualInvoiceUrl || isManualInvoicePdf || isManualReceiptUrl;
+      const shouldUseInlineBeigeDocument =
+        Boolean(invoiceBookingId);
+      const inlineDocumentUrl = shouldUseInlineBeigeDocument && invoiceBookingId
         ? buildBeigeInvoiceUrl(invoiceBookingId, {
-            manual: isManualInvoicePdf,
+            manual: isManualDocument && !isPaidDocument,
+            receipt: isManualDocument && isPaidDocument,
             cacheBust: true,
           })
         : null;
-      const brandedDownloadUrl = invoiceBookingId
-        ? buildBeigeInvoiceUrl(invoiceBookingId, {
-            manual: isManualInvoicePdf,
-            download: true,
-            cacheBust: true,
-          })
-        : null;
-
-      if (!hostedInvoiceUrl && !invoicePdfUrl) {
+      if (!hostedInvoiceUrl && !invoicePdfUrl && !receiptUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl && !invoicePdfUrl) {
-        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      const viewerUrl = inlineDocumentUrl
+        ? `/pdf-viewer?${new URLSearchParams({
+            url: inlineDocumentUrl,
+            title: isPaidDocument ? "Receipt" : "Invoice",
+          }).toString()}`
+        : null;
+      const openUrl =
+        viewerUrl ||
+        (isPaidDocument
+          ? invoicePdfUrl || hostedInvoiceUrl || receiptUrl
+          : hostedInvoiceUrl || invoicePdfUrl);
+
+      if (!openUrl) {
+        throw new Error(`${isPaidDocument ? "Receipt" : "Invoice"} URL is not available`);
       }
 
-      if (invoicePdfUrl) {
-        const link = document.createElement("a");
-        if (!brandedDownloadUrl && !brandedPdfUrl) {
-          throw new Error("Invoice PDF URL is not available");
-        }
-        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.click();
-      }
-
-      toast.success("Invoice opened successfully");
+      const link = document.createElement("a");
+      link.href = openUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.click();
+      toast.success(`${isPaidDocument ? "Receipt" : "Invoice"} opened successfully`);
     } catch (error) {
-      console.error("Failed to preview invoice", error);
-      toast.error(error instanceof Error ? error.message : "Failed to preview invoice");
+      console.error("Failed to preview invoice or receipt", error);
+      toast.error(error instanceof Error ? error.message : "Failed to preview invoice or receipt");
     } finally {
       setIsViewingInvoice(false);
     }
@@ -2074,10 +2150,10 @@ export default function QuoteDetailsPage({
         void handlePaymentTransactionAction();
       }}
       onPreview={() => setIsPreviewOpen(true)}
-      previewDisabled={!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      rejectDisabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      convertDisabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      previewDisabled={!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      rejectDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      convertDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      paymentDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
       isConverting={isConverting}
       isRejected={isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
@@ -2102,13 +2178,13 @@ export default function QuoteDetailsPage({
           <button
             type="button"
             onClick={() => router.push(baseHref)}
-            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
+            className="flex items-center gap-2 text-sm lg:text-base text-[#D4D4D4] transition-colors hover:text-white"
           >
             <ArrowLeft size={18} />
             Back
           </button>
 
-          {!loading && quote && (
+          {!isQuoteDetailsLoading && quote && (
             <div className="flex lg:flex-wrap items-center gap-3">
               {canViewInvoiceFromDetails && (
                 <Button
@@ -2121,7 +2197,9 @@ export default function QuoteDetailsPage({
                   className={`h-11 rounded-xl border px-5 w-full lg:w-auto ${isDark ? "border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]" : "border-[#0000004D] bg-white text-black hover:bg-[#F4F5F7]"}`}
                 >
                   {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
-                  {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+                  {isViewingInvoice
+                    ? `Opening ${shouldUseReceiptActions ? "Receipt" : "Invoice"}...`
+                    : `View ${shouldUseReceiptActions ? "Receipt" : "Invoice"}`}
                 </Button>
               )}
               {canSendInvoiceFromDetails && (
@@ -2134,22 +2212,23 @@ export default function QuoteDetailsPage({
                   className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 w-full lg:w-auto"
                 >
                   {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
-                  {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+                  {isSendingInvoice
+                    ? `Sending ${shouldUseReceiptActions ? "Receipt" : "Invoice"}...`
+                    : `Send ${shouldUseReceiptActions ? "Receipt" : "Invoice"}`}
                 </Button>
               )}
             </div>
           )}
         </div>
 
-        {loading ? (
+        {isQuoteDetailsLoading ? (
           <div className={`flex min-h-[360px] items-center justify-center rounded-[26px] border transition-colors ${isDark
             ? "border-[#2B2B2B] bg-[#171717]"
             : "border-[#000000]/10 bg-white"
             }`}
           >
             <div
-              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"
-                }`}
+              className={`flex items-center gap-3 text-base transition-colors ${isDark ? "text-[#D4D4D8]" : "text-[#000000]/60"}`}
             >
               <Loader2 size={18} className="animate-spin text-[#E8D1AB]" />
               Loading quote details...
@@ -2688,7 +2767,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("discounts")}
-                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "discounts"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2698,7 +2777,7 @@ export default function QuoteDetailsPage({
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
-                    className={`rounded-xl lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
+                    className={`rounded-lg lg:rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${otherDetailsTab === "tax"
                       ? "bg-[#E8D1AB] text-black"
                       : "text-[#8F8F95]"
                       }`}
@@ -2795,7 +2874,7 @@ export default function QuoteDetailsPage({
               <Button
                 type="button"
                 onClick={handleRejectQuote}
-                disabled={!quote || loading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                disabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
                 className="h-10 rounded-lg border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
               >
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
@@ -2804,7 +2883,7 @@ export default function QuoteDetailsPage({
               <Button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
-                disabled={(!quote || loading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                disabled={(!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)) || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
                 className="h-10 rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
               >
                 <Eye size={18} />

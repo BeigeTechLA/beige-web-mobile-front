@@ -1,25 +1,44 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
-import { useChangePasswordMutation, useChangePasswordClientMutation } from "@/lib/redux/features/auth/authApi";
+import { useChangePasswordClientMutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
+import Cookies from "js-cookie";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { affiliateApi } from "@/lib/api";
 
 export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }) => {
   const [changePasswordClient, { isLoading }] = useChangePasswordClientMutation();
   const { user } = useAuth();
+  const [clientId, setClientId] = useState<number | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    const loadAffiliateClientId = async () => {
+      const token = Cookies.get("revure_token");
+      if (!token) return;
+
+      try {
+        const affiliateInfo = await affiliateApi.getMyAffiliate(token);
+        setClientId(affiliateInfo.client_id || affiliateInfo.client?.client_id || null);
+      } catch (error) {
+        console.error("Failed to fetch affiliate client ID:", error);
+      }
+    };
+
+    loadAffiliateClientId();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +73,12 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to change password");
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "data" in err
+          ? (err as { data?: { message?: string } }).data?.message
+          : undefined;
+      toast.error(message || "Failed to change password");
     }
   };
 
@@ -101,7 +124,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
             }`}>User ID</p>
             <p className={`font-mono lg:text-lg tracking-wider transition-colors ${
               isDark ? "text-white/50" : "text-zinc-500"
-            }`}>#{user?.id}</p>
+            }`}>#{clientId || user?.id}</p>
           </div>
         </div>
       </div>
@@ -110,7 +133,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
       <div className={`rounded-lg lg:rounded-2xl p-4 md:p-10 border transition-colors ${
         isDark ? "bg-[#111] border-white/5" : "bg-white border-zinc-200"
       }`}>
-        <h2 className={`text-xl font-bold tracking-tight mb-4 lg:mb-8 transition-colors ${
+        <h2 className={`lg:text-xl font-bold tracking-tight mb-4 lg:mb-8 transition-colors ${
           isDark ? "text-white" : "text-[#171717]"
         }`}>
           Security Settings
@@ -126,7 +149,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
                   type={showCurrentPassword ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className={`pr-12 h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
+                  className={`pr-12 h-10 lg:h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
                     isDark 
                       ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50" 
                       : "bg-[#F9F9F9] border-zinc-200 text-black focus:border-[#E8D1AB]"
@@ -155,7 +178,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
                   type={showNewPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className={`pr-12 h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
+                  className={`pr-12 h-10 lg:h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
                     isDark 
                       ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50" 
                       : "bg-[#F9F9F9] border-zinc-200 text-black focus:border-[#E8D1AB]"
@@ -184,7 +207,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`pr-12 h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
+                  className={`pr-12 h-10 lg:h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
                     isDark 
                       ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50" 
                       : "bg-[#F9F9F9] border-zinc-200 text-black focus:border-[#E8D1AB]"
@@ -211,7 +234,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
             <Button
               type="submit"
               disabled={isLoading}
-              className="h-14 lg:h-[72px] bg-[#E8D1AB] text-black font-medium text-lg rounded-xl flex-1 min-w-[140px] lg:min-w-[240px]"
+              className="h-10 lg:h-14 lg:h-[72px] bg-[#E8D1AB] text-black font-medium lg:text-lg rounded-lg lg:rounded-xl flex-1 min-w-[140px] lg:min-w-[240px]"
             >
               {isLoading ? "Updating Password..." : "Update Password"}
             </Button>

@@ -17,7 +17,7 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react"; // Added X icon for closing
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
@@ -195,6 +195,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
     try {
       const versionsResponse = await salesApi.getQuoteVersions(convertedSalesQuoteId);
+      const quoteDetailResponse = await salesApi.getQuoteDetail(convertedSalesQuoteId);
+
       const versionsData = Array.isArray(versionsResponse?.data)
         ? versionsResponse.data
         : versionsResponse?.data?.versions || [];
@@ -218,6 +220,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         : await salesApi.getQuoteDetail(convertedSalesQuoteId);
 
       const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
+
+      if (quoteDetail && quoteDetailResponse?.data) {
+        const rawDetail = quoteDetailResponse.data;
+
+        (quoteDetail as any).signature_base64 = rawDetail.signature_base64;
+        (quoteDetail as any).signer_name = rawDetail.signer_name;
+        (quoteDetail as any).signed_at = rawDetail.signed_at;
+      }
 
       if (!quoteDetail) {
         throw new Error("Quote preview data is unavailable");
@@ -529,6 +539,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
         {/* Main Content (Left Scroll Window) */}
         <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
+
           <ShootHeader
             activeTab={activeTab}
             project={project}
@@ -548,7 +559,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             View Project Timeline
           </Button>
 
-          <div className={`rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
+          <div className={`rounded-lg lg:rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
             <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (

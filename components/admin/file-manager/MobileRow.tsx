@@ -128,6 +128,3 @@ export const MobileFileRow = ({
     </div>
   );
 };
-
-{/* Main Display Fragment Block Container Layout */ }
- 

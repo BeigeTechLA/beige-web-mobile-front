@@ -357,6 +357,11 @@ const getLatestApprovalStatus = (value: unknown) => {
   ])?.toLowerCase() || null;
 };
 
+const QUOTE_PREVIEW_APPROVAL_PENDING_REASON = "QUOTE_PREVIEW_APPROVAL_PENDING";
+
+const isLatestApprovalPending = (approvalStatus: string | null) =>
+  Boolean(approvalStatus && !["approved", "accepted"].includes(approvalStatus));
+
 const ActionButton = ({
   onClick,
   className,
@@ -434,14 +439,13 @@ export default function QuotePreviewPageShell({
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorReasonCode, setErrorReasonCode] = useState<string | null>(null);
-  const [latestPreviewUrl, setLatestPreviewUrl] = useState<string | null>(null);
   const [latestPreviewApprovalStatus, setLatestPreviewApprovalStatus] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isPreparingLink, setIsPreparingLink] = useState(false);
-  const [isGeneratingLatestLink, setIsGeneratingLatestLink] = useState(false);
   const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState<string | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
+  const latestRedirectAttemptRef = useRef<string | null>(null);
   const [showSignature, setShowSignature] = useState(false);
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
@@ -463,11 +467,37 @@ export default function QuotePreviewPageShell({
   useEffect(() => {
     let isMounted = true;
 
+    const fetchLatestQuotePreviewUrl = async () => {
+      if (!queryQuoteKey) {
+        throw new Error("Old quote key is missing.");
+      }
+
+      const response = await fetch("/api/quotes/latest-preview-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quoteKey: queryQuoteKey }),
+      });
+      const data = await response.json().catch(() => null);
+      const previewUrl = normalizeQuotePreviewUrlForClient(
+        getNormalizedString(data?.data?.previewUrl),
+        getNormalizedString(data?.data?.quoteKey)
+      );
+
+      if (!response.ok || data?.success === false || !previewUrl) {
+        throw new Error(
+          typeof data?.error === "string"
+            ? data.error
+            : "Latest quote link is not available yet."
+        );
+      }
+
+      return previewUrl;
+    };
+
     const loadQuotePreview = async () => {
       setLoading(true);
       setErrorMessage(null);
       setErrorReasonCode(null);
-      setLatestPreviewUrl(null);
       setLatestPreviewApprovalStatus(null);
 
       if (!queryQuoteKey && !queryQuoteId) {
@@ -497,7 +527,10 @@ export default function QuotePreviewPageShell({
       }
 
       try {
-        const response =
+        // ---------------------------------------------------------
+        // STEP 1: Initial API Call (Validates link / gets basic info)
+        // ---------------------------------------------------------
+        const initialResponse =
           quoteDetailMode === "public"
             ? queryQuoteKey
               ? await fetchQuotePreviewByKey(queryQuoteKey)
@@ -508,23 +541,49 @@ export default function QuotePreviewPageShell({
               }
             : await salesApi.getQuoteDetail(queryQuoteId);
 
-        if (response?.error || response?.success === false) {
+        if (initialResponse?.error || initialResponse?.success === false) {
           throw new Error(
-            typeof response?.error === "string" ? response.error : "Failed to fetch quote preview"
+            typeof initialResponse?.error === "string" ? initialResponse.error : "Failed to fetch quote preview"
           );
         }
 
-        const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+        const initialQuoteDetail = unwrapSalesQuoteDetail(initialResponse?.data ?? null);
 
-        if (!quoteDetail) {
+        if (!initialQuoteDetail) {
           throw new Error("Quote preview is unavailable");
+        }
+
+        let finalQuoteDetail = initialQuoteDetail;
+
+        const salesQuoteId = String(
+          initialQuoteDetail.sales_quote_id ??
+          initialQuoteDetail.quote_id ??
+          initialQuoteDetail.id ??
+          ""
+        ).trim();
+
+        if (salesQuoteId && quoteDetailMode === "public") {
+          try {
+            console.log("🔄 Fetching full quote details for ID:", salesQuoteId);
+            const fullResponse = await salesApi.getQuoteDetail(salesQuoteId);
+
+            if (fullResponse?.success !== false && fullResponse?.data) {
+              const unwrappedFull = unwrapSalesQuoteDetail(fullResponse.data);
+              if (unwrappedFull) {
+                finalQuoteDetail = unwrappedFull;
+              }
+            }
+          } catch (fullErr) {
+            console.warn("⚠️ Failed to fetch full quote details, using initial preview data:", fullErr);
+          }
         }
 
         if (!isMounted) {
           return;
         }
 
-        setQuote(quoteDetail);
+        setQuote(finalQuoteDetail);
+
       } catch (error) {
         console.error("Failed to load quote preview", error);
 
@@ -534,12 +593,41 @@ export default function QuotePreviewPageShell({
 
         setQuote(null);
         const previewError = error instanceof QuotePreviewFetchError ? error : null;
-        setErrorReasonCode(previewError?.reasonCode ?? null);
-        setLatestPreviewUrl(resolveLatestPreviewLink(previewError?.payload));
-        setLatestPreviewApprovalStatus(getLatestApprovalStatus(previewError?.payload));
+        const reasonCode = previewError?.reasonCode ?? null;
+        const resolvedLatestPreviewUrl = resolveLatestPreviewLink(previewError?.payload);
+        const approvalStatus = getLatestApprovalStatus(previewError?.payload);
+
+        setErrorReasonCode(reasonCode);
+        setLatestPreviewApprovalStatus(approvalStatus);
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to fetch quote preview"
         );
+
+        if (
+          quoteDetailMode === "public" &&
+          queryQuoteKey &&
+          reasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON &&
+          !isLatestApprovalPending(approvalStatus) &&
+          latestRedirectAttemptRef.current !== queryQuoteKey
+        ) {
+          latestRedirectAttemptRef.current = queryQuoteKey;
+
+          try {
+            const nextPreviewUrl = resolvedLatestPreviewUrl || (await fetchLatestQuotePreviewUrl());
+            if (isMounted && nextPreviewUrl) {
+              window.location.replace(nextPreviewUrl);
+            }
+          } catch (redirectError) {
+            console.error("Failed to open latest quote preview", redirectError);
+            if (isMounted) {
+              setErrorMessage(
+                redirectError instanceof Error
+                  ? redirectError.message
+                  : "Latest quote link is not available yet."
+              );
+            }
+          }
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -552,7 +640,7 @@ export default function QuotePreviewPageShell({
     return () => {
       isMounted = false;
     };
-  }, [queryQuoteId, queryQuoteKey, quoteDetailMode, summaryStorageKey]);
+  }, [queryQuoteId, queryQuoteKey, quoteDetailMode, summaryStorageKey, showSignature]);
 
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? queryQuoteId ?? ""
@@ -713,19 +801,18 @@ export default function QuotePreviewPageShell({
   const hasValidPublicQuotePreview =
     quoteDetailMode === "public" && !loading && Boolean(quote) && !errorMessage;
   const latestVersionApprovalPending =
-    errorReasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON &&
-    latestPreviewApprovalStatus &&
-    !["approved", "accepted"].includes(latestPreviewApprovalStatus);
+    errorReasonCode === QUOTE_PREVIEW_APPROVAL_PENDING_REASON ||
+    (errorReasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON &&
+      isLatestApprovalPending(latestPreviewApprovalStatus));
   const unavailableMessage =
     latestVersionApprovalPending
-      ? "A newer quote version is available, but admin approval is pending. Please check back once it is approved."
+      ? "We're preparing the latest version of your quote. It will be available here once it's ready."
       : errorReasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON
-      ? latestPreviewUrl
-        ? "Your old version link has expired because a new quote version was created. Open the latest approved version below."
-        : "Your old version link has expired because a new quote version was created. Generate a latest quote link below."
+      ? "We're opening the latest version of your quote."
       : errorMessage || "The quote preview could not be loaded.";
   const canContinueToPayment =
     hasValidPublicQuotePreview &&
+    isQuoteSigned &&
     Boolean(effectivePaymentBookingId) &&
     isPublicPaymentAllowedStatus &&
     !isMarkedFullyPaid &&
@@ -862,52 +949,17 @@ export default function QuotePreviewPageShell({
   };
 
   const handleContinueToPayment = () => {
+    if (!isQuoteSigned) {
+      toast.error("Please sign the quote before continuing to payment.");
+      return;
+    }
+
     const bookingId = effectivePaymentBookingId;
     if (!bookingId) {
       toast.error("Booking id missing for payment.");
       return;
     }
     router.push(`/search-results/payment?shootId=${encodeURIComponent(bookingId)}`);
-  };
-
-  const handleGenerateLatestQuoteLink = async () => {
-    if (latestPreviewUrl) {
-      window.location.href = latestPreviewUrl;
-      return;
-    }
-
-    if (!queryQuoteKey) {
-      toast.error("Old quote key is missing.");
-      return;
-    }
-
-    setIsGeneratingLatestLink(true);
-    try {
-      const response = await fetch("/api/quotes/latest-preview-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quoteKey: queryQuoteKey }),
-      });
-      const data = await response.json().catch(() => null);
-      const previewUrl = normalizeQuotePreviewUrlForClient(
-        getNormalizedString(data?.data?.previewUrl),
-        getNormalizedString(data?.data?.quoteKey)
-      );
-
-      if (!response.ok || data?.success === false || !previewUrl) {
-        throw new Error(
-          typeof data?.error === "string"
-            ? data.error
-            : "Latest quote link is not available yet."
-        );
-      }
-
-      window.location.href = previewUrl;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to generate latest quote link");
-    } finally {
-      setIsGeneratingLatestLink(false);
-    }
   };
 
   const breadcrumbOverrides = React.useMemo(
@@ -1095,7 +1147,7 @@ export default function QuotePreviewPageShell({
               }`}
           >
             <p className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>
-              Preview data unavailable
+              {latestVersionApprovalPending ? "Your quote is being updated" : "Preview data unavailable"}
             </p>
             <p className={`max-w-[480px] text-sm ${isDark ? "text-[#8B8B90]" : "text-[#60646C]"}`}>
               {unavailableMessage}
@@ -1108,25 +1160,13 @@ export default function QuotePreviewPageShell({
               >
                 Go to Quote Builder
               </Button>
-            ) : errorReasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON && !latestVersionApprovalPending ? (
+            ) : latestVersionApprovalPending ? (
               <Button
                 type="button"
-                onClick={() => {
-                  void handleGenerateLatestQuoteLink();
-                }}
-                disabled={isGeneratingLatestLink}
+                onClick={() => window.location.reload()}
                 className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
               >
-                {isGeneratingLatestLink ? (
-                  <>
-                    <Loader2 size={16} className="mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : latestPreviewUrl ? (
-                  "Open Latest Quote Version"
-                ) : (
-                  "Generate Latest Quote Link"
-                )}
+                Refresh
               </Button>
             ) : showBackButton ? (
               <Button
@@ -1203,7 +1243,7 @@ export default function QuotePreviewPageShell({
                 const bookingId = findBookingId(signatureData) || findBookingId(refreshedQuote) || findBookingId(quote);
                 if (bookingId) {
                   setPaymentBookingId(bookingId);
-                  toast.success(`Booking #${bookingId} is ready. Continue to payment.`);
+                  toast.success(`Booking #${bookingId} is ready for payment.`);
                 }
               }
             } catch (error) {

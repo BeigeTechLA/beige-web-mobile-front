@@ -66,6 +66,9 @@ export type BookingDataV3 = {
   selectedCrewRoles?: SelectedCrewRoles;
   selectedStudioIds?: string[];
   selectedStudios?: SelectedStudio[];
+  selectedStudioImage?: string;
+  selectedStudioName?: string;
+
 
   roleCounts?: {
     videographer?: number;

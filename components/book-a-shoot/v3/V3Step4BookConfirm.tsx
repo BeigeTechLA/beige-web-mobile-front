@@ -201,6 +201,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const isStudioBooking = data.shootType === "studio";
   const selectedStudios = normalizeSelectedStudios(data);
   const primaryStudio = selectedStudios[0];
+  const locationDisplayText = isStudioBooking
+    ? DEFAULT_DISPLAY_ADDRESS
+    : String(data.location || "").trim() || "Location not set";
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -317,6 +320,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         : newshootTypes;
 
   const shootInfo: ShootTypeProps = (() => {
+    if (isStudioBooking && primaryStudio?.image) {
+      return {
+        title: primaryStudio.name || "Studio",
+        details: "Studio shoot",
+        image: primaryStudio.image,
+      };
+    }
+
     const fallbackPools = [
       ...newshootTypes,
       ...videoShootTypes,
@@ -868,20 +879,20 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               </div>
 
               {!isEditingOnly && (
-                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
-                      <Map size={32} className="text-[#9D9595]" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
-                        {DEFAULT_DISPLAY_ADDRESS || "Location not set"}
-                      </span>
-                      <span className="text-sm text-[#A9A9A9]">Location</span>
-                    </div>
+              <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                    <Map size={32} className="text-[#9D9595]" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
+                      {locationDisplayText}
+                    </span>
+                    <span className="text-sm text-[#A9A9A9]">Location</span>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
 
               {
@@ -1080,7 +1091,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                                 <div className="text-white font-medium truncate">{studio.name}</div>
                                 <div className="text-xs text-[#A9A9A9] flex items-center gap-1 mt-1">
                                   <MapPin size={12} />
-                                  <span className="truncate">{DEFAULT_DISPLAY_ADDRESS}</span>
+                                  <span className="truncate">{locationDisplayText}</span>
                                 </div>
                               </div>
                               <div className="text-sm font-semibold text-[#E8D1AB] shrink-0">

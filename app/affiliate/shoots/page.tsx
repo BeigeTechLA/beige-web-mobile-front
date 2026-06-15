@@ -91,6 +91,7 @@ export default function AffiliateProfilePage() {
           onFillDetailsClick={() => setIsShootFormOpen(true)}
           pendingCount={pendingCount}
           selectedDate = {selectedDate}
+          isDark={isDark}
         />
       </div>
 
