@@ -23,6 +23,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
+import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
+import { fetchAndCommitUserPermissions } from "@/lib/permissionsActions";
+import {
+  canAccessPortalPath,
+  getFirstAllowedPortalPath,
+  hasModulePermission,
+  type PermissionsMap,
+} from "@/lib/permissions";
 
 type CpStatusPayload = {
   success?: boolean;
@@ -39,7 +47,33 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const dispatch = useAppDispatch();
+  const { logout, user } = useAuth();
+  const { permissions, permissionsVersion } = useAppSelector((state) => ({
+    permissions: state.auth.permissions,
+    permissionsVersion: state.auth.permissionsVersion,
+  }));
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!mounted || !userId) return;
+
+    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
+  }, [user?.id, mounted, dispatch]);
+
+  useEffect(() => {
+    if (!mounted || !permissions) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("creator", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, permissionsVersion, router]);
 
   // Global CP status check for all creator pages
   useEffect(() => {
@@ -77,7 +111,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex overflow-hidden">
       <div className="hidden lg:block w-64 flex-shrink-0">
-        <Sidebar pathname={pathname} />
+        <Sidebar pathname={pathname} permissions={permissions} permissionsVersion={permissionsVersion} />
       </div>
 
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-white/10 px-4 h-16 flex items-center justify-between">
@@ -95,7 +129,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/80 z-50 lg:hidden backdrop-blur-sm" />
             <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} className="fixed inset-y-0 left-0 z-50 w-64 bg-[#111] lg:hidden">
-              <Sidebar pathname={pathname} onClose={() => setIsSidebarOpen(false)} />
+              <Sidebar pathname={pathname} onClose={() => setIsSidebarOpen(false)} permissions={permissions} permissionsVersion={permissionsVersion} />
               <button onClick={() => setIsSidebarOpen(false)} className="absolute top-4 right-4 p-2 text-white/60"><X size={20} /></button>
             </motion.div>
           </>
@@ -111,10 +145,34 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
   );
 }
 
-function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void; }) {
+function Sidebar({
+  pathname,
+  onClose,
+  permissions,
+  permissionsVersion,
+}: {
+  pathname: string;
+  onClose?: () => void;
+  permissions: PermissionsMap | null;
+  permissionsVersion: number;
+}) {
   const { logout, user } = useAuth();
   const [isVerified, setIsVerified] = useState(false);
   const handleLogout = useCallback(() => { logout(); localStorage.clear(); onClose?.(); }, [logout, onClose]);
+
+  const navItems = [
+    { href: "/creator/dashboard", icon: LayoutDashboard, label: "Dashboard", permissionKeys: ["dashboard"] },
+    { href: "/creator/dashboard/request", icon: Camera, label: "Request & Shoots", permissionKeys: ["shoots", "request_shoots"] },
+    { href: "/creator/dashboard/file-manager", icon: FolderOpen, label: "File Manager", permissionKeys: ["file_manager"] },
+    { href: "/creator/dashboard/meetings", icon: CalendarClock, label: "Meetings", permissionKeys: ["meetings"] },
+    { href: "/creator/dashboard/messages", icon: MessageCircle, label: "Messages", permissionKeys: ["messages"] },
+    { href: "/creator/dashboard/affiliate", icon: LayoutDashboard, label: "Affiliate", permissionKeys: ["affiliate"] },
+    { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", permissionKeys: ["availability"] },
+    { href: "/creator/dashboard/profile", icon: User, label: "Profile", permissionKeys: ["settings", "profile"] },
+  ].filter((item) => {
+    if (!permissions) return true;
+    return hasModulePermission(permissions, item.permissionKeys, "view");
+  });
 
   // LOGIC TO SYNC SIDEBAR LOCKS AND CHECK STATUS
   useEffect(() => {
@@ -185,15 +243,10 @@ function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void
         </Link>
       </div>
 
-      <div className="flex-1 py-6 px-3 space-y-1">
-        <NavLink href="/creator/dashboard" icon={LayoutDashboard} label="Dashboard" />
-        <NavLink href="/creator/dashboard/request" icon={Camera} label="Request & Shoots" />
-        <NavLink href="/creator/dashboard/file-manager" icon={FolderOpen} label="File Manager" />
-        <NavLink href="/creator/dashboard/meetings" icon={CalendarClock} label="Meetings" />
-        <NavLink href="/creator/dashboard/messages" icon={MessageCircle} label="Messages" />
-        <NavLink href="/creator/dashboard/affiliate" icon={LayoutDashboard} label="Affiliate" />
-        <NavLink href="/creator/dashboard/availability" icon={Calendar} label="Availability" />
-        <NavLink href="/creator/dashboard/profile" icon={User} label="Profile" />
+      <div className="flex-1 py-6 px-3 space-y-1" key={`creator-nav-${permissionsVersion}`}>
+        {navItems.map((item) => (
+          <NavLink key={item.href} href={item.href} icon={item.icon} label={item.label} />
+        ))}
 
         <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 cursor-not-allowed opacity-50"><Wallet size={20} /><span>Payouts (Soon)</span></button>
         <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 cursor-not-allowed opacity-50"><Settings size={20} /><span>Settings (Soon)</span></button>

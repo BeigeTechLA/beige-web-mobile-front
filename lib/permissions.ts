@@ -10,7 +10,7 @@ type AdminRouteRule = {
   permissionKeys?: string[];
 };
 
-type PortalKey = "admin" | "affiliate" | "sales" | "production-manager";
+type PortalKey = "admin" | "affiliate" | "sales" | "production-manager" | "creator";
 
 const MODULE_ALIASES: Record<string, string[]> = {
   admin_dashboard: ["dashboard", "sales_admin_dashboard", "sales_rep_dashboard"],
@@ -69,6 +69,9 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/users", permissionKeys: ["users"] },
   { prefix: "/admin/quotes", permissionKeys: ["quotes"] },
+  { prefix: "/admin/roles-permissions" },
+  { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
+  { prefix: "/admin/internal-credentials", permissionKeys: ["users"] },
 ];
 
 const AFFILIATE_ROUTE_RULES: AdminRouteRule[] = [
@@ -105,6 +108,17 @@ const PRODUCTION_MANAGER_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/production-manager/availability", permissionKeys: ["availability"] },
 ];
 
+const CREATOR_ROUTE_RULES: AdminRouteRule[] = [
+  { prefix: "/creator/dashboard/request", permissionKeys: ["shoots", "request_shoots"] },
+  { prefix: "/creator/dashboard/file-manager", permissionKeys: ["file_manager"] },
+  { prefix: "/creator/dashboard/meetings", permissionKeys: ["meetings"] },
+  { prefix: "/creator/dashboard/messages", permissionKeys: ["messages"] },
+  { prefix: "/creator/dashboard/affiliate", permissionKeys: ["affiliate"] },
+  { prefix: "/creator/dashboard/availability", permissionKeys: ["availability"] },
+  { prefix: "/creator/dashboard/profile", permissionKeys: ["settings", "profile"] },
+  { prefix: "/creator/dashboard", permissionKeys: ["dashboard"] },
+];
+
 const DASHBOARD_FALLBACK_PATHS = [
   "/admin/dashboard",
   "/admin/shoots",
@@ -125,6 +139,7 @@ const PORTAL_ROUTE_RULES: Record<PortalKey, AdminRouteRule[]> = {
   affiliate: AFFILIATE_ROUTE_RULES,
   sales: SALES_ROUTE_RULES,
   "production-manager": PRODUCTION_MANAGER_ROUTE_RULES,
+  creator: CREATOR_ROUTE_RULES,
 };
 
 const PORTAL_FALLBACK_PATHS: Record<PortalKey, string[]> = {
@@ -160,6 +175,16 @@ const PORTAL_FALLBACK_PATHS: Record<PortalKey, string[]> = {
     "/production-manager/messages",
     "/production-manager/availability",
   ],
+  creator: [
+    "/creator/dashboard",
+    "/creator/dashboard/request",
+    "/creator/dashboard/file-manager",
+    "/creator/dashboard/meetings",
+    "/creator/dashboard/messages",
+    "/creator/dashboard/affiliate",
+    "/creator/dashboard/availability",
+    "/creator/dashboard/profile",
+  ],
 };
 
 const getPortalForPathname = (pathname: string): PortalKey | null => {
@@ -167,6 +192,7 @@ const getPortalForPathname = (pathname: string): PortalKey | null => {
   if (pathname.startsWith("/affiliate")) return "affiliate";
   if (pathname.startsWith("/sales")) return "sales";
   if (pathname.startsWith("/production-manager")) return "production-manager";
+  if (pathname.startsWith("/creator/dashboard")) return "creator";
   return null;
 };
 

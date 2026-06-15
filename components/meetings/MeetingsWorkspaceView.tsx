@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/src/components/landing/ui/tooltip"
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import ParticipantAvatarStack from "./AvatarStack";
 import MeetingsStructure from "./MeetingsTable";
 
@@ -109,8 +110,11 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const isSalesAdminView = role === "sales" && normalizedUserRole === "sales_admin";
   const isAdminView = role === "admin" || isSalesAdminView;
   const effectiveRoleForActions: RoleVariant = isAdminView ? "admin" : role;
-  const canCreateMeeting = effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
-  const canDeleteMeeting = effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
+  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
+  const canCreateMeeting =
+    (effectiveRoleForActions === "admin" || effectiveRoleForActions === "client") && canCreateByPermission;
+  const canDeleteMeeting =
+    (effectiveRoleForActions === "admin" || effectiveRoleForActions === "client") && canDeleteByPermission;
 
   const loadMeetings = useCallback(async () => {
     setLoading(true);

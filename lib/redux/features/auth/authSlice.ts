@@ -7,6 +7,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   permissions: Record<string, Record<string, boolean>> | null;
+  permissionsVersion: number;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -15,6 +16,7 @@ const initialState: AuthState = {
   user: null,
   token: null,
   permissions: null,
+  permissionsVersion: 0,
   isAuthenticated: false,
   isLoading: true,
 };
@@ -54,6 +56,7 @@ const authSlice = createSlice({
       state.user = user;
       state.token = token;
       state.permissions = null;
+      state.permissionsVersion = 0;
       state.isAuthenticated = true;
       state.isLoading = false;
 
@@ -66,6 +69,7 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.permissions = null;
+      state.permissionsVersion = 0;
       state.isAuthenticated = false;
       state.isLoading = false;
 
@@ -77,6 +81,7 @@ const authSlice = createSlice({
     setPermissions: (state, action: PayloadAction<Record<string, Record<string, boolean>>>) => {
       const normalizedPermissions = normalizePermissionsPayload(action.payload);
       state.permissions = normalizedPermissions;
+      state.permissionsVersion += 1;
       Cookies.set('revure_permissions', JSON.stringify(normalizedPermissions), { expires: 7 });
     },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {

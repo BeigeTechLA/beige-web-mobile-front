@@ -909,6 +909,7 @@ export const ShootsTable = ({
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    if (!canDelete) return;
     e.stopPropagation();
     setShootToDelete(id);
     setIsDeleteModalOpen(true);
@@ -1000,7 +1001,7 @@ export const ShootsTable = ({
   };
 
   const confirmDelete = async () => {
-    if (!shootToDelete) return;
+    if (!canDelete || !shootToDelete) return;
 
     const cleanId = shootToDelete.replace('#', '');
     setIsDeleting(true);
@@ -1224,6 +1225,7 @@ export const ShootsTable = ({
                               <MessageCirclePlus size={16} />
                               Notes
                             </button>
+                            {canDelete && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1237,6 +1239,7 @@ export const ShootsTable = ({
                               <Trash2 size={16} />
                               Delete
                             </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1416,6 +1419,7 @@ export const ShootsTable = ({
                                         Notes {shoot.notesCount > 0 ? `(${shoot.notesCount})` : ""}
                                       </button>
 
+                                      {canDelete && (
                                       <button
                                         type="button"
                                         onClick={(e) => {
@@ -1429,6 +1433,7 @@ export const ShootsTable = ({
                                         <Trash2 size={16} />
                                         Delete
                                       </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1713,6 +1718,7 @@ export const ShootsTable = ({
                                   Notes
                                 </button>
 
+                                {canDelete && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1725,6 +1731,7 @@ export const ShootsTable = ({
                                   <Trash2 size={16} />
                                   Delete
                                 </button>
+                                )}
                               </div>
                             )}
                           </div>

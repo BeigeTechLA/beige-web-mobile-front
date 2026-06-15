@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import PaymentTransactionModal from "@/components/admin/sales-representative/PaymentTransactionModal";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 interface ActionMenuProps {
   isOpen: boolean;
@@ -50,6 +51,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   const [deleteClientLead, { isLoading: isDeletingClientLead }] =
     useDeleteClientLeadMutation();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const { canDelete: canDeleteByPermission } = usePermissions("sales_representative");
   const numericLeadId = Number(leadId);
   const resolvedPath = basePath ? basePath : pathname;
 
@@ -59,7 +61,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
     return "lead";
   }, [resolvedPath]);
 
-  const canDelete = !hideDelete && (itemType === "lead" || itemType === "client");
+  const canDelete = canDeleteByPermission && !hideDelete && (itemType === "lead" || itemType === "client");
   const isDeleting = isDeletingLead || isDeletingClientLead;
   if (!isOpen) return null;
 
@@ -73,6 +75,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   };
 
   const handleDelete = async () => {
+    if (!canDeleteByPermission) return;
     if (!numericLeadId) {
       toast.error("Invalid lead id");
       return;

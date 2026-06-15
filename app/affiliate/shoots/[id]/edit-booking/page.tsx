@@ -53,6 +53,7 @@ import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdow
 import { useUpdateClientBookingMutation } from "@/lib/redux/features/sales/salesApi";
 import { affiliateApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 const TEAM_ROLES = [
   { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> },
@@ -60,6 +61,26 @@ const TEAM_ROLES = [
 ];
 
 export default function AffiliateEditBookingPage() {
+  const params = useParams();
+  const bookingId = params.id as string;
+  const { allowed, isLoading } = useRequireModulePermission(
+    "shoots",
+    "edit",
+    `/affiliate/shoots/${bookingId}`,
+  );
+
+  if (isLoading || !allowed) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isLoading && !allowed ? "No Permission" : null}
+      </div>
+    );
+  }
+
+  return <AffiliateEditBookingPageContent />;
+}
+
+function AffiliateEditBookingPageContent() {
   const router = useRouter();
   const params = useParams();
   const bookingId = params.id as string;

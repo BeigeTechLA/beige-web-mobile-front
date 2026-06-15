@@ -25,6 +25,7 @@ import AddEditDisputeModal from "@/components/admin/finances/AddEditDisputeModal
 import DisputeDetailsModal, {
   type DisputeDetailsRecord,
 } from "@/components/admin/finances/DisputeDetailsModal";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const disputeItems: DisputeHistoryItem[] = [
   {
@@ -165,6 +166,7 @@ export default function AdminDisputesPage() {
   const pathname = usePathname();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { canCreate } = usePermissions("finances");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeMetricId, setActiveMetricId] = useState("open");
@@ -245,12 +247,14 @@ export default function AdminDisputesPage() {
             <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors">
               <ArrowUpToLine /> Export
             </Button>
+            {canCreate && (
             <Button
               onClick={() => setIsDisputeModalOpen(true)}
               className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7 hover:bg-[#d9c59d]"
             >
               Add Dispute
             </Button>
+            )}
           </>
         }
       />

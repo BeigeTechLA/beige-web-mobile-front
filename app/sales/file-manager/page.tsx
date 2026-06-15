@@ -26,6 +26,7 @@ import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow
 import Topbar from "@/components/admin/Topbar";
 import { apiClient } from "@/lib/apiClient";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
   isCommonEventWorkspaceId,
@@ -76,6 +77,7 @@ export default function SalesFolderManagerPage() {
   const { user } = useAuth();
   const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
   const isSalesAdmin = userRole === "sales_admin";
+  const { canCreate, canDelete } = usePermissions("file_manager");
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useViewMode();
@@ -224,7 +226,7 @@ const filteredFolders = useMemo(() => {
   };
 
   const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolder?.resourcePath) return;
+    if (!canDelete || !selectedFolder?.resourcePath) return;
 
     try {
       setIsDeleting(true);
@@ -393,10 +395,10 @@ const filteredFolders = useMemo(() => {
                           toast.error(getErrorMessage(err, "Failed to download workspace"));
                         }
                       }}
-                  onDelete={() => {
+                  onDelete={canDelete ? () => {
                     setSelectedFolder(folder);
                     setIsDeleteModalOpen(true);
-                  }}
+                  } : undefined}
                   onRename={() => toast.info("Workspace rename will be the next safe step.")}
                 />
               ))}

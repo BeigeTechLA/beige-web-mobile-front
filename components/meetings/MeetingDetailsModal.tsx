@@ -26,6 +26,7 @@ import {
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
 import { cn } from "@/lib/utils";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus } from "@/lib/meetingStatus";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type AddRole = "cp" | "manager";
@@ -193,7 +194,12 @@ export default function MeetingDetailsModal({
     !!currentUserId &&
     !!createdById &&
     String(createdById) === String(currentUserId);
-  const canDeleteMeeting = (role === "admin" || role === "client") && !!meetingData?.id && !isClientCreatedBySelf;
+  const { canDelete: canDeleteByPermission } = usePermissions("meetings");
+  const canDeleteMeeting =
+    (role === "admin" || role === "client") &&
+    canDeleteByPermission &&
+    !!meetingData?.id &&
+    !isClientCreatedBySelf;
   const canRespond =
     !!meetingData?.id &&
     !!currentUserId &&

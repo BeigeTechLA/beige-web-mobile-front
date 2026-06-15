@@ -58,6 +58,7 @@ import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdow
 import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import Topbar from "@/components/admin/Topbar";
 import { getFormattedDateString } from "@/lib/utils";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 const INITIAL_COUNT = 6;
 
@@ -123,7 +124,25 @@ const getClientPhone = (client: ClientDropdownItem | null | undefined) =>
 const getClientIdentifier = (client: ClientDropdownItem | null | undefined) =>
   pickFirstClientValue(client?.client_id, client?.id, getClientDisplayName(client));
 
-export default function ClientDetailPage() {
+export default function CreateNewDealPage() {
+  const { allowed, isLoading } = useRequireModulePermission(
+    "sales_representative",
+    "create",
+    "/sales/dashboard",
+  );
+
+  if (isLoading || !allowed) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isLoading && !allowed ? "No Permission" : null}
+      </div>
+    );
+  }
+
+  return <ClientDetailPage />;
+}
+
+function ClientDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();

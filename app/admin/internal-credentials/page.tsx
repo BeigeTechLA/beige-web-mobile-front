@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 type RoleOption = {
   label: string;
@@ -28,6 +29,24 @@ const DEFAULT_FORM = {
 };
 
 export default function InternalCredentialsPage() {
+  const { allowed, isLoading } = useRequireModulePermission(
+    "users",
+    "create",
+    "/admin/roles-permissions",
+  );
+
+  if (isLoading || !allowed) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isLoading && !allowed ? "No Permission" : null}
+      </div>
+    );
+  }
+
+  return <InternalCredentialsPageContent />;
+}
+
+function InternalCredentialsPageContent() {
   const pathname = usePathname();
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(true);

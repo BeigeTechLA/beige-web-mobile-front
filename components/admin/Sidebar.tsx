@@ -59,7 +59,7 @@ const menuItems = [
       // { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
-  { name: 'Finances', icon: DollarSign, 
+  { name: 'Finances', icon: DollarSign, permissionKeys: ['finances'],
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
       // { name: 'Transactions', link: '/admin/finances/transactions' },
@@ -109,7 +109,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
-  const permissions = useAppSelector((state) => state.auth.permissions);
+  const { permissions, permissionsVersion } = useAppSelector((state) => ({
+    permissions: state.auth.permissions,
+    permissionsVersion: state.auth.permissionsVersion,
+  }));
 
   const initialPath = useRef(pathname);
 
@@ -241,7 +244,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
-        <nav className="space-y-2">
+        <nav className="space-y-2" key={`admin-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
             if (item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");

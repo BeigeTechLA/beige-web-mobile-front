@@ -32,6 +32,7 @@ import UsersTable from "@/components/sales/UsersTable";
 import LeadsTable from "@/components/sales/BookingLeadsTable";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type TabType = "Booking" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
@@ -420,6 +421,7 @@ export default function AdminSaleRepManagerPage() {
   const { theme, resolvedTheme } = useTheme();
   const { token } = useAppSelector((state) => state.auth);
   const [mounted, setMounted] = useState(false);
+  const { canCreate } = usePermissions("sales_representative");
   const hasRestoredFiltersRef = useRef(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -1103,13 +1105,15 @@ export default function AdminSaleRepManagerPage() {
       <Topbar pathname={pathname}
         actions={
           <>
-            <Button
-              onClick={() => router.push("/admin/sales-representative/create-new-deal")}
-              className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
-                }`}
-            >
-              Create new lead
-            </Button>
+            {canCreate && (
+              <Button
+                onClick={() => router.push("/admin/sales-representative/create-new-deal")}
+                className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
+                  }`}
+              >
+                Create new lead
+              </Button>
+            )}
           </>
         }
       />
@@ -1653,12 +1657,14 @@ export default function AdminSaleRepManagerPage() {
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-          <Button
-            onClick={() => router.push("/admin/sales-representative/create-new-deal")}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-          >
-            Create new lead
-          </Button>
+          {canCreate && (
+            <Button
+              onClick={() => router.push("/admin/sales-representative/create-new-deal")}
+              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              Create new lead
+            </Button>
+          )}
         </div>
       </div >
     </>

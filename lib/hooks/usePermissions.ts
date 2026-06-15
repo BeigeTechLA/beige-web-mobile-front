@@ -8,12 +8,14 @@ import { hasModulePermission } from "../permissions";
  */
 export const usePermissions = (moduleKey?: string) => {
   const permissions = useAppSelector((state) => state.auth.permissions);
+  const permissionsVersion = useAppSelector((state) => state.auth.permissionsVersion);
   const user = useAppSelector((state) => state.auth.user);
 
   // If no moduleKey is provided, return all permissions
   if (!moduleKey) {
     return {
       allPermissions: permissions,
+      permissionsVersion,
       isLoading: !permissions,
     };
   }
@@ -34,6 +36,7 @@ export const usePermissions = (moduleKey?: string) => {
       canEdit: true,
       canCreate: true,
       canDelete: true,
+      permissionsVersion,
       isLoading: false,
     };
   }
@@ -43,6 +46,7 @@ export const usePermissions = (moduleKey?: string) => {
     canEdit: hasModulePermission(permissions, [moduleKey], "edit"),
     canCreate: hasModulePermission(permissions, [moduleKey], "create"),
     canDelete: hasModulePermission(permissions, [moduleKey], "delete"),
+    permissionsVersion,
     isLoading: !permissions,
   };
 };

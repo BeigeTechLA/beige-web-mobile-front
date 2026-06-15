@@ -39,6 +39,7 @@ import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 import {
@@ -157,6 +158,7 @@ export default function LeadDetailPage() {
   const leadId = params.id as string;
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { canCreate } = usePermissions("shoots");
 
   const [discount, setDiscount] = useState("");
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
@@ -589,7 +591,7 @@ export default function LeadDetailPage() {
                   Client Details
                 </h2>
                 <div className="flex gap-3">
-                  {!lead?.booking_id ? (
+                  {!lead?.booking_id && canCreate ? (
                     <Button
                       onClick={() => router.push(`/sales/client/${leadId}/create-booking`)}
                       className={`h-10 font-semibold flex items-center px-5 rounded-lg text-sm transition-all bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] `}

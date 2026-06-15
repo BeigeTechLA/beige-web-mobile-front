@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/lib/redux/ReduxProvider";
+import { PermissionsSyncProvider } from "@/components/common/PermissionsSyncProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 import Script from "next/script";
@@ -130,15 +131,17 @@ export default function RootLayout({
         </noscript>
 
         <ReduxProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem={false}
-            // disableTransitionOnChange
-          >
-            <Toaster position="top-center" richColors />
-            {children}
-          </ThemeProvider>
+          <PermissionsSyncProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem={false}
+              // disableTransitionOnChange
+            >
+              <Toaster position="top-center" richColors />
+              {children}
+            </ThemeProvider>
+          </PermissionsSyncProvider>
         </ReduxProvider>
       </body>
     </html>

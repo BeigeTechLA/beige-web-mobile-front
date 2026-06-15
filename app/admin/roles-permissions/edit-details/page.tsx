@@ -26,8 +26,12 @@ import {
 } from "@/components/admin/roles-permissions/utils";
 import { normalizePermissionsPayload } from "@/lib/permissions";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { setPermissions } from "@/lib/redux/features/auth/authSlice";
+import {
+  fetchAndCommitUserPermissions,
+} from "@/lib/permissionsActions";
+import { broadcastPermissionsUpdated } from "@/lib/permissionsRefresh";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -112,32 +116,27 @@ export default function AdminRoleEditDetailsRoute() {
   }, [mode, pathname, roleId, userId]);
 
   const dispatch = useAppDispatch();
+  const { canDelete } = usePermissions("roles_permissions");
   const loggedInUser = useAppSelector((state) => state.auth.user);
 
   const refreshLoggedInUserPermissions = async () => {
-    if (loggedInUser?.id) {
-      try {
-        const response = await adminApi.getUserPermissions(loggedInUser.id);
-        if (response?.success && response.data) {
-          dispatch(setPermissions(normalizePermissionsPayload(response.data)));
-        }
-      } catch (err) {
-        console.error("Failed to refresh logged-in user permissions:", err);
-      }
-    }
+    if (!loggedInUser?.id) return;
+    await fetchAndCommitUserPermissions(dispatch, loggedInUser.id, {
+      broadcast: true,
+    });
   };
 
   const syncActivePermissions = async (userIdToRefresh?: string | number) => {
     if (!userIdToRefresh) return;
 
-    try {
-      const response = await adminApi.getUserPermissions(userIdToRefresh);
-      if (response?.success && response.data) {
-        dispatch(setPermissions(normalizePermissionsPayload(response.data)));
-      }
-    } catch (err) {
-      console.error("Failed to sync active permissions:", err);
+    if (String(loggedInUser?.id) === String(userIdToRefresh)) {
+      await fetchAndCommitUserPermissions(dispatch, userIdToRefresh, {
+        broadcast: true,
+      });
+      return;
     }
+
+    broadcastPermissionsUpdated();
   };
 
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -451,7 +450,7 @@ export default function AdminRoleEditDetailsRoute() {
   };
 
   const handleDeleteRole = async () => {
-    if (!roleId) return;
+    if (!canDelete || !roleId) return;
 
     setIsDeleting(true);
     const response = await adminApi.deleteRole(roleId);
@@ -468,7 +467,7 @@ export default function AdminRoleEditDetailsRoute() {
   };
 
   const handleDeleteUser = async () => {
-    if (!userId) return;
+    if (!canDelete || !userId) return;
 
     setIsDeleting(true);
     const response = await adminApi.deleteUser(userId);
@@ -532,7 +531,7 @@ export default function AdminRoleEditDetailsRoute() {
             >
               {deleteLabel}
             </button> */}
-            {mode === "role" ? (
+            {mode === "role" && canDelete ? (
               <button
                 onClick={() => setIsDeleteModalOpen(true)}
                 className="inline-flex h-12 items-center justify-center rounded-[12px] border border-[#F04438]/20 bg-[#F04438]/10 px-6 text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95"
@@ -589,7 +588,6 @@ export default function AdminRoleEditDetailsRoute() {
         isOpen={isSuccessModalOpen}
         onClose={() => {
           setIsSuccessModalOpen(false);
-          window.location.reload();
         }}
         title={successTitle}
         description={successDescription}

@@ -8,9 +8,8 @@ import { useTheme } from "next-themes"; // Integrated theme hook
 import Sidebar from "@/components/admin/Sidebar";
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
-import { adminApi } from '@/lib/api';
-import { setPermissions } from '@/lib/redux/features/auth/authSlice';
-import { canAccessPortalPath, getFirstAllowedPortalPath, normalizePermissionsPayload } from '@/lib/permissions';
+import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
+import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
@@ -62,7 +61,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
-  const { user, permissions } = useAppSelector((state) => state.auth);
+  const { user, permissions, permissionsVersion } = useAppSelector((state) => state.auth);
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useTheme();
@@ -71,33 +70,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    const fetchPermissions = async () => {
-      const userId = user?.id;
-      
-      console.log("AdminLayout: User object:", user);
-      console.log("AdminLayout: User ID:", userId);
+    const userId = user?.id;
+    if (!mounted || !userId) return;
 
-      // Fetch permissions on mount and on route change
-      if (userId) {
-        console.log("AdminLayout: Fetching permissions for User ID:", userId);
-        try {
-          const response = await adminApi.getUserPermissions(userId);
-          console.log("AdminLayout: Permissions API Response:", response);
-          if (response?.success && response.data) {
-            dispatch(setPermissions(normalizePermissionsPayload(response.data)));
-          }
-        } catch (error) {
-          console.error("AdminLayout: Error fetching permissions:", error);
-        }
-      } else if (!userId && user) {
-        console.warn("AdminLayout: No user ID found in user object!");
-      }
-    };
-
-    if (mounted) {
-      fetchPermissions();
-    }
-  }, [user?.id, pathname, mounted, dispatch]);
+    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
+  }, [user?.id, mounted, dispatch]);
 
   useEffect(() => {
     if (!mounted || !permissions) return;
@@ -108,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         router.replace(fallbackPath);
       }
     }
-  }, [mounted, pathname, permissions, router]);
+  }, [mounted, pathname, permissions, permissionsVersion, router]);
 
   const isDark = !mounted || theme === "dark";
 

@@ -11,9 +11,8 @@ import { useTheme } from "next-themes"; // Integrated theme hook
 
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
-import { setPermissions } from '@/lib/redux/features/auth/authSlice';
-import { adminApi } from '@/lib/api';
-import { canAccessPortalPath, getFirstAllowedPortalPath, normalizePermissionsPayload } from '@/lib/permissions';
+import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
+import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
@@ -74,7 +73,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function ProdManagerLayout({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
-  const { user, permissions } = useAppSelector((state) => state.auth);
+  const { user, permissions, permissionsVersion } = useAppSelector((state) => state.auth);
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useTheme();
@@ -83,24 +82,11 @@ export default function ProdManagerLayout({ children }: { children: React.ReactN
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    const fetchPermissions = async () => {
-      const userId = user?.id;
-      if (userId) {
-        try {
-          const response = await adminApi.getUserPermissions(userId);
-          if (response?.success && response.data) {
-            dispatch(setPermissions(normalizePermissionsPayload(response.data)));
-          }
-        } catch (error) {
-          console.error("ProdManagerLayout: Error fetching permissions:", error);
-        }
-      }
-    };
+    const userId = user?.id;
+    if (!mounted || !userId) return;
 
-    if (mounted) {
-      fetchPermissions();
-    }
-  }, [user?.id, pathname, mounted, dispatch]);
+    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
+  }, [user?.id, mounted, dispatch]);
 
   useEffect(() => {
     if (!mounted || !permissions) return;
@@ -111,7 +97,7 @@ export default function ProdManagerLayout({ children }: { children: React.ReactN
         router.replace(fallbackPath);
       }
     }
-  }, [mounted, pathname, permissions, router]);
+  }, [mounted, pathname, permissions, permissionsVersion, router]);
 
   const isDark = !mounted || theme === "dark";
 

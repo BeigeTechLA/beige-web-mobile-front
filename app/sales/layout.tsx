@@ -12,9 +12,8 @@ import { SalesStatusProvider, useSalesStatus } from '@/context/SalesStatusContex
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { isSalesRouteAllowedWhileInactive } from '@/lib/sales-status';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
-import { setPermissions } from '@/lib/redux/features/auth/authSlice';
-import { adminApi } from '@/lib/api';
-import { canAccessPortalPath, getFirstAllowedPortalPath, normalizePermissionsPayload } from '@/lib/permissions';
+import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
+import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -30,30 +29,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   
   const hasShownInactiveRedirectRef = React.useRef(false);
   const dispatch = useAppDispatch();
-  const { user, permissions } = useAppSelector((state) => state.auth);
+  const { user, permissions, permissionsVersion } = useAppSelector((state) => state.auth);
 
   // Prevent hydration mismatch
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    const fetchPermissions = async () => {
-      const userId = user?.id;
-      if (userId) {
-        try {
-          const response = await adminApi.getUserPermissions(userId);
-          if (response?.success && response.data) {
-            dispatch(setPermissions(normalizePermissionsPayload(response.data)));
-          }
-        } catch (error) {
-          console.error("SalesLayout: Error fetching permissions:", error);
-        }
-      }
-    };
+    const userId = user?.id;
+    if (!mounted || !userId) return;
 
-    if (mounted) {
-      fetchPermissions();
-    }
-  }, [user?.id, pathname, mounted, dispatch]);
+    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
+  }, [user?.id, mounted, dispatch]);
 
   // Default to dark logic as per instructions
   const isDark = !mounted || theme === "dark";
@@ -87,7 +73,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         router.replace(fallbackPath);
       }
     }
-  }, [mounted, pathname, permissions, router, shouldBlockCurrentRoute]);
+  }, [mounted, pathname, permissions, permissionsVersion, router, shouldBlockCurrentRoute]);
 
   return (
     <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${

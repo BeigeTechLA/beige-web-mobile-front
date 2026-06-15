@@ -8,6 +8,7 @@ import AddPostProductionTeamModal from "./AddPostProductionTeamModal";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 import "swiper/css";
 import "swiper/css/effect-coverflow";
@@ -45,6 +46,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(!assignedMembers);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const { canEdit } = usePermissions("shoots");
 
   useEffect(() => {
     setMounted(true);
@@ -108,6 +110,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
   }
 
   const handleOpenAssignment = () => {
+    if (!canEdit) return;
     if (onRequestAssignment) {
       onRequestAssignment(() => setIsModalOpen(true));
       return;
@@ -158,7 +161,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
         isDark={isDark}
       />
 
-      {!hasTeam && (
+      {!hasTeam && canEdit && (
         <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30 py-10 lg:py-0">
           <button
             onClick={handleOpenAssignment}
@@ -178,7 +181,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
         </div>
       )}
 
-      {hasTeam && (
+      {hasTeam && canEdit && (
         <>
           {/* Add Button in Top Right for List View */}
           <button

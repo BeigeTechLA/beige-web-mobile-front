@@ -122,7 +122,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     isSalesAvailable,
     isLoading: isSalesStatusLoading,
   } = useSalesStatus();
-  const permissions = useAppSelector((state) => state.auth.permissions);
+  const { permissions, permissionsVersion } = useAppSelector((state) => ({
+    permissions: state.auth.permissions,
+    permissionsVersion: state.auth.permissionsVersion,
+  }));
 
   const initialPath = useRef(pathname);
 
@@ -294,7 +297,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
-        <nav className="space-y-2">
+        <nav className="space-y-2" key={`sales-nav-${permissionsVersion}`}>
           {visibleSalesMenuItems.map((item) => {
             const visibleChildren = getVisibleChildren(item);
             const hasChildren = currentUserTypeId === 7 && visibleChildren.length > 0;

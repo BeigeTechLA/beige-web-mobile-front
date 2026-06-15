@@ -39,6 +39,7 @@ import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
   getDisplayInitials,
@@ -130,6 +131,7 @@ export default function SalesFileManagerPhasePage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const isPreProduction = phaseSlug !== "post-production";
+  const { canCreate, canDelete } = usePermissions("file_manager");
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -344,6 +346,7 @@ export default function SalesFileManagerPhasePage() {
   };
 
   const handleDeleteSelectedFolder = async () => {
+    if (!canDelete) return;
     if (!selectedFolder?.resourcePath) return;
 
     try {
@@ -407,6 +410,7 @@ export default function SalesFileManagerPhasePage() {
   };
 
   const handleDeleteFile = async (file: any) => {
+    if (!canDelete) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -467,6 +471,7 @@ export default function SalesFileManagerPhasePage() {
   };
 
   const handleBatchDelete = async () => {
+    if (!canDelete) return;
     if (selectedFilePaths.length === 0) return;
 
     try {
@@ -497,7 +502,7 @@ export default function SalesFileManagerPhasePage() {
         pathname={pathname}
         actions={
           <>
-            {isPreProduction ? (
+            {isPreProduction && canCreate ? (
               <>
                 <Button onClick={() => setIsUploadModalOpen(true)} className="bg-[#202020] border border-white/20 text-white hover:bg-white/10">
                   <Upload /> Upload Files
@@ -1298,7 +1303,7 @@ export default function SalesFileManagerPhasePage() {
           </div>
         )}
 
-        {isPreProduction ? (
+        {isPreProduction && canCreate ? (
           <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
             <Button
               onClick={() => setIsUploadModalOpen(true)}

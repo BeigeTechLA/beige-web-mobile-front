@@ -32,7 +32,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     const router = useRouter();
     const { user, logout } = useAuth();
     const { theme } = useTheme();
-    const permissions = useAppSelector((state) => state.auth.permissions);
+    const { permissions, permissionsVersion } = useAppSelector((state) => ({
+        permissions: state.auth.permissions,
+        permissionsVersion: state.auth.permissionsVersion,
+    }));
     const initialPath = useRef(pathname);
     const [mounted, setMounted] = useState(false);
     const [expanded, setExpanded] = useState<string[]>([]);
@@ -113,7 +116,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
-        <nav className="space-y-2">
+        <nav className="space-y-2" key={`pm-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
             if (item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");

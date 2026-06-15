@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const STATUSES = ["Linked", "Unlinked"];
 const PAGE_SIZE = 24;
@@ -106,6 +107,7 @@ export default function AdminFolderManagerPage() {
   const debouncedSearchTerm = useDebounce(searchTerm.trim(), 350);
   const [viewMode, setViewMode] = useViewMode(ADMIN_FILE_MANAGER_VIEW_MODE_KEY);
   const { isDark } = useResolvedTheme();
+  const { canCreate, canDelete } = usePermissions("file_manager");
 
   const [status, setStatus] = useState("");
 
@@ -484,7 +486,7 @@ export default function AdminFolderManagerPage() {
   };
 
   const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolder?.resourcePath) return;
+    if (!canDelete || !selectedFolder?.resourcePath) return;
 
     try {
       setIsDeleting(true);
@@ -502,6 +504,7 @@ export default function AdminFolderManagerPage() {
   };
 
   const handleCreateCommonEventFolder = async ({ name, visibleUntil }: { name: string; visibleUntil?: string | null }) => {
+    if (!canCreate) return;
     const eventName = String(name || "").trim();
     if (!eventName) return;
     try {
@@ -540,7 +543,7 @@ export default function AdminFolderManagerPage() {
     setIsVisibilityModalOpen(true);
   };
 
-  const topbarActions = (
+  const topbarActions = canCreate ? (
     <Button
       onClick={() => setIsCreateCommonEventModalOpen(true)}
       disabled={isCreatingEvent}
@@ -548,7 +551,7 @@ export default function AdminFolderManagerPage() {
     >
       {isCreatingEvent ? "Creating..." : "Create Common Event"}
     </Button>
-  );
+  ) : null;
 
   return (
     <>
@@ -683,10 +686,10 @@ export default function AdminFolderManagerPage() {
                       toast.error(getErrorMessage(err, "Failed to download workspace"));
                     }
                   }}
-                  onDelete={() => {
+                  onDelete={canDelete ? () => {
                     setSelectedFolder(folder);
                     setIsDeleteModalOpen(true);
-                  }}
+                  } : undefined}
                   onShare={() => {
                     setSelectedFolder(folder);
                     setIsShareModalOpen(true);
@@ -732,10 +735,10 @@ export default function AdminFolderManagerPage() {
                       toast.error(getErrorMessage(err, "Failed to download workspace"));
                     }
                   }}
-                  onDelete={() => {
+                  onDelete={canDelete ? () => {
                     setSelectedFolder(folder);
                     setIsDeleteModalOpen(true);
-                  }}
+                  } : undefined}
                   onShare={() => {
                     setSelectedFolder(folder);
                     setIsShareModalOpen(true);

@@ -312,6 +312,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
       return;
     }
 
+    if (!canEdit) return;
     router.push(`/affiliate/shoots/${bookingId}/edit-booking`);
   };
 

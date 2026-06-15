@@ -227,10 +227,12 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
           <Button className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
             Cancel Shoot
           </Button>
+          {canEdit && (
           <Button
             onClick={() => router.push(`${shootBasePath}/${shootId}/edit-booking`)}
             className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}>
             Edit Shoot</Button>
+          )}
         </div>
         <Button
           onClick={() => router.push(`${shootBasePath}/${shootId}/form-details`)}

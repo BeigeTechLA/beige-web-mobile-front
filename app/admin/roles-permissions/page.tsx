@@ -6,14 +6,19 @@ import { Plus, Search } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { RolesPermissionsPage } from "@/components/admin/RolesPermissionsPage";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { PermissionGuard } from "@/components/common/PermissionGuard";
 
 export default function AdminRolesPermissionsRoute() {
   const pathname = usePathname();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const { canCreate } = usePermissions("roles_permissions");
+  const { canCreate: canCreateUser } = usePermissions("users");
 
   return (
-    <>
+    <PermissionGuard module="roles_permissions" action="view">
+      <>
       <Topbar
         pathname={pathname}
         breadcrumbOverrides={{
@@ -38,26 +43,31 @@ export default function AdminRolesPermissionsRoute() {
               Export
             </Button> */}
 
-            <Button
-              onClick={() => router.push("/admin/roles-permissions/add-new-role")}
-              className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
-            >
-              <Plus size={18} />
-              Add New Role
-            </Button>
+            {canCreate && (
+              <Button
+                onClick={() => router.push("/admin/roles-permissions/add-new-role")}
+                className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
+              >
+                <Plus size={18} />
+                Add New Role
+              </Button>
+            )}
 
-            <Button
-              onClick={() => router.push("/admin/internal-credentials")}
-              className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
-            >
-              <Plus size={18} />
-              Add New User
-            </Button>
+            {canCreateUser && (
+              <Button
+                onClick={() => router.push("/admin/internal-credentials")}
+                className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
+              >
+                <Plus size={18} />
+                Add New User
+              </Button>
+            )}
           </>
         }
       />
 
       <RolesPermissionsPage searchQuery={searchQuery} />
-    </>
+      </>
+    </PermissionGuard>
   );
 }
