@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element, react/no-unescaped-entities */
 "use client";
 
-import React, { useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import React, { useCallback, useRef, useState } from "react";
 import { Plus, PlayCircle, X } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -26,6 +24,16 @@ interface MediaFile {
 }
 
 const STUDIO_MEDIA_BASE_URL = "https://d2jhn32fsulyac.cloudfront.net/";
+const MAX_MEDIA_SIZE = 50 * 1024 * 1024;
+const ACCEPTED_MEDIA_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/jpg",
+  "video/mp4",
+  "video/mov",
+  "video/webm",
+  "video/m4v",
+]);
 
 const normalizeMediaUrl = (url: string) => {
   const trimmed = String(url || "").trim();
@@ -87,6 +95,9 @@ const mapStudioMedia = (media: any[] = []): MediaFile[] =>
 
 export default function MediaUploadForm({ isDark = true, studioData, setStudioData }: Props) {
   const files: MediaFile[] = mapStudioMedia(studioData.media || []);
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const syncMedia = useCallback((updater: (current: MediaFile[]) => MediaFile[]) => {
     setStudioData((prev: any) => {
@@ -113,11 +124,38 @@ export default function MediaUploadForm({ isDark = true, studioData, setStudioDa
     });
   }, [syncMedia]);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (!acceptedFiles.length) return;
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragging(true);
+    } else if (e.type === "dragleave") {
+      setIsDragging(false);
+    }
+  };
+
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList?.length) return;
+
+    setSelectionError(null);
+    const incoming = Array.from(fileList);
+    const validFiles = incoming.filter((file) => {
+      const mimeType = file.type.toLowerCase();
+      const name = file.name.toLowerCase();
+      const isSupportedType = ACCEPTED_MEDIA_TYPES.has(mimeType) ||
+        /\.(jpe?g|png|mp4|mov|webm|m4v)$/i.test(name);
+      return file.size > 0 && file.size <= MAX_MEDIA_SIZE && isSupportedType;
+    });
+
+    const rejectedCount = incoming.length - validFiles.length;
+    if (rejectedCount > 0) {
+      setSelectionError("Only JPG, JPEG, PNG and MP4 files under 50MB are allowed.");
+    }
+
+    if (!validFiles.length) return;
 
     const batchId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const localItems: MediaFile[] = acceptedFiles.map((file, index) => ({
+    const localItems: MediaFile[] = validFiles.map((file, index) => ({
       id: `${batchId}-${index}`,
       clientId: `${batchId}-${index}`,
       url: URL.createObjectURL(file),
@@ -129,7 +167,7 @@ export default function MediaUploadForm({ isDark = true, studioData, setStudioDa
     syncMedia((current) => [...current, ...localItems]);
 
     try {
-      const response = await adminApi.uploadStudioMedia(acceptedFiles);
+      const response = await adminApi.uploadStudioMedia(validFiles);
       if (response?.success === false) {
         throw new Error(response?.error || "Upload failed");
       }
@@ -166,14 +204,19 @@ export default function MediaUploadForm({ isDark = true, studioData, setStudioDa
             : item
         )
       );
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
-  }, [syncMedia]);
+  };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { "image/*": [".jpeg", ".jpg", ".png"], "video/*": [".mp4", ".mov", ".webm"] },
-    maxSize: 50 * 1024 * 1024,
-  });
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    void handleFiles(e.dataTransfer.files);
+  };
 
   const preferredAge = studioData.preferred_age;
   const wifiName = studioData.wifi_name;
@@ -190,10 +233,21 @@ export default function MediaUploadForm({ isDark = true, studioData, setStudioDa
     <div className="space-y-5 lg:space-y-9 transition-colors duration-200">
       <section className={`space-y-6 p-4 lg:p-8 border rounded-xl transition-colors duration-200 ${borderColor}`}>
         <div
-          {...getRootProps()}
-          className={`relative w-full h-[300px] flex flex-col items-center justify-center cursor-pointer transition-all ${isDragActive ? "bg-[#E8D1AB]/5 " : "bg-transparent"}`}
+          onDragEnter={handleDrag}
+          onDragOver={handleDrag}
+          onDragLeave={handleDrag}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative w-full h-[300px] flex flex-col items-center justify-center cursor-pointer transition-all ${isDragging ? "bg-[#E8D1AB]/5 " : "bg-transparent"}`}
         >
-          <Input {...getInputProps()} />
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            multiple
+            accept="image/jpeg,image/png,image/jpg,video/mp4,video/mov,video/webm,video/m4v"
+            onChange={(e) => void handleFiles(e.target.files)}
+          />
 
           <div className="relative w-32 h-32 lg:h-50 lg:w-65">
             <Image
@@ -210,6 +264,9 @@ export default function MediaUploadForm({ isDark = true, studioData, setStudioDa
           <p className={`text-sm lg:text-base mt-1 ${subTextColor}`}>
             JPG, JPEG, PNG and MP4 less than 50MB
           </p>
+          {selectionError && (
+            <p className="mt-2 text-sm font-medium text-red-500">{selectionError}</p>
+          )}
         </div>
 
         <div className={`p-4 border border-dashed rounded-md ${isDark ? "border-[#FFFFFF4D]" : "border-gray-300"}`}>
@@ -257,7 +314,7 @@ export default function MediaUploadForm({ isDark = true, studioData, setStudioDa
             </div>
 
             <div
-              {...getRootProps()}
+              onClick={() => fileInputRef.current?.click()}
               className={`bg-[#E8D1AB] w-[96px] h-[80px] rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#E8D1AB]/80 transition-colors shrink-0 ${hasUploading ? "opacity-70 pointer-events-none" : ""}`}
             >
               <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
