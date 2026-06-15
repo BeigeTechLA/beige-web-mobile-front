@@ -34,6 +34,7 @@ import { V3BrowseStudios } from "./V3BrowseStudios";
 import { V3StudioChooseCreators } from "./V3StudiosChooseCreators";
 // import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
 import { getSelectedStudiosTotal, normalizeSelectedStudios, serializeStudioMeta } from "./studioData";
+import { V3AltChooseService } from "./V3AltChooseService";
 
 const V3_STEPS = [
   { label: "Choose Service" },
@@ -99,6 +100,10 @@ export const BookAShootV3 = () => {
 
   const allowNavigation = useRef(false)
   const isStudioFlow = formData.contentType.length === 1 && formData.contentType.includes("studio"); //For studio: journey 2 where only studio is selected
+  const isStudioContentFlow =
+    formData.contentType.length > 1 &&
+    formData.contentType.includes("studio") &&
+    (formData.contentType.includes("videographer") || formData.contentType.includes("photographer")); //For studio: journey 3 where studio + video/photography is selected
 
   const [createGuestBooking, { isLoading: isBookingLoading }] =
     useCreateGuestBookingMutation();
@@ -280,6 +285,13 @@ export const BookAShootV3 = () => {
           setActiveStep(2);
           return;
         }
+
+        if (isStudioContentFlow) {
+          setInternalStep(2.1); // Move to Videography/Photography services page
+          setActiveStep(2);
+          return;
+        }
+
         setInternalStep(2);
         setActiveStep(2);
       } catch (error) {
@@ -304,6 +316,13 @@ export const BookAShootV3 = () => {
     if (internalStep === 1.7) {
       setInternalStep(6);
       setActiveStep(4); // Adjust based on dynamic steps length
+      return;
+    }
+
+    // --- Journey 3 specific: Next from 2.1 (Select services) goes to More details(step2) ---
+    if (internalStep === 2.1) {
+      setInternalStep(2);
+      setActiveStep(2); // Adjust based on dynamic steps length
       return;
     }
 
@@ -392,6 +411,13 @@ export const BookAShootV3 = () => {
     // Back from New Step 2.5 goes to More Details
     if (internalStep === 2.5) {
       setInternalStep(2);
+      return;
+    }
+
+    // Back from New Step 2.1 to the first step
+    if (internalStep === 2.1 && isStudioContentFlow) {
+      setInternalStep(1); // Move to Videography/Photography services page
+      setActiveStep(1);
       return;
     }
 
@@ -731,7 +757,6 @@ export const BookAShootV3 = () => {
   };
 
   useEffect(() => {
-    console.log(internalStep);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [internalStep]);
 
@@ -749,9 +774,11 @@ export const BookAShootV3 = () => {
       case 1.5: // New Studio Browse Step
         return <V3BrowseStudios {...props} />;
       case 1.7:
-        return <V3StudioChooseCreators {...props} />; //  new component
+        return <V3StudioChooseCreators {...props} />; // Studios journey 2
       case 2:
         return <V3Step2MoreDetails {...props} />;
+      case 2.1:
+        return <V3AltChooseService {...props} />; //  Studios journey 3
       case 2.5: // New Step for non-studio primary flows
         return <V3BrowseStudios {...props} />;
         return shouldShowStudiosStep ? <V3Step5Studios {...props} /> : <V3Step2MoreDetails {...props} />;

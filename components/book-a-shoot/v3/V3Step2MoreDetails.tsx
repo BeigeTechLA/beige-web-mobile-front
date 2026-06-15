@@ -571,11 +571,16 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
             hasError={errors.includes("locationError")}
             disabled={false}
           />
+          <div className="mt-3 lg:mt-6 bg-[#211F1C] px-4 lg:px-7 py-3.5 rounded-lg lg:rounded-xl text-[#E8D1AB] w-fit ">
+            <p className="text-xs lg:text-sm">
+              Note : Studios are available for LA only
+            </p>
+          </div>
         </div>
       )}
 
       {/* Details Form */}
-      <div ref={detailsRef} className="py-6 lg:py-15 border-y border-white/10 flex flex-col gap-4 lg:gap-10">
+      <div ref={detailsRef} className="py-6 lg:py-15 border-t border-white/10 flex flex-col gap-4 lg:gap-10">
         <div className="relative">
           <label
             htmlFor="specialInstructions"

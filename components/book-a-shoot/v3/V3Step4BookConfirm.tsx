@@ -775,7 +775,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           <ContentTypeIcon />
                         </div>
 
-
                         <div className="min-w-0">
                           <div className="text-sm text-[#999] capitalize tracking-wide mb-1">
                             Content Type
@@ -786,6 +785,65 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           </h3>
                         </div>
                       </div>
+
+                      {
+                        (data.contentType.length > 1 && data.contentType.includes("studio")) && (
+                          <>
+                            <div className="rounded-[12px] overflow-hidden border border-white/10">
+                              <div className="p-4 flex gap-4 items-center">
+                                <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
+                                  <Image
+                                    src={"/images/projects/interior.png"}
+                                    alt={"Sample shoot"}
+                                    fill
+                                    className="object-cover rounded-lg"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-2 lg:gap-0 justify-between lg:items-center flex-1 min-w-0">
+                                  <div className="flex w-full min-w-0 items-center justify-between gap-5 ">
+                                    <div className="flex flex-col gap-1">
+                                      {/* Studio Name */}
+                                      <h4 className="text-white lg:text-lg font-medium capitalize">
+                                        Beige Media (Modern Resort Villa with Jacuzzi)
+                                      </h4>
+                                      {/* Studio Address */}
+                                      <span className="text-sm text-[#8C8C8C] capitalize flex gap-1">
+                                        <MapPin size={16} /> Woodland Hills, Los Angeles, CA
+                                      </span>
+                                    </div>
+                                    <div className="shrink-0 bg-[#211F1C] rounded-xl text-[#E8D1AB] p-3 lg:px-7 lg:py-3 text-xs lg:text-sm">
+                                      Duration: {durationHours} Hours
+
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 w-full items-center justify-start border-y my-3 lg:my-6 py-3 lg:py-5 border-[#FFFFFF33] w-full">
+                                    {["Natural Light", "Product friendly"].map((feature) => {
+                                      return (
+                                        <div className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                          {feature}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                  <div className="w-full flex flex-col lg:flex-row gap-4 justify-start lg:gap-10 text-xs lg:text-sm text-white">
+                                    <div className="flex gap-2">
+                                      <Clock size={16} />
+                                      {displayTimeText}
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Calendar size={16} />
+                                      {summaryDateText}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )
+                      }
+
+
+
                       <div className="rounded-[12px] overflow-hidden border border-white/10">
                         <div className="p-4 flex gap-4 items-center">
                           <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
@@ -879,140 +937,141 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               </div>
 
               {!isEditingOnly && (
-              <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
-                    <Map size={32} className="text-[#9D9595]" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
-                      {locationDisplayText}
-                    </span>
-                    <span className="text-sm text-[#A9A9A9]">Location</span>
+                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                      <Map size={32} className="text-[#9D9595]" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
+                        {locationDisplayText}
+                      </span>
+                      <span className="text-sm text-[#A9A9A9]">Location</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
+              )}
 
               {
                 // Studios only flow
                 (data.contentType.length === 1 && data.contentType.includes("studio")) && (
-                  <div className="bg-[#171717] rounded-2xl">
-                    <div className="p-8 ">
-                      <p className="text-white text-lg lg:text-xl font-medium">Project Details</p>
-                    </div>
-                    <hr className={`border-t border-[#FFFFFF33] w-full `} />
-                    <div className="p-8 space-y-6">
-                      <div className="grid grid-cols-12 gap-4 w-full">
-                        <div className="col-span-4 ">
-                          <p className="text-sm text-white/40 mb-3">Project Name:</p>
-                          <p className="text-sm text-white font-medium">Spring Collection Fashion Shoot</p>
+                  <>
+                    <div className="bg-[#171717] rounded-2xl">
+                      <div className="p-8 ">
+                        <p className="text-white text-lg lg:text-xl font-medium">Project Details</p>
+                      </div>
+                      <hr className={`border-t border-[#FFFFFF33] w-full `} />
+                      <div className="p-8 space-y-6">
+                        <div className="grid grid-cols-12 gap-4 w-full">
+                          <div className="col-span-4 ">
+                            <p className="text-sm text-white/40 mb-3">Project Name:</p>
+                            <p className="text-sm text-white font-medium">Spring Collection Fashion Shoot</p>
+                          </div>
+                          <div className="col-span-8">
+                            <p className="text-sm text-white/40 mb-3">Crew Members:</p>
+                            <p className="text-sm text-white font-medium">6 (Photographer, Videographer, Assistant, Stylist, Makeup Artist, Producer)</p>
+                          </div>
                         </div>
-                        <div className="col-span-8">
-                          <p className="text-sm text-white/40 mb-3">Crew Members:</p>
-                          <p className="text-sm text-white font-medium">6 (Photographer, Videographer, Assistant, Stylist, Makeup Artist, Producer)</p>
+                        <div>
+                          <p className="text-sm text-white/40 mb-3">Shoot Type :</p>
+                          <p className="bg-[#E8D5B533] text-[#E8D5B5] text-xs px-3 py-2 w-fit rounded-sm">
+                            Product Shoot
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-white/40 mb-3">Description:</p>
+                          <p className="text-sm text-white font-medium">
+                            A full-day fashion shoot for a spring collection, including both photography and video content for digital and social media campaigns.
+                          </p>
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-white/40 mb-3">Shoot Type :</p>
-                        <p className="bg-[#E8D5B533] text-[#E8D5B5] text-xs px-3 py-2 w-fit rounded-sm">
-                          Product Shoot
-                        </p>
+                    </div>
+
+                    {/* Professional Creatives */}
+                    <div className="max-w-sm lg:max-w-3xl 2xl:max-w-4xl border-y border-[#FFFFFF33] py-6">
+                      <div className="pb-6 ">
+                        <p className="text-white text-lg lg:text-xl font-medium">Professional Creatives</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-white/40 mb-3">Description:</p>
-                        <p className="text-sm text-white font-medium">
-                          A full-day fashion shoot for a spring collection, including both photography and video content for digital and social media campaigns.
-                        </p>
+                      <div className="p-0">
+                        <div className="relative">
+                          {dummyCrewData.length > 0 ? (
+                            <Swiper
+                              effect={"coverflow"}
+                              grabCursor={true}
+                              centeredSlides={true}
+                              slidesPerView={1.2}
+                              spaceBetween={30}
+                              breakpoints={{
+                                768: { slidesPerView: 2.2 },
+                                1024: { slidesPerView: 2.6 }
+                              }}
+                              coverflowEffect={{
+                                rotate: 15,
+                                stretch: 0,
+                                depth: 100,
+                                modifier: 1,
+                                slideShadows: false,
+                              }}
+                              modules={[EffectCoverflow]}
+                              onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
+                              className="w-full py-8"
+                            >
+                              {dummyCrewData.map((cp, index) => (
+                                <SwiperSlide key={cp.id}>
+                                  <div className="group relative transition-all duration-300">
+                                    {/* FLOATING IMAGE AREA */}
+                                    <div
+                                      className="relative aspect-[4/3] rounded-[20px] overflow-hidden shadow-2xl mb-4 cursor-pointer bg-zinc-800"
+                                    >
+                                      {cp.image ? (
+                                        <img
+                                          src={cp.image}
+                                          alt={cp.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-3xl font-bold bg-zinc-700">
+                                          {/* Fixed initials logic to prevent crashes on empty/single names */}
+                                          {cp.name
+                                            .split(" ")
+                                            .filter(Boolean)
+                                            .map((n) => n[0])
+                                            .join("")}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
+                                    <div
+                                      className={`px-2 transition-all duration-500 transform ${index === activeCPIndex
+                                        ? "opacity-100 translate-y-0"
+                                        : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
+                                        }`}
+                                    >
+                                      <div className="flex flex-col justify-center items-center mb-4">
+                                        <h3 className="lg:text-lg font-bold truncate leading-tight text-[#E8D1AB]">
+                                          {cp.name}
+                                        </h3>
+                                        <p className="text-[#A9A9A9] text-sm mt-0.5">
+                                          {cp.role}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </SwiperSlide>
+                              ))}
+                            </Swiper>
+                          ) : (
+                            <div className="h-[300px] flex items-center justify-center border-dashed border rounded-[32px] text-white/40 border-[#3D3D3D]">
+                              No partners found matching this status.
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </>
                 )
               }
-
-              {/* Professional Creatives */}
-              <div className="max-w-sm lg:max-w-3xl 2xl:max-w-4xl border-y border-[#FFFFFF33] py-6">
-                <div className="pb-6 ">
-                  <p className="text-white text-lg lg:text-xl font-medium">Professional Creatives</p>
-                </div>
-                <div className="p-0">
-                  <div className="relative">
-                    {dummyCrewData.length > 0 ? (
-                      <Swiper
-                        effect={"coverflow"}
-                        grabCursor={true}
-                        centeredSlides={true}
-                        slidesPerView={1.2}
-                        spaceBetween={30}
-                        breakpoints={{
-                          768: { slidesPerView: 2.2 },
-                          1024: { slidesPerView: 2.6 }
-                        }}
-                        coverflowEffect={{
-                          rotate: 15,
-                          stretch: 0,
-                          depth: 100,
-                          modifier: 1,
-                          slideShadows: false,
-                        }}
-                        modules={[EffectCoverflow]}
-                        onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
-                        className="w-full py-8"
-                      >
-                        {dummyCrewData.map((cp, index) => (
-                          <SwiperSlide key={cp.id}>
-                            <div className="group relative transition-all duration-300">
-                              {/* FLOATING IMAGE AREA */}
-                              <div
-                                className="relative aspect-[4/3] rounded-[20px] overflow-hidden shadow-2xl mb-4 cursor-pointer bg-zinc-800"
-                              >
-                                {cp.image ? (
-                                  <img
-                                    src={cp.image}
-                                    alt={cp.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-3xl font-bold bg-zinc-700">
-                                    {/* Fixed initials logic to prevent crashes on empty/single names */}
-                                    {cp.name
-                                      .split(" ")
-                                      .filter(Boolean)
-                                      .map((n) => n[0])
-                                      .join("")}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
-                              <div
-                                className={`px-2 transition-all duration-500 transform ${index === activeCPIndex
-                                  ? "opacity-100 translate-y-0"
-                                  : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
-                                  }`}
-                              >
-                                <div className="flex flex-col justify-center items-center mb-4">
-                                  <h3 className="lg:text-lg font-bold truncate leading-tight text-[#E8D1AB]">
-                                    {cp.name}
-                                  </h3>
-                                  <p className="text-[#A9A9A9] text-sm mt-0.5">
-                                    {cp.role}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </SwiperSlide>
-                        ))}
-                      </Swiper>
-                    ) : (
-                      <div className="h-[300px] flex items-center justify-center border-dashed border rounded-[32px] text-white/40 border-[#3D3D3D]">
-                        No partners found matching this status.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
               {/* Editing Services */}
               <div className="rounded-[16px] border border-white/5 bg-[#171717]">

@@ -80,3 +80,20 @@ export const buildEditTypeCounts = (editTypes: string[] = []): EditTypeCount[] =
     quantity,
   }));
 };
+
+export const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+  setTimeout(() => {
+    if (ref && ref.current) {
+      const navOffset = 100;
+
+      // Calculate absolute position relative to the entire document
+      const elementPosition = ref.current.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - navOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth",
+      });
+    }
+  }, 100);
+};

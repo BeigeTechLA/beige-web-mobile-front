@@ -135,23 +135,6 @@ export const V3BrowseStudios: React.FC<Props> = ({
     onNext(true);
   };
 
-  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
-    setTimeout(() => {
-      if (ref && ref.current) {
-        const navOffset = 100;
-
-        // Calculate absolute position relative to the entire document
-        const elementPosition = ref.current.getBoundingClientRect().top + window.scrollY;
-        const offsetPosition = elementPosition - navOffset;
-
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: "smooth",
-        });
-      }
-    }, 100);
-  };
-
   // Please move the repetitive and commion date functions to a utils file for easier reuse
   const formatLocalDateTime = (date: Date) => {
     return format(date, "yyyy-MM-dd'T'HH:mm:ss");
