@@ -1448,7 +1448,7 @@ export default function AffiliateFileManager() {
               </p>
 
               {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
-              {/* {selectedWorkspace?.consoleUrl ? (
+              {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -1457,7 +1457,7 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null} */}
+              ) : null}
             </div>
           </div>
         </div>
