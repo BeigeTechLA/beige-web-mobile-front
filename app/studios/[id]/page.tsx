@@ -27,6 +27,11 @@ const getStudioBySlug = (slug: string) => {
 
 const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [selectedPricingKey, setSelectedPricingKey] = useState<string>(studio.pricingOptions?.[0]?.key || "");
+  const selectedPricing = useMemo(
+    () => studio.pricingOptions?.find((option) => option.key === selectedPricingKey) || studio.pricingOptions?.[0] || null,
+    [selectedPricingKey, studio.pricingOptions],
+  );
   const galleryImages = useMemo(() => {
     const imageSet = new Set<string>();
     [studio.image, ...(studio.images || [])].forEach((image) => {
@@ -152,7 +157,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
               <h2 className="mb-6 text-2xl font-bold text-white">Pricing</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {studio.pricingOptions.map((option) => (
-                  <div key={option.key} className="rounded-2xl border border-white/10 bg-[#151515] p-5">
+                  <button key={option.key} type="button" onClick={() => setSelectedPricingKey(option.key)} className={`rounded-2xl border p-5 text-left transition-colors ${selectedPricingKey === option.key ? "border-[#E8D1AB] bg-[#E8D1AB14]" : "border-white/10 bg-[#151515] hover:border-white/25"}`}>
                     <div className="font-bold text-white">{option.label}</div>
                     <div className="mt-2 text-2xl font-bold text-[#E8D1AB]">${option.hourlyRate.toLocaleString()}/hour</div>
                     <div className="mt-2 text-xs text-white/55">
@@ -166,7 +171,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
                         ))}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </section>
@@ -212,7 +217,9 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
 
         <aside className="h-fit rounded-[24px] border border-[#E8D1AB] bg-[#171717] p-6 lg:sticky lg:top-28">
           <div className="flex items-baseline gap-1 text-[#E8D1AB]">
-            <span className="text-3xl font-semibold">${(studio.priceValue || studio.pricingOptions?.[0]?.hourlyRate || 0).toLocaleString()}</span>
+            <span className="text-3xl font-semibold">
+              ${(selectedPricing?.hourlyRate || studio.priceValue || studio.pricingOptions?.[0]?.hourlyRate || 0).toLocaleString()}
+            </span>
             <span className="text-xl">/ Hour</span>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-white">
@@ -224,7 +231,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
           <div className="my-8 border-t border-white/10" />
           <div className="space-y-4 text-sm">
             {[
-              ["Minimum booking", `${studio.minimumBookingHours || 2} hours`],
+              ["Minimum booking", `${selectedPricing?.minimumHours || studio.minimumBookingHours || 2} hours`],
               ["Property type", studio.poolType],
               ["Availability", studio.operatingHours || studio.weeklySchedule || "Available by booking"],
             ].map(([label, value]) => (
@@ -235,7 +242,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
             ))}
           </div>
           <Link
-            href="/book-a-studio"
+            href={`/book-a-studio?studioId=${studio.id}${selectedPricingKey ? `&pricingKey=${selectedPricingKey}` : ""}`}
             className="mt-8 flex h-14 w-full items-center justify-center rounded-lg bg-[#E8D1AB] font-semibold text-black transition-colors hover:bg-[#dcb98a]"
           >
             Book this Studio

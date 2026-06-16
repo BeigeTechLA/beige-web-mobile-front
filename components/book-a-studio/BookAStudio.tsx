@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   addDays,
   eachDayOfInterval,
@@ -216,6 +216,39 @@ const buildStudioSelectionFromDays = ({
     selectedDate: primaryDay.date,
     startTime: primaryDay.startTime,
     endTime: primaryDay.endTime,
+    lat: STUDIO_COORDINATES[studio.id]?.lat,
+    lng: STUDIO_COORDINATES[studio.id]?.lng,
+  };
+};
+
+const buildStudioSelectionFromPricing = ({
+  studio,
+  pricingKey,
+}: {
+  studio: StudioCatalogItem;
+  pricingKey: string;
+}): SelectedStudio => {
+  const pricingOption = getSelectedPricing(studio, pricingKey);
+  const unitPrice = pricingOption?.hourlyRate || studio.priceValue || 0;
+  const minimumHours = pricingOption?.minimumHours || studio.minimumBookingHours || 1;
+  const cleaningFee = pricingOption?.cleaningFee || 0;
+
+  return {
+    studioId: studio.id,
+    name: studio.name,
+    location: studio.location,
+    image: studio.image,
+    pricingMode: "hourly",
+    pricingCategory: pricingOption?.key,
+    pricingLabel: pricingOption?.label,
+    unitPrice,
+    cleaningFee,
+    minimumHours,
+    quantity: 0,
+    totalPrice: 0,
+    priceLabel: pricingOption
+      ? `$${unitPrice.toLocaleString()}/hour${cleaningFee ? ` + $${cleaningFee.toLocaleString()} cleaning` : ""}`
+      : studio.priceLabel,
     lat: STUDIO_COORDINATES[studio.id]?.lat,
     lng: STUDIO_COORDINATES[studio.id]?.lng,
   };
@@ -636,13 +669,25 @@ const BookStudioDetailsStep = ({
             endTime: sameTimingsMulti ? endTime : multiDayTimes[dateKey]?.endKey,
           };
         })
-      : selectedDate
-        ? [{
-            date: format(selectedDate, "yyyy-MM-dd"),
-            startTime,
-            endTime,
-          }]
+        : selectedDate
+          ? [{
+              date: format(selectedDate, "yyyy-MM-dd"),
+              startTime,
+              endTime,
+            }]
         : [];
+
+    if (!schedule.length) {
+      updateData({
+        selectedStudios: [buildStudioSelectionFromPricing({ studio: selectedStudio, pricingKey: nextPricingKey })],
+        selectedStudioIds: [selectedStudio.id],
+        selectedStudioImage: selectedStudio.image,
+        selectedStudioName: selectedStudio.name,
+        location: selectedStudio.location,
+        locationDetails: buildStudioLocationDetails(selectedStudio),
+      });
+      return;
+    }
 
     applyStudioSelection(selectedStudio, nextPricingKey, schedule);
   };
@@ -704,62 +749,6 @@ const BookStudioDetailsStep = ({
         </div>
       </div>
 
-      {selectedStudio && selectedStudio.pricingOptions && selectedStudio.pricingOptions.length > 0 && (
-        <div className="border-t border-white/10 pt-8">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-white lg:text-2xl">What are you booking the studio for?</h2>
-            <p className="mt-1 text-sm text-white/50">
-              Select the purpose so we can calculate the correct studio rate, minimum hours, and cleaning fee.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {selectedStudio.pricingOptions.map((option) => {
-              const active = pricingKey === option.key;
-              const packageEstimate = selectedStudioTotal && active
-                ? selectedStudioTotal
-                : option.hourlyRate * Math.max(selectedDuration || option.minimumHours, option.minimumHours) + (option.cleaningFee || 0);
-
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => handlePricingOptionChange(option.key)}
-                  className={`rounded-2xl border p-5 text-left transition-colors ${
-                    active ? "border-[#E8D1AB] bg-[#E8D1AB14]" : "border-white/10 bg-[#151515] hover:border-white/25"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-base font-bold text-white">{option.label}</div>
-                      <div className="mt-3 text-2xl font-bold text-[#E8D1AB]">
-                        ${option.hourlyRate.toLocaleString()}/hour
-                      </div>
-                    </div>
-                    <span className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${active ? "bg-[#E8D1AB]" : "border border-white/40"}`}>
-                      {active && <span className="h-2.5 w-2.5 rounded-full bg-black" />}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs text-white/55">
-                    {option.minimumHours}-hour minimum{option.cleaningFee ? ` • $${option.cleaningFee.toLocaleString()} cleaning fee` : ""}
-                  </div>
-                  <div className="my-4 border-t border-white/10" />
-                  <div className="text-xs font-bold uppercase text-white/40">Ideal for</div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {option.idealFor.slice(0, 6).map((item) => (
-                      <span key={item} className="rounded-md bg-white/5 px-2 py-1 text-[11px] text-white/60">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-5 rounded-xl bg-[#211F1C] px-4 py-3 text-sm font-semibold text-[#E8D1AB]">
-                    Current estimate: ${packageEstimate.toLocaleString()}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       <div className="border-t border-white/10 pt-8">
         <h2 className="mb-3 text-base font-medium text-white/90 lg:mb-6 lg:text-xl">Select Booking Type</h2>
@@ -1104,6 +1093,63 @@ const BookStudioDetailsStep = ({
         )}
       </div>
 
+       {selectedStudio && selectedStudio.pricingOptions && selectedStudio.pricingOptions.length > 0 && (
+        <div className="border-t border-white/10 pt-8">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-white lg:text-2xl">What are you booking the studio for?</h2>
+            <p className="mt-1 text-sm text-white/50">
+              Select the purpose so we can calculate the correct studio rate, minimum hours, and cleaning fee.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {selectedStudio.pricingOptions.map((option) => {
+              const active = pricingKey === option.key;
+              const packageEstimate = selectedStudioTotal && active
+                ? selectedStudioTotal
+                : option.hourlyRate * Math.max(selectedDuration || option.minimumHours, option.minimumHours) + (option.cleaningFee || 0);
+
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => handlePricingOptionChange(option.key)}
+                  className={`rounded-2xl border p-5 text-left transition-colors ${
+                    active ? "border-[#E8D1AB] bg-[#E8D1AB14]" : "border-white/10 bg-[#151515] hover:border-white/25"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-base font-bold text-white">{option.label}</div>
+                      <div className="mt-3 text-2xl font-bold text-[#E8D1AB]">
+                        ${option.hourlyRate.toLocaleString()}/hour
+                      </div>
+                    </div>
+                    <span className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${active ? "bg-[#E8D1AB]" : "border border-white/40"}`}>
+                      {active && <span className="h-2.5 w-2.5 rounded-full bg-black" />}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs text-white/55">
+                    {option.minimumHours}-hour minimum{option.cleaningFee ? ` • $${option.cleaningFee.toLocaleString()} cleaning fee` : ""}
+                  </div>
+                  <div className="my-4 border-t border-white/10" />
+                  <div className="text-xs font-bold uppercase text-white/40">Ideal for</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {option.idealFor.slice(0, 6).map((item) => (
+                      <span key={item} className="rounded-md bg-white/5 px-2 py-1 text-[11px] text-white/60">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-5 rounded-xl bg-[#211F1C] px-4 py-3 text-sm font-semibold text-[#E8D1AB]">
+                    Current estimate: ${packageEstimate.toLocaleString()}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-[16px] border border-white/10 bg-[#111111] p-5 lg:p-6">
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
@@ -1414,7 +1460,9 @@ const CreatorDetailsStep = ({
 };
 
 export const BookAStudio = () => {
+  
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<BookingDataV3>({
@@ -1434,6 +1482,35 @@ export const BookAStudio = () => {
   const updateData = useCallback((next: Partial<BookingDataV3>) => {
     setFormData((current) => ({ ...current, ...next }));
   }, []);
+
+  useEffect(() => {
+    const preSelectedId = searchParams.get("studioId");
+    const preSelectedPricingKey = searchParams.get("pricingKey") || "";
+    
+    if (preSelectedId) {
+      const studio = HOURLY_STUDIO_LIST.find((s) => s.id === preSelectedId);
+      if (studio) {
+        const nextPricingKey = studio.pricingOptions?.some((option) => option.key === preSelectedPricingKey)
+          ? preSelectedPricingKey
+          : getDefaultPricingKey(studio);
+
+        updateData({
+          selectedStudioIds: [studio.id],
+          selectedStudioImage: studio.image,
+          selectedStudioName: studio.name,
+          location: studio.location,
+          locationDetails: buildStudioLocationDetails(studio),
+          selectedStudios: nextPricingKey
+            ? [buildStudioSelectionFromPricing({ studio, pricingKey: nextPricingKey })]
+            : [],
+        });
+
+        const newPath = window.location.pathname;
+        window.history.replaceState(null, '', newPath);
+      }
+    }
+  }, [searchParams, updateData]);
+
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
