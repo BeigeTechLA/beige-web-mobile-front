@@ -42,7 +42,7 @@ export default function AdminRolesPermissionsRoute() {
               <ArrowUpToLine size={18} />
               Export
             </Button> */}
-
+{/* 
             {canCreate && (
               <Button
                 onClick={() => router.push("/admin/roles-permissions/add-new-role")}
@@ -51,7 +51,7 @@ export default function AdminRolesPermissionsRoute() {
                 <Plus size={18} />
                 Add New Role
               </Button>
-            )}
+            )} */}
 
             {canCreateUser && (
               <Button
