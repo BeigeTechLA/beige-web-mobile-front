@@ -241,6 +241,42 @@ interface FaceScanResponse {
   };
 }
 
+interface FaceScanJobCreateResponse {
+  success: boolean;
+  data: {
+    jobId: string;
+    externalId: string;
+    status: "queued" | "processing" | "completed" | "failed";
+    queueMode?: "redis" | "local";
+  };
+}
+
+interface FaceScanQueryUploadPolicyResponse {
+  success: boolean;
+  data: {
+    url: string;
+    fields: Record<string, string>;
+    filePath: string;
+    scanImagePath: string;
+    success: boolean;
+  };
+}
+
+interface FaceScanJobStatusResponse {
+  success: boolean;
+  data: {
+    jobId: string;
+    externalId: string;
+    status: "queued" | "processing" | "completed" | "failed";
+    result?: FaceScanResponse["data"] | null;
+    errorMessage?: string | null;
+    attempts?: number;
+    queuedAt?: string;
+    startedAt?: string | null;
+    completedAt?: string | null;
+  };
+}
+
 interface ExternalBatchUploadPolicyResponse {
   success: boolean;
   data: {
@@ -627,6 +663,7 @@ export const fileManagerApi = {
     externalId: string;
     scanImageBase64?: string;
     scanImageUrl?: string;
+    scanImagePath?: string;
     threshold?: number;
     minScore?: number;
     maxResults?: number;
@@ -638,6 +675,63 @@ export const fileManagerApi = {
     providerTimeoutMs?: number;
   }) {
     const response = await apiClient.post<FaceScanResponse>("external-file-manager/face-scan/search", payload);
+    return response.data;
+  },
+
+  async createFaceScanJob(payload: {
+    externalId: string;
+    scanImageBase64?: string;
+    scanImageUrl?: string;
+    scanImagePath?: string;
+    threshold?: number;
+    minScore?: number;
+    maxResults?: number;
+    candidateLimit?: number;
+    fallbackCandidateLimit?: number;
+    backgroundReindex?: boolean;
+    backgroundBatchLimit?: number;
+    backgroundConcurrency?: number;
+    includeLiveFallback?: boolean;
+    providerTimeoutMs?: number;
+  }) {
+    const response = await apiClient.post<FaceScanJobCreateResponse>(
+      "external-file-manager/face-scan/jobs",
+      payload
+    );
+    return response.data;
+  },
+
+  async getFaceScanQueryUploadPolicy(payload: {
+    externalId?: string;
+    fileContentType: string;
+    fileSize: number;
+  }) {
+    const response = await apiClient.post<FaceScanQueryUploadPolicyResponse>(
+      "external-file-manager/face-scan/query-upload-policy",
+      payload
+    );
+    return response.data;
+  },
+
+  async uploadFaceScanQueryImage(
+    uploadPolicy: { url: string; fields: Record<string, string> },
+    file: Blob,
+    signal?: AbortSignal
+  ) {
+    const data = new FormData();
+    Object.entries(uploadPolicy.fields || {}).forEach(([key, value]) => {
+      data.append(key, value);
+    });
+    data.append("file", file);
+
+    await axios.post(uploadPolicy.url, data, { signal });
+  },
+
+  async getFaceScanJob(jobId: string, externalId: string) {
+    const response = await apiClient.get<FaceScanJobStatusResponse>(
+      `external-file-manager/face-scan/jobs/${encodeURIComponent(String(jobId || ""))}`,
+      { externalId }
+    );
     return response.data;
   },
 
