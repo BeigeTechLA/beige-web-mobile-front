@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { adminApi } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const filterOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 const typeOptions = ["All", "Used", "Available"];
@@ -127,7 +129,7 @@ const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetail
   const ledger = asRecord(pickFirstValue(data, ["ledger"])) || {};
   const activitiesRaw = getArray(
     pickFirstValue(ledger, ["rows"]) ||
-      pickFirstValue(data, ["history", "credit_history", "activities", "rows", "items", "transactions"])
+    pickFirstValue(data, ["history", "credit_history", "activities", "rows", "items", "transactions"])
   );
 
   const clientName =
@@ -352,18 +354,16 @@ export default function AdminCreditPointDetailsPage() {
         <button
           type="button"
           onClick={() => router.push("/admin/finances/creditPoints")}
-          className={`inline-flex items-center gap-2 text-sm transition-colors ${
-            isDark ? "text-white hover:text-[#E5D5B8]" : "text-[#171717] hover:text-[#8B6B36]"
-          }`}
+          className={`inline-flex items-center gap-2 text-sm transition-colors ${isDark ? "text-white hover:text-[#E5D5B8]" : "text-[#171717] hover:text-[#8B6B36]"
+            }`}
         >
           <ArrowLeft size={18} />
           Back
         </button>
 
         <section
-          className={`rounded-[24px] border ${
-            isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E4D9C7] bg-[#FDFBF7] shadow-[0_18px_50px_rgba(129,103,58,0.08)]"
-          }`}
+          className={`rounded-[24px] border ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E4D9C7] bg-[#FDFBF7] shadow-[0_18px_50px_rgba(129,103,58,0.08)]"
+            }`}
         >
           <div className={`border-b px-5 py-5 lg:px-6 ${isDark ? "border-[#2A2A2A]" : "border-[#E9DECD]"}`}>
             <div className="flex items-center gap-3">
@@ -374,11 +374,10 @@ export default function AdminCreditPointDetailsPage() {
 
           <div className="space-y-6 p-5 lg:p-6">
             <div
-              className={`rounded-[22px] border p-5 lg:p-6 ${
-                isDark
-                  ? "border-[#463D31] bg-[radial-gradient(circle_at_top_left,_rgba(229,213,184,0.10),_transparent_45%),#221F1C]"
-                  : "border-[#E6D5BB] bg-[radial-gradient(circle_at_top_left,_rgba(229,213,184,0.42),_transparent_42%),linear-gradient(135deg,#FFF7EA_0%,#F7F0E5_100%)]"
-              }`}
+              className={`rounded-[22px] border p-5 lg:p-6 ${isDark
+                ? "border-[#463D31] bg-[radial-gradient(circle_at_top_left,_rgba(229,213,184,0.10),_transparent_45%),#221F1C]"
+                : "border-[#E6D5BB] bg-[radial-gradient(circle_at_top_left,_rgba(229,213,184,0.42),_transparent_42%),linear-gradient(135deg,#FFF7EA_0%,#F7F0E5_100%)]"
+                }`}
             >
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-4">
@@ -453,9 +452,8 @@ export default function AdminCreditPointDetailsPage() {
                   {filteredActivities.map((activity) => (
                     <article
                       key={activity.id}
-                      className={`rounded-[14px] border px-4 py-4 lg:px-5 ${
-                        isDark ? "border-[#2A2A2A] bg-[#221F1F]" : "border-[#E5D9CB] bg-white shadow-[0_10px_30px_rgba(117,92,49,0.05)]"
-                      }`}
+                      className={`rounded-[14px] border px-4 py-4 lg:px-5 ${isDark ? "border-[#2A2A2A] bg-[#221F1F]" : "border-[#E5D9CB] bg-white shadow-[0_10px_30px_rgba(117,92,49,0.05)]"
+                        }`}
                     >
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0">
@@ -468,11 +466,10 @@ export default function AdminCreditPointDetailsPage() {
                             <span>{activity.reference}</span>
                             {activity.isExpired ? (
                               <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-                                  isDark
-                                    ? "border-red-400/35 bg-red-500/10 text-red-300"
-                                    : "border-red-200 bg-red-50 text-red-600"
-                                }`}
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${isDark
+                                  ? "border-red-400/35 bg-red-500/10 text-red-300"
+                                  : "border-red-200 bg-red-50 text-red-600"
+                                  }`}
                               >
                                 Expired
                               </span>
@@ -481,11 +478,10 @@ export default function AdminCreditPointDetailsPage() {
                               (activity.status || "").toLowerCase()
                             ) ? (
                               <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-                                  isDark
-                                    ? "border-amber-400/35 bg-amber-500/10 text-amber-300"
-                                    : "border-amber-200 bg-amber-50 text-amber-700"
-                                }`}
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${isDark
+                                  ? "border-amber-400/35 bg-amber-500/10 text-amber-300"
+                                  : "border-amber-200 bg-amber-50 text-amber-700"
+                                  }`}
                               >
                                 Approval Pending
                               </span>
@@ -500,10 +496,16 @@ export default function AdminCreditPointDetailsPage() {
                       {(activity.shootId || activity.invoiceId) && (
                         <div className={`mt-4 flex flex-wrap items-center gap-4 border-t pt-4 text-sm ${isDark ? "border-[#2A2A2A] text-white/65" : "border-[#EEE4D6] text-[#6F6F6F]"}`}>
                           {activity.shootId && (
+
                             <span className="inline-flex items-center gap-2">
                               <FileText size={14} />
                               Shoot:
-                              <span className="text-[#D3B98A]">{activity.shootId}</span>
+                              <Link
+                                href={`/admin/shoots/${activity.shootId}`}
+                                className="rounded-[8px] p-1 text-[#D3B98A] hover:bg-[#fcfcfc16]"
+                              >
+                                {activity.shootId}
+                              </Link>
                             </span>
                           )}
                           {activity.invoiceId && (
@@ -551,9 +553,8 @@ function MetricCard({
 }) {
   return (
     <div
-      className={`min-w-[190px] rounded-2xl border p-4 ${
-        isDark ? "border-[#1F1F1F] bg-[#151515]" : "border-[#E8DEC9] bg-[rgba(255,255,255,0.75)] backdrop-blur"
-      }`}
+      className={`min-w-[190px] rounded-2xl border p-4 ${isDark ? "border-[#1F1F1F] bg-[#151515]" : "border-[#E8DEC9] bg-[rgba(255,255,255,0.75)] backdrop-blur"
+        }`}
     >
       <div className="flex items-center gap-2">
         <p className={`text-sm ${isDark ? "text-white/55" : "text-[#7A6A52]"}`}>{label}</p>
