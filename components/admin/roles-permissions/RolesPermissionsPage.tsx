@@ -185,13 +185,8 @@ export function RolesPermissionsPage({
   };
 
   const handleOpenUserDetails = (user: PermissionUser) => {
-    const targetUrl = `/admin/roles-permissions/edit-details?user_id=${user.id}`;
-    console.log("RolesPermissionsPage: opening user details", {
-      userId: user.id,
-      userName: user.name,
-      targetUrl,
-    });
-    router.push(targetUrl);
+    if (!canEdit) return;
+    router.push(`/admin/roles-permissions/edit-details?user_id=${user.id}`);
   };
 
   const handleConfirmDelete = async () => {

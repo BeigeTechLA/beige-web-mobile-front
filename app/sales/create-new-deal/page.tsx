@@ -59,6 +59,7 @@ import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import Topbar from "@/components/admin/Topbar";
 import { getFormattedDateString } from "@/lib/utils";
 import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const INITIAL_COUNT = 6;
 
@@ -206,7 +207,7 @@ function ClientDetailPage() {
   // New API State for Crew List
   const [crewList, setCrewList] = useState<any[]>([]);
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
-  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
+  const { canEdit: canAssignSalesRep } = usePermissions("sales_representative");
   const [salesRepId, setSalesRepId] = useState<string>("");
   const [salesRepOptions, setSalesRepOptions] = useState<{ value: string; label: string }[]>([]);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
@@ -349,20 +350,10 @@ function ClientDetailPage() {
     }
     setTimeOptions(options);
     setMounted(true);
-
-    try {
-      const storedUser = localStorage.getItem("revure_user");
-      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const userTypeId = parsedUser?.user_type_id ?? parsedUser?.userTypeId;
-      setIsUserTypeSeven(userTypeId === 7);
-    } catch (error) {
-      console.error("Failed to read logged in user from localStorage:", error);
-      setIsUserTypeSeven(false);
-    }
   }, []);
 
   const fetchSalesReps = useCallback(async () => {
-    if (!isUserTypeSeven) {
+    if (!canAssignSalesRep) {
       setSalesRepOptions([]);
       return;
     }
@@ -386,7 +377,7 @@ function ClientDetailPage() {
     } finally {
       setIsLoadingSalesReps(false);
     }
-  }, [isUserTypeSeven]);
+  }, [canAssignSalesRep]);
 
   useEffect(() => {
     fetchSalesReps();
@@ -858,7 +849,7 @@ function ClientDetailPage() {
   }, [formData.contentType, extraTeam]);
 
   const handleContinueClick = async () => {
-    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || (isUserTypeSeven && !salesRepId) || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
+    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || (canAssignSalesRep && !salesRepId) || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
       toast.error("Please fill in all Booking information fields");
       return;
     }
@@ -924,7 +915,7 @@ function ClientDetailPage() {
         guest_email: clientEmail,
         phone: clientPhone,
         intent: intent,
-        sales_rep_id: isUserTypeSeven && salesRepId ? Number(salesRepId) : undefined,
+        sales_rep_id: canAssignSalesRep && salesRepId ? Number(salesRepId) : undefined,
         lead_source: thumbtack,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
@@ -1181,7 +1172,7 @@ function ClientDetailPage() {
               required
               isDark={isDark}
             />
-            {isUserTypeSeven && (
+            {canAssignSalesRep && (
               <FloatingLabelDropdown
                 label="Assign Sales Person"
                 value={salesRepId}

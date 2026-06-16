@@ -13,7 +13,7 @@ type AdminRouteRule = {
 type PortalKey = "admin" | "affiliate" | "sales" | "production-manager" | "creator";
 
 const MODULE_ALIASES: Record<string, string[]> = {
-  admin_dashboard: ["dashboard", "sales_admin_dashboard", "sales_rep_dashboard"],
+  admin_dashboard: ["dashboard", "sales_admin_dashboard", "sales_rep_dashboard", "client_dashboard", "crew_dashboard", "production_manager_dashboard"],
   admin_availability: ["availability"],
   admin_file_manager: ["file_manager", "file-manager"],
   admin_finances: ["finances", "payouts"],
@@ -39,23 +39,24 @@ const MODULE_ALIASES: Record<string, string[]> = {
   sales_rep_messages: ["messages", "admin_messages"],
   sales_rep_quotes: ["quotes", "admin_quotes"],
   sales_rep_shoots: ["shoots", "admin_shoots"],
-  availability: ["admin_availability"],
-  dashboard: ["admin_dashboard"],
-  file_manager: ["admin_file_manager", "sales_admin_file_manager", "sales_rep_file_manager", "file-manager"],
+  availability: ["admin_availability", "sales_rep_availability", "production_manager_availability", "crew_availability"],
+  dashboard: ["admin_dashboard", "sales_admin_dashboard", "sales_rep_dashboard", "client_dashboard", "crew_dashboard", "production_manager_dashboard"],
+  file_manager: ["admin_file_manager", "sales_admin_file_manager", "sales_rep_file_manager", "client_file_manager", "crew_file_manager", "production_manager_file_manager", "file-manager"],
   file_manager_view: ["admin_file_manager", "sales_admin_file_manager", "sales_rep_file_manager", "file-manager"],
-  finances: ["admin_finances", "payouts"],
-  invoices: ["admin_invoices", "sales_admin_invoices", "sales_rep_invoices"],
-  meetings: ["admin_meetings", "sales_admin_meetings", "sales_rep_meetings"],
-  messages: ["admin_messages", "sales_admin_messages", "sales_rep_messages"],
-  profile: ["profile"],
-  quotes: ["admin_quotes", "sales_admin_quotes", "sales_rep_quotes"],
-  request_shoots: ["request_shoots", "request-shoots"],
-  roles_permissions: ["roles_permissions", "roles-permissions"],
-  sales: ["sales"],
+  finances: ["admin_finances", "payouts", "client_finances", "crew_payouts"],
+  invoices: ["admin_invoices", "sales_admin_invoices", "sales_rep_invoices", "client_finances"],
+  meetings: ["admin_meetings", "sales_admin_meetings", "sales_rep_meetings", "client_meetings", "crew_meetings", "production_manager_meetings"],
+  messages: ["admin_messages", "sales_admin_messages", "sales_rep_messages", "client_messages", "crew_messages", "production_manager_messages"],
+  profile: ["profile", "crew_profile", "client_profile"],
+  quotes: ["admin_quotes", "sales_admin_quotes", "sales_rep_quotes", "client_quotes"],
+  request_shoots: ["request_shoots", "request-shoots", "crew_request_shoots", "client_book_a_shoot"],
+  affiliate: ["crew_affiliate", "client_affiliate_overview"],
+  roles_permissions: ["roles_permissions", "roles-permissions", "admin_users"],
+  sales: ["sales", "sales_rep_sales"],
   sales_representative: ["admin_sales_representative", "sales_admin_sales_people", "sales_representative", "sales-representative", "users"],
-  settings: ["settings"],
-  shoots: ["admin_shoots", "sales_admin_shoots", "sales_rep_shoots"],
-  users: ["admin_users", "sales_admin_sales_people"],
+  settings: ["settings", "crew_settings", "crew_profile", "client_profile"],
+  shoots: ["admin_shoots", "sales_admin_shoots", "sales_rep_shoots", "client_shoots", "client_find_yourself", "production_manager_shoots"],
+  users: ["admin_users", "sales_admin_sales_people", "client_affiliate_overview", "production_manager_creative_partner"],
 };
 
 const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
@@ -69,7 +70,7 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/users", permissionKeys: ["users"] },
   { prefix: "/admin/quotes", permissionKeys: ["quotes"] },
-  { prefix: "/admin/roles-permissions" },
+  { prefix: "/admin/roles-permissions", permissionKeys: ["roles_permissions"] },
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/internal-credentials", permissionKeys: ["users"] },
 ];
@@ -96,6 +97,11 @@ const SALES_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/sales/messages", permissionKeys: ["messages"] },
   { prefix: "/sales/quotes", permissionKeys: ["quotes"] },
   { prefix: "/sales/invoice", permissionKeys: ["invoices"] },
+  { prefix: "/sales/sales-people", permissionKeys: ["sales_representative"] },
+  { prefix: "/sales/sales-representative", permissionKeys: ["sales_representative"] },
+  { prefix: "/sales/create-new-deal", permissionKeys: ["sales_representative"] },
+  { prefix: "/sales/leads", permissionKeys: ["sales_representative"] },
+  { prefix: "/sales/client", permissionKeys: ["sales_representative"] },
 ];
 
 const PRODUCTION_MANAGER_ROUTE_RULES: AdminRouteRule[] = [
@@ -165,6 +171,11 @@ const PORTAL_FALLBACK_PATHS: Record<PortalKey, string[]> = {
     "/sales/messages",
     "/sales/quotes",
     "/sales/invoice",
+    "/sales/sales-people",
+    "/sales/sales-representative",
+    "/sales/create-new-deal",
+    "/sales/leads",
+    "/sales/client",
   ],
   "production-manager": [
     "/production-manager/dashboard",

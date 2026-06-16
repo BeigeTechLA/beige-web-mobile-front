@@ -74,6 +74,7 @@ import {
 import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -290,6 +291,11 @@ export default function SalesLeadDetailsPage() {
   const leadId = params.id as string;
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { allowed, isLoading: isPermissionLoading } = useRequireModulePermission(
+    "sales_representative",
+    "view",
+    "/sales/dashboard",
+  );
 
   const [discount, setDiscount] = useState("");
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
@@ -1341,6 +1347,14 @@ export default function SalesLeadDetailsPage() {
       setIsUpdatingConvertedBooking(false);
     }
   };
+
+  if (isPermissionLoading || !allowed) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isPermissionLoading && !allowed ? "No Permission" : null}
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

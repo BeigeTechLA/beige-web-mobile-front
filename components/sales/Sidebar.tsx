@@ -155,7 +155,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       return [];
     }
 
-    return item.children;
+    return item.children.filter((child) => {
+      if (child.link === "/sales/sales-people") {
+        return hasModulePermission(permissions, ["sales_representative"], "view");
+      }
+      return true;
+    });
   };
 
   // Shared helper to handle navigation and closing sidebar

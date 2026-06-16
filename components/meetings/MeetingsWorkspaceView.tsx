@@ -106,8 +106,8 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
-  const normalizedUserRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
-  const isSalesAdminView = role === "sales" && normalizedUserRole === "sales_admin";
+  const { canEdit: canViewAllMeetings } = usePermissions("sales_representative");
+  const isSalesAdminView = role === "sales" && canViewAllMeetings;
   const isAdminView = role === "admin" || isSalesAdminView;
   const effectiveRoleForActions: RoleVariant = isAdminView ? "admin" : role;
   const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");

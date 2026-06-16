@@ -32,6 +32,7 @@ import {
 import { broadcastPermissionsUpdated } from "@/lib/permissionsRefresh";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -106,17 +107,13 @@ export default function AdminRoleEditDetailsRoute() {
   const userId = searchParams.get("user_id");
   const mode = roleId ? "role" : "user";
 
-  useEffect(() => {
-    console.log("AdminRoleEditDetailsRoute: route params", {
-      pathname,
-      roleId,
-      userId,
-      mode,
-    });
-  }, [mode, pathname, roleId, userId]);
-
   const dispatch = useAppDispatch();
   const { canDelete } = usePermissions("roles_permissions");
+  const { allowed: canEditPage, isLoading: isPermissionLoading } = useRequireModulePermission(
+    "roles_permissions",
+    "edit",
+    "/admin/roles-permissions",
+  );
   const loggedInUser = useAppSelector((state) => state.auth.user);
 
   const refreshLoggedInUserPermissions = async () => {
@@ -328,6 +325,7 @@ export default function AdminRoleEditDetailsRoute() {
       return;
     }
 
+    broadcastPermissionsUpdated();
     await refreshLoggedInUserPermissions();
 
     setSuccessTitle("Role Updated Successfully");
@@ -514,6 +512,14 @@ export default function AdminRoleEditDetailsRoute() {
     if (isSaving) return "Updating...";
     return mode === "role" ? "Update" : "Update";
   }, [isSaving, mode]);
+
+  if (isPermissionLoading || !canEditPage) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isPermissionLoading && !canEditPage ? "No Permission" : null}
+      </div>
+    );
+  }
 
   return (
     <PermissionGuard module="roles_permissions" action="edit">

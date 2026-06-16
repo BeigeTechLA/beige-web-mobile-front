@@ -247,9 +247,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         <nav className="space-y-2" key={`admin-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
             if (item.permissionKeys && item.permissionKeys.length > 0) {
-              const canView = item.permissionKeys.includes("roles_permissions")
-                ? true
-                : hasModulePermission(permissions, item.permissionKeys, "view");
+              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
               if (!canView) return null;
             }
 

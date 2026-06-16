@@ -4,14 +4,13 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import Topbar from "@/components/sales/Topbar";
 import ExternalChatView from "@/components/chat/ExternalChatView";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 
 export default function SalesMessagesPage() {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
-  const effectiveRole = userRole === "sales_admin" ? "admin" : "sales";
+  const { canEdit: canManageSalesAdminMessages } = usePermissions("sales_representative");
+  const effectiveRole = canManageSalesAdminMessages ? "admin" : "sales";
 
   return (
     <PermissionGuard module="messages" action="view">

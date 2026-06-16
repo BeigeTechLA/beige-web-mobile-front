@@ -14,7 +14,7 @@ import SalesPostProductionTab from "@/components/sales/shoot-details/PostProduct
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 import { adminApi } from "@/lib/api";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
@@ -42,15 +42,14 @@ type ProjectDetails = {
 export default function SalesShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
   const searchParams = useSearchParams();
   const { id } = use(params);
   const activeTab = searchParams.get("tab") || "Overview";
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
-  const effectiveRole = userRole === "sales_admin" ? "admin" : "sales";
+  const { canEdit: canManageAsSalesAdmin } = usePermissions("sales_representative");
+  const effectiveRole = canManageAsSalesAdmin ? "admin" : "sales";
 
 
   const handleTabChange = (tabName: string) => {

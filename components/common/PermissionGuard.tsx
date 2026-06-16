@@ -21,10 +21,6 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
 }) => {
   const perms = usePermissions(module);
 
-  if (module === "roles_permissions") {
-    return <>{children}</>;
-  }
-
   let hasPermission = false;
   if (action === "view") hasPermission = perms.canView;
   else if (action === "create") hasPermission = perms.canCreate;

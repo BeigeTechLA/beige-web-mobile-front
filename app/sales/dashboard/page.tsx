@@ -147,9 +147,6 @@ const OVERVIEW_PERIOD_MAP: Record<string, string> = {
   "Week": "7days",
 };
 
-const canUseSalesDashboardRepFilters = (userTypeId: number | null) =>
-  userTypeId === 5 || userTypeId === 7;
-
 const isMetricStat = (value: unknown): value is DashboardMetricStat =>
   !!value && typeof value === "object" && ("value" in value || "change_percent" in value);
 
@@ -377,10 +374,9 @@ export default function SalesLeadsPage() {
   const { theme, resolvedTheme } = useTheme();
   const { user, token } = useAppSelector((state) => state.auth);
   const [mounted, setMounted] = useState(false);
-  const { canCreate } = usePermissions("sales_representative");
+  const { canCreate, canDelete, canEdit } = usePermissions("sales_representative");
   const hasRestoredFiltersRef = useRef(false);
-  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
-  const [canManageSalesDashboardFilters, setCanManageSalesDashboardFilters] = useState(false);
+  const canManageSalesDashboardFilters = canEdit;
 
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
@@ -477,18 +473,6 @@ export default function SalesLeadsPage() {
     setMounted(true);
 
     try {
-      const storedUser = localStorage.getItem("revure_user");
-      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const userTypeId = Number(
-        parsedUser?.user_type_id ?? parsedUser?.userTypeId
-      );
-      const canManageFilters = canUseSalesDashboardRepFilters(
-        Number.isFinite(userTypeId) ? userTypeId : null
-      );
-
-      setIsUserTypeSeven(userTypeId === 7);
-      setCanManageSalesDashboardFilters(canManageFilters);
-
       const savedFilters = window.sessionStorage.getItem(SALES_DASHBOARD_FILTERS_KEY);
       if (!savedFilters) {
         hasRestoredFiltersRef.current = true;
@@ -1363,7 +1347,7 @@ export default function SalesLeadsPage() {
                 <td className={`py-5 px-6 border-b text-[14px] transition-colors ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#E5E5E5] text-[#333]"}`}>
                   <div className="space-y-1 min-w-0">
                     <p>{user.phoneNumber}</p>
-                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                    {canEdit && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
                       <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
                         {user.assignedSalesRepName || "Unassigned"}
                         {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
@@ -1456,7 +1440,7 @@ export default function SalesLeadsPage() {
                     <p className={`text-sm ${isDark ? "text-[#B9B9B9]" : "text-[#555555]"}`}>
                       {user.phoneNumber || "N/A"}
                     </p>
-                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                    {canEdit && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
                       <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
                         {user.assignedSalesRepName || "Unassigned"}
                         {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
@@ -1489,7 +1473,7 @@ export default function SalesLeadsPage() {
                   <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Contact Info</p>
                   <div className="space-y-1">
                     <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
-                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                    {canEdit && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
                       <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-black/50"}`}>
                         {user.assignedSalesRepName || "Unassigned"}
                         {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
@@ -1509,7 +1493,7 @@ export default function SalesLeadsPage() {
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
             anchor={menuAnchor}
-            hideDelete={!isUserTypeSeven}
+            hideDelete={!canDelete}
             onDeleteSuccess={() => {
               refetchLeads();
               fetchDashboardOverview();

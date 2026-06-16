@@ -14,7 +14,7 @@ export default function CreativePartnersPage() {
     const pathname = usePathname();
     const { theme } = useTheme();
     const [mounted, setMounted] = useState(false);
-    const { canCreate } = usePermissions("shoots");
+    const { canCreate: canBookShoot } = usePermissions("shoots");
 
     useEffect(() => setMounted(true), []);
 
@@ -29,7 +29,7 @@ export default function CreativePartnersPage() {
                         <Button className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg ${isDark ? "text-white bg-[#202020] border-white/20 hover:bg-white/10" : "text-[#323232] bg-[#F0F0F0] border-[#E3E3E3] hover:bg-[#E3E3E3]"} border transition-colors `}>
                             <ArrowUpToLine /> Export
                         </Button>
-                        {canCreate && (
+                        {canBookShoot && (
                             <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
                                 Book a Shoot
                             </Button>

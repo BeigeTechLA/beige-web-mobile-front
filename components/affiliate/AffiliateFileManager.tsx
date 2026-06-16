@@ -40,6 +40,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { MobileFolderRow } from "../admin/file-manager/MobileFolderRow";
 import { MobileWorkspaceRow } from "./file-manager/AffiliateMobileRow";
 
@@ -130,6 +131,7 @@ const formatRelativeTime = (value?: string) => {
 };
 
 export default function AffiliateFileManager() {
+  const { canCreate } = usePermissions("file_manager");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
@@ -765,7 +767,7 @@ export default function AffiliateFileManager() {
     selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
   );
   const canUploadInSelectedPhase = Boolean(
-    selectedWorkspace && selectedPhase === "pre" && !isSelectedWorkspaceCommonEvent
+    canCreate && selectedWorkspace && selectedPhase === "pre" && !isSelectedWorkspaceCommonEvent
   );
   const uploadPath = useMemo(() => {
     if (!selectedWorkspace || !canUploadInSelectedPhase) return undefined;
