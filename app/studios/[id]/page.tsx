@@ -1,10 +1,15 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Home, Images, MapPin, Star, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ArrowLeft, CalendarDays, ChevronRight, Home, Images, 
+  MapPin, Star, X, Check, Clock, Sparkles, DoorClosed, 
+  Shield, Share2, Heart, Loader2, Utensils, Music, Info ,ChevronLeft
+} from "lucide-react";
 
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
@@ -13,306 +18,377 @@ import { HOURLY_STUDIO_LIST, type StudioCatalogItem } from "@/components/book-a-
 const STUDIO_IMAGE_FALLBACK = "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 
+// --- Data Fetching Logic (Restored) ---
 const getStudioBySlug = (slug: string) => {
   const direct = HOURLY_STUDIO_LIST.find((studio) => studio.id === slug);
   if (direct) return direct;
-
   const numericIndex = Number(slug);
   if (Number.isInteger(numericIndex) && numericIndex > 0) {
     return HOURLY_STUDIO_LIST[numericIndex - 1];
   }
-
   return undefined;
 };
 
 const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
+  const router = useRouter();
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  
+  // Pricing Logic (Restored)
   const [selectedPricingKey, setSelectedPricingKey] = useState<string>(studio.pricingOptions?.[0]?.key || "");
   const selectedPricing = useMemo(
     () => studio.pricingOptions?.find((option) => option.key === selectedPricingKey) || studio.pricingOptions?.[0] || null,
     [selectedPricingKey, studio.pricingOptions],
   );
+
+  // Gallery Deduplication (Restored)
   const galleryImages = useMemo(() => {
     const imageSet = new Set<string>();
-    [studio.image, ...(studio.images || [])].forEach((image) => {
-      if (image) imageSet.add(image);
-    });
+    [studio.image, ...(studio.images || [])].forEach((image) => { if (image) imageSet.add(image); });
     if (imageSet.size === 0) imageSet.add(STUDIO_IMAGE_FALLBACK);
     return Array.from(imageSet);
   }, [studio]);
 
-  const amenities = studio.amenities?.length
-    ? studio.amenities
-    : ["Natural light", "High-speed WiFi", "Production-friendly layout", "Furniture and decor included"];
-  const rules = studio.rules?.length
-    ? studio.rules
-    : ["Minimum booking is 2 hours", "Setup and breakdown must be included in the reservation", "Guests must respect the property"];
+  // Metadata Joining (Restored)
   const studioMeta = [
     studio.beds ? `${studio.beds} bedroom${studio.beds > 1 ? "s" : ""}` : null,
     studio.baths ? `${studio.baths} bath${studio.baths > 1 ? "s" : ""}` : null,
     studio.size,
     studio.poolType,
   ].filter(Boolean);
+
   const ratingText = studio.rating
     ? `${studio.rating} Stars${studio.reviews ? ` (${studio.reviews} ${studio.reviews === 1 ? "Rating" : "Ratings"})` : ""}`
     : null;
 
-  const showPreviousImage = () => {
-    setActiveImageIndex((current) =>
-      current === null ? current : (current - 1 + galleryImages.length) % galleryImages.length,
-    );
-  };
-
-  const showNextImage = () => {
-    setActiveImageIndex((current) =>
-      current === null ? current : (current + 1) % galleryImages.length,
-    );
-  };
+  // Fallbacks (Restored)
+  const amenities = studio.amenities?.length ? studio.amenities : ["Natural light", "High-speed WiFi", "Production-friendly layout", "Furniture and decor included"];
+  const rules = studio.rules?.length ? studio.rules : ["Minimum booking is 2 hours", "Setup and breakdown must be included", "Guests must respect the property"];
 
   return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold leading-tight text-[#E8D1AB] lg:text-[44px]">
-          {studio.name}
-          {studioMeta.length > 0 && (
-            <span className="text-white/60 font-normal"> ({studioMeta.join(" / ")})</span>
-          )}
-        </h1>
-        <p className="mt-3 text-sm text-white/60 underline decoration-white/30 underline-offset-4">
-          {DEFAULT_DISPLAY_ADDRESS}
-        </p>
-      </div>
-
-      <div className="mb-12 grid h-[320px] grid-cols-1 overflow-hidden rounded-[24px] md:h-[460px] md:grid-cols-2 md:gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveImageIndex(0)}
-          className="relative h-full w-full bg-white/5 transition-opacity hover:opacity-90"
-        >
-          <Image src={galleryImages[0]} alt={`${studio.name} photo 1`} fill className="object-cover" priority />
+    <div className="relative pt-24 lg:pt-36 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Navigation */}
+        <div className="flex justify-between items-center mb-8">
+          <button onClick={() => router.back()} className="group flex items-center text-zinc-400 hover:text-white transition-colors text-sm">
+             <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
         </button>
-        <div className="hidden h-full grid-cols-2 grid-rows-2 gap-2 md:grid">
-          {[1, 2, 3, 4].map((imageIndex) => (
-            <button
-              key={imageIndex}
-              type="button"
-              onClick={() => setActiveImageIndex(Math.min(imageIndex, galleryImages.length - 1))}
-              className="relative h-full w-full bg-white/5 transition-opacity hover:opacity-90"
-            >
-              <Image
-                src={galleryImages[imageIndex] || galleryImages[0]}
-                alt={`${studio.name} photo ${imageIndex + 1}`}
-                fill
-                className="object-cover"
-              />
-              {imageIndex === 4 && (
-                <div className="absolute bottom-4 right-4 flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-black shadow-2xl">
-                  <Images size={16} /> {galleryImages.length} photos
-                </div>
-              )}
-            </button>
-          ))}
+          <div className="flex gap-2">
+            <button className="p-2.5 rounded-full border border-zinc-800 hover:bg-zinc-900 text-white transition-colors"><Share2 size={18} /></button>
+            <button className="p-2.5 rounded-full border border-zinc-800 hover:bg-zinc-900 text-white transition-colors"><Heart size={18} /></button>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div>
-          <section className="mb-8 border-b border-white/10 pb-8">
-            <div className="flex flex-col gap-6">
-              {[
-                { icon: Home, title: "Private production space", desc: "Reserved for your approved booking window." },
-                { icon: Star, title: ratingText || "Production-ready", desc: ratingText || "Designed for shoots, content creation, campaigns, and meetings." },
-                { icon: CalendarDays, title: "Hourly booking", desc: `${studio.minimumBookingHours || 2}-hour minimum booking${studio.operatingHours ? ` • ${studio.operatingHours}` : ""}` },
-              ].map((item) => (
-                <div key={item.title} className="flex items-start gap-5">
-                  <item.icon size={26} strokeWidth={1.5} className="mt-0.5 shrink-0 text-white" />
-                  <div>
-                    <h2 className="font-bold text-white">{item.title}</h2>
-                    <p className="mt-1 text-[15px] leading-relaxed text-white/60">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="mb-8 border-b border-white/10 pb-8">
-            <p className="text-[15px] leading-relaxed text-white/70">{studio.description}</p>
-            {studio.highlights && studio.highlights.length > 0 && (
-              <div className="mt-6">
-                <h2 className="mb-4 text-lg font-bold text-white">What makes it unique</h2>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {studio.highlights.map((highlight) => (
-                    <div key={highlight} className="flex items-start gap-3 text-sm text-white/75">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E8D1AB]" />
-                      <span>{highlight}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {/* Header (Restored Data Labels) */}
+        <div className="mb-10">
+          <h1 className="text-3xl lg:text-[44px] font-bold leading-tight text-white mb-4">
+            <span className="text-[#E8D1AB]">{studio.name}</span>
+            {studioMeta.length > 0 && (
+              <span className="text-white/40 font-normal"> ({studioMeta.join(" / ")})</span>
             )}
-          </section>
-
-          {studio.pricingOptions && studio.pricingOptions.length > 0 && (
-            <section className="mb-8 border-b border-white/10 pb-10">
-              <h2 className="mb-6 text-2xl font-bold text-white">Pricing</h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {studio.pricingOptions.map((option) => (
-                  <button key={option.key} type="button" onClick={() => setSelectedPricingKey(option.key)} className={`rounded-2xl border p-5 text-left transition-colors ${selectedPricingKey === option.key ? "border-[#E8D1AB] bg-[#E8D1AB14]" : "border-white/10 bg-[#151515] hover:border-white/25"}`}>
-                    <div className="font-bold text-white">{option.label}</div>
-                    <div className="mt-2 text-2xl font-bold text-[#E8D1AB]">${option.hourlyRate.toLocaleString()}/hour</div>
-                    <div className="mt-2 text-xs text-white/55">
-                      {option.minimumHours}-hour minimum{option.cleaningFee ? ` • $${option.cleaningFee.toLocaleString()} cleaning fee` : ""}
-                    </div>
-                    <div className="mt-4 border-t border-white/10 pt-4">
-                      <div className="text-xs font-bold uppercase text-white/40">Ideal for</div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {option.idealFor.map((item) => (
-                          <span key={item} className="rounded-md bg-white/5 px-2 py-1 text-[11px] text-white/60">{item}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section className="mb-8 border-b border-white/10 pb-10">
-            <h2 className="mb-6 text-2xl font-bold text-white">What this place offers</h2>
-            <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-              {amenities.map((name) => (
-                <div key={name} className="flex items-center gap-4 text-[15px] text-white/80">
-                  <Home size={22} strokeWidth={1.5} className="shrink-0 text-white/70" />
-                  <span>{name}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="mb-8 border-b border-white/10 pb-10">
-            <h2 className="mb-6 text-2xl font-bold text-white">Where you&apos;ll be</h2>
-            <div className="flex items-center gap-2 text-white">
-              <MapPin size={18} className="text-[#E8D1AB]" />
-              <span>{DEFAULT_DISPLAY_ADDRESS}</span>
-            </div>
-            <p className="mt-3 text-[15px] leading-relaxed text-white/60">
-              Studio address and arrival details are confirmed with the booking.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
-              <Star className="fill-[#E8D1AB] text-[#E8D1AB]" size={24} /> House Rules
-            </h2>
-            <div className="flex max-w-2xl flex-col gap-4">
-              {rules.map((rule) => (
-                <div key={rule} className="flex items-start gap-3 text-[15px] text-white/75">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E8D1AB]" />
-                  <span>{rule}</span>
-                </div>
-              ))}
-            </div>
-          </section>
+          </h1>
+          <div className="flex items-center gap-2 text-zinc-400 text-sm">
+            <MapPin size={16} className="text-[#E8D1AB]" />
+            <span className="underline underline-offset-4 decoration-white/20">{DEFAULT_DISPLAY_ADDRESS}</span>
+          </div>
         </div>
 
-        <aside className="h-fit rounded-[24px] border border-[#E8D1AB] bg-[#171717] p-6 lg:sticky lg:top-28">
-          <div className="flex items-baseline gap-1 text-[#E8D1AB]">
-            <span className="text-3xl font-semibold">
-              ${(selectedPricing?.hourlyRate || studio.priceValue || studio.pricingOptions?.[0]?.hourlyRate || 0).toLocaleString()}
-            </span>
-            <span className="text-xl">/ Hour</span>
+        {/* Image Grid */}
+        <div className="mb-12 grid h-[320px] grid-cols-1 overflow-hidden rounded-[24px] md:h-[480px] md:grid-cols-2 gap-2">
+          <div className="relative h-full w-full cursor-pointer bg-zinc-900" onClick={() => setActiveImageIndex(0)}>
+            <Image src={galleryImages[0]} alt="Main" fill className="object-cover hover:opacity-90 transition-opacity" priority />
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-white">
-            <Star size={18} className="fill-white text-white" />
-            <span>{studio.rating || "5.0"}</span>
-            <span className="text-white/30">•</span>
-            <span className="text-white/55">{studio.reviews || 0} reviews</span>
-          </div>
-          <div className="my-8 border-t border-white/10" />
-          <div className="space-y-4 text-sm">
-            {[
-              ["Minimum booking", `${selectedPricing?.minimumHours || studio.minimumBookingHours || 2} hours`],
-              ["Property type", studio.poolType],
-              ["Availability", studio.operatingHours || studio.weeklySchedule || "Available by booking"],
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between gap-4">
-                <span className="text-white/55">{label}</span>
-                <span className="text-right text-white/80">{value}</span>
+          <div className="hidden h-full grid-cols-2 grid-rows-2 gap-2 md:grid">
+            {[1, 2, 3, 4].map((idx) => (
+              <div key={idx} className="relative cursor-pointer bg-zinc-900" onClick={() => setActiveImageIndex(Math.min(idx, galleryImages.length - 1))}>
+                <Image src={galleryImages[idx] || galleryImages[0]} alt={`Gallery ${idx}`} fill className="object-cover hover:opacity-90 transition-opacity" />
+                {idx === 4 && (
+                  <div className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow-2xl">
+                    <Images size={14} /> {galleryImages.length} Photos
+                  </div>
+                )}
               </div>
             ))}
           </div>
-          <Link
-            href={`/book-a-studio?studioId=${studio.id}${selectedPricingKey ? `&pricingKey=${selectedPricingKey}` : ""}`}
-            className="mt-8 flex h-14 w-full items-center justify-center rounded-lg bg-[#E8D1AB] font-semibold text-black transition-colors hover:bg-[#dcb98a]"
-          >
-            Book this Studio
-          </Link>
-        </aside>
+        </div>
+
+        {/* Content Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          
+          {/* Left Column */}
+          <div className="lg:col-span-8 space-y-12">
+            
+            {/* Quick Highlights (Restored Logic) */}
+            <section className="flex flex-col gap-8 border-b border-white/10 pb-10">
+              <div className="flex items-start gap-5">
+                <Home size={26} strokeWidth={1.5} className="text-[#E8D1AB] shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-bold text-white text-lg">Private production space</h3>
+                  <p className="text-zinc-400 text-sm">Reserved for your approved booking window.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-5">
+                <Star size={26} strokeWidth={1.5} className="text-[#E8D1AB] shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-bold text-white text-lg">{ratingText || "Production-ready"}</h3>
+                  <p className="text-zinc-400 text-sm">{ratingText ? "Highly rated by creators" : "Designed for shoots, content creation, and campaigns."}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-5">
+                <CalendarDays size={26} strokeWidth={1.5} className="text-[#E8D1AB] shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-bold text-white text-lg">Hourly booking</h3>
+                  <p className="text-zinc-400 text-sm">{studio.minimumBookingHours || 2}-hour minimum booking • {studio.operatingHours || "Inquire for hours"}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Description (Restored) */}
+            <section className="space-y-6">
+              <p className="text-zinc-300 leading-relaxed text-lg">{studio.description}</p>
+              {studio.highlights && studio.highlights.length > 0 && (
+                <div className="mt-8">
+                  <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs">What makes it unique</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {studio.highlights.map(h => (
+                      <div key={h} className="flex items-center gap-3 text-zinc-400 text-sm">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" /> {h}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* Pricing Tabs (UI Upgrade / Data Restored) */}
+            {studio.pricingOptions && studio.pricingOptions.length > 0 && (
+              <section className="pt-6">
+                <h3 className="text-xl font-bold text-white mb-6">Pricing & Tiers</h3>
+                <div className="flex p-1.5 bg-zinc-900 border border-zinc-800 rounded-2xl mb-6">
+                  {studio.pricingOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      onClick={() => setSelectedPricingKey(option.key)}
+                      className={`relative flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
+                        selectedPricingKey === option.key ? "text-black" : "text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      <span className="relative z-10">{option.label}</span>
+                      {selectedPricingKey === option.key && (
+                        <motion.div layoutId="pricing-pill" className="absolute inset-0 bg-[#E8D1AB] rounded-xl" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selectedPricingKey}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                    className="bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800/50"
+                  >
+                    <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
+                      <div>
+                        <h4 className="text-4xl font-bold text-[#E8D1AB]">${selectedPricing?.hourlyRate}<span className="text-lg text-zinc-500">/hr</span></h4>
+                        <p className="text-zinc-500 text-sm mt-1">{selectedPricing?.minimumHours}-hour minimum booking</p>
+                      </div>
+                      {selectedPricing?.cleaningFee && (
+                        <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                          <p className="text-[10px] text-zinc-500 uppercase font-bold">Cleaning Fee</p>
+                          <p className="text-white font-bold">${selectedPricing.cleaningFee}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-[2px] mb-4">Ideal For</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedPricing?.idealFor.map((item) => (
+                          <span key={item} className="px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 text-xs">{item}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </section>
+            )}
+
+            {/* Amenities (Restored) */}
+            <section className="border-t border-white/10 pt-10">
+              <h3 className="text-xl font-bold text-white mb-8">What this place offers</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6">
+                {amenities.map((item) => (
+                  <div key={item} className="flex items-center gap-4 text-zinc-300">
+                    <Check size={18} className="text-[#E8D1AB]" />
+                    <span className="text-base">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Rules (Restored) */}
+            <section className="border-t border-white/10 pt-10">
+              <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
+                <Shield size={22} className="text-[#E8D1AB]" /> House Rules
+              </h3>
+              <div className="grid gap-4 max-w-2xl">
+                {rules.map((rule, idx) => (
+                  <div key={idx} className="flex items-start gap-4 p-4 rounded-xl bg-white/5 border border-white/5">
+                    <span className="text-[#E8D1AB] font-mono text-xs mt-1">0{idx + 1}</span>
+                    <p className="text-zinc-400 text-sm leading-relaxed">{rule}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* Right Column: Sticky Sidebar (Restored Data) */}
+          <div className="lg:col-span-4">
+            <aside className="sticky top-32 bg-[#171717] border border-[#E8D1AB]/30 rounded-[32px] p-8 shadow-2xl shadow-black">
+              <div className="flex justify-between items-baseline mb-6">
+                <div>
+                  <span className="text-4xl font-bold text-white">
+                    ${(selectedPricing?.hourlyRate || studio.priceValue || 0).toLocaleString()}
+                  </span>
+                  <span className="text-zinc-500 ml-1">/ hour</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm font-medium text-white">
+                  <Star size={16} className="fill-[#E8D1AB] text-[#E8D1AB]" />
+                  {studio.rating || "5.0"}
+                </div>
+              </div>
+
+              <div className="space-y-5 py-6 border-y border-white/10 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Minimum booking</span>
+                  <span className="text-white font-medium">{selectedPricing?.minimumHours || studio.minimumBookingHours || 2} hours</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Property type</span>
+                  <span className="text-white font-medium">{studio.poolType || "Studio"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Availability</span>
+                  <span className="text-white font-medium text-right max-w-[150px]">
+                    {studio.operatingHours || studio.weeklySchedule || "Flexible"}
+                  </span>
+                </div>
+              </div>
+
+              <Link
+                href={`/book-a-studio?studioId=${studio.id}${selectedPricingKey ? `&pricingKey=${selectedPricingKey}` : ""}`}
+                className="mt-8 flex h-14 w-full items-center justify-center rounded-2xl bg-[#E8D1AB] font-bold text-black hover:bg-[#dcb98a] active:scale-95 transition-all shadow-lg shadow-[#E8D1AB]/10"
+              >
+                Book this Studio
+              </Link>
+              <p className="text-center text-zinc-500 text-[11px] mt-4 uppercase tracking-widest font-bold">Secure checkout via Beige</p>
+            </aside>
+          </div>
+        </div>
       </div>
 
+      {/* Gallery Modal */}
       {activeImageIndex !== null && (
-        <div className="fixed inset-0 z-[100000000] flex flex-col bg-black/95">
-          <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4 lg:px-6">
-            <div className="text-sm font-semibold text-white/80">{activeImageIndex + 1} / {galleryImages.length}</div>
-            <button
-              type="button"
-              onClick={() => setActiveImageIndex(null)}
-              className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/15"
-              aria-label="Close gallery"
+        <div className="fixed inset-0 z-[999999] bg-black flex flex-col">
+          {/* Modal Header */}
+          <div className="flex justify-between items-center p-6 bg-black/50 z-10">
+            <span className="text-white/50 font-mono text-xs tracking-widest">
+              {activeImageIndex + 1} / {galleryImages.length}
+            </span>
+            <button 
+              onClick={() => setActiveImageIndex(null)} 
+              className="p-2 text-white/70 hover:text-white transition-colors"
             >
-              <X size={22} />
+              <X size={28} />
             </button>
           </div>
-          <div className="relative flex-1">
-            <Image src={galleryImages[activeImageIndex]} alt={`${studio.name} photo ${activeImageIndex + 1}`} fill className="object-contain" sizes="100vw" />
-            {galleryImages.length > 1 && (
-              <>
-                <button type="button" onClick={showPreviousImage} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur hover:bg-white/20 lg:left-6" aria-label="Previous photo">
-                  <ChevronLeft size={28} />
+
+          {/* Main Image Container */}
+          <div className="flex-1 relative flex items-center justify-center px-4">
+            
+            {/* Previous Button - Clean, No Color, No Circle */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveImageIndex((prev) => (prev !== null ? (prev - 1 + galleryImages.length) % galleryImages.length : null));
+              }}
+              className="absolute left-4 z-20 p-4 text-white/40 hover:text-white transition-all active:scale-90"
+            >
+              <ChevronLeft size={48} strokeWidth={1} />
+            </button>
+
+            {/* The Main Image - object-contain ensures it is NEVER cropped */}
+            <div className="relative w-full h-full max-h-[75vh]">
+              <Image 
+                src={galleryImages[activeImageIndex]} 
+                alt="Full view" 
+                fill 
+                className="object-contain" 
+                priority
+              />
+            </div>
+
+            {/* Next Button - Clean, No Color, No Circle */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveImageIndex((prev) => (prev !== null ? (prev + 1) % galleryImages.length : null));
+              }}
+              className="absolute right-4 z-20 p-4 text-white/40 hover:text-white transition-all active:scale-90"
+            >
+              <ChevronRight size={48} strokeWidth={1} />
+            </button>
+          </div>
+          
+          {/* Thumbnails Fix */}
+          <div className="w-full bg-black py-8">
+            <div className="flex justify-start md:justify-center gap-2 overflow-x-auto px-6 no-scrollbar">
+              {galleryImages.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImageIndex(idx)}
+                  // flex-shrink-0 prevents the "squishing" look in your screenshot
+                  className={`relative flex-shrink-0 w-14 h-14 rounded-sm overflow-hidden border transition-all duration-200 ${
+                    activeImageIndex === idx 
+                      ? "border-white opacity-100 scale-110 z-10" 
+                      : "border-transparent opacity-30 hover:opacity-60"
+                  }`}
+                >
+                  <Image 
+                    src={img} 
+                    alt="" 
+                    fill 
+                    sizes="56px"
+                    className="object-cover"
+                  />
                 </button>
-                <button type="button" onClick={showNextImage} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur hover:bg-white/20 lg:right-6" aria-label="Next photo">
-                  <ChevronRight size={28} />
-                </button>
-              </>
-            )}
+              ))}
+            </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
 export default function StudioDetailsPage() {
-  const router = useRouter();
   const params = useParams();
   const studioSlug = Array.isArray(params.id) ? params.id[0] : params.id;
   const studio = getStudioBySlug(String(studioSlug || ""));
 
   return (
-    <main className="min-h-screen bg-[#101010] text-white">
+    <main className="min-h-screen bg-[#101010] text-white selection:bg-[#E8D1AB] selection:text-black">
       <Navbar />
-      <div className="container mx-auto px-4 pb-16 pt-24 md:px-6 lg:pt-44">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="mb-8 inline-flex items-center text-sm text-white/60 transition-colors hover:text-white lg:text-base"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </button>
-
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#E8D1AB]" size={40} /></div>}>
         {studio ? (
           <StudioDetailContent studio={studio} />
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-[#171717] p-8">
-            <h1 className="text-2xl font-semibold text-white">Studio not found</h1>
-            <p className="mt-2 text-white/60">This studio link does not match an available Beige studio.</p>
-            <Link href="/book-a-studio" className="mt-6 inline-flex rounded-lg bg-[#E8D1AB] px-5 py-3 font-semibold text-black">
-              Browse Studios
-            </Link>
+          <div className="container mx-auto pt-44 px-4 h-screen text-center">
+            <h1 className="text-2xl font-bold mb-4">Studio not found</h1>
+            <Link href="/book-a-studio" className="text-[#E8D1AB] underline">Return to listings</Link>
           </div>
         )}
-      </div>
+      </Suspense>
       <Footer />
     </main>
   );

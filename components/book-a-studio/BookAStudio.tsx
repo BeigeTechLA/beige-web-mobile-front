@@ -277,63 +277,121 @@ const StudioCard = ({
     .join(" / ");
 
   return (
-    <div
-      className={`group relative flex h-full flex-col overflow-hidden rounded-[24px] border bg-[#111111] transition-all duration-300 ${
-        selected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10 hover:border-white/25"
-      }`}
-    >
-      <button type="button" onClick={onSelect} className="relative h-[210px] w-full overflow-hidden">
-        <Image src={studio.image} alt={studio.name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
-        <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-          {getStudioStartingPriceLabel(studio)}
-        </div>
-        {studio.rating && (
-          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/60 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-            <Star size={13} className="fill-[#E8D1AB] text-[#E8D1AB]" />
-            {studio.rating}{studio.reviews ? ` (${studio.reviews})` : ""}
-          </div>
-        )}
-      </button>
-      <div className="flex flex-1 flex-col gap-3.5 p-5">
-        <div>
-          <h3 className="text-[17px] font-bold leading-snug text-white">{studio.name}</h3>
-          {meta && <p className="mt-1 text-xs text-white/45">{meta}</p>}
-          <div className="mt-2 flex items-center gap-1.5 text-[12px] leading-relaxed text-white/45">
-            <MapPin size={14} className="mt-0.5 shrink-0" />
-            <span>{DEFAULT_DISPLAY_ADDRESS}</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(studio.bestFor || []).slice(0, 2).map((item) => (
-            <span key={item} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-white/60">
-              {item}
+    <div className="relative w-full group">
+      {/* 1. Dotted Outline - Perfectly matches the card radius */}
+      <div
+        className="absolute inset-0 rounded-[24px] border-2 border-dashed border-[#FFFFFF33] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* 2. CONSTANT SPEED Animated Card Body */}
+      <motion.div
+        initial={false}
+        whileHover={{
+          y: -10,
+          rotate: 8, 
+        }}
+        transition={{
+          type: "tween",
+          ease: "linear",
+          duration: 0.2,
+        }}
+        // The style object below is the fix for the "sharp corners" issue
+        style={{ 
+          backfaceVisibility: 'hidden', 
+          WebkitBackfaceVisibility: 'hidden',
+          transformStyle: 'preserve-3d',
+          willChange: 'transform'
+        }}
+        className={`relative flex h-full flex-col overflow-hidden rounded-[24px] border bg-[#111111] transition-colors duration-300 isolate ${
+          selected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10"
+        }`}
+      >
+        <button type="button" onClick={onSelect} className="relative h-[210px] w-full overflow-hidden rounded-t-[24px]">
+          <Image 
+            src={studio.image} 
+            alt={studio.name} 
+            fill 
+            className="object-cover transition-transform duration-500 group-hover:scale-105" 
+          />
+          
+          <div className="absolute bottom-0 left-4 rounded-t-xl bg-white px-3 py-1.5 z-10">
+            <span className="text-[13px] font-extrabold text-black">
+              {getStudioStartingPriceLabel(studio)}
             </span>
-          ))}
+          </div>
+
+          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 backdrop-blur-md">
+            <div className="h-2 w-2 rounded-full bg-[#14C573] shadow-[0_0_8px_#14C573]" />
+            <span className="text-[10px] font-bold text-white">Available</span>
+          </div>
+          
+          {studio.rating && (
+            <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md">
+              <Star size={13} className="fill-[#E8D1AB] text-[#E8D1AB]" />
+              {studio.rating}
+            </div>
+          )}
+        </button>
+
+        <div className="flex flex-1 flex-col gap-3.5 p-5">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-[17px] font-bold leading-snug text-white group-hover:text-[#E8D1AB] transition-colors">
+                {studio.name}
+              </h3>
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/40">
+                <MapPin size={12} />
+                <span>Los Angeles, California</span>
+              </div>
+            </div>
+            {selected && (
+              <div className="flex items-center gap-1 rounded-full bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20 px-2 py-1 text-[10px] font-bold ">
+                <Check size={10} strokeWidth={3} /> Added
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 py-3 border-y border-white/5">
+            {(studio.bestFor || []).slice(0, 2).map((item) => (
+              <span key={item} className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-white/50">
+                {item}
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-auto flex items-center gap-2 pt-2">
+            {selected ? (
+              <button
+                type="button"
+                onClick={onSelect}
+                className="flex flex-1 items-center justify-center gap-2 h-11 rounded-xl bg-[#FF4444]/10 text-[#FF4444] border border-[#FF4444]/20 text-sm font-bold hover:bg-[#FF4444]/20 transition-colors"
+              >
+                <X size={16} /> Remove
+              </button>
+            ) : (
+              <Button
+                type="button"
+                onClick={onSelect}
+                className="h-11 flex-1 rounded-xl bg-[#E8D1AB] text-black text-sm font-bold hover:bg-[#dcb98a]"
+              >
+                Select Studio
+              </Button>
+            )}
+            
+            <Link
+              href={`/studios/${studio.id}`}
+              target="_blank"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+            >
+              <MoveUpRight size={18} />
+            </Link>
+          </div>
         </div>
-        <div className="mt-auto grid grid-cols-[1fr_46px] gap-2 border-t border-white/5 pt-4">
-          <Button
-            type="button"
-            onClick={onSelect}
-            className={`h-11 rounded-xl text-sm font-bold transition-colors ${
-              selected ? "bg-[#E8D1AB] text-black hover:bg-[#dcb98a]" : "bg-white text-black hover:bg-white/90"
-            }`}
-          >
-            {selected ? "Selected" : "Select Studio"}
-          </Button>
-          <Link
-            href={`/studios/${studio.id}`}
-            target="_blank"
-            className="flex h-11 w-[46px] items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-            aria-label={`Open ${studio.name} details`}
-          >
-            <MoveUpRight size={18} />
-          </Link>
-        </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
-
 const BookStudioDetailsStep = ({
   data,
   updateData,
@@ -640,6 +698,17 @@ const BookStudioDetailsStep = ({
     const currentStart = startTime || "09:00";
     const currentEnd = endTime || "17:00";
     const nextPricingKey = getDefaultPricingKey(studio);
+    if (selectedStudio?.id === studio.id) {
+    updateData({
+      selectedStudios: [],
+      selectedStudioIds: [],
+      selectedStudioName: "",
+      selectedStudioImage: "",
+      location: "",
+      locationDetails: undefined
+    });
+    return;
+  }
     const nextBookingDays = data.bookingType === "multi_day" && selectedDates.length
       ? selectedDates.map((date) => {
           const dateKey = getDateKey(date);
@@ -737,7 +806,7 @@ const BookStudioDetailsStep = ({
             />
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredStudios.map((studio) => (
             <StudioCard
               key={studio.id}
@@ -1198,6 +1267,20 @@ const CreatorDetailsStep = ({
   const [videoCount, setVideoCount] = useState(data.roleCounts?.videographer || data.videographyCount || 0);
   const [photoCount, setPhotoCount] = useState(data.roleCounts?.photographer || data.photographyCount || 0);
   const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(data.editsNeeded ? "video" : null);
+  const videoPanelRef = useRef<HTMLDivElement>(null);
+  const photoPanelRef = useRef<HTMLDivElement>(null);
+ useEffect(() => {
+  if (!openEditPanel) return;
+  const activeRef = openEditPanel === "video" ? videoPanelRef : photoPanelRef;
+  const handleClickOutside = (event: MouseEvent) => {
+    if (activeRef.current && !activeRef.current.contains(event.target as Node)) {
+      setOpenEditPanel(null);
+    }
+  };
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => document.removeEventListener("mousedown", handleClickOutside);
+}, [openEditPanel]);
+
 
   const updateEditCount = (key: string, delta: number, type: "video" | "photo") => {
     const source = type === "video" ? data.videoEditTypes : data.photoEditTypes;
@@ -1357,7 +1440,7 @@ const CreatorDetailsStep = ({
             </p>
 
             <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
-              <div className="self-start overflow-hidden rounded-[24px] border border-white/10 bg-[#171717]">
+              <div ref={videoPanelRef}  className="self-start overflow-hidden rounded-[24px] border border-white/10 bg-[#171717]">
                 <button
                   type="button"
                   className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left"
@@ -1395,7 +1478,7 @@ const CreatorDetailsStep = ({
                 )}
               </div>
 
-              <div className="self-start overflow-hidden rounded-[24px] border border-white/10 bg-[#171717]">
+              <div ref={photoPanelRef} className="self-start overflow-hidden rounded-[24px] border border-white/10 bg-[#171717]">
                 <button
                   type="button"
                   className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left"
@@ -1441,17 +1524,18 @@ const CreatorDetailsStep = ({
       </div>
 
       <div className="flex gap-3 border-t border-white/10 pt-8">
-        <Button onClick={onBack} className="h-12 rounded-lg border border-white/25 bg-transparent px-8 text-white hover:bg-white/5">
+        <Button onClick={onBack} className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] ">
           Back
         </Button>
         <Button
           onClick={saveCrewAndContinue}
           disabled={isUpdatingCrew || isSaving}
-          className="h-12 rounded-lg bg-[#E8D1AB] px-8 text-black hover:bg-[#dcb98a] disabled:opacity-60"
+          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
         >
           {isUpdatingCrew ? "Saving..." : "Continue"}
         </Button>
-        <Button onClick={onSaveAndConfirm} className="h-12 rounded-lg bg-white px-8 text-black hover:bg-white/90">
+        <Button onClick={onSaveAndConfirm} 
+          className="h-14 lg:h-[72px] bg-[#FFFFFF] hover:bg-[#FFFFFF]/80 text-black font-medium  text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]">
           Skip Creators
         </Button>
       </div>
@@ -1719,15 +1803,13 @@ export const BookAStudio = () => {
     isSaving: isSubmitting,
   };
 
-  const renderStep = () => {
+    const renderStep = () => {
     if (activeStep === 1) return <BookStudioDetailsStep {...stepProps} />;
     if (activeStep === 2) {
       return (
         <CreatorDetailsStep
           {...stepProps}
-          onBrowseCreators={async () => {
-            setActiveStep(3);
-          }}
+          onBrowseCreators={async () => setActiveStep(3)}
         />
       );
     }
@@ -1745,36 +1827,46 @@ export const BookAStudio = () => {
       );
     }
     if (activeStep === 4) return <V3LoadingFindingCreative />;
+    
+    // Step 5: Decision point for "Book & Confirm" stage
     if (activeStep === 5) {
-      const hasCreatorCounts = (formData.roleCounts?.videographer || 0) + (formData.roleCounts?.photographer || 0) > 0;
-      if (hasCreatorCounts && formData.selectedCrewIds.length === 0) {
+      const hasCreators = (formData.roleCounts?.videographer || 0) + (formData.roleCounts?.photographer || 0) > 0;
+      
+      // If they chose creators, show selection list
+      if (hasCreators) {
         return (
           <V3SelectDreamTeam
             data={formData}
             updateData={updateData}
-            onBack={() => setActiveStep(3)}
+            onBack={() => setActiveStep(3)} // Skips loader
             onNext={() => setActiveStep(6)}
             bookingId={draftBookingId || undefined}
           />
         );
       }
+      // If no creators (Studio only), show final confirmation
       return (
         <V3Step4BookConfirm
           data={formData}
           updateData={updateData}
-          onBack={() => setActiveStep(hasCreatorCounts ? 5 : 1)}
+          onBack={() => setActiveStep(1)}
           onNext={() => undefined}
           onConfirm={handleBookingSubmission}
           isSubmitting={isSubmitting}
         />
       );
     }
+
+    // Step 6: Final confirmation (only reached after selecting a team)
     if (activeStep === 6) {
       return (
         <V3Step4BookConfirm
           data={formData}
           updateData={updateData}
-          onBack={() => setActiveStep(5)}
+          onBack={() => {
+            updateData({ selectedCrewIds: [] });
+            setActiveStep(5);
+          }}
           onNext={() => undefined}
           onConfirm={handleBookingSubmission}
           isSubmitting={isSubmitting}
@@ -1794,7 +1886,23 @@ export const BookAStudio = () => {
           <div className="container z-20 w-full px-4 md:px-6">
             <button
               type="button"
-              onClick={() => setActiveStep((current) => Math.max(1, current - 1))}
+               onClick={() => {
+                 const hasCreators = (formData.roleCounts?.videographer || 0) + (formData.roleCounts?.photographer || 0) > 0;
+    
+                  if (activeStep === 6) {
+                    setActiveStep(5);
+                  } else if (activeStep === 5) {
+                    if (hasCreators) {
+                      setActiveStep(3); 
+                    } else {
+                      setActiveStep(1);
+                    }
+                  } else if (activeStep === 4) {
+                    setActiveStep(3);
+                  } else {
+                    setActiveStep((current) => Math.max(1, current - 1));
+                  }
+                }}
               className="flex items-center text-sm text-white/70 transition-colors hover:text-white lg:text-lg"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
