@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import ExternalChatView from "@/components/chat/ExternalChatView";
 import CreateChatModal from "@/components/admin/shoot-details/CreateChatModal";
@@ -9,7 +9,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 interface MessagesTabProps {
   bookingId?: string | number | null;
   role?: "admin" | "sales" | "client" | "cp" | "pm";
-  assignedCrew?: any[];
+  assignedCrew?: unknown[];
   projectName?: string;
   salesRepName?: string | null;
   clientName?: string | null;
@@ -27,11 +27,20 @@ export default function MessagesTab({
 }: MessagesTabProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [hasChatRoom, setHasChatRoom] = useState<boolean | null>(null);
+  const handleCreated = useCallback(() => {
+    setHasChatRoom(true);
+    setRefreshKey((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
+    setHasChatRoom(null);
+  }, [bookingId]);
   const { canCreate } = usePermissions("messages");
 
   return (
     <>
-      {role === "admin" && canCreate ? (
+      {role === "admin" ? (
         <div className="mb-5 flex items-center justify-end">
           <button
             type="button"
@@ -54,9 +63,13 @@ export default function MessagesTab({
         bookingId={bookingId}
         heading="Project Chat"
         isDark={isDark}
+        directRoomMode
+        onRoomAvailabilityChange={setHasChatRoom}
         description={
           role === "admin"
-            ? "Create one chat room for this project with admin, assigned sales rep, selected CPs, and client when available."
+            ? hasChatRoom === false
+              ? "Create one chat room for this project with admin, assigned sales rep, selected CPs, and client when available."
+              : "View and reply to the project conversation for this booking."
             : role === "client"
               ? "View and reply to the project conversation for this booking from the client workspace."
               : role === "cp"
@@ -76,7 +89,7 @@ export default function MessagesTab({
         clientName={clientName}
         assignedCrew={assignedCrew}
         isDark={isDark}
-        onCreated={() => setRefreshKey((value) => value + 1)}
+        onCreated={handleCreated}
       />
     </>
   );
