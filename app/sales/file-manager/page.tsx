@@ -74,9 +74,6 @@ interface SalesLeadsResponse {
 export default function SalesFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
-  const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
-  const isSalesAdmin = userRole === "sales_admin";
   const { canCreate, canDelete } = usePermissions("file_manager");
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
@@ -133,12 +130,10 @@ export default function SalesFolderManagerPage() {
           .map((value) => String(value))
       );
 
-      const filteredWorkspaces = isSalesAdmin
-        ? workspaceData.workspaces
-        : workspaceData.workspaces.filter((workspace) =>
-            isCommonEventWorkspaceId(workspace.externalId) ||
-            assignedBookingIds.has(String(workspace.externalId))
-          );
+      const filteredWorkspaces = workspaceData.workspaces.filter((workspace) =>
+        isCommonEventWorkspaceId(workspace.externalId) ||
+        assignedBookingIds.has(String(workspace.externalId))
+      );
 
       setProjects(
         filteredWorkspaces.map((workspace) =>

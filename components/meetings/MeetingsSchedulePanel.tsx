@@ -187,10 +187,8 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
     return String((user as { email?: string }).email || "");
   }, [user]);
   const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
-  const canCreateMeeting =
-    (role === "admin" || role === "client") && canCreateByPermission;
-  const canDeleteMeeting =
-    (role === "admin" || role === "client") && canDeleteByPermission;
+  const canCreateMeeting = canCreateByPermission;
+  const canDeleteMeeting = canDeleteByPermission;
 
   const loadMeetings = useCallback(async () => {
     if (!resolvedOrderId) {

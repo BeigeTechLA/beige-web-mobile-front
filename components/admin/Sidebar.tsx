@@ -78,7 +78,7 @@ const menuItems = [
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
-  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions' },
+  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions', permissionKeys: ['roles_permissions'] },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
@@ -247,7 +247,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         <nav className="space-y-2" key={`admin-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
             if (item.permissionKeys && item.permissionKeys.length > 0) {
-              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+              const canView = item.permissionKeys.includes("roles_permissions")
+                ? true
+                : hasModulePermission(permissions, item.permissionKeys, "view");
               if (!canView) return null;
             }
 

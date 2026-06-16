@@ -51,11 +51,11 @@ const salesMenuItems: SalesMenuItem[] = [
     link: '/sales/dashboard',
     permissionKeys: ['dashboard'],
     children: [
-      { name: 'Dashboard', link: '/sales/dashboard', visibleForUserTypes: [7] },
-      { name: 'Sales People', link: '/sales/sales-people', visibleForUserTypes: [7] },
+      { name: 'Dashboard', link: '/sales/dashboard' },
+      { name: 'Sales People', link: '/sales/sales-people' },
     ],
   },
-  { name: 'Availability', icon: Calendar, link: '/sales/availability', permissionKeys: ['availability'], visibleForUserTypes: [5] },
+  { name: 'Availability', icon: Calendar, link: '/sales/availability', permissionKeys: ['availability'] },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots', permissionKeys: ['shoots'] },
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', permissionKeys: ['file_manager'] },
   { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings', permissionKeys: ['meetings'] },
@@ -74,7 +74,7 @@ const salesMenuItems: SalesMenuItem[] = [
 
 
 
-  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', permissionKeys: ['invoices'], visibleForUserTypes: [7] },
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', permissionKeys: ['invoices'] },
 ];
 
 type SalesMenuItem = {
@@ -82,34 +82,12 @@ type SalesMenuItem = {
   icon: LucideIcon;
   link?: string;
   isDisabled?: boolean;
-  visibleForUserTypes?: number[];
   permissionKeys?: string[];
   children?: {
     name: string;
     link: string;
     isDisabled?: boolean;
-    visibleForUserTypes?: number[];
   }[];
-};
-
-// const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
-//   if (!user) return false;
-
-//   const userTypeId = user.user_type_id ?? user.userTypeId;
-//   const roleValue = user.role ?? user.userRole;
-//   const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
-
-//   return userTypeId === 7 && normalizedRole === "sales_admin";
-// };
-
-const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
-  if (!user) return false;
-
-  const userTypeId = user.user_type_id ?? user.userTypeId;
-  const roleValue = user.role ?? user.userRole;
-  const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
-
-  return userTypeId === 7 && normalizedRole === "sales_admin";
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -131,7 +109,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const [mounted, setMounted] = useState(false);
   const [quotesExpanded, setQuotesExpanded] = useState(false);
-  const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<string[]>([]);
 
   useEffect(() => {
@@ -140,13 +117,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     try {
       const storedUser = localStorage.getItem("revure_user");
       const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const normalizedUserTypeId = Number(
-        parsedUser?.user_type_id ?? parsedUser?.userTypeId ?? user?.user_type_id ?? user?.userTypeId
-      );
-
-      setLocalUserTypeId(Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null);
+      void parsedUser;
     } catch {
-      setLocalUserTypeId(null);
+      // Ignore local storage parse errors and fall back to Redux state.
     }
   }, [user]);
 
@@ -159,27 +132,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }, [pathname, onClose]);
 
   const isDark = !mounted || theme === "dark";
-  const normalizedUserTypeId = Number(user?.user_type_id ?? user?.userTypeId ?? localUserTypeId);
-  const currentUserTypeId = Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null;
-  const isSalesAdmin = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
   const visibleSalesMenuItems = salesMenuItems.filter((item) => {
     if (item.permissionKeys && item.permissionKeys.length > 0) {
       const canView = hasModulePermission(permissions, item.permissionKeys, "view");
       if (!canView) return false;
     }
-
-    if (!item.visibleForUserTypes?.length) {
-      return true;
-    }
-
-    return currentUserTypeId != null && item.visibleForUserTypes.includes(currentUserTypeId);
+    return true;
   });
 
   useEffect(() => {
-    if (currentUserTypeId !== 7) {
-      return;
-    }
-
     if (pathname === "/sales/dashboard" || pathname?.startsWith("/sales/sales-people")) {
       setExpanded((prev) => (prev.includes("Sales") ? prev : [...prev, "Sales"]));
     }
@@ -187,20 +148,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     if (pathname?.startsWith("/sales/quotes")) {
       setQuotesExpanded(true);
     }
-  }, [currentUserTypeId, pathname]);
+  }, [pathname]);
 
   const getVisibleChildren = (item: SalesMenuItem) => {
     if (!item.children?.length) {
       return [];
     }
 
-    return item.children.filter((child) => {
-      if (!child.visibleForUserTypes?.length) {
-        return true;
-      }
-
-      return currentUserTypeId != null && child.visibleForUserTypes.includes(currentUserTypeId);
-    });
+    return item.children;
   };
 
   // Shared helper to handle navigation and closing sidebar
@@ -300,7 +255,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         <nav className="space-y-2" key={`sales-nav-${permissionsVersion}`}>
           {visibleSalesMenuItems.map((item) => {
             const visibleChildren = getVisibleChildren(item);
-            const hasChildren = currentUserTypeId === 7 && visibleChildren.length > 0;
+            const hasChildren = visibleChildren.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);
             const isDisabled =
@@ -337,7 +292,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </div>
-                ) : item.name === 'Quotes' && item.children && user?.user_type_id === 7 ? (
+                ) : item.name === 'Quotes' && item.children ? (
 
                   <button
                     onClick={() => setQuotesExpanded((p) => !p)}
@@ -392,11 +347,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   </div>
                 )}
 
-                {item.name === 'Quotes' && item.children && quotesExpanded && user?.user_type_id === 7 && (
+                {item.name === 'Quotes' && item.children && quotesExpanded && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item.children.map((child) => {
-                      if ((child.name === 'Master Pricing' || child.name === 'Change Request') && !isSalesAdmin) return null;
-
                       return (
                         <button
                           key={child.name}
