@@ -17,7 +17,7 @@ export default function EmptyNotesState({
   onAction,
 }: EmptyNotesStateProps) {
   return (
-    <div className="flex min-h-[260px] w-full flex-col items-center justify-center px-6 py-10 text-center">
+    <div className="flex w-full max-w-md flex-col items-center justify-center px-6 text-center">
       <Image
         src="/images/empty-notes-state.png"
         alt="Empty notes state"
@@ -31,7 +31,7 @@ export default function EmptyNotesState({
         {title}
       </h3>
 
-      <p className="max-w-md text-sm leading-6 text-white/50">
+      <p className="text-sm leading-6 text-white/50">
         {description}
       </p>
 

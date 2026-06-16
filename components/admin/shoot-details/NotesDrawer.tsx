@@ -78,9 +78,8 @@ const UserNameBox = ({ name, small = false }: { name: string; small?: boolean })
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full bg-[#E5D5B8] text-black font-bold shadow-inner ${
-        small ? "h-8 w-8 text-[10px]" : "h-10 w-10 text-xs"
-      }`}
+      className={`flex shrink-0 items-center justify-center rounded-full bg-[#E5D5B8] text-black font-bold shadow-inner ${small ? "h-8 w-8 text-[10px]" : "h-10 w-10 text-xs"
+        }`}
       aria-label={name}
       title={name}
     >
@@ -143,11 +142,11 @@ const getStoredCurrentUserId = () => {
 const resolveNoteUserId = (note: any) =>
   normalizeId(
     note?.user?.id ??
-      note?.user?.user_id ??
-      note?.created_by?.id ??
-      note?.created_by?.user_id ??
-      note?.created_by_id ??
-      note?.user_id
+    note?.user?.user_id ??
+    note?.created_by?.id ??
+    note?.created_by?.user_id ??
+    note?.created_by_id ??
+    note?.user_id
   );
 
 const findNoteById = (items: NoteUiItem[], noteId: number): NoteUiItem | null => {
@@ -175,71 +174,71 @@ const formatNoteTimestamp = (value: unknown) => {
 };
 
 const mapSingleShootNoteToUi = (note: any): NoteUiItem => {
-    const ts = formatNoteTimestamp(note?.created_at || note?.createdAt);
-    const replies = Array.isArray(note?.replies) ? note.replies : [];
-    const reactions = Array.isArray(note?.reactions) ? note.reactions : [];
-    const reactionCounts: Record<string, number> = {};
-    const reactionUsersByType: Record<string, Array<{ userId: number; name: string }>> = {};
+  const ts = formatNoteTimestamp(note?.created_at || note?.createdAt);
+  const replies = Array.isArray(note?.replies) ? note.replies : [];
+  const reactions = Array.isArray(note?.reactions) ? note.reactions : [];
+  const reactionCounts: Record<string, number> = {};
+  const reactionUsersByType: Record<string, Array<{ userId: number; name: string }>> = {};
 
-    reactions.forEach((r: any) => {
-      const key = String(r?.reaction_type || r?.reaction || "").toLowerCase().trim();
-      if (!key) return;
-      reactionCounts[key] = (reactionCounts[key] || 0) + 1;
+  reactions.forEach((r: any) => {
+    const key = String(r?.reaction_type || r?.reaction || "").toLowerCase().trim();
+    if (!key) return;
+    reactionCounts[key] = (reactionCounts[key] || 0) + 1;
 
-      if (!reactionUsersByType[key]) reactionUsersByType[key] = [];
-      const userId = Number(r?.user_id || r?.user?.id || 0);
-      const userName = String(r?.user?.name || r?.user?.email || (userId ? `User ${userId}` : "Unknown User"));
-      if (!reactionUsersByType[key].some((u) => u.userId === userId)) {
-        reactionUsersByType[key].push({ userId, name: userName });
-      }
+    if (!reactionUsersByType[key]) reactionUsersByType[key] = [];
+    const userId = Number(r?.user_id || r?.user?.id || 0);
+    const userName = String(r?.user?.name || r?.user?.email || (userId ? `User ${userId}` : "Unknown User"));
+    if (!reactionUsersByType[key].some((u) => u.userId === userId)) {
+      reactionUsersByType[key].push({ userId, name: userName });
+    }
+  });
+
+  if (note?.reaction_users_by_type && typeof note.reaction_users_by_type === "object") {
+    Object.entries(note.reaction_users_by_type).forEach(([reaction, users]) => {
+      const key = String(reaction || "").toLowerCase().trim();
+      if (!key || !Array.isArray(users)) return;
+      reactionUsersByType[key] = users.map((user: any) => ({
+        userId: Number(user?.user_id || user?.id || 0),
+        name: String(user?.name || user?.email || "Unknown User"),
+      }));
+      reactionCounts[key] = reactionUsersByType[key].length;
     });
+  }
 
-    if (note?.reaction_users_by_type && typeof note.reaction_users_by_type === "object") {
-      Object.entries(note.reaction_users_by_type).forEach(([reaction, users]) => {
-        const key = String(reaction || "").toLowerCase().trim();
-        if (!key || !Array.isArray(users)) return;
-        reactionUsersByType[key] = users.map((user: any) => ({
-          userId: Number(user?.user_id || user?.id || 0),
-          name: String(user?.name || user?.email || "Unknown User"),
-        }));
-        reactionCounts[key] = reactionUsersByType[key].length;
-      });
-    }
-
-    if (!reactionCounts.like && Number(note?.like_count || 0) > 0) {
-      reactionCounts.like = Number(note.like_count);
-    }
-    const likes = Number(reactionCounts.like || 0);
-    const myReactions = Array.isArray(note?.my_reactions)
-      ? note.my_reactions.map((x: any) => String(x || "").toLowerCase()).filter(Boolean)
-      : note?.my_reaction
-        ? [String(note.my_reaction).toLowerCase()]
+  if (!reactionCounts.like && Number(note?.like_count || 0) > 0) {
+    reactionCounts.like = Number(note.like_count);
+  }
+  const likes = Number(reactionCounts.like || 0);
+  const myReactions = Array.isArray(note?.my_reactions)
+    ? note.my_reactions.map((x: any) => String(x || "").toLowerCase()).filter(Boolean)
+    : note?.my_reaction
+      ? [String(note.my_reaction).toLowerCase()]
       : [];
 
-    return {
-      id: Number(note?.note_id || note?.id || 0),
-      user: {
-        id: resolveNoteUserId(note),
-        name: note?.user?.name || note?.created_by?.name || "Unknown User",
-        avatar: note?.user?.avatar || note?.created_by?.avatar || FALLBACK_AVATAR,
-      },
-      timestamp: ts,
-      message: note?.message || note?.note || "",
-      likes,
-      likedByMe: myReactions.includes("like"),
-      myReactions: myReactions || [],
-      reactionCounts: reactionCounts || {},
-      reactionUsersByType,
-      attachments: Array.isArray(note?.attachments)
-        ? note.attachments.map((file: any) => ({
-            id: Number(file?.attachment_id || 0),
-            fileName: file?.file_name || "Attachment",
-            filePath: file?.file_path || "",
-            mimeType: file?.mime_type || null,
-          }))
-        : [],
-      replies: replies.map(mapSingleShootNoteToUi),
-    };
+  return {
+    id: Number(note?.note_id || note?.id || 0),
+    user: {
+      id: resolveNoteUserId(note),
+      name: note?.user?.name || note?.created_by?.name || "Unknown User",
+      avatar: note?.user?.avatar || note?.created_by?.avatar || FALLBACK_AVATAR,
+    },
+    timestamp: ts,
+    message: note?.message || note?.note || "",
+    likes,
+    likedByMe: myReactions.includes("like"),
+    myReactions: myReactions || [],
+    reactionCounts: reactionCounts || {},
+    reactionUsersByType,
+    attachments: Array.isArray(note?.attachments)
+      ? note.attachments.map((file: any) => ({
+        id: Number(file?.attachment_id || 0),
+        fileName: file?.file_name || "Attachment",
+        filePath: file?.file_path || "",
+        mimeType: file?.mime_type || null,
+      }))
+      : [],
+    replies: replies.map(mapSingleShootNoteToUi),
+  };
 };
 
 const mapShootNotesToUi = (payload: any): NoteUiItem[] => {
@@ -637,38 +636,40 @@ export default function NotesDrawer({
 
             {/* Scrollable Body */}
             <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              <div className="w-fit min-w-full px-6 py-5 space-y-6">
+              <div className="flex flex-col w-fit min-w-full min-h-full px-6 py-5 space-y-6">
                 {loadingNotes ? (
-                <div className="py-8 flex items-center justify-center text-white/60 text-sm">Loading notes...</div>
-              ) : null}
-              {isActionLoading ? (
-                <div className="sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/90 px-3 py-2 text-xs text-white/80 backdrop-blur-sm">
-                  <Loader2 size={14} className="animate-spin" />
-                  Updating notes...
-                </div>
-              ) : null}
-              {!loadingNotes && notes.length === 0 ? (
-                <EmptyNotesState />
-              ) : (
-                notes.map((note) => (
-                  <NoteCard
-                    key={note.id}
-                    note={note}
-                    isDark={isDark}
-                    onReact={handleReaction}
-                    onReply={(id) => setReplyingToId(id)}
-                    onDelete={handleDeleteNote}
-                    canDeleteNote={canDeleteNote}
-                    onPreviewAttachment={openStoredAttachmentPreview}
-                    actionsDisabled={isApiBusy}
-                    isNoteActionDisabled={(noteId) => reactionPendingNoteIds.has(noteId)}
-                    showReactionPickerId={showReactionPickerId}
-                    setShowReactionPickerId={setShowReactionPickerId}
-                    reactionPickerRef={reactionPickerRef}
-                  />
+                  <div className="py-8 flex items-center justify-center text-white/60 text-sm">Loading notes...</div>
+                ) : null}
+                {isActionLoading ? (
+                  <div className="sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/90 px-3 py-2 text-xs text-white/80 backdrop-blur-sm">
+                    <Loader2 size={14} className="animate-spin" />
+                    Updating notes...
+                  </div>
+                ) : null}
+                {!loadingNotes && notes.length === 0 ? (
+                  <div className="flex flex-1 w-full flex-col items-center justify-center text-center">
+                    <EmptyNotesState />
+                  </div>
+                ) : (
+                  notes.map((note) => (
+                    <NoteCard
+                      key={note.id}
+                      note={note}
+                      isDark={isDark}
+                      onReact={handleReaction}
+                      onReply={(id) => setReplyingToId(id)}
+                      onDelete={handleDeleteNote}
+                      canDeleteNote={canDeleteNote}
+                      onPreviewAttachment={openStoredAttachmentPreview}
+                      actionsDisabled={isApiBusy}
+                      isNoteActionDisabled={(noteId) => reactionPendingNoteIds.has(noteId)}
+                      showReactionPickerId={showReactionPickerId}
+                      setShowReactionPickerId={setShowReactionPickerId}
+                      reactionPickerRef={reactionPickerRef}
+                    />
                   ))
                 )
-              }
+                }
               </div>
             </div>
 
@@ -882,9 +883,8 @@ function NoteCard({
 
                 {showActionsMenu ? (
                   <div
-                    className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
-                      isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
-                    }`}
+                    className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                      }`}
                     role="menu"
                   >
                     <button
@@ -1008,11 +1008,10 @@ function NoteCard({
                     disabled={isCurrentNoteDisabled}
                     onClick={() => onReact?.(note.id.toString(), emoji)}
                     title={formatReactionUsers(reaction) || undefined}
-                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
-                      reactedByMe
-                        ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
-                        : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                    }`}
+                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${reactedByMe
+                      ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                      : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                      }`}
                   >
                     {emoji} {count}
                   </button>
@@ -1138,7 +1137,7 @@ function NoteReply({
         <div className="relative flex flex-col items-center">
           <UserNameBox name={reply.user.name} small />
           {hasReplies && (
-             <div className="w-px flex-1 bg-white/10 mt-2" />
+            <div className="w-px flex-1 bg-white/10 mt-2" />
           )}
         </div>
         <div className="flex-1 min-w-0 pb-1">
@@ -1171,9 +1170,8 @@ function NoteReply({
 
                 {showActionsMenu ? (
                   <div
-                    className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
-                      isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
-                    }`}
+                    className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                      }`}
                     role="menu"
                   >
                     <button
@@ -1230,9 +1228,8 @@ function NoteReply({
           {/* Action Row - Smaller */}
           <div className="flex items-center gap-1.5 relative">
             <button
-              className={`text-[11px] font-medium transition-colors px-0.5 ${
-                reply.likedByMe || reply.likes > 0 ? "text-[#E8D1AB]" : "text-white/30 hover:text-white/60"
-              }`}
+              className={`text-[11px] font-medium transition-colors px-0.5 ${reply.likedByMe || reply.likes > 0 ? "text-[#E8D1AB]" : "text-white/30 hover:text-white/60"
+                }`}
               onClick={() => onReact?.(reply.id.toString(), "👍")}
               disabled={isCurrentReplyDisabled}
               title={formatReactionUsers("like") || undefined}
@@ -1260,9 +1257,8 @@ function NoteReply({
             {showReactionPickerId === reply.id.toString() && (
               <div
                 ref={reactionPickerRef}
-                className={`absolute bottom-full left-0 mb-2 z-20 flex items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${
-                  isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
-                }`}
+                className={`absolute bottom-full left-0 mb-2 z-20 flex items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                  }`}
               >
                 {QUICK_REACTIONS.map((emoji) => (
                   <button
@@ -1294,11 +1290,10 @@ function NoteReply({
                     disabled={isCurrentReplyDisabled}
                     onClick={() => onReact?.(reply.id.toString(), emoji)}
                     title={formatReactionUsers(reaction) || undefined}
-                    className={`rounded-full border px-1.5 py-0 text-[10px] transition-colors ${
-                      reactedByMe
-                        ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
-                        : "border-white/5 bg-white/5 text-white/50 hover:bg-white/10"
-                    }`}
+                    className={`rounded-full border px-1.5 py-0 text-[10px] transition-colors ${reactedByMe
+                      ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                      : "border-white/5 bg-white/5 text-white/50 hover:bg-white/10"
+                      }`}
                   >
                     {emoji} {count}
                   </button>
@@ -1351,9 +1346,8 @@ function AttachmentSelectionModal({
     <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/70" onClick={onCancel} />
       <div
-        className={`relative z-10 w-full max-w-2xl rounded-2xl border p-5 ${
-          isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"
-        }`}
+        className={`relative z-10 w-full max-w-2xl rounded-2xl border p-5 ${isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"
+          }`}
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold text-white">Preview Attachments</h3>
@@ -1419,9 +1413,8 @@ function StoredAttachmentPreviewModal({
     <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div
-        className={`relative z-10 w-full max-w-3xl rounded-2xl border p-5 ${
-          isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"
-        }`}
+        className={`relative z-10 w-full max-w-3xl rounded-2xl border p-5 ${isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"
+          }`}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="truncate text-base font-semibold text-white">{attachment.name}</h3>

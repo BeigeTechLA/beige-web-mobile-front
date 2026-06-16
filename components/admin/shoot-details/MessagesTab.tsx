@@ -28,33 +28,11 @@ export default function MessagesTab({
   const [refreshKey, setRefreshKey] = useState(0);
   const [hasChatRoom, setHasChatRoom] = useState<boolean | null>(null);
   const handleCreated = useCallback(() => {
-    setHasChatRoom(true);
     setRefreshKey((value) => value + 1);
   }, []);
 
-  useEffect(() => {
-    setHasChatRoom(null);
-  }, [bookingId]);
-
   return (
     <>
-      {role === "admin" && hasChatRoom === false ? (
-        <div className="mb-5 flex items-center justify-end">
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark
-                ? "bg-[#E5D5B8] text-black hover:bg-[#d9c7a5]"
-                : "bg-black text-white hover:bg-zinc-800"
-              }`}
-            disabled={!bookingId}
-          >
-            <MessageSquarePlus size={16} />
-            Create Chat Room
-          </button>
-        </div>
-      ) : null}
-
       <ExternalChatView
         key={`${bookingId || "all"}-${refreshKey}`}
         role={role}
@@ -62,7 +40,7 @@ export default function MessagesTab({
         heading="Project Chat"
         isDark={isDark}
         directRoomMode
-        onRoomAvailabilityChange={setHasChatRoom}
+        onCreateRoom={() => setIsCreateModalOpen(true)}
         description={
           role === "admin"
             ? hasChatRoom === false

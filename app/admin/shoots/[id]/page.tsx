@@ -584,7 +584,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           <div className={`rounded-lg lg:rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
             <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
-            <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
+            <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-3 lg:py-4"}`}>
               {activeTab === "Overview" && (
                 <>
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
