@@ -700,6 +700,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     setShowSalesPopup(true)
   }
 
+  console.log(data)
+
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}
@@ -725,7 +727,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
             {/* Project Summary */}
             <div className="p-4 lg:p-6 flex flex-col gap-3 lg:gap-6 ">
               {
-                // Studios only flow
+                // Studios only flow (journey 2)
                 (data.contentType.length === 1 && data.contentType.includes("studio")) ? (
                   <>
                     <div className="rounded-[12px] overflow-hidden border border-white/10">
@@ -786,6 +788,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                         </div>
                       </div>
 
+                      {/* Studio journey 3 */}
                       {
                         (data.contentType.length > 1 && data.contentType.includes("studio")) && (
                           <>
@@ -842,8 +845,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                         )
                       }
 
-
-
                       <div className="rounded-[12px] overflow-hidden border border-white/10">
                         <div className="p-4 flex gap-4 items-center">
                           <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
@@ -874,6 +875,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           </div>
                         </div>
                       </div>
+
                     </>
                   )
               }
@@ -1123,6 +1125,63 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
                 </div>
               </div>
+
+              {/* Studio Journey 1: if a studio is selected */}
+              {
+                (data?.selectedStudios) && (
+                  <>
+                    <div className="rounded-[12px] overflow-hidden border border-white/10">
+                      <div className="p-4 flex gap-4 items-center">
+                        <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
+                          <Image
+                            src={"/images/projects/interior.png"}
+                            alt={"Sample shoot"}
+                            fill
+                            className="object-cover rounded-lg"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2 lg:gap-0 justify-between lg:items-center flex-1 min-w-0">
+                          <div className="flex w-full min-w-0 items-center justify-between gap-5 ">
+                            <div className="flex flex-col gap-1">
+                              {/* Studio Name */}
+                              <h4 className="text-white lg:text-lg font-medium capitalize">
+                                Beige Media (Modern Resort Villa with Jacuzzi)
+                              </h4>
+                              {/* Studio Address */}
+                              <span className="text-sm text-[#8C8C8C] capitalize flex gap-1">
+                                <MapPin size={16} /> Woodland Hills, Los Angeles, CA
+                              </span>
+                            </div>
+                            <div className="shrink-0 bg-[#211F1C] rounded-xl text-[#E8D1AB] p-3 lg:px-7 lg:py-3 text-xs lg:text-sm">
+                              Duration: {durationHours} Hours
+
+                            </div>
+                          </div>
+                          <div className="flex gap-2 w-full items-center justify-start border-y my-3 lg:my-6 py-3 lg:py-5 border-[#FFFFFF33] w-full">
+                            {["Natural Light", "Product friendly"].map((feature) => {
+                              return (
+                                <div className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                  {feature}
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="w-full flex flex-col lg:flex-row gap-4 justify-start lg:gap-10 text-xs lg:text-sm text-white">
+                            <div className="flex gap-2">
+                              <Clock size={16} />
+                              {displayTimeText}
+                            </div>
+                            <div className="flex gap-2">
+                              <Calendar size={16} />
+                              {summaryDateText}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )
+              }
 
               {selectedStudios.length > 0 && (
                 <div className="rounded-[16px] border border-white/5 bg-[#171717]">

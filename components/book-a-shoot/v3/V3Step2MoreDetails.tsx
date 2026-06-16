@@ -571,11 +571,15 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
             hasError={errors.includes("locationError")}
             disabled={false}
           />
-          <div className="mt-3 lg:mt-6 bg-[#211F1C] px-4 lg:px-7 py-3.5 rounded-lg lg:rounded-xl text-[#E8D1AB] w-fit ">
-            <p className="text-xs lg:text-sm">
-              Note : Studios are available for LA only
-            </p>
-          </div>
+          {
+            data.contentType.includes("studio") && (
+              <div className="mt-3 lg:mt-6 bg-[#211F1C] px-4 lg:px-7 py-3.5 rounded-lg lg:rounded-xl text-[#E8D1AB] w-fit ">
+                <p className="text-xs lg:text-sm">
+                  Note : Studios are available for LA only
+                </p>
+              </div>
+            )
+          }
         </div>
       )}
 
