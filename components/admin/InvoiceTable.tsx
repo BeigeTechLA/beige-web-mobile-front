@@ -6,7 +6,6 @@ import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { salesApi } from "@/lib/api";
-import apiClient from "@/lib/apiClient";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
@@ -161,18 +160,6 @@ const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
   return "N/A";
 };
 
-const getStatusLookupKey = (item: InvoiceHistoryItem) => {
-  if (item.client_lead_id) {
-    return `client:${item.client_lead_id}`;
-  }
-
-  if (item.lead_id) {
-    return `lead:${item.lead_id}`;
-  }
-
-  return null;
-};
-
 const getInvoiceGroupKey = (item: InvoiceHistoryItem) => {
   if (item.booking_id && item.quote_id) {
     return `booking:${item.booking_id}|quote:${item.quote_id}`;
@@ -225,64 +212,11 @@ const matchesInvoiceSendFilter = (
   return true;
 };
 
-const resolveLivePaymentStatus = async (item: InvoiceHistoryItem) => {
-  const currentStatus = String(item.payment_status || "").trim().toLowerCase();
-  if (currentStatus === "paid") {
-    return item.payment_status;
-  }
-
-  try {
-    if (item.client_lead_id) {
-      const response = await apiClient.get<{ success: boolean; data?: { payment_status?: string | null } }>(
-        `sales/client-leads/${item.client_lead_id}`
-      );
-      return response?.data?.payment_status || item.payment_status;
-    }
-
-    if (item.lead_id) {
-      const response = await apiClient.get<{ success: boolean; data?: { payment_status?: string | null } }>(
-        `sales/leads/${item.lead_id}`
-      );
-      return response?.data?.payment_status || item.payment_status;
-    }
-  } catch (error) {
-    console.error("Failed to resolve live invoice payment status:", error);
-  }
-
-  return item.payment_status;
-};
-
-const resolveItemsWithLivePaymentStatus = async (items: InvoiceHistoryItem[]) => {
-  const requestCache = new Map<string, Promise<string | null>>();
-
-  return Promise.all(
-    items.map(async (item) => {
-      const lookupKey = getStatusLookupKey(item);
-
-      if (!lookupKey) {
-        return {
-          item,
-          livePaymentStatus: item.payment_status,
-        };
-      }
-
-      if (!requestCache.has(lookupKey)) {
-        requestCache.set(lookupKey, resolveLivePaymentStatus(item));
-      }
-
-      return {
-        item,
-        livePaymentStatus: (await requestCache.get(lookupKey)) || item.payment_status,
-      };
-    })
-  );
-};
-
 const mapInvoiceHistoryItemsToRows = (
-  items: Awaited<ReturnType<typeof resolveItemsWithLivePaymentStatus>>,
+  items: InvoiceHistoryItem[],
   isSalesRoute: boolean
 ): InvoiceTableInvoiceRow[] =>
-  items.map(({ item, livePaymentStatus }) => {
+  items.map((item) => {
     const sendDate = item.send_date_time || item.created_at;
     const detailHref = item.client_lead_id
       ? isSalesRoute
@@ -332,7 +266,7 @@ const mapInvoiceHistoryItemsToRows = (
       clientName: item.client_name || "N/A",
       clientEmail: item.client_email || "N/A",
       leadOrQuoteId: getLeadOrQuoteValue(item),
-      paymentStatus: normalizeStatus(livePaymentStatus),
+      paymentStatus: normalizeStatus(item.payment_status),
       invoiceMethod,
       invoiceSendStatus,
       paymentAmount: normalizedPaymentAmount,
@@ -490,10 +424,7 @@ export const InvoiceTable = () => {
         const isSalesRoute = pathname?.startsWith("/sales");
         const allItems = await getAllInvoiceHistoryItems();
         const groupedRows = groupInvoiceRows(
-          mapInvoiceHistoryItemsToRows(
-            await resolveItemsWithLivePaymentStatus(allItems),
-            Boolean(isSalesRoute)
-          )
+          mapInvoiceHistoryItemsToRows(allItems, Boolean(isSalesRoute))
         );
         const filteredRows = groupedRows.filter((row) =>
           groupMatchesPaymentFilter(row, paymentFilter) &&
