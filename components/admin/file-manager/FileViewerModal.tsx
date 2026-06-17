@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Clock3, Loader2, MessageSquare, Reply, Send, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Clock3, Download, ExternalLink, FileText, Loader2, MessageSquare, Reply, Send, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { fileManagerApi, type FileCommentItem } from "@/lib/fileManagerApi";
@@ -30,6 +30,19 @@ const isVideo = (contentType?: string, fileName?: string) => {
 const isPdf = (contentType?: string, fileName?: string) => {
   if (contentType === "application/pdf") return true;
   return /\.pdf$/i.test(fileName || "");
+};
+
+const getFileTypeLabel = (contentType?: string, fileName?: string) => {
+  if (isImage(contentType, fileName)) return "Image";
+  if (isVideo(contentType, fileName)) return "Video";
+  if (isPdf(contentType, fileName)) return "PDF";
+  const extension = String(fileName || "").split(".").pop();
+  return extension && extension !== fileName ? extension.toUpperCase() : "File";
+};
+
+const getVersionLabelFromPath = (path?: string | null) => {
+  const match = String(path || "").match(/(?:^|\/)Version(\d+)(?:\/|$)/i);
+  return match?.[1] ? `Version ${match[1]}` : "Not versioned";
 };
 
 const formatCommentDate = (value?: string) => {
@@ -325,174 +338,230 @@ export default function FileViewerModal({
   const primaryBrandBg = isDark ? "bg-[#E5D5B8] hover:bg-[#d8c49e]" : "bg-[#E8D1AB] hover:bg-[#ddc396]";
   const textContrastClass = isDark ? "text-white" : "text-black";
   const secondaryTextClass = isDark ? "text-white/60" : "text-black/60";
+  const fileTypeLabel = getFileTypeLabel(contentType, fileName);
+  const currentVersionLabel = getVersionLabelFromPath(fileMetaId);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className={`max-w-7xl w-[96vw] max-h-[92vh] lg:max-h-[88vh] p-0 border transition-colors flex flex-col overflow-hidden ${
-        isDark ? "border-white/10 bg-[#101010] text-white" : "border-black/10 bg-white text-black"
+      <DialogContent className={`left-auto right-2 top-2 h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[520px] translate-x-0 translate-y-0 gap-0 flex flex-col rounded-2xl border p-0 shadow-2xl sm:rounded-2xl lg:right-3 lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:max-h-[calc(100dvh-1.5rem)] [&>button:last-child]:hidden ${
+        isDark ? "border-white/10 bg-black text-white" : "border-black/10 bg-white text-black"
       }`}>
-        <DialogHeader className={`border-b px-4 py-3 lg:px-6 lg:py-4 shrink-0 ${isDark ? "border-white/10" : "border-black/10"}`}>
-          <DialogTitle className={`block truncate max-w-[calc(100%-2.5rem)] font-semibold text-base lg:text-lg ${textContrastClass}`}>{fileName || "File Viewer"}</DialogTitle>
-        </DialogHeader>
+        <div className="flex h-full flex-col">
+          <div className={`shrink-0 border-b px-5 py-5 ${isDark ? "border-white/10" : "border-black/10"}`}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <DialogTitle className={`truncate text-lg font-semibold leading-6 ${textContrastClass}`}>
+                  {fileName || "File Viewer"}
+                </DialogTitle>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${isDark ? "border-[#22C55E]/30 bg-[#22C55E]/15 text-[#86EFAC]" : "border-green-200 bg-green-50 text-green-700"}`}>
+                    {currentVersionLabel}
+                  </span>
+                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${isDark ? "border-[#3B82F6]/30 bg-[#3B82F6]/15 text-[#93C5FD]" : "border-blue-200 bg-blue-50 text-blue-700"}`}>
+                    {fileTypeLabel}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition ${isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-black hover:bg-black/10"}`}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
 
-        <div className="flex flex-col lg:grid lg:grid-cols-[1fr_420px] flex-1 min-h-0 w-full overflow-y-auto lg:overflow-visible">
-          {/* File Canvas Viewer Box */}
-          <div className={`flex items-center justify-center min-h-[280px] h-[45vh] sm:h-[50vh] lg:h-full p-3 lg:p-4 transition-colors shrink-0 ${
-            isDark ? "bg-[#0b0b0b]" : "bg-black/[0.02]"
-          }`}>
-            {!fileUrl ? (
-              <div className={`flex h-full items-center justify-center text-sm ${secondaryTextClass}`}>Loading file...</div>
-            ) : isImage(contentType, fileName) ? (
-              <div className="flex h-full w-full items-center justify-center overflow-hidden">
-                <img 
-                  src={fileUrl} 
-                  alt={fileName || "Preview"} 
-                  className="max-h-full max-w-full w-auto h-auto rounded-lg object-contain" 
-                />
-              </div>
-            ) : isVideo(contentType, fileName) ? (
-              <div className="flex h-full w-full items-center justify-center overflow-hidden">
-                <video 
-                  ref={videoRef} 
-                  src={fileUrl} 
-                  controls 
-                  className="max-h-full max-w-full w-auto h-auto rounded-lg bg-black object-contain shadow-sm" 
-                />
-              </div>
-            ) : isPdf(contentType, fileName) ? (
-              <iframe src={fileUrl} title={fileName || "PDF preview"} className={`h-full w-full rounded-lg border ${isDark ? "bg-white border-transparent" : "bg-white border-black/10"}`} />
-            ) : (
-              <div className={`flex h-full flex-col items-center justify-center gap-4 text-sm py-8 ${isDark ? "text-white/70" : "text-black/70"}`}>
-                <p>Preview is not available for this file type.</p>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 [scrollbar-gutter:stable]">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              {fileUrl ? (
                 <a
                   href={fileUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className={`rounded-lg px-4 py-2 text-sm font-medium text-black transition shadow-sm ${primaryBrandBg}`}
+                  className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-3 text-[11px] font-medium transition ${isDark ? "border-white/10 bg-white/5 text-white/80 hover:bg-white/10" : "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]"}`}
                 >
-                  Open File
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Open
                 </a>
-              </div>
-            )}
-          </div>
+              ) : null}
+              {fileUrl ? (
+                <a
+                  href={fileUrl}
+                  download={fileName}
+                  className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-3 text-[11px] font-medium transition ${isDark ? "border-white/10 bg-white/5 text-white/80 hover:bg-white/10" : "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]"}`}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </a>
+              ) : null}
+            </div>
 
-          {/* Comments Sidebar Section */}
-          <div className={`flex flex-col lg:h-full border-t lg:border-t-0 lg:border-l min-h-[380px] lg:min-h-0 transition-colors ${
-            isDark ? "border-white/10 bg-[#121212]" : "border-black/10 bg-black/[0.01]"
-          }`}>
-            <div className={`border-b px-4 py-3 lg:px-5 lg:py-4 shrink-0 ${isDark ? "border-white/10" : "border-black/10"}`}>
-              <div className="flex items-center gap-2">
+            <div className={`mb-4 overflow-hidden rounded-2xl border ${isDark ? "border-white/10 bg-[#181818]" : "border-black/10 bg-black/[0.02]"}`}>
+              <div className="flex min-h-[220px] items-center justify-center p-2">
+                {!fileUrl ? (
+                  <div className={`flex items-center gap-2 text-sm ${secondaryTextClass}`}>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading file...
+                  </div>
+                ) : isImage(contentType, fileName) ? (
+                  <img
+                    src={fileUrl}
+                    alt={fileName || "Preview"}
+                    className="max-h-[290px] w-full rounded-xl object-contain"
+                  />
+                ) : isVideo(contentType, fileName) ? (
+                  <video
+                    ref={videoRef}
+                    src={fileUrl}
+                    controls
+                    className="max-h-[290px] w-full rounded-xl bg-black object-contain"
+                  />
+                ) : isPdf(contentType, fileName) ? (
+                  <iframe
+                    src={fileUrl}
+                    title={fileName || "PDF preview"}
+                    className={`h-[290px] w-full rounded-xl border ${isDark ? "border-transparent bg-white" : "border-black/10 bg-white"}`}
+                  />
+                ) : (
+                  <div className={`flex flex-col items-center justify-center gap-3 py-10 text-center text-sm ${secondaryTextClass}`}>
+                    <FileText className={`h-10 w-10 ${isDark ? "text-[#E5D5B8]" : "text-[#B18A00]"}`} />
+                    <p>Preview is not available for this file type.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className={`mb-4 grid grid-cols-2 gap-4 rounded-2xl border p-5 ${isDark ? "border-white/10 bg-[#181818]" : "border-black/10 bg-black/[0.02]"}`}>
+              <div>
+                <p className={`text-[11px] ${isDark ? "text-white/35" : "text-black/40"}`}>Last updated</p>
+                <p className={`mt-1 truncate text-xs font-medium ${textContrastClass}`}>Recently</p>
+              </div>
+              <div>
+                <p className={`text-[11px] ${isDark ? "text-white/35" : "text-black/40"}`}>File type</p>
+                <p className={`mt-1 truncate text-xs font-medium ${textContrastClass}`}>{fileTypeLabel}</p>
+              </div>
+              <div>
+                <p className={`text-[11px] ${isDark ? "text-white/35" : "text-black/40"}`}>Current version</p>
+                <p className={`mt-1 truncate text-xs font-medium ${textContrastClass}`}>{currentVersionLabel}</p>
+              </div>
+            </div>
+
+            <div className={`mb-4 flex flex-col overflow-hidden rounded-2xl border ${isDark ? "border-white/10 bg-[#181818]" : "border-black/10 bg-black/[0.02]"}`}>
+              <div className="shrink-0 flex items-center gap-2 px-5 py-4">
                 <MessageSquare className={`h-4 w-4 ${isDark ? "text-[#E5D5B8]" : "text-[#B18A00]"}`} />
                 <h3 className={`text-sm font-semibold ${textContrastClass}`}>Comments</h3>
+                {comments.length > 0 ? (
+                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${isDark ? "bg-white/10 text-white/60" : "bg-black/5 text-black/55"}`}>
+                    {comments.length}
+                  </span>
+                ) : null}
               </div>
-              <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>Everyone with access to this file can view the discussion.</p>
-            </div>
 
-            {/* Scrollable thread window */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 lg:px-5 lg:py-4 ">
-              {!fileMetaId ? (
-                <div className={`flex h-full items-center justify-center text-center text-xs lg:text-sm py-8 ${isDark ? "text-white/40" : "text-black/40"}`}>
-                  Commenting is not available for this file yet.
-                </div>
-              ) : loadingComments ? (
-                <div className={`flex items-center gap-2 text-xs lg:text-sm py-4 ${isDark ? "text-white/55" : "text-black/55"}`}>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading comments...
-                </div>
-              ) : comments.length === 0 ? (
-                <div className={`flex h-full items-center justify-center text-center text-xs lg:text-sm py-8 ${isDark ? "text-white/40" : "text-black/40"}`}>
-                  No comments yet. Start the conversation here.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {comments.map((comment) => (
-                    <CommentRow
-                      key={comment.id}
-                      comment={comment}
-                      currentUserId={currentUserId}
-                      onJumpToTimestamp={handleJumpToTimestamp}
-                      onReply={setReplyingTo}
-                      onDelete={handleDelete}
-                      isDark={isDark}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Input Form Box Footer */}
-            <div className={`border-t px-4 py-3 lg:px-5 lg:py-4 shrink-0 ${isDark ? "border-white/10" : "border-black/10"}`}>
-              {replyingTo ? (
-                <div className={`mb-3 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs transition-colors ${
-                  isDark 
-                    ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/10 text-[#E5D5B8]" 
-                    : "border-[#B18A00]/20 bg-[#B18A00]/5 text-[#B18A00]"
-                }`}>
-                  <span className="truncate">Replying to: {replyingTo.comment}</span>
-                  <button type="button" onClick={() => setReplyingTo(null)} className={`transition ${isDark ? "text-white/60 hover:text-white" : "text-black/50 hover:text-black/80"}`}>
-                    Cancel
-                  </button>
-                </div>
-              ) : null}
-
-              {videoFile ? (
-                <div className={`mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border px-3 py-2.5 transition-colors ${
-                  isDark ? "border-white/10 bg-[#181818]" : "border-black/10 bg-white"
-                }`}>
-                  <div className={`flex items-center gap-2 text-xs ${isDark ? "text-white/60" : "text-black/50"}`}>
-                    <Clock3 className={`h-3.5 w-3.5 shrink-0 ${isDark ? "text-[#E5D5B8]" : "text-[#B18A00]"}`} />
-                    <span className="leading-normal">{selectedTimestamp != null ? `Timestamp: ${formatVideoTimestamp(selectedTimestamp)}` : "Add a video timestamp."}</span>
+              <div className="flex-1 min-h-0 max-h-[34dvh] overflow-y-auto px-5 pb-5 pr-3 [scrollbar-gutter:stable]">
+                {!fileMetaId ? (
+                  <div className={`flex min-h-[112px] items-center justify-center text-center text-xs ${isDark ? "text-white/35" : "text-black/40"}`}>
+                    Commenting is not available for this file yet.
                   </div>
-                  <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
-                    {selectedTimestamp != null ? (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTimestamp(null)}
-                        className={`text-xs transition ${isDark ? "text-white/45 hover:text-white" : "text-black/40 hover:text-black/70"}`}
-                      >
-                        Clear
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={handleAttachCurrentTimestamp}
-                      disabled={!fileUrl}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                        isDark 
-                          ? "border-[#E5D5B8]/25 bg-[#E5D5B8]/10 text-[#E5D5B8] hover:bg-[#E5D5B8]/20" 
-                          : "border-[#B18A00]/25 bg-[#B18A00]/5 text-[#B18A00] hover:bg-[#B18A00]/10"
-                      }`}
-                    >
-                      <Clock3 className="h-3.5 w-3.5" />
-                      Use Current Time
-                    </button>
+                ) : loadingComments ? (
+                  <div className={`flex min-h-[112px] items-center justify-center gap-2 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading comments...
                   </div>
-                </div>
-              ) : null}
+                ) : comments.length === 0 ? (
+                  <div className={`flex min-h-[112px] items-center justify-center text-center text-xs ${isDark ? "text-white/35" : "text-black/40"}`}>
+                    No comments yet. Be the first to comment.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {comments.map((comment) => (
+                      <CommentRow
+                        key={comment.id}
+                        comment={comment}
+                        currentUserId={currentUserId}
+                        onJumpToTimestamp={handleJumpToTimestamp}
+                        onReply={setReplyingTo}
+                        onDelete={handleDelete}
+                        isDark={isDark}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
-              <textarea
-                rows={3}
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                placeholder={canComment ? "Add a comment..." : "Sign in to comment"}
-                disabled={!canComment || submitting}
-                className={`w-full rounded-2xl border px-4 py-2.5 text-sm outline-none transition disabled:cursor-not-allowed disabled:opacity-60 resize-none ${
-                  isDark 
-                    ? "border-white/10 bg-[#181818] text-white placeholder:text-white/30 focus:border-[#E5D5B8]/40" 
-                    : "border-black/10 bg-white text-black placeholder:text-black/40 focus:border-[#B18A00]/40"
-                }`}
-              />
-              <div className="mt-2.5 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!canComment || !commentText.trim() || submitting}
-                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-60 shadow-sm ${primaryBrandBg}`}
-                >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {replyingTo ? "Reply" : "Comment"}
+          <div className={`shrink-0 border-t px-5 py-4 ${isDark ? "border-white/10 bg-black" : "border-black/10 bg-white"}`}>
+            {replyingTo ? (
+              <div className={`mb-3 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs transition-colors ${
+                isDark
+                  ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/10 text-[#E5D5B8]"
+                  : "border-[#B18A00]/20 bg-[#B18A00]/5 text-[#B18A00]"
+              }`}>
+                <span className="truncate">Replying to: {replyingTo.comment}</span>
+                <button type="button" onClick={() => setReplyingTo(null)} className={`transition ${isDark ? "text-white/60 hover:text-white" : "text-black/50 hover:text-black/80"}`}>
+                  Cancel
                 </button>
               </div>
+            ) : null}
+
+            {videoFile ? (
+              <div className={`mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border px-3 py-2.5 transition-colors ${
+                isDark ? "border-white/10 bg-[#181818]" : "border-black/10 bg-white"
+              }`}>
+                <div className={`flex items-center gap-2 text-xs ${isDark ? "text-white/60" : "text-black/50"}`}>
+                  <Clock3 className={`h-3.5 w-3.5 shrink-0 ${isDark ? "text-[#E5D5B8]" : "text-[#B18A00]"}`} />
+                  <span className="leading-normal">{selectedTimestamp != null ? `Timestamp: ${formatVideoTimestamp(selectedTimestamp)}` : "Add a video timestamp."}</span>
+                </div>
+                <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                  {selectedTimestamp != null ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTimestamp(null)}
+                      className={`text-xs transition ${isDark ? "text-white/45 hover:text-white" : "text-black/40 hover:text-black/70"}`}
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleAttachCurrentTimestamp}
+                    disabled={!fileUrl}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      isDark
+                        ? "border-[#E5D5B8]/25 bg-[#E5D5B8]/10 text-[#E5D5B8] hover:bg-[#E5D5B8]/20"
+                        : "border-[#B18A00]/25 bg-[#B18A00]/5 text-[#B18A00] hover:bg-[#B18A00]/10"
+                    }`}
+                  >
+                    <Clock3 className="h-3.5 w-3.5" />
+                    Use Current Time
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <textarea
+              rows={2}
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              placeholder={canComment ? "Add a comment..." : "Sign in to comment"}
+              disabled={!canComment || submitting}
+              className={`w-full resize-none rounded-2xl border px-4 py-2.5 text-sm outline-none transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                isDark
+                  ? "border-white/10 bg-[#181818] text-white placeholder:text-white/30 focus:border-[#E5D5B8]/40"
+                  : "border-black/10 bg-white text-black placeholder:text-black/40 focus:border-[#B18A00]/40"
+              }`}
+            />
+            <div className="mt-2.5 flex justify-end">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!canComment || !commentText.trim() || submitting}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${primaryBrandBg}`}
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {replyingTo ? "Reply" : "Post Comment"}
+              </button>
             </div>
           </div>
         </div>

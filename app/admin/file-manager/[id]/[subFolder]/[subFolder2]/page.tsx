@@ -4,14 +4,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 
-import Image from "next/image";
 import {
   ArrowLeft,
   Download,
   FileVideo,
-  Image as ImageIcon,
   Loader2,
-  Play,
+  Plus,
   Search,
   Trash2,
   Upload,
@@ -22,7 +20,6 @@ import {
   FolderOpen,
   Presentation,
   CheckSquare,
-  Square,
   X as CloseIcon,
   Download as DownloadIcon,
   Trash2 as TrashIcon,
@@ -30,13 +27,12 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { BasicDropdown } from "@/components/admin/BasicDropdown";
+import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
-import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
@@ -54,8 +50,6 @@ import { toast } from "sonner";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { MobileFileRow } from "@/components/admin/file-manager/MobileRow";
 
-const defaultImgSrc = "/images/misc/Data.png";
-const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
 const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
 const FILE_BOARD_ORDER = ["image", "video", "pdf", "doc", "ppt", "sheet", "zip", "file"];
@@ -69,6 +63,11 @@ const FILE_BOARD_TITLES: Record<string, string> = {
   zip: "Archives",
   file: "Other Files",
 };
+
+interface RevisionBadgeFile {
+  filepath?: string;
+  metadata?: Record<string, unknown>;
+}
 
 const tryDecodeURIComponent = (value: string) => {
   const normalizedValue = String(value || "").replace(/\+/g, " ");
@@ -100,6 +99,11 @@ const normalizeRelativeFolderPath = (value: string, phaseSlug?: string) => {
 const getFileExtension = (title?: string) => {
   const parts = (title || "").toLowerCase().split(".");
   return parts.length > 1 ? parts.pop() || "" : "";
+};
+
+const getVersionNumberFromPath = (path?: string) => {
+  const match = String(path || "").match(/(?:^|\/)Version(\d+)(?:\/|$)/i);
+  return match?.[1] ? Number(match[1]) : null;
 };
 
 const getFileMeta = (file: any) => {
@@ -164,7 +168,6 @@ export default function SubFolderDetailsPage() {
   const [viewMode, setViewMode] = useViewMode(ADMIN_FILE_MANAGER_VIEW_MODE_KEY);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [status, setStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -178,6 +181,7 @@ export default function SubFolderDetailsPage() {
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isCreatingRevisionVersion, setIsCreatingRevisionVersion] = useState(false);
   const [shareResource, setShareResource] = useState<{
     resourceType: "workspace" | "folder" | "file";
     externalId: string;
@@ -224,7 +228,7 @@ export default function SubFolderDetailsPage() {
 
   const folderTitle = useMemo(() => {
     if (nestedSlug === "raw-footage") return "Raw Footages";
-    if (nestedSlug === "edited-footage") return "Edited Footages";
+    if (nestedSlug === "edits" || nestedSlug === "edited-footage") return "Edits";
     if (nestedSlug === "final-deliverables") return "Final Deliverables";
     return folderName || "Files";
   }, [folderName, nestedSlug]);
@@ -233,7 +237,6 @@ export default function SubFolderDetailsPage() {
     return mapExternalFilesToUi(files).map((file) => ({
       ...file,
       ...getFileMeta(file),
-      src: defaultImgSrc,
     }));
   }, [files]);
 
@@ -261,12 +264,75 @@ export default function SubFolderDetailsPage() {
     const query = searchTerm.toLowerCase();
     return folderItems.filter((item) => item.title.toLowerCase().includes(query));
   }, [folderItems, searchTerm]);
+
+  const isRevisionRootFolder = useMemo(() => {
+    const normalized = folderPath.trim().toLowerCase().replace(/[_\s]+/g, "-");
+    return phaseSlug === "post-production" && (normalized === "revisions" || normalized.endsWith("/revisions"));
+  }, [folderPath, phaseSlug]);
+  const nextRevisionFolderVersion = useMemo(() => {
+    const versionNumbers = folderItems
+      .map((folder) => {
+        const normalizedTitle = folder.title.trim().replace(/\s+/g, "");
+        const titleMatch = normalizedTitle.match(/^Version(\d+)$/i);
+        return titleMatch?.[1]
+          ? Number(titleMatch[1])
+          : getVersionNumberFromPath(folder.resourcePath || folder.id);
+      })
+      .filter((version): version is number => Number.isFinite(version) && version > 0);
+
+    return (versionNumbers.length ? Math.max(...versionNumbers) : 0) + 1;
+  }, [folderItems]);
+  const isRevisionVersionFolder = useMemo(() => {
+    return phaseSlug === "post-production" && /(^|\/)Version\d+$/i.test(folderPath.trim());
+  }, [folderPath, phaseSlug]);
+  const getRevisionFileStatusBadge = (file: RevisionBadgeFile) => {
+    if (!isRevisionVersionFolder) return null;
+
+    const metadata =
+      file?.metadata && typeof file.metadata === "object"
+        ? file.metadata
+        : {};
+    const editStatus = String(metadata.editStatus || "").toLowerCase();
+    const currentVersion =
+      getVersionNumberFromPath(String(file?.filepath || "")) ||
+      Number(metadata.currentVersion || 0);
+
+    if (editStatus === "approved") {
+      return {
+        label: "Approved",
+        versionLabel: currentVersion ? `V${currentVersion} Latest` : "Approved",
+        className: "border-[#22C55E]/30 bg-[#22C55E]/15 text-[#22C55E]",
+        versionClassName: "border-[#22C55E]/30 bg-[#22C55E]/10 text-[#15803D]",
+      };
+    }
+
+    if (editStatus === "revision_requested") {
+      return {
+        label: "Revision Requested",
+        versionLabel: currentVersion ? `V${currentVersion} Latest` : "Revision Latest",
+        className: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#B38F43]",
+        versionClassName: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#B38F43]",
+      };
+    }
+
+    if (currentVersion) {
+      return {
+        label: `Version${currentVersion} Uploaded`,
+        versionLabel: `V${currentVersion} Latest`,
+        className: "border-[#7C3AED]/30 bg-[#7C3AED]/15 text-[#7C3AED]",
+        versionClassName: "border-[#7C3AED]/30 bg-[#7C3AED]/15 text-[#7C3AED]",
+      };
+    }
+
+    return null;
+  };
+  const totalVisibleItems = filteredFolders.length + filteredData.length;
+
   const visibleFiles = useMemo(
     () => filteredData.slice(0, visibleFileCount),
     [filteredData, visibleFileCount]
   );
   const hasMoreFiles = filteredData.length > visibleFileCount;
-  const totalItemCount = filteredFolders.length + filteredData.length;
 
   const folderBoardColumns = useMemo(
     () => [
@@ -278,6 +344,8 @@ export default function SubFolderDetailsPage() {
     ],
     [filteredFolders]
   );
+
+  const showCreateRevisionVersionCard = isRevisionRootFolder;
 
   const fileBoardColumns = useMemo(() => {
     const labels = Array.from(new Set(filteredData.map((file) => file.label || "file")));
@@ -540,6 +608,51 @@ export default function SubFolderDetailsPage() {
         .join("/")
     : undefined;
 
+  const handleCreateRevisionVersion = async () => {
+    if (!isRevisionRootFolder || isCreatingRevisionVersion) return;
+
+    const versionName = `Version${nextRevisionFolderVersion}`;
+    const versionPath = [folderPath, versionName].filter(Boolean).join("/");
+    const versionHref = `/admin/file-manager/${projectId}/${phaseSlug}/${versionName.toLowerCase()}?path=${encodeURIComponent(
+      versionPath
+    )}&name=${encodeURIComponent(versionName)}`;
+
+    try {
+      setIsCreatingRevisionVersion(true);
+      await fileManagerApi.createExternalFolder(projectId, versionName, {
+        phase: "post",
+        path: folderPath,
+      });
+      toast.success(`${versionName} created`);
+      await loadFiles();
+      router.push(versionHref);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : `Failed to create ${versionName}`);
+    } finally {
+      setIsCreatingRevisionVersion(false);
+    }
+  };
+
+  const renderCreateRevisionVersionCard = () => (
+    <button
+      type="button"
+      onClick={handleCreateRevisionVersion}
+      disabled={isCreatingRevisionVersion}
+      className={`flex min-h-[202px] w-full flex-col items-center justify-center gap-5 rounded-3xl border border-dashed p-5 text-center transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
+        isDark
+          ? "border-[#E8D1AB]/35 bg-[#18181b] hover:border-[#E8D1AB]/60 hover:bg-[#1c1c20]"
+          : "border-black/20 bg-white hover:border-black/40 hover:bg-black/[0.02]"
+      }`}
+    >
+      <span className={`flex h-11 w-11 items-center justify-center rounded-full border ${isDark ? "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-black/40 bg-black/5 text-black"}`}>
+        {isCreatingRevisionVersion ? <Loader2 size={22} className="animate-spin" /> : <Plus size={24} />}
+      </span>
+      <span className={`text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+        {isCreatingRevisionVersion ? "Creating..." : `Create Version${nextRevisionFolderVersion}`}
+      </span>
+    </button>
+  );
+
   return (
     <>
       <Topbar
@@ -576,12 +689,12 @@ export default function SubFolderDetailsPage() {
                 <div className="flex items-center gap-3 lg:gap-4 min-w-0">
                   <div className={`flex h-10 w-10 lg:h-12 lg:w-12 items-center justify-center rounded-full shrink-0 lg:text-xl transition-colors ${isDark ? "bg-[#1A1A1A] text-white" : "bg-black text-white"}`}>
                     {getDisplayInitials(workspaceName)}
-	                  </div>
-	                  <h1 className={`text-sm lg:text-base font-semibold truncate ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"} `}>
-	                    {folderTitle} ({totalItemCount} Items)
-	                  </h1>
-	                </div>
-	              </div>
+                  </div>
+                  <h1 className={`text-sm lg:text-base font-semibold truncate ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"} `}>
+                    {folderTitle} ({totalVisibleItems} Items)
+                  </h1>
+                </div>
+              </div>
 
               <div className={`border rounded-lg p-3 lg:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 transition-colors ${isDark ? "bg-[#171717] border-white/20 text-white" : "bg-white border-[#E5E5E5] text-black"}`}>
                 <div className="min-w-0">
@@ -653,176 +766,261 @@ export default function SubFolderDetailsPage() {
                 </div>
               </div>
 
-	              {viewMode === "board" ? (
-	                filteredFolders.length === 0 && filteredData.length === 0 ? (
-	                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
-	                ) : (
-	                  <div className="space-y-6">
-	                    {folderBoardSection}
-	                    {filteredData.length > 0 ? (
-	                      <FileManagerBoard
-	                        columns={fileBoardColumns}
-	                        emptyMessage="No files in this column"
-	                        getItemId={(file) => String(file.id)}
-	                        renderCard={(file) => (
-	                          <FileCard
-	                            file={{ ...file, previewUrl: previewUrls[file.id] }}
-	                            onOpen={() => handleOpenFile(file)}
-	                            onDownload={() => handleDownloadFile(file)}
-	                            onDelete={() => {
-	                              setSelectedFile(file);
-	                              setIsDeleteModalOpen(true);
-	                            }}
-	                            onShare={() => {
-	                              setSelectedFile(file);
-	                              setShareResource({
-	                                resourceType: "file",
-	                                externalId: String(projectId || ""),
-	                                phase: currentPhase,
-	                                filepath: file.filepath,
-	                                label: file.title,
-	                              });
-	                              setIsShareModalOpen(true);
-	                            }}
-	                            isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
-	                            onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
-	                          />
-	                        )}
-	                      />
-	                    ) : null}
-	                  </div>
-	                )
-	              ) : viewMode === "grid" ? (
-	                filteredFolders.length === 0 && filteredData.length === 0 ? (
-	                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
-	                ) : (
-	                  <div className="space-y-6">
-	                    {folderGridSection}
-	                    {filteredData.length > 0 ? (
-	                      <div className="space-y-4">
-	                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-	                      {visibleFiles.map((file) => (
-	                        <div
-	                          key={file.id}
-                          className={`border rounded-xl p-4 lg:p-[19px] transition-all group relative cursor-pointer ${(isSelectionMode && selectedFilePaths.includes(file.filepath || "")) ? 'border-[#E8D1AB] ring-1 ring-[#E8D1AB]/50' : isDark ? 'bg-[#111111] border-[#202020] hover:border-white/20' : 'bg-[#F6F6F6] hover:border-black/20 border-[#CACACA4D]'}`}
-                          onClick={() => handleOpenFile(file)}
+              {viewMode === "board" ? (
+                totalVisibleItems === 0 && !showCreateRevisionVersionCard ? (
+                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                ) : (
+                  <div className="space-y-5">
+                    {filteredFolders.length > 0 || showCreateRevisionVersionCard ? (
+                      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                        {filteredFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            title={folder.title}
+                            fileCount={folder.fileCount}
+                            category={folder.category}
+                            isLinked={folder.isLinked}
+                            lastOpened={folder.lastOpened}
+                            userInitials={folder.userInitials}
+                            href={folder.href}
+                            onOpen={() => router.push(folder.href)}
+                            onOpenLinkModal={() => {}}
+                            showMenu={false}
+                          />
+                        ))}
+                        {showCreateRevisionVersionCard ? renderCreateRevisionVersionCard() : null}
+                      </div>
+                    ) : null}
+                    {filteredData.length > 0 ? (
+                      <FileManagerBoard
+                        columns={fileBoardColumns}
+                        emptyMessage="No files in this column"
+                        getItemId={(file) => String(file.id)}
+                        renderCard={(file) => {
+                          const statusBadge = getRevisionFileStatusBadge(file);
+                          return (
+                          <FileCard
+                            file={{
+                              ...file,
+                              previewUrl: previewUrls[file.id],
+                              statusLabel: statusBadge?.label,
+                              statusClassName: statusBadge?.className,
+                              versionLabel: statusBadge?.versionLabel,
+                              versionClassName: statusBadge?.versionClassName,
+                            }}
+                            onOpen={() => handleOpenFile(file)}
+                            onDownload={() => handleDownloadFile(file)}
+                            onDelete={() => {
+                              if (!canDelete) return;
+                              setSelectedFile(file);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            onShare={() => {
+                              setSelectedFile(file);
+                              setShareResource({
+                                resourceType: "file",
+                                externalId: String(projectId || ""),
+                                phase: phaseSlug === "post-production" ? "post" : "pre",
+                                filepath: file.filepath,
+                                label: file.title,
+                              });
+                              setIsShareModalOpen(true);
+                            }}
+                            isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                            onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                          />
+                          );
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                )
+              ) : viewMode === "grid" ? (
+                totalVisibleItems === 0 && !showCreateRevisionVersionCard ? (
+                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                ) : (
+                  <div className="space-y-4">
+                    {filteredFolders.length > 0 || showCreateRevisionVersionCard ? (
+                      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                        {filteredFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            title={folder.title}
+                            fileCount={folder.fileCount}
+                            category={folder.category}
+                            isLinked={folder.isLinked}
+                            lastOpened={folder.lastOpened}
+                            userInitials={folder.userInitials}
+                            href={folder.href}
+                            onOpen={() => router.push(folder.href)}
+                            onOpenLinkModal={() => {}}
+                            showMenu={false}
+                          />
+                        ))}
+                        {showCreateRevisionVersionCard ? renderCreateRevisionVersionCard() : null}
+                      </div>
+                    ) : null}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                      {visibleFiles.map((file) => {
+                        const statusBadge = getRevisionFileStatusBadge(file);
+                        return (
+                        <FileCard
+                          key={file.id}
+                          file={{
+                            ...file,
+                            previewUrl: previewUrls[file.id],
+                            statusLabel: statusBadge?.label,
+                            statusClassName: statusBadge?.className,
+                            versionLabel: statusBadge?.versionLabel,
+                            versionClassName: statusBadge?.versionClassName,
+                          }}
+                          onOpen={() => handleOpenFile(file)}
+                          onDownload={() => handleDownloadFile(file)}
+                          onShare={() => {
+                            setSelectedFile(file);
+                            setShareResource({
+                              resourceType: "file",
+                              externalId: String(projectId || ""),
+                              phase: phaseSlug === "post-production" ? "post" : "pre",
+                              filepath: file.filepath,
+                              label: file.title,
+                            });
+                            setIsShareModalOpen(true);
+                          }}
+                          onDelete={() => {
+                            setSelectedFile(file);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                          onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                          isDark={isDark}
+                        />
+                        );
+                      })}
+                    </div>
+                    {hasMoreFiles ? (
+                      <div className="flex justify-center">
+                        <Button
+                          type="button"
+                          className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                          onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
                         >
-                          {isSelectionMode && (
-                            <div className="absolute top-3 left-3 z-10" onClick={(e) => e.stopPropagation()}>
-                              <Checkbox
-                                checked={selectedFilePaths.includes(file.filepath || "")}
-                                onCheckedChange={() => toggleFileSelection(file.filepath || "")}
-                                className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
-                              />
-                            </div>
-                          )}
-                          <div className={`flex items-center justify-between mb-3 ${isSelectionMode ? 'ml-7' : ''}`}>
-                            <div className="flex items-center gap-2 min-w-0">
-                              <file.icon size={16} className={`${file.accentClass} shrink-0`} />
-                              <span className={`truncate text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>{file.title}</span>
-                            </div>
-                            <div className="flex items-center justify-end gap-1">
-                              <button className={isDark ? "text-white/70 hover:text-white" : "text-black/60 text-black/80"} onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadFile(file);
-                              }}>
-                                <Download size={16} />
-                              </button>
-                              <button className={isDark ? "text-white/70 hover:text-[#E8D1AB]" : "text-black/60 hover:text-black/80"} onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedFile(file);
-	                                setShareResource({
-	                                  resourceType: "file",
-	                                  externalId: String(projectId || ""),
-	                                  phase: currentPhase,
-	                                  filepath: file.filepath,
-	                                  label: file.title,
-	                                });
-                                setIsShareModalOpen(true);
-                              }}>
-                                <Share2 size={16} />
-                              </button>
-                              <button className="text-white/70 hover:text-[#F04438]" onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedFile(file);
-                                setIsDeleteModalOpen(true);
-                              }}>
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
+                          View More
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              ) : (
+                totalVisibleItems === 0 && !showCreateRevisionVersionCard ? (
+                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                ) : (
+                  <>
+                    {/* Main Display Fragment Block Container Layout */}
+                    <div className="space-y-4">
+                      {showCreateRevisionVersionCard ? (
+                        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                          {renderCreateRevisionVersionCard()}
+                        </div>
+                      ) : null}
+                      {filteredFolders.length > 0 ? (
+                        <div className={`lg:hidden border rounded-xl overflow-hidden transition-colors duration-200 setup-beta-tag shadow-sm ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
+                          <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
+                            <span>Folder Name</span>
                           </div>
-
-                          <div className="aspect-square bg-[#1A1A1A] rounded-xl border border-white/5 flex items-center justify-center overflow-hidden relative">
-                            {file.label === "image" && previewUrls[file.id] ? (
-                              <img
-                                src={previewUrls[file.id]}
-                                alt={file.title || "Preview"}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
-                            ) :
-                              file.label === "video" && previewUrls[file.id] ? (
-                                <div className="relative h-full w-full">
-                                  <video
-                                    src={previewUrls[file.id]}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                    muted
-                                    playsInline
-                                    preload="metadata"
-                                  />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white">
-                                      <Play size={18} className="ml-0.5" fill="currentColor" />
-                                    </div>
+                          <div className="flex flex-col">
+                            {filteredFolders.map((folder) => (
+                              <button
+                                key={folder.id}
+                                type="button"
+                                onClick={() => router.push(folder.href)}
+                                className={`flex w-full items-center justify-between gap-3 p-4 text-left transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"}`}
+                              >
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <div className={`h-10 w-10 flex items-center justify-center rounded-lg transition-colors ${isDark ? "bg-white/5" : "bg-[#F4F5F7]"}`}>
+                                    <FileArchive size={20} className="text-[#E8D1AB]" />
                                   </div>
+                                  <span className={`truncate text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                    {folder.title}
+                                  </span>
                                 </div>
-                              ) : (
-                                <div className={`w-full h-full flex items-center justify-center ${file.badgeClass}`}>
-                                  <file.icon
-                                    className={`${file.accentClass} opacity-80 group-hover:scale-110 transition-transform`}
-                                    size={48}
-                                  />
-                                </div>
-                              )}
+                                <span className={`text-xs font-medium ${isDark ? "text-white/50" : "text-black/50"}`}>
+                                  {folder.fileCount} Files
+                                </span>
+                              </button>
+                            ))}
                           </div>
                         </div>
-	                      ))}
-	                        </div>
-	                        {hasMoreFiles ? (
-	                          <div className="flex justify-center">
-	                            <Button
-	                              type="button"
-	                              className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-	                              onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
-	                            >
-	                              View More
-	                            </Button>
-	                          </div>
-	                        ) : null}
-	                      </div>
-	                    ) : null}
-	                  </div>
-	                )
-	              ) : (
-	                filteredFolders.length === 0 && filteredData.length === 0 ? (
-	                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
-	                ) : (
-	                  <>
-	                    {/* Main Display Fragment Block Container Layout */}
-	                    <div className="space-y-6">
-	                      {folderListSection}
-	                      {filteredData.length > 0 ? (
-	                        <div className="space-y-4">
-	                      {/* Mobile Specific List View (lg:hidden) */}
-	                      <div className={`lg:hidden border rounded-xl overflow-hidden transition-colors duration-200 setup-beta-tag shadow-sm ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
-	                        <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
+                      ) : null}
+                      {filteredFolders.length > 0 ? (
+                        <div className="hidden lg:block overflow-x-auto">
+                          <table className={`w-full text-left border-collapse text-sm transition-colors border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#E5E5E5]"}`}>
+                            <thead>
+                              <tr className={`text-sm font-normal transition-colors duration-200 ${isDark ? "bg-[#202020] text-[#E8D1AB]" : "bg-[#FFFCF6] text-black"}`}>
+                                <th className="rounded-l-xl py-5 px-6 font-medium">Folder title</th>
+                                <th className="py-5 px-6 font-medium">Type</th>
+                                <th className="py-5 px-6 font-medium">Files</th>
+                                <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody className={`${isDark ? "bg-[#171717]" : "bg-white"} transition-colors duration-200`}>
+                              {filteredFolders.map((folder) => (
+                                <tr
+                                  key={folder.id}
+                                  className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
+                                  onClick={() => router.push(folder.href)}
+                                >
+                                  <td className="py-5 px-6 whitespace-nowrap">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-9 h-9 lg:w-10 lg:h-10 rounded-lg overflow-hidden flex-shrink-0 relative border flex items-center justify-center transition-colors ${isDark ? "border-white/5 bg-[#1A1A1A]" : "border-black/5 bg-black/[0.03]"}`}>
+                                        <FileArchive size={20} className={isDark ? "text-[#E8D1AB]" : "text-black/70"} />
+                                      </div>
+                                      <span className={`font-medium truncate max-w-[220px] ${isDark ? "text-white" : "text-black"}`}>
+                                        {folder.title}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className={`py-5 px-6 whitespace-nowrap text-xs font-medium ${isDark ? "text-white/60" : "text-black/60"}`}>{folder.category}</td>
+                                  <td className={`py-5 px-6 whitespace-nowrap text-xs font-medium ${isDark ? "text-white/60" : "text-black/60"}`}>{folder.fileCount}</td>
+                                  <td className="py-5 px-6 whitespace-nowrap text-right">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      className={isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        router.push(folder.href);
+                                      }}
+                                    >
+                                      Open
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null}
+                      {/* Mobile Specific List View (lg:hidden) */}
+                      {filteredData.length > 0 ? (
+                      <div className={`lg:hidden border rounded-xl overflow-hidden transition-colors duration-200 setup-beta-tag shadow-sm ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
+                        <div className={`flex justify-between px-5 py-3 text-sm font-medium border-b rounded-b-xl ${isDark ? "border-b-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "bg-[#FFFCF6] text-[#000000] border-b-[#E5E5E5]"}`}>
                           <span>File Name</span>
 
                         </div>
                         <div className="flex flex-col">
-                          {visibleFiles.map((file) => (
+                          {visibleFiles.map((file) => {
+                            const statusBadge = getRevisionFileStatusBadge(file);
+                            return (
                             <MobileFileRow
                               key={file.id}
-                              file={file}
+                              file={{
+                                ...file,
+                                statusLabel: statusBadge?.label,
+                                statusClassName: statusBadge?.className,
+                                versionLabel: statusBadge?.versionLabel,
+                                versionClassName: statusBadge?.versionClassName,
+                              }}
                               isDark={isDark}
                               isSelectionMode={isSelectionMode}
                               isSelected={selectedFilePaths.includes(file.filepath || "")}
@@ -851,11 +1049,14 @@ export default function SubFolderDetailsPage() {
                               }}
                               isDeleting={openingFileId === file.id}
                             />
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
+                      ) : null}
 
                       {/* Regular Desktop Table View Layout (hidden lg:block) */}
+                      {filteredData.length > 0 ? (
                       <div className="hidden lg:block overflow-x-auto">
                         <table className={`w-full text-left border-collapse text-sm transition-colors border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#E5E5E5]"
                           }`}>
@@ -888,7 +1089,9 @@ export default function SubFolderDetailsPage() {
                             </tr>
                           </thead>
                           <tbody className={`${isDark ? "bg-[#171717]" : "bg-white"} transition-colors duration-200`}>
-                            {visibleFiles.map((file) => (
+                            {visibleFiles.map((file) => {
+                              const statusBadge = getRevisionFileStatusBadge(file);
+                              return (
                               <tr
                                 key={file.id}
                                 className={`hover:bg-white/[0.02] transition-colors group cursor-pointer ${(isSelectionMode && selectedFilePaths.includes(file.filepath || "")) ? 'bg-white/[0.04]' : ''
@@ -920,9 +1123,23 @@ export default function SubFolderDetailsPage() {
                                         </div>
                                       )}
                                     </div>
-                                    <span className={`font-medium truncate max-w-[180px] md:max-w-[200px] ${isDark ? "text-white" : "text-black"}`}>
-                                      {file.title}
-                                    </span>
+                                    <div className="flex min-w-0 flex-col gap-1.5">
+                                      <span className={`font-medium truncate max-w-[180px] md:max-w-[200px] ${isDark ? "text-white" : "text-black"}`}>
+                                        {file.title}
+                                      </span>
+                                      {statusBadge ? (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          {statusBadge.versionLabel ? (
+                                            <span className={`inline-flex w-fit rounded border px-1.5 py-0.5 text-[10px] font-medium leading-none ${statusBadge.versionClassName}`}>
+                                              {statusBadge.versionLabel}
+                                            </span>
+                                          ) : null}
+                                          <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${statusBadge.className}`}>
+                                            {statusBadge.label}
+                                          </span>
+                                        </div>
+                                      ) : null}
+                                    </div>
                                   </div>
                                 </td>
                                 <td className="py-5 px-6 whitespace-nowrap">
@@ -974,10 +1191,12 @@ export default function SubFolderDetailsPage() {
                                   </div>
                                 </td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
+                      ) : null}
 
                       {/* Pagination Control Area */}
                       {hasMoreFiles && (
