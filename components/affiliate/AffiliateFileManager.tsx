@@ -1122,7 +1122,7 @@ export default function AffiliateFileManager() {
                   Linked
                 </span>
                 <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium border text-[#E8D1AB] bg-[#1A1A1A] border-white/5`}>
-                  View Onlyy
+                  View Only
                 </span>
               </div>
             </div>
@@ -1436,7 +1436,7 @@ export default function AffiliateFileManager() {
                       : "bg-black/[0.04] text-[#B38F43] border-black/5"
                     }`}
                 >
-                  {canUploadInSelectedPhase ? "Upload EnabledD" : "View Onlyy"}
+                  {canUploadInSelectedPhase ? "Upload EnabledD" : "View Only"}
                 </span>
               </div>
 
@@ -1448,7 +1448,7 @@ export default function AffiliateFileManager() {
               </p>
 
               {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
-              {selectedWorkspace?.consoleUrl ? (
+              {/* {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -1457,7 +1457,7 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
           </div>
         </div>
