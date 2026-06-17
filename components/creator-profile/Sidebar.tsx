@@ -142,14 +142,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
     { href: "/creator/dashboard/affiliate", icon: LayoutDashboard, label: "Affiliate", isPublic: false },
     { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", isPublic: false },
     { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
-    {
-      label: 'Finances',
-      icon: CircleDollarSign,
-      isPublic: false,
-      children: [
-        { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
-      ],
-    },
+    // {
+    //   label: 'Finances',
+    //   icon: CircleDollarSign,
+    //   isPublic: false,
+    //   children: [
+    //     { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
+    //   ],
+    // },
   ];
 
   return (
@@ -265,11 +265,11 @@ export default function Sidebar({ onClose }: SidebarProps) {
           })}
 
           {/* Upcoming Disabled features */}
-          <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
+          <div className={`text-sm font-medium w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
             <Wallet size={20} />
             <span>Payouts (Soon)</span>
           </div>
-          <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
+          <div className={`text-sm font-medium w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
             <Settings size={20} />
             <span>Settings (Soon)</span>
           </div>
