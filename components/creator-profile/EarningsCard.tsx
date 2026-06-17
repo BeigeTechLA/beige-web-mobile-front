@@ -3,12 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useResolvedTheme } from '@/lib/useResolvedTheme';
 
-import { format } from 'date-fns';
 import { Button } from '../ui/button';
 import { Calendar, Clock, Eye, MapPin } from 'lucide-react';
 import { EarningsStatusBadge } from './EarningsStatusBadge';
 import { getInitials } from '@/lib/utils';
-
 
 export interface EarningsCardData {
   id: string;
@@ -25,9 +23,10 @@ export interface EarningsCardData {
 
 interface EarningsCardProps {
   data: EarningsCardData
+  handleClick:() => void;
 }
 
-export default function EarningsCard({ data }: EarningsCardProps) {
+export default function EarningsCard({ data, handleClick }: EarningsCardProps) {
   const { isDark } = useResolvedTheme()
 
   return (
@@ -43,7 +42,7 @@ export default function EarningsCard({ data }: EarningsCardProps) {
           </div>
           <EarningsStatusBadge status={data.status} />
         </div>
-        <div className="flex gap-2 lg:gap-3 text-[#8C8C8C] text-xs lg:text-sm ">
+        <div className="flex flex-wrap gap-2 lg:gap-3 text-[#8C8C8C] text-xs lg:text-sm ">
           <div className="flex gap-1 items-center">
             <Calendar size={16} />
             {data.date}
@@ -64,7 +63,7 @@ export default function EarningsCard({ data }: EarningsCardProps) {
           <p className={`text-xs lg:text-sm text-[#6B6864]`}>Total Compensation</p>
           <p className={`text-[#E8D1AB] text-lg lg:text-2xl font-semibold`}>${data.totalCompensation}</p>
         </div>
-        <div className="flex justify-between items-center gap-4">
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
           <div className="flex justify-between items-center bg-[#011A12] border border-[#10B98133] text-[#10B981] rounded-lg p-4 lg:p-5 w-full">
             <p className={`text-xs`}>Advance Paid</p>
             <p className={`lg:text-lg font-semibold`}>${data.advancePaid}</p>
@@ -81,6 +80,7 @@ export default function EarningsCard({ data }: EarningsCardProps) {
           ? "bg-[#1F1F1F] text-[#E8D1AB] border-[#262626] hover:bg-black/90"
           : "bg-transparent text-[#B1B1B1] hover:bg-black/5 hover:text-black"
           }`}
+          onClick={handleClick}
       >
         <Eye />
         View Earnings

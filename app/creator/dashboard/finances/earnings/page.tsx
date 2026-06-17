@@ -15,6 +15,8 @@ import EarningsOverviewChart from "@/components/creator-profile/EarningsOverview
 import EarningsCard, { EarningsCardData } from "@/components/creator-profile/EarningsCard";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { Search } from "lucide-react";
+import EarningsBreakdownModal from "@/components/creator-profile/EarningsBreakdownModal";
+import PaymentTimelineModal, { TimelineEvent } from "@/components/creator-profile/PaymentTimelineModal";
 
 export const dummyShootCards: EarningsCardData[] = [
   {
@@ -79,6 +81,66 @@ export const dummyShootCards: EarningsCardData[] = [
   }
 ];
 
+const dummyShootData = {
+  shootName: "Nike Campaign Shoot",
+  clientName: "Ethan Coleman",
+  status: "Partially Paid",
+  date: "June 18, 2026",
+  location: "Los Angeles, CA",
+  timeWindow: "12:00 PM - 4:00 PM",
+  breakdown: {
+    baseShoot: 800,
+    editing: 250,
+    travel: 100,
+    bonus: 50,
+  },
+  advance: {
+    amount: 300,
+    date: "June 1, 2026",
+  },
+  remainingBalance: 900,
+  paymentProgress: 25,
+};
+
+const dummyTimeline: TimelineEvent[] = [
+  {
+    id: "ev-1",
+    title: "New Shoot Received & Shoot assigned to you",
+    date: "May 28, 2026",
+    isCompleted: true,
+  },
+  {
+    id: "ev-2",
+    title: "Shoot Accepted by you",
+    description: "for this new Shoot",
+    date: "May 29, 2026",
+    isCompleted: true,
+  },
+  {
+    id: "ev-3",
+    title: "Advance Payment",
+    description: "of $300 Has Been Processed",
+    date: "June 01, 2026",
+    isCompleted: true,
+  },
+  {
+    id: "ev-4",
+    title: "Shoot Completed",
+    description: "• Awaiting Completion",
+    isCompleted: false,
+  },
+  {
+    id: "ev-5",
+    title: "Awaiting Finance Approval",
+    isCompleted: false,
+  },
+  {
+    id: "ev-6",
+    title: "Final Payment Processed",
+    description: "• Remaining Balance Paid",
+    isCompleted: false,
+  },
+];
 
 export default function RequestsShootsPage() {
   const { isDark } = useResolvedTheme()
@@ -87,6 +149,8 @@ export default function RequestsShootsPage() {
   const [status, setStatus] = useState('all');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [earnings, setEarnings] = useState<EarningsCardData[]>(dummyShootCards)
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -98,13 +162,22 @@ export default function RequestsShootsPage() {
     );
   }
 
+  const handleViewEarnings = () => {
+    setIsModalOpen(true)
+  }
+
+  const handleViewTimeline = () => {
+    setIsPaymentOpen(true)
+    setIsModalOpen(false)
+  }
+
   return (
     <div className="mx-auto space-y-4 lg:space-y-8 pb-12 text-white">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between lg:mb-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Earnings Dashboard</h1>
-          <p className="text-white/60">Monitor upcoming earnings, track payment status, and view detailed compensation breakdowns for your shoots.</p>
+          <h1 className="text-base lg:text-3xl font-bold">Earnings Dashboard</h1>
+          <p className="text-xs lg:text-base text-white/60">Monitor upcoming earnings, track payment status, and view detailed compensation breakdowns for your shoots.</p>
         </div>
 
         <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
@@ -112,10 +185,9 @@ export default function RequestsShootsPage() {
 
       <EarningsOverviewChart />
 
-
       <div className={`transition-colors duration-300 border rounded-2xl w-full mt-3 lg:mt-5 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
         <div className="space-y-3 lg:space-y-6 p-3 lg:p-5">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-2">
             <div className="flex items-center gap-2">
               <div className="w-[3px] h-6 bg-[#E5D5B8] rounded-full" />
               <p className="font-medium text-sm lg:text-base">Upcoming Earnings</p>
@@ -163,10 +235,24 @@ export default function RequestsShootsPage() {
         <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-5 p-3 lg:p-5">
           {earnings.map((data, idx) => (
-            <EarningsCard key={`key_${idx}`} data={data} />
+            <EarningsCard key={`key_${idx}`} data={data} handleClick={handleViewEarnings} />
           ))}
         </div>
       </div>
+
+      <EarningsBreakdownModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        shootData={dummyShootData}
+        onDownloadProof={() => console.log("Downloading...")}
+        onViewTimeline={() => handleViewTimeline()}
+      />
+
+      <PaymentTimelineModal
+        isOpen={isPaymentOpen}
+        onClose={() => setIsPaymentOpen(false)}
+        timelineData={dummyTimeline}
+      />
     </div>
   );
 }

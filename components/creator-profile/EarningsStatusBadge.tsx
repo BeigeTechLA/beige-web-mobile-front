@@ -1,4 +1,4 @@
-type Status =
+export type Status =
   | "Partially Paid"
   | "Awaiting Response"
   | "Accepted"
