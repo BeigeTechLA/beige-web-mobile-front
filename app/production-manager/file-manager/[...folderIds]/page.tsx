@@ -155,8 +155,8 @@ export default function ProductionManagerFolderDetailsPage() {
           ? "Pre Production"
           : nestedSlug === "raw-footage"
           ? "Raw Footages"
-          : nestedSlug === "edited-footage"
-          ? "Edited Footages"
+          : nestedSlug === "edits" || nestedSlug === "edited-footage"
+          ? "Edits"
           : nestedSlug === "final-deliverables"
           ? "Final Deliverables"
           : "Files",

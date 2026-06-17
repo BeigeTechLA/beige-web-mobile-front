@@ -1,15 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import {
-  ArrowUpToLine,
-  BadgeDollarSign,
-  Clock3,
-  Landmark,
-  Shield,
-} from "lucide-react";
+import { ArrowUpToLine } from "lucide-react";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
@@ -20,7 +13,7 @@ import PayoutMetricCards, {
 import PayoutHistoryTable, {
   type PayoutHistoryRow,
 } from "@/components/admin/finances/PayoutHistoryTable";
-import DottedDivider from "@/components/admin/DottedDivider";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const payoutRows: PayoutHistoryRow[] = [
   {
@@ -144,8 +137,6 @@ const payoutRows: PayoutHistoryRow[] = [
 
 export default function AdminPayoutsPage() {
   const pathname = usePathname();
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeMetricId, setActiveMetricId] = useState("available");
@@ -155,7 +146,6 @@ export default function AdminPayoutsPage() {
   const [monthFilter, setMonthFilter] = useState("Month");
   const [typeFilter, setTypeFilter] = useState("All");
 
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     setLoading(true);
@@ -166,7 +156,42 @@ export default function AdminPayoutsPage() {
     return () => window.clearTimeout(timer);
   }, [selectedDate, metricRange, searchQuery, statusFilter, monthFilter, typeFilter]);
 
-  const isDark = !mounted || theme === "dark";
+  const { isDark } = useResolvedTheme();
+
+
+  const CustomClockIcon = ({ size = 16 }) => (
+    <img
+      src="/images/socmed/Clock.svg"
+      width={size}
+      height={size}
+      alt="video"
+    />
+  );
+  const CustomDollarIcon = ({ size = 16 }) => (
+    <img
+      src="/images/socmed/Dollar.svg"
+      width={size}
+      height={size}
+      alt="camera"
+    />
+  );
+  const CustomGraphIcon = ({ size = 16 }) => (
+    <img
+      src="/images/socmed/GraphUp.svg"
+      width={size}
+      height={size}
+      alt="film reel"
+    />
+  );
+
+  const CustomShieldIcon = ({ size = 16 }) => (
+    <img
+      src="/images/socmed/security.svg"
+      width={size}
+      height={size}
+      alt="film reel"
+    />
+  );
 
   const metrics: PayoutMetricCard[] = [
     {
@@ -174,28 +199,28 @@ export default function AdminPayoutsPage() {
       label: "Available Balance",
       value: "$4,325.50",
       helperText: "Ready for withdrawal",
-      icon: BadgeDollarSign,
+      icon: CustomDollarIcon,
     },
     {
       id: "pending",
       label: "Pending Balance",
       value: "$1,847.25",
       helperText: "Processing payments",
-      icon: Clock3,
+      icon: CustomClockIcon,
     },
     {
       id: "reserved",
       label: "Reserved Balance",
       value: "$892.80",
       helperText: "Risk management hold",
-      icon: Shield,
+      icon: CustomShieldIcon,
     },
     {
       id: "total",
       label: "Total Paid Out",
       value: "$47,523.90",
       helperText: "Lifetime earnings",
-      icon: Landmark,
+      icon: CustomGraphIcon,
     },
   ];
 
@@ -216,7 +241,7 @@ export default function AdminPayoutsPage() {
         pathname={pathname}
         actions={
           <>
-            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors">
+            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#171717] border border-white/20 hover:bg-white/10 transition-colors">
               <ArrowUpToLine /> Export
             </Button>
             <Button className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7 hover:bg-[#d9c59d]">
@@ -241,8 +266,6 @@ export default function AdminPayoutsPage() {
           </div>
           <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
         </div>
-
-        <DottedDivider/>
 
         <PayoutMetricCards
           metrics={metrics}

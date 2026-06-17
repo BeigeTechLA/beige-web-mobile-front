@@ -49,7 +49,7 @@ const data = {
   ],
   folders: [
     { id: "1", title: "Raw Footages", fileCount: 12, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" },
-    { id: "2", title: "Edited Footages", fileCount: 14, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" },
+    { id: "2", title: "Edits", fileCount: 14, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" },
     { id: "3", title: "Final Deliverables", fileCount: 14, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" }
   ]
 }
