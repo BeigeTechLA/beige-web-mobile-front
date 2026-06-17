@@ -274,7 +274,7 @@ const mapInvoiceHistoryItemsToRows = (
       paymentMetaLabel,
       sendDateLabel: formatDateLabel(sendDate),
       sendDateRaw: getDateValue(sendDate),
-      invoicePdf: item.invoice_pdf,
+      invoicePdf: item.invoice_pdf || item.invoice_url || null,
     };
   });
 
@@ -384,6 +384,49 @@ const getAllInvoiceHistoryItems = async () => {
   return items;
 };
 
+const resolveInvoiceDownloadUrl = (
+  invoicePdf: string | null,
+  bookingIdValue: number | null
+) => {
+  if (typeof window === "undefined") return null;
+
+  if (!invoicePdf) {
+    return bookingIdValue
+      ? buildBeigeInvoiceUrl(bookingIdValue, { download: true, cacheBust: true })
+      : null;
+  }
+
+  const parsedUrl = new URL(invoicePdf, window.location.origin);
+  const invoicePdfPathMatch = parsedUrl.pathname.match(/\/sales\/invoice-pdf\/([^/]+)$/);
+
+  if (invoicePdfPathMatch) {
+    const isStripeReceipt = String(parsedUrl.searchParams.get("stripe") || "").toLowerCase() === "1" ||
+      String(parsedUrl.searchParams.get("stripe") || "").toLowerCase() === "true";
+    if (isStripeReceipt) {
+      return parsedUrl.toString();
+    }
+
+    const proxiedUrl = new URL(
+      `/beige_invoice/${encodeURIComponent(invoicePdfPathMatch[1])}`,
+      window.location.origin
+    );
+    parsedUrl.searchParams.forEach((value, key) => {
+      proxiedUrl.searchParams.set(key, value);
+    });
+    proxiedUrl.searchParams.set("download", "1");
+    proxiedUrl.searchParams.set("t", String(Date.now()));
+    return `${proxiedUrl.pathname}${proxiedUrl.search}`;
+  }
+
+  if (parsedUrl.origin === window.location.origin && parsedUrl.pathname.startsWith("/beige_invoice/")) {
+    parsedUrl.searchParams.set("download", "1");
+    parsedUrl.searchParams.set("t", String(Date.now()));
+    return `${parsedUrl.pathname}${parsedUrl.search}`;
+  }
+
+  return invoicePdf;
+};
+
 export const InvoiceTable = () => {
   const { theme, resolvedTheme } = useTheme();
   const pathname = usePathname();
@@ -473,15 +516,7 @@ export const InvoiceTable = () => {
   const handleDownload = (invoicePdf: string | null, bookingIdValue: number | null) => {
     if (typeof window === "undefined") return;
 
-    const isManualInvoice = typeof invoicePdf === "string" && /[?&]manual=(1|true)\b/i.test(invoicePdf);
-    const brandedDownloadUrl = bookingIdValue
-      ? buildBeigeInvoiceUrl(bookingIdValue, {
-          manual: isManualInvoice,
-          download: true,
-          cacheBust: true,
-        })
-      : null;
-    const resolvedUrl = brandedDownloadUrl || invoicePdf;
+    const resolvedUrl = resolveInvoiceDownloadUrl(invoicePdf, bookingIdValue);
     if (!resolvedUrl) return;
 
     const link = document.createElement("a");
