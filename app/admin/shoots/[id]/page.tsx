@@ -17,7 +17,7 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react";
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
@@ -164,6 +164,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
     ? project.needs_attention.missing_fields
     : [];
+  const hasMissingFields = missingFields.length > 0;
   const hasFormDetails = !missingFields.includes("onboarding_form");
   const assignmentMissingDetails =
     project?.needs_attention?.required ? getCpAssignmentMissingDetails(project) : [];
@@ -546,6 +547,28 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
         {/* Main Content (Left Scroll Window) */}
         <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
+
+          {hasMissingFields ? (
+            <div
+              className={`-mx-4 -mt-4 mb-4 lg:-mx-10 lg:-mt-10 lg:mb-6 flex items-center justify-between gap-4 border-y px-4 py-3 sm:px-6 lg:px-8 ${isDark
+                ? "border-[#4E4128] bg-[#E8D1AB1A] text-[#E6D8B6]"
+                : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
+                }`}
+            >
+              <p className="min-w-0 truncate text-sm font-medium sm:text-base">
+                {missingFields.length} Attention Required
+              </p>
+
+              <Button
+                type="button"
+                onClick={() => setIsMissingFieldsModalOpen(true)}
+                className="shrink-0 rounded-md bg-black px-5 py-2.5 text-sm font-medium text-[#E6D8B6] transition-colors hover:bg-black/90"
+              >
+                <AlertCircle size={16} className="mr-2" />
+                Take Action
+              </Button>
+            </div>
+          ) : null}
 
           <ShootHeader
             activeTab={activeTab}
