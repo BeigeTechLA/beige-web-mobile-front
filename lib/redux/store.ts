@@ -30,15 +30,26 @@ const bookingPersistConfig = {
   whitelist: ["crewSize", "selectedCreators", "crewBreakdown", "contentTypes"],
 };
 
+const authPersistConfig = {
+  key: "auth",
+  storage,
+  whitelist: ["user", "token", "permissions", "permissionsVersion", "isAuthenticated"],
+};
+
 // Create persisted booking reducer
 const persistedBookingReducer = persistReducer(
   bookingPersistConfig,
   bookingReducer,
 );
 
+const persistedAuthReducer = persistReducer(
+  authPersistConfig,
+  authReducer,
+);
+
 // Combine all reducers
 const rootReducer = combineReducers({
-  auth: authReducer,
+  auth: persistedAuthReducer,
   booking: persistedBookingReducer,
   pricing: pricingReducer,
   [authApi.reducerPath]: authApi.reducer,

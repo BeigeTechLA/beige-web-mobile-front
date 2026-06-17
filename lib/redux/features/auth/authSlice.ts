@@ -18,7 +18,7 @@ const initialState: AuthState = {
   permissions: null,
   permissionsVersion: 0,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false,
 };
 
 // Load initial state from cookies
@@ -51,12 +51,12 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
+  setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
       const { user, token } = action.payload;
       state.user = user;
       state.token = token;
       state.permissions = null;
-      state.permissionsVersion = 0;
+      state.permissionsVersion = Number(user.permissions_version ?? 0) || 0;
       state.isAuthenticated = true;
       state.isLoading = false;
 
@@ -87,6 +87,7 @@ const authSlice = createSlice({
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
+        state.permissionsVersion = Number(state.user.permissions_version ?? state.permissionsVersion ?? 0) || 0;
         Cookies.set('revure_user', JSON.stringify(state.user), { expires: 7 });
       }
     },

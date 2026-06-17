@@ -27,6 +27,7 @@ export interface User {
     };
   };
   user_type_id?: number;
+  permissions_version?: number | string;
 }
 
 export interface AuthTokens {
@@ -43,6 +44,7 @@ export interface LoginResponse {
   message: string;
   token: string;
   user: User;
+  permissions_version?: number | string;
 }
 
 export interface RegisterData {
