@@ -188,7 +188,7 @@ export default function ShootHeader({
       : convertedPaidAmount >= convertedTotalValue && convertedTotalValue > 0
         ? "paid"
         : convertedPaidAmount > 0
-          ? "pending"
+          ? "Partially Paid"
           : "unpaid";
     effectivePaymentStatus = getPaymentStatusMeta(statusKey, project?.payment_id);
   }
