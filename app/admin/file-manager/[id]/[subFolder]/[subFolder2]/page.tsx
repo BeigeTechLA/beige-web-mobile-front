@@ -1214,11 +1214,9 @@ export default function SubFolderDetailsPage() {
 	                        </div>
 	                      )}
 	                        </div>
-	                      ) : null}
-	                    </div>
 	                  </>
 	                )
-              )}
+	              )}
             </div>
           </div>
         )}
