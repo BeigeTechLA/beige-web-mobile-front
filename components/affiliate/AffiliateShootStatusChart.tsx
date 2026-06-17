@@ -100,7 +100,7 @@ export const AffiliateShootStatusChart = ({ externalSelectedDate }: { externalSe
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h3 className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#000000]"}`}>Shoot Status</h3>
         </div>
-        <div className="relative">
+        {/* <div className="relative">
           <button
             onClick={() => setIsOpen(!isOpen)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] lg:text-xs transition-colors border capitalize ${
@@ -126,7 +126,7 @@ export const AffiliateShootStatusChart = ({ externalSelectedDate }: { externalSe
               </button>
             </div>
           )}
-        </div>
+        </div> */}
       </div>
 
       <div className="p-4 lg:p-10 flex flex-col lg:flex-row items-center justify-between gap-2 flex-1">

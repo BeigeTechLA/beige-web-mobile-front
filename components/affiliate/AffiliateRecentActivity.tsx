@@ -101,14 +101,14 @@ export default function AffiliateRecentActivity({ externalSelectedDate }: { exte
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h2 className={`${isDark ? "text-white" : "text-[#000000]"}`}>Recent Activity</h2>
         </div>
-
+{/* 
         <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs transition-colors border ${isDark
             ? "bg-[#1A1A1A] border-white/10 text-white/70 hover:bg-white/5"
             : "bg-white border-[#E5E5E5] text-[#333] hover:bg-[#FAFAFA]"
           }`}>
           View All
           <ChevronDown size={14} />
-        </button>
+        </button> */}
       </div>
 
       {/* Timeline (scrollable) */}
