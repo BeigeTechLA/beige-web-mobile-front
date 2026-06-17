@@ -22,6 +22,7 @@ interface InvoiceHistoryItem {
   client_email: string | null;
   send_date_time: string | null;
   payment_status: string | null;
+  booking_payment_status?: string | null;
   invoice_number: string | null;
   invoice_url: string | null;
   invoice_pdf: string | null;
@@ -47,6 +48,7 @@ interface InvoiceTableInvoiceRow {
   clientEmail: string;
   leadOrQuoteId: string;
   paymentStatus: string;
+  overallPaymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
   invoiceSendStatus: "sent" | "not_sent";
   paymentAmount: number | null;
@@ -161,8 +163,12 @@ const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
 };
 
 const getInvoiceGroupKey = (item: InvoiceHistoryItem) => {
-  if (item.booking_id && item.quote_id) {
-    return `booking:${item.booking_id}|quote:${item.quote_id}`;
+  if (item.booking_id) {
+    return `booking:${item.booking_id}`;
+  }
+
+  if (item.quote_id) {
+    return `quote:${item.quote_id}`;
   }
 
   return `history:${item.invoice_send_history_id}`;
@@ -180,6 +186,48 @@ const matchesPaymentFilter = (paymentStatus: string, paymentFilter: string) => {
   }
 
   return true;
+};
+
+const getStatusValue = (status: string | null | undefined) =>
+  String(status || "").trim().toLowerCase();
+
+const resolveGroupPaymentStatus = (rows: InvoiceTableInvoiceRow[]) => {
+  const overallStatuses = rows
+    .map((row) => row.overallPaymentStatus)
+    .filter((status) => getStatusValue(status) && getStatusValue(status) !== "unknown");
+  const receiptStatuses = rows
+    .map((row) => row.paymentStatus)
+    .filter((status) => getStatusValue(status) && getStatusValue(status) !== "unknown");
+  const statuses = overallStatuses.length > 0 ? overallStatuses : receiptStatuses;
+  const normalizedStatuses = statuses.map(getStatusValue);
+
+  if (normalizedStatuses.some((status) => status === "partially paid" || status === "partially_paid")) {
+    return "Partially Paid";
+  }
+
+  if (normalizedStatuses.some((status) => status === "approval pending" || status === "approval_pending")) {
+    return "Approval Pending";
+  }
+
+  if (
+    normalizedStatuses.length > 0 &&
+    normalizedStatuses.every((status) => status === "paid" || status === "no payment due")
+  ) {
+    return "Paid";
+  }
+
+  if (
+    normalizedStatuses.some((status) => status === "paid" || status === "no payment due") &&
+    normalizedStatuses.some((status) => ["pending", "unpaid", "unknown"].includes(status))
+  ) {
+    return "Partially Paid";
+  }
+
+  if (normalizedStatuses.some((status) => status === "pending" || status === "unpaid")) {
+    return "Pending";
+  }
+
+  return statuses[0] || rows[0]?.paymentStatus || "Unknown";
 };
 
 const matchesInvoiceMethodFilter = (
@@ -267,6 +315,7 @@ const mapInvoiceHistoryItemsToRows = (
       clientEmail: item.client_email || "N/A",
       leadOrQuoteId: getLeadOrQuoteValue(item),
       paymentStatus: normalizeStatus(item.payment_status),
+      overallPaymentStatus: normalizeStatus(item.booking_payment_status || item.payment_status),
       invoiceMethod,
       invoiceSendStatus,
       paymentAmount: normalizedPaymentAmount,
@@ -298,6 +347,7 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
       });
 
       const latestInvoice = sortedInvoices[0];
+      const groupPaymentStatus = resolveGroupPaymentStatus(sortedInvoices);
 
       return {
         id: latestInvoice.id,
@@ -308,7 +358,7 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
         clientName: latestInvoice.clientName,
         clientEmail: latestInvoice.clientEmail,
         leadOrQuoteId: latestInvoice.leadOrQuoteId,
-        paymentStatus: latestInvoice.paymentStatus,
+        paymentStatus: groupPaymentStatus,
         invoiceMethod: latestInvoice.invoiceMethod,
         invoiceSendStatus: latestInvoice.invoiceSendStatus,
         paymentAmount: latestInvoice.paymentAmount,
@@ -349,7 +399,7 @@ const matchesSearchQuery = (group: InvoiceTableGroupRow, searchQuery: string) =>
 };
 
 const groupMatchesPaymentFilter = (group: InvoiceTableGroupRow, paymentFilter: string) =>
-  group.invoices.some((invoice) => matchesPaymentFilter(invoice.paymentStatus, paymentFilter));
+  matchesPaymentFilter(group.paymentStatus, paymentFilter);
 
 const groupMatchesInvoiceMethodFilter = (group: InvoiceTableGroupRow, methodFilter: string) =>
   group.invoices.some((invoice) => matchesInvoiceMethodFilter(invoice.invoiceMethod, methodFilter));
