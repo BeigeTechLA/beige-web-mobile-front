@@ -26,6 +26,9 @@ interface InvoiceHistoryItem {
   invoice_number: string | null;
   invoice_url: string | null;
   invoice_pdf: string | null;
+  payment_amount?: number | string | null;
+  payment_method?: string | null;
+  receipt_type?: string | null;
   sent_by: string | null;
   sales_rep?: {
     id: number;
@@ -47,6 +50,9 @@ interface InvoiceTableInvoiceRow {
   paymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
   invoiceSendStatus: "sent" | "not_sent";
+  paymentAmount: number | null;
+  paymentMethod: string | null;
+  paymentMetaLabel: string | null;
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -64,6 +70,9 @@ interface InvoiceTableGroupRow {
   paymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
   invoiceSendStatus: "sent" | "not_sent";
+  paymentAmount: number | null;
+  paymentMethod: string | null;
+  paymentMetaLabel: string | null;
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -111,6 +120,29 @@ const getDateValue = (dateValue: string | null) => {
 
   const parsed = parseISO(dateValue);
   return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
+};
+
+const formatCurrencyValue = (value: number | string | null | undefined) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return null;
+
+  return numericValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatPaymentMethodLabel = (method: string | null | undefined) => {
+  const normalizedMethod = String(method || "").trim();
+  if (!normalizedMethod) return null;
+
+  return normalizedMethod
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 };
 
 const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
@@ -277,11 +309,18 @@ const mapInvoiceHistoryItemsToRows = (
     const hasInvoiceSendHistoryId =
       Number.isInteger(item.invoice_send_history_id) && item.invoice_send_history_id > 0;
     const invoiceSendStatus: "sent" | "not_sent" = hasInvoiceSendHistoryId ? "sent" : "not_sent";
+    const paymentAmount = Number(item.payment_amount);
+    const normalizedPaymentAmount =
+      Number.isFinite(paymentAmount) && paymentAmount > 0 ? paymentAmount : null;
+    const paymentMethodLabel = formatPaymentMethodLabel(item.payment_method);
+    const paymentAmountLabel = formatCurrencyValue(normalizedPaymentAmount);
+    const paymentMetaLabel = [paymentMethodLabel, paymentAmountLabel].filter(Boolean).join(" - ") || null;
 
     return {
       id: item.invoice_send_history_id,
-      invoiceHistoryId:
-        item.invoice_send_history_id && item.invoice_send_history_id > 0
+      invoiceHistoryId: item.invoice_number
+        ? item.invoice_number
+        : item.invoice_send_history_id && item.invoice_send_history_id > 0
           ? `#${item.invoice_send_history_id}`
           : item.booking_id
             ? `BOOKING-${item.booking_id}`
@@ -296,6 +335,9 @@ const mapInvoiceHistoryItemsToRows = (
       paymentStatus: normalizeStatus(livePaymentStatus),
       invoiceMethod,
       invoiceSendStatus,
+      paymentAmount: normalizedPaymentAmount,
+      paymentMethod: paymentMethodLabel,
+      paymentMetaLabel,
       sendDateLabel: formatDateLabel(sendDate),
       sendDateRaw: getDateValue(sendDate),
       invoicePdf: item.invoice_pdf,
@@ -335,6 +377,9 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
         paymentStatus: latestInvoice.paymentStatus,
         invoiceMethod: latestInvoice.invoiceMethod,
         invoiceSendStatus: latestInvoice.invoiceSendStatus,
+        paymentAmount: latestInvoice.paymentAmount,
+        paymentMethod: latestInvoice.paymentMethod,
+        paymentMetaLabel: latestInvoice.paymentMetaLabel,
         sendDateLabel: latestInvoice.sendDateLabel,
         sendDateRaw: latestInvoice.sendDateRaw,
         invoicePdf: latestInvoice.invoicePdf,
@@ -365,8 +410,18 @@ const matchesSearchQuery = (group: InvoiceTableGroupRow, searchQuery: string) =>
     group.leadOrQuoteId,
     group.latestInvoiceHistoryId,
     ...group.invoices.map((invoice) => invoice.invoiceHistoryId),
+    ...group.invoices.map((invoice) => invoice.paymentMetaLabel),
   ].some((value) => String(value || "").toLowerCase().includes(normalizedQuery));
 };
+
+const groupMatchesPaymentFilter = (group: InvoiceTableGroupRow, paymentFilter: string) =>
+  group.invoices.some((invoice) => matchesPaymentFilter(invoice.paymentStatus, paymentFilter));
+
+const groupMatchesInvoiceMethodFilter = (group: InvoiceTableGroupRow, methodFilter: string) =>
+  group.invoices.some((invoice) => matchesInvoiceMethodFilter(invoice.invoiceMethod, methodFilter));
+
+const groupMatchesInvoiceSendFilter = (group: InvoiceTableGroupRow, sendFilter: string) =>
+  group.invoices.some((invoice) => matchesInvoiceSendFilter(invoice.invoiceSendStatus, sendFilter));
 
 const getInvoiceHistoryPage = async (page: number, limit: number) => {
   const response = await salesApi.getInvoiceHistory({
@@ -441,9 +496,9 @@ export const InvoiceTable = () => {
           )
         );
         const filteredRows = groupedRows.filter((row) =>
-          matchesPaymentFilter(row.paymentStatus, paymentFilter) &&
-          matchesInvoiceMethodFilter(row.invoiceMethod, invoiceMethodFilter) &&
-          matchesInvoiceSendFilter(row.invoiceSendStatus, invoiceSendFilter) &&
+          groupMatchesPaymentFilter(row, paymentFilter) &&
+          groupMatchesInvoiceMethodFilter(row, invoiceMethodFilter) &&
+          groupMatchesInvoiceSendFilter(row, invoiceSendFilter) &&
           matchesSearchQuery(row, debouncedSearch)
         );
         const nextTotalPages = Math.max(Math.ceil(filteredRows.length / itemsPerPage), 1);
@@ -650,6 +705,9 @@ export const InvoiceTable = () => {
                       </p>
                     )}
                     <p className={`text-sm mt-1 ${isDark ? "text-white/70" : "text-[#555]"}`}>{row.sendDateLabel}</p>
+                    {row.paymentMetaLabel && (
+                      <p className={`text-xs mt-1 ${isDark ? "text-white/50" : "text-[#777]"}`}>{row.paymentMetaLabel}</p>
+                    )}
                     </div>
                   </div>
                   <LeadsStatusBadge status={row.paymentStatus} />
@@ -705,6 +763,9 @@ export const InvoiceTable = () => {
                         <div className="min-w-0">
                           <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{invoice.invoiceHistoryId}</p>
                           <p className={`text-xs mt-1 ${isDark ? "text-white/60" : "text-[#666]"}`}>{invoice.sendDateLabel}</p>
+                          {invoice.paymentMetaLabel && (
+                            <p className={`text-xs mt-1 ${isDark ? "text-white/50" : "text-[#777]"}`}>{invoice.paymentMetaLabel}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           <LeadsStatusBadge status={invoice.paymentStatus} />
@@ -779,6 +840,9 @@ export const InvoiceTable = () => {
                             <div className="min-w-0">
                               <p className={`truncate text-base font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.latestInvoiceHistoryId}</p>
                               <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-[#666]"}`}>{row.sendDateLabel}</p>
+                              {row.paymentMetaLabel && (
+                                <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{row.paymentMetaLabel}</p>
+                              )}
                               {hasChildren && (
                                 <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>
                                   {row.invoices.length} invoices in this booking/quote
@@ -832,6 +896,9 @@ export const InvoiceTable = () => {
                           <td className="py-4 pl-14 pr-6 align-top">
                             <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{invoice.invoiceHistoryId}</p>
                             <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{invoice.sendDateLabel}</p>
+                            {invoice.paymentMetaLabel && (
+                              <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-[#777]"}`}>{invoice.paymentMetaLabel}</p>
+                            )}
                           </td>
                           <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
                             <p className="truncate" title={invoice.bookingId}>{invoice.bookingId}</p>
