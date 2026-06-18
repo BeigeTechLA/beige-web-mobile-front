@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, Camera, Video } from "lucide-react";
+import { ArrowLeft, Camera, Send, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAssignCrewFromShootMutation } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
@@ -11,6 +11,7 @@ import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSe
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
+import { AddCompensationModal } from "@/components/admin/shoot-details/AddCompensationModal";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -39,6 +40,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isCompensationModalOpen, setIsCompensationModalOpen] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
@@ -49,24 +51,19 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     setMounted(true);
   }, []);
 
-  // Fetch project fulfillment stats using the new POST endpoint
   useEffect(() => {
     const fetchFulfillmentStats = async () => {
       if (!projectId) return;
       try {
         const response = await adminApi.getProjectFulfillmentStats(projectId);
-        // `adminApi.getProjectFulfillmentStats` already returns `response.data`
-        // BUT if the backend actually returns `{ success: true, data: { ... } }` inside that data:
         const stats = (response?.success && response?.data ? response.data : response) as FulfillmentStats;
 
         if (stats) {
           setStats(stats);
-          // Parse fulfillment stats like "0/2" => videographer needed = 2
           const vReq = parseInt(stats.fulfillment_stats?.videographer?.split('/')[1] || "0");
           const pReq = parseInt(stats.fulfillment_stats?.photographer?.split('/')[1] || "0");
           setReqCounts({ videographer: vReq, photographer: pReq });
 
-          // Also grab location for the crew search
           if (stats.location) setProjectLocation(stats.location);
         }
       } catch (error) {
@@ -126,6 +123,14 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleContinueToCompensation = () => {
+    if (selectedCreativeIds.length === 0) {
+      toast.error("Please select at least one creative first");
+      return;
+    }
+    setIsCompensationModalOpen(true);
+  };
+
   return (
     <>
       <Topbar pathname={pathname}
@@ -169,12 +174,51 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
       />
 
+      <AddCompensationModal
+        open={isCompensationModalOpen}
+        onOpenChange={setIsCompensationModalOpen}
+        projectId={projectId}
+        selectedCreativeIds={selectedCreativeIds}
+      />
+
+      {selectedCreativeIds.length > 0 && (
+        <div className="w-full h-[57px] flex flex-col items-start py-3 px-6 bg-[#E8D1AB1A] border-b-[0.5px] border-[#E8D1AB]">
+          <div className="w-full flex flex-row justify-between items-center h-8">
+            <div className="flex flex-row items-center">
+              <span className="font-['Instrument_Sans'] font-medium text-[14px] leading-5 text-[#E8D1AB]">
+                {selectedCreativeIds.length} Creative{selectedCreativeIds.length !== 1 ? 's' : ''} Selected
+              </span>
+            </div>
+
+            <div className="flex flex-row items-center gap-2">
+              <button
+                onClick={() => setSelectedCreativeIds([])}
+                className="w-[132px] h-8 py-4 px-4 flex items-center justify-center rounded-[4px] bg-transparent hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <span className="font-['Instrument_Sans'] font-medium text-[14px] leading-5 text-white underline text-center">
+                  Clear Selection
+                </span>
+              </button>
+
+              <button
+                onClick={handleContinueToCompensation}
+                className="w-[232px] h-8 py-4 px-4 bg-black rounded-[4px] flex items-center justify-center gap-1.5 hover:bg-black/90 transition-colors cursor-pointer"
+              >
+                <Send size={14} className="text-[#E8D1AB]" strokeWidth={1.5} />
+                <span className="font-['Instrument_Sans'] font-medium text-[14px] leading-5 text-[#E8D1AB] underline text-center">
+                  Continue to Compensation
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={`min-h-screen overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
         <Button
           onClick={() => router.back()}
-          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${
-            isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"
-          }`}
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"
+            }`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back to Shoot Details</span>
