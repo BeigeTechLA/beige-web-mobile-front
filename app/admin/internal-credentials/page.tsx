@@ -2,13 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Copy, Eye, EyeOff, ShieldCheck, Sparkles } from "lucide-react";
+import { Copy, Eye, EyeOff, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
 import { adminApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -120,7 +120,8 @@ function InternalCredentialsPageContent() {
   }, []);
 
   const roleOptions = useMemo(() => roles, [roles]);
-  const passwordStrength = calculatePasswordStrength(form.password);
+  const hasPasswordInput = form.password.trim().length > 0;
+  const passwordStrength = hasPasswordInput ? calculatePasswordStrength(form.password) : null;
   const selectedRoleLabel =
     roles.find((role) => String(role.value) === form.user_type)?.label || "No role selected";
   const maskedPassword = form.password ? "••••••••••••" : "Not set";
@@ -225,36 +226,9 @@ function InternalCredentialsPageContent() {
       <Topbar pathname={pathname} />
       <div className="bg-[radial-gradient(circle_at_top_left,_rgba(229,213,184,0.12),_transparent_28%),linear-gradient(180deg,_rgba(17,17,17,0.92),_rgba(12,12,12,1))] px-4 py-4 lg:px-6 lg:py-4">
         <div className="mx-auto max-w-4xl">
-          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#E5D5B8]/20 bg-[#E5D5B8]/10 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-                <ShieldCheck className="h-5 w-5 text-[#E5D5B8]" />
-              </div>
-              <div className="max-w-2xl">
-                <p className="text-xs uppercase tracking-[0.28em] text-white/40">Internal Access</p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
-                  Create Internal Credential
-                </h1>
-                <p className="mt-1 text-sm leading-6 text-white/65">
-                  Select a role from the live API and create the internal user credential.
-                </p>
-              </div>
-            </div>
-            {/* <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/60 shadow-[0_10px_30px_rgba(0,0,0,0.14)]">
-              Live role assignment and credential preview update as you type.
-            </div> */}
-          </div>
-
           <Card className="border-white/10 bg-[#151515]/95 shadow-[0_10px_40px_rgba(0,0,0,0.24)] backdrop-blur">
-            <CardHeader className="border-b border-white/10 px-4 py-4 sm:px-5">
-              <CardTitle className="text-base font-semibold text-white">Create Internal Credential</CardTitle>
-              <CardDescription className="text-white/55">
-                Select a role from the live API and create the internal user credential.
-              </CardDescription>
-            </CardHeader>
-
             <CardContent className="px-4 py-4 sm:px-5">
-              <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+              <div className="space-y-5">
                 <section className="space-y-4">
                   <div className="space-y-0.5">
                     <h2 className="text-sm font-semibold text-white">User Information</h2>
@@ -349,16 +323,16 @@ function InternalCredentialsPageContent() {
                   </div>
                 </section>
 
-                <div className="space-y-4">
-                  <section className="space-y-4 border-t border-white/10 pt-4 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
-                    <div className="space-y-0.5">
-                      <h2 className="text-sm font-semibold text-white">Security</h2>
-                      <p className="text-xs text-white/45">
-                        Control password visibility, generation, and strength.
-                      </p>
-                    </div>
+                <section className="space-y-4 border-t border-white/10 pt-4">
+                  <div className="space-y-0.5">
+                    <h2 className="text-sm font-semibold text-white">Security</h2>
+                    <p className="text-xs text-white/45">
+                      Control password visibility, generation, and strength.
+                    </p>
+                  </div>
 
-                    <div className="space-y-3">
+                  <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
                       <div className="space-y-2">
                         <label className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">
                           Password
@@ -409,14 +383,15 @@ function InternalCredentialsPageContent() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-white/50">Password Strength</span>
-                          <span className={cn("font-medium", STRENGTH_STYLES[passwordStrength])}>
-                            {passwordStrength}
+                          <span className={cn("font-medium", passwordStrength ? STRENGTH_STYLES[passwordStrength] : "text-transparent")}>
+                            {passwordStrength || "\u00A0"}
                           </span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-white/8">
                           <div
                             className={cn(
                               "h-full rounded-full transition-all duration-300",
+                              !passwordStrength && "w-0 bg-transparent",
                               passwordStrength === "Weak" && "w-1/3 bg-[#D97757]",
                               passwordStrength === "Medium" && "w-2/3 bg-[#D4A75D]",
                               passwordStrength === "Strong" && "w-full bg-[#9AAE78]",
@@ -444,40 +419,40 @@ function InternalCredentialsPageContent() {
                         ) : null}
                       </div>
                     </div>
-                  </section>
 
-                  <section className="space-y-4 border-t border-white/10 pt-4">
-                    <div className="space-y-0.5">
-                      <h2 className="text-sm font-semibold text-white">Credential Preview</h2>
-                      <p className="text-xs text-white/45">Live read-only summary before you submit.</p>
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                      <div className="space-y-0.5">
+                        <h2 className="text-sm font-semibold text-white">Credential Preview</h2>
+                        <p className="text-xs text-white/45">Live read-only summary before you submit.</p>
+                      </div>
+
+                      <div className="grid gap-3 text-sm">
+                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
+                          <p className="text-xs uppercase tracking-[0.18em] text-white/40">Email</p>
+                          <p className="mt-1 break-all text-white">{form.email.trim() || "Not set"}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
+                          <p className="text-xs uppercase tracking-[0.18em] text-white/40">Selected Role</p>
+                          <p className="mt-1 text-white">{selectedRoleLabel}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
+                          <p className="text-xs uppercase tracking-[0.18em] text-white/40">Password</p>
+                          <p className="mt-1 text-white">{maskedPassword}</p>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCopyCredentials}
+                        className="h-10 w-full border-white/15 bg-white/5 text-white hover:bg-white/10"
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copy Credentials
+                      </Button>
                     </div>
-
-                    <div className="grid gap-3 text-sm">
-                      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
-                        <p className="text-xs uppercase tracking-[0.18em] text-white/40">Email</p>
-                        <p className="mt-1 break-all text-white">{form.email.trim() || "Not set"}</p>
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
-                        <p className="text-xs uppercase tracking-[0.18em] text-white/40">Selected Role</p>
-                        <p className="mt-1 text-white">{selectedRoleLabel}</p>
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
-                        <p className="text-xs uppercase tracking-[0.18em] text-white/40">Password</p>
-                        <p className="mt-1 text-white">{maskedPassword}</p>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCopyCredentials}
-                      className="h-10 w-full border-white/15 bg-white/5 text-white hover:bg-white/10"
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copy Credentials
-                    </Button>
-                  </section>
-                </div>
+                  </div>
+                </section>
               </div>
 
               <div className="mt-4 border-t border-white/10 pt-4">

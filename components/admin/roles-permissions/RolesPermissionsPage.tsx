@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDownAZ, ArrowUpAZ } from "lucide-react";
-import Image from "next/image";
 import { PermissionUsersTable } from "@/components/admin/roles-permissions/PermissionUsersTable";
 import { RoleCard } from "@/components/admin/roles-permissions/RoleCard";
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
@@ -74,15 +73,9 @@ const mapRoleToCard = (role: AdminRoleRecord, index: number): RoleCardData => ({
     "This role provides access to predefined modules and features based on assignment.",
   members: [
     {
-      id: `${role.role_id}-name`,
-      label: getInitials(role.name),
+      id: `${role.role_id}-name-0`,
+      label: "NA",
       tone: CARD_TONES[index % CARD_TONES.length],
-    },
-    {
-      id: `${role.role_id}-count`,
-      label: `+${Math.max(role.total_users - 1, 0)}`,
-      tone: "bg-[#ECD7AD] text-[#161616]",
-      isCountBadge: true,
     },
   ],
 });
@@ -94,6 +87,7 @@ const mapUserToPermissionUser = (
   id: user.user_id,
   name: user.name,
   subtitle: user.email,
+  role_id: user.role_id,
   role: user.role_name || "Unassigned",
   created: formatDateTime(user.created_at),
   updated: formatDateTime(user.updated_at),
@@ -106,9 +100,9 @@ export function RolesPermissionsPage({
   searchQuery = "",
 }: RolesPermissionsPageProps) {
   const router = useRouter();
-  const { canCreate, canEdit, canDelete } = usePermissions("roles_permissions");
+  const { canEdit, canDelete } = usePermissions("roles_permissions");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [roles, setRoles] = useState<RoleCardData[]>([]);
+  const [roles, setRoles] = useState<AdminRoleRecord[]>([]);
   const [users, setUsers] = useState<PermissionUser[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
@@ -134,7 +128,7 @@ export function RolesPermissionsPage({
       if (!mounted) return;
 
       if (response?.success && Array.isArray(response.data)) {
-        setRoles(response.data.map(mapRoleToCard));
+        setRoles(response.data);
       } else {
         setRoles([]);
         setRolesError(response?.error || response?.message || "Failed to load roles");
@@ -172,12 +166,45 @@ export function RolesPermissionsPage({
     };
   }, [searchQuery, sortOrder]);
 
+  const roleCards = useMemo<RoleCardData[]>(() => {
+    return roles.map((role, index) => {
+      const roleUsers = users.filter(
+        (user) => user.role_id != null && user.role_id === role.role_id,
+      );
+      const badgeTexts = roleUsers
+        .slice(0, 3)
+        .map((user) => getInitials(user.name));
+      const remainingUsers = Math.max(roleUsers.length - badgeTexts.length, 0);
+
+      return {
+        ...mapRoleToCard(role, index),
+        members: [
+          ...badgeTexts.map((label, badgeIndex) => ({
+            id: `${role.role_id}-name-${badgeIndex}`,
+            label,
+            tone: CARD_TONES[(index + badgeIndex) % CARD_TONES.length],
+          })),
+          ...(remainingUsers > 0
+            ? [
+                {
+                  id: `${role.role_id}-count`,
+                  label: `+${remainingUsers}`,
+                  tone: "bg-[#ECD7AD] text-[#161616]",
+                  isCountBadge: true,
+                },
+              ]
+            : []),
+        ],
+      };
+    });
+  }, [roles, users]);
+
   const rolesSummary = useMemo(() => {
     if (isLoadingRoles) return "Loading roles...";
     if (rolesError) return rolesError;
-    if (!roles.length) return "No roles found for the current filters.";
-    return `${roles.length} role${roles.length === 1 ? "" : "s"} loaded`;
-  }, [isLoadingRoles, roles.length, rolesError]);
+    if (!roleCards.length) return "No roles found for the current filters.";
+    return `${roleCards.length} role${roleCards.length === 1 ? "" : "s"} loaded`;
+  }, [isLoadingRoles, roleCards.length, rolesError]);
 
   const handleOpenDeleteModal = (user: PermissionUser) => {
     setSelectedUser(user);
@@ -244,9 +271,9 @@ export function RolesPermissionsPage({
 
             <div className="border-t border-dashed border-white/10" />
 
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid justify-items-start gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {!isLoadingRoles &&
-                roles.map((card) => (
+                roleCards.map((card) => (
                 <RoleCard
                   key={card.id}
                   card={card}
@@ -263,37 +290,6 @@ export function RolesPermissionsPage({
               {!isLoadingRoles && !roles.length && (
                 <div className="col-span-full rounded-[32px] border border-white/10 bg-[#111111] px-6 py-10 text-center text-white/50">
                   {rolesError || "No roles found."}
-                </div>
-              )}
-
-              {canCreate && (
-                <div className="relative flex min-h-[225px] overflow-hidden rounded-[32px] bg-[#E5D5B8] p-6 text-[#111111] shadow-lg transition-transform duration-300 hover:scale-[1.01]">
-                  <div className="absolute inset-0 opacity-5 pointer-events-none" />
-                  <div className="absolute bottom-0 left-0 h-[200px] w-[180px]">
-                    <Image
-                      src="/images/handsome-stylish-bearded-guy-posing-against-white-wall 1.png"
-                      alt="Add new role"
-                      fill
-                      sizes="180px"
-                      className="object-contain object-bottom"
-                    />
-                  </div>
-
-                  <div className="relative z-10 ml-auto flex h-full max-w-[220px] flex-col justify-center pr-2">
-                    <h3 className="text-[24px] font-bold tracking-tight text-[#111111]">
-                      New Role
-                    </h3>
-                    <p className="mt-2 text-[14px] leading-relaxed text-[#111111]/70">
-                      Add new role, if it doesn&apos;t exist.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => router.push("/admin/roles-permissions/add-new-role")}
-                      className="mt-6 inline-flex h-12 w-fit items-center rounded-2xl bg-[#111111] px-6 text-[15px] font-bold text-white transition-all hover:bg-black hover:scale-105 active:scale-95 shadow-md"
-                    >
-                      Add New Role
-                    </button>
-                  </div>
                 </div>
               )}
             </div>

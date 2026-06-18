@@ -549,7 +549,7 @@ export default function AdminRoleEditDetailsRoute() {
               onClick={() => setIsUpdateModalOpen(true)}
               className="inline-flex h-12 items-center justify-center rounded-[12px] bg-[#E5D5B8] px-8 text-[15px] font-bold text-black transition-all hover:bg-[#d6c29b] active:scale-95"
             >
-              {mode === "role" ? "Edit Role" : "Assign Role"}
+              {mode === "role" ? "Edit Role" : "Change Role"}
             </button>
           </div>
         }
@@ -587,7 +587,7 @@ export default function AdminRoleEditDetailsRoute() {
         description={roleDescription}
         mode={mode === "role" ? "role" : "assign"}
         roles={roleOptions}
-        title={mode === "role" ? "Edit Role" : "Assign Role"}
+        title={mode === "role" ? "Edit Role" : "Change Role"}
       />
 
       <RoleUpdatedSuccessModal

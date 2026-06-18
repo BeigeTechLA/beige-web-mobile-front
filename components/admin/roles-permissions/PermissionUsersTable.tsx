@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -70,6 +71,32 @@ function StatusPill({ status }: { status: PermissionStatus }) {
   );
 }
 
+const formatDateParts = (value: string) => {
+  if (!value) return { date: "-", time: "" };
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { date: value, time: "" };
+  }
+
+  return {
+    date: format(date, "MM/dd/yyyy"),
+    time: format(date, "h:mm a"),
+  };
+};
+
+const matchesMonthFilter = (value: string, monthFilter: string) => {
+  if (monthFilter === "all") return true;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const month = format(date, "MMM").toLowerCase();
+  const monthNumber = format(date, "M");
+
+  return month.startsWith(monthFilter.toLowerCase()) || monthNumber === monthFilter;
+};
+
 export function PermissionUsersTable({
   users,
   isLoading = false,
@@ -100,7 +127,8 @@ export function PermissionUsersTable({
         roleFilter === "all" || user.role.toLowerCase() === roleFilter.toLowerCase();
 
       const matchesMonth =
-        monthFilter === "all" ||
+        matchesMonthFilter(user.created, monthFilter) ||
+        matchesMonthFilter(user.updated, monthFilter) ||
         user.subtitle.toLowerCase().includes(monthFilter.toLowerCase());
 
       return matchesSearch && matchesStatus && matchesRole && matchesMonth;
@@ -179,9 +207,18 @@ export function PermissionUsersTable({
               </SelectTrigger>
               <SelectContent className="border-white/10 bg-[#171717] text-white">
                 <SelectItem value="all">Month</SelectItem>
-                <SelectItem value="jan">Jan</SelectItem>
-                <SelectItem value="feb">Feb</SelectItem>
-                <SelectItem value="mar">Mar</SelectItem>
+                <SelectItem value="1">Jan</SelectItem>
+                <SelectItem value="2">Feb</SelectItem>
+                <SelectItem value="3">Mar</SelectItem>
+                <SelectItem value="4">Apr</SelectItem>
+                <SelectItem value="5">May</SelectItem>
+                <SelectItem value="6">Jun</SelectItem>
+                <SelectItem value="7">Jul</SelectItem>
+                <SelectItem value="8">Aug</SelectItem>
+                <SelectItem value="9">Sep</SelectItem>
+                <SelectItem value="10">Oct</SelectItem>
+                <SelectItem value="11">Nov</SelectItem>
+                <SelectItem value="12">Dec</SelectItem>
               </SelectContent>
             </Select>
 
@@ -304,11 +341,17 @@ export function PermissionUsersTable({
                 </td>
 
                 <td className="px-6 py-6 text-[15px] text-white/60">
-                  {user.created}
+                  <div className="flex flex-col leading-tight">
+                    <span>{formatDateParts(user.created).date}</span>
+                    <span className="text-[12px] text-white/35">{formatDateParts(user.created).time}</span>
+                  </div>
                 </td>
 
                 <td className="px-6 py-6 text-[15px] text-white/60">
-                  {user.updated}
+                  <div className="flex flex-col leading-tight">
+                    <span>{formatDateParts(user.updated).date}</span>
+                    <span className="text-[12px] text-white/35">{formatDateParts(user.updated).time}</span>
+                  </div>
                 </td>
 
                 <td className="px-6 py-6">

@@ -326,9 +326,9 @@ export const UserManagementTabbed = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="flex h-full min-h-0 flex-col gap-4 lg:gap-5">
             <div>
-                <h1 className={`text-lg lg:text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>User Management</h1>
+                <h1 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-[#323232]"}`}>User Management</h1>
                 <p className={isDark ? "text-[#888]" : "text-[#666]"}>Manage and review all registered users in one place.</p>
             </div>
 
@@ -350,7 +350,7 @@ export const UserManagementTabbed = () => {
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-3">
                 <div className="flex items-center gap-4 w-full md:flex-1">
                     <div className="relative flex-1 max-w-md">
                         <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
@@ -390,28 +390,28 @@ export const UserManagementTabbed = () => {
             </div>
 
             {/* Table Container */}
-            <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"
+            <div className={`w-full flex min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"
                 }`}>
-                <div className="w-full overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className={` text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]":"bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
-                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('id')}>
+                                <th className="py-3 px-6 font-medium cursor-pointer" onClick={() => requestSort('id')}>
                                     <div className="flex items-center">User ID {getSortIcon('id', isDark)}</div>
                                 </th>
-                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('name')}>
+                                <th className="py-3 px-6 font-medium cursor-pointer" onClick={() => requestSort('name')}>
                                     <div className="flex items-center">User Name {getSortIcon('name', isDark)}</div>
                                 </th>
-                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('type')}>
+                                <th className="py-3 px-6 font-medium cursor-pointer" onClick={() => requestSort('type')}>
                                     <div className="flex items-center">Type {getSortIcon('type', isDark)}</div>
                                 </th>
-                                <th className="py-5 px-6 font-medium">Contact / Role</th>
-                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
+                                <th className="py-3 px-6 font-medium">Contact / Role</th>
+                                <th className="py-3 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
                                     <div className="flex items-center">Status {getSortIcon('status', isDark)}</div>
                                 </th>
-                                <th className="py-5 px-6 font-medium">Client Type</th>
-                                <th className="py-5 px-6 font-medium">Referral Code</th>
-                                <th className="py-5 px-6 font-medium text-right">Action</th>
+                                <th className="py-3 px-6 font-medium">Client Type</th>
+                                <th className="py-3 px-6 font-medium">Referral Code</th>
+                                <th className="py-3 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -429,8 +429,8 @@ export const UserManagementTabbed = () => {
                                         onClick={() => handleRowClick(user)}
                                         className={`border-b cursor-pointer transition-colors ${isDark ? "border-[#222] hover:bg-white/[0.02] text-[#E0E0E0]" : "border-[#F0F0F0] hover:bg-black/[0.01] text-[#000]"
                                             }`}>
-                                        <td className="py-5 px-6">{user.id}</td>
-                                        <td className="py-5 px-6">
+                                        <td className="py-3 px-6">{user.id}</td>
+                                        <td className="py-3 px-6">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold border overflow-hidden ${
                                                     isDark ? "bg-[#1A1A1A] text-[#E5D5B8] border-white/5" : "bg-[#F5F5F5] text-[#8B7E66] border-[#E3E3E3]"
@@ -443,27 +443,27 @@ export const UserManagementTabbed = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
+                                        <td className={`py-3 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
                                             <div className="flex items-center gap-2">
                                                 {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
                                                 {user.type}
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6">
+                                        <td className="py-3 px-6">
                                             {user.type === "Client" ? user.phoneNumber : <span className={`px-2 py-0.5 rounded text-xs ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]": "bg-transparent text-[#000]"}`}>{user.role}</span>}
                                         </td>
-                                        <td className="py-5 px-6"><StatusBadge status={user.status} /></td>
-                                        <td className="py-5 px-6">
+                                        <td className="py-3 px-6"><StatusBadge status={user.status} /></td>
+                                        <td className="py-3 px-6">
                                             <ClientTypeBadge clientType={user.clientType} isDark={isDark} />
                                         </td>
-                                        <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
+                                        <td className={`py-3 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
                                             {user.referralCode ? (
                                                 <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{user.referralCode}</span>
                                             ) : (
                                                 <span className="opacity-40">—</span>
                                             )}
                                         </td>
-                                        <td className="py-5 px-6 text-right"><ChevronRight size={20} className={isDark ? "text-[#666]" : "text-[#999]"} /></td>
+                                        <td className="py-3 px-6 text-right"><ChevronRight size={20} className={isDark ? "text-[#666]" : "text-[#999]"} /></td>
                                     </tr>
                                 ))
                             )}
@@ -474,7 +474,7 @@ export const UserManagementTabbed = () => {
 
             {/* Pagination remains the same using original totalRecords */}
             {!loading && totalPages > 1 && (
-                <div className="flex justify-between items-center p-6 border-t border-[#333333]">
+                <div className="flex justify-between items-center pt-2">
                     <div className="text-sm text-[#666666]">
                         Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords} results
                     </div>
