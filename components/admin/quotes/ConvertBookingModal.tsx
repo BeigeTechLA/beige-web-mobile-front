@@ -300,14 +300,32 @@ export default function ConvertBookingModal({
     return duration <= maxDurationHours;
   };
 
-  const getFilteredEndTimeOptions = (startKey: string) => {
-    if (!startKey) return timeOptions;
-    return timeOptions.filter(
-      (option) =>
-        option.key > startKey &&
-        isTimeRangeWithinDurationLimit(startKey, option.key)
-    );
+    const isTimeInPast = (timeKey: string, date: Date | null) => {
+    if (!date || !isSameDay(date, new Date())) return false;
+    
+    const now = new Date();
+    const bufferMinutes = 4 * 60; 
+    const currentTotalMinutesWithBuffer = (now.getHours() * 60) + now.getMinutes() + bufferMinutes;
+    
+    const [hour, minute] = timeKey.split(":").map(Number);
+    const selectedTotalMinutes = (hour * 60) + minute;
+
+    return selectedTotalMinutes < currentTotalMinutesWithBuffer;
   };
+
+  const filteredStartTimeOptions = useMemo(() => {
+    return timeOptions.filter((option) => !isTimeInPast(option.key, selectedShootDate));
+  }, [selectedShootDate, timeOptions]);
+
+  const filteredEndTimeOptions = useMemo(() => {
+    const startKey = getStartTimeKey();
+    return timeOptions.filter((option) => {
+      const isFuture = !isTimeInPast(option.key, selectedShootDate);
+      const isAfterStart = startKey ? option.key > startKey : true;
+      const withinLimit = startKey ? isTimeRangeWithinDurationLimit(startKey, option.key) : true;
+      return isFuture && isAfterStart && withinLimit;
+    });
+  }, [timeOptions, startDateTime, selectedShootDate, maxDurationHours]);
 
   const handleDateChange = (date: Date | null) => {
     setSelectedShootDate(date);
@@ -347,16 +365,21 @@ export default function ConvertBookingModal({
     setEndDateTime(updateDateTime(selectedShootDate, timeKey));
   };
 
-  const filteredEndTimeOptions = useMemo(() => {
-    if (!startDateTime) return timeOptions;
-    const startDate = new Date(startDateTime);
-    const startKey = Number.isNaN(startDate.getTime()) ? "" : format(startDate, "HH:mm");
-    return getFilteredEndTimeOptions(startKey);
-  }, [timeOptions, startDateTime, maxDurationHours]);
+
+  const filteredSharedMultiStartTimeOptions = useMemo(() => {
+    const hasToday = selectedDates.some(d => isSameDay(d, new Date()));
+    return timeOptions.filter((option) => !isTimeInPast(option.key, hasToday ? new Date() : null));
+  }, [selectedDates, timeOptions]);
 
   const filteredSharedMultiEndTimeOptions = useMemo(() => {
-    return getFilteredEndTimeOptions(sharedMultiStartTime);
-  }, [timeOptions, sharedMultiStartTime, maxDurationHours]);
+    const hasToday = selectedDates.some(d => isSameDay(d, new Date()));
+    return timeOptions.filter((option) => {
+      const isFuture = !isTimeInPast(option.key, hasToday ? new Date() : null);
+      const isAfterStart = sharedMultiStartTime ? option.key > sharedMultiStartTime : true;
+      const withinLimit = sharedMultiStartTime ? isTimeRangeWithinDurationLimit(sharedMultiStartTime, option.key) : true;
+      return isFuture && isAfterStart && withinLimit;
+    });
+  }, [timeOptions, sharedMultiStartTime, selectedDates, maxDurationHours]);
 
   const getTimeLabel = (key: string) =>
     timeOptions.find((option) => option.key === key)?.value || key;
@@ -662,7 +685,7 @@ export default function ConvertBookingModal({
                   <div className={validationErrors.singleStart ? "[&>div>div:first-child]:!text-[#ef4444] [&>div>div:nth-child(2)]:!border-[#ef4444]" : ""}>
                     <DropdownSelect
                       title="Start Time"
-                      options={timeOptions}
+                      options={filteredStartTimeOptions}
                       value={getStartTimeKey()}
                       onChange={handleStartTimeChange}
                       bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
@@ -792,13 +815,18 @@ export default function ConvertBookingModal({
                       <div className="grid grid-cols-7 gap-1">
                         {calendarDays.map((date) => {
                           const isSelected = selectedDates.some((selectedDate) => isSameDay(selectedDate, date));
+                          const isPast = date < new Date() && !isSameDay(date, new Date()); 
+
                           return (
                             <button
                               key={date.toISOString()}
                               type="button"
+                              disabled={isPast}
                               onClick={() => toggleDateSelection(date)}
-                              className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : isDark ? "text-white hover:bg-white/10" : "text-[#323232] hover:bg-black/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
-                            >
+                              className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors 
+                                      ${isSelected ? "bg-[#E8D1AB] text-black" : isDark ? "text-white hover:bg-white/10" : "text-[#323232] hover:bg-black/10"} 
+                                      ${!isSameMonth(date, currentCalendarMonth) || isPast ? "opacity-20 cursor-not-allowed" : ""}`} 
+                              >
                               {format(date, "d")}
                             </button>
                           );
@@ -858,7 +886,7 @@ export default function ConvertBookingModal({
                           <div className={validationErrors.multiTimes ? "[&>div>div:first-child]:!text-[#ef4444] [&>div>div:nth-child(2)]:!border-[#ef4444]" : ""}>
                             <DropdownSelect
                               title="Start Time"
-                              options={timeOptions}
+                              options={filteredSharedMultiStartTimeOptions}
                               value={sharedMultiStartTime}
                               onChange={(value) => {
                                 setValidationErrors((prev) => ({ ...prev, multiTimes: false }));
@@ -912,7 +940,13 @@ export default function ConvertBookingModal({
                           const dateKey = getDateKey(date);
                           const isExpanded = expandedDateKey === dateKey;
                           const selectedStartKey = multiDayTimes[dateKey]?.startKey || "";
-                          const filteredDateEndTimeOptions = getFilteredEndTimeOptions(selectedStartKey);
+                          const individualDayStartOptions = timeOptions.filter(opt => !isTimeInPast(opt.key, date));
+                          const individualDayEndOptions = timeOptions.filter(opt => {
+                            const isFuture = !isTimeInPast(opt.key, date);
+                            const isAfterStart = selectedStartKey ? opt.key > selectedStartKey : true;
+                            const withinLimit = selectedStartKey ? isTimeRangeWithinDurationLimit(selectedStartKey, opt.key) : true;
+                            return isFuture && isAfterStart && withinLimit;
+                          });
 
                           return (
                             <div
@@ -936,7 +970,7 @@ export default function ConvertBookingModal({
                                     <div className={validationErrors.multiTimes ? "[&>div>div:first-child]:!text-[#ef4444] [&>div>div:nth-child(2)]:!border-[#ef4444]" : ""}>
                                       <DropdownSelect
                                         title="Start Time"
-                                        options={timeOptions}
+                                        options={individualDayStartOptions}
                                         value={multiDayTimes[dateKey]?.startKey || ""}
                                         onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
                                         bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
@@ -946,7 +980,7 @@ export default function ConvertBookingModal({
                                     <div className={validationErrors.multiTimes ? "[&>div>div:first-child]:!text-[#ef4444] [&>div>div:nth-child(2)]:!border-[#ef4444]" : ""}>
                                       <DropdownSelect
                                         title="End Time"
-                                        options={filteredDateEndTimeOptions}
+                                        options={individualDayEndOptions}
                                         value={multiDayTimes[dateKey]?.endKey || ""}
                                         onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
                                         bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
