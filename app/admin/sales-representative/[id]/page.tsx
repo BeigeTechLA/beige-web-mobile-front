@@ -75,6 +75,7 @@ import {
   getQuoteAdditionalPaymentDetails,
   getQuotePaymentProgressDetails,
 } from "@/lib/quoteDetail";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -218,6 +219,9 @@ type LeadActivityLike = {
 };
 
 type ManualPaymentActivityMeta = {
+  booking_id?: number | string | null;
+  booking_manual_payment_id?: number | string | null;
+  manual_payment_id?: number | string | null;
   payment_method?: string;
   payment_type?: string;
   payment_mode?: string;
@@ -2488,6 +2492,18 @@ export default function LeadDetailPage() {
                       <div className="space-y-2">
                         {manualPaymentEntries.map((entry, index) => {
                           const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
+                          const receiptBookingId = Number(entry.data.booking_id || lead?.booking_id || 0);
+                          const manualPaymentId = Number(entry.data.booking_manual_payment_id || entry.data.manual_payment_id || 0);
+                          const receiptUrl =
+                            Number.isFinite(receiptBookingId) &&
+                            receiptBookingId > 0 &&
+                            Number.isFinite(manualPaymentId) &&
+                            manualPaymentId > 0
+                              ? buildBeigeInvoiceUrl(receiptBookingId, {
+                                  receipt: true,
+                                  cacheBust: true,
+                                }) + `&manual_payment_id=${encodeURIComponent(String(manualPaymentId))}`
+                              : "";
                           const paidMode = entry.data.payment_mode
                             ? String(entry.data.payment_mode).toLowerCase() === "other" && entry.data.other_payment_mode
                               ? String(entry.data.other_payment_mode)
@@ -2517,6 +2533,16 @@ export default function LeadDetailPage() {
                                   className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
                                 >
                                   Download Proof
+                                </a>
+                              )}
+                              {receiptUrl && (
+                                <a
+                                  href={receiptUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-3 mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
+                                >
+                                  View Receipt
                                 </a>
                               )}
                             </div>

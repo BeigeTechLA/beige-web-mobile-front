@@ -220,37 +220,17 @@ const GeneratePaymentLink = ({
           manual: isManualInvoice,
           cacheBust: true,
         });
-        const brandedDownloadUrl = buildBeigeInvoiceUrl(effectiveBookingId, {
-          manual: isManualInvoice,
-          download: true,
-          cacheBust: true,
-        });
 
         if (!hostedInvoiceUrl && !invoicePdfUrl) {
           toast.error("Preview URL not available");
           return;
         }
 
-        // Open Stripe invoice page directly.
-        if (hostedInvoiceUrl && !invoicePdfUrl) {
-          window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+        if (hostedInvoiceUrl || invoicePdfUrl) {
+          window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
         }
 
-        // For Stripe flow keep old behavior (auto-download via backend proxy).
-        // For Manual flow open/view only (no forced download).
-        if (invoicePdfUrl) {
-          if (isManualInvoice) {
-            window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
-          } else {
-            const link = document.createElement("a");
-            link.href = brandedDownloadUrl;
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            link.click();
-          }
-        }
-
-        toast.success(isManualInvoice ? "Invoice opened" : "Invoice opened and download started");
+        toast.success("Invoice opened");
       }
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Failed to preview invoice"));

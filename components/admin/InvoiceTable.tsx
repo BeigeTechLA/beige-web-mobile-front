@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Eye, Loader2, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Eye, Loader2, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { salesApi } from "@/lib/api";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
@@ -57,6 +57,7 @@ interface InvoiceTableInvoiceRow {
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
+  documentKind: "invoice" | "receipt";
 }
 
 interface InvoiceTableGroupRow {
@@ -296,6 +297,12 @@ const mapInvoiceHistoryItemsToRows = (
     const paymentAmountLabel = formatCurrencyValue(normalizedPaymentAmount);
     const paymentMetaLabel = [paymentMethodLabel, paymentAmountLabel].filter(Boolean).join(" - ") || null;
 
+    const documentKind: "invoice" | "receipt" =
+      String(item.receipt_type || "").toLowerCase().includes("payment") ||
+      /[?&]receipt=(1|true)\b/i.test(invoicePdf)
+        ? "receipt"
+        : "invoice";
+
     return {
       id: item.invoice_send_history_id,
       invoiceHistoryId: item.invoice_number
@@ -322,6 +329,7 @@ const mapInvoiceHistoryItemsToRows = (
       sendDateLabel: formatDateLabel(sendDate),
       sendDateRaw: getDateValue(sendDate),
       invoicePdf: item.invoice_pdf || item.invoice_url || null,
+      documentKind,
     };
   });
 
@@ -344,28 +352,28 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
         return right.id - left.id;
       });
 
-      const latestInvoice = sortedInvoices[0];
+      const parentInvoice = sortedInvoices.find((invoice) => invoice.documentKind === "invoice") || sortedInvoices[0];
       const groupPaymentStatus = resolveGroupPaymentStatus(sortedInvoices);
 
       return {
-        id: latestInvoice.id,
+        id: parentInvoice.id,
         groupKey,
-        bookingIdValue: latestInvoice.bookingIdValue,
-        bookingId: latestInvoice.bookingId,
-        detailHref: latestInvoice.detailHref,
-        clientName: latestInvoice.clientName,
-        clientEmail: latestInvoice.clientEmail,
-        leadOrQuoteId: latestInvoice.leadOrQuoteId,
+        bookingIdValue: parentInvoice.bookingIdValue,
+        bookingId: parentInvoice.bookingId,
+        detailHref: parentInvoice.detailHref,
+        clientName: parentInvoice.clientName,
+        clientEmail: parentInvoice.clientEmail,
+        leadOrQuoteId: parentInvoice.leadOrQuoteId,
         paymentStatus: groupPaymentStatus,
-        invoiceMethod: latestInvoice.invoiceMethod,
-        invoiceSendStatus: latestInvoice.invoiceSendStatus,
-        paymentAmount: latestInvoice.paymentAmount,
-        paymentMethod: latestInvoice.paymentMethod,
-        paymentMetaLabel: latestInvoice.paymentMetaLabel,
-        sendDateLabel: latestInvoice.sendDateLabel,
-        sendDateRaw: latestInvoice.sendDateRaw,
-        invoicePdf: latestInvoice.invoicePdf,
-        latestInvoiceHistoryId: latestInvoice.invoiceHistoryId,
+        invoiceMethod: parentInvoice.invoiceMethod,
+        invoiceSendStatus: parentInvoice.invoiceSendStatus,
+        paymentAmount: parentInvoice.paymentAmount,
+        paymentMethod: parentInvoice.paymentMethod,
+        paymentMetaLabel: parentInvoice.paymentMetaLabel,
+        sendDateLabel: parentInvoice.sendDateLabel,
+        sendDateRaw: parentInvoice.sendDateRaw,
+        invoicePdf: parentInvoice.invoicePdf,
+        latestInvoiceHistoryId: parentInvoice.invoiceHistoryId,
         invoices: sortedInvoices,
       };
     })
@@ -415,16 +423,37 @@ const getInvoiceHistoryPage = async (page: number, limit: number, search?: strin
   return response as InvoiceHistoryResponse;
 };
 
+const getAllInvoiceHistoryItems = async () => {
+  let currentPage = 1;
+  let totalPages = 1;
+  const items: InvoiceHistoryItem[] = [];
+
+  do {
+    const response = await getInvoiceHistoryPage(currentPage, INVOICE_FILTER_BATCH_SIZE);
+    const responseItems = response?.data?.items || [];
+    const pagination = response?.data?.pagination;
+
+    items.push(...responseItems);
+    totalPages = Math.max(pagination?.total_pages || 1, 1);
+    currentPage += 1;
+  } while (currentPage <= totalPages);
+
+  return items;
+};
+
 const resolveInvoiceViewUrl = (
   invoicePdf: string | null,
-  bookingIdValue: number | null
+  bookingIdValue: number | null,
+  documentKind: "invoice" | "receipt" = "invoice"
 ) => {
   if (typeof window === "undefined") return null;
 
+  if (documentKind === "invoice" && bookingIdValue) {
+    return buildBeigeInvoiceUrl(bookingIdValue, { cacheBust: true });
+  }
+
   if (!invoicePdf) {
-    return bookingIdValue
-      ? buildBeigeInvoiceUrl(bookingIdValue, { cacheBust: true })
-      : null;
+    return null;
   }
 
   const parsedUrl = new URL(invoicePdf, window.location.origin);
@@ -444,7 +473,6 @@ const resolveInvoiceViewUrl = (
   }
 
   if (parsedUrl.origin === window.location.origin && parsedUrl.pathname.startsWith("/beige_invoice/")) {
-    parsedUrl.searchParams.delete("download");
     parsedUrl.searchParams.set("t", String(Date.now()));
     return `${parsedUrl.pathname}${parsedUrl.search}`;
   }
@@ -460,7 +488,6 @@ const buildGooglePdfViewerUrl = (invoiceUrl: string) => {
 export const InvoiceTable = () => {
   const { theme, resolvedTheme } = useTheme();
   const pathname = usePathname();
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -541,19 +568,17 @@ export const InvoiceTable = () => {
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
-  const handleViewInvoice = (invoicePdf: string | null, bookingIdValue: number | null) => {
+  const handleViewDocument = (
+    invoicePdf: string | null,
+    bookingIdValue: number | null,
+    documentKind: "invoice" | "receipt" = "invoice"
+  ) => {
     if (typeof window === "undefined") return;
 
-    const resolvedUrl = resolveInvoiceViewUrl(invoicePdf, bookingIdValue);
+    const resolvedUrl = resolveInvoiceViewUrl(invoicePdf, bookingIdValue, documentKind);
     if (!resolvedUrl) return;
 
-    window.open(buildGooglePdfViewerUrl(resolvedUrl), "_blank", "noopener,noreferrer");
-  };
-
-  const handleRowNavigation = (detailHref: string | null) => {
-    if (!detailHref) return;
-
-    router.push(detailHref);
+    window.open(resolvedUrl, "_blank", "noopener,noreferrer");
   };
 
   const toggleGroup = (groupKey: string) => {
@@ -565,24 +590,7 @@ export const InvoiceTable = () => {
   };
 
   const handleGroupAction = (row: InvoiceTableGroupRow) => {
-    if (row.invoices.length > 1) {
-      toggleGroup(row.groupKey);
-      return;
-    }
-
-    handleRowNavigation(row.detailHref);
-  };
-
-  const handleRowKeyDown = (
-    event: React.KeyboardEvent<HTMLElement>,
-    detailHref: string | null
-  ) => {
-    if (!detailHref) return;
-
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      router.push(detailHref);
-    }
+    toggleGroup(row.groupKey);
   };
 
   const handleGroupKeyDown = (
@@ -664,11 +672,11 @@ export const InvoiceTable = () => {
             {rows.map((row) => (
               <div
                 key={row.groupKey}
-                className={`p-4 space-y-3 ${(row.detailHref || row.invoices.length > 1) ? "cursor-pointer" : ""}`}
+                className="p-4 space-y-3 cursor-pointer"
                 onClick={() => handleGroupAction(row)}
                 onKeyDown={(event) => handleGroupKeyDown(event, row)}
-                role={row.detailHref || row.invoices.length > 1 ? "button" : undefined}
-                tabIndex={row.detailHref || row.invoices.length > 1 ? 0 : undefined}
+                role="button"
+                tabIndex={0}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2">
@@ -678,19 +686,15 @@ export const InvoiceTable = () => {
                       }`}
                       aria-hidden="true"
                     >
-                      {row.invoices.length > 1
-                        ? (expandedGroups.includes(row.groupKey) ? <ChevronDown size={16} /> : <ChevronRight size={16} />)
-                        : null}
+                      {expandedGroups.includes(row.groupKey) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     </span>
                     <div>
                     <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
                       Invoice ID {row.latestInvoiceHistoryId}
                     </p>
-                    {row.invoices.length > 1 && (
-                      <p className={`text-xs mt-1 ${isDark ? "text-white/45" : "text-[#777]"}`}>
-                        {row.invoices.length} invoices in this booking/quote
-                      </p>
-                    )}
+                    <p className={`text-xs mt-1 ${isDark ? "text-white/45" : "text-[#777]"}`}>
+                      {row.invoices.filter((invoice) => invoice.documentKind === "receipt").length} receipt{row.invoices.filter((invoice) => invoice.documentKind === "receipt").length === 1 ? "" : "s"} in this booking/quote
+                    </p>
                     <p className={`text-sm mt-1 ${isDark ? "text-white/70" : "text-[#555]"}`}>{row.sendDateLabel}</p>
                     {row.paymentMetaLabel && (
                       <p className={`text-xs mt-1 ${isDark ? "text-white/50" : "text-[#777]"}`}>{row.paymentMetaLabel}</p>
@@ -724,33 +728,51 @@ export const InvoiceTable = () => {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      handleViewInvoice(row.invoicePdf, row.bookingIdValue);
+                      toggleGroup(row.groupKey);
                     }}
-                    disabled={!row.invoicePdf}
                     className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
-                    aria-label="View invoice pdf"
-                    title="View invoice pdf"
+                    aria-label="Open invoice documents"
+                    title="Open invoice documents"
                   >
-                    <Eye size={14} />
+                    {expandedGroups.includes(row.groupKey) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </button>
                 </div>
 
-                {row.invoices.length > 1 && expandedGroups.includes(row.groupKey) && (
+                {expandedGroups.includes(row.groupKey) && (
                   <div className={`mt-3 rounded-xl border overflow-hidden ${isDark ? "border-white/10 bg-white/[0.02]" : "border-[#ECE6D8] bg-[#FFFCF6]"}`}>
-                    {row.invoices.map((invoice) => (
-                      <div
-                        key={invoice.id}
-                        className={`flex items-center justify-between gap-3 px-4 py-3 border-t first:border-t-0 ${invoice.detailHref ? "cursor-pointer" : ""} ${isDark ? "border-white/10 hover:bg-white/[0.03]" : "border-[#EFE7D6] hover:bg-[#FFF7E8]"}`}
+                    <div
+                      className={`flex items-center justify-between gap-3 px-4 py-3 border-t first:border-t-0 ${isDark ? "border-white/10" : "border-[#EFE7D6]"}`}
+                    >
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Parent Invoice {row.latestInvoiceHistoryId}</p>
+                        <p className={`text-xs mt-1 ${isDark ? "text-white/60" : "text-[#666]"}`}>{row.sendDateLabel}</p>
+                      </div>
+                      <button
+                        type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          handleRowNavigation(invoice.detailHref);
+                          handleViewDocument(row.invoicePdf, row.bookingIdValue, "invoice");
                         }}
-                        onKeyDown={(event) => handleRowKeyDown(event, invoice.detailHref)}
-                        role={invoice.detailHref ? "button" : undefined}
-                        tabIndex={invoice.detailHref ? 0 : undefined}
+                        disabled={!row.invoicePdf && !row.bookingIdValue}
+                        className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
+                        aria-label="View parent invoice"
+                        title="View parent invoice"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
+                    </div>
+                    {row.invoices.filter((invoice) => invoice.documentKind === "receipt").map((invoice) => (
+                      <div
+                        key={invoice.id}
+                        className={`flex items-center justify-between gap-3 px-4 py-3 border-t ${isDark ? "border-white/10" : "border-[#EFE7D6]"}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
                       >
                         <div className="min-w-0">
-                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{invoice.invoiceHistoryId}</p>
+                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            {invoice.documentKind === "receipt" ? "Receipt" : "Invoice"} {invoice.invoiceHistoryId}
+                          </p>
                           <p className={`text-xs mt-1 ${isDark ? "text-white/60" : "text-[#666]"}`}>{invoice.sendDateLabel}</p>
                           {invoice.paymentMetaLabel && (
                             <p className={`text-xs mt-1 ${isDark ? "text-white/50" : "text-[#777]"}`}>{invoice.paymentMetaLabel}</p>
@@ -762,14 +784,14 @@ export const InvoiceTable = () => {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              handleViewInvoice(invoice.invoicePdf, invoice.bookingIdValue);
+                              handleViewDocument(invoice.invoicePdf, invoice.bookingIdValue, invoice.documentKind);
                             }}
                             disabled={!invoice.invoicePdf}
                             className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
-                            aria-label="View invoice pdf"
-                            title="View invoice pdf"
+                            aria-label={`View ${invoice.documentKind} pdf`}
+                            title={`View ${invoice.documentKind} pdf`}
                           >
-                            <Eye size={14} />
+                            <ExternalLink size={14} />
                           </button>
                         </div>
                       </div>
@@ -805,16 +827,16 @@ export const InvoiceTable = () => {
               <tbody>
                 {rows.map((row) => {
                   const isExpanded = expandedGroups.includes(row.groupKey);
-                  const hasChildren = row.invoices.length > 1;
+                  const receiptRows = row.invoices.filter((invoice) => invoice.documentKind === "receipt");
 
                   return (
                     <React.Fragment key={row.groupKey}>
                       <tr
-                        className={`border-b align-top transition-colors ${(row.detailHref || hasChildren) ? "cursor-pointer" : ""} ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
+                        className={`border-b align-top transition-colors cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
                         onClick={() => handleGroupAction(row)}
                         onKeyDown={(event) => handleGroupKeyDown(event, row)}
-                        role={row.detailHref || hasChildren ? "button" : undefined}
-                        tabIndex={row.detailHref || hasChildren ? 0 : undefined}
+                        role="button"
+                        tabIndex={0}
                       >
                         <td className="py-5 px-6 align-top">
                           <div className="flex items-start gap-2">
@@ -824,7 +846,7 @@ export const InvoiceTable = () => {
                               }`}
                               aria-hidden="true"
                             >
-                              {hasChildren ? (isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />) : null}
+                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                             </span>
                             <div className="min-w-0">
                               <p className={`truncate text-base font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.latestInvoiceHistoryId}</p>
@@ -832,11 +854,9 @@ export const InvoiceTable = () => {
                               {row.paymentMetaLabel && (
                                 <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{row.paymentMetaLabel}</p>
                               )}
-                              {hasChildren && (
-                                <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>
-                                  {row.invoices.length} invoices in this booking/quote
-                                </p>
-                              )}
+                              <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>
+                                {receiptRows.length} receipt{receiptRows.length === 1 ? "" : "s"} in this booking/quote
+                              </p>
                             </div>
                           </div>
                         </td>
@@ -861,29 +881,70 @@ export const InvoiceTable = () => {
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                handleViewInvoice(row.invoicePdf, row.bookingIdValue);
+                                toggleGroup(row.groupKey);
                               }}
-                              disabled={!row.invoicePdf}
                               className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
-                              aria-label="View invoice pdf"
-                              title="View invoice pdf"
+                              aria-label="Open invoice documents"
+                              title="Open invoice documents"
                             >
-                              <Eye size={18} />
+                              {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                             </button>
                           </div>
                         </td>
                       </tr>
-                      {hasChildren && isExpanded && row.invoices.map((invoice) => (
+                      {isExpanded && (
                         <tr
-                          key={invoice.id}
-                          className={`border-b transition-colors ${invoice.detailHref ? "cursor-pointer" : ""} ${isDark ? "border-[#1D1D1D] bg-white/[0.015] hover:bg-white/[0.03]" : "border-[#F5F0E7] bg-[#FFFDF8] hover:bg-[#FFF7E8]"}`}
-                          onClick={() => handleRowNavigation(invoice.detailHref)}
-                          onKeyDown={(event) => handleRowKeyDown(event, invoice.detailHref)}
-                          role={invoice.detailHref ? "button" : undefined}
-                          tabIndex={invoice.detailHref ? 0 : undefined}
+                          className={`border-b transition-colors ${isDark ? "border-[#1D1D1D] bg-white/[0.015]" : "border-[#F5F0E7] bg-[#FFFDF8]"}`}
                         >
                           <td className="py-4 pl-14 pr-6 align-top">
-                            <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{invoice.invoiceHistoryId}</p>
+                            <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                              Parent Invoice {row.latestInvoiceHistoryId}
+                            </p>
+                            <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{row.sendDateLabel}</p>
+                          </td>
+                          <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
+                            <p className="truncate" title={row.bookingId}>{row.bookingId}</p>
+                          </td>
+                          <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
+                            <p className="truncate" title={row.clientName}>{row.clientName}</p>
+                          </td>
+                          <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
+                            <p className="truncate" title={row.clientEmail}>{row.clientEmail}</p>
+                          </td>
+                          <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#777]" : "text-[#888]"}`}>
+                            <p className="truncate" title={row.leadOrQuoteId}>{row.leadOrQuoteId}</p>
+                          </td>
+                          <td className="py-4 px-6 align-top">
+                            <LeadsStatusBadge status={row.paymentStatus} />
+                          </td>
+                          <td className="py-4 px-6 align-top">
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleViewDocument(row.invoicePdf, row.bookingIdValue, "invoice");
+                                }}
+                                disabled={!row.invoicePdf && !row.bookingIdValue}
+                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
+                                aria-label="View parent invoice"
+                                title="View parent invoice"
+                              >
+                                <ExternalLink size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {isExpanded && receiptRows.map((invoice) => (
+                        <tr
+                          key={invoice.id}
+                          className={`border-b transition-colors ${isDark ? "border-[#1D1D1D] bg-white/[0.015]" : "border-[#F5F0E7] bg-[#FFFDF8]"}`}
+                        >
+                          <td className="py-4 pl-14 pr-6 align-top">
+                            <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                              {invoice.documentKind === "receipt" ? "Receipt" : "Invoice"} {invoice.invoiceHistoryId}
+                            </p>
                             <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{invoice.sendDateLabel}</p>
                             {invoice.paymentMetaLabel && (
                               <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-[#777]"}`}>{invoice.paymentMetaLabel}</p>
@@ -910,14 +971,14 @@ export const InvoiceTable = () => {
                                 type="button"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  handleViewInvoice(invoice.invoicePdf, invoice.bookingIdValue);
+                                  handleViewDocument(invoice.invoicePdf, invoice.bookingIdValue, invoice.documentKind);
                                 }}
                                 disabled={!invoice.invoicePdf}
                                 className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
-                                aria-label="View invoice pdf"
-                                title="View invoice pdf"
+                                aria-label={`View ${invoice.documentKind} pdf`}
+                                title={`View ${invoice.documentKind} pdf`}
                               >
-                                <Eye size={16} />
+                                <ExternalLink size={16} />
                               </button>
                             </div>
                           </td>
