@@ -23,7 +23,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
-import Sidebar from "@/components/creator-profile/Sidebar";
+import CreatorSidebar from "@/components/creator-profile/Sidebar";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { fetchAndCommitUserPermissions } from "@/lib/permissionsActions";
 import {
@@ -112,7 +112,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex overflow-hidden">
       <div className="hidden lg:block w-64 flex-shrink-0">
-        <Sidebar pathname={pathname} permissions={permissions} permissionsVersion={permissionsVersion} />
+        <CreatorSidebar pathname={pathname} permissions={permissions} permissionsVersion={permissionsVersion} />
       </div>
 
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-white/10 px-4 h-16 flex items-center justify-between">
