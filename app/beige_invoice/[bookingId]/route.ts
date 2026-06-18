@@ -24,7 +24,6 @@ export async function GET(
   const forceDownload =
     String(download || "").toLowerCase() === "1" ||
     String(download || "").toLowerCase() === "true";
-
   request.nextUrl.searchParams.forEach((value, key) => {
     if (key === "t") return;
     sourceUrl.searchParams.set(key, value);
