@@ -157,6 +157,7 @@ export default function SubFolderDetailsPage() {
     return fallbackFromPath || slugToWorkspaceName(nestedSlug);
   }, [folderPath, nestedSlug, searchParams]);
   const { isDark } = useResolvedTheme();
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -808,6 +809,7 @@ export default function SubFolderDetailsPage() {
                               versionLabel: statusBadge?.versionLabel,
                               versionClassName: statusBadge?.versionClassName,
                             }}
+                            stage={fileCardStage}
                             onOpen={() => handleOpenFile(file)}
                             onDownload={() => handleDownloadFile(file)}
                             onDelete={() => {
@@ -874,6 +876,7 @@ export default function SubFolderDetailsPage() {
                             versionLabel: statusBadge?.versionLabel,
                             versionClassName: statusBadge?.versionClassName,
                           }}
+                          stage={fileCardStage}
                           onOpen={() => handleOpenFile(file)}
                           onDownload={() => handleDownloadFile(file)}
                           onShare={() => {

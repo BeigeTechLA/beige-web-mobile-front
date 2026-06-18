@@ -130,6 +130,7 @@ export default function SalesFileManagerPhasePage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const isPreProduction = phaseSlug !== "post-production";
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -821,6 +822,7 @@ export default function SalesFileManagerPhasePage() {
                                 <FileCard
                                   key={file.id}
                                   file={{ ...file, previewUrl: previewUrls[file.id] }}
+                                  stage={fileCardStage}
                                   onOpen={() => handleOpenFile(file)}
                                   onDownload={() => handleDownloadFile(file)}
                                   onDelete={() => {
@@ -1036,6 +1038,7 @@ export default function SalesFileManagerPhasePage() {
                         <FileCard
                           key={file.id}
                           file={{ ...file, previewUrl: previewUrls[file.id] }}
+                          stage={fileCardStage}
                           onOpen={() => handleOpenFile(file)}
                           onDownload={() => handleDownloadFile(file)}
                           onDelete={() => {

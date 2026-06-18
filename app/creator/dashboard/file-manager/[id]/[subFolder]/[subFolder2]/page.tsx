@@ -86,6 +86,7 @@ export default function CreatorSubFolderDetailsPage() {
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const isPhaseRoute = phaseSlug === "pre-production" || phaseSlug === "post-production";
   const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -988,6 +989,7 @@ export default function CreatorSubFolderDetailsPage() {
                             versionLabel: statusBadge?.versionLabel,
                             versionClassName: statusBadge?.versionClassName,
                           }}
+                          stage={fileCardStage}
                           onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
                           onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
                           onUploadEdited={

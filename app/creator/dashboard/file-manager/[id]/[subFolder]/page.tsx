@@ -94,6 +94,7 @@ export default function CreatorFileManagerPhasePage() {
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const isPhaseRoute = phaseSlug === "pre-production" || phaseSlug === "post-production";
   const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
   const rootFolderPath = useMemo(
     () => String(searchParams.get("path") || slugToWorkspaceName(phaseSlug) || "").trim(),
     [phaseSlug, searchParams]
@@ -970,6 +971,7 @@ export default function CreatorFileManagerPhasePage() {
                             <FileCard
                               key={file.id}
                               file={{ ...file, previewUrl: previewUrls[file.id] }}
+                              stage={fileCardStage}
                               onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
                               onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
                               isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
@@ -1023,6 +1025,7 @@ export default function CreatorFileManagerPhasePage() {
                       <FileCard
                         key={file.id}
                         file={{ ...file, previewUrl: previewUrls[file.id] }}
+                        stage={fileCardStage}
                         onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
                         onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
                         isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}

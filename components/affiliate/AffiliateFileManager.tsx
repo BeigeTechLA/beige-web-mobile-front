@@ -161,6 +161,7 @@ export default function AffiliateFileManager() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isSendingEditRequest, setIsSendingEditRequest] = useState(false);
   const [editRequestSentCount, setEditRequestSentCount] = useState(0);
+  const fileCardStage = selectedPhase === "post" ? "post-production" : "pre-production";
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerName, setViewerName] = useState("");
@@ -1651,6 +1652,7 @@ export default function AffiliateFileManager() {
         statusLabel: statusBadge.label,
         statusClassName: statusBadge.className,
       }}
+      stage={fileCardStage}
       onOpen={() => handleOpenFile(file)}
       onDownload={() => handleDownloadFile(file)}
       isSelected={
