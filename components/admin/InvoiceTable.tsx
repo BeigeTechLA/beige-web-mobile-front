@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Download, Loader2, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, Loader2, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
@@ -94,8 +94,6 @@ interface InvoiceHistoryResponse {
   } | null;
   error?: string;
 }
-
-const INVOICE_FILTER_BATCH_SIZE = 200;
 
 const normalizeStatus = (status: string | null) => {
   if (!status) return "Unknown";
@@ -407,34 +405,17 @@ const groupMatchesInvoiceMethodFilter = (group: InvoiceTableGroupRow, methodFilt
 const groupMatchesInvoiceSendFilter = (group: InvoiceTableGroupRow, sendFilter: string) =>
   group.invoices.some((invoice) => matchesInvoiceSendFilter(invoice.invoiceSendStatus, sendFilter));
 
-const getInvoiceHistoryPage = async (page: number, limit: number) => {
+const getInvoiceHistoryPage = async (page: number, limit: number, search?: string) => {
   const response = await salesApi.getInvoiceHistory({
     page,
     limit,
+    ...(search?.trim() ? { search: search.trim() } : {}),
   });
 
   return response as InvoiceHistoryResponse;
 };
 
-const getAllInvoiceHistoryItems = async () => {
-  let currentPage = 1;
-  let totalPages = 1;
-  const items: InvoiceHistoryItem[] = [];
-
-  do {
-    const response = await getInvoiceHistoryPage(currentPage, INVOICE_FILTER_BATCH_SIZE);
-    const responseItems = response?.data?.items || [];
-    const pagination = response?.data?.pagination;
-
-    items.push(...responseItems);
-    totalPages = Math.max(pagination?.total_pages || 1, 1);
-    currentPage += 1;
-  } while (currentPage <= totalPages);
-
-  return items;
-};
-
-const resolveInvoiceDownloadUrl = (
+const resolveInvoiceViewUrl = (
   invoicePdf: string | null,
   bookingIdValue: number | null
 ) => {
@@ -442,7 +423,7 @@ const resolveInvoiceDownloadUrl = (
 
   if (!invoicePdf) {
     return bookingIdValue
-      ? buildBeigeInvoiceUrl(bookingIdValue, { download: true, cacheBust: true })
+      ? buildBeigeInvoiceUrl(bookingIdValue, { cacheBust: true })
       : null;
   }
 
@@ -450,31 +431,30 @@ const resolveInvoiceDownloadUrl = (
   const invoicePdfPathMatch = parsedUrl.pathname.match(/\/sales\/invoice-pdf\/([^/]+)$/);
 
   if (invoicePdfPathMatch) {
-    const isStripeReceipt = String(parsedUrl.searchParams.get("stripe") || "").toLowerCase() === "1" ||
-      String(parsedUrl.searchParams.get("stripe") || "").toLowerCase() === "true";
-    if (isStripeReceipt) {
-      return parsedUrl.toString();
-    }
-
     const proxiedUrl = new URL(
       `/beige_invoice/${encodeURIComponent(invoicePdfPathMatch[1])}`,
       window.location.origin
     );
     parsedUrl.searchParams.forEach((value, key) => {
+      if (key === "download") return;
       proxiedUrl.searchParams.set(key, value);
     });
-    proxiedUrl.searchParams.set("download", "1");
     proxiedUrl.searchParams.set("t", String(Date.now()));
     return `${proxiedUrl.pathname}${proxiedUrl.search}`;
   }
 
   if (parsedUrl.origin === window.location.origin && parsedUrl.pathname.startsWith("/beige_invoice/")) {
-    parsedUrl.searchParams.set("download", "1");
+    parsedUrl.searchParams.delete("download");
     parsedUrl.searchParams.set("t", String(Date.now()));
     return `${parsedUrl.pathname}${parsedUrl.search}`;
   }
 
   return invoicePdf;
+};
+
+const buildGooglePdfViewerUrl = (invoiceUrl: string) => {
+  const absoluteInvoiceUrl = new URL(invoiceUrl, window.location.origin);
+  return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(absoluteInvoiceUrl.toString())}`;
 };
 
 export const InvoiceTable = () => {
@@ -515,9 +495,11 @@ export const InvoiceTable = () => {
 
       try {
         const isSalesRoute = pathname?.startsWith("/sales");
-        const allItems = await getAllInvoiceHistoryItems();
+        const response = await getInvoiceHistoryPage(currentPage, itemsPerPage, debouncedSearch);
+        const responseItems = response?.data?.items || [];
+        const pagination = response?.data?.pagination;
         const groupedRows = groupInvoiceRows(
-          mapInvoiceHistoryItemsToRows(allItems, Boolean(isSalesRoute))
+          mapInvoiceHistoryItemsToRows(responseItems, Boolean(isSalesRoute))
         );
         const filteredRows = groupedRows.filter((row) =>
           groupMatchesPaymentFilter(row, paymentFilter) &&
@@ -525,18 +507,14 @@ export const InvoiceTable = () => {
           groupMatchesInvoiceSendFilter(row, invoiceSendFilter) &&
           matchesSearchQuery(row, debouncedSearch)
         );
-        const nextTotalPages = Math.max(Math.ceil(filteredRows.length / itemsPerPage), 1);
+        const nextTotalPages = Math.max(pagination?.total_pages || 1, 1);
         const safePage = Math.min(currentPage, nextTotalPages);
-        const paginatedRows = filteredRows.slice(
-          (safePage - 1) * itemsPerPage,
-          safePage * itemsPerPage
-        );
 
         if (isCancelled) return;
 
-        setRows(paginatedRows);
+        setRows(filteredRows);
         setTotalPages(nextTotalPages);
-        setTotalItems(filteredRows.length);
+        setTotalItems(pagination?.total || filteredRows.length);
 
         if (safePage !== currentPage) {
           setCurrentPage(safePage);
@@ -563,20 +541,13 @@ export const InvoiceTable = () => {
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
-  const handleDownload = (invoicePdf: string | null, bookingIdValue: number | null) => {
+  const handleViewInvoice = (invoicePdf: string | null, bookingIdValue: number | null) => {
     if (typeof window === "undefined") return;
 
-    const resolvedUrl = resolveInvoiceDownloadUrl(invoicePdf, bookingIdValue);
+    const resolvedUrl = resolveInvoiceViewUrl(invoicePdf, bookingIdValue);
     if (!resolvedUrl) return;
 
-    const link = document.createElement("a");
-    link.href = resolvedUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.download = "";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(buildGooglePdfViewerUrl(resolvedUrl), "_blank", "noopener,noreferrer");
   };
 
   const handleRowNavigation = (detailHref: string | null) => {
@@ -753,12 +724,14 @@ export const InvoiceTable = () => {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      handleDownload(row.invoicePdf, row.bookingIdValue);
+                      handleViewInvoice(row.invoicePdf, row.bookingIdValue);
                     }}
                     disabled={!row.invoicePdf}
                     className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
+                    aria-label="View invoice pdf"
+                    title="View invoice pdf"
                   >
-                    <Download size={14} />
+                    <Eye size={14} />
                   </button>
                 </div>
 
@@ -789,14 +762,14 @@ export const InvoiceTable = () => {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              handleDownload(invoice.invoicePdf, invoice.bookingIdValue);
+                              handleViewInvoice(invoice.invoicePdf, invoice.bookingIdValue);
                             }}
                             disabled={!invoice.invoicePdf}
                             className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
-                            aria-label="Download invoice pdf"
-                            title="Download invoice pdf"
+                            aria-label="View invoice pdf"
+                            title="View invoice pdf"
                           >
-                            <Download size={14} />
+                            <Eye size={14} />
                           </button>
                         </div>
                       </div>
@@ -888,14 +861,14 @@ export const InvoiceTable = () => {
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                handleDownload(row.invoicePdf, row.bookingIdValue);
+                                handleViewInvoice(row.invoicePdf, row.bookingIdValue);
                               }}
                               disabled={!row.invoicePdf}
                               className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
-                              aria-label="Download invoice pdf"
-                              title="Download invoice pdf"
+                              aria-label="View invoice pdf"
+                              title="View invoice pdf"
                             >
-                              <Download size={18} />
+                              <Eye size={18} />
                             </button>
                           </div>
                         </td>
@@ -937,14 +910,14 @@ export const InvoiceTable = () => {
                                 type="button"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  handleDownload(invoice.invoicePdf, invoice.bookingIdValue);
+                                  handleViewInvoice(invoice.invoicePdf, invoice.bookingIdValue);
                                 }}
                                 disabled={!invoice.invoicePdf}
                                 className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
-                                aria-label="Download invoice pdf"
-                                title="Download invoice pdf"
+                                aria-label="View invoice pdf"
+                                title="View invoice pdf"
                               >
-                                <Download size={16} />
+                                <Eye size={16} />
                               </button>
                             </div>
                           </td>
