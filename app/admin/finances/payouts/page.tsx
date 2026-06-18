@@ -241,7 +241,11 @@ export default function AdminPayoutsPage() {
         pathname={pathname}
         actions={
           <>
-            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#171717] border border-white/20 hover:bg-white/10 transition-colors">
+            <Button variant="outline"
+              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+                }`}>
               <ArrowUpToLine /> Export
             </Button>
             <Button className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7 hover:bg-[#d9c59d]">
@@ -252,7 +256,7 @@ export default function AdminPayoutsPage() {
       />
 
       <div
-        className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
+        className="overflow-hidden p-4 pb-24 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
         <div className="flex justify-between items-start lg:items-end gap-4">
@@ -287,6 +291,15 @@ export default function AdminPayoutsPage() {
           typeValue={typeFilter}
           onTypeChange={setTypeFilter}
         />
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Request Payout
+          </Button>
+        </div>
       </div>
     </>
   );
