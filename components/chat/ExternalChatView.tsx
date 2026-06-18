@@ -640,8 +640,11 @@ export default function ExternalChatView({
   }, [participants]);
 
   const scopedRooms = useMemo(
-    () => rooms.filter((room) => roomMatchesRoleUser(room, effectiveUser, role)),
-    [rooms, role, effectiveUser]
+    () =>
+      (role === "cp" || role === "client") && !bookingId
+        ? rooms
+        : rooms.filter((room) => roomMatchesRoleUser(room, effectiveUser, role)),
+    [rooms, role, effectiveUser, bookingId]
   );
 
   const filteredRooms = useMemo(() => {
@@ -1096,7 +1099,7 @@ export default function ExternalChatView({
 
   useEffect(() => {
     loadRooms();
-  }, [bookingId, shouldUseDirectRoom]);
+  }, [bookingId, shouldUseDirectRoom, role]);
 
   useEffect(() => {
     selectedRoomRef.current = selectedRoom;

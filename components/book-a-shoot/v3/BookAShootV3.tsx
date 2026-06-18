@@ -496,7 +496,7 @@ export const BookAShootV3 = () => {
       const bookingDaysPayload = formData.bookingDays?.map((d) => ({
         date: d.date,
         start_time: d.startTime,
-        end_time: d.endTime,
+        end_time: d.endTime, 
         duration_hours: calculateDayHours(d.startTime, d.endTime),
         time_zone: browserTimeZone
       })) || [];

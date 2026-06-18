@@ -20,16 +20,15 @@ export async function GET(
   const sourceUrl = new URL(
     `${API_BASE_URL.replace(/\/$/, "")}/sales/invoice-pdf/${parsedBookingId}`
   );
-  const manual = request.nextUrl.searchParams.get("manual");
-  const receipt = request.nextUrl.searchParams.get("receipt");
   const download = request.nextUrl.searchParams.get("download");
   const forceDownload =
     String(download || "").toLowerCase() === "1" ||
     String(download || "").toLowerCase() === "true";
 
-  if (manual) sourceUrl.searchParams.set("manual", manual);
-  if (receipt) sourceUrl.searchParams.set("receipt", receipt);
-  if (download) sourceUrl.searchParams.set("download", download);
+  request.nextUrl.searchParams.forEach((value, key) => {
+    if (key === "t") return;
+    sourceUrl.searchParams.set(key, value);
+  });
 
   try {
     const upstreamResponse = await fetch(sourceUrl.toString(), {

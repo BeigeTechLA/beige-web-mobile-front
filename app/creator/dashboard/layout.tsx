@@ -23,6 +23,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
+import Sidebar from "@/components/creator-profile/Sidebar";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { fetchAndCommitUserPermissions } from "@/lib/permissionsActions";
 import {
@@ -129,8 +130,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/80 z-50 lg:hidden backdrop-blur-sm" />
             <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} className="fixed inset-y-0 left-0 z-50 w-64 bg-[#111] lg:hidden">
-              <Sidebar pathname={pathname} onClose={() => setIsSidebarOpen(false)} permissions={permissions} permissionsVersion={permissionsVersion} />
-              <button onClick={() => setIsSidebarOpen(false)} className="absolute top-4 right-4 p-2 text-white/60"><X size={20} /></button>
+              <Sidebar onClose={() => setIsSidebarOpen(false)} permissions={permissions} permissionsVersion={permissionsVersion} />
             </motion.div>
           </>
         )}

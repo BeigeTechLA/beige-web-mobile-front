@@ -6,7 +6,6 @@ import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { salesApi } from "@/lib/api";
-import apiClient from "@/lib/apiClient";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
@@ -23,9 +22,13 @@ interface InvoiceHistoryItem {
   client_email: string | null;
   send_date_time: string | null;
   payment_status: string | null;
+  booking_payment_status?: string | null;
   invoice_number: string | null;
   invoice_url: string | null;
   invoice_pdf: string | null;
+  payment_amount?: number | string | null;
+  payment_method?: string | null;
+  receipt_type?: string | null;
   sent_by: string | null;
   sales_rep?: {
     id: number;
@@ -45,8 +48,12 @@ interface InvoiceTableInvoiceRow {
   clientEmail: string;
   leadOrQuoteId: string;
   paymentStatus: string;
+  overallPaymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
   invoiceSendStatus: "sent" | "not_sent";
+  paymentAmount: number | null;
+  paymentMethod: string | null;
+  paymentMetaLabel: string | null;
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -64,6 +71,9 @@ interface InvoiceTableGroupRow {
   paymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
   invoiceSendStatus: "sent" | "not_sent";
+  paymentAmount: number | null;
+  paymentMethod: string | null;
+  paymentMetaLabel: string | null;
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -113,6 +123,29 @@ const getDateValue = (dateValue: string | null) => {
   return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
 };
 
+const formatCurrencyValue = (value: number | string | null | undefined) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return null;
+
+  return numericValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatPaymentMethodLabel = (method: string | null | undefined) => {
+  const normalizedMethod = String(method || "").trim();
+  if (!normalizedMethod) return null;
+
+  return normalizedMethod
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+};
+
 const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
   if (item.quote_id) {
     return `Quote Id : ${item.quote_id}`;
@@ -129,21 +162,13 @@ const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
   return "N/A";
 };
 
-const getStatusLookupKey = (item: InvoiceHistoryItem) => {
-  if (item.client_lead_id) {
-    return `client:${item.client_lead_id}`;
-  }
-
-  if (item.lead_id) {
-    return `lead:${item.lead_id}`;
-  }
-
-  return null;
-};
-
 const getInvoiceGroupKey = (item: InvoiceHistoryItem) => {
-  if (item.booking_id && item.quote_id) {
-    return `booking:${item.booking_id}|quote:${item.quote_id}`;
+  if (item.booking_id) {
+    return `booking:${item.booking_id}`;
+  }
+
+  if (item.quote_id) {
+    return `quote:${item.quote_id}`;
   }
 
   return `history:${item.invoice_send_history_id}`;
@@ -161,6 +186,48 @@ const matchesPaymentFilter = (paymentStatus: string, paymentFilter: string) => {
   }
 
   return true;
+};
+
+const getStatusValue = (status: string | null | undefined) =>
+  String(status || "").trim().toLowerCase();
+
+const resolveGroupPaymentStatus = (rows: InvoiceTableInvoiceRow[]) => {
+  const overallStatuses = rows
+    .map((row) => row.overallPaymentStatus)
+    .filter((status) => getStatusValue(status) && getStatusValue(status) !== "unknown");
+  const receiptStatuses = rows
+    .map((row) => row.paymentStatus)
+    .filter((status) => getStatusValue(status) && getStatusValue(status) !== "unknown");
+  const statuses = overallStatuses.length > 0 ? overallStatuses : receiptStatuses;
+  const normalizedStatuses = statuses.map(getStatusValue);
+
+  if (normalizedStatuses.some((status) => status === "partially paid" || status === "partially_paid")) {
+    return "Partially Paid";
+  }
+
+  if (normalizedStatuses.some((status) => status === "approval pending" || status === "approval_pending")) {
+    return "Approval Pending";
+  }
+
+  if (
+    normalizedStatuses.length > 0 &&
+    normalizedStatuses.every((status) => status === "paid" || status === "no payment due")
+  ) {
+    return "Paid";
+  }
+
+  if (
+    normalizedStatuses.some((status) => status === "paid" || status === "no payment due") &&
+    normalizedStatuses.some((status) => ["pending", "unpaid", "unknown"].includes(status))
+  ) {
+    return "Partially Paid";
+  }
+
+  if (normalizedStatuses.some((status) => status === "pending" || status === "unpaid")) {
+    return "Pending";
+  }
+
+  return statuses[0] || rows[0]?.paymentStatus || "Unknown";
 };
 
 const matchesInvoiceMethodFilter = (
@@ -193,64 +260,11 @@ const matchesInvoiceSendFilter = (
   return true;
 };
 
-const resolveLivePaymentStatus = async (item: InvoiceHistoryItem) => {
-  const currentStatus = String(item.payment_status || "").trim().toLowerCase();
-  if (currentStatus === "paid") {
-    return item.payment_status;
-  }
-
-  try {
-    if (item.client_lead_id) {
-      const response = await apiClient.get<{ success: boolean; data?: { payment_status?: string | null } }>(
-        `sales/client-leads/${item.client_lead_id}`
-      );
-      return response?.data?.payment_status || item.payment_status;
-    }
-
-    if (item.lead_id) {
-      const response = await apiClient.get<{ success: boolean; data?: { payment_status?: string | null } }>(
-        `sales/leads/${item.lead_id}`
-      );
-      return response?.data?.payment_status || item.payment_status;
-    }
-  } catch (error) {
-    console.error("Failed to resolve live invoice payment status:", error);
-  }
-
-  return item.payment_status;
-};
-
-const resolveItemsWithLivePaymentStatus = async (items: InvoiceHistoryItem[]) => {
-  const requestCache = new Map<string, Promise<string | null>>();
-
-  return Promise.all(
-    items.map(async (item) => {
-      const lookupKey = getStatusLookupKey(item);
-
-      if (!lookupKey) {
-        return {
-          item,
-          livePaymentStatus: item.payment_status,
-        };
-      }
-
-      if (!requestCache.has(lookupKey)) {
-        requestCache.set(lookupKey, resolveLivePaymentStatus(item));
-      }
-
-      return {
-        item,
-        livePaymentStatus: (await requestCache.get(lookupKey)) || item.payment_status,
-      };
-    })
-  );
-};
-
 const mapInvoiceHistoryItemsToRows = (
-  items: Awaited<ReturnType<typeof resolveItemsWithLivePaymentStatus>>,
+  items: InvoiceHistoryItem[],
   isSalesRoute: boolean
 ): InvoiceTableInvoiceRow[] =>
-  items.map(({ item, livePaymentStatus }) => {
+  items.map((item) => {
     const sendDate = item.send_date_time || item.created_at;
     const detailHref = item.client_lead_id
       ? isSalesRoute
@@ -277,11 +291,18 @@ const mapInvoiceHistoryItemsToRows = (
     const hasInvoiceSendHistoryId =
       Number.isInteger(item.invoice_send_history_id) && item.invoice_send_history_id > 0;
     const invoiceSendStatus: "sent" | "not_sent" = hasInvoiceSendHistoryId ? "sent" : "not_sent";
+    const paymentAmount = Number(item.payment_amount);
+    const normalizedPaymentAmount =
+      Number.isFinite(paymentAmount) && paymentAmount > 0 ? paymentAmount : null;
+    const paymentMethodLabel = formatPaymentMethodLabel(item.payment_method);
+    const paymentAmountLabel = formatCurrencyValue(normalizedPaymentAmount);
+    const paymentMetaLabel = [paymentMethodLabel, paymentAmountLabel].filter(Boolean).join(" - ") || null;
 
     return {
       id: item.invoice_send_history_id,
-      invoiceHistoryId:
-        item.invoice_send_history_id && item.invoice_send_history_id > 0
+      invoiceHistoryId: item.invoice_number
+        ? item.invoice_number
+        : item.invoice_send_history_id && item.invoice_send_history_id > 0
           ? `#${item.invoice_send_history_id}`
           : item.booking_id
             ? `BOOKING-${item.booking_id}`
@@ -293,12 +314,16 @@ const mapInvoiceHistoryItemsToRows = (
       clientName: item.client_name || "N/A",
       clientEmail: item.client_email || "N/A",
       leadOrQuoteId: getLeadOrQuoteValue(item),
-      paymentStatus: normalizeStatus(livePaymentStatus),
+      paymentStatus: normalizeStatus(item.payment_status),
+      overallPaymentStatus: normalizeStatus(item.booking_payment_status || item.payment_status),
       invoiceMethod,
       invoiceSendStatus,
+      paymentAmount: normalizedPaymentAmount,
+      paymentMethod: paymentMethodLabel,
+      paymentMetaLabel,
       sendDateLabel: formatDateLabel(sendDate),
       sendDateRaw: getDateValue(sendDate),
-      invoicePdf: item.invoice_pdf,
+      invoicePdf: item.invoice_pdf || item.invoice_url || null,
     };
   });
 
@@ -322,6 +347,7 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
       });
 
       const latestInvoice = sortedInvoices[0];
+      const groupPaymentStatus = resolveGroupPaymentStatus(sortedInvoices);
 
       return {
         id: latestInvoice.id,
@@ -332,9 +358,12 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
         clientName: latestInvoice.clientName,
         clientEmail: latestInvoice.clientEmail,
         leadOrQuoteId: latestInvoice.leadOrQuoteId,
-        paymentStatus: latestInvoice.paymentStatus,
+        paymentStatus: groupPaymentStatus,
         invoiceMethod: latestInvoice.invoiceMethod,
         invoiceSendStatus: latestInvoice.invoiceSendStatus,
+        paymentAmount: latestInvoice.paymentAmount,
+        paymentMethod: latestInvoice.paymentMethod,
+        paymentMetaLabel: latestInvoice.paymentMetaLabel,
         sendDateLabel: latestInvoice.sendDateLabel,
         sendDateRaw: latestInvoice.sendDateRaw,
         invoicePdf: latestInvoice.invoicePdf,
@@ -365,8 +394,18 @@ const matchesSearchQuery = (group: InvoiceTableGroupRow, searchQuery: string) =>
     group.leadOrQuoteId,
     group.latestInvoiceHistoryId,
     ...group.invoices.map((invoice) => invoice.invoiceHistoryId),
+    ...group.invoices.map((invoice) => invoice.paymentMetaLabel),
   ].some((value) => String(value || "").toLowerCase().includes(normalizedQuery));
 };
+
+const groupMatchesPaymentFilter = (group: InvoiceTableGroupRow, paymentFilter: string) =>
+  matchesPaymentFilter(group.paymentStatus, paymentFilter);
+
+const groupMatchesInvoiceMethodFilter = (group: InvoiceTableGroupRow, methodFilter: string) =>
+  group.invoices.some((invoice) => matchesInvoiceMethodFilter(invoice.invoiceMethod, methodFilter));
+
+const groupMatchesInvoiceSendFilter = (group: InvoiceTableGroupRow, sendFilter: string) =>
+  group.invoices.some((invoice) => matchesInvoiceSendFilter(invoice.invoiceSendStatus, sendFilter));
 
 const getInvoiceHistoryPage = async (page: number, limit: number) => {
   const response = await salesApi.getInvoiceHistory({
@@ -393,6 +432,49 @@ const getAllInvoiceHistoryItems = async () => {
   } while (currentPage <= totalPages);
 
   return items;
+};
+
+const resolveInvoiceDownloadUrl = (
+  invoicePdf: string | null,
+  bookingIdValue: number | null
+) => {
+  if (typeof window === "undefined") return null;
+
+  if (!invoicePdf) {
+    return bookingIdValue
+      ? buildBeigeInvoiceUrl(bookingIdValue, { download: true, cacheBust: true })
+      : null;
+  }
+
+  const parsedUrl = new URL(invoicePdf, window.location.origin);
+  const invoicePdfPathMatch = parsedUrl.pathname.match(/\/sales\/invoice-pdf\/([^/]+)$/);
+
+  if (invoicePdfPathMatch) {
+    const isStripeReceipt = String(parsedUrl.searchParams.get("stripe") || "").toLowerCase() === "1" ||
+      String(parsedUrl.searchParams.get("stripe") || "").toLowerCase() === "true";
+    if (isStripeReceipt) {
+      return parsedUrl.toString();
+    }
+
+    const proxiedUrl = new URL(
+      `/beige_invoice/${encodeURIComponent(invoicePdfPathMatch[1])}`,
+      window.location.origin
+    );
+    parsedUrl.searchParams.forEach((value, key) => {
+      proxiedUrl.searchParams.set(key, value);
+    });
+    proxiedUrl.searchParams.set("download", "1");
+    proxiedUrl.searchParams.set("t", String(Date.now()));
+    return `${proxiedUrl.pathname}${proxiedUrl.search}`;
+  }
+
+  if (parsedUrl.origin === window.location.origin && parsedUrl.pathname.startsWith("/beige_invoice/")) {
+    parsedUrl.searchParams.set("download", "1");
+    parsedUrl.searchParams.set("t", String(Date.now()));
+    return `${parsedUrl.pathname}${parsedUrl.search}`;
+  }
+
+  return invoicePdf;
 };
 
 export const InvoiceTable = () => {
@@ -435,15 +517,12 @@ export const InvoiceTable = () => {
         const isSalesRoute = pathname?.startsWith("/sales");
         const allItems = await getAllInvoiceHistoryItems();
         const groupedRows = groupInvoiceRows(
-          mapInvoiceHistoryItemsToRows(
-            await resolveItemsWithLivePaymentStatus(allItems),
-            Boolean(isSalesRoute)
-          )
+          mapInvoiceHistoryItemsToRows(allItems, Boolean(isSalesRoute))
         );
         const filteredRows = groupedRows.filter((row) =>
-          matchesPaymentFilter(row.paymentStatus, paymentFilter) &&
-          matchesInvoiceMethodFilter(row.invoiceMethod, invoiceMethodFilter) &&
-          matchesInvoiceSendFilter(row.invoiceSendStatus, invoiceSendFilter) &&
+          groupMatchesPaymentFilter(row, paymentFilter) &&
+          groupMatchesInvoiceMethodFilter(row, invoiceMethodFilter) &&
+          groupMatchesInvoiceSendFilter(row, invoiceSendFilter) &&
           matchesSearchQuery(row, debouncedSearch)
         );
         const nextTotalPages = Math.max(Math.ceil(filteredRows.length / itemsPerPage), 1);
@@ -487,15 +566,7 @@ export const InvoiceTable = () => {
   const handleDownload = (invoicePdf: string | null, bookingIdValue: number | null) => {
     if (typeof window === "undefined") return;
 
-    const isManualInvoice = typeof invoicePdf === "string" && /[?&]manual=(1|true)\b/i.test(invoicePdf);
-    const brandedDownloadUrl = bookingIdValue
-      ? buildBeigeInvoiceUrl(bookingIdValue, {
-          manual: isManualInvoice,
-          download: true,
-          cacheBust: true,
-        })
-      : null;
-    const resolvedUrl = brandedDownloadUrl || invoicePdf;
+    const resolvedUrl = resolveInvoiceDownloadUrl(invoicePdf, bookingIdValue);
     if (!resolvedUrl) return;
 
     const link = document.createElement("a");
@@ -650,6 +721,9 @@ export const InvoiceTable = () => {
                       </p>
                     )}
                     <p className={`text-sm mt-1 ${isDark ? "text-white/70" : "text-[#555]"}`}>{row.sendDateLabel}</p>
+                    {row.paymentMetaLabel && (
+                      <p className={`text-xs mt-1 ${isDark ? "text-white/50" : "text-[#777]"}`}>{row.paymentMetaLabel}</p>
+                    )}
                     </div>
                   </div>
                   <LeadsStatusBadge status={row.paymentStatus} />
@@ -705,6 +779,9 @@ export const InvoiceTable = () => {
                         <div className="min-w-0">
                           <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{invoice.invoiceHistoryId}</p>
                           <p className={`text-xs mt-1 ${isDark ? "text-white/60" : "text-[#666]"}`}>{invoice.sendDateLabel}</p>
+                          {invoice.paymentMetaLabel && (
+                            <p className={`text-xs mt-1 ${isDark ? "text-white/50" : "text-[#777]"}`}>{invoice.paymentMetaLabel}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           <LeadsStatusBadge status={invoice.paymentStatus} />
@@ -779,6 +856,9 @@ export const InvoiceTable = () => {
                             <div className="min-w-0">
                               <p className={`truncate text-base font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.latestInvoiceHistoryId}</p>
                               <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-[#666]"}`}>{row.sendDateLabel}</p>
+                              {row.paymentMetaLabel && (
+                                <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{row.paymentMetaLabel}</p>
+                              )}
                               {hasChildren && (
                                 <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>
                                   {row.invoices.length} invoices in this booking/quote
@@ -832,6 +912,9 @@ export const InvoiceTable = () => {
                           <td className="py-4 pl-14 pr-6 align-top">
                             <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{invoice.invoiceHistoryId}</p>
                             <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{invoice.sendDateLabel}</p>
+                            {invoice.paymentMetaLabel && (
+                              <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-[#777]"}`}>{invoice.paymentMetaLabel}</p>
+                            )}
                           </td>
                           <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
                             <p className="truncate" title={invoice.bookingId}>{invoice.bookingId}</p>
