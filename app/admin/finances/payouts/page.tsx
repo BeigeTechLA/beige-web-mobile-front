@@ -158,7 +158,6 @@ export default function AdminPayoutsPage() {
 
   const { isDark } = useResolvedTheme();
 
-
   const CustomClockIcon = ({ size = 16 }) => (
     <img
       src="/images/socmed/Clock.svg"
