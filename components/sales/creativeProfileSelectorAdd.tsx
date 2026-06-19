@@ -30,18 +30,13 @@ type CreativeWithDistance = {
   profile_photo?: string;
   latitude?: string | number;
   longitude?: string | number;
-  working_distance?: string;
+  distance?: number | string;
   distanceBucket?: number | "traveling" | null;
 };
 
 type RadiusBucket = {
   lowerBound: number;
   upperBound: number;
-  label: string;
-  items: CreativeWithDistance[];
-};
-
-type TravelingBucket = {
   label: string;
   items: CreativeWithDistance[];
 };
@@ -55,7 +50,7 @@ type CrewApiItem = {
   profile_photo?: string;
   latitude?: string | number;
   longitude?: string | number;
-  working_distance?: string;
+  distance?: number | string;
   years_of_experience?: number;
   is_active?: boolean;
   [key: string]: unknown;
@@ -193,28 +188,33 @@ export const CreativeProfileSelectorAdd = ({
     setExpandedBuckets(activeBucketLimits);
   }, [activeBucketLimits]);
 
-  const parseWorkingDistance = (workingDistance?: string) => {
-    const normalized = (workingDistance || "").toLowerCase().trim();
-
-    if (!normalized) {
-      return null;
+  const parseDistance = (distance?: number | string) => {
+    if (typeof distance === "number" && Number.isFinite(distance)) {
+      if (distance <= 10) return 10;
+      if (distance <= 50) return 50;
+      if (distance <= 100) return 100;
+      if (distance <= 150) return 150;
+      return 200;
     }
 
-    if (normalized.includes("travel")) {
-      return "traveling" as const;
+    if (typeof distance === "string") {
+      const normalized = distance.toLowerCase().trim();
+      if (!normalized) {
+        return null;
+      }
+
+      const parsed = Number.parseFloat(normalized);
+      if (!Number.isFinite(parsed)) {
+        return null;
+      }
+      if (parsed <= 10) return 10;
+      if (parsed <= 50) return 50;
+      if (parsed <= 100) return 100;
+      if (parsed <= 150) return 150;
+      return 200;
     }
 
-    const match = normalized.match(/(\d+(?:\.\d+)?)/);
-    if (!match) {
-      return null;
-    }
-
-    const miles = Number.parseFloat(match[1]);
-    if (miles <= 10) return 10;
-    if (miles <= 50) return 50;
-    if (miles <= 100) return 100;
-    if (miles <= 150) return 150;
-    return 200;
+    return null;
   };
 
   // 1. Debounce search query
@@ -302,7 +302,7 @@ export const CreativeProfileSelectorAdd = ({
             profile_photo: item.profile_photo,
             latitude: item.latitude,
             longitude: item.longitude,
-            working_distance: item.working_distance,
+            distance: item.distance,
             ...item
           }));
           setCreatives(formattedCreatives);
@@ -354,38 +354,18 @@ export const CreativeProfileSelectorAdd = ({
       const items = filteredCreatives
         .map((creative) => ({
           ...creative,
-          distanceBucket: parseWorkingDistance(creative.working_distance),
+          distanceBucket: parseDistance(creative.distance),
         }))
         .filter((creative) => creative.distanceBucket === upperBound);
 
       return { lowerBound, upperBound, label, items };
-    }).filter((bucket) => bucket.items.length > 0);
+    });
   }, [activeBucketLimits, filteredCreatives, viewMode]);
 
-  const travelingCreatives = useMemo<TravelingBucket | null>(() => {
-    if (viewMode !== "grid") {
-      return null;
-    }
-
-    const items = filteredCreatives.filter((creative) => parseWorkingDistance(creative.working_distance) === "traveling");
-
-    if (items.length === 0) {
-      return null;
-    }
-
-    return {
-      label: "Traveling",
-      items,
-    };
-  }, [filteredCreatives, viewMode]);
   const radiusFilteredCreatives = useMemo(() => {
     if (debouncedSearch) return filteredCreatives;
     return filteredCreatives.filter((creative) => {
-      const bucket = parseWorkingDistance(creative.working_distance);
-
-      if (bucket === "traveling") {
-        return true;
-      }
+      const bucket = parseDistance(creative.distance);
 
       if (bucket === null) {
         return false;
@@ -513,7 +493,7 @@ export const CreativeProfileSelectorAdd = ({
                 }`}
             />
           </div>
-          {/* <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
+          <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
           <button
             onClick={() => setViewMode('list')}
             className={`p-3 transition-colors ${viewMode === 'list' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
@@ -526,7 +506,7 @@ export const CreativeProfileSelectorAdd = ({
           >
             <LayoutGrid size={20} />
           </button>
-        </div>  */}
+        </div>  
           {/* FILTER TRIGGER */}
           <button
             onClick={() => setIsFilterOpen(true)}
@@ -565,10 +545,11 @@ export const CreativeProfileSelectorAdd = ({
             <Loader2 className="mb-4 animate-spin text-[#E8D1AB]" size={32} />
           </div>
         ) : viewMode === 'grid' ? (
-          groupedCreatives.length > 0 || travelingCreatives ? (
+          groupedCreatives.length > 0 ? (
             <>
               {groupedCreatives.map((bucket) => {
                 const isExpanded = expandedBuckets.includes(bucket.upperBound);
+                const isEmptyBucket = bucket.items.length === 0;
 
                 return (
                   <div
@@ -594,65 +575,32 @@ export const CreativeProfileSelectorAdd = ({
                       />
                     </button>
 
-                    {isExpanded && (
+                    {(isExpanded || isEmptyBucket) && (
                       <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 px-4 pb-4 md:px-6 md:pb-6">
-                        {bucket.items.map((creative, index) => (
-                          <CreativeCard
-                            key={`${creative.id}-${index}`}
-                            creative={creative}
-                            isSelected={selectedIds.includes(creative.id)}
-                            onToggle={() => toggleSelection(creative.id)}
-                            onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
-                            isDark={isDark}
-                            viewMode="grid"
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {travelingCreatives && (
-                <div
-                  className={`overflow-hidden rounded-lg lg:rounded-2xl border transition-colors ${isDark ? "border-white/10 bg-white/[0.02]" : "border-black/10 bg-black/[0.02]"}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleBucket(999)}
-                    className={`flex w-full items-center justify-between gap-3 px-2 py-4 text-left md:px-6 ${isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.03]"}`}
-                  >
-                    <div>
-                      <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                        {travelingCreatives.label}
-                      </p>
-                      <p className={isDark ? "text-xs lg:text-sm text-white/45" : "text-xs lg:text-sm text-black/45"}>
-                        {travelingCreatives.items.length} creative{travelingCreatives.items.length === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                    <ChevronDown
-                      size={18}
-                      className={`transition-transform ${expandedBuckets.includes(999) ? "rotate-180" : ""} ${isDark ? "text-white/60" : "text-black/60"}`}
-                    />
-                  </button>
-
-                  {expandedBuckets.includes(999) && (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 px-4 pb-4 md:px-6 md:pb-6">
-                      {travelingCreatives.items.map((creative, index) => (
-                        <CreativeCard
-                          key={`${creative.id}-${index}`}
-                          creative={creative}
-                          isSelected={selectedIds.includes(creative.id)}
-                          onToggle={() => toggleSelection(creative.id)}
-                          onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
-                          isDark={isDark}
-                          viewMode="grid"
-                        />
-                      ))}
+                        {bucket.items.length > 0 ? (
+                          bucket.items.map((creative, index) => (
+                            <CreativeCard
+                              key={`${creative.id}-${index}`}
+                              creative={creative}
+                              isSelected={selectedIds.includes(creative.id)}
+                              onToggle={() => toggleSelection(creative.id)}
+                              onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                              isDark={isDark}
+                              viewMode="grid"
+                            />
+                          ))
+                        ) : (
+                          <div className={`col-span-full rounded-2xl border border-dashed px-6 py-10 text-center ${
+                            isDark ? "border-white/10 text-white/50" : "border-black/10 text-black/50"
+                          }`}>
+                            No creative found in this range.
+                          </div>
+                        )}
                     </div>
                   )}
                 </div>
-              )}
+              );
+            })}
             </>
           ) : (
             <div className={`text-center py-4 lg:py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
