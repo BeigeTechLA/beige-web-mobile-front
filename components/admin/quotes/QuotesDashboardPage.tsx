@@ -1913,6 +1913,7 @@ export default function QuotesDashboardPage({
                                 href={`${detailBaseHref}/${quote.id}`}
                                 className="absolute inset-0 z-0"
                                 aria-label={`Open quote ${quote.quoteNumber}`}
+                                prefetch={false}
                               />
 
                               <div className="relative z-10 flex items-center gap-3 pointer-events-none">
@@ -1951,7 +1952,8 @@ export default function QuotesDashboardPage({
 
                             <td className="hidden px-6 py-4 md:table-cell">{quote.validUntil}</td>
                             <td className="hidden px-6 py-4 md:table-cell">{quote.salesperson}</td>
-                            <td className="relative z-20 hidden px-6 py-4 text-right md:table-cell">                              <QuoteActionMenu
+                            <td className="relative z-20 hidden px-6 py-4 text-right md:table-cell">                              
+                              <QuoteActionMenu
                                 disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
                                 open={openActionMenuId === `desktop-${quote.id}`}
                                 onOpenChange={(open) => setOpenActionMenuId(open ? `desktop-${quote.id}` : null)}
