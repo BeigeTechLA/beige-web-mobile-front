@@ -152,6 +152,8 @@ export default function AdminFolderManagerPage() {
     recent: 0,
   });
   const [error, setError] = useState<string | null>(null);
+  const projectsRequestRef = useRef(0);
+  const boardProjectsRequestRef = useRef(0);
   const boardTotalsRequestRef = useRef(0);
 
   const getUpdatedTimestamp = (value?: string) => {
@@ -182,10 +184,26 @@ export default function AdminFolderManagerPage() {
     // { name: "Trash", icon: Trash2 },
   ];
 
+  const handleTabChange = (nextTab: string) => {
+    // Invalidate any in-flight grid request immediately so late responses cannot
+    // flash stale data after the active tab changes.
+    projectsRequestRef.current += 1;
+    setLoading(true);
+    setError(null);
+    setCurrentPage(1);
+    setBoardPage(1);
+    setSelectedTab(nextTab);
+  };
+
   const loadProjects = async (page: number = 1, searchQuery: string = debouncedSearchTerm) => {
+    const requestId = ++projectsRequestRef.current;
+
     try {
-      setLoading(true);
-      setError(null);
+      if (requestId === projectsRequestRef.current) {
+        setLoading(true);
+        setError(null);
+      }
+
       const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
         page,
         limit: PAGE_SIZE,
@@ -194,9 +212,11 @@ export default function AdminFolderManagerPage() {
           selectedTab === "Common events"
             ? "common-events"
             : selectedTab === "Visibility expired"
-              ? "visibility-expired"
+            ? "visibility-expired"
               : undefined,
       });
+
+      if (requestId !== projectsRequestRef.current) return;
 
       setProjects(workspaces.map((workspace) => mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")));
       setPagination(serverPagination);
@@ -204,19 +224,28 @@ export default function AdminFolderManagerPage() {
         setCurrentPage(serverPagination.page);
       }
     } catch (err: unknown) {
+      if (requestId !== projectsRequestRef.current) return;
       setError(getErrorMessage(err, "Failed to load file manager projects"));
     } finally {
-      setLoading(false);
+      if (requestId === projectsRequestRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const loadBoardProjects = useCallback(
     async (page: number = 1, searchQuery: string = debouncedSearchTerm, append = false) => {
+      const requestId = ++boardProjectsRequestRef.current;
+
       try {
         if (append) {
-          setBoardLoadingMore(true);
+          if (requestId === boardProjectsRequestRef.current) {
+            setBoardLoadingMore(true);
+          }
         } else {
-          setBoardLoadingInitial(true);
+          if (requestId === boardProjectsRequestRef.current) {
+            setBoardLoadingInitial(true);
+          }
         }
 
         const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
@@ -224,6 +253,8 @@ export default function AdminFolderManagerPage() {
           limit: PAGE_SIZE,
           search: searchQuery,
         });
+
+        if (requestId !== boardProjectsRequestRef.current) return;
 
         const mapped = workspaces.map((workspace) =>
           mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")
@@ -244,10 +275,13 @@ export default function AdminFolderManagerPage() {
         setBoardPagination(serverPagination);
         setBoardPage(serverPagination.page || page);
       } catch (err: unknown) {
+        if (requestId !== boardProjectsRequestRef.current) return;
         setError(getErrorMessage(err, "Failed to load file manager projects"));
       } finally {
-        setBoardLoadingInitial(false);
-        setBoardLoadingMore(false);
+        if (requestId === boardProjectsRequestRef.current) {
+          setBoardLoadingInitial(false);
+          setBoardLoadingMore(false);
+        }
       }
     },
     [debouncedSearchTerm]
@@ -584,7 +618,7 @@ export default function AdminFolderManagerPage() {
               return (
                 <Button
                   key={tab.name}
-                  onClick={() => setSelectedTab(tab.name)}
+                  onClick={() => handleTabChange(tab.name)}
                   className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${isActive
                     ? isDark
                       ? "bg-white text-black shadow-lg scale-[1.02]"

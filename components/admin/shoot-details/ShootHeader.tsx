@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, AlertCircle, Eye } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -80,9 +80,7 @@ interface ShootHeaderProps {
   project?: ShootHeaderProject;
   projectId?: string;
   convertedSalesQuoteId?: string | null;
-  missingFields?: string[];
   hasFormDetails?: boolean;
-  onOpenMissingFields?: () => void;
 }
 
 export default function ShootHeader({
@@ -90,9 +88,7 @@ export default function ShootHeader({
   project,
   projectId,
   convertedSalesQuoteId = null,
-  missingFields = [],
   hasFormDetails = false,
-  onOpenMissingFields,
 }: ShootHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -270,7 +266,6 @@ export default function ShootHeader({
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
-  const hasMissingFields = missingFields.length > 0;
   const renderDescription = (text: string) => {
     if (!text) return <span>No description available.</span>;
 
@@ -398,6 +393,14 @@ export default function ShootHeader({
         <span className="text-sm font-medium">Back</span>
       </button>
 
+      <button
+        onClick={() => router.back()}
+        className={`lg:hidden transition-colors flex items-center gap-2 mb-5 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
+      >
+        <ArrowLeft size={20} />
+        <span className="text-sm font-medium">Back</span>
+      </button>
+
       {/* Top Bar */}
       <div className="hidden lg:flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
@@ -489,16 +492,6 @@ export default function ShootHeader({
                 ) : null}
               </div>
 
-              {hasMissingFields ? (
-                <button
-                  type="button"
-                  onClick={onOpenMissingFields}
-                  className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-[#E8D1AB]/25 bg-[#FFF4DA] px-3 py-2 text-xs font-semibold text-[#7A5A00] transition-colors hover:bg-[#FFEFC5] lg:mt-0 lg:self-start"
-                >
-                  <AlertCircle size={14} />
-                  Attention Needed
-                </button>
-              ) : null}
             </div>
           </div>
         </div>

@@ -25,7 +25,7 @@ export async function GET(
     String(download || "").toLowerCase() === "1" ||
     String(download || "").toLowerCase() === "true";
   request.nextUrl.searchParams.forEach((value, key) => {
-    if (key === "t") return;
+    if (key === "t" || key === "download") return;
     sourceUrl.searchParams.set(key, value);
   });
 
@@ -46,15 +46,30 @@ export async function GET(
       );
     }
 
-    const pdfBuffer = await upstreamResponse.arrayBuffer();
     const contentType =
       upstreamResponse.headers.get("content-type") || "application/pdf";
     const upstreamDisposition = upstreamResponse.headers.get("content-disposition") || "";
     const upstreamFilename = upstreamDisposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1];
+    const isPdfResponse =
+      contentType.toLowerCase().includes("application/pdf") ||
+      String(upstreamFilename || "").toLowerCase().endsWith(".pdf");
+
+    if (!isPdfResponse) {
+      const errorText = await upstreamResponse.text().catch(() => "");
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorText || "Invoice PDF endpoint did not return a PDF",
+        },
+        { status: 502 }
+      );
+    }
+
+    const pdfBuffer = await upstreamResponse.arrayBuffer();
     const safeFilename = decodeURIComponent(
       String(upstreamFilename || `beige-invoice-${parsedBookingId}.pdf`).replace(/"/g, "")
     );
-    const contentDisposition = `${forceDownload ? "attachment" : "inline"}; filename="${safeFilename}"`;
+    const contentDisposition = `inline; filename="${safeFilename}"`;
 
     return new NextResponse(pdfBuffer, {
       status: 200,

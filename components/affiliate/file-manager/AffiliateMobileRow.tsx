@@ -115,7 +115,7 @@ export const MobileWorkspaceRow = ({
                   ? "bg-white/5 text-[#E8D1AB] border border-[#E8D1AB]/20"
                   : "bg-[#FDF8EE] text-[#B38F43] border border-[#B38F43]/20"
                   }`}>
-                  View Only
+                  View Onlyy
                 </span>
               </div>
             </div>

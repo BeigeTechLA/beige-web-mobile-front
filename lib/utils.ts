@@ -355,3 +355,13 @@ export const getBookingDetails = (data: BookingData) => {
     sortedBookingDays
   };
 };
+
+export const formatCurrency = (amount: number | string | null | undefined) => {
+  if (amount === undefined || amount === null || Number.isNaN(Number(amount))) {
+    return "$0.00";
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(Number(amount));
+};
