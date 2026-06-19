@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
@@ -291,104 +291,112 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  useEffect(() => {
-    const fetchProjectAndSkills = async () => {
-      try {
-        const [projectResponse, skillsResponse] = await Promise.all([
-          adminApi.getProjectDetails(id),
-          adminApi.getSkills()
-        ]);
+  const fetchProjectAndSkills = useCallback(async (showLoader = false) => {
+    if (!id) return;
 
-        // 1. Create Skills Map
-        const skillsMap: Record<number, string> = {};
-        if (skillsResponse && skillsResponse.data) {
-          const skillsList: SkillOption[] = Array.isArray(skillsResponse.data)
-            ? skillsResponse.data
-            : (skillsResponse.data?.data || []);
-          skillsList.forEach((skill) => {
-            const name = skill.name || skill.skill_name || skill.title;
-            if (skill.id && name) skillsMap[Number(skill.id)] = name;
-          });
+    if (showLoader) {
+      setLoading(true);
+    }
+
+    try {
+      const [projectResponse, skillsResponse] = await Promise.all([
+        adminApi.getProjectDetails(id),
+        adminApi.getSkills()
+      ]);
+
+      // 1. Create Skills Map
+      const skillsMap: Record<number, string> = {};
+      if (skillsResponse && skillsResponse.data) {
+        const skillsList: SkillOption[] = Array.isArray(skillsResponse.data)
+          ? skillsResponse.data
+          : (skillsResponse.data?.data || []);
+        skillsList.forEach((skill) => {
+          const name = skill.name || skill.skill_name || skill.title;
+          if (skill.id && name) skillsMap[Number(skill.id)] = name;
+        });
+      }
+
+      const responseData = projectResponse?.data || null;
+
+      const projectData: ProjectDetails | undefined =
+        responseData?.project || responseData || projectResponse;
+
+      if (projectData) {
+        // 3. Map Skills Needed to Names
+        let skillsText = "";
+        if (projectData.skills_needed) {
+          try {
+            let parsedIds = projectData.skills_needed;
+
+            // Only attempt to parse if it's a string that looks like JSON (starts with [ or {)
+            if (typeof projectData.skills_needed === 'string' &&
+              (projectData.skills_needed.trim().startsWith('[') || projectData.skills_needed.trim().startsWith('{'))) {
+              try {
+                parsedIds = JSON.parse(projectData.skills_needed);
+              } catch {
+                // If parsing fails, keep it as a string
+                parsedIds = projectData.skills_needed;
+              }
+            }
+
+            if (Array.isArray(parsedIds)) {
+              skillsText = (parsedIds as Array<string | number>)
+                .map(id => skillsMap[Number(id)])
+                .filter(Boolean)
+                .join(", ");
+            } else if (typeof parsedIds === 'string') {
+              // If it's a plain string, use it directly
+              skillsText = parsedIds;
+            }
+          } catch (e) {
+            console.error("Unexpected error processing skills_needed:", e);
+            skillsText = projectData.skills_needed;
+          }
         }
 
-        const responseData = projectResponse?.data || null;
+        const nextProject: ProjectDetails = {
+          ...projectData,
+          payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
+          payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
+          pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
+          manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
+          payment_history: responseData?.payment_history || projectData?.payment_history || [],
+          lead_details: responseData?.lead_details || projectData?.lead_details || null,
+          assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
+          assignedPostProductionMembers:
+            responseData?.assignedPostProductionMembers ||
+            projectData?.assignedPostProductionMembers ||
+            projectData?.assigned_post_production_members ||
+            [],
+          skills_needed: skillsText || projectData.skills_needed
+        };
 
-        const projectData: ProjectDetails | undefined =
-          responseData?.project || responseData || projectResponse;
-
-        if (projectData) {
-          // 3. Map Skills Needed to Names
-          let skillsText = "";
-          if (projectData.skills_needed) {
-            try {
-              let parsedIds = projectData.skills_needed;
-
-              // Only attempt to parse if it's a string that looks like JSON (starts with [ or {)
-              if (typeof projectData.skills_needed === 'string' &&
-                (projectData.skills_needed.trim().startsWith('[') || projectData.skills_needed.trim().startsWith('{'))) {
-                try {
-                  parsedIds = JSON.parse(projectData.skills_needed);
-                } catch {
-                  // If parsing fails, keep it as a string
-                  parsedIds = projectData.skills_needed;
-                }
-              }
-
-              if (Array.isArray(parsedIds)) {
-                skillsText = (parsedIds as Array<string | number>)
-                  .map(id => skillsMap[Number(id)])
-                  .filter(Boolean)
-                  .join(", ");
-              } else if (typeof parsedIds === 'string') {
-                // If it's a plain string, use it directly
-                skillsText = parsedIds;
-              }
-            } catch (e) {
-              console.error("Unexpected error processing skills_needed:", e);
-              skillsText = projectData.skills_needed;
+        const quoteId = String(nextProject.converted_sales_quote_id || "").trim();
+        if (quoteId) {
+          try {
+            const convertedQuoteAmount = await getConvertedQuoteAmount(quoteId);
+            if (convertedQuoteAmount !== undefined) {
+              nextProject.converted_quote_amount = convertedQuoteAmount;
             }
+          } catch (error) {
+            console.error("Failed to resolve converted quote amount:", error);
           }
-
-          const nextProject: ProjectDetails = {
-            ...projectData,
-            payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
-            payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
-            pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
-            manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
-            payment_history: responseData?.payment_history || projectData?.payment_history || [],
-            lead_details: responseData?.lead_details || projectData?.lead_details || null,
-            assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
-            assignedPostProductionMembers:
-              responseData?.assignedPostProductionMembers ||
-              projectData?.assignedPostProductionMembers ||
-              projectData?.assigned_post_production_members ||
-              [],
-            skills_needed: skillsText || projectData.skills_needed
-          };
-
-          const quoteId = String(nextProject.converted_sales_quote_id || "").trim();
-          if (quoteId) {
-            try {
-              const convertedQuoteAmount = await getConvertedQuoteAmount(quoteId);
-              if (convertedQuoteAmount !== undefined) {
-                nextProject.converted_quote_amount = convertedQuoteAmount;
-              }
-            } catch (error) {
-              console.error("Failed to resolve converted quote amount:", error);
-            }
-          }
-
-          setProject(nextProject);
         }
-      } catch (error) {
-        console.error("Failed to fetch shoot details:", error);
-      } finally {
+
+        setProject(nextProject);
+      }
+    } catch (error) {
+      console.error("Failed to fetch shoot details:", error);
+    } finally {
+      if (showLoader) {
         setLoading(false);
       }
-    };
-
-    if (id) fetchProjectAndSkills();
+    }
   }, [id]);
+
+  useEffect(() => {
+    fetchProjectAndSkills(true);
+  }, [fetchProjectAndSkills]);
 
   if (!mounted) return null;
 
@@ -411,7 +419,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  const handleMissingFieldsSaved = (updated: {
+  const handleMissingFieldsSaved = async (updated: {
     shootId: string;
     location?: string;
     bookingType: "single_day" | "multi_day";
@@ -426,50 +434,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     }>;
     remainingMissingFields: string[];
   }) => {
-    setProject((prev) => {
-      if (!prev) return prev;
-
-      const next: ProjectDetails = {
-        ...prev,
-        needs_attention:
-          updated.remainingMissingFields.length > 0
-            ? {
-              required: true,
-              missing_fields: updated.remainingMissingFields,
-            }
-            : undefined,
-      };
-
-      if (updated.location) {
-        next.location = updated.location;
-        next.event_location = updated.location;
-      }
-
-      if (updated.bookingType === "single_day" && updated.rawDate) {
-        next.event_date = new Date(updated.rawDate).toISOString().slice(0, 10);
-        next.start_time = updated.startTime || next.start_time;
-        next.end_time = updated.endTime || next.end_time;
-      }
-
-      if (updated.bookingType === "multi_day" && updated.bookingDays?.length) {
-        const firstDay = updated.bookingDays[0];
-        next.event_date = firstDay.date;
-        next.start_time = firstDay.start_time;
-        next.end_time = firstDay.end_time;
-        next.booking_days = updated.bookingDays.map((day) => ({
-          date: day.date,
-          event_date: day.date,
-          start_time: day.start_time,
-          end_time: day.end_time,
-        }));
-      }
-
-      return next;
-    });
-
     if (updated.remainingMissingFields.length === 0) {
       setIsMissingFieldsModalOpen(false);
     }
+
+    await fetchProjectAndSkills(false);
   };
 
   const handleViewInvoice = async () => {
