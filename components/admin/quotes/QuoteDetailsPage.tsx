@@ -1476,9 +1476,6 @@ export default function QuoteDetailsPage({
   );
 
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId) || Boolean(conversionActivity);
-  const conversionMessage = isConvertedToBooking
-    ? `Your quote has been converted into booking${convertedBookingId ? ` #${convertedBookingId}` : ""}. You can view it from Leads and continue with payments there.`
-    : null;
   const conversionMetaLabel = conversionActivity?.created_at
     ? `Converted on ${formatQuoteDate(conversionActivity.created_at)}${conversionActivity?.performed_by?.name ? ` by ${conversionActivity.performed_by.name}` : ""}`
     : null;
@@ -1629,6 +1626,11 @@ export default function QuoteDetailsPage({
     );
   const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
   const shouldUseReceiptActions = hasFullPayment;
+  const conversionMessage = isConvertedToBooking
+    ? hasFullPayment
+      ? `Your quote has been converted into booking${convertedBookingId ? ` #${convertedBookingId}` : ""}. You can view it from Leads.`
+      : `Your quote has been converted into booking${convertedBookingId ? ` #${convertedBookingId}` : ""}. You can view it from Leads and continue with payments there.`
+    : null;
 
   const ensureBookingForPayment = useCallback(async () => {
     if (resolvedBookingId) {
@@ -2046,10 +2048,15 @@ export default function QuoteDetailsPage({
           : current
       );
 
+      const convertedBookingMessage = hasFullPayment
+        ? `Your quote has already been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads.`
+        : `Your quote has already been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`;
+      const newlyConvertedBookingMessage = hasFullPayment
+        ? `Your quote has been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads.`
+        : `Your quote has been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`;
+
       toast.success(
-        alreadyConverted
-          ? `Your quote has already been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`
-          : `Your quote has been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`
+        alreadyConverted ? convertedBookingMessage : newlyConvertedBookingMessage
       );
       dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
       setIsConvertModalOpen(false);

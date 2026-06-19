@@ -3936,32 +3936,15 @@ export default function CreateQuotePage() {
           cacheBust: true,
         })
         : null;
-      const brandedDownloadUrl = invoiceBookingId
-        ? buildBeigeInvoiceUrl(invoiceBookingId, {
-          manual: isManualInvoicePdf,
-          download: true,
-          cacheBust: true,
-        })
-        : null;
-
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl && !isManualInvoicePdf && !invoicePdfUrl) {
-        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      if (!brandedPdfUrl) {
+        throw new Error("Invoice PDF URL is not available");
       }
 
-      if (invoicePdfUrl) {
-        const link = document.createElement("a");
-        if (!brandedDownloadUrl && !brandedPdfUrl) {
-          throw new Error("Invoice PDF URL is not available");
-        }
-        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.click();
-      }
+      window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
 
       toast.success("Invoice opened successfully");
     } catch (error) {
