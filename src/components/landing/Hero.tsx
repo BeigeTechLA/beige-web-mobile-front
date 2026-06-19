@@ -99,6 +99,20 @@ export const Hero = () => {
               >
                 Start Your Shoot
               </Button>
+              <Button
+                className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
+                onClick={() => {
+                  pushToDataLayer("book_studio_started", {
+                    type: "Action Tracking",
+                    page_name: "Landing Page",
+                    location_in_website: "hero_landing_page",
+                    duration_on_page: performance.now() / 1000,
+                  });
+                  router.push('/book-a-studio');
+                }}
+              >
+                Book Your Studio
+              </Button>
               {!isAuthenticated && (
                 <Button
                   className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
