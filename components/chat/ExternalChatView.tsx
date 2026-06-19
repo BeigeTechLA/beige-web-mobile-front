@@ -48,6 +48,8 @@ interface ExternalChatViewProps {
   description?: string;
   allowActivation?: boolean;
   isDark?: boolean;
+  directRoomMode?: boolean;
+  onRoomAvailabilityChange?: (hasRoom: boolean) => void;
 }
 
 const getRoomId = (room?: ExternalChatRoom | null) => String(room?.id || room?._id || "");
@@ -519,6 +521,8 @@ export default function ExternalChatView({
   description = "Chat rooms linked to bookings confirmed through Beige.",
   allowActivation = false,
   isDark = true,
+  directRoomMode = false,
+  onRoomAvailabilityChange,
 }: ExternalChatViewProps) {
   const { user } = useAuth();
   const storedUser = useMemo(() => {
@@ -588,6 +592,7 @@ export default function ExternalChatView({
   const userName = String(effectiveUser?.name || effectiveUser?.email || "").trim();
   const safeUserName = userName || `User ${userId || "guest"}`;
   const isAdminView = role === "admin";
+  const shouldUseDirectRoom = Boolean(directRoomMode && bookingId);
   const socketServerUrl = useMemo(() => {
     const explicitSocketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "").trim();
     if (explicitSocketUrl) {
@@ -635,8 +640,11 @@ export default function ExternalChatView({
   }, [participants]);
 
   const scopedRooms = useMemo(
-    () => rooms.filter((room) => roomMatchesRoleUser(room, effectiveUser, role)),
-    [rooms, role, effectiveUser]
+    () =>
+      (role === "cp" || role === "client") && !bookingId
+        ? rooms
+        : rooms.filter((room) => roomMatchesRoleUser(room, effectiveUser, role)),
+    [rooms, role, effectiveUser, bookingId]
   );
 
   const filteredRooms = useMemo(() => {
@@ -1038,7 +1046,12 @@ export default function ExternalChatView({
           roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
         });
         setRooms(roomList);
-        clearSelectedConversation();
+        onRoomAvailabilityChange?.(roomList.length > 0);
+        if (shouldUseDirectRoom && roomList[0]) {
+          await loadRoomDetails(roomList[0]);
+        } else {
+          clearSelectedConversation();
+        }
       } else {
         const roomList = await externalChatApi.listRooms({ page: 1, limit: 100, sortBy: "updatedAt:desc" });
         const hydratedRooms = await hydrateRoomPreviews(roomList);
@@ -1046,9 +1059,16 @@ export default function ExternalChatView({
           roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
         });
         setRooms(hydratedRooms);
+        onRoomAvailabilityChange?.(hydratedRooms.length > 0);
         clearSelectedConversation();
       }
     } catch (err: any) {
+      if (bookingId && (err?.status === 404 || err?.response?.status === 404)) {
+        setRooms([]);
+        onRoomAvailabilityChange?.(false);
+        clearSelectedConversation();
+        return;
+      }
       toast.error(err?.message || "Failed to load chat rooms");
     } finally {
       setLoading(false);
@@ -1079,7 +1099,7 @@ export default function ExternalChatView({
 
   useEffect(() => {
     loadRooms();
-  }, [bookingId]);
+  }, [bookingId, shouldUseDirectRoom, role]);
 
   useEffect(() => {
     selectedRoomRef.current = selectedRoom;
@@ -1531,6 +1551,7 @@ export default function ExternalChatView({
 
   const selectedRoomTitle = selectedRoom?.name || "Messages";
   const latestDate = visibleMessages[visibleMessages.length - 1]?.createdAt || selectedRoom?.updatedAt || selectedRoom?.createdAt;
+  const isDirectRoomLoading = shouldUseDirectRoom && loading;
 
   return (
     <>
@@ -1546,17 +1567,19 @@ export default function ExternalChatView({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {/* Sort Order Action Toggle Button */}
-            <button
-              type="button"
-              onClick={() => setRoomSortOrder((current) => (current === "latest" ? "oldest" : "latest"))}
-              className={`inline-flex items-center gap-2 rounded-full border py-2 px-3 lg:px-4 lg:py-3 text-xs lg:text-sm transition-colors ${isDark
-                ? "border-white/10 bg-[#111111] text-white/70 hover:bg-white/5"
-                : "border-[#E5E5E5] bg-white text-black/70 hover:bg-zinc-50 shadow-sm"
-                }`}
-            >
-              <CalendarDays className="h-4 w-4" />
-              {roomSortOrder === "latest" ? "Latest First" : "Oldest First"}
-            </button>
+            {!shouldUseDirectRoom ? (
+              <button
+                type="button"
+                onClick={() => setRoomSortOrder((current) => (current === "latest" ? "oldest" : "latest"))}
+                className={`inline-flex items-center gap-2 rounded-full border py-2 px-3 lg:px-4 lg:py-3 text-xs lg:text-sm transition-colors ${isDark
+                  ? "border-white/10 bg-[#111111] text-white/70 hover:bg-white/5"
+                  : "border-[#E5E5E5] bg-white text-black/70 hover:bg-zinc-50 shadow-sm"
+                  }`}
+              >
+                <CalendarDays className="h-4 w-4" />
+                {roomSortOrder === "latest" ? "Latest First" : "Oldest First"}
+              </button>
+            ) : null}
 
             {/* Admin Specific Action Trigger Button */}
             {isAdminView && !bookingId ? (
@@ -1578,10 +1601,11 @@ export default function ExternalChatView({
           ? "border-white/10 bg-[radial-gradient(circle_at_top,#181818,transparent_35%),#0b0b0b] shadow-[0_30px_80px_rgba(0,0,0,0.55)]"
           : "border-[#E5E5E5] bg-[radial-gradient(circle_at_top,#F9F9F9,transparent_35%),#FFFFFF] shadow-[0_20px_50px_rgba(0,0,0,0.06)]"
           }`}>
-          <div className="grid w-full min-w-0 min-h-0 flex-1 lg:grid-cols-[420px_minmax(0,1fr)]">
+          <div className={`grid w-full min-w-0 min-h-0 flex-1 ${shouldUseDirectRoom ? "grid-cols-1" : "lg:grid-cols-[420px_minmax(0,1fr)]"}`}>
 
             {/* PART 1: SIDEBAR TRACK CONTAINER (Responsive: hidden on mobile if a room is selected) */}
-            <div className={`w-full max-w-full min-w-0 min-h-0 flex-col border-b lg:border-b-0 lg:border-r transition-colors ${selectedRoom ? "hidden lg:flex" : "flex"} ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
+            {!shouldUseDirectRoom ? (
+              <div className={`w-full max-w-full min-w-0 min-h-0 flex-col border-b lg:border-b-0 lg:border-r transition-colors ${selectedRoom ? "hidden lg:flex" : "flex"} ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
 
               {/* Sidebar Header & Search View */}
               <div className={`border-b p-4 lg:p-6 transition-colors ${isDark ? "border-white/5" : "border-[#E3E3E3]"}`}>
@@ -1732,10 +1756,11 @@ export default function ExternalChatView({
                   })
                 )}
               </div>
-            </div>
+              </div>
+            ) : null}
 
             {/* THREAD CONTAINER SIDE (Responsive: hidden on mobile if no conversation is open) */}
-            <div className={`w-full min-w-0 overflow-visible min-h-0 flex-1 flex-col ${selectedRoom ? "flex" : "hidden lg:flex"}`}>
+            <div className={`w-full min-w-0 overflow-visible min-h-0 flex-1 flex-col ${selectedRoom || shouldUseDirectRoom ? "flex" : "hidden lg:flex"}`}>
               {/* Top Conversation Header Panel */}
               <div className={`w-full min-w-0 overflow-visible border-b p-4 lg:px-8 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
                 <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-row sm:items-center sm:justify-between lg:gap-4">
@@ -1743,7 +1768,7 @@ export default function ExternalChatView({
                   {/* Left Section: Back Button, Room Icon, Info Text */}
                   <div className="flex items-center gap-2 min-w-0 flex-1 lg:gap-3">
                     {/* Mobile Back Chevron Navigation Trigger Button */}
-                    {selectedRoom && (
+                    {selectedRoom && !shouldUseDirectRoom ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -1759,7 +1784,7 @@ export default function ExternalChatView({
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
-                    )}
+                    ) : null}
 
                     <div className={`flex h-10 w-10 lg:h-12 lg:w-12 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#E5D5B8]/15 text-[#E5D5B8]" : "bg-zinc-100 text-black"}`}>
                       <Users className="h-5 w-5" />
@@ -1769,22 +1794,25 @@ export default function ExternalChatView({
                       <h3 className={`text-base lg:text-xl font-semibold transition-colors truncate break-all ${isDark ? "text-white" : "text-black"}`}>
                         {selectedRoomTitle}
                       </h3>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setManageDefaultTab("current");
-                          setIsManageOpen(true);
-                        }}
-                        className={`mt-0.5 inline-flex items-center gap-1 lg:gap-2 text-xs transition-colors max-w-full ${isDark ? "text-white/45 hover:text-white/75" : "text-black/55 hover:text-black"}`}
-                      >
-                        <Users className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{`${participantCount} ${participantCount === 1 ? "Participant" : "Participants"}`}</span>
-                      </button>
+                      {selectedRoom ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManageDefaultTab("current");
+                            setIsManageOpen(true);
+                          }}
+                          className={`mt-0.5 inline-flex items-center gap-1 lg:gap-2 text-xs transition-colors max-w-full ${isDark ? "text-white/45 hover:text-white/75" : "text-black/55 hover:text-black"}`}
+                        >
+                          <Users className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{`${participantCount} ${participantCount === 1 ? "Participant" : "Participants"}`}</span>
+                        </button>
+                      ) : null}
                     </div>
                   </div>
 
                   {/* Right Section: Action Buttons */}
-                  <div className="flex items-center justify-start gap-2 shrink-0 w-full sm:w-auto sm:justify-end">
+                  {selectedRoom ? (
+                    <div className="flex items-center justify-start gap-2 shrink-0 w-full sm:w-auto sm:justify-end">
                     <button
                       type="button"
                       onClick={() => {
@@ -1877,7 +1905,7 @@ export default function ExternalChatView({
                       ) : null}
                     </div>
 
-                    {isAdminView && selectedRoom ? (
+                    {isAdminView ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -1890,11 +1918,12 @@ export default function ExternalChatView({
                         <span>Add Participant</span>
                       </button>
                     ) : null}
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Thread Inline Filter Input Bar */}
-                {isThreadSearchOpen ? (
+                {selectedRoom && isThreadSearchOpen ? (
                   <div className={`mt-4 flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"}`}>
                     <Search className={`h-4 w-4 ${isDark ? "text-white/45" : "text-black/40"}`} />
                     <input
@@ -1923,8 +1952,24 @@ export default function ExternalChatView({
                   onScroll={updateScrollIntent}
                   className={`min-h-0 h-full overflow-y-auto px-5 py-6 lg:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-zinc-50"}`}
                 >
-                  {loadingRoomData ? (
-                    <div className={`text-sm ${isDark ? "text-white/45" : "text-zinc-400"}`}>Loading messages...</div>
+                  {isDirectRoomLoading ? (
+                    <div className="flex h-full min-h-[260px] items-center justify-center">
+                      <div className={`flex flex-col items-center gap-3 rounded-3xl border px-8 py-7 ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"}`}>
+                        <Loader2 className="h-8 w-8 animate-spin text-[#BFA780]" />
+                        <p className={`text-sm font-medium ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+                          Loading project chat...
+                        </p>
+                      </div>
+                    </div>
+                  ) : loadingRoomData ? (
+                    <div className="flex h-full min-h-[260px] items-center justify-center">
+                      <div className={`flex flex-col items-center gap-3 rounded-3xl border px-8 py-7 ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"}`}>
+                        <Loader2 className="h-8 w-8 animate-spin text-[#BFA780]" />
+                        <p className={`text-sm font-medium ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+                          Loading messages...
+                        </p>
+                      </div>
+                    </div>
                   ) : !selectedRoom ? (
                     <div className="flex h-full items-center justify-center">
                       <div className={`mx-auto flex max-w-md flex-col items-center rounded-4xl border px-8 py-12 text-center shadow-[0_25px_60px_rgba(0,0,0,0.28)] ${isDark
@@ -1938,11 +1983,17 @@ export default function ExternalChatView({
                           <MessageCircle className="h-9 w-9" />
                         </div>
                         <h4 className={`text-lg lg:text-2xl font-semibold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
-                          {accessRevokedNotice ? "Conversation unavailable" : "Select a conversation"}
+                          {accessRevokedNotice
+                            ? "Conversation unavailable"
+                            : shouldUseDirectRoom
+                              ? "No chat room yet"
+                              : "Select a conversation"}
                         </h4>
                         <p className={`mt-3 text-xs lg:text-sm leading-6 ${isDark ? "text-white/52" : "text-zinc-500"}`}>
                           {accessRevokedNotice ||
-                            "Choose a conversation from the left side to open the thread and continue the chat from here."}
+                            (shouldUseDirectRoom
+                              ? "Create the project chat room to start messaging for this shoot."
+                              : "Choose a conversation from the left side to open the thread and continue the chat from here.")}
                         </p>
                       </div>
                     </div>
@@ -2291,7 +2342,8 @@ export default function ExternalChatView({
                 ) : null}
               </div>
 
-              <div className={`relative border-t p-4 lg:px-8 ${isDark ? "bg-[#111111] border-white/10" : "bg-white border-[#E5E5E5]"}`}>
+              {selectedRoom ? (
+                <div className={`relative border-t p-4 lg:px-8 ${isDark ? "bg-[#111111] border-white/10" : "bg-white border-[#E5E5E5]"}`}>
                 {replyTarget ? (
                   <div className={`mb-1 lg:mb-3 flex items-center justify-between rounded-xl lg:rounded-2xl border p-3 lg:px-4 lg:py-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"}`}>
                     <div className="min-w-0">
@@ -2391,7 +2443,8 @@ export default function ExternalChatView({
                     <Send className="h-4 w-4" />
                   </button>
                 </div>
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
