@@ -158,6 +158,7 @@ export default function SharedFileManagerPage() {
 
   const folders = useMemo(() => (Array.isArray(content?.folders) ? (content.folders as SharedFolder[]) : []), [content]);
   const files = useMemo(() => (Array.isArray(content?.files) ? (content.files as SharedFile[]) : []), [content]);
+  const selectionLockActive = selectedFilePaths.length > 0;
 
   const breadcrumbs = useMemo(() => {
     const crumbs: Array<{ label: string; phase?: string; path?: string }> = [{ label: "Shared Root" }];
@@ -617,8 +618,12 @@ export default function SharedFileManagerPage() {
               <div className="flex flex-wrap items-center gap-2">
                 {(currentPhase || currentPath) && (
                   <button
-                    onClick={() => loadContent(accessToken)}
-                    className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white/70 transition-all hover:bg-white/[0.06] hover:text-white"
+                    onClick={() => {
+                      if (selectionLockActive) return;
+                      loadContent(accessToken);
+                    }}
+                    disabled={selectionLockActive}
+                    className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white/70 transition-all hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <ArrowLeft size={16} /> Root
                   </button>
@@ -632,7 +637,11 @@ export default function SharedFileManagerPage() {
                 <div key={`${crumb.label}-${index}`} className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => goToCrumb(crumb, index)}
+                    onClick={() => {
+                      if (selectionLockActive) return;
+                      goToCrumb(crumb, index);
+                    }}
+                    disabled={selectionLockActive}
                     className={`rounded-lg px-2.5 py-1 transition-all ${
                       index === breadcrumbs.length - 1
                         ? "bg-white/[0.06] font-medium text-white"
@@ -658,8 +667,12 @@ export default function SharedFileManagerPage() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => downloadFile(content?.file?.path)}
-                  className="h-10 rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black hover:bg-[#dcb98a]"
+                  onClick={() => {
+                    if (selectionLockActive) return;
+                    downloadFile(content?.file?.path);
+                  }}
+                  disabled={selectionLockActive}
+                  className="h-10 rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black hover:bg-[#dcb98a] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Download className="mr-2 h-4 w-4" /> Download
                 </Button>
@@ -680,8 +693,12 @@ export default function SharedFileManagerPage() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: fi * 0.04 }}
                           type="button"
-                          onClick={() => openFolder(folder)}
-                          className="group flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-all hover:border-[#E5D5B8]/30 hover:bg-[#E5D5B8]/[0.04]"
+                          onClick={() => {
+                            if (selectionLockActive) return;
+                            openFolder(folder);
+                          }}
+                          disabled={selectionLockActive}
+                          className="group flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-all hover:border-[#E5D5B8]/30 hover:bg-[#E5D5B8]/[0.04] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E5D5B8]/10 transition-colors group-hover:bg-[#E5D5B8]/20">
                             <FolderOpen className="h-5 w-5 text-[#E5D5B8]" />
@@ -738,7 +755,15 @@ export default function SharedFileManagerPage() {
                             </button>
 
                             {/* Thumbnail */}
-                            <button type="button" onClick={() => openPreview(file)} className="relative aspect-[16/10] w-full overflow-hidden bg-[#0A0A0A]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectionLockActive) return;
+                                openPreview(file);
+                              }}
+                              disabled={selectionLockActive}
+                              className="relative aspect-[16/10] w-full overflow-hidden bg-[#0A0A0A] disabled:cursor-not-allowed"
+                            >
                               {(isPreviewImage(file) || isPreviewVideo(file)) ? (
                                 <Thumbnail file={file} getFileThumbnail={getFileThumbnail} />
                               ) : (
@@ -769,15 +794,23 @@ export default function SharedFileManagerPage() {
                                 <div className="flex gap-1.5">
                                   <button
                                     type="button"
-                                    onClick={() => openPreview(file)}
-                                    className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-white/60 transition-all hover:bg-white/[0.08] hover:text-white"
+                                    onClick={() => {
+                                      if (selectionLockActive) return;
+                                      openPreview(file);
+                                    }}
+                                    disabled={selectionLockActive}
+                                    className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-white/60 transition-all hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     View
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => downloadFile(file.path)}
-                                    className="rounded-lg bg-[#E5D5B8]/15 px-2.5 py-1 text-[11px] font-medium text-[#E5D5B8] transition-all hover:bg-[#E5D5B8]/25"
+                                    onClick={() => {
+                                      if (selectionLockActive) return;
+                                      downloadFile(file.path);
+                                    }}
+                                    disabled={selectionLockActive}
+                                    className="rounded-lg bg-[#E5D5B8]/15 px-2.5 py-1 text-[11px] font-medium text-[#E5D5B8] transition-all hover:bg-[#E5D5B8]/25 disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     Download
                                   </button>
@@ -858,8 +891,12 @@ export default function SharedFileManagerPage() {
                   {previewFile && (
                     <button
                       type="button"
-                      onClick={() => downloadFile(files.find((f) => f.name === previewFile.name)?.path)}
-                      className="flex items-center gap-1.5 rounded-lg bg-[#E5D5B8]/15 px-3 py-1.5 text-xs font-medium text-[#E5D5B8] transition-colors hover:bg-[#E5D5B8]/25"
+                      onClick={() => {
+                        if (selectionLockActive) return;
+                        downloadFile(files.find((f) => f.name === previewFile.name)?.path);
+                      }}
+                      disabled={selectionLockActive}
+                      className="flex items-center gap-1.5 rounded-lg bg-[#E5D5B8]/15 px-3 py-1.5 text-xs font-medium text-[#E5D5B8] transition-colors hover:bg-[#E5D5B8]/25 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Download size={13} /> Download
                     </button>
@@ -894,8 +931,12 @@ export default function SharedFileManagerPage() {
                       </div>
                       <p className="text-sm text-white/50">Preview not available for this file type.</p>
                       <Button
-                        onClick={() => downloadFile(files.find((item) => item.name === previewFile.name)?.path)}
-                        className="h-10 rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black hover:bg-[#dcb98a]"
+                        onClick={() => {
+                          if (selectionLockActive) return;
+                          downloadFile(files.find((item) => item.name === previewFile.name)?.path);
+                        }}
+                        disabled={selectionLockActive}
+                        className="h-10 rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black hover:bg-[#dcb98a] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Download className="mr-2 h-4 w-4" /> Download File
                       </Button>

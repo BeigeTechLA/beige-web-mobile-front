@@ -5,6 +5,27 @@ import { CalendarX, ChevronDown, FolderOpen, LinkIcon, MoreVertical, Unlink } fr
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/src/components/landing/ui/button";
 
+const formatFolderTimestamp = (value?: string) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "recently";
+  if (raw === "recently" || raw === "just now") return raw;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+
+  const datePart = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed);
+  const timePart = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+
+  return `${datePart}\n${timePart}`;
+};
+
 interface FolderEntry {
   id: string;
   title: string;
@@ -105,7 +126,7 @@ export const MobileFolderRow = ({
               }
               <div>
                 <p className={`text-xs mb-1 ${isDark ? "text-white/40" : "text-[#727272]"}`}>Last Updated</p>
-                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{folder.lastOpened}</p>
+                <p className={`font-medium whitespace-pre-line ${isDark ? "text-white" : "text-black"}`}>{formatFolderTimestamp(folder.lastOpened)}</p>
               </div>
               {
                 (folder?.isLinked || folder?.visibilityExpired) && (

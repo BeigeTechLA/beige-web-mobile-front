@@ -451,6 +451,7 @@ export default function CreatorFileManagerPhasePage() {
   const someVisibleFilesSelected =
     visibleFiles.some((file) => selectedFilePaths.includes(file.filepath || "")) &&
     !allVisibleFilesSelected;
+  const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
 
   const toggleFileSelection = (filepath: string) => {
     setSelectedFilePaths((prev) =>
@@ -570,8 +571,8 @@ export default function CreatorFileManagerPhasePage() {
               return (
                 <tr
                   key={file.id}
-                  className={`group cursor-pointer transition-colors hover:bg-white/[0.02] ${isSelectionMode && isSelected ? "bg-white/[0.04]" : ""}`}
-                  onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+                  className={`group transition-colors ${selectionLockActive ? "cursor-default" : "cursor-pointer hover:bg-white/[0.02]"} ${isSelectionMode && isSelected ? "bg-white/[0.04]" : ""}`}
+                  onClick={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
                 >
                   {isSelectionMode ? (
                     <td className="whitespace-nowrap px-6 py-5" onClick={(e) => e.stopPropagation()}>
@@ -622,9 +623,11 @@ export default function CreatorFileManagerPhasePage() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         type="button"
-                        className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                        className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={selectionLockActive}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (selectionLockActive) return;
                           handleDownloadFile(file as unknown as Record<string, unknown>);
                         }}
                       >
@@ -633,9 +636,11 @@ export default function CreatorFileManagerPhasePage() {
                       {canDeleteFiles ? (
                         <button
                           type="button"
-                          className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
+                          className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
+                          disabled={selectionLockActive}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (selectionLockActive) return;
                             setSelectedFile(file as unknown as Record<string, unknown>);
                             setIsDeleteModalOpen(true);
                           }}
@@ -668,7 +673,14 @@ export default function CreatorFileManagerPhasePage() {
   return (
     <div className="overflow-hidden">
       <div className="mb-5 flex items-center justify-between">
-        <Button onClick={() => router.back()} className="flex items-center gap-2 p-0 text-white transition-colors hover:text-white/80">
+        <Button
+          onClick={() => {
+            if (selectionLockActive) return;
+            router.back();
+          }}
+          disabled={selectionLockActive}
+          className="flex items-center gap-2 p-0 text-white transition-colors hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+        >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
@@ -676,12 +688,26 @@ export default function CreatorFileManagerPhasePage() {
         {canUpload || canCreateFolder ? (
           <div className="flex items-center gap-2">
             {canCreateFolder ? (
-              <Button onClick={() => setIsCreateFolderModalOpen(true)} className="border border-white/20 bg-[#202020] text-white hover:bg-white/10">
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsCreateFolderModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 <FolderPlus /> Create Folder
               </Button>
             ) : null}
             {canUpload ? (
-              <Button onClick={() => setIsUploadModalOpen(true)} className="border border-white/20 bg-[#202020] text-white hover:bg-white/10">
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 <Upload /> Upload Files
               </Button>
             ) : null}
@@ -972,19 +998,19 @@ export default function CreatorFileManagerPhasePage() {
                               key={file.id}
                               file={{ ...file, previewUrl: previewUrls[file.id] }}
                               stage={fileCardStage}
-                              onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-                              onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                              onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
+                              onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
                               isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                               onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                               onDelete={
-                                canDeleteFiles
+                                !selectionLockActive && canDeleteFiles
                                   ? () => {
                                     setSelectedFile(file as unknown as Record<string, unknown>);
                                     setIsDeleteModalOpen(true);
                                   }
                                   : undefined
                               }
-                              onShare={() => {
+                              onShare={selectionLockActive ? undefined : () => {
                                 setShareResource({
                                   resourceType: "file",
                                   externalId: String(projectId || ""),
@@ -1017,7 +1043,10 @@ export default function CreatorFileManagerPhasePage() {
               </div>
             ) : viewMode === "grid" ? (
               filteredFiles.length === 0 ? (
-                <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+                <EmptyFileState
+                  onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+                  actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
+                />
               ) : (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
@@ -1026,19 +1055,19 @@ export default function CreatorFileManagerPhasePage() {
                         key={file.id}
                         file={{ ...file, previewUrl: previewUrls[file.id] }}
                         stage={fileCardStage}
-                        onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-                        onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                        onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
+                        onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
                         isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                         onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                         onDelete={
-                          canDeleteFiles
+                          !selectionLockActive && canDeleteFiles
                             ? () => {
                               setSelectedFile(file as unknown as Record<string, unknown>);
                               setIsDeleteModalOpen(true);
                             }
                             : undefined
                         }
-                        onShare={() => {
+                        onShare={selectionLockActive ? undefined : () => {
                           setShareResource({
                             resourceType: "file",
                             externalId: String(projectId || ""),
@@ -1065,7 +1094,10 @@ export default function CreatorFileManagerPhasePage() {
                 </div>
               )
             ) : filteredFiles.length === 0 ? (
-              <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+              <EmptyFileState
+                onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+                actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
+              />
             ) : (
               renderFilesTable()
             )}

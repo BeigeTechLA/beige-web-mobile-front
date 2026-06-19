@@ -159,6 +159,7 @@ export default function AffiliateFileManager() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
   const [isSendingEditRequest, setIsSendingEditRequest] = useState(false);
   const [editRequestSentCount, setEditRequestSentCount] = useState(0);
   const fileCardStage = selectedPhase === "post" ? "post-production" : "pre-production";
@@ -1123,7 +1124,7 @@ export default function AffiliateFileManager() {
                   Linked
                 </span>
                 <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium border text-[#E8D1AB] bg-[#1A1A1A] border-white/5`}>
-                  View Onlyy
+                  View Only
                 </span>
               </div>
             </div>
@@ -1184,11 +1185,15 @@ export default function AffiliateFileManager() {
           <div className="mb-3 lg:mb-5 flex items-center justify-end">
             {canUploadInSelectedPhase ? (
               <Button
-                onClick={() => setIsUploadModalOpen(true)}
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
                 className={`border transition-colors ${isDark
                   ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
                   : "border-black/15 bg-white text-black hover:bg-zinc-50 shadow-sm"
-                  }`}
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 <Upload size={18} /> Upload Files
               </Button>
@@ -1437,7 +1442,7 @@ export default function AffiliateFileManager() {
                       : "bg-black/[0.04] text-[#B38F43] border-black/5"
                     }`}
                 >
-                  {canUploadInSelectedPhase ? "Upload EnabledD" : "View Onlyy"}
+                  {canUploadInSelectedPhase ? "Upload Enabled" : "View Onlyy"}
                 </span>
               </div>
 
@@ -1653,8 +1658,8 @@ export default function AffiliateFileManager() {
         statusClassName: statusBadge.className,
       }}
       stage={fileCardStage}
-      onOpen={() => handleOpenFile(file)}
-      onDownload={() => handleDownloadFile(file)}
+      onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+      onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
       isSelected={
         isSelectionMode && selectedFilePaths.includes(file.filepath || "")
       }
@@ -1664,12 +1669,16 @@ export default function AffiliateFileManager() {
           : undefined
       }
       onApprove={
-        canReviewVersionFile && reviewingFilePath !== file.filepath
+        !selectionLockActive &&
+        canReviewVersionFile &&
+        reviewingFilePath !== file.filepath
           ? () => handleReviewRevisionFile(file, "approve")
           : undefined
       }
       onRequestRevision={
-        canReviewVersionFile && reviewingFilePath !== file.filepath
+        !selectionLockActive &&
+        canReviewVersionFile &&
+        reviewingFilePath !== file.filepath
           ? () => handleReviewRevisionFile(file, "request_revision")
           : undefined
       }
@@ -1694,10 +1703,10 @@ export default function AffiliateFileManager() {
               <EmptyFileState
                 title="No File Uploaded"
                 description="No files have been uploaded for this project yet."
-                onAction={canUploadInSelectedPhase ? () => setIsUploadModalOpen(true) : undefined}
-                actionLabel={canUploadInSelectedPhase ? "Upload Files" : undefined}
-                isDark={isDark}
-              />
+            onAction={canUploadInSelectedPhase && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+            actionLabel={canUploadInSelectedPhase && !selectionLockActive ? "Upload Files" : undefined}
+            isDark={isDark}
+          />
             )}
           </div>
         ) : null}
