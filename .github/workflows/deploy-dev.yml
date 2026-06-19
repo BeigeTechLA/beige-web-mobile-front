@@ -41,7 +41,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch }}
+          ref: refs/heads/${{ github.event.inputs.branch }}
+          fetch-depth: 0
+
+      - name: Verify selected branch
+        run: |
+          DEPLOY_BRANCH="${{ github.event.inputs.branch }}"
+          CHECKED_OUT_BRANCH="$(git branch --show-current)"
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+
+          echo "Workflow branch: ${{ github.ref_name }}"
+          echo "Deploy branch input: $DEPLOY_BRANCH"
+          echo "Checked out branch: $CHECKED_OUT_BRANCH"
+          echo "Checked out commit: $CHECKED_OUT_SHA"
+          git log -1 --oneline
+
+          if [ "$CHECKED_OUT_BRANCH" != "$DEPLOY_BRANCH" ]; then
+            echo "Expected branch '$DEPLOY_BRANCH' but checked out '$CHECKED_OUT_BRANCH'."
+            exit 1
+          fi
 
       - name: Setup SSH key
         env:
@@ -86,7 +104,7 @@ jobs:
 
       - name: Create standalone deploy archive
         run: |
-          ARCHIVE_NAME="next-build.tar.gz"
+          ARCHIVE_NAME="next-build-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz"
           ARCHIVE_ITEMS=(
             ".next/standalone"
             ".next/static"
@@ -104,22 +122,23 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_USER: ${{ secrets.SSH_USER }}
+          ARCHIVE_NAME: next-build-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
         run: |
           PORT="${SSH_PORT:-22}"
-          scp -P "$PORT" -i ~/.ssh/deploy.pem next-build.tar.gz "$SSH_USER@$SSH_HOST:/tmp/"
+          scp -P "$PORT" -i ~/.ssh/deploy.pem "$ARCHIVE_NAME" "$SSH_USER@$SSH_HOST:/tmp/"
 
       - name: Deploy on server
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_USER: ${{ secrets.SSH_USER }}
+          ARCHIVE_NAME: next-build-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
         run: |
           PORT="${SSH_PORT:-22}"
-          ssh -p "$PORT" -i ~/.ssh/deploy.pem "$SSH_USER@$SSH_HOST" << 'EOF'
+          ssh -p "$PORT" -i ~/.ssh/deploy.pem "$SSH_USER@$SSH_HOST" "ARCHIVE_NAME='$ARCHIVE_NAME' bash -s" << 'EOF'
           set -euo pipefail
 
           REMOTE_DIR="/var/www/beige-web-front-dev"
-          ARCHIVE_NAME="next-build.tar.gz"
           APP_NAME="beige-web-dev"
 
           mkdir -p "$REMOTE_DIR"
