@@ -16,6 +16,7 @@ import {
   type RoleCardData,
 } from "@/components/admin/roles-permissions/types";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { USER_BADGE_TONES } from "@/components/admin/roles-permissions/data";
 
 type RolesPermissionsPageProps = {
   searchQuery?: string;
@@ -27,15 +28,6 @@ const CARD_TONES = [
   "bg-[#D9D0FF] text-[#161616]",
   "bg-[#D8ECF8] text-[#161616]",
   "bg-[#F3E8C6] text-[#161616]",
-];
-
-const USER_BADGE_TONES = [
-  "bg-[#F1C7E6] text-[#161616]",
-  "bg-[#F6E8C6] text-[#161616]",
-  "bg-[#D9F6BE] text-[#161616]",
-  "bg-[#F5F5F5] text-[#161616]",
-  "bg-[#F2E7D3] text-[#161616]",
-  "bg-[#D8D0C9] text-[#161616]",
 ];
 
 const getInitials = (value: string) =>
@@ -278,6 +270,14 @@ export function RolesPermissionsPage({
                   key={card.id}
                   card={card}
                   onEdit={canEdit ? (id) => router.push(`/admin/roles-permissions/edit-details?role_id=${id}`) : undefined}
+                  onViewUsers={(id) => {
+                    const role = roles.find((item) => String(item.role_id) === String(id));
+                    router.push(
+                      `/admin/roles-permissions/role-users?role_id=${id}&role_name=${encodeURIComponent(
+                        role?.name || "Role",
+                      )}`,
+                    );
+                  }}
                 />
               ))}
 

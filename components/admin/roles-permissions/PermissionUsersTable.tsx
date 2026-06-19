@@ -11,10 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { adminApi, type AdminUserRoleRecord } from "@/lib/api";
 import {
   PermissionStatus,
   PermissionUser,
 } from "@/components/admin/roles-permissions/types";
+import { USER_BADGE_TONES } from "@/components/admin/roles-permissions/data";
 
 type PermissionUsersTableProps = {
   users: PermissionUser[];
@@ -23,6 +25,7 @@ type PermissionUsersTableProps = {
   onEdit?: (user: PermissionUser) => void;
   onDelete?: (user: PermissionUser) => void;
   onRowClick?: (user: PermissionUser) => void;
+  roleId?: string | number;
 };
 
 const ITEMS_PER_PAGE = 5;
@@ -97,6 +100,54 @@ const matchesMonthFilter = (value: string, monthFilter: string) => {
   return month.startsWith(monthFilter.toLowerCase()) || monthNumber === monthFilter;
 };
 
+const monthToNumber: Record<string, number> = {
+  jan: 1,
+  january: 1,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  may: 5,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
+};
+
+const mapApiUserToPermissionUser = (
+  user: AdminUserRoleRecord,
+  index: number,
+): PermissionUser => ({
+  id: user.user_id,
+  name: user.name,
+  subtitle: user.email,
+  role_id: user.role_id,
+  role: user.role_name || "Unassigned",
+  created: user.created_at || "",
+  updated: user.updated_at || user.created_at || "",
+  status: user.status_label,
+  badge: user.name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "NA",
+  badgeTone: USER_BADGE_TONES[index % USER_BADGE_TONES.length],
+});
+
 export function PermissionUsersTable({
   users,
   isLoading = false,
@@ -104,6 +155,7 @@ export function PermissionUsersTable({
   onEdit,
   onDelete,
   onRowClick,
+  roleId,
 }: PermissionUsersTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -111,13 +163,99 @@ export function PermissionUsersTable({
   const [roleFilter, setRoleFilter] = useState("all");
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [serverUsers, setServerUsers] = useState<PermissionUser[]>(users);
+  const [serverError, setServerError] = useState("");
+  const [serverLoading, setServerLoading] = useState(false);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  const queryParams = useMemo(() => {
+    const params: Record<string, string | number> = {};
+
+    if (roleId != null && String(roleId).trim()) {
+      params.role_id = roleId;
+    }
+
+    if (debouncedSearchQuery) {
+      params.search = debouncedSearchQuery;
+    }
+
+    if (statusFilter === "active") params.status = 1;
+    if (statusFilter === "in-active") params.status = 0;
+
+    if (monthFilter !== "all") {
+      const monthValue = monthToNumber[monthFilter.toLowerCase()];
+      if (monthValue) {
+        params.month = monthValue;
+      }
+    }
+
+    if (roleFilter !== "all") {
+      const selectedRole = users.find(
+        (user) => user.role.toLowerCase() === roleFilter.toLowerCase(),
+      );
+      if (selectedRole?.role_id != null) {
+        params.role_id = selectedRole.role_id;
+      }
+    }
+
+    return params;
+  }, [debouncedSearchQuery, monthFilter, roleFilter, roleId, users, statusFilter]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUsers = async () => {
+      setServerLoading(true);
+      setServerError("");
+
+      const response = await adminApi.getUsersWithRoles(queryParams);
+
+      if (!mounted) return;
+
+      if (response?.success && Array.isArray(response.data)) {
+        setServerUsers(
+          response.data.map((user: AdminUserRoleRecord, index: number) =>
+            mapApiUserToPermissionUser(user, index),
+          ),
+        );
+      } else {
+        setServerUsers([]);
+        setServerError(response?.error || response?.message || "Failed to load users");
+      }
+
+      setServerLoading(false);
+    };
+
+    void loadUsers();
+
+    return () => {
+      mounted = false;
+    };
+  }, [queryParams]);
+
+  useEffect(() => {
+    const hasActiveFilters =
+      debouncedSearchQuery || statusFilter !== "all" || monthFilter !== "all" || roleFilter !== "all";
+
+    if (!hasActiveFilters) {
+      setServerUsers(users);
+    }
+  }, [debouncedSearchQuery, monthFilter, roleFilter, statusFilter, users]);
 
   const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
+    return serverUsers.filter((user) => {
       const matchesSearch =
-        !searchQuery ||
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.role.toLowerCase().includes(searchQuery.toLowerCase());
+        !debouncedSearchQuery ||
+        user.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        user.subtitle.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -128,12 +266,11 @@ export function PermissionUsersTable({
 
       const matchesMonth =
         matchesMonthFilter(user.created, monthFilter) ||
-        matchesMonthFilter(user.updated, monthFilter) ||
-        user.subtitle.toLowerCase().includes(monthFilter.toLowerCase());
+        matchesMonthFilter(user.updated, monthFilter);
 
       return matchesSearch && matchesStatus && matchesRole && matchesMonth;
     });
-  }, [monthFilter, roleFilter, searchQuery, statusFilter, users]);
+  }, [debouncedSearchQuery, monthFilter, roleFilter, serverUsers, statusFilter]);
 
   const roleOptions = useMemo(() => {
     return Array.from(new Set(users.map((user) => user.role).filter(Boolean))).sort();
@@ -148,7 +285,7 @@ export function PermissionUsersTable({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, monthFilter, roleFilter]);
+  }, [debouncedSearchQuery, statusFilter, monthFilter, roleFilter]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -177,6 +314,9 @@ export function PermissionUsersTable({
       checked ? [...current, id] : current.filter((item) => item !== id),
     );
   };
+
+  const showLoading = isLoading || serverLoading;
+  const showError = error || serverError;
 
   return (
     <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#111111]">
@@ -253,53 +393,53 @@ export function PermissionUsersTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px]">
+      <div className="w-full">
+        <table className="w-full table-fixed">
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.02] text-left text-[14px] font-semibold text-[#D9C8A3]">
-              <th className="px-6 py-5">
+              <th className="w-[5%] px-4 py-4">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(value) => toggleAll(value === true)}
                   className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
                 />
               </th>
-              <th className="px-6 py-5">Names</th>
-              <th className="px-6 py-5">Roles</th>
-              <th className="px-6 py-5">Created</th>
-              <th className="px-6 py-5">Updated</th>
-              <th className="px-6 py-5">Status</th>
-              <th className="px-6 py-5 text-right">Action</th>
+              <th className="w-[25%] px-4 py-4">Names</th>
+              <th className="w-[16%] px-4 py-4">Roles</th>
+              <th className="w-[14%] px-4 py-4">Created</th>
+              <th className="w-[14%] px-4 py-4">Updated</th>
+              <th className="w-[11%] px-4 py-4">Status</th>
+              <th className="w-[15%] px-4 py-4 text-right">Action</th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-white/5">
-            {isLoading && (
+            {showLoading && (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-white/50">
+                <td colSpan={7} className="px-4 py-10 text-center text-white/50">
                   Loading users...
                 </td>
               </tr>
             )}
 
-            {!isLoading && !!error && (
+            {!showLoading && !!showError && (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-red-300/80">
-                  {error}
+                <td colSpan={7} className="px-4 py-10 text-center text-red-300/80">
+                  {showError}
                 </td>
               </tr>
             )}
 
-            {!isLoading && !error && filteredUsers.length === 0 && (
+            {!showLoading && !showError && filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-white/50">
+                <td colSpan={7} className="px-4 py-10 text-center text-white/50">
                   No users found.
                 </td>
               </tr>
             )}
 
-            {!isLoading &&
-              !error &&
+            {!showLoading &&
+              !showError &&
               paginatedUsers.map((user) => (
               <tr
                 key={user.id}
@@ -308,7 +448,7 @@ export function PermissionUsersTable({
                 }`}
                 onClick={() => onRowClick?.(user)}
               >
-                <td className="px-6 py-6">
+                <td className="px-4 py-5">
                   <Checkbox
                     checked={selectedRows.includes(user.id)}
                     onCheckedChange={(value) => toggleOne(user.id, value === true)}
@@ -317,75 +457,75 @@ export function PermissionUsersTable({
                   />
                 </td>
 
-                <td className="px-6 py-6">
-                  <div className="flex items-center gap-4">
+                <td className="px-4 py-5">
+                  <div className="flex items-center gap-3">
                     <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[16px] font-bold ${user.badgeTone}`}
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[15px] font-bold ${user.badgeTone}`}
                     >
                       {user.badge}
                     </div>
-                    <div>
-                      <p className="text-[16px] font-bold text-white group-hover:text-[#E5D5B8] transition-colors">
+                    <div className="min-w-0">
+                      <p className="truncate text-[15px] font-bold text-white group-hover:text-[#E5D5B8] transition-colors">
                         {user.name}
                       </p>
-                      <p className="mt-1 text-[13px] text-white/40">{user.subtitle}</p>
+                      <p className="mt-1 truncate text-[12px] text-white/40">{user.subtitle}</p>
                     </div>
                   </div>
                 </td>
 
                 {/* Roles column: Plain text with chevron as per Figma design (No background pill) */}
-                <td className="px-6 py-6">
-                  <div className="flex items-center gap-2 text-[15px] font-medium text-white/90">
-                    <span>{user.role}</span>
+                <td className="px-4 py-5">
+                  <div className="flex items-center gap-2 truncate text-[14px] font-medium text-white/90">
+                    <span className="truncate">{user.role}</span>
                   </div>
                 </td>
 
-                <td className="px-6 py-6 text-[15px] text-white/60">
+                <td className="px-4 py-5 text-[14px] text-white/60">
                   <div className="flex flex-col leading-tight">
                     <span>{formatDateParts(user.created).date}</span>
                     <span className="text-[12px] text-white/35">{formatDateParts(user.created).time}</span>
                   </div>
                 </td>
 
-                <td className="px-6 py-6 text-[15px] text-white/60">
+                <td className="px-4 py-5 text-[14px] text-white/60">
                   <div className="flex flex-col leading-tight">
                     <span>{formatDateParts(user.updated).date}</span>
                     <span className="text-[12px] text-white/35">{formatDateParts(user.updated).time}</span>
                   </div>
                 </td>
 
-                <td className="px-6 py-6">
+                <td className="px-4 py-5">
                   <StatusPill status={user.status} />
                 </td>
 
-                <td className="px-6 py-6">
-                  <div className="flex items-center justify-end gap-4">
+                <td className="px-4 py-5">
+                  <div className="flex items-center justify-end gap-3">
                     <button
                       type="button"
                       disabled={!onEdit}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
                         onEdit?.(user);
                       }}
                     >
-                      <Pencil size={18} />
+                      <Pencil size={16} />
                     </button>
                     <button
                       type="button"
                       disabled={!onDelete}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
                         onDelete?.(user);
                       }}
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                     <button
                       type="button"
                       disabled={!canOpenUser}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
                         if (onEdit) {
@@ -395,7 +535,7 @@ export function PermissionUsersTable({
                         onRowClick?.(user);
                       }}
                     >
-                      <ChevronRight size={20} />
+                      <ChevronRight size={16} />
                     </button>
                   </div>
                 </td>

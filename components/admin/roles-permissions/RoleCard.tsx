@@ -7,6 +7,7 @@ import { RoleCardData } from "@/components/admin/roles-permissions/types";
 type RoleCardProps = {
   card: RoleCardData;
   onEdit?: (id: string) => void;
+  onViewUsers?: (id: string) => void;
 };
 
 const getBadgeText = (value: string) => {
@@ -25,7 +26,7 @@ const getBadgeText = (value: string) => {
     .slice(0, 4);
 };
 
-export function RoleCard({ card, onEdit }: RoleCardProps) {
+export function RoleCard({ card, onEdit, onViewUsers }: RoleCardProps) {
   const fallbackBadges = card.members.filter((member) => !member.isCountBadge);
   const countBadge = card.members.find((member) => member.isCountBadge);
 
@@ -98,7 +99,7 @@ export function RoleCard({ card, onEdit }: RoleCardProps) {
         </button>
         <button
           type="button"
-          onClick={() => onEdit?.(card.id)}
+          onClick={() => onViewUsers?.(card.id)}
           className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-[#2a2a2a] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#343434] hover:scale-110 active:scale-95 sm:h-10 sm:w-10"
         >
           <ArrowUpRight size={15} strokeWidth={2.25} />

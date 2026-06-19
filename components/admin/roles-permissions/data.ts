@@ -4,6 +4,15 @@ import {
   RoleCardData,
 } from "@/components/admin/roles-permissions/types";
 
+export const USER_BADGE_TONES = [
+  "bg-[#F1C7E6] text-[#161616]",
+  "bg-[#F6E8C6] text-[#161616]",
+  "bg-[#D9F6BE] text-[#161616]",
+  "bg-[#F5F5F5] text-[#161616]",
+  "bg-[#F2E7D3] text-[#161616]",
+  "bg-[#D8D0C9] text-[#161616]",
+];
+
 export const roleCards: RoleCardData[] = [
   {
     id: "admin-1",
