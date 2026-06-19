@@ -17,7 +17,7 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle } from "lucide-react";
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle, ExternalLink, Download } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
@@ -64,7 +64,21 @@ type ProjectDetails = {
   assignedCrew?: unknown[];
   assigned_crews?: unknown[];
   assigned_post_production_members?: unknown[];
+  payment_history?: PaymentHistoryItem[];
   [key: string]: unknown;
+};
+
+type PaymentHistoryItem = {
+  id?: string | number;
+  type?: string | null;
+  receipt_number?: string | null;
+  invoice_number?: string | null;
+  method?: string | null;
+  amount?: string | number | null;
+  status?: string | null;
+  paid_at?: string | null;
+  receipt_url?: string | null;
+  receipt_download_url?: string | null;
 };
 
 type QuoteVersionItem = {
@@ -117,6 +131,30 @@ const getConvertedQuoteAmount = async (quoteId: string) => {
     quoteDetail?.amount_after_discount,
     quoteDetail?.total
   );
+};
+
+const formatCurrency = (value: string | number | null | undefined) => {
+  const numericValue = Number(value || 0);
+  if (!Number.isFinite(numericValue)) return "$0.00";
+
+  return numericValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatPaymentDate = (value: string | null | undefined) => {
+  if (!value) return "Date unavailable";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Date unavailable";
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
 };
 
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -225,11 +263,20 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
 
       if (quoteDetail && quoteDetailResponse?.data) {
-        const rawDetail = quoteDetailResponse.data;
+        const rawDetail = quoteDetailResponse.data as {
+          signature_base64?: string | null;
+          signer_name?: string | null;
+          signed_at?: string | null;
+        };
+        const signedQuoteDetail = quoteDetail as SalesQuoteDetailData & {
+          signature_base64?: string | null;
+          signer_name?: string | null;
+          signed_at?: string | null;
+        };
 
-        (quoteDetail as any).signature_base64 = rawDetail.signature_base64;
-        (quoteDetail as any).signer_name = rawDetail.signer_name;
-        (quoteDetail as any).signed_at = rawDetail.signed_at;
+        signedQuoteDetail.signature_base64 = rawDetail.signature_base64;
+        signedQuoteDetail.signer_name = rawDetail.signer_name;
+        signedQuoteDetail.signed_at = rawDetail.signed_at;
       }
 
       if (!quoteDetail) {
@@ -310,6 +357,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
             manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
+            payment_history: responseData?.payment_history || projectData?.payment_history || [],
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
             assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
             assignedPostProductionMembers:
@@ -452,34 +500,17 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         manual: isManualInvoice,
         cacheBust: true,
       });
-      const brandedDownloadUrl = buildBeigeInvoiceUrl(numericBookingId, {
-        manual: isManualInvoice,
-        download: true,
-        cacheBust: true,
-      });
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         toast.error("Preview URL not available");
         return;
       }
 
-      if (hostedInvoiceUrl && !invoicePdfUrl) {
-        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      if (hostedInvoiceUrl || invoicePdfUrl) {
+        window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
       }
 
-      if (invoicePdfUrl) {
-        if (isManualInvoice) {
-          window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
-        } else {
-          const link = document.createElement("a");
-          link.href = brandedDownloadUrl;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.click();
-        }
-      }
-
-      toast.success(isManualInvoice ? "Invoice opened" : "Invoice opened and download started");
+      toast.success("Invoice opened");
     } catch (error) {
       console.error("Failed to preview invoice", error);
       toast.error(error instanceof Error ? error.message : "Failed to preview invoice");
@@ -607,6 +638,85 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       onRequestAssignment={handleAssignmentRequest}
                     />
                   </div>
+                  {Array.isArray(project?.payment_history) && project.payment_history.length > 0 ? (
+                    <div className="px-5 mt-6">
+                      <div className={`rounded-xl border overflow-hidden ${isDark ? "border-[#2D2D2D] bg-[#101010]" : "border-[#E5E5E5] bg-white"}`}>
+                        <div className={`flex items-center justify-between gap-3 border-b px-4 py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#EFEFEF]"}`}>
+                          <div>
+                            <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Payment History</h3>
+                            <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                              View or download receipts collected for this shoot.
+                            </p>
+                          </div>
+                        </div>
+                        <div className={`divide-y ${isDark ? "divide-[#252525]" : "divide-[#F1F1F1]"}`}>
+                          {project.payment_history.map((payment, index) => {
+                            const method = String(payment.method || payment.type || "Payment").replace(/_/g, " ");
+                            const receiptUrl = String(payment.receipt_url || "").trim();
+                            const receiptDownloadUrl = String(payment.receipt_download_url || "").trim();
+
+                            return (
+                              <div
+                                key={payment.id || `${method}-${index}`}
+                                className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-[1.2fr_0.8fr_0.8fr_auto]"
+                              >
+                                <div>
+                                  <p className={`text-sm font-medium capitalize ${isDark ? "text-white" : "text-black"}`}>{method}</p>
+                                  <p className={`mt-1 text-xs capitalize ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                    {payment.status || "paid"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className={`text-xs uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-black/35"}`}>Date</p>
+                                  <p className={`mt-1 text-sm ${isDark ? "text-white/75" : "text-black/70"}`}>
+                                    {formatPaymentDate(payment.paid_at)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className={`text-xs uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-black/35"}`}>Amount</p>
+                                  <p className={`mt-1 text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
+                                    {formatCurrency(payment.amount)}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 md:justify-end">
+                                  <a
+                                    href={receiptUrl || undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-disabled={!receiptUrl}
+                                    className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors ${receiptUrl
+                                      ? isDark
+                                        ? "border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"
+                                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"
+                                      : "pointer-events-none border-transparent bg-zinc-200 text-zinc-400"
+                                      }`}
+                                  >
+                                    <ExternalLink size={14} />
+                                    View
+                                  </a>
+                                  <a
+                                    href={receiptDownloadUrl || undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-disabled={!receiptDownloadUrl}
+                                    className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${receiptDownloadUrl
+                                      ? isDark
+                                        ? "border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"
+                                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"
+                                      : "pointer-events-none border-transparent bg-zinc-200 text-zinc-400"
+                                      }`}
+                                    title="Download receipt"
+                                  >
+                                    <Download size={15} />
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} />
                   </div>

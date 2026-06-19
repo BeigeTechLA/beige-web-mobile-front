@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useTheme } from "next-themes";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePathname } from "next/navigation";
 import {
   ArrowUpToLine,
@@ -164,8 +164,6 @@ const disputeDetailsMap: Record<string, Omit<DisputeDetailsRecord, keyof Dispute
 
 export default function AdminDisputesPage() {
   const pathname = usePathname();
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const { canCreate } = usePermissions("finances");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
@@ -178,7 +176,6 @@ export default function AdminDisputesPage() {
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [selectedDispute, setSelectedDispute] = useState<DisputeDetailsRecord | null>(null);
 
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     setLoading(true);
@@ -189,7 +186,40 @@ export default function AdminDisputesPage() {
     return () => window.clearTimeout(timer);
   }, [selectedDate, metricRange, searchQuery, statusFilter, monthFilter, typeFilter]);
 
-  const isDark = !mounted || theme === "dark";
+  const { isDark } = useResolvedTheme();
+
+  const CustomClockIcon = ({ size = 16 }) => (
+    <img
+      src="/images/socmed/Clock.svg"
+      width={size}
+      height={size}
+      alt="video"
+    />
+  );
+  const CustomDollarIcon = ({ size = 16 }) => (
+    <img
+      src="/images/socmed/Dollar.svg"
+      width={size}
+      height={size}
+      alt="camera"
+    />
+  );
+  const CustomCheckIcon = ({ size = 16 }) => (
+    <img
+      src="/images/misc/overviewicons/CheckCircle.svg"
+      width={size}
+      height={size}
+      alt="video"
+    />
+  );
+  const CustomCautionIcon = ({ size = 16 }) => (
+    <img
+      src="/images/misc/overviewicons/Caution.svg"
+      width={size}
+      height={size}
+      alt="camera"
+    />
+  );
 
   const metrics: DisputeMetricCard[] = [
     {
@@ -197,28 +227,28 @@ export default function AdminDisputesPage() {
       label: "Open Disputes",
       value: "14",
       helperText: "3 shoots affected",
-      icon: AlertTriangle,
+      icon: CustomCautionIcon,
     },
     {
       id: "review",
       label: "In Review",
       value: "04",
       helperText: "Pending resolution",
-      icon: Clock3,
+      icon: CustomClockIcon,
     },
     {
       id: "resolved",
       label: "Resolved (30d)",
       value: "25",
       helperText: "Last month",
-      icon: CheckCircle2,
+      icon: CustomCheckIcon,
     },
     {
       id: "hold",
       label: "Impacted Payouts",
       value: "$9,396",
       helperText: "Total on hold",
-      icon: BadgeDollarSign,
+      icon: CustomDollarIcon,
     },
   ];
 
@@ -244,7 +274,11 @@ export default function AdminDisputesPage() {
         pathname={pathname}
         actions={
           <>
-            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors">
+            <Button variant="outline"
+              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+                }`}>
               <ArrowUpToLine /> Export
             </Button>
             {canCreate && (
@@ -260,7 +294,7 @@ export default function AdminDisputesPage() {
       />
 
       <div
-        className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
+        className="overflow-hidden p-4 pb-24 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
         <div className="flex justify-between items-start lg:items-end gap-4">
@@ -274,8 +308,6 @@ export default function AdminDisputesPage() {
           </div>
           <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
         </div>
-
-        <DottedDivider/>
 
         <DisputeMetricCards
           metrics={metrics}
@@ -303,6 +335,16 @@ export default function AdminDisputesPage() {
             })
           }
         />
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => setIsDisputeModalOpen(true)}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Add Dispute
+          </Button>
+        </div>
       </div>
 
       <AddEditDisputeModal

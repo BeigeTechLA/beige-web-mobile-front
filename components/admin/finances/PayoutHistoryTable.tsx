@@ -12,7 +12,7 @@ import {
   ChevronRight,
   ChevronLeft
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import {
   Select,
   SelectContent,
@@ -112,8 +112,7 @@ export default function PayoutHistoryTable({
   onTypeChange,
   itemsPerPage = 7,
 }: PayoutHistoryTableProps) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const {isDark} =useResolvedTheme();
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(rows[0]?.id ?? null);
 
@@ -186,7 +185,7 @@ export default function PayoutHistoryTable({
 
   const renderDetailPanel = (row: PayoutHistoryRow) => (
     <tr key={`${row.id}-details`}>
-      <td colSpan={7} className="px-5 py-6 bg-[#0A0A0A]">
+      <td colSpan={7} className={`px-5 py-6 ${isDark ? "bg-[#0A0A0A]":"bg-[#F4F5F7]"}`}>
         <DetailPanelContent row={row} isDark={isDark} />
       </td>
     </tr>
@@ -503,7 +502,7 @@ export default function PayoutHistoryTable({
                     </div>
 
                     {/* Sub-Panel Layout Extension Element Hook */}
-                    <div className={`p-5 ${isDark ? "bg-[#0A0A0A]" : "bg-white"}`}>
+                    <div className={`p-5 ${isDark ? "bg-[#0A0A0A]" : "bg-[#F4F5F7]"}`}>
                       <DetailPanelContent row={row} isDark={isDark} />
                     </div>
                   </div>

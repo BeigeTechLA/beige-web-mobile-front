@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useTheme } from "next-themes";
 import {
   Select,
   SelectContent,
@@ -42,8 +41,7 @@ export default function PayoutMetricCards({
 
   return (
     <section
-      className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"
-        }`}>
+      className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       <div className="flex justify-between items-center mb-5 gap-4">
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E8D1AB] rounded-full" />

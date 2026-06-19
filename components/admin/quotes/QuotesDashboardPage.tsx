@@ -1901,21 +1901,24 @@ export default function QuotesDashboardPage({
                         <React.Fragment key={quote.id}>
                           {/* Main Row */}
                           <tr
-                            onClick={() => {
-                              // On mobile: toggle expand. On desktop: navigate.
+                             onClick={() => {
                               if (window.innerWidth < 768) {
                                 setExpandedRowId(isExpanded ? null : quote.id);
-                              } else {
-                                handleViewQuoteDetails(quote.id);
                               }
                             }}
-                            className={`group cursor-pointer rounded-b-lg border-b transition-colors ${isDark ? "border-[#3D3D3D]/50 hover:bg-white/5" : "border-[#E3E3E3] hover:bg-black/5"} ${isExpanded ? (isDark ? "bg-[#202020] border-none" : "bg-[#F9F9F9] border-none") : ""}`}
+                            className={`relative group cursor-pointer rounded-b-lg border-b transition-colors ${isDark ? "border-[#3D3D3D]/50 hover:bg-white/5" : "border-[#E3E3E3] hover:bg-black/5"} ${isExpanded ? (isDark ? "bg-[#202020] border-none" : "bg-[#F9F9F9] border-none") : ""}`}
                           >
-                            <td className="px-4 py-4 md:px-6">
-                              <div className="flex items-center gap-3">
+                              <td className="px-4 py-4 md:px-6">
+                              <Link
+                                href={`${detailBaseHref}/${quote.id}`}
+                                className="absolute inset-0 z-0"
+                                aria-label={`Open quote ${quote.quoteNumber}`}
+                              />
+
+                              <div className="relative z-10 flex items-center gap-3 pointer-events-none">
                                 {/* Mobile Chevron */}
                                 <div
-                                  className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors ${isExpanded
+                                  className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors  pointer-events-auto ${isExpanded
                                     ? isDark
                                       ? "border-[#E8D1AB] text-[#E8D1AB]"
                                       : "border-black text-black"
@@ -1929,7 +1932,7 @@ export default function QuotesDashboardPage({
                                 <div className={`flex h-5 w-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-sm lg:rounded-xl ${quote.color} font-medium lg:font-semibold text-[10px] lg:text-sm`}>
                                   {quote.initials}
                                 </div>
-                                <div>
+                                <div className="relative z-20">
                                   <div className="lg:font-medium">{quote.client}</div>
                                 </div>
                               </div>
@@ -1948,8 +1951,7 @@ export default function QuotesDashboardPage({
 
                             <td className="hidden px-6 py-4 md:table-cell">{quote.validUntil}</td>
                             <td className="hidden px-6 py-4 md:table-cell">{quote.salesperson}</td>
-                            <td className="hidden px-6 py-4 text-right md:table-cell">
-                              <QuoteActionMenu
+                            <td className="relative z-20 hidden px-6 py-4 text-right md:table-cell">                              <QuoteActionMenu
                                 disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
                                 open={openActionMenuId === `desktop-${quote.id}`}
                                 onOpenChange={(open) => setOpenActionMenuId(open ? `desktop-${quote.id}` : null)}

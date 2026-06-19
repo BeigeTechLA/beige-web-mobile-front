@@ -21,9 +21,17 @@ export async function GET(
     `${API_BASE_URL.replace(/\/$/, "")}/sales/invoice-pdf/${parsedBookingId}`
   );
   const manual = request.nextUrl.searchParams.get("manual");
+  const receipt = request.nextUrl.searchParams.get("receipt");
+  const manualPaymentId = request.nextUrl.searchParams.get("manual_payment_id");
+  const paymentId = request.nextUrl.searchParams.get("payment_id");
+  const stripe = request.nextUrl.searchParams.get("stripe");
   const download = request.nextUrl.searchParams.get("download");
 
   if (manual) sourceUrl.searchParams.set("manual", manual);
+  if (receipt) sourceUrl.searchParams.set("receipt", receipt);
+  if (manualPaymentId) sourceUrl.searchParams.set("manual_payment_id", manualPaymentId);
+  if (paymentId) sourceUrl.searchParams.set("payment_id", paymentId);
+  if (stripe) sourceUrl.searchParams.set("stripe", stripe);
   if (download) sourceUrl.searchParams.set("download", download);
 
   try {
