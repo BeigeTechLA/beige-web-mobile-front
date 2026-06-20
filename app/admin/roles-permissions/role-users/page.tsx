@@ -90,7 +90,7 @@ export default function RoleUsersPage() {
 
   return (
     <PermissionGuard module="roles_permissions" action="view">
-      <div className="min-h-screen bg-[#0A0A0A] px-4 py-6 text-white lg:px-10 lg:py-8">
+      <div className="min-h-screen bg-[#0A0A0A] px-4 py-6 text-white sm:px-6 lg:px-10 lg:py-8">
         <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-2">
           <button
             type="button"
@@ -142,8 +142,8 @@ export default function RoleUsersPage() {
           </div>
 
           <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#111111]">
-            <div className="w-full">
-              <table className="w-full table-fixed">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[800px] table-fixed">
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.02] text-left text-[14px] font-semibold text-[#D9C8A3]">
                     <th className="w-[11%] px-4 py-4">Avatar</th>
@@ -200,11 +200,10 @@ export default function RoleUsersPage() {
                         </td>
                         <td className="px-4 py-5">
                           <span
-                            className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[13px] font-semibold ${
-                              user.status_label === "Active"
+                            className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[13px] font-semibold ${user.status_label === "Active"
                                 ? "bg-[#28C76F1A] text-[#28C76F]"
                                 : "bg-[#EA54551A] text-[#EA5455]"
-                            }`}
+                              }`}
                           >
                             {user.status_label}
                           </span>

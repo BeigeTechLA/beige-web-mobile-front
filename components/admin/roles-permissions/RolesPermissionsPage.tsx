@@ -178,13 +178,13 @@ export function RolesPermissionsPage({
           })),
           ...(remainingUsers > 0
             ? [
-                {
-                  id: `${role.role_id}-count`,
-                  label: `+${remainingUsers}`,
-                  tone: "bg-[#ECD7AD] text-[#161616]",
-                  isCountBadge: true,
-                },
-              ]
+              {
+                id: `${role.role_id}-count`,
+                label: `+${remainingUsers}`,
+                tone: "bg-[#ECD7AD] text-[#161616]",
+                isCountBadge: true,
+              },
+            ]
             : []),
         ],
       };
@@ -229,7 +229,7 @@ export function RolesPermissionsPage({
 
   return (
     <>
-      <div className="overflow-hidden px-4 pb-16 pt-6 lg:px-10 lg:pb-24 lg:pt-10">
+      <div className="overflow-hidden px-4 pb-16 pt-6 sm:px-6 lg:px-10 lg:pb-10 lg:pt-10">
         <div className="mx-auto w-full max-w-[1270px]">
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -250,7 +250,7 @@ export function RolesPermissionsPage({
                 onClick={() =>
                   setSortOrder((current) => (current === "desc" ? "asc" : "desc"))
                 }
-                className="inline-flex h-12 items-center gap-3 rounded-full border border-white/10 bg-transparent px-6 text-[15px] font-medium text-white/70 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
+                className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-transparent px-6 text-[15px] font-medium text-white/70 transition hover:border-white/20 hover:bg-white/5 hover:text-white sm:w-auto sm:justify-start shrink-0"
               >
                 <span>{sortOrder === "desc" ? "Newest First" : "Oldest First"}</span>
                 {sortOrder === "desc" ? (
@@ -263,23 +263,23 @@ export function RolesPermissionsPage({
 
             <div className="border-t border-dashed border-white/10" />
 
-            <div className="grid justify-items-start gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {!isLoadingRoles &&
                 roleCards.map((card) => (
-                <RoleCard
-                  key={card.id}
-                  card={card}
-                  onEdit={canEdit ? (id) => router.push(`/admin/roles-permissions/edit-details?role_id=${id}`) : undefined}
-                  onViewUsers={(id) => {
-                    const role = roles.find((item) => String(item.role_id) === String(id));
-                    router.push(
-                      `/admin/roles-permissions/role-users?role_id=${id}&role_name=${encodeURIComponent(
-                        role?.name || "Role",
-                      )}`,
-                    );
-                  }}
-                />
-              ))}
+                  <RoleCard
+                    key={card.id}
+                    card={card}
+                    onEdit={canEdit ? (id) => router.push(`/admin/roles-permissions/edit-details?role_id=${id}`) : undefined}
+                    onViewUsers={(id) => {
+                      const role = roles.find((item) => String(item.role_id) === String(id));
+                      router.push(
+                        `/admin/roles-permissions/role-users?role_id=${id}&role_name=${encodeURIComponent(
+                          role?.name || "Role",
+                        )}`,
+                      );
+                    }}
+                  />
+                ))}
 
               {isLoadingRoles && (
                 <div className="col-span-full rounded-[32px] border border-white/10 bg-[#111111] px-6 py-10 text-center text-white/50">

@@ -65,8 +65,8 @@ function StatusPill({ status }: { status: PermissionStatus }) {
   return (
     <span
       className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[13px] font-semibold ${active
-          ? "bg-[#28C76F1A] text-[#28C76F]" // Light green background with dark green text (Vuexy Style)
-          : "bg-[#EA54551A] text-[#EA5455]" // Light red background with dark red text (Vuexy Style)
+        ? "bg-[#28C76F1A] text-[#28C76F]" // Light green background with dark green text (Vuexy Style)
+        : "bg-[#EA54551A] text-[#EA5455]" // Light red background with dark red text (Vuexy Style)
         }`}
     >
       {status}
@@ -393,8 +393,8 @@ export function PermissionUsersTable({
         </div>
       </div>
 
-      <div className="w-full">
-        <table className="w-full table-fixed">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[800px] table-fixed">
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.02] text-left text-[14px] font-semibold text-[#D9C8A3]">
               <th className="w-[5%] px-4 py-4">
@@ -441,124 +441,123 @@ export function PermissionUsersTable({
             {!showLoading &&
               !showError &&
               paginatedUsers.map((user) => (
-              <tr
-                key={user.id}
-                className={`group text-white transition-colors hover:bg-white/[0.02] ${
-                  canOpenUser ? "cursor-pointer" : "cursor-default"
-                }`}
-                onClick={() => onRowClick?.(user)}
-              >
-                <td className="px-4 py-5">
-                  <Checkbox
-                    checked={selectedRows.includes(user.id)}
-                    onCheckedChange={(value) => toggleOne(user.id, value === true)}
-                    onClick={(event) => event.stopPropagation()}
-                    className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
-                  />
-                </td>
+                <tr
+                  key={user.id}
+                  className={`group text-white transition-colors hover:bg-white/[0.02] ${canOpenUser ? "cursor-pointer" : "cursor-default"
+                    }`}
+                  onClick={() => onRowClick?.(user)}
+                >
+                  <td className="px-4 py-5">
+                    <Checkbox
+                      checked={selectedRows.includes(user.id)}
+                      onCheckedChange={(value) => toggleOne(user.id, value === true)}
+                      onClick={(event) => event.stopPropagation()}
+                      className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                    />
+                  </td>
 
-                <td className="px-4 py-5">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[15px] font-bold ${user.badgeTone}`}
-                    >
-                      {user.badge}
+                  <td className="px-4 py-5">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[15px] font-bold ${user.badgeTone}`}
+                      >
+                        {user.badge}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-bold text-white group-hover:text-[#E5D5B8] transition-colors">
+                          {user.name}
+                        </p>
+                        <p className="mt-1 truncate text-[12px] text-white/40">{user.subtitle}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-bold text-white group-hover:text-[#E5D5B8] transition-colors">
-                        {user.name}
-                      </p>
-                      <p className="mt-1 truncate text-[12px] text-white/40">{user.subtitle}</p>
+                  </td>
+
+                  {/* Roles column: Plain text with chevron as per Figma design (No background pill) */}
+                  <td className="px-4 py-5">
+                    <div className="flex items-center gap-2 truncate text-[14px] font-medium text-white/90">
+                      <span className="truncate">{user.role}</span>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                {/* Roles column: Plain text with chevron as per Figma design (No background pill) */}
-                <td className="px-4 py-5">
-                  <div className="flex items-center gap-2 truncate text-[14px] font-medium text-white/90">
-                    <span className="truncate">{user.role}</span>
-                  </div>
-                </td>
+                  <td className="px-4 py-5 text-[14px] text-white/60">
+                    <div className="flex flex-col leading-tight">
+                      <span>{formatDateParts(user.created).date}</span>
+                      <span className="text-[12px] text-white/35">{formatDateParts(user.created).time}</span>
+                    </div>
+                  </td>
 
-                <td className="px-4 py-5 text-[14px] text-white/60">
-                  <div className="flex flex-col leading-tight">
-                    <span>{formatDateParts(user.created).date}</span>
-                    <span className="text-[12px] text-white/35">{formatDateParts(user.created).time}</span>
-                  </div>
-                </td>
+                  <td className="px-4 py-5 text-[14px] text-white/60">
+                    <div className="flex flex-col leading-tight">
+                      <span>{formatDateParts(user.updated).date}</span>
+                      <span className="text-[12px] text-white/35">{formatDateParts(user.updated).time}</span>
+                    </div>
+                  </td>
 
-                <td className="px-4 py-5 text-[14px] text-white/60">
-                  <div className="flex flex-col leading-tight">
-                    <span>{formatDateParts(user.updated).date}</span>
-                    <span className="text-[12px] text-white/35">{formatDateParts(user.updated).time}</span>
-                  </div>
-                </td>
+                  <td className="px-4 py-5">
+                    <StatusPill status={user.status} />
+                  </td>
 
-                <td className="px-4 py-5">
-                  <StatusPill status={user.status} />
-                </td>
-
-                <td className="px-4 py-5">
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      disabled={!onEdit}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onEdit?.(user);
-                      }}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!onDelete}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDelete?.(user);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canOpenUser}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (onEdit) {
-                          onEdit(user);
-                          return;
-                        }
-                        onRowClick?.(user);
-                      }}
-                    >
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  <td className="px-4 py-5">
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        type="button"
+                        disabled={!onEdit}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onEdit?.(user);
+                        }}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!onDelete}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDelete?.(user);
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canOpenUser}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (onEdit) {
+                            onEdit(user);
+                            return;
+                          }
+                          onRowClick?.(user);
+                        }}
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
 
       {!isLoading && !error && filteredUsers.length > 0 ? (
-        <div className="flex flex-col gap-4 border-t border-white/5 px-6 py-5 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-white/40">
+        <div className="flex flex-col gap-4 border-t border-white/5 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-white/40 text-center md:text-left">
             Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
             {filteredUsers.length} users
           </p>
 
           {totalPages > 1 ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">
               <button
                 type="button"
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                 disabled={safeCurrentPage === 1}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#171717] px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#171717] px-3 sm:px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Previous
               </button>
@@ -576,11 +575,10 @@ export function PermissionUsersTable({
                     key={item}
                     type="button"
                     onClick={() => setCurrentPage(item)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold transition ${
-                      safeCurrentPage === item
-                        ? "bg-[#E5D5B8] text-[#111111]"
-                        : "border border-white/10 bg-[#171717] text-white/60 hover:bg-white/[0.06] hover:text-white"
-                    }`}
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold transition ${safeCurrentPage === item
+                      ? "bg-[#E5D5B8] text-[#111111]"
+                      : "border border-white/10 bg-[#171717] text-white/60 hover:bg-white/[0.06] hover:text-white"
+                      }`}
                   >
                     {item}
                   </button>
@@ -591,7 +589,7 @@ export function PermissionUsersTable({
                 type="button"
                 onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                 disabled={safeCurrentPage === totalPages}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#171717] px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#171717] px-3 sm:px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Next
               </button>

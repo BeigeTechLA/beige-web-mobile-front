@@ -354,13 +354,13 @@ export default function AdminRoleEditDetailsRoute() {
 
     const response = hasUserCustomPermissions
       ? await adminApi.updateUserPermissions({
-          user_id: userId,
-          permissions: nextPermissions,
-        })
+        user_id: userId,
+        permissions: nextPermissions,
+      })
       : await adminApi.assignUserPermissions({
-          user_id: userId,
-          permissions: nextPermissions,
-        });
+        user_id: userId,
+        permissions: nextPermissions,
+      });
 
     setIsSaving(false);
 
@@ -431,9 +431,9 @@ export default function AdminRoleEditDetailsRoute() {
       setHasUserCustomPermissions(Object.keys(normalizedPermissions).length > 0);
       setCurrentRoleLabel(
         detailsResponse.data.display_role ||
-          detailsResponse.data.role?.name ||
-          selectedRoleLabel ||
-          currentRoleLabel,
+        detailsResponse.data.role?.name ||
+        selectedRoleLabel ||
+        currentRoleLabel,
       );
       setRoleDescription(detailsResponse.data.role?.description || "");
     }
@@ -530,7 +530,7 @@ export default function AdminRoleEditDetailsRoute() {
           "edit-details": "Edit Details",
         }}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
             {/* <button
               onClick={() => setIsDeleteModalOpen(true)}
               className="inline-flex h-12 items-center justify-center rounded-[12px] border border-[#F04438]/20 bg-[#F04438]/10 px-6 text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95"
@@ -540,14 +540,14 @@ export default function AdminRoleEditDetailsRoute() {
             {mode === "role" && canDelete ? (
               <button
                 onClick={() => setIsDeleteModalOpen(true)}
-                className="inline-flex h-12 items-center justify-center rounded-[12px] border border-[#F04438]/20 bg-[#F04438]/10 px-6 text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95"
+                className="inline-flex h-11 sm:h-12 items-center justify-center rounded-[12px] border border-[#F04438]/20 bg-[#F04438]/10 px-4 sm:px-6 text-[13px] sm:text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95"
               >
                 {deleteLabel}
               </button>
             ) : null}
             <button
               onClick={() => setIsUpdateModalOpen(true)}
-              className="inline-flex h-12 items-center justify-center rounded-[12px] bg-[#E5D5B8] px-8 text-[15px] font-bold text-black transition-all hover:bg-[#d6c29b] active:scale-95"
+              className="inline-flex h-11 sm:h-12 items-center justify-center rounded-[12px] bg-[#E5D5B8] px-5 sm:px-8 text-[13px] sm:text-[15px] font-bold text-black transition-all hover:bg-[#d6c29b] active:scale-95"
             >
               {mode === "role" ? "Edit Role" : "Change Role"}
             </button>
@@ -573,7 +573,7 @@ export default function AdminRoleEditDetailsRoute() {
       />
 
       {error ? (
-        <div className="fixed bottom-6 right-6 rounded-xl border border-red-400/20 bg-[#1a0f10] px-4 py-3 text-sm text-red-200 shadow-lg">
+        <div className="fixed bottom-6 right-6 left-6 sm:left-auto rounded-xl border border-red-400/20 bg-[#1a0f10] px-4 py-3 text-sm text-red-200 shadow-lg">
           {error}
         </div>
       ) : null}
