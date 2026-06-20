@@ -632,7 +632,11 @@ export default function AffiliateFileManager() {
     }
   };
 
-  const handleReviewRevisionFile = async (file: BrowserFile, action: "approve" | "request_revision") => {
+  const handleReviewRevisionFile = async (
+    file: BrowserFile,
+    action: "approve" | "request_revision",
+    options?: { showToast?: boolean; reloadPhase?: boolean }
+  ) => {
     if (!selectedWorkspace || !file.filepath) return;
 
     try {
@@ -643,15 +647,67 @@ export default function AffiliateFileManager() {
         action,
       });
 
-      if (action === "approve") {
-        toast.success("File approved and moved to Final Deliverables");
-      } else {
-        toast.success(`Revision requested. Version${result?.nextVersionNumber || ""} is ready for upload.`);
+      if (options?.showToast !== false) {
+        if (action === "approve") {
+          toast.success("File approved and moved to Final Deliverables");
+        } else {
+          toast.success(`Revision requested. Version${result?.nextVersionNumber || ""} is ready for upload.`);
+        }
       }
-      await loadPhase(selectedWorkspace, selectedPhase || "post", selectedPath);
+
+      if (options?.reloadPhase !== false) {
+        await loadPhase(selectedWorkspace, selectedPhase || "post", selectedPath);
+      }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to update review status");
     } finally {
+      setReviewingFilePath(null);
+    }
+  };
+
+  const handleApproveAllRevisionFiles = async () => {
+    if (!selectedWorkspace) return;
+
+    const selectedRevisionFiles = selectedFilePaths.length
+      ? phaseFiles.filter((file) => selectedFilePaths.includes(file.filepath || ""))
+      : [];
+
+    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles).filter(
+      (file) => String(file.metadata?.editStatus || "").toLowerCase() !== "approved"
+    );
+
+    if (!filesToApprove.length) return;
+
+    try {
+      setIsSendingEditRequest(true);
+      const progressToastId = toast.loading(`Approving 0/${filesToApprove.length} files...`);
+      let approvedCount = 0;
+
+      for (const file of filesToApprove) {
+        if (!file.filepath) continue;
+        await fileManagerApi.reviewRevisionFile({
+          externalId: selectedWorkspace.externalId,
+          filepath: file.filepath,
+          action: "approve",
+        });
+        approvedCount += 1;
+        toast.loading(`Approving ${approvedCount}/${filesToApprove.length} files...`, {
+          id: progressToastId,
+        });
+      }
+
+      toast.success(`Approved ${approvedCount}/${filesToApprove.length} files and moved them to Final Deliverables`, {
+        id: progressToastId,
+      });
+      await loadPhase(selectedWorkspace, selectedPhase || "post", selectedPath);
+      if (isSelectionMode) {
+        setSelectedFilePaths([]);
+        setIsSelectionMode(false);
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve files");
+    } finally {
+      setIsSendingEditRequest(false);
       setReviewingFilePath(null);
     }
   };
@@ -937,6 +993,27 @@ export default function AffiliateFileManager() {
     [filteredFiles, visibleFileCount]
   );
   const hasMoreFiles = filteredFiles.length > visibleFileCount;
+
+  const hasPendingRevisionFiles = useMemo(
+    () =>
+      isRevisionVersionBrowser &&
+      phaseFiles.some((file) => String(file.metadata?.editStatus || "").toLowerCase() !== "approved"),
+    [phaseFiles, isRevisionVersionBrowser]
+  );
+
+  const selectedPendingFiles = useMemo(
+    () =>
+      selectedFilePaths.length
+        ? phaseFiles.filter(
+            (file) =>
+              selectedFilePaths.includes(file.filepath || "") &&
+              String(file.metadata?.editStatus || "").toLowerCase() !== "approved"
+          )
+        : [],
+    [phaseFiles, selectedFilePaths]
+  );
+
+  const canApproveSelectedFiles = isSelectionMode && selectedPendingFiles.length > 0;
 
   useEffect(() => {
     setVisibleFileCount(FILES_PAGE_SIZE);
@@ -1464,15 +1541,22 @@ export default function AffiliateFileManager() {
 
        {filteredFiles.length > 0 ? (
   <div className="flex flex-wrap justify-end gap-2">
-    {isRevisionVersionBrowser ? (
+    {isSelectionMode ? (
+      canApproveSelectedFiles ? (
+        <Button
+          className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
+          disabled={Boolean(reviewingFilePath) || isSendingEditRequest}
+          onClick={handleApproveAllRevisionFiles}
+        >
+          <Check size={16} />
+          {`Approve Selected (${selectedPendingFiles.length})`}
+        </Button>
+      ) : null
+    ) : hasPendingRevisionFiles ? (
       <Button
         className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
-        disabled={Boolean(reviewingFilePath)}
-        onClick={async () => {
-          for (const file of visibleFiles) {
-            await handleReviewRevisionFile(file, "approve");
-          }
-        }}
+        disabled={Boolean(reviewingFilePath) || isSendingEditRequest}
+        onClick={handleApproveAllRevisionFiles}
       >
         <Check size={16} />
         Approve All

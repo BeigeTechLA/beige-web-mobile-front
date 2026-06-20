@@ -662,47 +662,46 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
     >
       {isGrid ? (
         <>
-          <div className="relative w-full overflow-hidden rounded-xl lg:rounded-[22px]">
-            <div className="relative aspect-square w-full overflow-hidden">
-              {imageSrc ? (
-                <img
-                  src={imageSrc}
-                  alt={creative.name}
-                  className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${!isSelected ? 'grayscale-[0.15]' : ''}`}
-                />
-              ) : (
-                <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-xl lg:text-3xl font-semibold ${!isSelected ? 'grayscale-[0.15]' : ''}`}>
-                  {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                </div>
-              )}
-            </div>
+            <div className="relative w-full overflow-hidden rounded-t-xl lg:rounded-t-[22px]">
+              <div className="relative aspect-square w-full overflow-hidden">
+                {imageSrc ? (
+                  <img
+                    src={imageSrc}
+                    alt={creative.name}
+                    className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${!isSelected ? 'grayscale-[0.15]' : ''}`}
+                  />
+                ) : (
+                  <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-xl lg:text-3xl font-semibold ${!isSelected ? 'grayscale-[0.15]' : ''}`}>
+                    {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                  </div>
+                )}
 
-            <div className="absolute right-4 top-4">
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}
-              >
-                {isSelected && <Check size={18} className="text-black stroke-[3px]" />}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 lg:h-20 bg-gradient-to-t from-[#0F0F0F] via-[#0F0F0F]/85 to-transparent backdrop-blur-[1.5px]" />
+
+                <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 px-4 pb-4 lg:px-5 lg:pb-5">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className={`truncate text-lg lg:text-2xl leading-none font-medium transition-colors ${isDark ? "text-white" : "text-black"
+                      }`}>
+                      {creative.name}
+                    </h3>
+                    <span className="inline-flex items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold leading-none text-white">
+                      {creative.status}
+                    </span>
+                  </div>
+                </div>
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}
+                >
+                  {isSelected && <Check size={18} className="text-black stroke-[3px]" />}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex w-full flex-1 flex-col px-4 py-4 lg:px-5 lg:pb-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-3">
-                  <h3 className={`truncate text-lg lg:text-2xl leading-none font-medium transition-colors ${isDark ? "text-white" : "text-black"
-                    }`}>
-                    {creative.name}
-                  </h3>
-                  <span className="inline-flex items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold leading-none text-white">
-                    {creative.status}
-                  </span>
-                </div>
-              </div>
-            </div>
-
+          <div className={`flex w-full flex-1 flex-col px-4 pb-4 pt-4 lg:px-5 lg:pb-5 lg:pt-4 ${isDark ? "bg-[#0F0F0F]" : "bg-white"}`}>
             {/* Experience and Specialities Row */}
-            <div className={`mt-2 lg:mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-2 lg:gap-4 border-t pt-4 transition-colors ${isDark ? "border-white/15 text-white/90" : "border-[#e3e3e3] text-black/80"}`}>
+            <div className={`grid grid-cols-[1fr_auto_1fr] items-start gap-2 lg:gap-4 border-t pt-4 transition-colors ${isDark ? "border-white/15 text-white/90" : "border-[#e3e3e3] text-black/80"}`}>
               <div>
                 <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
                   Experience:
