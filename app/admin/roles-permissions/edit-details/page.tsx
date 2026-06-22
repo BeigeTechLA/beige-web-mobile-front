@@ -14,10 +14,7 @@ import {
   type UserPermissionsMap,
   type UserRoleDetailsResponse,
 } from "@/lib/api";
-import {
-  type PermissionColumnKey,
-  type PermissionMatrixRow,
-} from "@/components/admin/roles-permissions/types";
+import { type PermissionMatrixRow } from "@/components/admin/roles-permissions/types";
 import {
   applyPermissionsToRows,
   buildPermissionRows,
@@ -80,23 +77,6 @@ const resolvePermissionScope = (value?: string | null) => {
   }
 
   return "admin";
-};
-
-const getDeletedUserPermissionEntries = (
-  previousPermissions: UserPermissionsMap,
-  nextPermissions: UserPermissionsMap,
-) => {
-  const deletedEntries: Array<{ moduleKey: string; actionKey: PermissionColumnKey }> = [];
-
-  Object.entries(previousPermissions).forEach(([moduleKey, actions]) => {
-    (Object.keys(actions) as PermissionColumnKey[]).forEach((actionKey) => {
-      if (actions[actionKey] && !nextPermissions[moduleKey]?.[actionKey]) {
-        deletedEntries.push({ moduleKey, actionKey });
-      }
-    });
-  });
-
-  return deletedEntries;
 };
 
 export default function AdminRoleEditDetailsRoute() {
@@ -342,15 +322,6 @@ export default function AdminRoleEditDetailsRoute() {
     setError("");
 
     const nextPermissions = extractPermissionStateFromRows(rows);
-    const deletedEntries = getDeletedUserPermissionEntries(userCustomPermissions, nextPermissions);
-
-    if (hasUserCustomPermissions && deletedEntries.length > 0) {
-      await Promise.all(
-        deletedEntries.map(({ moduleKey, actionKey }) =>
-          adminApi.deleteUserPermission(userId, moduleKey, actionKey),
-        ),
-      );
-    }
 
     const response = hasUserCustomPermissions
       ? await adminApi.updateUserPermissions({

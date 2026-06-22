@@ -492,7 +492,7 @@ export default function SalesLeadsPage() {
         setLeadsViewMode(parsedFilters.leadsViewMode);
       }
 
-      if (canManageFilters) {
+      if (canManageSalesDashboardFilters) {
         if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsedFilters.assignedRepIdFilter));
         if (parsedFilters.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsedFilters.clientAssignedRepIdFilter));
       }

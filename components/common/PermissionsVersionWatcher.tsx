@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { authApi } from "@/lib/redux/features/auth/authApi";
@@ -18,84 +18,85 @@ import {
 } from "@/components/ui/dialog";
 import { Info } from "lucide-react";
 
-const normalizeVersion = (value: unknown): number | null => {
-  if (value === null || value === undefined || value === "") return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 export function PermissionsVersionWatcher() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const pathname = usePathname();
   const { user, token, isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
   const [isForcedLogoutOpen, setIsForcedLogoutOpen] = useState(false);
-  const baselineVersionRef = useRef<number | null>(null);
   const hasHandledUpdateRef = useRef(false);
-  const sessionKeyRef = useRef<string>("");
-
-  const permissionsVersion = useMemo(
-    () => normalizeVersion(user?.permissions_version),
-    [user?.permissions_version],
-  );
 
   const authReady = Boolean(
     !isLoading &&
       isAuthenticated &&
       user &&
-      token &&
-      permissionsVersion !== null,
+      token,
   );
 
-  const queryResult = authApi.useGetCurrentUserQuery(undefined, {
-    skip: !authReady || isForcedLogoutOpen || hasHandledUpdateRef.current,
-    pollingInterval: authReady && !isForcedLogoutOpen && !hasHandledUpdateRef.current ? 2000 : 0,
-    refetchOnMountOrArgChange: true,
-  });
+  const [triggerGetCurrentUser] = authApi.useLazyGetCurrentUserQuery();
 
-  const latestVersion = normalizeVersion(queryResult.data?.permissions_version);
-  const queryError = queryResult.error as
-    | {
-        status?: number;
-        data?: {
-          force_logout?: boolean;
-          message?: string;
-        };
+  useEffect(() => {
+    setIsForcedLogoutOpen(false);
+    hasHandledUpdateRef.current = false;
+  }, [user?.id, token]);
+
+  useEffect(() => {
+    if (!authReady || isForcedLogoutOpen || hasHandledUpdateRef.current) {
+      return;
+    }
+
+    const isPublicRoute =
+      pathname?.startsWith("/login") ||
+      pathname?.startsWith("/signup") ||
+      pathname === "/creator-signup" ||
+      pathname?.startsWith("/forgot-password") ||
+      pathname?.startsWith("/reset-password") ||
+      pathname?.startsWith("/verify-email");
+
+    if (isPublicRoute) {
+      return;
+    }
+
+    let isActive = true;
+
+    const runCheck = async () => {
+      try {
+        const result = await triggerGetCurrentUser().unwrap();
+        const currentRole = String(user?.userRole ?? "").trim().toLowerCase();
+        const latestRole = String((result as any)?.role ?? (result as any)?.userRole ?? "").trim().toLowerCase();
+
+        if (!isActive) return;
+
+        if (currentRole && latestRole && currentRole !== latestRole) {
+          hasHandledUpdateRef.current = true;
+          setIsForcedLogoutOpen(true);
+        }
+      } catch (error: any) {
+        if (!isActive) return;
+
+        const status = error?.status;
+        const forceLogout = error?.data?.force_logout === true;
+        const forceLogoutByMessage = error?.data?.message === "Please login again.";
+
+        if (status === 401 || forceLogout || forceLogoutByMessage) {
+          hasHandledUpdateRef.current = true;
+          setIsForcedLogoutOpen(true);
+          return;
+        }
+
+        if (status === 403) {
+          hasHandledUpdateRef.current = true;
+          setIsForcedLogoutOpen(true);
+        }
       }
-    | undefined;
-  const forceLogoutRequested =
-    queryError?.status === 401 || queryError?.data?.force_logout === true;
+    };
 
-  useEffect(() => {
-    const nextSessionKey = authReady ? `${user?.id ?? "unknown"}:${token ?? "no-token"}` : "";
-    if (sessionKeyRef.current !== nextSessionKey) {
-      sessionKeyRef.current = nextSessionKey;
-      baselineVersionRef.current = null;
-      setIsForcedLogoutOpen(false);
-      hasHandledUpdateRef.current = false;
-    }
-  }, [authReady, token, user?.id]);
+    void runCheck();
 
-  useEffect(() => {
-    if (!authReady || isForcedLogoutOpen || hasHandledUpdateRef.current) return;
-
-    if (forceLogoutRequested) {
-      hasHandledUpdateRef.current = true;
-      setIsForcedLogoutOpen(true);
-      return;
-    }
-
-    if (latestVersion === null) return;
-
-    if (baselineVersionRef.current === null) {
-      baselineVersionRef.current = latestVersion;
-      return;
-    }
-
-    if (baselineVersionRef.current !== latestVersion) {
-      hasHandledUpdateRef.current = true;
-      setIsForcedLogoutOpen(true);
-    }
-  }, [authReady, forceLogoutRequested, isForcedLogoutOpen, latestVersion]);
+    return () => {
+      isActive = false;
+    };
+  }, [authReady, isForcedLogoutOpen, pathname, token, triggerGetCurrentUser, user?.userRole]);
 
   const handleLoginAgain = async () => {
     hasHandledUpdateRef.current = true;
