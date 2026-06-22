@@ -51,6 +51,24 @@ type QuoteDraftSimplePriceConfig = {
   price: number;
 };
 
+export type QuoteDraftBookingSchedule =
+  | {
+      booking_type: "single_day";
+      time_zone: string;
+      start_date: string;
+      start_time: string;
+      end_time: string;
+    }
+  | {
+      booking_type: "multi_day";
+      time_zone: string;
+      booking_days: Array<{
+        date: string;
+        start_time: string;
+        end_time: string;
+      }>;
+    };
+
 export interface QuoteDraftPayload {
   pricing_mode: "general";
   client_user_id?: number | null;
@@ -59,6 +77,7 @@ export interface QuoteDraftPayload {
   client_email?: string;
   client_phone?: string;
   client_address?: string;
+  location?: string;
   location_latitude?: number | null;
   location_longitude?: number | null;
   project_description?: string;
@@ -69,6 +88,16 @@ export interface QuoteDraftPayload {
   tax_type?: string;
   tax_rate?: number;
   terms_conditions?: string;
+  booking_type?: "single_day" | "multi_day";
+  time_zone?: string;
+  start_date?: string;
+  start_time?: string;
+  end_time?: string;
+  booking_days?: Array<{
+    date: string;
+    start_time: string;
+    end_time: string;
+  }>;
   line_items?: QuoteDraftLineItem[];
 }
 
@@ -101,6 +130,7 @@ export interface BuildQuoteDraftPayloadInput {
   locationLatitude?: number | null;
   locationLongitude?: number | null;
   projectDescription: string;
+  bookingSchedule?: QuoteDraftBookingSchedule | null;
   validityDays: number | "custom";
   validUntil: string;
   discountEnabled: boolean;
@@ -200,10 +230,24 @@ export function buildQuoteDraftPayload(
 
   if (includeDetails) {
     payload.client_address = input.address.trim();
+    payload.location = input.address.trim();
     payload.location_latitude = input.locationLatitude ?? null;
     payload.location_longitude = input.locationLongitude ?? null;
     payload.project_description = input.projectDescription.trim();
     payload.quote_validity_days = resolveQuoteValidityDays(input.validityDays, input.validUntil);
+  }
+
+  if (input.bookingSchedule) {
+    payload.booking_type = input.bookingSchedule.booking_type;
+    payload.time_zone = input.bookingSchedule.time_zone;
+
+    if (input.bookingSchedule.booking_type === "single_day") {
+      payload.start_date = input.bookingSchedule.start_date;
+      payload.start_time = input.bookingSchedule.start_time;
+      payload.end_time = input.bookingSchedule.end_time;
+    } else {
+      payload.booking_days = input.bookingSchedule.booking_days;
+    }
   }
 
   if (includeServices) {
@@ -257,7 +301,7 @@ export function buildQuoteStepUpdatePayload(
     toTitleCase(input.selectedShootType);
 
   if (step === "selection" || step === "details") {
-    return {
+    const payload: QuoteUpdatePayload = {
       ...(clientUserId !== undefined ? { client_user_id: clientUserId } : {}),
       ...(clientId ? { client_id: clientId } : {}),
       client_name: input.clientName.trim() || input.selectedClient?.name?.trim() || "",
@@ -269,6 +313,21 @@ export function buildQuoteStepUpdatePayload(
       project_description: input.projectDescription.trim(),
       quote_validity_days: resolveQuoteValidityDays(input.validityDays, input.validUntil),
     };
+
+    if (step === "details" && input.bookingSchedule) {
+      payload.booking_type = input.bookingSchedule.booking_type;
+      payload.time_zone = input.bookingSchedule.time_zone;
+
+      if (input.bookingSchedule.booking_type === "single_day") {
+        payload.start_date = input.bookingSchedule.start_date;
+        payload.start_time = input.bookingSchedule.start_time;
+        payload.end_time = input.bookingSchedule.end_time;
+      } else {
+        payload.booking_days = input.bookingSchedule.booking_days;
+      }
+    }
+
+    return payload;
   }
 
   if (step === "services") {

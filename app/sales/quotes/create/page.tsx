@@ -46,6 +46,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
+import BookingDateTimeSection, {
+  type BookingScheduleData,
+} from "@/components/quotes/BookingDateTimeSection";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import QuoteReviewChangesModal from "@/components/quotes/QuoteReviewChangesModal";
 import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
@@ -378,6 +381,117 @@ const buildConvertModalInitialData = (
       date: singleDayDate,
       startTime: singleDayStartTime,
       endTime: singleDayEndTime,
+    },
+  };
+};
+
+const buildBookingScheduleInitialData = (
+  booking?: {
+    booking_type?: string | null;
+    time_zone?: string | null;
+    start_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    booking_days?: Array<{
+      date?: string | null;
+      event_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+    }> | null;
+  } | null,
+): BookingScheduleData | null => {
+  if (!booking) {
+    return null;
+  }
+
+  const timeZone = booking.time_zone || getBrowserTimeZone();
+  const bookingDays = Array.isArray(booking.booking_days)
+    ? booking.booking_days
+        .filter((day) => day?.date || day?.event_date)
+        .map((day) => ({
+          date: day.event_date || day.date || "",
+          startTime: normalizeConvertModalTime(day.start_time),
+          endTime: normalizeConvertModalTime(day.end_time),
+        }))
+        .filter((day) => day.date && day.startTime && day.endTime)
+    : [];
+
+  const shouldUseMultiDay =
+    booking.booking_type === "multi_day" || bookingDays.length > 1;
+
+  if (shouldUseMultiDay) {
+    if (!bookingDays.length) {
+      return null;
+    }
+
+    return {
+      booking_type: "multi_day",
+      time_zone: timeZone,
+      booking_days: bookingDays.map((day) => ({
+        date: day.date,
+        start_time: `${day.startTime}:00`,
+        end_time: `${day.endTime}:00`,
+      })),
+    };
+  }
+
+  const startDate = booking.start_date || bookingDays[0]?.date || "";
+  const startTime =
+    normalizeConvertModalTime(booking.start_time) || bookingDays[0]?.startTime || "";
+  const endTime =
+    normalizeConvertModalTime(booking.end_time) || bookingDays[0]?.endTime || "";
+
+  if (!startDate || !startTime || !endTime) {
+    return null;
+  }
+
+  return {
+    booking_type: "single_day",
+    time_zone: timeZone,
+    start_date: startDate,
+    start_time: `${startTime}:00`,
+    end_time: `${endTime}:00`,
+  };
+};
+
+const buildConvertBookingModalInitialDataFromSchedule = (
+  schedule: BookingScheduleData | null,
+  fallbackLocation = "",
+): ConvertBookingModalInitialData | null => {
+  if (!schedule) {
+    return null;
+  }
+
+  if (schedule.booking_type === "single_day") {
+    return {
+      bookingType: "single_day",
+      location: fallbackLocation,
+      singleDay: {
+        date: schedule.start_date,
+        startTime: schedule.start_time.slice(0, 5),
+        endTime: schedule.end_time.slice(0, 5),
+      },
+    };
+  }
+
+  return {
+    bookingType: "multi_day",
+    location: fallbackLocation,
+    multiDay: {
+      sameTimings:
+        schedule.booking_days.length > 0 &&
+        schedule.booking_days.every(
+          (day) =>
+            day.start_time.slice(0, 5) === schedule.booking_days[0]?.start_time.slice(0, 5) &&
+            day.end_time.slice(0, 5) === schedule.booking_days[0]?.end_time.slice(0, 5),
+        ),
+      sharedStartTime: schedule.booking_days[0]?.start_time.slice(0, 5),
+      sharedEndTime: schedule.booking_days[0]?.end_time.slice(0, 5),
+      days: schedule.booking_days.map((day) => ({
+        date: day.date,
+        startTime: day.start_time.slice(0, 5),
+        endTime: day.end_time.slice(0, 5),
+      })),
     },
   };
 };
@@ -1060,6 +1174,7 @@ export default function CreateQuotePage() {
   const [emailId, setEmailId] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [bookingSchedule, setBookingSchedule] = useState<BookingScheduleData | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [validityDays, setValidityDays] = useState<number | "custom">(7);
   const [validUntil, setValidUntil] = useState(
@@ -1228,11 +1343,29 @@ export default function CreateQuotePage() {
   const { data: linkedLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
     skip: !quoteLeadId,
   });
+  const bookingScheduleInitialData = React.useMemo(
+    () =>
+      buildBookingScheduleInitialData(
+        quoteToEdit?.converted_booking_details ??
+          previewQuote?.converted_booking_details ??
+          linkedLeadDetails?.booking,
+      ),
+    [
+      linkedLeadDetails?.booking,
+      previewQuote?.converted_booking_details,
+      quoteToEdit?.converted_booking_details,
+    ],
+  );
+  const effectiveBookingSchedule = bookingSchedule ?? bookingScheduleInitialData;
   const convertModalInitialData = React.useMemo(
     () =>
       convertModalInitialDataOverride ||
+      buildConvertBookingModalInitialDataFromSchedule(
+        effectiveBookingSchedule,
+        address,
+      ) ||
       buildConvertModalInitialData(linkedLeadDetails?.booking),
-    [convertModalInitialDataOverride, linkedLeadDetails],
+    [address, convertModalInitialDataOverride, effectiveBookingSchedule, linkedLeadDetails],
   );
 
   const fetchClients = async (query?: string) => {
@@ -3087,6 +3220,7 @@ export default function CreateQuotePage() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
@@ -3120,6 +3254,7 @@ export default function CreateQuotePage() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
@@ -3154,6 +3289,7 @@ export default function CreateQuotePage() {
         discountValue,
         taxLabel,
         normalizedTaxRate,
+        bookingSchedule: effectiveBookingSchedule,
         selectedShootType: quoteDraftSelectedShootType,
         shootTypes: quoteDraftShootTypes,
         selectedEditingTypes,
@@ -3188,6 +3324,7 @@ export default function CreateQuotePage() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedServices,
@@ -3800,6 +3937,16 @@ export default function CreateQuotePage() {
       return;
     }
     if (isConvertedToBooking) {
+      return;
+    }
+
+    const directBookingData = buildConvertBookingModalInitialDataFromSchedule(
+      effectiveBookingSchedule,
+      address,
+    );
+
+    if (directBookingData) {
+      void handleConvertBookingSubmit(directBookingData);
       return;
     }
 
@@ -7143,6 +7290,13 @@ export default function CreateQuotePage() {
                     colors={isDark ? darkThemeColors : undefined}
                   />
                 </div>
+
+                <BookingDateTimeSection
+                  isDark={isDark}
+                  maxDurationHours={selectedServicesMaxDurationHours}
+                  initialData={bookingScheduleInitialData}
+                  onChange={setBookingSchedule}
+                />
 
                 <div className="relative">
                   <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
