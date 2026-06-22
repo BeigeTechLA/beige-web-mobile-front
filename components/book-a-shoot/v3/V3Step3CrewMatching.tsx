@@ -24,8 +24,9 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
 
   const shootTypeDetails = useMemo(() => {
     const allTypes = [...newshootTypes, ...videoShootTypes, ...photoShootTypes, ...hybridShootTypes];
-    return allTypes.find((t) => t.key === data.shootType);
-  }, [data.shootType]);
+    const lookupKey = data.shootType === "studio" ? (data.studioShootType || "podcast") : data.shootType;
+    return allTypes.find((t) => t.key === lookupKey);
+  }, [data.shootType, data.studioShootType]);
 
   const peopleStat = shootTypeDetails?.stats?.find(s => s.label === "People")?.value || "N/A";
   const durationStat = shootTypeDetails?.stats?.find(s => s.label === "Duration")?.value || "N/A";
@@ -78,7 +79,7 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
               <div className="p-4 flex gap-4 items-center">
                 <div className="w-[100px] h-[100px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative shrink-0">
                   <Image
-                 src={data.selectedStudioImage || shootTypeDetails?.image || "/images/projects/interior.png"}
+                    src={shootTypeDetails?.image || "/images/projects/interior.png"}
                     alt={shootTypeDetails?.title || "Shoot Type"}
                     fill
                     className="object-cover rounded-lg"

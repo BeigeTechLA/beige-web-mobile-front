@@ -1,4 +1,4 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+﻿import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type {
   Creator,
   CreatorProfile,
@@ -54,9 +54,10 @@ export const creatorsApi = createApi({
       transformResponse: (response: ApiResponse<Creator[]>) => response.data!,
       providesTags: ['Creator'],
     }),
-    getRandomCrew: builder.query<Creator[], void>({
-      query: () => ({
+    getRandomCrew: builder.query<Creator[], { content_types?: string } | void>({
+      query: (params) => ({
         url: 'creator/get-random-crew',
+        params: params || undefined,
       }),
       transformResponse: (response: ApiResponse<RawCreator[]>) => {
         const rawCreators = response.data || [];
@@ -120,3 +121,5 @@ export const {
   useGetRandomCreatorsQuery,
   useGetRandomCrewQuery,
 } = creatorsApi;
+
+

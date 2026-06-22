@@ -1,4 +1,4 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+﻿import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import Cookies from 'js-cookie';
 import type {
   SalesLead,
@@ -71,6 +71,19 @@ export const salesApi = createApi({
         video_edit_types?: string[];
         photo_edit_types?: string[];
         estimated_delivery_date?: string | null;
+              serviceType?: string;
+        service_type?: string;
+        bookingFlow?: string;
+        name?: string;
+        email?: string;
+        phone?: string;
+        location?: string;
+        latitude?: number;
+        longitude?: number;
+        studio_details?: any;
+        videography_details?: any;
+        pricing?: any;
+        source?: string;
       }
     >({
       query: (data) => ({
@@ -395,6 +408,12 @@ export const salesApi = createApi({
         location_longitude?: number;
         description?: string;        // Added
         reference_links?: string | string[];    // Changed to accept array
+              serviceType?: string;
+        service_type?: string;
+        bookingFlow?: string;
+        studio_details?: any;
+        videography_details?: any;
+        pricing?: any;
       }
     >({
       query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id
@@ -561,3 +580,6 @@ export const {
   useAddAvailabilityMutation,
   useGetAvailabilityMutation
 } = salesApi;
+
+
+

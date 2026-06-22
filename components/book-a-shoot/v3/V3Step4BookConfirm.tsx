@@ -52,6 +52,55 @@ import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from 
 import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
+
+const getBookAShootServiceType = (data: BookingDataV3) => {
+  const hasStudio = data.shootType === "studio" || Boolean(data.selectedStudios?.length || data.selectedStudioIds?.length);
+  const hasVideo = data.contentType.includes("videographer") || data.contentType.includes("cinematographer");
+  if (hasVideo && hasStudio) return "videography_studios";
+  if (hasStudio) return "studios";
+  if (hasVideo) return "videography";
+  return "photography";
+};
+
+const buildStudioDetails = (data: BookingDataV3) => {
+  const selectedStudios = normalizeSelectedStudios(data);
+  const primaryStudio = selectedStudios[0];
+  if (!primaryStudio) return null;
+  return {
+    studio_id: primaryStudio.studioId,
+    studio_name: primaryStudio.name,
+    studio_location: primaryStudio.location,
+    package: primaryStudio.pricingLabel || primaryStudio.priceLabel || "Studio Rental",
+    slot: primaryStudio.startTime && primaryStudio.endTime ? `${primaryStudio.startTime} - ${primaryStudio.endTime}` : undefined,
+    duration: primaryStudio.quantity || 0,
+    price: primaryStudio.totalPrice || getSelectedStudiosTotal(selectedStudios),
+    selected_studios: selectedStudios,
+  };
+};
+
+const buildVideographyDetails = (data: BookingDataV3, duration = 8) => {
+  if (!data.contentType.includes("videographer") && !data.contentType.includes("cinematographer")) return null;
+  return {
+    package: data.studioShootType || data.shootType || "Basic Videography",
+    duration,
+    eventType: data.studioShootType || data.shootType || "Video Production",
+    price: 0,
+    addons: data.videoEditTypes || [],
+  };
+};
+
+const buildCrewRolesForServiceType = (data: BookingDataV3) => {
+  const serviceType = getBookAShootServiceType(data);
+  if (serviceType === "videography") return { videographer: Math.max(1, data.videographyCount || data.roleCounts?.videographer || 1) };
+  if (serviceType === "studios") return { studio: Math.max(1, data.selectedStudios?.length || data.selectedStudioIds?.length || 1) };
+  if (serviceType === "videography_studios") {
+    return {
+      videographer: Math.max(1, data.videographyCount || data.roleCounts?.videographer || 1),
+      studio: Math.max(1, data.selectedStudios?.length || data.selectedStudioIds?.length || 1),
+    };
+  }
+  return { photographer: Math.max(1, data.photographyCount || data.roleCounts?.photographer || 1) };
+};
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
   2: "Creator",
@@ -188,7 +237,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         ? `${formatDisplayTime(data.startDate)} - ${formatDisplayTime(data.endDate)}`
         : "Time not set";
   const summaryDateText = isMultiDay
-    ? `${sortedBookingDays.length} Days • ${formatSummaryDate(firstDay.date)} - ${formatSummaryDate(lastDay.date)}`
+    ? `${sortedBookingDays.length} Days â€¢ ${formatSummaryDate(firstDay.date)} - ${formatSummaryDate(lastDay.date)}`
     : isStudioBooking && primaryStudio?.selectedDate
       ? formatSummaryDate(primaryStudio.selectedDate)
     : isEditingOnly && data.expectedDeliveryDate
@@ -258,6 +307,28 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     ["videographer", "cinematographer"].includes(type),
   );
   const isPhotoContent = data.contentType.includes("photographer");
+  const roleCountsForPricing = React.useMemo(() => {
+    const counts = {
+      ...(data.roleCounts || {}),
+    };
+
+    if (!isEditingOnly && isVideoContent && !counts.videographer) {
+      counts.videographer = Math.max(1, data.videographyCount || 0);
+    }
+
+    if (!isEditingOnly && isPhotoContent && !counts.photographer) {
+      counts.photographer = Math.max(1, data.photographyCount || 0);
+    }
+
+    return counts;
+  }, [
+    data.photographyCount,
+    data.roleCounts,
+    data.videographyCount,
+    isEditingOnly,
+    isPhotoContent,
+    isVideoContent,
+  ]);
 
   const shootTypeSource = isVideoContent && isPhotoContent
     ? hybridShootTypes
@@ -268,6 +339,20 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         : newshootTypes;
 
   const shootInfo: ShootTypeProps = (() => {
+    if (isStudioBooking) {
+      const allShootTypes = [
+        ...newshootTypes,
+        ...videoShootTypes,
+        ...photoShootTypes,
+        ...hybridShootTypes,
+      ];
+      const selectedShootType = allShootTypes.find(
+        (type) => type.key === (data.studioShootType || "podcast"),
+      );
+
+      if (selectedShootType) return selectedShootType;
+    }
+
     if (isStudioBooking && primaryStudio?.image) {
       return {
         title: primaryStudio.name || "Studio",
@@ -406,30 +491,60 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           ? data.bookingDays.slice().sort((a, b) => a.date.localeCompare(b.date))[0]?.date
           : null;
 
+        const serviceType = getBookAShootServiceType(data);
+        const studioDetails = buildStudioDetails(data);
+        const videographyDetails = buildVideographyDetails(data, durationHours || 8);
+        const latitude =
+          data.locationDetails?.coordinates?.lat ??
+          data.locationDetails?.lat ??
+          data.locationDetails?.center?.[1] ??
+          undefined;
+        const longitude =
+          data.locationDetails?.coordinates?.lng ??
+          data.locationDetails?.lng ??
+          data.locationDetails?.center?.[0] ??
+          undefined;
         const quotePayload: any = {
-          creator_ids: useContentHouseInclusivePricing ? [] : data.selectedCrewIds,
+          creator_ids: serviceType === "studios" ? [] : (useContentHouseInclusivePricing ? [] : data.selectedCrewIds),
           role_counts: isEditingOnly
             ? { editor: 1 }
-            : useContentHouseInclusivePricing
-              ? {}
-              : data.roleCounts,
+            : serviceType === "studios"
+              ? { studio: Math.max(1, data.selectedStudios?.length || data.selectedStudioIds?.length || 1) }
+              : useContentHouseInclusivePricing
+                ? buildCrewRolesForServiceType(data)
+                : roleCountsForPricing,
+          crew_roles: buildCrewRolesForServiceType(data),
+          serviceType,
+          location: studioDetails?.studio_location || data.location,
+          latitude,
+          longitude,
           event_type: data.shootType || "general",
           video_edit_types: buildEditTypeCounts(data.videoEditTypes),
           photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
           skip_discount: true,
           skip_margin: true,
           studio_total: selectedStudiosTotal || 0,
+          studio_details: studioDetails || undefined,
+          videography_details: videographyDetails || undefined,
+          pricing: studioDetails || videographyDetails ? {
+            studioPrice: Number(studioDetails?.price || 0),
+            videographyPrice: Number(videographyDetails?.price || 0),
+            total: Number(studioDetails?.price || 0) + Number(videographyDetails?.price || 0),
+          } : undefined,
         };
 
         if (isEditingOnly) {
           quotePayload.content_type = "ai editing";
         } else {
+          quotePayload.content_type = serviceType === "studios" ? "studio" : data.contentType.join(",");
           if (useContentHouseInclusivePricing) {
             // Backend validation requires shoot_hours > 0 for non-AI-editing flows.
             // Keep it at minimum valid value while excluding creator/role items.
             quotePayload.shoot_hours = 1;
+            quotePayload.shootHours = 1;
           } else {
             quotePayload.shoot_hours = durationHours;
+            quotePayload.shootHours = durationHours;
             quotePayload.shoot_start_date = firstBookingDate
               ? `${firstBookingDate}T00:00:00.000Z`
               : toIsoIfValid(data.startDate);
@@ -568,7 +683,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     data.startDate,
     data.videoEditTypes,
     data.photoEditTypes,
-    data.roleCounts,
+    roleCountsForPricing,
     data.selectedStudios,
     data.selectedStudioIds,
     durationHours,
@@ -735,7 +850,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           {sortedBookingDays.map((day, idx) => (
                             
                             <span key={idx} className="text-white text-sm lg:text-base font-medium">
-                            <span className="text-[#A9A9A9]">• </span>
+                            <span className="text-[#A9A9A9]">â€¢ </span>
                               {formatSummaryDate(day.date)}
                             </span>
                           ))}
@@ -761,9 +876,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           <span className="text-[#A9A9A9] text-sm mb-1">Per Day</span>
                           {sortedBookingDays.map((day, idx) => (
                             <span key={idx} className="text-white text-sm lg:text-base font-medium">
-                              <span className="text-[#A9A9A9]">• </span>
+                              <span className="text-[#A9A9A9]">â€¢ </span>
                               {day.startTime && day.endTime
-                                ? `${formatDisplayTime(day.startTime)} – ${formatDisplayTime(day.endTime)}`
+                                ? `${formatDisplayTime(day.startTime)} â€“ ${formatDisplayTime(day.endTime)}`
                                 : "Time not set"}
                             </span>
                           ))}
@@ -1048,7 +1163,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
                         <FileImage size={20} />
                       </div>
-                      <p className="italic">All Raw Content </p>
+                      <p className="italic">All Raw ContentÂ </p>
                     </div>
 
                     {/* Conditionally show Editing items */}
@@ -1058,7 +1173,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
                             <Package size={20} />
                           </div>
-                          <p className="italic">Include Edited Deliverable </p>
+                          <p className="italic">Include Edited DeliverableÂ </p>
                         </div>
                         <div className="flex gap-3 items-center">
                           <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
@@ -1169,8 +1284,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                             </div>
                           </div>
                           <div className="text-[11px] text-[#A9A9A9] flex flex-wrap gap-x-2">
-                            {data.videoEditTypes.length > 0 && <span>• Video Editing</span>}
-                            {data.photoEditTypes.length > 0 && <span>• Photo Editing</span>}
+                            {data.videoEditTypes.length > 0 && <span>â€¢ Video Editing</span>}
+                            {data.photoEditTypes.length > 0 && <span>â€¢ Photo Editing</span>}
                           </div>
                         </div>
                       )}
@@ -1321,3 +1436,5 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     </div>
   );
 };
+
+

@@ -16,6 +16,8 @@ type DropdownSelectProps = {
   onChange: (key: string) => void;
   icon?: React.ReactNode;
   isDark?: boolean; // Added isDark prop
+  floatingLabel?: boolean;
+  selectedDisplay?: "pill" | "plain";
 };
 
 export default function DropdownSelect({
@@ -26,6 +28,8 @@ export default function DropdownSelect({
   onChange,
   icon,
   isDark = true, // Defaulting to true
+  floatingLabel = false,
+  selectedDisplay = "pill",
 }: DropdownSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,9 +60,15 @@ export default function DropdownSelect({
   return (
     <div className="relative w-full" ref={dropdownRef}>
       {/* Label (External) */}
-      <div className={`mb-1 text-[10px] font-bold uppercase tracking-wider ${
-        isDark ? "text-white/40" : "text-black/40"
-      }`}>
+      <div className={
+        floatingLabel
+          ? `absolute -top-2.5 left-5 z-10 px-2 text-sm lg:text-base ${
+              isDark ? `${bgColour} text-white/60` : "bg-white text-black/60"
+            }`
+          : `mb-1 text-[10px] font-bold uppercase tracking-wider ${
+              isDark ? "text-white/40" : "text-black/40"
+            }`
+      }>
         {title}
       </div>
 
@@ -86,19 +96,27 @@ export default function DropdownSelect({
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         ) : selectedOption ? (
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm lg:text-base ${
-            isDark ? "bg-[#2A2A2A] text-white" : "bg-black/5 text-black"
-          }`}>
-            {selectedOption.value}
-            <X
-              size={18}
-              className="cursor-pointer opacity-70 hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                onChange("");
-              }}
-            />
-          </div>
+          selectedDisplay === "plain" ? (
+            <span className={`min-w-0 flex-1 truncate pr-4 text-sm lg:text-base ${
+              isDark ? "text-white" : "text-black"
+            }`}>
+              {selectedOption.value}
+            </span>
+          ) : (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm lg:text-base ${
+              isDark ? "bg-[#2A2A2A] text-white" : "bg-black/5 text-black"
+            }`}>
+              {selectedOption.value}
+              <X
+                size={18}
+                className="cursor-pointer opacity-70 hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange("");
+                }}
+              />
+            </div>
+          )
         ) : (
           <span className={` text-sm lg:text-base ${isDark ? "text-white/40" : "text-black/40"}`}>Select {title}</span>
         )}

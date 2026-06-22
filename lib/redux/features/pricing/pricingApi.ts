@@ -150,7 +150,7 @@ export const pricingApi = createApi({
 
     // Calculate quote from selected creators
     calculateQuoteFromCreators: builder.mutation<
-      QuoteCalculation & { creators: any[] },
+      QuoteCalculation & { creators: unknown[] },
       {
         creator_ids: number[];
         shoot_hours?: number;
@@ -160,13 +160,23 @@ export const pricingApi = createApi({
           photographer?: number;
           cinematographer?: number;
           editor?: number;
+          studio?: number;
         };
+        crew_roles?: Record<string, number>;
+        serviceType?: "photography" | "videography" | "studios" | "videography_studios" | string;
+        bookingFlow?: string;
         event_type?: string;
+        location?: string;
+        latitude?: number;
+        longitude?: number;
         shoot_start_date?: string;
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
         add_on_items?: SelectedItem[];
         studio_total?: number;
+        studio_details?: unknown;
+        videography_details?: unknown;
+        pricing?: unknown;
         skip_discount?: boolean;
         skip_margin?: boolean;
       }
@@ -178,8 +188,11 @@ export const pricingApi = createApi({
       }),
       transformResponse: (response: {
         success: boolean;
-        data: { quote: QuoteCalculation & { creators: any[] } };
-      }) => response.data.quote,
+        data: { quote: QuoteCalculation; creators?: unknown[] };
+      }) => ({
+        ...response.data.quote,
+        creators: response.data.creators || [],
+      }),
     }),
   }),
 });

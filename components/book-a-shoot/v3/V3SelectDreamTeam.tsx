@@ -75,6 +75,18 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     useCreateSalesAssistedLeadMutation();
   const isEditingOnly =
     data.contentType.length === 1 && data.contentType.includes("editing");
+  const isStudioFlow = data.shootType === "studio" || Boolean(data.selectedStudios?.length || data.selectedStudioIds?.length);
+  const isVideoFlow = data.contentType.includes("videographer") || data.contentType.includes("cinematographer");
+  const isStudioOnlyFlow = isStudioFlow && !isVideoFlow && !data.contentType.includes("photographer");
+  const creatorSearchContentTypes = isEditingOnly
+    ? "editor"
+    : isStudioOnlyFlow
+      ? "videographer,photographer"
+      : isStudioFlow && isVideoFlow
+        ? "videographer,studio"
+        : isVideoFlow
+          ? "videographer"
+          : "photographer";
 
   const locationLatitude =
     data.locationDetails?.coordinates?.lat ??
@@ -89,9 +101,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
   // Build search params from booking data
   const searchParams = {
-    content_types: isEditingOnly
-      ? "editor"
-      : data.contentType.filter((t) => t !== "editing").join(","),
+    content_types: creatorSearchContentTypes,
     latitude: isEditingOnly ? undefined : locationLatitude,
     longitude: isEditingOnly ? undefined : locationLongitude,
     limit: 12,
@@ -105,14 +115,14 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     error,
   } = useSearchCreatorsQuery(searchParams, {
     skip:
-      data.contentType.length === 0 || (!isEditingOnly && (locationLatitude === undefined || locationLongitude === undefined)),
+      !creatorSearchContentTypes || (!isEditingOnly && (locationLatitude === undefined || locationLongitude === undefined)),
   });
 
   // Transform API creators to display format
   const creators: Creator[] = creatorsResponse?.data || [];
 
   // Fetch random crew
-  const { data: randomCrewResponse } = useGetRandomCrewQuery();
+  const { data: randomCrewResponse } = useGetRandomCrewQuery({ content_types: creatorSearchContentTypes }, { skip: !creatorSearchContentTypes });
   const additionalCreators: Creator[] = randomCrewResponse || [];
 
   const [showEmptyWarning, setShowEmptyWarning] = useState(false);
@@ -173,6 +183,11 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       if (!reqPhoto) reqPhoto = Number(localStorage.getItem("required_photographers")) || 0;
     }
 
+    if (isStudioOnlyFlow && reqVideo === 0 && reqPhoto === 0) {
+      reqVideo = 1;
+      reqPhoto = 1;
+    }
+
     // Availability is looser now, anyone with the capability counts towards "available"
     const availableVideo = creators.filter(c => getCreatorCapabilities(c).isVideo);
     const availablePhoto = creators.filter(c => getCreatorCapabilities(c).isPhoto);
@@ -185,7 +200,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         photo: Math.max(0, reqPhoto - availablePhoto.length)
       }
     };
-  }, [creators, data.roleCounts]);
+  }, [creators, data.roleCounts, isStudioOnlyFlow]);
 
   useEffect(() => {
     if (requirements.required.video > 0 && requirements.required.photo === 0) {
@@ -572,7 +587,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
         <div className="text-center">
           <h2 className="text-lg lg:text-[54px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
-            Our system is finding your perfect match — let&apos;s get your shoot started.
+            Our system is finding your perfect match â€” let&apos;s get your shoot started.
           </h2>
           {/*
           <h2 className="text-lg lg:text-[54px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
@@ -906,3 +921,4 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     </div>
   );
 };
+

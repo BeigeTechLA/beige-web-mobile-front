@@ -1,5 +1,6 @@
 "use client";
 
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ import {
   initialDataV3,
   V3Step1ChooseService,
   V3Step2MoreDetails,
+  V3Step2VideoServices,
+  V3ChooseCreators,
   V3Step3CrewMatching,
   V3LoadingFindingCreative,
   V3SelectDreamTeam,
@@ -58,6 +61,58 @@ interface FormFields {
   photo_edit_types?: string;
 }
 
+
+type BookAShootServiceType = "photography" | "videography" | "studios" | "videography_studios";
+
+const getBookAShootServiceType = (data: BookingDataV3): BookAShootServiceType => {
+  const hasStudio = data.shootType === "studio" || Boolean(data.selectedStudios?.length || data.selectedStudioIds?.length);
+  const hasVideo = data.contentType.includes("videographer") || data.contentType.includes("cinematographer");
+  if (hasVideo && hasStudio) return "videography_studios";
+  if (hasStudio) return "studios";
+  if (hasVideo) return "videography";
+  return "photography";
+};
+
+const buildStudioDetails = (data: BookingDataV3) => {
+  const selectedStudios = normalizeSelectedStudios(data);
+  const primaryStudio = selectedStudios[0];
+  if (!primaryStudio) return null;
+  return {
+    studio_id: primaryStudio.studioId,
+    studio_name: primaryStudio.name,
+    studio_location: primaryStudio.location,
+    package: primaryStudio.pricingLabel || primaryStudio.priceLabel || "Studio Rental",
+    slot: primaryStudio.startTime && primaryStudio.endTime ? `${primaryStudio.startTime} - ${primaryStudio.endTime}` : undefined,
+    duration: primaryStudio.quantity || 0,
+    price: primaryStudio.totalPrice || getSelectedStudiosTotal(selectedStudios),
+    selected_studios: selectedStudios,
+  };
+};
+
+const buildVideographyDetails = (data: BookingDataV3, duration = 8) => {
+  const hasVideo = data.contentType.includes("videographer") || data.contentType.includes("cinematographer");
+  if (!hasVideo) return null;
+  return {
+    package: data.studioShootType || data.shootType || "Basic Videography",
+    duration,
+    eventType: data.studioShootType || data.shootType || "Video Production",
+    price: 0,
+    addons: data.videoEditTypes || [],
+  };
+};
+
+const buildCrewRolesForServiceType = (data: BookingDataV3) => {
+  const serviceType = getBookAShootServiceType(data);
+  if (serviceType === "videography") return { videographer: Math.max(1, data.videographyCount || data.roleCounts?.videographer || 1) };
+  if (serviceType === "studios") return { studio: Math.max(1, data.selectedStudios?.length || data.selectedStudioIds?.length || 1) };
+  if (serviceType === "videography_studios") {
+    return {
+      videographer: Math.max(1, data.videographyCount || data.roleCounts?.videographer || 1),
+      studio: Math.max(1, data.selectedStudios?.length || data.selectedStudioIds?.length || 1),
+    };
+  }
+  return { photographer: Math.max(1, data.photographyCount || data.roleCounts?.photographer || 1) };
+};
 export const BookAShootV3 = () => {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
@@ -80,13 +135,24 @@ export const BookAShootV3 = () => {
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
   const isSubmitting = isBookingLoading || isQuoteLoading || isUpdatingBooking;
-  const shouldShowStudiosStep = formData.shootType === "studio";
+  const isVideographyStudioFlow =
+    formData.shootType === "studio" &&
+    formData.contentType.includes("videographer");
+  const isVideographyOnly =
+    formData.contentType.length === 1 &&
+    formData.contentType.includes("videographer") &&
+    formData.shootType !== "studio";
+  const shouldBrowseStudiosFromMoreDetails =
+    isVideographyOnly && formData.browseStudios === true;
+  const shouldShowStudiosStep = formData.shootType === "studio" && !isVideographyStudioFlow;
   const studioStep = shouldShowStudiosStep ? 2 : null;
   const moreDetailsStep = shouldShowStudiosStep ? 3 : 2;
-  const crewMatchingStep = shouldShowStudiosStep ? 4 : 3;
-  const loadingStep = shouldShowStudiosStep ? 5 : 4;
-  const dreamTeamStep = shouldShowStudiosStep ? 6 : 5;
-  const confirmStep = shouldShowStudiosStep ? 7 : 6;
+  const hasExtraStudioStep =
+    shouldShowStudiosStep || shouldBrowseStudiosFromMoreDetails;
+  const crewMatchingStep = hasExtraStudioStep ? 4 : 3;
+  const loadingStep = hasExtraStudioStep ? 5 : 4;
+  const dreamTeamStep = hasExtraStudioStep ? 6 : 5;
+  const confirmStep = hasExtraStudioStep ? 7 : 6;
 
   // const updateData = (newData: Partial<BookingDataV3>) => {
   //   setFormData((prev) => ({ ...prev, ...newData }));
@@ -95,6 +161,24 @@ export const BookAShootV3 = () => {
   const updateData = useCallback((newData: Partial<BookingDataV3>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
   }, []);
+
+  const goToStudiosFromMoreDetails = useCallback(() => {
+    updateData({ browseStudios: true });
+    setInternalStep(3);
+    setActiveStep(2);
+  }, [updateData]);
+
+  const goToCreatorsFromStudios = useCallback(() => {
+    updateData({ addTeamMembers: true });
+    setInternalStep(3);
+    setActiveStep(2);
+  }, [updateData]);
+
+  const goToReviewBookingFromStudios = useCallback(() => {
+    updateData({ addTeamMembers: false });
+    setInternalStep(confirmStep);
+    setActiveStep(3);
+  }, [confirmStep, updateData]);
 
   // Track early interest when logged-in user lands on the page
   useEffect(() => {
@@ -109,7 +193,8 @@ export const BookAShootV3 = () => {
 
           setDraftBookingId(result.data.booking_id);
           setLeadId(result.data.lead_id);
-          setLeadTracked(true);
+        setLeadTracked(true);
+
           console.log("Lead tracked for logged-in user:", result.data);
         } catch (error) {
           console.error("Failed to track lead for logged-in user:", error);
@@ -187,6 +272,14 @@ export const BookAShootV3 = () => {
         const startTime = getLocalTimePart(formData.startDate);
         const endTime = getLocalTimePart(formData.endDate);
         const estimatedDeliveryDate = getLocalDatePart(formData.expectedDeliveryDate);
+        const serviceType = getBookAShootServiceType(formData);
+        const studioDetails = buildStudioDetails(formData);
+        const videographyDetails = buildVideographyDetails(formData);
+        const pricingDetails = studioDetails || videographyDetails ? {
+          studioPrice: Number(studioDetails?.price || 0),
+          videographyPrice: Number(videographyDetails?.price || 0),
+          total: Number(studioDetails?.price || 0) + Number(videographyDetails?.price || 0),
+        } : undefined;
 
         const earlyInterestPayload: any = {
           booking_id: draftBookingId,
@@ -194,6 +287,14 @@ export const BookAShootV3 = () => {
           user_id: user?.id,
           shoot_type: formData.shootType,
           client_name: user?.name || formData.fullName,
+          name: user?.name || formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          serviceType,
+          studio_details: studioDetails || (serviceType.includes("studios") ? { package: "Studio selection pending", duration: 0, price: 0 } : undefined),
+          videography_details: videographyDetails || undefined,
+          pricing: pricingDetails,
+          source: "book_a_shoot",
           edits_needed: formData.editsNeeded,
           video_edit_types: formData.videoEditTypes,
           photo_edit_types: formData.photoEditTypes,
@@ -203,7 +304,10 @@ export const BookAShootV3 = () => {
           earlyInterestPayload.content_type = "ai editing";
           earlyInterestPayload.estimated_delivery_date = estimatedDeliveryDate;
         } else {
-          earlyInterestPayload.content_type = formData.contentType.join(",");
+          earlyInterestPayload.content_type = serviceType === "studios" ? "studio" : formData.contentType.join(",");
+          earlyInterestPayload.location = studioDetails?.studio_location || formData.location;
+          earlyInterestPayload.latitude = formData.locationDetails?.coordinates?.lat ?? formData.locationDetails?.lat ?? formData.locationDetails?.center?.[1];
+          earlyInterestPayload.longitude = formData.locationDetails?.coordinates?.lng ?? formData.locationDetails?.lng ?? formData.locationDetails?.center?.[0];
           earlyInterestPayload.start_date = startDate;
           earlyInterestPayload.start_time = startTime;
           earlyInterestPayload.end_time = endTime;
@@ -254,8 +358,39 @@ export const BookAShootV3 = () => {
         toast.error("Progress not saved, but you can continue.");
       }
     }
-    if (internalStep === crewMatchingStep) {
+    if (
+      shouldBrowseStudiosFromMoreDetails &&
+      internalStep === 3
+    ) {
+      setInternalStep(crewMatchingStep);
+      setActiveStep(2);
+    } else if (
+      shouldShowStudiosStep &&
+      (internalStep === studioStep || internalStep === moreDetailsStep) &&
+      !formData.addTeamMembers
+    ) {
+      setInternalStep(crewMatchingStep);
+      setActiveStep(2);
+    } else if (internalStep === crewMatchingStep) {
       // add GA event on initial load
+      const isStudioOnlyFlow =
+        formData.shootType === "studio" &&
+        !formData.contentType.includes("videographer") &&
+        !formData.contentType.includes("cinematographer") &&
+        !formData.contentType.includes("photographer");
+
+      if (isStudioOnlyFlow && !formData.videographyCount && !formData.photographyCount) {
+        updateData({
+          roleCounts: {
+            ...formData.roleCounts,
+            videographer: formData.roleCounts?.videographer || 1,
+            photographer: formData.roleCounts?.photographer || 1,
+          },
+          videographyCount: formData.roleCounts?.videographer || 1,
+          photographyCount: formData.roleCounts?.photographer || 1,
+          crewCount: Math.max(2, formData.crewCount || 0),
+        });
+      }
 
       const formFields = {
         content_type: formData.contentType.join(","),
@@ -324,7 +459,11 @@ export const BookAShootV3 = () => {
 
     // From Book & Confirm, go back to Dream Team selection
     if (internalStep === confirmStep) {
-      setInternalStep(dreamTeamStep);
+      setInternalStep(
+        shouldShowStudiosStep && !formData.addTeamMembers
+          ? studioStep!
+          : dreamTeamStep,
+      );
       setActiveStep(2);
       return;
     }
@@ -505,11 +644,28 @@ export const BookAShootV3 = () => {
       const startTime = getLocalTimePart(formData.startDate);
       const endTime = getLocalTimePart(formData.endDate);
       const estimatedDeliveryDate = getLocalDatePart(formData.expectedDeliveryDate);
+      const serviceType = getBookAShootServiceType(formData);
+      const studioDetails = buildStudioDetails(formData);
+      const videographyDetails = buildVideographyDetails(formData, shootHours || 8);
+      const servicePricingDetails = studioDetails || videographyDetails ? {
+        studioPrice: Number(studioDetails?.price || 0),
+        videographyPrice: Number(videographyDetails?.price || 0),
+        total: Number(studioDetails?.price || 0) + Number(videographyDetails?.price || 0),
+      } : undefined;
 
       const finalBookingData: any = {
         order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
         guest_email: formData.email,
-        content_type: isEditingOnly ? "ai editing" : formData.contentType.join(","),
+        content_type: isEditingOnly
+          ? "ai editing"
+          : serviceType === "studios"
+            ? "studio"
+            : formData.contentType.join(","),
+        serviceType,
+        crew_roles: buildCrewRolesForServiceType(formData),
+        studio_details: studioDetails || undefined,
+        videography_details: videographyDetails || undefined,
+        pricing: servicePricingDetails,
         shoot_type: formData.shootType,
         booking_type: formData.bookingType,
         booking_days: primaryStudio
@@ -621,26 +777,39 @@ export const BookAShootV3 = () => {
       updateData,
       onNext: nextStep,
       onBack: prevStep,
+      onBrowseStudios: goToStudiosFromMoreDetails,
+      onBrowseCreators: goToCreatorsFromStudios,
+      onReviewBooking: goToReviewBookingFromStudios,
     };
 
     switch (internalStep) {
       case 1:
         return <V3Step1ChooseService {...props} />;
       case 2:
-        return shouldShowStudiosStep ? <V3Step5Studios {...props} /> : <V3Step2MoreDetails {...props} />;
+        return isVideographyStudioFlow
+          ? <V3Step2VideoServices {...props} />
+          : shouldShowStudiosStep
+            ? <V3Step5Studios {...props} />
+            : <V3Step2MoreDetails {...props} />;
       case 3:
-        return shouldShowStudiosStep ? <V3Step2MoreDetails {...props} /> : <V3Step3CrewMatching {...props} />;
+        return shouldBrowseStudiosFromMoreDetails
+          ? <V3Step5Studios {...props} />
+          : shouldShowStudiosStep
+          ? formData.addTeamMembers
+            ? <V3ChooseCreators {...props} />
+            : <V3Step2MoreDetails {...props} />
+          : <V3Step3CrewMatching {...props} />;
       case 4:
-        return shouldShowStudiosStep ? <V3Step3CrewMatching {...props} /> : <V3LoadingFindingCreative />;
+        return hasExtraStudioStep ? <V3Step3CrewMatching {...props} /> : <V3LoadingFindingCreative />;
       case 5:
-        return shouldShowStudiosStep ? <V3LoadingFindingCreative /> : (
+        return hasExtraStudioStep ? <V3LoadingFindingCreative /> : (
           <V3SelectDreamTeam
             {...props}
             bookingId={draftBookingId || undefined}
           />
         );
       case 6:
-        return shouldShowStudiosStep ? (
+        return hasExtraStudioStep ? (
           <V3SelectDreamTeam
             {...props}
             bookingId={draftBookingId || undefined}
@@ -653,7 +822,7 @@ export const BookAShootV3 = () => {
           />
         );
       case 7:
-        return shouldShowStudiosStep ? (
+        return hasExtraStudioStep ? (
           <V3Step4BookConfirm
             {...props}
             onConfirm={handleBookingSubmission}
@@ -710,7 +879,7 @@ export const BookAShootV3 = () => {
 
       <main className="relative pt-24 lg:pt-44 pb-8 lg:pb-16 min-h-screen flex flex-col items-center">
         {/* Back Button (hide on loading) */}
-        {(internalStep !== 4 && internalStep !== 1) && (
+        {(internalStep !== loadingStep && internalStep !== 1) && (
           <div className="w-full container z-20 px-4 md:px-6">
             <button
               onClick={prevStep}
@@ -723,7 +892,7 @@ export const BookAShootV3 = () => {
         )}
 
         <div className="container relative z-10 mx-auto px-4 md:px-6 flex flex-col items-center">
-          {internalStep !== 4 && (
+          {internalStep !== loadingStep && (
             <StepProgressTracker steps={V3_STEPS} currentStep={activeStep} />
           )}
 
@@ -774,3 +943,8 @@ const LeaveConfirmationModal = ({
 </div>
   );
 };
+
+
+
+
+

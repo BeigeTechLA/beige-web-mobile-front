@@ -37,6 +37,9 @@ export type BookingDataV3 = {
   startDate: string;
   endDate: string;
   expectedDeliveryDate?: string;
+
+  projectName?: string;
+  description?: string;
   
   // Edits
   editsNeeded: boolean;
@@ -52,6 +55,7 @@ export type BookingDataV3 = {
   locationDetails: LocationDetails;
   specialInstructions: string;
   referenceLinks: string[];
+  browseStudios?: boolean;
   
   // Step 3 & 4
   matchingMethod: 'ai_matchmaker' | 'manual';
@@ -61,6 +65,8 @@ export type BookingDataV3 = {
   selectedStudios?: SelectedStudio[];
   selectedStudioImage?: string;
   selectedStudioName?: string;
+  castAndCrew?: string;
+  studioShootType?: string;
 
 
   roleCounts?: {
@@ -68,6 +74,7 @@ export type BookingDataV3 = {
     photographer?: number;
     cinematographer?: number;
     editor?: number;
+    studio?: number;
   };
   videographyCount?: number;
   photographyCount?: number;
@@ -90,6 +97,8 @@ export const initialDataV3: BookingDataV3 = {
   startDate: "",
   endDate: "",
   expectedDeliveryDate: "",
+  projectName: "",
+  description: "",
   editsNeeded: true,
   videoEditTypes: [],
   photoEditTypes: [],

@@ -1,22 +1,26 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { Video, Camera, Scissors, Plus, Trash2, ExternalLink, Globe, Image as ImageIcon, Eye } from "lucide-react";
+import { Video, Camera, Scissors, Plus, Trash2, ExternalLink, Globe, Image as ImageIcon, Eye, Building2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { videoShootTypes } from "@/app/data/shootData";
+import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
   onNext: () => void;
   onBack: () => void;
+  onBrowseStudios?: () => void;
 }
 
 const TEAM_ROLES = [
@@ -46,7 +50,43 @@ interface FormFields {
   photographyCount?: string
 }
 
-export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
+
+const getBookAShootServiceType = (data: BookingDataV3) => {
+  const hasStudio = data.shootType === "studio" || Boolean(data.selectedStudios?.length || data.selectedStudioIds?.length);
+  const hasVideo = data.contentType.includes("videographer") || data.contentType.includes("cinematographer");
+  if (hasVideo && hasStudio) return "videography_studios";
+  if (hasStudio) return "studios";
+  if (hasVideo) return "videography";
+  return "photography";
+};
+
+const buildStudioDetails = (data: BookingDataV3) => {
+  const selectedStudios = normalizeSelectedStudios(data);
+  const primaryStudio = selectedStudios[0];
+  if (!primaryStudio) return null;
+  return {
+    studio_id: primaryStudio.studioId,
+    studio_name: primaryStudio.name,
+    studio_location: primaryStudio.location,
+    package: primaryStudio.pricingLabel || primaryStudio.priceLabel || "Studio Rental",
+    slot: primaryStudio.startTime && primaryStudio.endTime ? `${primaryStudio.startTime} - ${primaryStudio.endTime}` : undefined,
+    duration: primaryStudio.quantity || 0,
+    price: primaryStudio.totalPrice || getSelectedStudiosTotal(selectedStudios),
+    selected_studios: selectedStudios,
+  };
+};
+
+const buildVideographyDetails = (data: BookingDataV3) => {
+  if (!data.contentType.includes("videographer") && !data.contentType.includes("cinematographer")) return null;
+  return {
+    package: data.studioShootType || data.shootType || "Basic Videography",
+    duration: 8,
+    eventType: data.studioShootType || data.shootType || "Video Production",
+    price: 0,
+    addons: data.videoEditTypes || [],
+  };
+};
+export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, onBack, onBrowseStudios }) => {
   const { user, isAuthenticated } = useAuth()
 
   // Local state for team members if not stored in main data yet
@@ -65,6 +105,11 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
   const isStudio = data.shootType === "studio";
+  const isVideoStudioFlow = isStudio && data.contentType.includes("videographer");
+  const isVideographyOnly =
+    data.contentType.length === 1 &&
+    data.contentType.includes("videographer") &&
+    !isStudio;
 
    const links = data.referenceLinks || [];
 
@@ -340,12 +385,38 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         location_longitude?: number;
         description?: string;
         reference_links?: string[];
+        serviceType?: string;
+        studio_details?: any;
+        videography_details?: any;
+        pricing?: any;
       } = {
         booking_id: data.bookingId,
         crew_roles: crewRoles,
+        serviceType: getBookAShootServiceType(data),
         description: data.specialInstructions, 
         reference_links: data.referenceLinks.filter(l => l.trim() !== ""),
       };
+
+      const studioDetails = buildStudioDetails(data);
+      const videographyDetails = buildVideographyDetails(data);
+
+      if (studioDetails) {
+        payload.studio_details = studioDetails;
+      }
+
+      if (videographyDetails) {
+        payload.videography_details = videographyDetails;
+      }
+
+      if (studioDetails || videographyDetails) {
+        const studioPrice = Number(studioDetails?.price || 0);
+        const videographyPrice = Number(videographyDetails?.price || 0);
+        payload.pricing = {
+          studioPrice,
+          videographyPrice,
+          total: studioPrice + videographyPrice,
+        };
+      }
 
       if (!isEditingOnly && data.location) {
         payload.location = data.location;
@@ -438,9 +509,49 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">More Details</h2>
-        <p className="text-white/60">Help us understand your project better</p>
+        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">
+          {isVideoStudioFlow ? "Videography Services" : "More Details"}
+        </h2>
+        <p className="text-white/60">
+          {isVideoStudioFlow ? "Choose your shoot type, timing, and editing preference for your project." : "Help us understand your project better"}
+        </p>
       </div>
+
+      {isVideoStudioFlow && (
+        <div className="pt-6 lg:pt-15 border-t border-white/10">
+          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-4">Video Shoot Type</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {videoShootTypes.map((type) => {
+              const selected = (data.studioShootType || "podcast") === type.key;
+              return (
+                <button
+                  key={type.key}
+                  type="button"
+                  onClick={() => updateData({ studioShootType: type.key })}
+                  className={`relative flex h-[112px] items-center gap-4 rounded-[12px] border p-3 text-left transition ${
+                    selected
+                      ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
+                      : "border-white/10 bg-[#101010] text-white hover:border-white/25"
+                  }`}
+                >
+                  <div className="relative h-[74px] w-[92px] shrink-0 overflow-hidden rounded-[8px] bg-white/10">
+                    <Image src={type.image || "/images/projects/interior.png"} alt={type.title} fill className="object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-bold">{type.title}</div>
+                    <div className={`mt-1 line-clamp-2 text-xs ${selected ? "text-black/60" : "text-white/45"}`}>
+                      {(type.stats || []).map((stat) => stat.value).join(", ") || "Video production"}
+                    </div>
+                  </div>
+                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${selected ? "bg-black text-[#E8D1AB]" : "border border-white/30"}`}>
+                    {selected && <span className="h-2 w-2 rounded-full bg-[#E8D1AB]" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Team Included */}
       <div ref={teamIncludedRef} className="pt-6 lg:pt-15 border-t border-white/10">
@@ -728,6 +839,40 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       </div>
       </div>
 
+      {isVideographyOnly && (
+        <div className="pt-6 lg:pt-10 border-t border-white/10">
+          <div className="flex flex-col gap-5 rounded-[12px] border border-white/20 bg-[#101010] p-4 sm:flex-row sm:items-center sm:justify-between lg:p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] border border-white/10 bg-[#171717] text-[#E8D1AB]">
+                <Building2 size={22} strokeWidth={1.6} />
+              </div>
+              <div>
+                <h3 className="text-base font-medium text-white lg:text-xl">
+                  Need a Studio?
+                </h3>
+                <p className="mt-1 text-xs text-white/45 lg:text-sm">
+                  Let us provide the best location for your shoot and pricing.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              onClick={() => {
+                updateData({ browseStudios: true });
+                onBrowseStudios?.();
+              }}
+              className={`h-12 shrink-0 rounded-[8px] px-6 text-sm font-medium transition-colors lg:h-14 lg:px-10 lg:text-base ${
+                data.browseStudios
+                  ? "border border-[#E8D1AB] bg-transparent text-[#E8D1AB] hover:bg-[#E8D1AB]/10"
+                  : "bg-[#E8D1AB] text-black hover:bg-[#dcb98a]"
+              }`}
+            >
+              Browse Studios
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
         <Button
@@ -747,3 +892,5 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     </div>
   );
 };
+
+
