@@ -419,15 +419,36 @@ const buildBookingScheduleInitialData = (
       start_time?: string | null;
       end_time?: string | null;
     }> | null;
+    converted_booking_details?: {
+      booking_type?: string | null;
+      time_zone?: string | null;
+      start_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+      booking_days?: Array<{
+        date?: string | null;
+        event_date?: string | null;
+        start_time?: string | null;
+        end_time?: string | null;
+      }> | null;
+    } | null;
   } | null,
 ): BookingScheduleData | null => {
   if (!booking) {
     return null;
   }
 
-  const timeZone = booking.time_zone || getBrowserTimeZone();
-  const bookingDays = Array.isArray(booking.booking_days)
-    ? booking.booking_days
+  if (booking.booking_type === null) {
+    return {
+      booking_type: "tbd",
+      time_zone: booking.time_zone || getBrowserTimeZone(),
+    };
+  }
+
+  const sourceBooking = booking.converted_booking_details ?? booking;
+  const timeZone = sourceBooking.time_zone || getBrowserTimeZone();
+  const bookingDays = Array.isArray(sourceBooking.booking_days)
+    ? sourceBooking.booking_days
         .filter((day) => day?.date || day?.event_date)
         .map((day) => ({
           date: day.event_date || day.date || "",
@@ -436,9 +457,22 @@ const buildBookingScheduleInitialData = (
         }))
         .filter((day) => day.date && day.startTime && day.endTime)
     : [];
+  const hasAnyBookingFields =
+    Boolean(sourceBooking.booking_type) ||
+    Boolean(sourceBooking.start_date) ||
+    Boolean(sourceBooking.start_time) ||
+    Boolean(sourceBooking.end_time) ||
+    bookingDays.length > 0;
+
+  if (sourceBooking.booking_type === "tbd" || !hasAnyBookingFields) {
+    return {
+      booking_type: "tbd",
+      time_zone: timeZone,
+    };
+  }
 
   const shouldUseMultiDay =
-    booking.booking_type === "multi_day" || bookingDays.length > 1;
+    sourceBooking.booking_type === "multi_day" || bookingDays.length > 1;
 
   if (shouldUseMultiDay) {
     if (!bookingDays.length) {
@@ -456,11 +490,11 @@ const buildBookingScheduleInitialData = (
     };
   }
 
-  const startDate = booking.start_date || bookingDays[0]?.date || "";
+  const startDate = sourceBooking.start_date || bookingDays[0]?.date || "";
   const startTime =
-    normalizeConvertModalTime(booking.start_time) || bookingDays[0]?.startTime || "";
+    normalizeConvertModalTime(sourceBooking.start_time) || bookingDays[0]?.startTime || "";
   const endTime =
-    normalizeConvertModalTime(booking.end_time) || bookingDays[0]?.endTime || "";
+    normalizeConvertModalTime(sourceBooking.end_time) || bookingDays[0]?.endTime || "";
 
   if (!startDate || !startTime || !endTime) {
     return null;
@@ -483,6 +517,10 @@ const buildConvertBookingModalInitialDataFromSchedule = (
     return null;
   }
 
+  if (schedule.booking_type === "tbd") {
+    return null;
+  }
+
   if (schedule.booking_type === "single_day") {
     return {
       bookingType: "single_day",
@@ -495,20 +533,24 @@ const buildConvertBookingModalInitialDataFromSchedule = (
     };
   }
 
+  const bookingDays = Array.isArray(schedule.booking_days) ? schedule.booking_days : [];
+
   return {
     bookingType: "multi_day",
     location: fallbackLocation,
     multiDay: {
       sameTimings:
-        schedule.booking_days.length > 0 &&
-        schedule.booking_days.every(
+        bookingDays.length > 0 &&
+        bookingDays.every(
           (day) =>
-            day.start_time.slice(0, 5) === schedule.booking_days[0]?.start_time.slice(0, 5) &&
-            day.end_time.slice(0, 5) === schedule.booking_days[0]?.end_time.slice(0, 5),
+            day.start_time.slice(0, 5) ===
+            bookingDays[0]?.start_time.slice(0, 5) &&
+            day.end_time.slice(0, 5) ===
+            bookingDays[0]?.end_time.slice(0, 5),
         ),
-      sharedStartTime: schedule.booking_days[0]?.start_time.slice(0, 5),
-      sharedEndTime: schedule.booking_days[0]?.end_time.slice(0, 5),
-      days: schedule.booking_days.map((day) => ({
+      sharedStartTime: bookingDays[0]?.start_time.slice(0, 5),
+      sharedEndTime: bookingDays[0]?.end_time.slice(0, 5),
+      days: bookingDays.map((day) => ({
         date: day.date,
         startTime: day.start_time.slice(0, 5),
         endTime: day.end_time.slice(0, 5),
@@ -1401,17 +1443,56 @@ export default function CreateQuotePage() {
   const bookingScheduleInitialData = React.useMemo(
     () =>
       buildBookingScheduleInitialData(
-        quoteToEdit?.converted_booking_details ??
-          previewQuote?.converted_booking_details ??
+        quoteToEdit ??
+          previewQuote ??
           linkedLeadDetails?.booking,
       ),
     [
       linkedLeadDetails?.booking,
-      previewQuote?.converted_booking_details,
-      quoteToEdit?.converted_booking_details,
+      previewQuote,
+      quoteToEdit,
     ],
   );
   const effectiveBookingSchedule = bookingSchedule ?? bookingScheduleInitialData;
+  const bookingDurationHours = React.useMemo(() => {
+    if (!effectiveBookingSchedule) {
+      return null;
+    }
+
+    const calculateDurationHours = (startTime: string, endTime: string) => {
+      const [startHour, startMinute] = startTime.split(":").map(Number);
+      const [endHour, endMinute] = endTime.split(":").map(Number);
+
+      if (
+        !Number.isFinite(startHour) ||
+        !Number.isFinite(startMinute) ||
+        !Number.isFinite(endHour) ||
+        !Number.isFinite(endMinute)
+      ) {
+        return null;
+      }
+
+      const diffInMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+      return diffInMinutes > 0 ? Math.round((diffInMinutes / 60) * 100) / 100 : null;
+    };
+
+    if (effectiveBookingSchedule.booking_type === "single_day") {
+      return calculateDurationHours(
+        effectiveBookingSchedule.start_time.slice(0, 5),
+        effectiveBookingSchedule.end_time.slice(0, 5),
+      );
+    }
+
+    const bookingDays = Array.isArray(effectiveBookingSchedule.booking_days)
+      ? effectiveBookingSchedule.booking_days
+      : [];
+
+    const dayDurations = bookingDays
+      .map((day) => calculateDurationHours(day.start_time.slice(0, 5), day.end_time.slice(0, 5)))
+      .filter((duration): duration is number => typeof duration === "number" && duration > 0);
+
+    return dayDurations.length > 0 ? Math.max(...dayDurations) : null;
+  }, [effectiveBookingSchedule]);
   const convertModalInitialData = React.useMemo(
     () =>
       convertModalInitialDataOverride ||
@@ -1422,6 +1503,17 @@ export default function CreateQuotePage() {
       buildConvertModalInitialData(linkedLeadDetails?.booking),
     [address, convertModalInitialDataOverride, effectiveBookingSchedule, linkedLeadDetails],
   );
+
+  const syncQuoteDetailState = React.useCallback((quoteDetail: SalesQuoteDetailData | null) => {
+    setQuoteToEdit(quoteDetail);
+    setBookingSchedule(buildBookingScheduleInitialData(quoteDetail));
+  }, []);
+
+  React.useEffect(() => {
+    setBookingSchedule(null);
+  }, [editQuoteId]);
+
+  const getServiceDurationCap = React.useCallback(() => bookingDurationHours, [bookingDurationHours]);
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -2184,11 +2276,16 @@ export default function CreateQuotePage() {
     field: string,
     value: number,
   ) => {
+    const normalizedValue = Math.max(0, value);
+
     setServiceConfigs((prev) => ({
       ...prev,
       [serviceId]: {
         ...prev[serviceId],
-        [field]: Math.max(0, value),
+        [field]:
+          field === "duration" && bookingDurationHours !== null
+            ? Math.min(normalizedValue, getServiceDurationCap() ?? normalizedValue)
+            : normalizedValue,
       },
     }));
   };
@@ -2453,11 +2550,15 @@ export default function CreateQuotePage() {
         newSelected = [...prev, serviceId];
         // Initialize config for the new service
         if (!serviceConfigs[serviceId]) {
+          const initialDuration =
+            bookingDurationHours !== null
+              ? Math.min(4, bookingDurationHours)
+              : 4;
           setServiceConfigs((prevConfigs) => ({
             ...prevConfigs,
             [serviceId]: {
               quantity: 1,
-              duration: 4,
+              duration: initialDuration,
               crewSize: 1,
               estimatedPrice: price,
             },
@@ -2857,15 +2958,16 @@ export default function CreateQuotePage() {
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
   const shouldHideBackButton = isQuoteSaved || (!isEditMode && !!createdQuoteId);
+  const hasRequiredBookingSchedule = view !== "details" || Boolean(effectiveBookingSchedule);
 
-  const canContinueToNextStep = currentStepValidation.isValid;
+  const canContinueToNextStep = currentStepValidation.isValid && hasRequiredBookingSchedule;
   const canPrimaryAction =
     isEditMode
       ? isFullEditFlow
         ? view === "tax"
           ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
-          : currentStepValidation.isValid
-        : currentStepValidation.isValid
+          : currentStepValidation.isValid && hasRequiredBookingSchedule
+        : currentStepValidation.isValid && hasRequiredBookingSchedule
       : view === "tax"
         ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
         : canContinueToNextStep;
@@ -2873,6 +2975,11 @@ export default function CreateQuotePage() {
   const handleContinue = async () => {
     if (!currentStepValidation.isValid) {
       toast.error(getQuoteValidationMessage(currentStepValidation));
+      return;
+    }
+
+    if (view === "details" && !effectiveBookingSchedule) {
+      toast.error("Please select a booking date and time or choose TBD.");
       return;
     }
 
@@ -3574,6 +3681,7 @@ export default function CreateQuotePage() {
     return buildQuoteReviewChangesData({
       quote: quoteToEdit,
       currentDraftLineItems,
+      bookingSchedule: effectiveBookingSchedule,
       nextTotal: totalAfterTax,
       clientName,
       emailId,
@@ -3596,6 +3704,7 @@ export default function CreateQuotePage() {
     discountType,
     discountValue,
     emailId,
+    effectiveBookingSchedule,
     normalizedTaxRate,
     phoneNumber,
     projectDescription,
@@ -3707,6 +3816,7 @@ export default function CreateQuotePage() {
 
       if (persistedQuote) {
         setQuoteToEdit(persistedQuote);
+        setBookingSchedule(buildBookingScheduleInitialData(persistedQuote));
       }
 
       if (action === "save") {
@@ -3791,6 +3901,8 @@ export default function CreateQuotePage() {
       if (!quoteDetail) {
         throw new Error("Quote preview could not be loaded");
       }
+
+      syncQuoteDetailState(quoteDetail);
 
       if (shouldOpenPreview) {
         setPreviewQuoteId(savedQuoteId);
@@ -3962,6 +4074,13 @@ export default function CreateQuotePage() {
             ? response.error
             : "Failed to update quote",
         );
+      }
+
+      const updatedQuote =
+        unwrapSalesQuoteDetail(response?.data ?? null) ?? quoteToEdit;
+
+      if (updatedQuote) {
+        syncQuoteDetailState(updatedQuote);
       }
 
       toast.success("Quote updated successfully");
@@ -6575,10 +6694,10 @@ export default function CreateQuotePage() {
                               ? (selectedEditingTypes.length > 0 ? selectedEditingTypes : [""])
                               : [""];
 
-                            return editingTypeIds.map((editingTypeId, index) => {
-                              const shootTypeKind = resolveServiceShootTypeKind(
-                                service.label,
-                              );
+                                    return editingTypeIds.map((editingTypeId, index) => {
+                                      const shootTypeKind = resolveServiceShootTypeKind(
+                                        service.label,
+                                      );
                               const shootTypeLabel =
                                 shootTypeKind === "video"
                                   ? selectedVideoShootTypeLabel
@@ -6592,17 +6711,18 @@ export default function CreateQuotePage() {
                                 ? editingTypeConfigs[editingTypeId]
                                 : null;
                               const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
-                              const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
-                              const estimatedPriceInputKey = getEstimatedPriceInputKey(
-                                isEditingService,
-                                serviceId,
-                                editingTypeId,
-                              );
-                              const serviceTotal = isEditingService
-                                ? quantity * estimatedPrice
-                                : config.duration *
-                                config.crewSize *
-                                config.estimatedPrice;
+                                      const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+                                      const estimatedPriceInputKey = getEstimatedPriceInputKey(
+                                        isEditingService,
+                                        serviceId,
+                                        editingTypeId,
+                                      );
+                                      const serviceDurationCap = getServiceDurationCap();
+                                      const serviceTotal = isEditingService
+                                        ? quantity * estimatedPrice
+                                        : config.duration *
+                                        config.crewSize *
+                                        config.estimatedPrice;
                               const cardKey = isEditingService
                                 ? `${serviceId}-${editingTypeId || "editing"}-${index}`
                                 : serviceId;
@@ -6712,7 +6832,8 @@ export default function CreateQuotePage() {
                                                 config.duration + 0.5,
                                               )
                                             }
-                                            className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 ${isDark
+                                            disabled={bookingDurationHours !== null && serviceDurationCap !== null && config.duration >= serviceDurationCap}
+                                            className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${isDark
                                               ? "bg-[#F0DCB1] text-black hover:opacity-90"
                                               : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/90"
                                               }`}
@@ -7786,8 +7907,7 @@ export default function CreateQuotePage() {
                 {/* Date and Time Selection Module */}
                 <BookingDateTimeSection
                   isDark={isDark}
-                  maxDurationHours={selectedServicesMaxDurationHours}
-                  initialData={bookingScheduleInitialData}
+                  initialData={effectiveBookingSchedule}
                   onChange={setBookingSchedule}
                 />
 

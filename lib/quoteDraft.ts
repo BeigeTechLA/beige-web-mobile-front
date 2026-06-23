@@ -67,6 +67,10 @@ export type QuoteDraftBookingSchedule =
         start_time: string;
         end_time: string;
       }>;
+    }
+  | {
+      booking_type: "tbd";
+      time_zone: string;
     };
 
 export interface QuoteDraftPayload {
@@ -88,16 +92,16 @@ export interface QuoteDraftPayload {
   tax_type?: string;
   tax_rate?: number;
   terms_conditions?: string;
-  booking_type?: "single_day" | "multi_day";
-  time_zone?: string;
-  start_date?: string;
-  start_time?: string;
-  end_time?: string;
+  booking_type?: "single_day" | "multi_day" | null;
+  time_zone?: string | null;
+  start_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
   booking_days?: Array<{
     date: string;
     start_time: string;
     end_time: string;
-  }>;
+  }> | null;
   line_items?: QuoteDraftLineItem[];
 }
 
@@ -238,15 +242,29 @@ export function buildQuoteDraftPayload(
   }
 
   if (input.bookingSchedule) {
-    payload.booking_type = input.bookingSchedule.booking_type;
     payload.time_zone = input.bookingSchedule.time_zone;
 
-    if (input.bookingSchedule.booking_type === "single_day") {
-      payload.start_date = input.bookingSchedule.start_date;
-      payload.start_time = input.bookingSchedule.start_time;
-      payload.end_time = input.bookingSchedule.end_time;
+    if (input.bookingSchedule.booking_type === "tbd") {
+      payload.booking_type = null;
+      payload.time_zone = null;
+      payload.start_date = null;
+      payload.start_time = null;
+      payload.end_time = null;
+      payload.booking_days = null;
     } else {
-      payload.booking_days = input.bookingSchedule.booking_days;
+      payload.booking_type = input.bookingSchedule.booking_type;
+
+      if (input.bookingSchedule.booking_type === "single_day") {
+        payload.start_date = input.bookingSchedule.start_date;
+        payload.start_time = input.bookingSchedule.start_time;
+        payload.end_time = input.bookingSchedule.end_time;
+        payload.booking_days = undefined;
+      } else {
+        payload.booking_days = input.bookingSchedule.booking_days;
+        payload.start_date = undefined;
+        payload.start_time = undefined;
+        payload.end_time = undefined;
+      }
     }
   }
 
@@ -315,15 +333,29 @@ export function buildQuoteStepUpdatePayload(
     };
 
     if (step === "details" && input.bookingSchedule) {
-      payload.booking_type = input.bookingSchedule.booking_type;
       payload.time_zone = input.bookingSchedule.time_zone;
 
-      if (input.bookingSchedule.booking_type === "single_day") {
-        payload.start_date = input.bookingSchedule.start_date;
-        payload.start_time = input.bookingSchedule.start_time;
-        payload.end_time = input.bookingSchedule.end_time;
+      if (input.bookingSchedule.booking_type === "tbd") {
+        payload.booking_type = null;
+        payload.time_zone = null;
+        payload.start_date = null;
+        payload.start_time = null;
+        payload.end_time = null;
+        payload.booking_days = null;
       } else {
-        payload.booking_days = input.bookingSchedule.booking_days;
+        payload.booking_type = input.bookingSchedule.booking_type;
+
+        if (input.bookingSchedule.booking_type === "single_day") {
+          payload.start_date = input.bookingSchedule.start_date;
+          payload.start_time = input.bookingSchedule.start_time;
+          payload.end_time = input.bookingSchedule.end_time;
+          payload.booking_days = undefined;
+        } else {
+          payload.booking_days = input.bookingSchedule.booking_days;
+          payload.start_date = undefined;
+          payload.start_time = undefined;
+          payload.end_time = undefined;
+        }
       }
     }
 

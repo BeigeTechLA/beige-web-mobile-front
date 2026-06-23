@@ -30,7 +30,7 @@ import DatePicker from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { getBrowserTimeZone } from "@/lib/timezone";
 
-type BookingType = "single_day" | "multi_day";
+type BookingType = "single_day" | "multi_day" | "tbd";
 
 type TimeOption = {
   key: string;
@@ -53,11 +53,14 @@ export type BookingScheduleData =
         start_time: string;
         end_time: string;
       }>;
+    }
+  | {
+      booking_type: "tbd";
+      time_zone: string;
     };
 
 type Props = {
   isDark: boolean;
-  maxDurationHours?: number | null;
   className?: string;
   initialData?: BookingScheduleData | null;
   onChange?: (value: BookingScheduleData | null) => void;
@@ -67,12 +70,13 @@ const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
 
 export default function BookingDateTimeSection({
   isDark,
-  maxDurationHours = null,
   className = "",
   initialData = null,
   onChange,
 }: Props) {
-  const [bookingType, setBookingType] = useState<BookingType>("single_day");
+  const [bookingType, setBookingType] = useState<BookingType>(
+    initialData?.booking_type ?? "single_day",
+  );
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
   const [startDateTime, setStartDateTime] = useState("");
   const [endDateTime, setEndDateTime] = useState("");
@@ -88,104 +92,30 @@ export default function BookingDateTimeSection({
   const isDraggingReel = useRef(false);
   const dragStartX = useRef(0);
   const dragStartScrollLeft = useRef(0);
+  const isSyncingFromPropsRef = useRef(false);
+  const isSwitchingBookingTypeRef = useRef(false);
   const browserTimeZone = useMemo(() => getBrowserTimeZone(), []);
 
-  useEffect(() => {
-    if (!initialData) {
-      setBookingType("single_day");
-      setSelectedShootDate(null);
-      setStartDateTime("");
-      setEndDateTime("");
-      setSelectedDates([]);
-      setSameTimingsMulti(true);
-      setSharedMultiStartTime("");
-      setSharedMultiEndTime("");
-      setExpandedDateKey(null);
-      setCurrentCalendarMonth(new Date());
-      setMultiDayTimes({});
-      onChange?.(null);
-      return;
-    }
-
-    setBookingType(initialData.booking_type);
-
-    if (initialData.booking_type === "single_day") {
-      const selectedDate = new Date(`${initialData.start_date}T00:00:00`);
-      const startDateTime = new Date(`${initialData.start_date}T${initialData.start_time}`);
-      const endDateTime = new Date(`${initialData.start_date}T${initialData.end_time}`);
-
-      setSelectedShootDate(Number.isNaN(selectedDate.getTime()) ? null : selectedDate);
-      setCurrentCalendarMonth(Number.isNaN(selectedDate.getTime()) ? new Date() : selectedDate);
-      setStartDateTime(
-        Number.isNaN(startDateTime.getTime())
-          ? ""
-          : format(startDateTime, "yyyy-MM-dd HH:mm:ss"),
-      );
-      setEndDateTime(
-        Number.isNaN(endDateTime.getTime())
-          ? ""
-          : format(endDateTime, "yyyy-MM-dd HH:mm:ss"),
-      );
-      setSelectedDates([]);
-      setSameTimingsMulti(true);
-      setSharedMultiStartTime("");
-      setSharedMultiEndTime("");
-      setExpandedDateKey(null);
-      setMultiDayTimes({});
-      onChange?.(initialData);
-      return;
-    }
-
-    const bookingDays = initialData.booking_days
-      .filter((day) => Boolean(day?.date))
-      .map((day) => {
-        const date = new Date(`${day.date}T00:00:00`);
-        const dateKey = format(date, "yyyy-MM-dd");
-        return {
-          date,
-          dateKey,
-          startKey: day.start_time?.slice(0, 5) || "",
-          endKey: day.end_time?.slice(0, 5) || "",
-        };
-      })
-      .filter((day) => day.dateKey && day.startKey && day.endKey);
-
-    const firstBookingDay = bookingDays[0];
-    const selectedDays = bookingDays.map((day) => day.date);
-    const hasSharedTimings = Boolean(firstBookingDay) &&
-      bookingDays.every(
-        (day) =>
-          day.startKey === firstBookingDay?.startKey &&
-          day.endKey === firstBookingDay?.endKey,
-      );
-
+  const resetScheduleState = useCallback(() => {
     setSelectedShootDate(null);
     setStartDateTime("");
     setEndDateTime("");
-    setSelectedDates(selectedDays);
-    setSameTimingsMulti(hasSharedTimings);
-    setSharedMultiStartTime(hasSharedTimings ? firstBookingDay?.startKey || "" : "");
-    setSharedMultiEndTime(hasSharedTimings ? firstBookingDay?.endKey || "" : "");
-    setExpandedDateKey(firstBookingDay?.dateKey || null);
-    setCurrentCalendarMonth(firstBookingDay?.date || new Date());
-    setMultiDayTimes(
-      bookingDays.reduce<Record<string, { startKey?: string; endKey?: string }>>(
-        (acc, day) => {
-          if (hasSharedTimings) {
-            return acc;
-          }
+    setSelectedDates([]);
+    setSameTimingsMulti(true);
+    setSharedMultiStartTime("");
+    setSharedMultiEndTime("");
+    setExpandedDateKey(null);
+    setCurrentCalendarMonth(new Date());
+    setMultiDayTimes({});
+  }, []);
 
-          acc[day.dateKey] = {
-            startKey: day.startKey,
-            endKey: day.endKey,
-          };
-          return acc;
-        },
-        {},
-      ),
-    );
-    onChange?.(initialData);
-  }, [initialData, onChange]);
+  const handleBookingTypeChange = useCallback((nextType: BookingType) => {
+    if (bookingType !== nextType) {
+      isSwitchingBookingTypeRef.current = true;
+      resetScheduleState();
+    }
+    setBookingType(nextType);
+  }, [bookingType, resetScheduleState]);
 
   const timeOptions = useMemo<TimeOption[]>(() => {
     const options: TimeOption[] = [];
@@ -255,16 +185,8 @@ export default function BookingDateTimeSection({
     return diffInMinutes > 0 ? Math.round((diffInMinutes / 60) * 100) / 100 : null;
   };
 
-  const hasDurationLimit =
-    typeof maxDurationHours === "number" &&
-    Number.isFinite(maxDurationHours) &&
-    maxDurationHours > 0;
-
-  const isTimeRangeWithinDurationLimit = (startKey: string, endKey: string) => {
-    const duration = calculateDurationHours(startKey, endKey);
-    if (duration === null) return false;
-    if (!hasDurationLimit) return true;
-    return duration <= maxDurationHours;
+  const isTimeRangeValid = (startKey: string, endKey: string) => {
+    return calculateDurationHours(startKey, endKey) !== null;
   };
 
   const isTimeInPast = (timeKey: string, date: Date | null) => {
@@ -289,8 +211,7 @@ export default function BookingDateTimeSection({
   const filteredEndTimeOptions = timeOptions.filter((option) => {
     const isFuture = !isTimeInPast(option.key, selectedShootDate);
     const isAfterStart = startKey ? option.key > startKey : true;
-    const withinLimit = startKey ? isTimeRangeWithinDurationLimit(startKey, option.key) : true;
-    return isFuture && isAfterStart && withinLimit;
+    return isFuture && isAfterStart;
   });
 
   const filteredSharedMultiStartTimeOptions = useMemo(() => {
@@ -302,8 +223,7 @@ export default function BookingDateTimeSection({
     const hasToday = selectedDates.some((d) => isSameDay(d, new Date()));
     const isFuture = !isTimeInPast(option.key, hasToday ? new Date() : null);
     const isAfterStart = sharedMultiStartTime ? option.key > sharedMultiStartTime : true;
-    const withinLimit = sharedMultiStartTime ? isTimeRangeWithinDurationLimit(sharedMultiStartTime, option.key) : true;
-    return isFuture && isAfterStart && withinLimit;
+    return isFuture && isAfterStart;
   });
 
   const getTimeLabel = (key: string) =>
@@ -329,7 +249,7 @@ export default function BookingDateTimeSection({
 
   const handleStartTimeChange = (timeKey: string) => {
     const currentEndKey = getEndTimeKey();
-    if (currentEndKey && !isTimeRangeWithinDurationLimit(timeKey, currentEndKey)) {
+    if (currentEndKey && !isTimeRangeValid(timeKey, currentEndKey)) {
       setEndDateTime("");
     }
     setStartDateTime(updateDateTime(selectedShootDate, timeKey));
@@ -347,7 +267,7 @@ export default function BookingDateTimeSection({
         startKey: timeKey,
         endKey:
           prev[dateKey]?.endKey &&
-          !isTimeRangeWithinDurationLimit(timeKey, prev[dateKey]?.endKey || "")
+          !isTimeRangeValid(timeKey, prev[dateKey]?.endKey || "")
             ? undefined
             : prev[dateKey]?.endKey,
       },
@@ -365,37 +285,158 @@ export default function BookingDateTimeSection({
   };
 
   React.useEffect(() => {
+    isSyncingFromPropsRef.current = true;
+
+    if (!initialData) {
+      setBookingType("single_day");
+      resetScheduleState();
+      return;
+    }
+
+    setBookingType(initialData.booking_type);
+
+    if (initialData.booking_type === "tbd") {
+      resetScheduleState();
+      return;
+    }
+
+    if (initialData.booking_type === "single_day") {
+      const selectedDate = new Date(`${initialData.start_date}T00:00:00`);
+      const startDateTime = new Date(`${initialData.start_date}T${initialData.start_time}`);
+      const endDateTime = new Date(`${initialData.start_date}T${initialData.end_time}`);
+
+      setSelectedShootDate(Number.isNaN(selectedDate.getTime()) ? null : selectedDate);
+      setCurrentCalendarMonth(Number.isNaN(selectedDate.getTime()) ? new Date() : selectedDate);
+      setStartDateTime(
+        Number.isNaN(startDateTime.getTime())
+          ? ""
+          : format(startDateTime, "yyyy-MM-dd HH:mm:ss"),
+      );
+      setEndDateTime(
+        Number.isNaN(endDateTime.getTime())
+          ? ""
+          : format(endDateTime, "yyyy-MM-dd HH:mm:ss"),
+      );
+      setSelectedDates([]);
+      setSameTimingsMulti(true);
+      setSharedMultiStartTime("");
+      setSharedMultiEndTime("");
+      setExpandedDateKey(null);
+      setMultiDayTimes({});
+      return;
+    }
+
+    const bookingDays = initialData.booking_days
+      .filter((day) => Boolean(day?.date))
+      .map((day) => {
+        const date = new Date(`${day.date}T00:00:00`);
+        const dateKey = format(date, "yyyy-MM-dd");
+        return {
+          date,
+          dateKey,
+          startKey: day.start_time?.slice(0, 5) || "",
+          endKey: day.end_time?.slice(0, 5) || "",
+        };
+      })
+      .filter((day) => day.dateKey && day.startKey && day.endKey);
+
+    const firstBookingDay = bookingDays[0];
+    const selectedDays = bookingDays.map((day) => day.date);
+    const hasSharedTimings =
+      Boolean(firstBookingDay) &&
+      bookingDays.every(
+        (day) =>
+          day.startKey === firstBookingDay?.startKey &&
+          day.endKey === firstBookingDay?.endKey,
+      );
+
+    setSelectedShootDate(null);
+    setStartDateTime("");
+    setEndDateTime("");
+    setSelectedDates(selectedDays);
+    setSameTimingsMulti(hasSharedTimings);
+    setSharedMultiStartTime(hasSharedTimings ? firstBookingDay?.startKey || "" : "");
+    setSharedMultiEndTime(hasSharedTimings ? firstBookingDay?.endKey || "" : "");
+    setExpandedDateKey(firstBookingDay?.dateKey || null);
+    setCurrentCalendarMonth(firstBookingDay?.date || new Date());
+    setMultiDayTimes(
+      bookingDays.reduce<Record<string, { startKey?: string; endKey?: string }>>(
+        (acc, day) => {
+          if (hasSharedTimings) {
+            return acc;
+          }
+
+          acc[day.dateKey] = {
+            startKey: day.startKey,
+            endKey: day.endKey,
+          };
+          return acc;
+        },
+        {},
+      ),
+    );
+  }, [initialData, resetScheduleState]);
+
+  React.useEffect(() => {
+    if (isSyncingFromPropsRef.current) {
+      isSyncingFromPropsRef.current = false;
+      return;
+    }
+
+    if (!onChange) {
+      return;
+    }
+
+    if (bookingType === "tbd") {
+      isSwitchingBookingTypeRef.current = false;
+      onChange({
+        booking_type: "tbd",
+        time_zone: browserTimeZone,
+      });
+      return;
+    }
+
     if (bookingType === "single_day") {
       const shootDate = selectedShootDate;
       const startTime = getStartTimeKey();
       const endTime = getEndTimeKey();
       if (!shootDate || !startTime || !endTime) {
-        onChange?.(null);
+        if (isSwitchingBookingTypeRef.current) {
+          return;
+        }
+        onChange(null);
         return;
       }
 
-      onChange?.({
+      onChange({
         booking_type: "single_day",
         time_zone: browserTimeZone,
         start_date: format(shootDate, "yyyy-MM-dd"),
         start_time: `${startTime}:00`,
         end_time: `${endTime}:00`,
       });
+      isSwitchingBookingTypeRef.current = false;
       return;
     }
 
     if (selectedDates.length === 0) {
-      onChange?.(null);
+      if (isSwitchingBookingTypeRef.current) {
+        return;
+      }
+      onChange(null);
       return;
     }
 
     if (sameTimingsMulti) {
       if (!sharedMultiStartTime || !sharedMultiEndTime) {
-        onChange?.(null);
+        if (isSwitchingBookingTypeRef.current) {
+          return;
+        }
+        onChange(null);
         return;
       }
 
-      onChange?.({
+      onChange({
         booking_type: "multi_day",
         time_zone: browserTimeZone,
         booking_days: selectedDates.map((date) => ({
@@ -404,6 +445,7 @@ export default function BookingDateTimeSection({
           end_time: `${sharedMultiEndTime}:00`,
         })),
       });
+      isSwitchingBookingTypeRef.current = false;
       return;
     }
 
@@ -413,11 +455,14 @@ export default function BookingDateTimeSection({
     });
 
     if (!allDaysReady) {
-      onChange?.(null);
+      if (isSwitchingBookingTypeRef.current) {
+        return;
+      }
+      onChange(null);
       return;
     }
 
-    onChange?.({
+    onChange({
       booking_type: "multi_day",
       time_zone: browserTimeZone,
       booking_days: selectedDates.map((date) => {
@@ -430,14 +475,14 @@ export default function BookingDateTimeSection({
         };
       }),
     });
+    isSwitchingBookingTypeRef.current = false;
   }, [
     bookingType,
-    endDateTime,
+    browserTimeZone,
     getEndTimeKey,
     getStartTimeKey,
     multiDayTimes,
     onChange,
-    browserTimeZone,
     sameTimingsMulti,
     selectedDates,
     selectedShootDate,
@@ -455,10 +500,7 @@ export default function BookingDateTimeSection({
           <button
             type="button"
             onClick={() => {
-              setBookingType("single_day");
-              setSelectedDates([]);
-              setSameTimingsMulti(true);
-              setMultiDayTimes({});
+              handleBookingTypeChange("single_day");
             }}
             className={`flex h-14 w-fit items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[300px] lg:px-6 ${bookingType === "single_day" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
           >
@@ -469,7 +511,9 @@ export default function BookingDateTimeSection({
           </button>
           <button
             type="button"
-            onClick={() => setBookingType("multi_day")}
+            onClick={() => {
+              handleBookingTypeChange("multi_day");
+            }}
             className={`flex h-14 w-fit items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[300px] lg:px-6 ${bookingType === "multi_day" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
           >
             <span className="pr-2 text-sm font-medium lg:text-lg">Multiple Days</span>
@@ -477,17 +521,32 @@ export default function BookingDateTimeSection({
               {bookingType === "multi_day" ? <div className="h-2 w-2 rounded-full bg-[#E8D1AB]" /> : null}
             </div>
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              handleBookingTypeChange("tbd");
+            }}
+            className={`flex h-14 w-fit items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[220px] lg:px-6 ${bookingType === "tbd" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
+          >
+            <span className="pr-2 text-sm font-medium lg:text-lg">TBD</span>
+            <div className={`flex h-6 w-6 items-center justify-center rounded-full border lg:h-8 lg:w-8 ${bookingType === "tbd" ? "border-transparent bg-black" : isDark ? "border-white/20" : "border-[#0000004D]"}`}>
+              {bookingType === "tbd" ? <div className="h-2 w-2 rounded-full bg-[#E8D1AB]" /> : null}
+            </div>
+          </button>
         </div>
       </div>
 
       <div className="my-4 lg:my-9">
-        {hasDurationLimit ? (
-          <p className={`mb-4 text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#6B5A3A]"}`}>
-            Maximum booking duration: {maxDurationHours} hours per day.
-          </p>
-        ) : null}
-
-        {bookingType === "single_day" ? (
+        {bookingType === "tbd" ? (
+          <div className={`rounded-2xl border px-4 py-5 lg:px-6 lg:py-7 ${isDark ? "border-white/10 bg-[#111]" : "border-black/5 bg-white shadow-sm"}`}>
+            <h3 className={`mb-2 text-base font-medium lg:text-xl ${isDark ? "text-white/90" : "text-black/80"}`}>
+              Date & time TBD
+            </h3>
+            <p className={isDark ? "text-sm text-white/50" : "text-sm text-black/50"}>
+              The booking date and time can be added later.
+            </p>
+          </div>
+        ) : bookingType === "single_day" ? (
           <>
             <h3 className={`mb-3 text-base font-medium lg:mb-6 lg:text-xl ${isDark ? "text-white/90" : "text-black/80"}`}>
               Shoot Date & Time
@@ -702,7 +761,7 @@ export default function BookingDateTimeSection({
                         value={sharedMultiStartTime}
                         onChange={(value) => {
                           setSharedMultiStartTime(value);
-                          if (sharedMultiEndTime && !isTimeRangeWithinDurationLimit(value, sharedMultiEndTime)) {
+                          if (sharedMultiEndTime && !isTimeRangeValid(value, sharedMultiEndTime)) {
                             setSharedMultiEndTime("");
                           }
                         }}
@@ -746,8 +805,7 @@ export default function BookingDateTimeSection({
                       const individualDayEndOptions = timeOptions.filter((opt) => {
                         const isFuture = !isTimeInPast(opt.key, date);
                         const isAfterStart = selectedStartKey ? opt.key > selectedStartKey : true;
-                        const withinLimit = selectedStartKey ? isTimeRangeWithinDurationLimit(selectedStartKey, opt.key) : true;
-                        return isFuture && isAfterStart && withinLimit;
+                        return isFuture && isAfterStart;
                       });
 
                       return (
