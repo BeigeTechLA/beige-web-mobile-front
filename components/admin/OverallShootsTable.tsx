@@ -17,6 +17,7 @@ import {
 import { StatusBadge } from "./StatusBadge";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
@@ -160,6 +161,7 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
 export const OverallShootsTable = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { canDelete } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,13 +253,14 @@ export const OverallShootsTable = () => {
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    if (!canDelete) return;
     e.stopPropagation();
     setShootToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
   const confirmDelete = async () => {
-    if (!shootToDelete) return;
+    if (!canDelete || !shootToDelete) return;
 
     const cleanId = shootToDelete.replace('#', '');
     setIsDeleting(true);
@@ -374,12 +377,14 @@ export const OverallShootsTable = () => {
                     <div className="text-right">
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
                       <div className="flex justify-end gap-2 mt-1">
+                        {canDelete && (
                         <button
                           onClick={(e) => handleDeleteClick(e, shoot.id)}
                           className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
                         >
                           <Trash2 size={16} />
                         </button>
+                        )}
                         <button
                           onClick={() => handleRowClick(shoot.id)}
                           className="text-[#E5D5B8] text-sm font-medium">Details</button>

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 import {
   Video,
   Camera,
@@ -494,6 +495,11 @@ export default function QuotePricingPage() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  const { allowed, isLoading: isPermissionLoading } = useRequireModulePermission(
+    "quotes",
+    "edit",
+    "/sales/quotes",
+  );
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<CatalogData>({
@@ -506,22 +512,16 @@ export default function QuotePricingPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isPermissionLoading) return;
 
     if (!user) {
       router.replace("/sales/dashboard");
-      return;
     }
+  }, [user, isLoading, isPermissionLoading, router]);
 
-    const userTypeId =
-      (user as Record<string, unknown>)?.user_type_id ??
-      (user as Record<string, unknown>)?.userTypeId;
-    const role = String((user as Record<string, unknown>)?.role ?? "").trim().toLowerCase();
-
-    if (Number(userTypeId) !== 7 || role !== "sales_admin") {
-      router.replace("/sales/dashboard");
-    }
-  }, [user, isLoading, router]);
+  if (isPermissionLoading || !allowed) {
+    return null;
+  }
 
   useEffect(() => {
     setMounted(true);

@@ -3,8 +3,10 @@ import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
 import { setCredentials, logout as logoutAction } from '../redux/features/auth/authSlice';
+import { fetchAndCommitUserPermissions } from '../permissionsActions';
 import { authApi } from '../redux/features/auth/authApi';
 import { salesApi } from '../redux/features/sales/salesApi';
+import { persistor } from '../redux/store';
 import {
   useLoginMutation,
   useRegisterMutation,
@@ -45,7 +47,7 @@ export const useAuth = () => {
   const [registerCreatorStep3Mutation, { isLoading: isStep3Loading }] = useRegisterCreatorStep3Mutation();
 
   // Only fetch current user if we have a token and no user data
-  const { data: currentUserData, refetch: refetchUser } = useGetCurrentUserQuery(undefined, {
+  const { data: currentUserData } = useGetCurrentUserQuery(undefined, {
     skip: !token || !!user,
   });
 
@@ -53,15 +55,27 @@ export const useAuth = () => {
     const result = await loginMutation(credentials).unwrap();
     
     if (result.token && result.user) {
+      const user = {
+        ...result.user,
+        permissions_version: result.permissions_version ?? result.user.permissions_version,
+      };
       Cookies.set('revure_token', result.token, { expires: 7 }); 
       
       if (typeof window !== 'undefined') {
-        localStorage.setItem('revure_user', JSON.stringify(result.user));
+        localStorage.setItem('revure_user', JSON.stringify(user));
       }
 
       dispatch(authApi.util.resetApiState());
       dispatch(salesApi.util.resetApiState());
-      dispatch(setCredentials({ user: result.user, token: result.token }));
+      dispatch(setCredentials({ user, token: result.token }));
+
+      try {
+        await fetchAndCommitUserPermissions(dispatch, user.id, {
+          broadcast: false,
+        });
+      } catch (error) {
+        console.error("Failed to fetch permissions during login:", error);
+      }
     }
     
     return result;
@@ -76,7 +90,11 @@ export const useAuth = () => {
 
   const quickRegister = useCallback(async (data: QuickRegisterData) => {
     const result = await quickRegisterMutation(data).unwrap();
-    dispatch(setCredentials({ user: result.user, token: result.token }));
+    const user = {
+      ...result.user,
+      permissions_version: result.permissions_version ?? result.user.permissions_version,
+    };
+    dispatch(setCredentials({ user, token: result.token }));
     return result;
   }, [quickRegisterMutation, dispatch]);
 
@@ -94,7 +112,11 @@ export const useAuth = () => {
     const result = await verifyEmailMutation(data).unwrap();
     // If verification returns a token, automatically log in the user
     if (result.token && result.user) {
-      dispatch(setCredentials({ user: result.user, token: result.token }));
+      const user = {
+        ...result.user,
+        permissions_version: result.permissions_version ?? result.user.permissions_version,
+      };
+      dispatch(setCredentials({ user, token: result.token }));
     }
     return result;
   }, [verifyEmailMutation, dispatch]);
@@ -132,9 +154,13 @@ export const useAuth = () => {
     // Explicitly clear cookies and localStorage just in case
     Cookies.remove('revure_token');
     Cookies.remove('revure_user');
+    Cookies.remove('revure_permissions');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('revure_user');
+      localStorage.removeItem('revure_permissions');
+      sessionStorage.clear();
     }
+    void persistor.purge();
     router.push('/');
   }, [dispatch, router]);
   

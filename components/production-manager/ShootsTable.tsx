@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
     Select,
     SelectContent,
@@ -56,6 +57,7 @@ const FILTER_STATUS_COLUMN_MAP: Record<string, ShootStatus> = {
 
 export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
     const router = useRouter();
+    const { canDelete } = usePermissions("shoots");
     const columnScrollRefs = React.useRef<Partial<Record<ShootStatus, HTMLDivElement | null>>>({});
     const dragAutoScrollFrameRef = React.useRef<number | null>(null);
     const dragAutoScrollStatusRef = React.useRef<ShootStatus | null>(null);
@@ -592,9 +594,11 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                                                 </td>
                                                 <td className="py-5 px-6 text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <button onClick={(e) => handleDelete(e, shoot.id)} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}>
-                                                            <Trash2 size={18} />
-                                                        </button>
+                                                        {canDelete && (
+                                                            <button onClick={(e) => handleDelete(e, shoot.id)} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}>
+                                                                <Trash2 size={18} />
+                                                            </button>
+                                                        )}
                                                         <ChevronRight size={20} className={isDark ? "text-[#666666]" : "text-[#999]"} />
                                                     </div>
                                                 </td>
@@ -686,9 +690,11 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                                                                     {shoot.initials}
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
-                                                                    <button onClick={(e) => handleDelete(e, shoot.id)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}>
-                                                                        <Trash2 size={18} />
-                                                                    </button>
+                                                                    {canDelete && (
+                                                                        <button onClick={(e) => handleDelete(e, shoot.id)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}>
+                                                                            <Trash2 size={18} />
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         type="button"
                                                                         onClick={(e) => {

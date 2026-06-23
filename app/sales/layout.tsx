@@ -11,6 +11,9 @@ import { useTheme } from "next-themes"; // Integrated theme hook
 import { SalesStatusProvider, useSalesStatus } from '@/context/SalesStatusContext';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { isSalesRouteAllowedWhileInactive } from '@/lib/sales-status';
+import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
+import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
+import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,15 +21,25 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const hasShownInactiveRedirectRef = React.useRef(false);
   const {
     isManagedUser,
     isSalesAvailable,
     isLoading: isSalesStatusLoading,
   } = useSalesStatus();
+  
+  const hasShownInactiveRedirectRef = React.useRef(false);
+  const dispatch = useAppDispatch();
+  const { user, permissions, permissionsVersion } = useAppSelector((state) => state.auth);
 
   // Prevent hydration mismatch
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!mounted || !userId) return;
+
+    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
+  }, [user?.id, mounted, dispatch]);
 
   // Default to dark logic as per instructions
   const isDark = !mounted || theme === "dark";
@@ -50,6 +63,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
     router.replace("/sales/dashboard");
   }, [router, shouldBlockCurrentRoute]);
+
+  useEffect(() => {
+    if (!mounted || !permissions || shouldBlockCurrentRoute) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("sales", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, permissionsVersion, router, shouldBlockCurrentRoute]);
 
   return (
     <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${

@@ -62,6 +62,7 @@ import {
   persistQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -175,6 +176,8 @@ type QuoteActionMenuProps = {
   onPaymentTransaction: () => void;
   onReject: () => void;
   allowEdit?: boolean;
+  allowDelete?: boolean;
+  allowDuplicate?: boolean;
   mobile?: boolean;
   disabled?: boolean;
   isDark?: boolean;
@@ -241,6 +244,8 @@ const QuoteActionMenu = ({
   onPaymentTransaction,
   onReject,
   allowEdit = true,
+  allowDelete = true,
+  allowDuplicate = true,
   mobile = false,
   disabled = false,
   isDark = true,
@@ -294,12 +299,14 @@ const QuoteActionMenu = ({
             onClick={handleAction(onViewDetails)}
             isDark={isDark}
           />
-          <QuoteActionMenuButton
-            icon={<Copy size={18} />}
-            label="Duplicate"
-            onClick={handleAction(onDuplicate)}
-            isDark={isDark}
-          />
+          {allowDuplicate && (
+            <QuoteActionMenuButton
+              icon={<Copy size={18} />}
+              label="Duplicate"
+              onClick={handleAction(onDuplicate)}
+              isDark={isDark}
+            />
+          )}
           {allowEdit && (
             <QuoteActionMenuButton
               icon={<SquarePen size={18} />}
@@ -318,13 +325,15 @@ const QuoteActionMenu = ({
           {/* Divider line using theme opacity logic */}
           <div className={`my-1 h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#000000]/10"}`} />
 
-          <QuoteActionMenuButton
-            icon={<XCircle size={18} />}
-            label="Reject Quote"
-            onClick={handleAction(onReject)}
-            variant="danger"
-            isDark={isDark}
-          />
+          {allowDelete && (
+            <QuoteActionMenuButton
+              icon={<XCircle size={18} />}
+              label="Reject Quote"
+              onClick={handleAction(onReject)}
+              variant="danger"
+              isDark={isDark}
+            />
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -1027,6 +1036,7 @@ export default function QuotesDashboardPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuotesDashboardPageProps) {
   const { isDark } = useResolvedTheme();
+  const { canCreate, canEdit, canDelete } = usePermissions("quotes");
   const pathname = usePathname();
   const router = useRouter();
   const detailBaseHref = createHref.endsWith("/create")
@@ -1567,11 +1577,13 @@ export default function QuotesDashboardPage({
               <Download size={18} className="mr-2" />
               Export
             </Button>
-            <Link href={createHref}>
-              <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
-                Create New Quote
-              </Button>
-            </Link>
+            {canCreate && (
+              <Link href={createHref}>
+                <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
+                  Create New Quote
+                </Button>
+              </Link>
+            )}
           </div>
         }
       />
@@ -1956,7 +1968,9 @@ export default function QuotesDashboardPage({
                                 onReject={() => {
                                   void handleRejectQuote(quote.id, quote.statusKey);
                                 }}
-                                allowEdit={quote.statusKey !== "expired"}
+                                allowEdit={canEdit && quote.statusKey !== "expired"}
+                                allowDelete={canDelete}
+                                allowDuplicate={canCreate}
                                 isDark={isDark}
                               />
                             </td>
@@ -2004,7 +2018,9 @@ export default function QuotesDashboardPage({
                                         onReject={() => {
                                           void handleRejectQuote(quote.id, quote.statusKey);
                                         }}
-                                        allowEdit={quote.statusKey !== "expired"}
+                                        allowEdit={canEdit && quote.statusKey !== "expired"}
+                                allowDelete={canDelete}
+                                allowDuplicate={canCreate}
                                         isDark={isDark}
                                       />
                                     </div>
@@ -2081,7 +2097,7 @@ export default function QuotesDashboardPage({
         )}
       </div>
 
-      {!loading && !showEmptyState && (
+      {!loading && !showEmptyState && canCreate && (
         <div
           className={`fixed bottom-0 left-0 right-0 z-[40] flex gap-2 px-6 pb-6 lg:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
             }`}

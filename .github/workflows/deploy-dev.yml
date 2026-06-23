@@ -1,12 +1,10 @@
 name: Deploy Frontend Dev
 
 on:
+  push:
+    branches:
+      - development
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch to deploy (do not use staging or main)
-        required: true
-        default: development
 
 concurrency:
   group: deploy-dev
@@ -19,25 +17,6 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Validate deploy branch
-        run: |
-          WORKFLOW_BRANCH="${{ github.ref_name }}"
-          DEPLOY_BRANCH="${{ github.event.inputs.branch }}"
-
-          case "$WORKFLOW_BRANCH" in
-            staging|main)
-              echo "This workflow cannot be run from '$WORKFLOW_BRANCH'. Use a non-protected branch for deploy-dev."
-              exit 1
-              ;;
-          esac
-
-          case "$DEPLOY_BRANCH" in
-            staging|main)
-              echo "Deploying '$DEPLOY_BRANCH' through deploy-dev is not allowed."
-              exit 1
-              ;;
-          esac
-
       - name: Checkout
         uses: actions/checkout@v4
         with:

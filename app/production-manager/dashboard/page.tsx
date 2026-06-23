@@ -16,11 +16,13 @@ import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import DottedDivider from "@/components/admin/DottedDivider";
 import Topbar from "@/components/production-manager/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 export default function ProductionManagerDashboardPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { canCreate } = usePermissions("shoots");
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
@@ -91,14 +93,16 @@ export default function ProductionManagerDashboardPage() {
         <LeadsShootsTable />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
-        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-          <Button
-            onClick={() => router.push("/book-a-shoot")}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-          >
-            Book a Shoot
-          </Button>
-        </div>
+        {canCreate && (
+          <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+            <Button
+              onClick={() => router.push("/book-a-shoot")}
+              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              Book a Shoot
+            </Button>
+          </div>
+        )}
       </div>
     </>
   )

@@ -7,6 +7,7 @@ import { adminApi } from "@/lib/api";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   Select,
   SelectContent,
@@ -67,6 +68,7 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
 export const OverallShootsTable = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { canDelete } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -259,12 +261,14 @@ export const OverallShootsTable = () => {
                     <div className="text-right">
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
                       <div className="flex justify-end gap-2 mt-1">
-                        <button
-                          onClick={(e) => handleDelete(e, shoot.id)}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={(e) => handleDelete(e, shoot.id)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleRowClick(shoot.id)}
                           className="text-[#E5D5B8] text-sm font-medium">Details</button>
@@ -327,9 +331,11 @@ export const OverallShootsTable = () => {
                   <td className="py-2 px-4"><StatusBadge status={shoot.status} /></td>
                   <td className="py-2 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={(e) => handleDelete(e, shoot.id)} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}>
-                        <Trash2 size={18} />
-                      </button>
+                      {canDelete && (
+                        <button onClick={(e) => handleDelete(e, shoot.id)} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}>
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                       <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
                         <ChevronRight size={24} />
                       </button>

@@ -23,6 +23,7 @@ import redAnimation from "@/public/animations/Red.json";
 import yellowAnimation from "@/public/animations/Yellow.json";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import {
@@ -285,6 +286,7 @@ export const ShootsTable = ({
   const dragAutoScrollDirectionRef = React.useRef<"up" | "down" | null>(null);
   const latestFetchIdRef = React.useRef(0);
   const { theme, resolvedTheme } = useTheme();
+  const { canDelete } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -907,6 +909,7 @@ export const ShootsTable = ({
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    if (!canDelete) return;
     e.stopPropagation();
     setShootToDelete(id);
     setIsDeleteModalOpen(true);
@@ -998,7 +1001,7 @@ export const ShootsTable = ({
   };
 
   const confirmDelete = async () => {
-    if (!shootToDelete) return;
+    if (!canDelete || !shootToDelete) return;
 
     const cleanId = shootToDelete.replace('#', '');
     setIsDeleting(true);
@@ -1165,22 +1168,18 @@ export const ShootsTable = ({
                     const isCurrentMenuOpen = openCardActionId === shoot.id;
 
                     return (
-                      /* CHANGED: Added relative positioning and dynamic z-index to the parent wrapper row */
                       <div
                         key={idx}
                         className={`relative block w-full !overflow-visible ${isCurrentMenuOpen ? "z-[100]" : "z-10"}`}
                       >
-                        {/* Only passing the values the child component actually needs */}
                         <MobileShootRow
                           shoot={shoot}
                           openCardActionId={openCardActionId}
                           setOpenCardActionId={setOpenCardActionId}
                         />
 
-                        {/* Context Floating Action Menu - COMPLETELY PRESERVED STYLES AND HANDLERS */}
                         {isCurrentMenuOpen && (
                           <div
-                            /* FIX 2: Anchor the menu directly below the expanded row contents layout */
                             className={`absolute right-5 bottom-4 z-[200] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
                               }`}
                             onClick={(e) => e.stopPropagation()}
@@ -1226,6 +1225,7 @@ export const ShootsTable = ({
                               <MessageCirclePlus size={16} />
                               Notes
                             </button>
+                            {canDelete && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1239,6 +1239,7 @@ export const ShootsTable = ({
                               <Trash2 size={16} />
                               Delete
                             </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1418,6 +1419,7 @@ export const ShootsTable = ({
                                         Notes {shoot.notesCount > 0 ? `(${shoot.notesCount})` : ""}
                                       </button>
 
+                                      {canDelete && (
                                       <button
                                         type="button"
                                         onClick={(e) => {
@@ -1431,6 +1433,7 @@ export const ShootsTable = ({
                                         <Trash2 size={16} />
                                         Delete
                                       </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1483,7 +1486,6 @@ export const ShootsTable = ({
                                       Missing Info
                                     </span>
 
-                                    {/* 2. THE TOOLTIP */}
                                     <AnimatePresence>
                                       {hoveredShootId === `grid-${shoot.id}` && (
                                         <motion.div
@@ -1591,7 +1593,7 @@ export const ShootsTable = ({
                         onClick={() => handleRowClick(shoot.id)}
                         className={`group border-b transition-colors last:border-0 cursor-pointer relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
-                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                      <td className={`py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                           <div className="flex items-center gap-2">
                             <div
                               className="w-8 h-8 shrink-0 flex items-center justify-center relative"
@@ -1682,10 +1684,10 @@ export const ShootsTable = ({
                                     setOpenCardActionId(null);
                                     handleRowClick(shoot.id);
                                   }}
-                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
-                                    }`}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
                                 >
-                                  <ChevronRight size={16} />                                  Open details
+                                  <ChevronRight size={16} />
+                                  Open details
                                 </button>
 
                                 <button
@@ -1708,7 +1710,7 @@ export const ShootsTable = ({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenCardActionId(null);
-                                    setChatOpen(shoot.id); // Triggers the Notes Drawer
+                                    setChatOpen(shoot.id);
                                   }}
                                   className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
                                 >
@@ -1716,6 +1718,7 @@ export const ShootsTable = ({
                                   Notes
                                 </button>
 
+                                {canDelete && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1723,12 +1726,12 @@ export const ShootsTable = ({
                                     setOpenCardActionId(null);
                                     handleDeleteClick(e, shoot.id);
                                   }}
-                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
-                                    }`}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"}`}
                                 >
                                   <Trash2 size={16} />
                                   Delete
                                 </button>
+                                )}
                               </div>
                             )}
                           </div>

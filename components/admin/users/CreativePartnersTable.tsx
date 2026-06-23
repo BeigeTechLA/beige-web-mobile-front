@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useTheme } from 'next-themes';
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -158,6 +159,7 @@ const matchesCreativePartnerSearch = (user: CreativePartner, searchValue: string
 
 export const CreativePartnersTable = () => {
   const { theme } = useTheme();
+  const { canEdit, canDelete } = usePermissions("users");
   const [mounted, setMounted] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [users, setUsers] = useState<CreativePartner[]>([]);
@@ -645,12 +647,14 @@ export const CreativePartnersTable = () => {
                       <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                         {user.status === 'Approved' && (
                           <>
-                            <button
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            {canDelete && (
+                              <button
+                                onClick={(e) => handleDeleteClick(user.id, e)}
+                                className="hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
@@ -658,24 +662,30 @@ export const CreativePartnersTable = () => {
                         )}
                         {user.status === 'Pending' && (
                           <>
-                            <button
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                            <button
-                              onClick={(e) => handleApprove(user.id, e)}
-                              className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={(e) => handleDecline(user.id, e)}
-                              className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2"
-                            >
-                              Decline
-                            </button>
+                            {canDelete && (
+                              <button
+                                onClick={(e) => handleDeleteClick(user.id, e)}
+                                className="hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                            {canEdit && (
+                              <>
+                                <button
+                                  onClick={(e) => handleApprove(user.id, e)}
+                                  className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={(e) => handleDecline(user.id, e)}
+                                  className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2"
+                                >
+                                  Decline
+                                </button>
+                              </>
+                            )}
                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
@@ -683,12 +693,14 @@ export const CreativePartnersTable = () => {
                         )}
                         {user.status === 'Rejected' && (
                           <>
-                            <button
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="text-[#E0E0E0] hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            {canDelete && (
+                              <button
+                                onClick={(e) => handleDeleteClick(user.id, e)}
+                                className="text-[#E0E0E0] hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
@@ -780,13 +792,15 @@ export const CreativePartnersTable = () => {
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
                           <div className="flex gap-2">
-                            <button
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                            {user.status === 'Pending' && (
+                            {canDelete && (
+                              <button
+                                onClick={(e) => handleDeleteClick(user.id, e)}
+                                className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                            {user.status === 'Pending' && canEdit && (
                               <>
                                 <button
                                   onClick={(e) => handleDecline(user.id, e)}

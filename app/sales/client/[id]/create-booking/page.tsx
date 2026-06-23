@@ -53,6 +53,7 @@ import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelec
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
 import { useGetClientLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { getFormattedDateString } from "@/lib/utils";
 
@@ -64,7 +65,27 @@ const TEAM_ROLES = [
   { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> },
 ];
 
-export default function ClientDetailPage() {
+export default function CreateBookingPage() {
+  const params = useParams();
+  const leadId = params.id as string;
+  const { allowed, isLoading } = useRequireModulePermission(
+    "shoots",
+    "create",
+    `/sales/client/${leadId}`,
+  );
+
+  if (isLoading || !allowed) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isLoading && !allowed ? "No Permission" : null}
+      </div>
+    );
+  }
+
+  return <ClientDetailPage />;
+}
+
+function ClientDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();

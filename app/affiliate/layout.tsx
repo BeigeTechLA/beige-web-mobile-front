@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes"; // Integrated theme hook
 
 import Sidebar from "@/components/affiliate/Sidebar";
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
+import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
+import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
@@ -56,10 +60,33 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function AffiliateLayout({ children }: { children: React.ReactNode }) {
+  const dispatch = useAppDispatch();
+  const { user, permissions, permissionsVersion } = useAppSelector((state) => state.auth);
+  const pathname = usePathname();
+  const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!mounted || !userId) return;
+
+    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
+  }, [user?.id, mounted, dispatch]);
+
+  useEffect(() => {
+    if (!mounted || !permissions) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("affiliate", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, permissionsVersion, router]);
+
   const isDark = !mounted || theme === "dark";
 
   return (

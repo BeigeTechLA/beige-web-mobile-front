@@ -24,6 +24,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { parseISO } from "date-fns";
 import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type Status = "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Pending" | "Cancelled" | "Unknown";
 
@@ -96,6 +97,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const itemsPerPage = 10;
   const [mounted, setMounted] = useState(false);
   const { theme, resolvedTheme } = useTheme();
+  const { canEdit } = usePermissions("shoots");
 
   // Filtering states
   const [range, setRange] = useState<string>("all");
@@ -310,6 +312,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
       return;
     }
 
+    if (!canEdit) return;
     router.push(`/affiliate/shoots/${bookingId}/edit-booking`);
   };
 
@@ -453,7 +456,6 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                         {shoot.paymentStatus === "paid" ? "Done" : "Pending"}
                       </p>
                     </div>
-
                     {/* Action Buttons Container */}
                     <div className="col-span-2 pt-2 space-y-2">
                       {shoot.paymentStatus === "pending" && (

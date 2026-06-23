@@ -16,6 +16,7 @@ export interface User {
   instagram_handle?: string;
   userTypeId: number;
   userRole: string;
+  role_id?: number | string;
   email_verified?: number;
   crew_member_id?: number | null;
   created_at?: string;
@@ -26,6 +27,7 @@ export interface User {
     };
   };
   user_type_id?: number;
+  permissions_version?: number | string;
 }
 
 export interface AuthTokens {
@@ -42,6 +44,7 @@ export interface LoginResponse {
   message: string;
   token: string;
   user: User;
+  permissions_version?: number | string;
 }
 
 export interface RegisterData {

@@ -10,6 +10,7 @@ import DeleteMeetingConfirmModal from "@/components/meetings/DeleteMeetingConfir
 import MeetingDetailsModal from "@/components/meetings/MeetingDetailsModal";
 import { meetingsApi, type MeetingItem, type MeetingParticipantRef } from "@/lib/meetingsApi";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
@@ -185,8 +186,9 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
-  const canCreateMeeting = role === "admin" || role === "client";
-  const canDeleteMeeting = role === "admin" || role === "client";
+  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
+  const canCreateMeeting = canCreateByPermission;
+  const canDeleteMeeting = canDeleteByPermission;
 
   const loadMeetings = useCallback(async () => {
     if (!resolvedOrderId) {

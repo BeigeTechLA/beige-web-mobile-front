@@ -39,6 +39,7 @@ import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 import {
@@ -157,6 +158,8 @@ export default function LeadDetailPage() {
   const leadId = params.id as string;
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { canCreate } = usePermissions("shoots");
+  const { canEdit: canManageSalesRep } = usePermissions("sales_representative");
 
   const [discount, setDiscount] = useState("");
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
@@ -171,7 +174,6 @@ export default function LeadDetailPage() {
   const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
   const [isCPModalOpen, setIsCPModalOpen] = useState(false);
   const [selectedCPId, setSelectedCPId] = useState<string | null>(null);
-  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
   const [isEditingSalesRep, setIsEditingSalesRep] = useState(false);
   const [isUpdatingSalesRep, setIsUpdatingSalesRep] = useState(false);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
@@ -185,19 +187,16 @@ export default function LeadDetailPage() {
     try {
       const storedUser = localStorage.getItem("revure_user");
       const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const userTypeId = parsedUser?.user_type_id ?? parsedUser?.userTypeId;
-      setIsUserTypeSeven(userTypeId === 7);
       const resolvedUserId = parsedUser?.id ?? parsedUser?.user?.id;
       setCurrentUserId(resolvedUserId ? String(resolvedUserId) : "");
     } catch (error) {
       console.error("Failed to read logged in user from localStorage:", error);
-      setIsUserTypeSeven(false);
       setCurrentUserId("");
     }
   }, []);
 
   useEffect(() => {
-    if (!isUserTypeSeven) {
+    if (!canManageSalesRep) {
       setSalesRepOptions([]);
       return;
     }
@@ -225,7 +224,7 @@ export default function LeadDetailPage() {
     };
 
     fetchSalesReps();
-  }, [isUserTypeSeven]);
+  }, [canManageSalesRep]);
 
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
@@ -589,7 +588,7 @@ export default function LeadDetailPage() {
                   Client Details
                 </h2>
                 <div className="flex gap-3">
-                  {!lead?.booking_id ? (
+                  {!lead?.booking_id && canCreate ? (
                     <Button
                       onClick={() => router.push(`/sales/client/${leadId}/create-booking`)}
                       className={`h-10 font-semibold flex items-center px-5 rounded-lg text-sm transition-all bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] `}
@@ -663,10 +662,10 @@ export default function LeadDetailPage() {
                   <p>
                     Created Date : <span className={isDark ? "text-white" : "text-black"}>{formatDateUI(lead.created_at) || "N/A"}</span>
                   </p>
-                  {!isUserTypeSeven && (
+                  {!canManageSalesRep && (
                     <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   )}
-                  {isUserTypeSeven ? (
+                  {canManageSalesRep ? (
                     <div className="relative flex w-full items-center gap-2 overflow-visible">
                       <p>
                         Assigned Sales Rep : <span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>

@@ -44,6 +44,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { getProject } from "@/lib/api";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const FILES_PAGE_SIZE = 20;
 const getFileExtension = (title?: string) => {
@@ -77,6 +78,7 @@ const getFileMeta = (contentType?: string, title?: string) => {
 };
 
 export default function CreatorSubFolderDetailsPage() {
+  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("file_manager");
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams<{ id: string; subFolder: string; subFolder2: string }>();

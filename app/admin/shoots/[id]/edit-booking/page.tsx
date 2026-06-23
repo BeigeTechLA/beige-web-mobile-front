@@ -6,6 +6,7 @@ import { adminApi } from "@/lib/api";
 import EditBookingForm from "@/components/admin/EditBookingForm";
 import Topbar from "@/components/admin/Topbar";
 import { useTheme } from "next-themes";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 interface EditShootBookingPageProps {
   params: Promise<{ id: string }>;
@@ -25,6 +26,7 @@ export default function EditShootBookingPage({ params }: EditShootBookingPagePro
   const [project, setProject] = useState<ProjectResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
+  const { canEdit, isLoading: isPermissionsLoading } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -34,6 +36,11 @@ export default function EditShootBookingPage({ params }: EditShootBookingPagePro
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
+
+  useEffect(() => {
+    if (!mounted || isPermissionsLoading || canEdit) return;
+    router.replace(`${shootBasePath}/${projectId}`);
+  }, [mounted, isPermissionsLoading, canEdit, router, shootBasePath, projectId]);
 
   useEffect(() => {
     const fetchProjectDetails = async () => {
@@ -52,7 +59,7 @@ export default function EditShootBookingPage({ params }: EditShootBookingPagePro
     if (projectId) fetchProjectDetails();
   }, [projectId]);
 
-  if (loading) {
+  if (loading || isPermissionsLoading || !canEdit) {
     return (
       <div className={`flex h-screen items-center justify-center bg-[#101010] ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
         <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? "border-white" : "border-black"}`}></div>

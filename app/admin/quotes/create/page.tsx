@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
@@ -105,6 +105,7 @@ import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationMo
 import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -1053,6 +1054,28 @@ const isProtectedLineItemLabel = (label: string) =>
   );
 
 export default function CreateQuotePage() {
+  const searchParams = useSearchParams();
+  const editQuoteId = searchParams.get("quoteId");
+  const isEditMode = Boolean(editQuoteId);
+  const isDuplicateFlow = ["1", "true"].includes(
+    String(searchParams.get("duplicate") || "").trim().toLowerCase(),
+  );
+  const quotePermissionAction = isEditMode && !isDuplicateFlow ? "edit" : "create";
+  const { allowed: hasQuotePermission, isLoading: isQuotePermissionLoading } =
+    useRequireModulePermission("quotes", quotePermissionAction, "/admin/quotes");
+
+  if (isQuotePermissionLoading || !hasQuotePermission) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isQuotePermissionLoading && !hasQuotePermission ? "No Permission" : null}
+      </div>
+    );
+  }
+
+  return <CreateQuotePageContent />;
+}
+
+function CreateQuotePageContent() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();

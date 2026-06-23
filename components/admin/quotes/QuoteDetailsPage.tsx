@@ -64,6 +64,7 @@ import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentAppro
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -688,6 +689,7 @@ const QuoteTopActions = ({
   versions,
   selectedVersionId,
   onVersionChange,
+  showReject = true,
 }: {
   onReject: () => void;
   onConvert: () => void;
@@ -703,6 +705,7 @@ const QuoteTopActions = ({
   versions: QuoteVersionMeta[];
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
+  showReject?: boolean;
 }) => (
   <div className="flex items-center gap-1 lg:gap-3">
     {versions.length > 0 && (
@@ -730,6 +733,7 @@ const QuoteTopActions = ({
         </Select>
       </div>
     )}
+    {showReject && (
     <Button
       type="button"
       onClick={onReject}
@@ -739,6 +743,7 @@ const QuoteTopActions = ({
       {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
       {isRejecting ? "Rejecting..." : isRejected ? "Rejected" : "Reject Quote"}
     </Button>
+    )}
     <Button
       type="button"
       onClick={onPaymentTransaction}
@@ -847,6 +852,7 @@ export default function QuoteDetailsPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuoteDetailsPageProps) {
   const dispatch = useAppDispatch();
+  const { canEdit, canDelete } = usePermissions("quotes");
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1345,6 +1351,8 @@ export default function QuoteDetailsPage({
     versions.length,
   ]);
   const canEditSelectedVersion =
+    canEdit &&
+    isSelectedCurrentVersion &&
     isSelectedLatestUsableVersion &&
     !isSelectedVersionRejected &&
     !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
@@ -1767,6 +1775,7 @@ export default function QuoteDetailsPage({
   );
 
   const handleRejectQuote = async () => {
+    if (!canDelete) return;
     if (!resolvedQuoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -2158,7 +2167,8 @@ export default function QuoteDetailsPage({
       }}
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      rejectDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      rejectDisabled={!canDelete || !quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      showReject={canDelete}
       convertDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       paymentDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
@@ -2878,6 +2888,7 @@ export default function QuoteDetailsPage({
 
             {/* --- FLOATING MOBILE BUTTON --- */}
             <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
+              {canDelete && (
               <Button
                 type="button"
                 onClick={handleRejectQuote}
@@ -2887,6 +2898,7 @@ export default function QuoteDetailsPage({
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
                 {isRejecting ? "Rejecting..." : isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
               </Button>
+              )}
               <Button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}

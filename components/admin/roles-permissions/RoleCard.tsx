@@ -1,0 +1,110 @@
+"use client";
+
+import Image from "next/image";
+import { ArrowUpRight } from "lucide-react";
+import { RoleCardData } from "@/components/admin/roles-permissions/types";
+
+type RoleCardProps = {
+  card: RoleCardData;
+  onEdit?: (id: string) => void;
+  onViewUsers?: (id: string) => void;
+};
+
+const getBadgeText = (value: string) => {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+
+  if (!words.length) return "NA";
+
+  if (words.length === 1) {
+    return words[0].slice(0, 3).toUpperCase();
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 4);
+};
+
+export function RoleCard({ card, onEdit, onViewUsers }: RoleCardProps) {
+  const fallbackBadges = card.members.filter((member) => !member.isCountBadge);
+  const countBadge = card.members.find((member) => member.isCountBadge);
+
+  return (
+    <div className="group flex min-h-[224px] w-full max-w-[367px] flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#161616] px-4 py-4 shadow-[0_14px_28px_rgba(0,0,0,0.28)] transition-all duration-300 hover:border-white/15 hover:shadow-[0_20px_38px_rgba(0,0,0,0.34)] sm:px-5 sm:py-5 lg:px-6 lg:py-5">
+      <div className="flex items-start justify-between gap-4">
+        <span className="pt-1 text-[13px] font-medium text-white/45 sm:text-[14px]">
+          {card.usersLabel}
+        </span>
+
+        <div className="flex items-center pl-2 pr-1 sm:pl-3">
+          {fallbackBadges.slice(0, 4).map((member, index) => {
+            const badgeText = getBadgeText(member.label);
+
+            return (
+              <div
+                key={member.id}
+                className={[
+                  "relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#1a1a1a] bg-[#f4e6c7] text-[11px] font-semibold text-[#111111] shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:h-11 sm:w-11 sm:text-[12px]",
+                  index === 0 ? "" : "-ml-1 sm:-ml-2",
+                ].join(" ")}
+                style={{ zIndex: fallbackBadges.length - index }}
+              >
+                {member.avatarSrc ? (
+                  <Image
+                    src={member.avatarSrc}
+                    alt={member.label}
+                    fill
+                    sizes="44px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <span className="relative z-10">{badgeText}</span>
+                )}
+              </div>
+            );
+          })}
+
+          {countBadge && (
+            <div
+              className="relative -ml-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#1a1a1a] bg-[#E9D4A9] text-[15px] font-medium text-[#111111] shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:-ml-2 sm:h-11 sm:w-11 sm:text-[16px]"
+              style={{ zIndex: 0 }}
+            >
+              <span className="relative z-10">
+                {countBadge.label.startsWith("+")
+                  ? countBadge.label
+                  : `+${countBadge.label}`}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 max-w-[520px] sm:mt-6">
+        <h3 className="text-[18px] font-semibold tracking-tight text-white sm:text-[19px] lg:text-[20px]">
+          {card.name}
+        </h3>
+        <p className="mt-2 max-w-[560px] text-[12px] leading-snug text-white/55 line-clamp-2 sm:text-[13px] lg:text-[13px]">
+          {card.description}
+        </p>
+      </div>
+
+      <div className="mt-auto flex items-end justify-between pt-5">
+        <button
+          type="button"
+          onClick={() => onEdit?.(card.id)}
+          className="text-[13px] font-medium text-[#E5D5B8] underline decoration-[#E5D5B8]/35 underline-offset-4 transition hover:text-[#f1e3c7] hover:decoration-[#E5D5B8]"
+        >
+          Edit Role
+        </button>
+        <button
+          type="button"
+          onClick={() => onViewUsers?.(card.id)}
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-[#2a2a2a] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#343434] hover:scale-110 active:scale-95 sm:h-10 sm:w-10"
+        >
+          <ArrowUpRight size={15} strokeWidth={2.25} />
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -51,6 +51,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { getProject } from "@/lib/api";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
@@ -85,6 +86,7 @@ const getFileMeta = (contentType?: string, title?: string) => {
 };
 
 export default function CreatorFileManagerPhasePage() {
+  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("file_manager");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -329,9 +331,9 @@ export default function CreatorFileManagerPhasePage() {
     : undefined;
   const isCommonEventPreProductionRoot =
     isCommonEventWorkspace && phaseSlug === "pre-production";
-  const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot;
-  const canDeleteFolders = isCommonEventWorkspace;
-  const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
+  const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot && canCreateByPermission;
+  const canDeleteFolders = isCommonEventWorkspace && canDeleteByPermission;
+  const canDeleteFiles = (isCommonEventWorkspace || phaseSlug === "post-production") && canDeleteByPermission;
   const getFolderActionPath = (folder?: UiFolderItem | null) => {
     if (!folder) return undefined;
     if (isCommonEventRootFolder) {
@@ -440,6 +442,7 @@ export default function CreatorFileManagerPhasePage() {
   };
 
   const canUpload =
+    canCreateByPermission &&
     !isCommonEventPreProductionRoot &&
     (isCommonEventWorkspace ||
       (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate)));
