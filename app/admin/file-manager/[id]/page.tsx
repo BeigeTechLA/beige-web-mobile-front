@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import { ArrowLeft, LinkIcon, Loader2, MoreVertical, Search, Unlink, Upload } from "lucide-react";
 
@@ -13,6 +13,7 @@ import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
+import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
@@ -31,8 +32,15 @@ const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
 export default function AdminFolderDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const targetFilePath =
+    searchParams.get("filePath") ||
+    searchParams.get("filepath") ||
+    searchParams.get("file") ||
+    searchParams.get("external_id") ||
+    "";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -51,6 +59,8 @@ export default function AdminFolderDetailsPage() {
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [viewerFile, setViewerFile] = useState<{ title: string; filepath: string; contentType?: string } | null>(null);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [shareResource, setShareResource] = useState<{
     resourceType: "workspace" | "folder" | "file";
     externalId: string;
@@ -101,6 +111,29 @@ export default function AdminFolderDetailsPage() {
       mounted = false;
     };
   }, [projectId]);
+
+  useEffect(() => {
+    if (!targetFilePath) return;
+
+    let active = true;
+    const openTargetFile = async () => {
+      try {
+        const result = await fileManagerApi.getExternalFileViewUrl(targetFilePath);
+        if (!active || !result?.url) return;
+        const title = decodeURIComponent(targetFilePath.split("/").filter(Boolean).pop() || "File");
+        setViewerFile({ title, filepath: targetFilePath });
+        setViewerUrl(result.url);
+      } catch (err: unknown) {
+        const message = typeof err === "object" && err && "message" in err ? String(err.message) : "Failed to open commented file";
+        if (active) toast.error(message);
+      }
+    };
+
+    openTargetFile();
+    return () => {
+      active = false;
+    };
+  }, [targetFilePath]);
 
   const visibleFolders = useMemo(() => {
     let items = [...folders];
@@ -468,6 +501,18 @@ export default function AdminFolderDetailsPage() {
             setShareResource(null);
           }}
           resource={shareResource}
+        />
+
+        <FileViewerModal
+          isOpen={!!viewerFile}
+          onClose={() => {
+            setViewerFile(null);
+            setViewerUrl(null);
+          }}
+          fileName={viewerFile?.title}
+          fileUrl={viewerUrl}
+          contentType={viewerFile?.contentType}
+          fileMetaId={viewerFile?.filepath || null}
         />
       </div>
     </>

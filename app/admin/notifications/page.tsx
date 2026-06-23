@@ -32,12 +32,23 @@ type ApiNotification = {
   notification_id?: number | string;
   id?: number | string;
   user_id?: number | string;
+  actor_name?: string | null;
+  actor_avatar_url?: string | null;
   type?: string | null;
+  event_type?: string | null;
   title?: string | null;
   message?: string | null;
   data?: string | Record<string, unknown> | null;
   is_read?: number | boolean | null;
+  read?: number | boolean | null;
+  notification_center_id?: number | string;
+  notification_type?: string | null;
+  category?: string | null;
+  metadata_json?: string | null;
+  metadata?: string | Record<string, unknown> | null;
+  action_url?: string | null;
   created_at?: string | null;
+  createdAt?: string | null;
   updated_at?: string | null;
 };
 
@@ -79,7 +90,7 @@ const categoryToTypes: Record<string, string[]> = {
   Payments: ["quote_approval", "quote_rejected", "payment", "invoice"],
   Projects: ["book_a_shoot", "cp_accepted", "cp_rejected", "cp_profile", "project", "booking"],
   Files: ["file", "files"],
-  Messages: ["message", "mention"],
+  Messages: ["message", "mention", "comment"],
 };
 
 const parseData = (value: ApiNotification["data"]): Record<string, unknown> => {
@@ -91,6 +102,43 @@ const parseData = (value: ApiNotification["data"]): Record<string, unknown> => {
   } catch {
     return {};
   }
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+
+const getNestedArray = (value: unknown, keys: string[]): unknown[] => {
+  const record = asRecord(value);
+  for (const key of keys) {
+    const nested = record[key];
+    if (Array.isArray(nested)) return nested;
+  }
+  return [];
+};
+
+const extractNotifications = (response: unknown): ApiNotification[] => {
+  if (Array.isArray(response)) return response as ApiNotification[];
+
+  const responseRecord = asRecord(response);
+  const data = responseRecord.data;
+  if (Array.isArray(data)) return data as ApiNotification[];
+
+  const topLevelItems = getNestedArray(response, ["notifications", "items", "rows", "results", "records"]);
+  if (topLevelItems.length) return topLevelItems as ApiNotification[];
+
+  const dataItems = getNestedArray(data, ["notifications", "items", "rows", "results", "records"]);
+  if (dataItems.length) return dataItems as ApiNotification[];
+
+  const nestedData = asRecord(data).data;
+  if (Array.isArray(nestedData)) return nestedData as ApiNotification[];
+
+  return getNestedArray(nestedData, ["notifications", "items", "rows", "results", "records"]) as ApiNotification[];
+};
+
+const extractUnreadCount = (response: unknown): number => {
+  const record = asRecord(response);
+  const data = asRecord(record.data);
+  return Number(record.unread_count ?? record.unreadCount ?? record.count ?? data.unread_count ?? data.unreadCount ?? data.count ?? 0);
 };
 
 const titleCase = (value: string) =>
@@ -132,8 +180,9 @@ const formatDateTime = (dateValue?: string | null) => {
 const resolveCategory = (type: string): UiNotification["category"] => {
   if (["quote_approval", "quote_rejected", "payment", "invoice"].some((key) => type.includes(key))) return "Payments";
   if (["book_a_shoot", "cp_accepted", "cp_rejected", "cp_profile", "approved", "project", "booking"].some((key) => type.includes(key))) return "Shoots";
+  if (type.includes("comment")) return "Messages";
   if (type.includes("file")) return "Files";
-  if (type.includes("message") || type.includes("mention")) return "Messages";
+  if (type.includes("message") || type.includes("messages") || type.includes("mention")) return "Messages";
   if (type.includes("proposal") || type.includes("quote")) return "Proposals";
   return "System";
 };
@@ -148,12 +197,14 @@ const resolveCta = (type: string) => {
   if (type.includes("quote")) return "Open Quote";
   if (type.includes("cp_profile")) return "View CP";
   if (type.includes("payment") || type.includes("invoice")) return "View Invoice";
+  if (type.includes("comment")) return "View Comment";
   if (type.includes("file")) return "Review Files";
   if (type.includes("message")) return "View Message";
   return "View Details";
 };
 const resolveDescription = (type: string, meta: Record<string, unknown>, fallback: string): string => {
   const clientName = String(meta.client_name || meta.crew_name || "Client");
+  const fileName = String(meta.file_name || meta.filename || meta.fileName || "").trim();
   const quoteId = String(meta.quote_id || meta.booking_id || "");
   const before = meta.before_amount || meta.old_amount;
   const after = meta.after_amount || meta.new_amount;
@@ -186,6 +237,7 @@ const resolveDescription = (type: string, meta: Record<string, unknown>, fallbac
   if (type.includes("book_a_shoot") || type.includes("booking")) return `${clientName} has requested a new shoot booking.`;
   if (type.includes("cp_accepted") || type.includes("approved")) return `${clientName}'s proposal has been approved.`;
   if (type.includes("cp_rejected") || type.includes("rejected")) return `${clientName}'s proposal has been rejected.`;
+  if (type.includes("comment")) return `${clientName} commented on${fileName ? ` ${fileName}` : " a file"}.`;
   if (type.includes("message") || type.includes("mention")) return `${clientName} sent you a message.`;
   if (type.includes("file")) return `${clientName} uploaded new files for review.`;
 
@@ -209,7 +261,69 @@ const getMetaValue = (meta: Record<string, unknown>, keys: string[]) => {
   return "";
 };
 
+const getProjectIdFromFilePath = (value: string) => {
+  const segments = String(value || "")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  return segments.find((segment) => /^\d+$/.test(segment)) || segments[0] || "";
+};
+
+const normalizeFileManagerActionUrl = (actionUrl: string) => {
+  try {
+    const parsed = new URL(actionUrl, "http://localhost");
+    if (parsed.pathname !== "/file-manager") return "";
+
+    const filePath = parsed.searchParams.get("file") || parsed.searchParams.get("filePath") || parsed.searchParams.get("filepath") || "";
+    const externalId = parsed.searchParams.get("external_id") || parsed.searchParams.get("externalId") || "";
+    const targetPath = externalId || filePath;
+    const projectId = getProjectIdFromFilePath(targetPath);
+    if (!projectId) return "";
+
+    const params = new URLSearchParams();
+    if (filePath || targetPath) params.set("filePath", filePath || targetPath);
+    return `/admin/file-manager/${encodeURIComponent(projectId)}${params.toString() ? `?${params.toString()}` : ""}`;
+  } catch {
+    return "";
+  }
+};
+
 const resolveNotificationHref = (item: UiNotification) => {
+  const actionUrl = getMetaValue(item.meta, ["action_url", "actionUrl"]);
+  if (actionUrl) {
+    const normalizedFileManagerUrl = normalizeFileManagerActionUrl(actionUrl);
+    if (normalizedFileManagerUrl) return normalizedFileManagerUrl;
+
+    if (actionUrl.startsWith("/messages")) {
+      return `/admin${actionUrl}`;
+    }
+    return actionUrl;
+  }
+
+  const roomId = getMetaValue(item.meta, ["roomId", "room_id", "chatRoomId", "chat_room_id"]);
+  if (roomId) {
+    return `/admin/messages?roomId=${encodeURIComponent(roomId)}`;
+  }
+
+  const fileManagerProjectId = getMetaValue(item.meta, [
+    "project_id",
+    "projectId",
+    "external_id",
+    "externalId",
+    "booking_id",
+    "bookingId",
+    "stream_project_booking_id",
+  ]);
+  if (item.type.includes("comment") && fileManagerProjectId) {
+    const filePath = getMetaValue(item.meta, ["filePath", "file_path", "filepath"]);
+    const commentId = getMetaValue(item.meta, ["commentId", "comment_id"]);
+    const params = new URLSearchParams();
+    if (filePath) params.set("filePath", filePath);
+    if (commentId) params.set("commentId", commentId);
+    return `/admin/file-manager/${encodeURIComponent(fileManagerProjectId)}${params.toString() ? `?${params.toString()}` : ""}`;
+  }
+
   const quoteId = getMetaValue(item.meta, [
     "quote_id",
     "sales_quote_id",
@@ -263,28 +377,43 @@ const getConfirmDescription = (pendingAction: PendingConfirmAction) => {
 };
 
 const normalizeNotification = (item: ApiNotification): UiNotification => {
-  const type = String(item.type || "system").toLowerCase();
-  const meta = parseData(item.data);
+  const meta = {
+    ...parseData(item.data),
+    ...parseData(item.metadata_json),
+    ...parseData(item.metadata),
+    action_url: item.action_url,
+  };
+  const rawNotificationType = String(item.notification_type || "").toLowerCase();
+  const metadataType = String(meta.type || "").toLowerCase();
+  const type = String(
+    item.type ||
+      item.event_type ||
+      metadataType ||
+      (rawNotificationType && rawNotificationType !== "general" ? rawNotificationType : "") ||
+      item.category ||
+      "system"
+  ).toLowerCase();
   const category = resolveCategory(type);
   const priority = resolvePriority(type);
-  const clientName = String(meta.client_name || meta.crew_name || "Beige");
-  const fallbackId = `${type}-${item.created_at || Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const clientName = String(item.actor_name || meta.client_name || meta.crew_name || meta.user_name || meta.senderName || meta.name || "Beige");
+  const createdAt = item.created_at || item.createdAt || null;
+  const fallbackId = `${type}-${createdAt || Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   return {
-    id: String(item.notification_id ?? item.id ?? fallbackId),
+    id: String(item.notification_center_id ?? item.notification_id ?? item.id ?? fallbackId),
     title: item.title || titleCase(type),
     description: resolveDescription(type, meta, item.message || ""),
     actor: clientName,
     role: category === "Payments" ? "Sales" : category === "Shoots" ? "Production" : "Team",
-    avatar,
+    avatar: item.actor_avatar_url || avatar,
     category,
     priority,
-    time: getRelativeTime(item.created_at),
+    time: getRelativeTime(createdAt),
     cta: resolveCta(type),
     accent: getAccent(priority),
-    isRead: Number(item.is_read) === 1 || item.is_read === true,
+    isRead: Number(item.is_read ?? item.read) === 1 || item.is_read === true || item.read === true,
     type,
-    createdAt: item.created_at || null,
+    createdAt,
     meta,
   };
 };
@@ -494,13 +623,13 @@ export default function NotificationsPage() {
       toast.error(listResponse.message || "Failed to load notifications");
       setItems([]);
     } else {
-      const apiItems = (Array.isArray(listResponse?.data) ? listResponse.data : []).map(normalizeNotification);
+      const apiItems = extractNotifications(listResponse).map(normalizeNotification);
       setItems(apiItems.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
       if (showToast) toast.success("Notifications refreshed");
     }
 
     if (!countResponse?.error) {
-      setUnreadCount(Number(countResponse.unread_count || 0));
+      setUnreadCount(extractUnreadCount(countResponse));
     } else {
       setUnreadCount(0);
     }
@@ -524,7 +653,7 @@ export default function NotificationsPage() {
       const types = categoryToTypes[tab] || [];
       return items.filter((item) => types.some((type) => item.type.includes(type))).length;
     };
-    return ["All", "Unread", "Mentions", "Payments", "Projects", "Files"].map((tab) => [tab, String(countBy(tab)).padStart(2, "0")]);
+    return ["All", "Unread", "Mentions", "Messages", "Payments", "Projects", "Files"].map((tab) => [tab, String(countBy(tab)).padStart(2, "0")]);
   }, [items]);
 
   const visible = useMemo(() => {

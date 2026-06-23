@@ -1393,7 +1393,16 @@ const getApiErrorLog = (error: unknown) => {
   return axios.isAxiosError(error) ? error.response?.data || error.message : error;
 };
 
-const notificationBasePaths = ['admin/notifications', 'notifications', 'notification'];
+const notificationBasePaths = ['notifications', 'admin/notifications', 'notification'];
+const notificationCreatePaths = [
+  'notifications/bridge',
+  'notifications',
+  'admin/notifications/bridge',
+  'admin/notifications',
+  'notification',
+  'notification-center',
+  'admin/notification-center',
+];
 
 const requestNotificationApi = async <T>(requester: (basePath: string) => Promise<T>): Promise<T> => {
   let fallbackError: unknown = null;
@@ -1419,10 +1428,13 @@ export const adminApi = {
     type?: string;
   } = {}) => {
     try {
-      const response = await requestNotificationApi((basePath) => api.get(basePath, { params }));
+      const response = await requestNotificationApi((basePath) =>
+        api.get(basePath, {
+          params: { ...params, _t: Date.now() },
+        })
+      );
       return response.data;
     } catch (error: unknown) {
-      console.error('Get Notifications Error:', getApiErrorLog(error));
       return {
         error: true,
         data: [],
@@ -1436,7 +1448,6 @@ export const adminApi = {
       const response = await requestNotificationApi((basePath) => api.get(`${basePath}/unread-count`));
       return response.data;
     } catch (error: unknown) {
-      console.error('Get Unread Notification Count Error:', getApiErrorLog(error));
       return {
         error: true,
         unread_count: 0,
@@ -1449,7 +1460,6 @@ export const adminApi = {
       const response = await requestNotificationApi((basePath) => api.put(`${basePath}/mark-all-read`));
       return response.data;
     } catch (error: unknown) {
-      console.error('Mark All Notifications Read Error:', getApiErrorLog(error));
       return {
         error: true,
         message: getApiErrorMessage(error, 'Failed to mark notifications as read'),
@@ -1458,10 +1468,30 @@ export const adminApi = {
   },
   markNotificationRead: async (notificationId: string | number) => {
     try {
-      const response = await requestNotificationApi((basePath) => api.put(`${basePath}/${notificationId}/read`));
-      return response.data;
+      const id = encodeURIComponent(String(notificationId));
+      const attempts = [
+        () => api.put(`notifications/${id}/read`),
+        () => api.patch(`notifications/${id}/read`),
+        () => api.put(`notifications/read/${id}`),
+        () => api.patch(`notifications/read/${id}`),
+        () => api.put(`admin/notifications/${id}/read`),
+        () => api.patch(`admin/notifications/${id}/read`),
+      ];
+
+      let fallbackError: unknown = null;
+      for (const attempt of attempts) {
+        try {
+          const response = await attempt();
+          return response.data;
+        } catch (error: unknown) {
+          fallbackError = error;
+          const status = axios.isAxiosError(error) ? error.response?.status : null;
+          if (status && ![400, 404, 405].includes(status)) break;
+        }
+      }
+
+      throw fallbackError;
     } catch (error: unknown) {
-      console.error('Mark Notification Read Error:', getApiErrorLog(error));
       return {
         error: true,
         message: getApiErrorMessage(error, 'Failed to update notification'),
@@ -1473,10 +1503,49 @@ export const adminApi = {
       const response = await requestNotificationApi((basePath) => api.delete(`${basePath}/${notificationId}`));
       return response.data;
     } catch (error: unknown) {
-      console.error('Delete Notification Error:', getApiErrorLog(error));
       return {
         error: true,
         message: getApiErrorMessage(error, 'Failed to delete notification'),
+      };
+    }
+  },
+  createNotification: async (payload: {
+    recipient_scope: "role" | "user" | string;
+    recipient_roles?: string;
+    recipient_user_id?: string | number | null;
+    notification_type: string;
+    category: string;
+    priority?: string;
+    title: string;
+    message: string;
+    entity_type?: string | null;
+    entity_id?: string | number | null;
+    action_url?: string | null;
+    action_label?: string | null;
+    actor_user_id?: string | number | null;
+    actor_name?: string | null;
+    actor_avatar_url?: string | null;
+    metadata?: Record<string, unknown> | null;
+  }) => {
+    let fallbackError: unknown = null;
+
+    try {
+      for (const path of notificationCreatePaths) {
+        try {
+          const response = await api.post(path, payload);
+          return response.data;
+        } catch (error: unknown) {
+          fallbackError = error;
+          const status = axios.isAxiosError(error) ? error.response?.status : null;
+          if (status && ![400, 404, 405].includes(status)) break;
+        }
+      }
+
+      throw fallbackError;
+    } catch (error: unknown) {
+      return {
+        error: true,
+        message: getApiErrorMessage(error, 'Failed to create notification'),
       };
     }
   },

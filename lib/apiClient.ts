@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import Cookies from 'js-cookie';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://localhost:5001/v1/';
@@ -12,6 +12,10 @@ interface ApiError {
 type ApiClientError = Error & {
   status?: number;
   details?: unknown;
+};
+
+type ApiRequestConfig = AxiosRequestConfig & {
+  suppressGlobalErrorLog?: boolean;
 };
 
 class ApiClient {
@@ -51,33 +55,36 @@ class ApiClient {
       (error: AxiosError<ApiError>) => {
         if (error.response) {
           const { status, data } = error.response;
+          const suppressGlobalErrorLog = (error.config as ApiRequestConfig | undefined)?.suppressGlobalErrorLog;
 
           // Handle specific status codes
-          switch (status) {
-            case 401: {
-              const requestUrl = String(error.config?.url || '').toLowerCase();
-              const isExternalShareRequest = requestUrl.includes('external-file-manager/share/');
-              // For shared-link OTP/token endpoints, do not clear the logged-in session cookies.
-              if (!isExternalShareRequest) {
-                Cookies.remove('revure_token');
-                Cookies.remove('revure_user');
+          if (!suppressGlobalErrorLog) {
+            switch (status) {
+              case 401: {
+                const requestUrl = String(error.config?.url || '').toLowerCase();
+                const isExternalShareRequest = requestUrl.includes('external-file-manager/share/');
+                // For shared-link OTP/token endpoints, do not clear the logged-in session cookies.
+                if (!isExternalShareRequest) {
+                  Cookies.remove('revure_token');
+                  Cookies.remove('revure_user');
+                }
+                if (typeof window !== 'undefined') {
+                  console.error('Unauthorized: Token expired or invalid');
+                }
+                break;
               }
-              if (typeof window !== 'undefined') {
-                console.error('Unauthorized: Token expired or invalid');
-              }
-              break;
+              case 403:
+                console.error('Forbidden: Insufficient permissions');
+                break;
+              case 404:
+                console.error('Not found:', data?.message || 'Resource not found');
+                break;
+              case 500:
+                console.error('Server error:', data?.message || 'Internal server error');
+                break;
+              default:
+                console.error('API Error:', data?.message || 'Unknown error');
             }
-            case 403:
-              console.error('Forbidden: Insufficient permissions');
-              break;
-            case 404:
-              console.error('Not found:', data?.message || 'Resource not found');
-              break;
-            case 500:
-              console.error('Server error:', data?.message || 'Internal server error');
-              break;
-            default:
-              console.error('API Error:', data?.message || 'Unknown error');
           }
 
           const apiError: ApiClientError = new Error(data?.message || 'An error occurred');

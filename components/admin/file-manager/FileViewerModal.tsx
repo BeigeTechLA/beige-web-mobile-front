@@ -6,6 +6,7 @@ import { Clock3, Loader2, MessageSquare, Reply, Send, Trash2 } from "lucide-reac
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { fileManagerApi, type FileCommentItem } from "@/lib/fileManagerApi";
+import { adminApi } from "@/lib/api";
 
 interface FileViewerModalProps {
   isOpen: boolean;
@@ -83,6 +84,35 @@ const getRoleLabel = (role?: string | null) => {
     .join(" ");
 };
 
+const getProjectIdFromFilePath = (value?: string | null) => {
+  const segments = String(value || "")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  return segments.find((segment) => /^\d+$/.test(segment)) || segments[0] || "";
+};
+
+const getCommentId = (comment: FileCommentItem, fallback: string) =>
+  String(comment.id || comment._id || comment.comment_id || fallback);
+
+const getCommentUser = (comment: FileCommentItem) =>
+  comment.userId || comment.user || comment.commented_by || null;
+
+const getCommentAuthorName = (comment: FileCommentItem) =>
+  String(
+    getCommentUser(comment)?.name ||
+      comment.commented_by_name ||
+      comment.user_name ||
+      comment.name ||
+      "Unknown User"
+  ).trim();
+
+const getCommentAuthorId = (comment: FileCommentItem) =>
+  String(getCommentUser(comment)?.id || comment.commented_by_id || "");
+
+const getCommentCreatedAt = (comment: FileCommentItem) => comment.createdAt || comment.created_at;
+
 const CommentRow = ({
   comment,
   currentUserId,
@@ -96,33 +126,35 @@ const CommentRow = ({
   onReply: (comment: FileCommentItem) => void;
   onDelete: (comment: FileCommentItem) => void;
 }) => {
-  const canDelete = currentUserId != null && String(comment.userId?.id || "") === String(currentUserId);
+  const author = getCommentUser(comment);
+  const authorName = getCommentAuthorName(comment);
+  const canDelete = currentUserId != null && getCommentAuthorId(comment) === String(currentUserId);
   const timestampLabel = formatVideoTimestamp(comment.timestamp);
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
       <div className="flex items-start gap-3">
-        {comment.userId?.profile_picture ? (
+        {author?.profile_picture ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={comment.userId.profile_picture}
-            alt={comment.userId?.name || "User"}
+            src={author.profile_picture}
+            alt={authorName || "User"}
             className="h-10 w-10 rounded-full object-cover"
           />
         ) : (
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E5D5B8]/18 text-xs font-semibold text-[#E5D5B8]">
-            {getUserInitials(comment.userId?.name)}
+            {getUserInitials(authorName)}
           </div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-white">{comment.userId?.name || "Unknown User"}</p>
-            {getRoleLabel(comment.userId?.role) ? (
+            <p className="text-sm font-semibold text-white">{authorName}</p>
+            {getRoleLabel(author?.role) ? (
               <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/45">
-                {getRoleLabel(comment.userId?.role)}
+                {getRoleLabel(author?.role)}
               </span>
             ) : null}
-            <span className="text-xs text-white/35">{formatCommentDate(comment.createdAt)}</span>
+            <span className="text-xs text-white/35">{formatCommentDate(getCommentCreatedAt(comment))}</span>
             {timestampLabel ? (
               <button
                 type="button"
@@ -158,18 +190,20 @@ const CommentRow = ({
 
           {comment.replies?.length ? (
             <div className="mt-4 space-y-3 border-l border-white/10 pl-4">
-              {comment.replies.map((reply) => {
-                const replyCanDelete = currentUserId != null && String(reply.userId?.id || "") === String(currentUserId);
+              {comment.replies.map((reply, replyIndex) => {
+                const replyAuthor = getCommentUser(reply);
+                const replyAuthorName = getCommentAuthorName(reply);
+                const replyCanDelete = currentUserId != null && getCommentAuthorId(reply) === String(currentUserId);
                 return (
-                  <div key={reply.id} className="rounded-xl bg-black/20 p-3">
+                  <div key={getCommentId(reply, `${getCommentId(comment, "comment")}-reply-${replyIndex}`)} className="rounded-xl bg-black/20 p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-xs font-semibold text-white">{reply.userId?.name || "Unknown User"}</p>
-                      {getRoleLabel(reply.userId?.role) ? (
+                      <p className="text-xs font-semibold text-white">{replyAuthorName}</p>
+                      {getRoleLabel(replyAuthor?.role) ? (
                         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] uppercase tracking-[0.12em] text-white/45">
-                          {getRoleLabel(reply.userId?.role)}
+                          {getRoleLabel(replyAuthor?.role)}
                         </span>
                       ) : null}
-                      <span className="text-[11px] text-white/35">{formatCommentDate(reply.createdAt)}</span>
+                      <span className="text-[11px] text-white/35">{formatCommentDate(getCommentCreatedAt(reply))}</span>
                     </div>
                     <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-white/72">{reply.comment}</p>
                     {replyCanDelete ? (
@@ -263,12 +297,55 @@ export default function FileViewerModal({
         });
         toast.success("Reply added");
       } else {
-        await fileManagerApi.addComment({
+        const createdComment = await fileManagerApi.addComment({
           fileMetaId: fileMetaId as string,
           user_id: currentUserId as string,
           comment: commentText.trim(),
           timestamp: videoFile ? selectedTimestamp : null,
+          commented_by_name: user?.name || user?.email || "Client",
+          file_name: fileName,
+          file_url: fileUrl,
         });
+        const actorName = user?.name || user?.email || "Client";
+        const projectId = getProjectIdFromFilePath(fileMetaId);
+        const createdCommentId = getCommentId(createdComment, "");
+        const commentTargetQuery = new URLSearchParams();
+        if (fileMetaId) commentTargetQuery.set("filePath", fileMetaId);
+        if (createdCommentId) commentTargetQuery.set("commentId", createdCommentId);
+        const commentTargetUrl = projectId
+          ? `/admin/file-manager/${encodeURIComponent(projectId)}${commentTargetQuery.toString() ? `?${commentTargetQuery.toString()}` : ""}`
+          : "/admin/notifications";
+        const notificationResult = await adminApi.createNotification({
+          recipient_scope: "role",
+          recipient_roles: "admin,Admin,sales_admin,Sales_Admin,Sales_admin",
+          notification_type: "GENERAL",
+          category: "messages",
+          priority: "medium",
+          title: `New file comment from ${actorName}`,
+          message: `${actorName}: ${commentText.trim()}`,
+          entity_type: "file_comment",
+          entity_id: createdCommentId || projectId || fileMetaId || null,
+          action_url: commentTargetUrl,
+          action_label: "View Comment",
+          actor_user_id: currentUserId,
+          actor_name: actorName,
+          actor_avatar_url: null,
+          metadata: {
+            type: "file_comment",
+            senderId: currentUserId,
+            senderName: actorName,
+            filePath: fileMetaId,
+            fileName,
+            fileUrl,
+            projectId,
+            commentId: createdCommentId,
+            comment: commentText.trim(),
+            timestamp: videoFile ? selectedTimestamp : null,
+          },
+        });
+        if (notificationResult?.error) {
+          toast.warning("Comment added, but notification could not be sent.");
+        }
         toast.success("Comment added");
       }
 
@@ -360,9 +437,9 @@ export default function FileViewerModal({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {comments.map((comment) => (
+                  {comments.map((comment, commentIndex) => (
                     <CommentRow
-                      key={comment.id}
+                      key={getCommentId(comment, `comment-${commentIndex}`)}
                       comment={comment}
                       currentUserId={currentUserId}
                       onJumpToTimestamp={handleJumpToTimestamp}

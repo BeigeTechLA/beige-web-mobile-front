@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosRequestConfig } from "axios";
 import apiClient from "@/lib/apiClient";
 
 export interface ProjectUserRef {
@@ -370,11 +370,21 @@ export interface FileCommentUser {
 
 export interface FileCommentItem {
   id: string;
+  _id?: string;
+  comment_id?: string | number;
   comment: string;
   createdAt?: string;
+  created_at?: string;
   updatedAt?: string;
+  updated_at?: string;
   timestamp?: number | null;
   userId?: FileCommentUser | null;
+  user?: FileCommentUser | null;
+  commented_by?: FileCommentUser | null;
+  commented_by_id?: string | number | null;
+  commented_by_name?: string | null;
+  user_name?: string | null;
+  name?: string | null;
   replies?: FileCommentItem[];
   reactions?: Array<{
     type?: string;
@@ -382,6 +392,19 @@ export interface FileCommentItem {
     users?: string[];
   }>;
 }
+
+interface ExternalFileCommentResponse<T> {
+  success?: boolean;
+  data?: T;
+}
+
+type ApiErrorWithStatus = Error & {
+  status?: number;
+};
+
+type QuietAxiosRequestConfig = AxiosRequestConfig & {
+  suppressGlobalErrorLog?: boolean;
+};
 
 const PRE_PRODUCTION_CATEGORIES = ["REFERENCE_MATERIAL", "THUMBNAIL"];
 const RAW_FOOTAGE_CATEGORIES = ["RAW_FOOTAGE", "RAW_AUDIO"];
@@ -509,6 +532,54 @@ export const getDisplayInitials = (name?: string | null) => {
   const initials = getInitials(name);
   return initials === "NA" ? "FM" : initials;
 };
+
+const unwrapExternalFileManagerData = <T,>(response: T | ExternalFileCommentResponse<T>): T => {
+  if (
+    response &&
+    typeof response === "object" &&
+    "data" in response &&
+    (response as ExternalFileCommentResponse<T>).data !== undefined
+  ) {
+    return (response as ExternalFileCommentResponse<T>).data as T;
+  }
+
+  return response as T;
+};
+
+const isNotFoundError = (error: unknown): error is ApiErrorWithStatus =>
+  typeof error === "object" && error !== null && "status" in error && (error as ApiErrorWithStatus).status === 404;
+
+const getProjectIdFromFilePath = (value?: string | null) => {
+  const segments = String(value || "")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  return segments.find((segment) => /^\d+$/.test(segment)) || segments[0] || "";
+};
+
+const getStoredCommenterName = (): string => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const rawUser = window.localStorage.getItem("revure_user");
+    if (!rawUser) return "";
+
+    const user = JSON.parse(rawUser) as {
+      name?: string;
+      full_name?: string;
+      user_name?: string;
+      email?: string;
+    };
+
+    return String(user.name || user.full_name || user.user_name || user.email || "").trim();
+  } catch {
+    return "";
+  }
+};
+
+const WEB_API_2_URL = (process.env.NEXT_PUBLIC_WEB_API_2_ENDPOINT || 'http://localhost:5002/v1/').replace(/\/+$/, '');
+const FILE_MANAGER_KEY = process.env.NEXT_PUBLIC_INTERNAL_FILE_MANAGER_KEY || 'beige-internal-dev-key';
 
 const byCategories = (files: ProjectFileItem[], categories: string[]) =>
   files.filter((file) => categories.includes(file.file_category));
@@ -938,11 +1009,88 @@ export const fileManagerApi = {
   },
 
   async getComments(fileMetaId: string) {
-    return apiClient.get<FileCommentItem[]>("comments", { metaId: fileMetaId });
+    try {
+      const response = await axios.get(`${WEB_API_2_URL}/external-file-manager/file-comments`, {
+        params: { file_path: fileMetaId, external_id: fileMetaId },
+        headers: { 'x-internal-key': FILE_MANAGER_KEY },
+      });
+      return response.data?.data || response.data || [];
+    } catch {
+      return [];
+    }
   },
 
-  async addComment(payload: { fileMetaId: string; user_id: string | number; comment: string; timestamp?: number | null }) {
-    return apiClient.post<FileCommentItem>("comments", payload);
+  async addComment(payload: {
+    fileMetaId: string;
+    user_id: string | number;
+    comment: string;
+    timestamp?: number | null;
+    commented_by_name?: string | null;
+    user_name?: string | null;
+    name?: string | null;
+    file_name?: string | null;
+    file_url?: string | null;
+  }) {
+    const commentedByName =
+      String(payload.commented_by_name || payload.user_name || payload.name || "").trim() ||
+      getStoredCommenterName();
+    const projectId = getProjectIdFromFilePath(payload.fileMetaId);
+    const notificationMetadata = {
+      type: "file_comment",
+      filePath: payload.fileMetaId,
+      file_path: payload.fileMetaId,
+      fileName: payload.file_name,
+      file_name: payload.file_name,
+      fileUrl: payload.file_url,
+      file_url: payload.file_url,
+      projectId,
+      project_id: projectId,
+      senderId: String(payload.user_id),
+      senderName: commentedByName || "Client",
+      comment: payload.comment,
+      timestamp: payload.timestamp ?? null,
+    };
+
+    const commentPayload = {
+      metaId: payload.fileMetaId,
+      fileMetaId: payload.fileMetaId,
+      file_path: payload.fileMetaId,
+      external_id: payload.fileMetaId,
+      user_id: payload.user_id,
+      commented_by_id: payload.user_id,
+      commented_by_name: commentedByName,
+      comment: payload.comment,
+      timestamp: payload.timestamp ?? null,
+      file_name: payload.file_name,
+      file_url: payload.file_url,
+      notify_admin: true,
+      create_notification: true,
+      notification_type: "GENERAL",
+      category: "messages",
+      priority: "medium",
+      title: `New file comment from ${commentedByName || "Client"}`,
+      message: `${commentedByName || "Client"}: ${payload.comment}`,
+      entity_type: "file_comment",
+      entity_id: projectId || payload.fileMetaId,
+      action_url: projectId ? `/admin/file-manager/${encodeURIComponent(projectId)}` : "/admin/notifications",
+      recipient_scope: "role",
+      recipient_roles: "admin,Admin,sales_admin,Sales_Admin,Sales_admin",
+      actor_user_id: payload.user_id,
+      actor_name: commentedByName || "Client",
+      metadata: notificationMetadata,
+      metadata_json: JSON.stringify(notificationMetadata),
+    };
+
+    const response = await axios.post(`${WEB_API_2_URL}/external-file-manager/file-comment`, {
+      file_path: payload.fileMetaId,
+      external_id: payload.fileMetaId,
+      comment: payload.comment,
+      commented_by_id: payload.user_id,
+      commented_by_name: commentedByName,
+    }, {
+      headers: { 'x-internal-key': FILE_MANAGER_KEY },
+    });
+    return response.data?.data || response.data;
   },
 
   async replyToComment(commentId: string, payload: { user_id: string | number; comment: string }) {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import {
   Archive,
@@ -519,6 +520,7 @@ export default function ExternalChatView({
   allowActivation = false,
   isDark = true,
 }: ExternalChatViewProps) {
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const storedUser = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -576,12 +578,14 @@ export default function ExternalChatView({
   const roomsRef = useRef<ExternalChatRoom[]>([]);
   const selectedRoomRef = useRef<ExternalChatRoom | null>(null);
   const roomLastSeenAtRef = useRef<Record<string, string>>({});
+  const openedTargetRoomIdRef = useRef<string | null>(null);
 
   const effectiveUser = useMemo(() => ({ ...(storedUser || {}), ...(user || {}) }), [storedUser, user]);
   const userId = effectiveUser?.id != null ? String(effectiveUser.id) : null;
   const userName = String(effectiveUser?.name || effectiveUser?.email || "").trim();
   const safeUserName = userName || `User ${userId || "guest"}`;
   const isAdminView = role === "admin";
+  const targetRoomId = searchParams.get("roomId") || searchParams.get("room_id") || "";
   const socketServerUrl = useMemo(() => {
     const explicitSocketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "").trim();
     if (explicitSocketUrl) {
@@ -1042,6 +1046,18 @@ export default function ExternalChatView({
   useEffect(() => {
     loadRooms();
   }, [bookingId]);
+
+  useEffect(() => {
+    if (!targetRoomId || loading) return;
+    if (openedTargetRoomIdRef.current === targetRoomId && getRoomId(selectedRoom) === targetRoomId) return;
+
+    const targetRoom = scopedRooms.find((room) => getRoomId(room) === targetRoomId);
+    if (!targetRoom) return;
+
+    openedTargetRoomIdRef.current = targetRoomId;
+    void loadRoomDetails(targetRoom);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, scopedRooms, selectedRoom, targetRoomId]);
 
   useEffect(() => {
     selectedRoomRef.current = selectedRoom;
