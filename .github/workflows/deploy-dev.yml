@@ -22,7 +22,7 @@ jobs:
       - name: Validate deploy branch
         run: |
           WORKFLOW_BRANCH="${{ github.ref_name }}"
-          DEPLOY_BRANCH="${{ github.event.inputs.branch }}"
+          DEPLOY_BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
 
           case "$WORKFLOW_BRANCH" in
             staging|main)
@@ -41,12 +41,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: refs/heads/${{ github.event.inputs.branch }}
+          ref: refs/heads/${{ github.event.inputs.branch || github.ref_name }}
           fetch-depth: 0
 
       - name: Verify selected branch
         run: |
-          DEPLOY_BRANCH="${{ github.event.inputs.branch }}"
+          DEPLOY_BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
           CHECKED_OUT_BRANCH="$(git branch --show-current)"
           CHECKED_OUT_SHA="$(git rev-parse HEAD)"
 
