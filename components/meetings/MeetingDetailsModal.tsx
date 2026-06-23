@@ -183,18 +183,14 @@ export default function MeetingDetailsModal({
   const effectiveStatus = getEffectiveMeetingStatus(meetingData);
   const isCompleted = effectiveStatus === "completed";
   const isCancelled = String(effectiveStatus || "").toLowerCase() === "cancelled";
-  const { canEdit: canEditByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
-  const canManageParticipants = canEditByPermission;
+  const canManageParticipants = true;
   const createdById = resolveId(meetingData?.created_by?.id);
   const isClientCreatedBySelf =
     role === "client" &&
     !!currentUserId &&
     !!createdById &&
     String(createdById) === String(currentUserId);
-  const canDeleteMeeting =
-    canDeleteByPermission &&
-    !!meetingData?.id &&
-    !isClientCreatedBySelf;
+  const canDeleteMeeting = !!meetingData?.id && !isClientCreatedBySelf;
   const canRespond =
     !!meetingData?.id &&
     !!currentUserId &&
@@ -209,13 +205,12 @@ export default function MeetingDetailsModal({
   const meetingStartValid = Number.isFinite(meetingStartMs);
   const editCutoffMs = meetingStartValid ? meetingStartMs - 60 * 60 * 1000 : NaN;
   const canAdminEditOrReschedule =
-    canEditByPermission &&
     !!meetingData?.id &&
     !isCompleted &&
     !isCancelled &&
     meetingStartValid &&
     Date.now() < editCutoffMs;
-  const isPastEditCutoff = canEditByPermission && meetingStartValid && Date.now() >= editCutoffMs;
+  const isPastEditCutoff = meetingStartValid && Date.now() >= editCutoffMs;
 
   const participants = useMemo(() => getAllParticipants(meetingData), [meetingData]);
 

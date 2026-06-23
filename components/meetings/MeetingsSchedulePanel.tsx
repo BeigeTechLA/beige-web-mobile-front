@@ -182,10 +182,6 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
-  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
-  const canCreateMeeting = canCreateByPermission;
-  const canDeleteMeeting = canDeleteByPermission;
-
   const loadMeetings = useCallback(async () => {
     if (!resolvedOrderId) {
       setMeetings([]);
@@ -287,11 +283,9 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
             </div>
 
 
-            {canCreateMeeting ? (
-              <Button onClick={() => setIsModalOpen(true)} className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"}`}>
-                Create New Meeting
-              </Button>
-            ) : null}
+            <Button onClick={() => setIsModalOpen(true)} className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"}`}>
+              Create New Meeting
+            </Button>
           </div>
         </div>
 
@@ -335,7 +329,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                     role !== "admin" &&
                     !isClientCreatedBySelf &&
                     !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
-                  const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
+                  const canDeleteThisMeeting = !isClientCreatedBySelf;
                   const isResponding = respondingMeetingId === meetingId;
 
                   return (
