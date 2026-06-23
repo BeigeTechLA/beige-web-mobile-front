@@ -170,8 +170,8 @@ function Sidebar({
     { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", permissionKeys: ["availability"] },
     { href: "/creator/dashboard/profile", icon: User, label: "Profile", permissionKeys: ["settings", "profile"] },
   ].filter((item) => {
-    if (!permissions) return true;
-    return hasModulePermission(permissions, item.permissionKeys, "view");
+    // Role and permissions checks are disabled for creator/creative partner
+    return true;
   });
 
   // LOGIC TO SYNC SIDEBAR LOCKS AND CHECK STATUS

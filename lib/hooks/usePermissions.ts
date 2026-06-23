@@ -1,3 +1,4 @@
+import { usePathname } from "next/navigation";
 import { useAppSelector } from "../redux/hooks";
 import { hasModulePermission } from "../permissions";
 
@@ -7,15 +8,29 @@ import { hasModulePermission } from "../permissions";
  * @returns Object containing booleans for each permission action
  */
 export const usePermissions = (moduleKey?: string) => {
+  const pathname = usePathname();
   const permissions = useAppSelector((state) => state.auth.permissions);
   const permissionsVersion = useAppSelector((state) => state.auth.permissionsVersion);
+
+  const isBypassedPortal = pathname?.startsWith("/affiliate") || pathname?.startsWith("/creator");
 
   // If no moduleKey is provided, return all permissions
   if (!moduleKey) {
     return {
       allPermissions: permissions,
       permissionsVersion,
-      isLoading: !permissions,
+      isLoading: isBypassedPortal ? false : !permissions,
+    };
+  }
+
+  if (isBypassedPortal) {
+    return {
+      canView: true,
+      canEdit: true,
+      canCreate: true,
+      canDelete: true,
+      permissionsVersion,
+      isLoading: false,
     };
   }
 

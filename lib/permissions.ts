@@ -340,6 +340,9 @@ export const canAccessPortalPath = (
   const portal = getPortalForPathname(pathname);
   if (!portal) return true;
 
+  // Bypass route access check for affiliate (client) and creator (creative partner) portals
+  if (portal === "affiliate" || portal === "creator") return true;
+
   if (
     pathname === `/${portal}` ||
     pathname === `/${portal}/dashboard`
