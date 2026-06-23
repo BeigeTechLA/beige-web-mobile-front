@@ -1089,7 +1089,7 @@ export default function AffiliateFileManager() {
           >
             {/* Top Section */}
             <div className="p-5 flex-1">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start gap-2 justify-between">
                 <div className="flex gap-3 items-start min-w-0">
                   <div className="shrink-0">
                     <FolderOpen
@@ -1097,7 +1097,7 @@ export default function AffiliateFileManager() {
                       size={24}
                     />
                   </div>
-                  <div className="min-w-0 flex flex-col items-start">
+                  <div className="min-w-0 text-left">
                     <h3
                       className={`font-semibold text-sm leading-tight truncate transition-colors ${isDark ? "text-white" : "text-black"}`}
                       title={workspace.title}
@@ -1124,7 +1124,7 @@ export default function AffiliateFileManager() {
                   Linked
                 </span>
                 <span className={`shrink-0 px-2 py-1.5 rounded-full text-xs font-medium border text-[#E8D1AB] bg-[#1A1A1A] border-white/5`}>
-                  View Onlyy
+                  View Only
                 </span>
               </div>
             </div>
@@ -1418,12 +1418,12 @@ export default function AffiliateFileManager() {
                       ? "bg-[#E5D5B8]/15 text-[#E8D1AB] border-[#E5D5B8]/20"
                       : "bg-[#FFF7E8] text-[#8A6A32] border-[#E8D1AB]/50"
                     : selectedPhase === "post"
-                    ? isDark
-                      ? "bg-[#E8D2FB] text-[#540B94] border-white/5"
-                      : "bg-[#F3E8FF] text-[#540B94] border-black/5"
-                    : isDark
-                      ? "bg-[#FDF4FF] text-[#C026D3] border-white/5"
-                      : "bg-[#FCE7F3] text-[#9D174D] border-black/5"
+                      ? isDark
+                        ? "bg-[#E8D2FB] text-[#540B94] border-white/5"
+                        : "bg-[#F3E8FF] text-[#540B94] border-black/5"
+                      : isDark
+                        ? "bg-[#FDF4FF] text-[#C026D3] border-white/5"
+                        : "bg-[#FCE7F3] text-[#9D174D] border-black/5"
                     }`}
                 >
                   {isSelectedWorkspaceCommonEvent ? "Common Event Folder" : selectedPhase === "post" ? "Post Production" : "Pre Production"}
@@ -1438,7 +1438,7 @@ export default function AffiliateFileManager() {
                       : "bg-black/[0.04] text-[#B38F43] border-black/5"
                     }`}
                 >
-                  {canUploadInSelectedPhase ? "Upload EnabledD" : "View Onlyy"}
+                  {canUploadInSelectedPhase ? "Upload EnabledD" : "View Only"}
                 </span>
               </div>
 
@@ -1464,87 +1464,84 @@ export default function AffiliateFileManager() {
           </div>
         </div>
 
-       {filteredFiles.length > 0 ? (
-  <div className="flex flex-wrap justify-end gap-2">
-    {isRevisionVersionBrowser ? (
-      <Button
-        className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
-        disabled={Boolean(reviewingFilePath)}
-        onClick={async () => {
-          for (const file of visibleFiles) {
-            await handleReviewRevisionFile(file, "approve");
-          }
-        }}
-      >
-        <Check size={16} />
-        Approve All
-      </Button>
-    ) : null}
+        {filteredFiles.length > 0 ? (
+          <div className="flex flex-wrap justify-end gap-2">
+            {isRevisionVersionBrowser ? (
+              <Button
+                className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
+                disabled={Boolean(reviewingFilePath)}
+                onClick={async () => {
+                  for (const file of visibleFiles) {
+                    await handleReviewRevisionFile(file, "approve");
+                  }
+                }}
+              >
+                <Check size={16} />
+                Approve All
+              </Button>
+            ) : null}
 
-    {isSelectionMode && isRawFootageBrowser ? (
-      <Button
-        variant="ghost"
-        onClick={() => {
-          const visiblePaths = visibleFiles
-            .map((file) => file.filepath)
-            .filter(Boolean);
+            {isSelectionMode && isRawFootageBrowser ? (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  const visiblePaths = visibleFiles
+                    .map((file) => file.filepath)
+                    .filter(Boolean);
 
-          const allSelected =
-            visiblePaths.length > 0 &&
-            visiblePaths.every((path) => selectedFilePaths.includes(path));
+                  const allSelected =
+                    visiblePaths.length > 0 &&
+                    visiblePaths.every((path) => selectedFilePaths.includes(path));
 
-          setSelectedFilePaths((prev) => {
-            if (allSelected) {
-              return prev.filter((path) => !visiblePaths.includes(path));
-            }
+                  setSelectedFilePaths((prev) => {
+                    if (allSelected) {
+                      return prev.filter((path) => !visiblePaths.includes(path));
+                    }
 
-            return Array.from(new Set([...prev, ...visiblePaths]));
-          });
-        }}
-        className={`gap-2 h-10 px-4 rounded-lg border transition-all ${
-          isDark
-            ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
-            : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
-        }`}
-      >
-        <span
-          className={`flex h-4 w-4 items-center justify-center rounded border ${
-            visibleFiles.length > 0 &&
-            visibleFiles.every((file) =>
-              selectedFilePaths.includes(file.filepath || "")
-            )
-              ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
-              : isDark
-                ? "border-white/50 text-transparent"
-                : "border-black/40 text-transparent"
-          }`}
-        >
-          <CheckSquare size={12} />
-        </span>
-        <span>Select All</span>
-      </Button>
-    ) : null}
+                    return Array.from(new Set([...prev, ...visiblePaths]));
+                  });
+                }}
+                className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isDark
+                  ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                  : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
+                  }`}
+              >
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded border ${visibleFiles.length > 0 &&
+                    visibleFiles.every((file) =>
+                      selectedFilePaths.includes(file.filepath || "")
+                    )
+                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
+                    : isDark
+                      ? "border-white/50 text-transparent"
+                      : "border-black/40 text-transparent"
+                    }`}
+                >
+                  <CheckSquare size={12} />
+                </span>
+                <span>Select All</span>
+              </Button>
+            ) : null}
 
-    <Button
-      variant="ghost"
-      onClick={() => {
-        const nextMode = !isSelectionMode;
-        setIsSelectionMode(nextMode);
-        if (!nextMode) setSelectedFilePaths([]);
-      }}
-      className={`gap-2 h-10 px-4 rounded-lg border transition-all ${
-        isSelectionMode
-          ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
-          : isDark
-            ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
-            : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
-      }`}
-    >
-      <CheckSquare size={18} />
-      <span>{isSelectionMode ? "Cancel" : "Select"}</span>
-    </Button>
-  </div>
-) : null}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const nextMode = !isSelectionMode;
+                setIsSelectionMode(nextMode);
+                if (!nextMode) setSelectedFilePaths([]);
+              }}
+              className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
+                ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                : isDark
+                  ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                  : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
+                }`}
+            >
+              <CheckSquare size={18} />
+              <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+            </Button>
+          </div>
+        ) : null}
 
         {
           canRunFaceScan && faceMatches.length > 0 ? (
@@ -1637,46 +1634,46 @@ export default function AffiliateFileManager() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                   {visibleFiles.map((file) => {
-  const statusBadge = getFileStatusBadge(file);
+                    const statusBadge = getFileStatusBadge(file);
 
-  const canReviewVersionFile =
-    isRevisionVersionBrowser &&
-    String(file.metadata?.editStatus || "").toLowerCase() !== "approved";
+                    const canReviewVersionFile =
+                      isRevisionVersionBrowser &&
+                      String(file.metadata?.editStatus || "").toLowerCase() !== "approved";
 
-  return (
-    <FileCard
-      key={file.id}
-      file={{
-        ...file,
-        previewUrl: previewUrls[file.id],
-        lastOpened: formatRelativeTime(file.lastOpened),
-        statusLabel: statusBadge.label,
-        statusClassName: statusBadge.className,
-      }}
-      onOpen={() => handleOpenFile(file)}
-      onDownload={() => handleDownloadFile(file)}
-      isSelected={
-        isSelectionMode && selectedFilePaths.includes(file.filepath || "")
-      }
-      onSelect={
-        isSelectionMode
-          ? () => toggleFileSelection(file.filepath || "")
-          : undefined
-      }
-      onApprove={
-        canReviewVersionFile && reviewingFilePath !== file.filepath
-          ? () => handleReviewRevisionFile(file, "approve")
-          : undefined
-      }
-      onRequestRevision={
-        canReviewVersionFile && reviewingFilePath !== file.filepath
-          ? () => handleReviewRevisionFile(file, "request_revision")
-          : undefined
-      }
-      isDark={isDark}
-    />
-  );
-})}
+                    return (
+                      <FileCard
+                        key={file.id}
+                        file={{
+                          ...file,
+                          previewUrl: previewUrls[file.id],
+                          lastOpened: formatRelativeTime(file.lastOpened),
+                          statusLabel: statusBadge.label,
+                          statusClassName: statusBadge.className,
+                        }}
+                        onOpen={() => handleOpenFile(file)}
+                        onDownload={() => handleDownloadFile(file)}
+                        isSelected={
+                          isSelectionMode && selectedFilePaths.includes(file.filepath || "")
+                        }
+                        onSelect={
+                          isSelectionMode
+                            ? () => toggleFileSelection(file.filepath || "")
+                            : undefined
+                        }
+                        onApprove={
+                          canReviewVersionFile && reviewingFilePath !== file.filepath
+                            ? () => handleReviewRevisionFile(file, "approve")
+                            : undefined
+                        }
+                        onRequestRevision={
+                          canReviewVersionFile && reviewingFilePath !== file.filepath
+                            ? () => handleReviewRevisionFile(file, "request_revision")
+                            : undefined
+                        }
+                        isDark={isDark}
+                      />
+                    );
+                  })}
                 </div>
                 {hasMoreFiles ? (
                   <div className="flex justify-center">
@@ -1919,154 +1916,149 @@ export default function AffiliateFileManager() {
       )}
 
       {selectedFilePaths.length > 0 ? (
-  <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
-    <div
-      className={`flex items-center justify-between gap-4 rounded-2xl border p-4 shadow-2xl transition-all duration-300 ${
-        isDark
-          ? "border-[#E8D1AB]/50 bg-[#171717]"
-          : "border-[#B38F43]/40 bg-white"
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
-          {selectedFilePaths.length}
+        <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
+          <div
+            className={`flex items-center justify-between gap-4 rounded-2xl border p-4 shadow-2xl transition-all duration-300 ${isDark
+              ? "border-[#E8D1AB]/50 bg-[#171717]"
+              : "border-[#B38F43]/40 bg-white"
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
+                {selectedFilePaths.length}
+              </div>
+              <span
+                className={`font-medium transition-colors ${isDark ? "text-white" : "text-black"
+                  }`}
+              >
+                Files selected
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className={`gap-2 transition-colors ${isDark
+                  ? "text-white/70 hover:text-white"
+                  : "text-black/60 hover:text-black"
+                  }`}
+                onClick={() => {
+                  setSelectedFilePaths([]);
+                  setIsSelectionMode(false);
+                }}
+              >
+                Clear
+              </Button>
+
+              <div
+                className={`mx-1 h-6 w-[1px] transition-colors ${isDark ? "bg-white/10" : "bg-black/10"
+                  }`}
+              />
+
+              <Button
+                className={`gap-2 border transition-all ${isDark
+                  ? "border-white/10 bg-white/10 text-white hover:bg-white/20"
+                  : "border-black/10 bg-black text-white hover:bg-black/90 shadow-sm"
+                  }`}
+                onClick={handleBatchDownload}
+              >
+                <Download size={18} />
+                Download
+              </Button>
+            </div>
+          </div>
         </div>
-        <span
-          className={`font-medium transition-colors ${
-            isDark ? "text-white" : "text-black"
-          }`}
-        >
-          Files selected
-        </span>
-      </div>
+      ) : null}
 
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          className={`gap-2 transition-colors ${
-            isDark
-              ? "text-white/70 hover:text-white"
-              : "text-black/60 hover:text-black"
-          }`}
-          onClick={() => {
-            setSelectedFilePaths([]);
-            setIsSelectionMode(false);
-          }}
-        >
-          Clear
-        </Button>
+      {editRequestSentCount > 0 ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="relative w-full max-w-[430px] overflow-hidden rounded-3xl border border-white/10 bg-[#0A0A0A] px-6 pb-8 pt-10 text-center shadow-2xl">
+            {/* Soft background glow */}
+            <div className="pointer-events-none absolute left-1/2 top-10 h-32 w-32 -translate-x-1/2 rounded-full bg-[#E8D1AB]/10 blur-[50px]" />
 
-        <div
-          className={`mx-1 h-6 w-[1px] transition-colors ${
-            isDark ? "bg-white/10" : "bg-black/10"
-          }`}
-        />
+            {/* SVG Checkmark and Confetti */}
+            <div className="relative mx-auto mb-6 flex h-32 w-32 items-center justify-center">
+              <svg
+                width="140"
+                height="140"
+                viewBox="0 0 140 140"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="overflow-visible"
+              >
+                {/* Gold Confetti Diamond */}
+                <path d="M 45 35 L 48 40 L 45 45 L 42 40 Z" fill="#E8D1AB" />
 
-        <Button
-          className={`gap-2 border transition-all ${
-            isDark
-              ? "border-white/10 bg-white/10 text-white hover:bg-white/20"
-              : "border-black/10 bg-black text-white hover:bg-black/90 shadow-sm"
-          }`}
-          onClick={handleBatchDownload}
-        >
-          <Download size={18} />
-          Download
-        </Button>
-      </div>
-    </div>
-  </div>
-) : null}
+                {/* Purple Confetti Diamond */}
+                <path d="M 98 32 L 101 37 L 98 42 L 95 37 Z" fill="#A78BFA" />
 
-{editRequestSentCount > 0 ? (
-  <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-    <div className="relative w-full max-w-[430px] overflow-hidden rounded-3xl border border-white/10 bg-[#0A0A0A] px-6 pb-8 pt-10 text-center shadow-2xl">
-      {/* Soft background glow */}
-      <div className="pointer-events-none absolute left-1/2 top-10 h-32 w-32 -translate-x-1/2 rounded-full bg-[#E8D1AB]/10 blur-[50px]" />
+                {/* Blue Confetti Star */}
+                <path d="M 28 55 L 30 58 L 33 55 L 30 52 Z" fill="#60A5FA" />
 
-      {/* SVG Checkmark and Confetti */}
-      <div className="relative mx-auto mb-6 flex h-32 w-32 items-center justify-center">
-        <svg
-          width="140"
-          height="140"
-          viewBox="0 0 140 140"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="overflow-visible"
-        >
-          {/* Gold Confetti Diamond */}
-          <path d="M 45 35 L 48 40 L 45 45 L 42 40 Z" fill="#E8D1AB" />
+                {/* Green Confetti Star */}
+                <path d="M 112 55 L 114 58 L 117 55 L 114 52 Z" fill="#34D399" />
 
-          {/* Purple Confetti Diamond */}
-          <path d="M 98 32 L 101 37 L 98 42 L 95 37 Z" fill="#A78BFA" />
+                {/* Pink Confetti circle */}
+                <circle cx="30" cy="85" r="3.5" fill="#F472B6" />
 
-          {/* Blue Confetti Star */}
-          <path d="M 28 55 L 30 58 L 33 55 L 30 52 Z" fill="#60A5FA" />
+                {/* Orange Confetti circle */}
+                <circle cx="110" cy="85" r="4.5" fill="#FB923C" />
 
-          {/* Green Confetti Star */}
-          <path d="M 112 55 L 114 58 L 117 55 L 114 52 Z" fill="#34D399" />
+                {/* Light Blue Confetti circle */}
+                <circle cx="70" cy="22" r="3.5" fill="#38BDF8" />
 
-          {/* Pink Confetti circle */}
-          <circle cx="30" cy="85" r="3.5" fill="#F472B6" />
+                {/* Curved confetti lines */}
+                <path
+                  d="M 35 40 Q 32 30 40 25"
+                  stroke="#FBBF24"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <path
+                  d="M 105 40 Q 108 30 100 25"
+                  stroke="#34D399"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                />
 
-          {/* Orange Confetti circle */}
-          <circle cx="110" cy="85" r="4.5" fill="#FB923C" />
+                {/* Main Beige Badge Circle */}
+                <circle cx="70" cy="70" r="36" fill="#E8D1AB" />
 
-          {/* Light Blue Confetti circle */}
-          <circle cx="70" cy="22" r="3.5" fill="#38BDF8" />
+                {/* Black Checkmark inside Circle */}
+                <path
+                  d="M 57 70 L 66 79 L 83 60"
+                  stroke="#000000"
+                  strokeWidth="5.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            </div>
 
-          {/* Curved confetti lines */}
-          <path
-            d="M 35 40 Q 32 30 40 25"
-            stroke="#FBBF24"
-            strokeWidth="2"
-            strokeLinecap="round"
-            fill="none"
-          />
-          <path
-            d="M 105 40 Q 108 30 100 25"
-            stroke="#34D399"
-            strokeWidth="2"
-            strokeLinecap="round"
-            fill="none"
-          />
+            <h3 className="relative text-xl font-semibold text-white">
+              Edit request sent
+            </h3>
 
-          {/* Main Beige Badge Circle */}
-          <circle cx="70" cy="70" r="36" fill="#E8D1AB" />
+            <p className="relative mt-2 text-sm text-white/60">
+              {editRequestSentCount}{" "}
+              {editRequestSentCount === 1 ? "file has" : "files have"} been sent for
+              revision.
+            </p>
 
-          {/* Black Checkmark inside Circle */}
-          <path
-            d="M 57 70 L 66 79 L 83 60"
-            stroke="#000000"
-            strokeWidth="5.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </svg>
-      </div>
-
-      <h3 className="relative text-xl font-semibold text-white">
-        Edit request sent
-      </h3>
-
-      <p className="relative mt-2 text-sm text-white/60">
-        {editRequestSentCount}{" "}
-        {editRequestSentCount === 1 ? "file has" : "files have"} been sent for
-        revision.
-      </p>
-
-      <Button
-        className="relative mt-6 w-full rounded-xl bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
-        onClick={() => {
-          setEditRequestSentCount(0);
-        }}
-      >
-        Done
-      </Button>
-    </div>
-  </div>
-) : null}
+            <Button
+              className="relative mt-6 w-full rounded-xl bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
+              onClick={() => {
+                setEditRequestSentCount(0);
+              }}
+            >
+              Done
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {isCameraOpen ? (
         <div className={`fixed inset-0 z-[80] flex items-center justify-center p-4 transition-colors duration-300 ${isDark ? "bg-black/85" : "bg-black/75 backdrop-blur-xs"
