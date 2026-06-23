@@ -148,8 +148,6 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         meeting.meeting_title,
         meeting.order?.name,
         meeting.description,
-        meeting.admin?.name,
-        ...(meeting.cps || []).map((participant) => participant.name || participant.email),
         ...(meeting.participants || []).map((participant) => participant.name || participant.email),
       ]
         .filter(Boolean)

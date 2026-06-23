@@ -138,12 +138,9 @@ const getParticipantResponse = (
 const getAllParticipants = (meeting: MeetingItem | null) => {
   if (!meeting) return [];
 
-  const participants = [
-    normalizeParticipant(meeting.client || undefined, "client"),
-    normalizeParticipant(meeting.admin || undefined, "admin"),
-    ...(meeting.cps || []).map((item) => normalizeParticipant(item, "cp")),
-    ...(meeting.participants || []).map((item) => normalizeParticipant(item, "participant")),
-  ].filter(Boolean) as Array<ReturnType<typeof normalizeParticipant>>;
+  const participants = (meeting.participants || [])
+    .map((item) => normalizeParticipant(item, "participant"))
+    .filter(Boolean) as Array<ReturnType<typeof normalizeParticipant>>;
 
   return participants.filter((entry, index, array) => {
     const key = String(entry?.id || entry?.email || entry?.name || "");

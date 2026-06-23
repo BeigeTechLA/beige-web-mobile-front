@@ -27,7 +27,7 @@ interface ParticipantAvatarStackProps {
 interface FlattenedParticipant {
   id: string | number | undefined;
   name: string | null | undefined;
-  role: 'client' | 'admin' | 'cp';
+  role: string;
 }
 
 const getInitials = (name: string): string => {
@@ -43,19 +43,11 @@ export const ParticipantAvatarStack: React.FC<ParticipantAvatarStackProps> = ({
 }) => {
   if (!meeting) return null;
 
-  const participantsList: FlattenedParticipant[] = [];
-
-  if (meeting.client) {
-    participantsList.push({ id: meeting.client.id, name: meeting.client.name, role: 'client' });
-  }
-  if (meeting.admin) {
-    participantsList.push({ id: meeting.admin.id, name: meeting.admin.name, role: 'admin' });
-  }
-  if (meeting.cps && Array.isArray(meeting.cps)) {
-    meeting.cps.forEach((cp) => {
-      participantsList.push({ id: cp.id, name: cp.name, role: 'cp' });
-    });
-  }
+  const participantsList: FlattenedParticipant[] = (meeting.participants || []).map((participant) => ({
+    id: participant.id,
+    name: participant.name,
+    role: participant.role || 'participant',
+  }));
 
   const bgColors: string[] = [
     'bg-[#FFF8E7] text-gray-800',
