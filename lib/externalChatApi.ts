@@ -41,6 +41,7 @@ export interface ExternalChatRoom {
   cp_ids?: ExternalChatParticipantItem[];
   pm_id?: ExternalChatUser | string | number | null;
   production_ids?: ExternalChatParticipantItem[];
+  participants?: ExternalChatParticipantItem[];
   unread_counts?: Record<string, number>;
   unread_count?: number;
   unreadCount?: number;
@@ -104,6 +105,7 @@ interface RoomResponse {
   cp_ids?: ExternalChatParticipantItem[];
   pm_id?: ExternalChatUser | string | number | null;
   production_ids?: ExternalChatParticipantItem[];
+  participants?: ExternalChatParticipantItem[];
   unread_counts?: Record<string, number>;
   unread_count?: number;
   unreadCount?: number;
