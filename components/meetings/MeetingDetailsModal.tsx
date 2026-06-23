@@ -137,12 +137,9 @@ const getParticipantResponse = (
 const getAllParticipants = (meeting: MeetingItem | null) => {
   if (!meeting) return [];
 
-  const participants = [
-    normalizeParticipant(meeting.client || undefined, "client"),
-    normalizeParticipant(meeting.admin || undefined, "admin"),
-    ...(meeting.cps || []).map((item) => normalizeParticipant(item, "cp")),
-    ...(meeting.participants || []).map((item) => normalizeParticipant(item, "participant")),
-  ].filter(Boolean) as Array<ReturnType<typeof normalizeParticipant>>;
+  const participants = (meeting.participants || [])
+    .map((item) => normalizeParticipant(item, "participant"))
+    .filter(Boolean) as Array<ReturnType<typeof normalizeParticipant>>;
 
   return participants.filter((entry, index, array) => {
     const key = String(entry?.id || entry?.email || entry?.name || "");
@@ -186,14 +183,18 @@ export default function MeetingDetailsModal({
   const effectiveStatus = getEffectiveMeetingStatus(meetingData);
   const isCompleted = effectiveStatus === "completed";
   const isCancelled = String(effectiveStatus || "").toLowerCase() === "cancelled";
-  const canManageParticipants = role === "admin";
+  const { canEdit: canEditByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
+  const canManageParticipants = canEditByPermission;
   const createdById = resolveId(meetingData?.created_by?.id);
   const isClientCreatedBySelf =
     role === "client" &&
     !!currentUserId &&
     !!createdById &&
     String(createdById) === String(currentUserId);
-  const canDeleteMeeting = (role === "admin" || role === "client") && !!meetingData?.id && !isClientCreatedBySelf;
+  const canDeleteMeeting =
+    canDeleteByPermission &&
+    !!meetingData?.id &&
+    !isClientCreatedBySelf;
   const canRespond =
     !!meetingData?.id &&
     !!currentUserId &&
@@ -208,13 +209,13 @@ export default function MeetingDetailsModal({
   const meetingStartValid = Number.isFinite(meetingStartMs);
   const editCutoffMs = meetingStartValid ? meetingStartMs - 60 * 60 * 1000 : NaN;
   const canAdminEditOrReschedule =
-    role === "admin" &&
+    canEditByPermission &&
     !!meetingData?.id &&
     !isCompleted &&
     !isCancelled &&
     meetingStartValid &&
     Date.now() < editCutoffMs;
-  const isPastEditCutoff = role === "admin" && meetingStartValid && Date.now() >= editCutoffMs;
+  const isPastEditCutoff = canEditByPermission && meetingStartValid && Date.now() >= editCutoffMs;
 
   const participants = useMemo(() => getAllParticipants(meetingData), [meetingData]);
 
