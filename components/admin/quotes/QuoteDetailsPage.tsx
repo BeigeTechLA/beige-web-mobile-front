@@ -1352,7 +1352,6 @@ export default function QuoteDetailsPage({
   ]);
   const canEditSelectedVersion =
     canEdit &&
-    isSelectedCurrentVersion &&
     isSelectedLatestUsableVersion &&
     !isSelectedVersionRejected &&
     !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
