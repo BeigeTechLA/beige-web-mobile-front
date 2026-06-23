@@ -62,7 +62,7 @@ export function PermissionsVersionWatcher() {
     const runCheck = async () => {
       try {
         const result = await triggerGetCurrentUser().unwrap();
-        const currentRole = String(user?.userRole ?? "").trim().toLowerCase();
+        const currentRole = String(user?.role ?? user?.userRole ?? "").trim().toLowerCase();
         const latestRole = String((result as any)?.role ?? (result as any)?.userRole ?? "").trim().toLowerCase();
 
         if (!isActive) return;
@@ -96,7 +96,7 @@ export function PermissionsVersionWatcher() {
     return () => {
       isActive = false;
     };
-  }, [authReady, isForcedLogoutOpen, pathname, token, triggerGetCurrentUser, user?.userRole]);
+  }, [authReady, isForcedLogoutOpen, pathname, token, triggerGetCurrentUser, user?.role, user?.userRole]);
 
   const handleLoginAgain = async () => {
     hasHandledUpdateRef.current = true;
