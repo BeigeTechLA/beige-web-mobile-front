@@ -154,6 +154,7 @@ export default function AdminFileManagerPhasePage() {
     [phaseSlug, searchParams]
   );
   const isPreProduction = phaseSlug !== "post-production";
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
   const { isDark } = useResolvedTheme();
 
   const [workspaceName, setWorkspaceName] = useState("");
@@ -795,6 +796,7 @@ export default function AdminFileManagerPhasePage() {
                         renderCard={(file) => (
                           <FileCard
                             file={{ ...file, previewUrl: previewUrls[file.id] }}
+                            stage={fileCardStage}
                             onOpen={() => handleOpenFile(file)}
                             onDownload={() => handleDownloadFile(file)}
                             onDelete={() => {
@@ -1006,6 +1008,7 @@ export default function AdminFileManagerPhasePage() {
                                 <FileCard
                                   key={file.id}
                                   file={{ ...file, previewUrl: previewUrls[file.id] }}
+                                  stage={fileCardStage}
                                   onOpen={() => handleOpenFile(file)}
                                   onDownload={() => handleDownloadFile(file)}
                                   onDelete={() => {
@@ -1248,6 +1251,7 @@ export default function AdminFileManagerPhasePage() {
                         <FileCard
                           key={file.id}
                           file={{ ...file, previewUrl: previewUrls[file.id] }}
+                          stage={fileCardStage}
                           onOpen={() => handleOpenFile(file)}
                           onDownload={() => handleDownloadFile(file)}
                           onDelete={() => {

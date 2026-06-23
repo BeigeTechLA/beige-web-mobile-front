@@ -159,8 +159,10 @@ export default function AffiliateFileManager() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
   const [isSendingEditRequest, setIsSendingEditRequest] = useState(false);
   const [editRequestSentCount, setEditRequestSentCount] = useState(0);
+  const fileCardStage = selectedPhase === "post" ? "post-production" : "pre-production";
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerName, setViewerName] = useState("");
@@ -1183,11 +1185,15 @@ export default function AffiliateFileManager() {
           <div className="mb-3 lg:mb-5 flex items-center justify-end">
             {canUploadInSelectedPhase ? (
               <Button
-                onClick={() => setIsUploadModalOpen(true)}
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
                 className={`border transition-colors ${isDark
                   ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
                   : "border-black/15 bg-white text-black hover:bg-zinc-50 shadow-sm"
-                  }`}
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 <Upload size={18} /> Upload Files
               </Button>
@@ -1436,7 +1442,7 @@ export default function AffiliateFileManager() {
                       : "bg-black/[0.04] text-[#B38F43] border-black/5"
                     }`}
                 >
-                  {canUploadInSelectedPhase ? "Upload EnabledD" : "View Only"}
+                  {canUploadInSelectedPhase ? "Upload Enabled" : "View Only"}
                 </span>
               </div>
 
@@ -1638,40 +1644,45 @@ export default function AffiliateFileManager() {
                       isRevisionVersionBrowser &&
                       String(file.metadata?.editStatus || "").toLowerCase() !== "approved";
 
-                    return (
-                      <FileCard
-                        key={file.id}
-                        file={{
-                          ...file,
-                          previewUrl: previewUrls[file.id],
-                          lastOpened: formatRelativeTime(file.lastOpened),
-                          statusLabel: statusBadge.label,
-                          statusClassName: statusBadge.className,
-                        }}
-                        onOpen={() => handleOpenFile(file)}
-                        onDownload={() => handleDownloadFile(file)}
-                        isSelected={
-                          isSelectionMode && selectedFilePaths.includes(file.filepath || "")
-                        }
-                        onSelect={
-                          isSelectionMode
-                            ? () => toggleFileSelection(file.filepath || "")
-                            : undefined
-                        }
-                        onApprove={
-                          canReviewVersionFile && reviewingFilePath !== file.filepath
-                            ? () => handleReviewRevisionFile(file, "approve")
-                            : undefined
-                        }
-                        onRequestRevision={
-                          canReviewVersionFile && reviewingFilePath !== file.filepath
-                            ? () => handleReviewRevisionFile(file, "request_revision")
-                            : undefined
-                        }
-                        isDark={isDark}
-                      />
-                    );
-                  })}
+  return (
+    <FileCard
+      key={file.id}
+      file={{
+        ...file,
+        previewUrl: previewUrls[file.id],
+        lastOpened: formatRelativeTime(file.lastOpened),
+        statusLabel: statusBadge.label,
+        statusClassName: statusBadge.className,
+      }}
+      stage={fileCardStage}
+      onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+      onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
+      isSelected={
+        isSelectionMode && selectedFilePaths.includes(file.filepath || "")
+      }
+      onSelect={
+        isSelectionMode
+          ? () => toggleFileSelection(file.filepath || "")
+          : undefined
+      }
+      onApprove={
+        !selectionLockActive &&
+        canReviewVersionFile &&
+        reviewingFilePath !== file.filepath
+          ? () => handleReviewRevisionFile(file, "approve")
+          : undefined
+      }
+      onRequestRevision={
+        !selectionLockActive &&
+        canReviewVersionFile &&
+        reviewingFilePath !== file.filepath
+          ? () => handleReviewRevisionFile(file, "request_revision")
+          : undefined
+      }
+      isDark={isDark}
+    />
+  );
+})}
                 </div>
                 {hasMoreFiles ? (
                   <div className="flex justify-center">
@@ -1689,10 +1700,10 @@ export default function AffiliateFileManager() {
               <EmptyFileState
                 title="No File Uploaded"
                 description="No files have been uploaded for this project yet."
-                onAction={canUploadInSelectedPhase ? () => setIsUploadModalOpen(true) : undefined}
-                actionLabel={canUploadInSelectedPhase ? "Upload Files" : undefined}
-                isDark={isDark}
-              />
+            onAction={canUploadInSelectedPhase && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+            actionLabel={canUploadInSelectedPhase && !selectionLockActive ? "Upload Files" : undefined}
+            isDark={isDark}
+          />
             )}
           </div>
         ) : null}
