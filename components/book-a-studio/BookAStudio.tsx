@@ -430,7 +430,7 @@ const BookStudioDetailsStep = ({
   const selectedStudio = HOURLY_STUDIO_LIST.find((studio) => studio.id === selectedStudios[0]?.studioId) || null;
   const pricingKey = selectedStudios[0]?.pricingCategory || getDefaultPricingKey(selectedStudio);
   const selectedPricing = getSelectedPricing(selectedStudio, pricingKey);
-  const selectedStudioTotal = selectedStudios[0]?.totalPrice || 0;
+  const selectedStudioTotal = getSelectedStudiosTotal(selectedStudios);
 
   const filteredStudios = HOURLY_STUDIO_LIST.filter((studio) =>
     studio.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -762,13 +762,30 @@ const BookStudioDetailsStep = ({
   };
 
   useEffect(() => {
+    if (data.bookingType !== "single_day") {
+      return;
+    }
+
     if (!selectedStudio || !selectedDate || !startTime || !endTime) return;
     syncStudioSelection(selectedDate, startTime, endTime);
-  }, [selectedDate, startTime, endTime, pricingKey, selectedStudio, syncStudioSelection]);
+  }, [data.bookingType, selectedDate, startTime, endTime, pricingKey, selectedStudio, syncStudioSelection]);
 
   const selectedDuration = startTime && endTime ? Math.max(0, Math.ceil((timeToMinutes(endTime) - timeToMinutes(startTime)) / 60)) : 0;
   const billableHours = selectedPricing ? Math.max(selectedDuration, selectedPricing.minimumHours) : selectedDuration;
-  const estimateTotal = selectedStudioTotal || (selectedPricing ? selectedPricing.hourlyRate * billableHours + (selectedPricing.cleaningFee || 0) : 0);
+  const hasSelectedStudioSchedule =
+    data.bookingType === "multi_day"
+      ? selectedDates.length > 0 &&
+        (sameTimingsMulti
+          ? Boolean(startTime && endTime)
+          : selectedDates.every((date) => {
+              const dateKey = getDateKey(date);
+              return Boolean(multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey);
+            }))
+      : Boolean(selectedDate && startTime && endTime);
+  const estimateTotal = hasSelectedStudioSchedule
+    ? selectedStudioTotal ||
+      (selectedPricing ? selectedPricing.hourlyRate * billableHours + (selectedPricing.cleaningFee || 0) : 0)
+    : 0;
 
   return (
     <div className="flex w-full flex-col gap-8 animate-in fade-in duration-500">
@@ -881,9 +898,13 @@ const BookStudioDetailsStep = ({
               <span className="rounded-xl bg-[#211F1C] px-4 py-2 text-sm font-medium text-[#E8D1AB]">
                 Duration: {selectedDuration || 0} Hours
               </span>
-              {estimateTotal > 0 && (
+              {estimateTotal > 0 ? (
                 <span className="rounded-xl bg-[#211F1C] px-4 py-2 text-sm font-medium text-[#E8D1AB]">
                   Studio estimate: ${estimateTotal.toLocaleString()}
+                </span>
+              ) : (
+                <span className="rounded-xl bg-[#211F1C] px-4 py-2 text-sm font-medium text-[#E8D1AB]">
+                  Studio estimate: $0
                 </span>
               )}
             </div>
@@ -1173,9 +1194,11 @@ const BookStudioDetailsStep = ({
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {selectedStudio.pricingOptions.map((option) => {
               const active = pricingKey === option.key;
-              const packageEstimate = selectedStudioTotal && active
-                ? selectedStudioTotal
-                : option.hourlyRate * Math.max(selectedDuration || option.minimumHours, option.minimumHours) + (option.cleaningFee || 0);
+              const packageEstimate = hasSelectedStudioSchedule
+                ? selectedStudioTotal && active
+                  ? selectedStudioTotal
+                  : option.hourlyRate * Math.max(selectedDuration || option.minimumHours, option.minimumHours) + (option.cleaningFee || 0)
+                : null;
 
               return (
                 <button
@@ -1209,9 +1232,11 @@ const BookStudioDetailsStep = ({
                       </span>
                     ))}
                   </div>
-                  <div className="mt-5 rounded-xl bg-[#211F1C] px-4 py-3 text-sm font-semibold text-[#E8D1AB]">
-                    Current estimate: ${packageEstimate.toLocaleString()}
-                  </div>
+                  {packageEstimate !== null && (
+                    <div className="mt-5 rounded-xl bg-[#211F1C] px-4 py-3 text-sm font-semibold text-[#E8D1AB]">
+                      {`Current estimate: $${packageEstimate.toLocaleString()}`}
+                    </div>
+                  )}
                 </button>
               );
             })}
