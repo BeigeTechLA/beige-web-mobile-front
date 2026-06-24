@@ -824,6 +824,7 @@ export default function SalesLeadDetailsPage() {
     : (lead?.pricing_breakdown?.shoot_cost || 0);
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
+  const studioCost = lead?.pricing_breakdown?.studio_cost || 0;
   const discountAmount = isQuoteConvertedLead
     ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
     : Number(lead?.pricing_breakdown?.discount ?? 0);
@@ -1914,7 +1915,7 @@ export default function SalesLeadDetailsPage() {
                   <span className="text-[#71717B] text-xs">Additional Creatives</span>
                   <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}</span>
                 </div> */}
-                {[["Base Price", basePrice], ["Editing Fee", editingCost], ["Additional Creatives", additionalCreatives]].map(([label, val]) => (
+                {[["Shoot Cost", basePrice], ["Editing Fee", editingCost], ["Studio", studioCost], ["Additional Creatives", additionalCreatives]].filter(([, val]) => Number(val) > 0).map(([label, val]) => (
                   <div key={label as string} className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">{label}</span>
                     <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>${(val as number).toLocaleString()}</span>

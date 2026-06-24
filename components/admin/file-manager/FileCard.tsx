@@ -87,6 +87,7 @@ interface FileCardFile {
   contentType?: string;
   previewUrl?: string;
   userInitials?: string;
+  uploaderName?: string;
   lastOpened?: string;
   statusLabel?: string;
   statusClassName?: string;
@@ -258,7 +259,7 @@ export const FileCard = ({
             </div>
             <div className="flex flex-col min-w-0">
               <span className={`text-xs font-medium truncate ${isDark ? 'text-[#CDC5C5]' : 'text-[#333333]'}`}>
-                Uploaded by {file.userInitials || "Creator"}
+                Uploaded by {file.uploaderName || "Unknown uploader"}
               </span>
               <span className={`text-[10px] ${isDark ? 'text-[#CDC5C5]/60' : 'text-[#666666]/60'}`}>
                 {file.lastOpened || "just now"}
