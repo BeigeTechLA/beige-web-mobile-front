@@ -56,12 +56,9 @@ const normalizeParticipant = (member?: MeetingParticipantRef | null) => {
 };
 
 const getMeetingParticipants = (meeting: MeetingItem) => {
-  const values = [
-    normalizeParticipant(meeting.client || undefined),
-    normalizeParticipant(meeting.admin || undefined),
-    ...(meeting.cps || []).map((item) => normalizeParticipant(item)).filter(Boolean),
-    ...(meeting.participants || []).map((item) => normalizeParticipant(item)).filter(Boolean),
-  ].filter(Boolean) as Array<ReturnType<typeof normalizeParticipant>>;
+  const values = (meeting.participants || [])
+    .map((item) => normalizeParticipant(item))
+    .filter(Boolean) as Array<ReturnType<typeof normalizeParticipant>>;
 
   return values.filter((item, index, array) => {
     const key = String(item?.id || item?.email || item?.name || "");
@@ -291,11 +288,9 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
             </div>
 
 
-            {canCreateMeeting ? (
-              <Button onClick={() => setIsModalOpen(true)} className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"}`}>
-                Create New Meeting
-              </Button>
-            ) : null}
+            <Button onClick={() => setIsModalOpen(true)} className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"}`}>
+              Create New Meeting
+            </Button>
           </div>
         </div>
 
@@ -339,7 +334,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                     role !== "admin" &&
                     !isClientCreatedBySelf &&
                     !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
-                  const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
+                  const canDeleteThisMeeting = !isClientCreatedBySelf;
                   const isResponding = respondingMeetingId === meetingId;
 
                   return (

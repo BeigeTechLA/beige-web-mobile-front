@@ -106,15 +106,13 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
-  const { canEdit: canViewAllMeetings } = usePermissions("sales_representative");
-  const isSalesAdminView = role === "sales" && canViewAllMeetings;
+  const isSalesAdminView = role === "sales";
   const isAdminView = role === "admin" || isSalesAdminView;
   const effectiveRoleForActions: RoleVariant = isAdminView ? "admin" : role;
-  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
   const canCreateMeeting =
-    (effectiveRoleForActions === "admin" || effectiveRoleForActions === "client") && canCreateByPermission;
+    effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
   const canDeleteMeeting =
-    (effectiveRoleForActions === "admin" || effectiveRoleForActions === "client") && canDeleteByPermission;
+    effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
 
   const loadMeetings = useCallback(async () => {
     setLoading(true);
@@ -148,8 +146,6 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         meeting.meeting_title,
         meeting.order?.name,
         meeting.description,
-        meeting.admin?.name,
-        ...(meeting.cps || []).map((participant) => participant.name || participant.email),
         ...(meeting.participants || []).map((participant) => participant.name || participant.email),
       ]
         .filter(Boolean)

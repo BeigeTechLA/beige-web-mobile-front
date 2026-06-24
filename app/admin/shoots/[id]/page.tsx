@@ -157,6 +157,8 @@ const formatPaymentDate = (value: string | null | undefined) => {
   });
 };
 
+const asArray = <T,>(value: unknown): T[] => Array.isArray(value) ? value : [];
+
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
@@ -356,6 +358,15 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           }
         }
 
+        const assignedCrew = asArray(
+          responseData?.assignedCrew ?? projectData?.assignedCrew ?? projectData?.assigned_crews
+        );
+        const assignedPostProductionMembers = asArray(
+          responseData?.assignedPostProductionMembers ??
+          projectData?.assignedPostProductionMembers ??
+          projectData?.assigned_post_production_members
+        );
+
         const nextProject: ProjectDetails = {
           ...projectData,
           payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
@@ -364,12 +375,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
           payment_history: responseData?.payment_history || projectData?.payment_history || [],
           lead_details: responseData?.lead_details || projectData?.lead_details || null,
-          assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
-          assignedPostProductionMembers:
-            responseData?.assignedPostProductionMembers ||
-            projectData?.assignedPostProductionMembers ||
-            projectData?.assigned_post_production_members ||
-            [],
+          assignedCrew,
+          assigned_crews: assignedCrew,
+          assignedPostProductionMembers,
+          assigned_post_production_members: assignedPostProductionMembers,
           skills_needed: skillsText || projectData.skills_needed
         };
 

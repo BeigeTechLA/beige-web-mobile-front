@@ -330,6 +330,12 @@ const normalizeDiscountCodeValue = (value?: string | null) => {
   return normalized || null;
 };
 
+const isStripeClientSecret = (value: unknown): value is string =>
+  typeof value === "string" && /^pi_[^\s]+_secret_[^\s]+$/.test(value);
+
+const isFreeCheckoutToken = (value: unknown): value is string =>
+  typeof value === "string" && value.startsWith("free_checkout_intent_");
+
 const resolveBasePayableAmount = (details: any) => {
   const quoteTotal = parseFloat(details?.quote?.total || 0);
   const additionalPayment = details?.quote?.additional_payment || details?.quote?.partial_payment || null;
@@ -1088,6 +1094,11 @@ function StripePaymentFormMulti({
       return;
     }
 
+    if (!isStripeClientSecret(clientSecret)) {
+      onError("Invalid payment session. Please refresh the page before trying again.");
+      return;
+    }
+
     const cardElement = elements.getElement(CardElement);
     if (!cardElement) {
       onError("Card information not found");
@@ -1495,6 +1506,7 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
   const [useAccountCredit, setUseAccountCredit] = useState(false);
+  const paymentIntentRequestId = React.useRef(0);
   const bookingEmail = React.useMemo(() => {
     const value =
       paymentDetails?.booking?.guest_email ||
@@ -1700,6 +1712,7 @@ function MultiCreatorPaymentContent() {
 
   const fetchIntent = async (details: any, useCreditOverride: boolean = useAccountCredit) => {
     if (!details || !shootId) return;
+    const requestId = ++paymentIntentRequestId.current;
     const completionState = getPaymentCompletionState(details);
     if (completionState.isSettled) {
       setClientSecret("");
@@ -1730,10 +1743,29 @@ function MultiCreatorPaymentContent() {
         }
       );
 
+      // Pricing/credit changes can create overlapping intent requests. Only
+      // the newest response may update the active payment session.
+      if (requestId !== paymentIntentRequestId.current) return;
+
       if (response.data.success && response.data.data.clientSecret) {
-        setClientSecret(response.data.data.clientSecret);
+        const intentData = response.data.data;
+        const returnedAmount = Number(intentData.amount || 0);
+        const returnedFreeCheckout = Boolean(intentData.isFree) || isFreeCheckoutToken(intentData.clientSecret);
+
+        if (payableAmount > 0 && (returnedFreeCheckout || returnedAmount <= 0)) {
+          setClientSecret("");
+          throw new Error("The server returned a free checkout for a booking with an outstanding balance.");
+        }
+
+        if (!returnedFreeCheckout && !isStripeClientSecret(intentData.clientSecret)) {
+          setClientSecret("");
+          throw new Error("The server returned an invalid Stripe payment session.");
+        }
+
+        setClientSecret(intentData.clientSecret);
       }
     } catch (err) {
+      if (requestId !== paymentIntentRequestId.current) return;
       console.error("Error creating payment intent:", err);
       toast.error("Failed to initialize payment");
     }
