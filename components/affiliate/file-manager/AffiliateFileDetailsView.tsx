@@ -288,7 +288,12 @@ export default function AffiliateFileDetailsView({ folderId, subFolderId, onBack
                     onClick={() => handleOpenLinkModal(item.title)}
                   />
                 ) : (
-                  <AffiliateFileCard key={item.id} file={item} onMenuTrigger={(e) => handleOpenMenu(e, item.title)} />
+                  <AffiliateFileCard
+                    key={item.id}
+                    file={item}
+                    stage={isPostProduction ? "post-production" : "pre-production"}
+                    onMenuTrigger={(e) => handleOpenMenu(e, item.title)}
+                  />
                 )
               ))}
             </div>

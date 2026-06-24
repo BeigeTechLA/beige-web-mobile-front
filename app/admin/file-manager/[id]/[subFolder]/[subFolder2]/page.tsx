@@ -157,6 +157,7 @@ export default function SubFolderDetailsPage() {
     return fallbackFromPath || slugToWorkspaceName(nestedSlug);
   }, [folderPath, nestedSlug, searchParams]);
   const { isDark } = useResolvedTheme();
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -180,6 +181,7 @@ export default function SubFolderDetailsPage() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCreatingRevisionVersion, setIsCreatingRevisionVersion] = useState(false);
   const [shareResource, setShareResource] = useState<{
@@ -525,7 +527,7 @@ export default function SubFolderDetailsPage() {
       userInitials={folder.userInitials}
       href={folder.href}
       showMenu={false}
-      onOpen={() => openFolder(folder)}
+      onOpen={selectionLockActive ? undefined : () => openFolder(folder)}
       onOpenLinkModal={() => undefined}
     />
   );
@@ -660,8 +662,12 @@ export default function SubFolderDetailsPage() {
         actions={
           canUpload ? (
             <Button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"
+              onClick={() => {
+                if (selectionLockActive) return;
+                setIsUploadModalOpen(true);
+              }}
+              disabled={selectionLockActive}
+              className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Upload size={18} />
               Upload Files
@@ -671,7 +677,14 @@ export default function SubFolderDetailsPage() {
       />
 
       <div className="overflow-x-hidden overflow-y-auto p-4 pb-30 lg:px-10 lg:py-9">
-        <Button onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
+        <Button
+          onClick={() => {
+            if (selectionLockActive) return;
+            router.back();
+          }}
+          disabled={selectionLockActive}
+          className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0 disabled:cursor-not-allowed disabled:opacity-40`}
+        >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
@@ -768,7 +781,10 @@ export default function SubFolderDetailsPage() {
 
               {viewMode === "board" ? (
                 totalVisibleItems === 0 && !showCreateRevisionVersionCard ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState
+                    onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
+                    actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                  />
                 ) : (
                   <div className="space-y-5">
                     {filteredFolders.length > 0 || showCreateRevisionVersionCard ? (
@@ -783,7 +799,7 @@ export default function SubFolderDetailsPage() {
                             lastOpened={folder.lastOpened}
                             userInitials={folder.userInitials}
                             href={folder.href}
-                            onOpen={() => router.push(folder.href)}
+                            onOpen={selectionLockActive ? undefined : () => router.push(folder.href)}
                             onOpenLinkModal={() => {}}
                             showMenu={false}
                           />
@@ -808,14 +824,15 @@ export default function SubFolderDetailsPage() {
                               versionLabel: statusBadge?.versionLabel,
                               versionClassName: statusBadge?.versionClassName,
                             }}
-                            onOpen={() => handleOpenFile(file)}
-                            onDownload={() => handleDownloadFile(file)}
-                            onDelete={() => {
+                            stage={fileCardStage}
+                            onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+                            onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
+                            onDelete={!selectionLockActive ? () => {
                               if (!canDelete) return;
                               setSelectedFile(file);
                               setIsDeleteModalOpen(true);
-                            }}
-                            onShare={() => {
+                            } : undefined}
+                            onShare={selectionLockActive ? undefined : () => {
                               setSelectedFile(file);
                               setShareResource({
                                 resourceType: "file",
@@ -837,7 +854,10 @@ export default function SubFolderDetailsPage() {
                 )
               ) : viewMode === "grid" ? (
                 totalVisibleItems === 0 && !showCreateRevisionVersionCard ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState
+                    onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
+                    actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                  />
                 ) : (
                   <div className="space-y-4">
                     {filteredFolders.length > 0 || showCreateRevisionVersionCard ? (
@@ -852,7 +872,7 @@ export default function SubFolderDetailsPage() {
                             lastOpened={folder.lastOpened}
                             userInitials={folder.userInitials}
                             href={folder.href}
-                            onOpen={() => router.push(folder.href)}
+                            onOpen={selectionLockActive ? undefined : () => router.push(folder.href)}
                             onOpenLinkModal={() => {}}
                             showMenu={false}
                           />
@@ -874,9 +894,10 @@ export default function SubFolderDetailsPage() {
                             versionLabel: statusBadge?.versionLabel,
                             versionClassName: statusBadge?.versionClassName,
                           }}
-                          onOpen={() => handleOpenFile(file)}
-                          onDownload={() => handleDownloadFile(file)}
-                          onShare={() => {
+                          stage={fileCardStage}
+                          onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+                          onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
+                          onShare={selectionLockActive ? undefined : () => {
                             setSelectedFile(file);
                             setShareResource({
                               resourceType: "file",
@@ -887,7 +908,7 @@ export default function SubFolderDetailsPage() {
                             });
                             setIsShareModalOpen(true);
                           }}
-                          onDelete={() => {
+                          onDelete={selectionLockActive ? undefined : () => {
                             setSelectedFile(file);
                             setIsDeleteModalOpen(true);
                           }}
@@ -913,7 +934,10 @@ export default function SubFolderDetailsPage() {
                 )
               ) : (
                 totalVisibleItems === 0 && !showCreateRevisionVersionCard ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState
+                    onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
+                    actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                  />
                 ) : (
                   <>
                     {/* Main Display Fragment Block Container Layout */}
@@ -933,7 +957,11 @@ export default function SubFolderDetailsPage() {
                               <button
                                 key={folder.id}
                                 type="button"
-                                onClick={() => router.push(folder.href)}
+                                onClick={() => {
+                                  if (selectionLockActive) return;
+                                  router.push(folder.href);
+                                }}
+                                disabled={selectionLockActive}
                                 className={`flex w-full items-center justify-between gap-3 p-4 text-left transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"}`}
                               >
                                 <div className="flex min-w-0 items-center gap-3">
@@ -968,7 +996,10 @@ export default function SubFolderDetailsPage() {
                                 <tr
                                   key={folder.id}
                                   className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
-                                  onClick={() => router.push(folder.href)}
+                                  onClick={() => {
+                                    if (selectionLockActive) return;
+                                    router.push(folder.href);
+                                  }}
                                 >
                                   <td className="py-5 px-6 whitespace-nowrap">
                                     <div className="flex items-center gap-3">
@@ -989,8 +1020,10 @@ export default function SubFolderDetailsPage() {
                                       className={isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"}
                                       onClick={(event) => {
                                         event.stopPropagation();
+                                        if (selectionLockActive) return;
                                         router.push(folder.href);
                                       }}
+                                      disabled={selectionLockActive}
                                     >
                                       Open
                                     </Button>
@@ -1012,7 +1045,7 @@ export default function SubFolderDetailsPage() {
                           {visibleFiles.map((file) => {
                             const statusBadge = getRevisionFileStatusBadge(file);
                             return (
-                            <MobileFileRow
+                              <MobileFileRow
                               key={file.id}
                               file={{
                                 ...file,
@@ -1025,9 +1058,10 @@ export default function SubFolderDetailsPage() {
                               isSelectionMode={isSelectionMode}
                               isSelected={selectedFilePaths.includes(file.filepath || "")}
                               onSelect={() => toggleFileSelection(file.filepath || "")}
-                              onOpen={() => handleOpenFile(file)}
+                              onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
                               onDownload={(e) => {
                                 e.stopPropagation();
+                                if (selectionLockActive) return;
                                 handleDownloadFile(file);
                               }}
                               onShare={(e) => {
@@ -1096,7 +1130,10 @@ export default function SubFolderDetailsPage() {
                                 key={file.id}
                                 className={`hover:bg-white/[0.02] transition-colors group cursor-pointer ${(isSelectionMode && selectedFilePaths.includes(file.filepath || "")) ? 'bg-white/[0.04]' : ''
                                   }`}
-                                onClick={() => handleOpenFile(file)}
+                                onClick={() => {
+                                  if (selectionLockActive) return;
+                                  handleOpenFile(file);
+                                }}
                               >
                                 {isSelectionMode && (
                                   <td className="py-5 px-6 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
@@ -1156,8 +1193,10 @@ export default function SubFolderDetailsPage() {
                                       className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 hover:text-white" : "hover:bg-black/5 hover:text-black"}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        if (selectionLockActive) return;
                                         handleDownloadFile(file);
                                       }}
+                                      disabled={selectionLockActive}
                                     >
                                       <Download size={16} />
                                     </button>
@@ -1165,6 +1204,7 @@ export default function SubFolderDetailsPage() {
                                       className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 hover:text-[#E8D1AB]" : "hover:bg-black/5 hover:text-[#B38F43]"}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        if (selectionLockActive) return;
                                         setSelectedFile(file);
 	                                        setShareResource({
 	                                          resourceType: "file",
@@ -1175,6 +1215,7 @@ export default function SubFolderDetailsPage() {
 	                                        });
                                         setIsShareModalOpen(true);
                                       }}
+                                      disabled={selectionLockActive}
                                     >
                                       <Share2 size={16} />
                                     </button>
@@ -1182,9 +1223,11 @@ export default function SubFolderDetailsPage() {
                                       className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 hover:text-[#F04438]" : "hover:bg-black/5 hover:text-[#F04438]"}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        if (selectionLockActive) return;
                                         setSelectedFile(file);
                                         setIsDeleteModalOpen(true);
                                       }}
+                                      disabled={selectionLockActive}
                                     >
                                       {openingFileId === file.id ? <span className="text-[10px] tracking-tighter">...</span> : <Trash2 size={16} />}
                                     </button>
@@ -1323,7 +1366,11 @@ export default function SubFolderDetailsPage() {
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
-            onClick={() => setIsUploadModalOpen(true)}
+            onClick={() => {
+              if (selectionLockActive) return;
+              setIsUploadModalOpen(true);
+            }}
+            disabled={selectionLockActive}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
             <Upload size={20} />

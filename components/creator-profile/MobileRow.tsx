@@ -12,10 +12,14 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails }: any) {
   let statusText = "text-[#854D0E]";
   let label = "Pending";
 
-  if (item.status === "Confirmed") {
+  if (item.status === "Confirmed" || item.status === "Approved") {
     statusBg = "bg-[#DCFCE7]";
     statusText = "text-[#166534]";
-    label = "Approved";
+    label = item.status === "Confirmed" ? "Confirmed" : "Approved";
+  } else if (item.status === "Completed") {
+    statusBg = "bg-[#D1FAE5]";
+    statusText = "text-[#065F46]";
+    label = "Completed";
   } else if (item.status === "Rejected" || item.status === "Declined") {
     statusBg = "bg-[#FEE2E2]";
     statusText = "text-[#991B1B]";

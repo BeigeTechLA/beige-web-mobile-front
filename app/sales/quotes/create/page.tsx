@@ -46,6 +46,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
+import BookingDateTimeSection, {
+  type BookingScheduleData,
+} from "@/components/quotes/BookingDateTimeSection";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import QuoteReviewChangesModal from "@/components/quotes/QuoteReviewChangesModal";
 import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
@@ -379,6 +382,157 @@ const buildConvertModalInitialData = (
       date: singleDayDate,
       startTime: singleDayStartTime,
       endTime: singleDayEndTime,
+    },
+  };
+};
+
+const buildBookingScheduleInitialData = (
+  booking?: {
+    booking_type?: string | null;
+    time_zone?: string | null;
+    start_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    booking_days?: Array<{
+      date?: string | null;
+      event_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+    }> | null;
+    converted_booking_details?: {
+      booking_type?: string | null;
+      time_zone?: string | null;
+      start_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+      booking_days?: Array<{
+        date?: string | null;
+        event_date?: string | null;
+        start_time?: string | null;
+        end_time?: string | null;
+      }> | null;
+    } | null;
+  } | null,
+): BookingScheduleData | null => {
+  if (!booking) {
+    return null;
+  }
+
+  if (booking.booking_type === null) {
+    return {
+      booking_type: "tbd",
+      time_zone: booking.time_zone || getBrowserTimeZone(),
+    };
+  }
+
+  const sourceBooking = booking.converted_booking_details ?? booking;
+  const timeZone = sourceBooking.time_zone || getBrowserTimeZone();
+  const bookingDays = Array.isArray(sourceBooking.booking_days)
+    ? sourceBooking.booking_days
+        .filter((day) => day?.date || day?.event_date)
+        .map((day) => ({
+          date: day.event_date || day.date || "",
+          startTime: normalizeConvertModalTime(day.start_time),
+          endTime: normalizeConvertModalTime(day.end_time),
+        }))
+        .filter((day) => day.date && day.startTime && day.endTime)
+    : [];
+  const hasAnyBookingFields =
+    Boolean(sourceBooking.booking_type) ||
+    Boolean(sourceBooking.start_date) ||
+    Boolean(sourceBooking.start_time) ||
+    Boolean(sourceBooking.end_time) ||
+    bookingDays.length > 0;
+
+  if (sourceBooking.booking_type === "tbd" || !hasAnyBookingFields) {
+    return {
+      booking_type: "tbd",
+      time_zone: timeZone,
+    };
+  }
+
+  const shouldUseMultiDay =
+    sourceBooking.booking_type === "multi_day" || bookingDays.length > 1;
+
+  if (shouldUseMultiDay) {
+    if (!bookingDays.length) {
+      return null;
+    }
+
+    return {
+      booking_type: "multi_day",
+      time_zone: timeZone,
+      booking_days: bookingDays.map((day) => ({
+        date: day.date,
+        start_time: `${day.startTime}:00`,
+        end_time: `${day.endTime}:00`,
+      })),
+    };
+  }
+
+  const startDate = sourceBooking.start_date || bookingDays[0]?.date || "";
+  const startTime =
+    normalizeConvertModalTime(sourceBooking.start_time) || bookingDays[0]?.startTime || "";
+  const endTime =
+    normalizeConvertModalTime(sourceBooking.end_time) || bookingDays[0]?.endTime || "";
+
+  if (!startDate || !startTime || !endTime) {
+    return null;
+  }
+
+  return {
+    booking_type: "single_day",
+    time_zone: timeZone,
+    start_date: startDate,
+    start_time: `${startTime}:00`,
+    end_time: `${endTime}:00`,
+  };
+};
+
+const buildConvertBookingModalInitialDataFromSchedule = (
+  schedule: BookingScheduleData | null,
+  fallbackLocation = "",
+): ConvertBookingModalInitialData | null => {
+  if (!schedule) {
+    return null;
+  }
+
+  if (schedule.booking_type === "tbd") {
+    return null;
+  }
+
+  if (schedule.booking_type === "single_day") {
+    return {
+      bookingType: "single_day",
+      location: fallbackLocation,
+      singleDay: {
+        date: schedule.start_date,
+        startTime: schedule.start_time.slice(0, 5),
+        endTime: schedule.end_time.slice(0, 5),
+      },
+    };
+  }
+
+  const bookingDays = Array.isArray(schedule.booking_days) ? schedule.booking_days : [];
+
+  return {
+    bookingType: "multi_day",
+    location: fallbackLocation,
+    multiDay: {
+      sameTimings:
+        bookingDays.length > 0 &&
+        bookingDays.every(
+          (day) =>
+            day.start_time.slice(0, 5) === bookingDays[0]?.start_time.slice(0, 5) &&
+            day.end_time.slice(0, 5) === bookingDays[0]?.end_time.slice(0, 5),
+        ),
+      sharedStartTime: bookingDays[0]?.start_time.slice(0, 5),
+      sharedEndTime: bookingDays[0]?.end_time.slice(0, 5),
+      days: bookingDays.map((day) => ({
+        date: day.date,
+        startTime: day.start_time.slice(0, 5),
+        endTime: day.end_time.slice(0, 5),
+      })),
     },
   };
 };
@@ -1083,6 +1237,7 @@ function CreateQuotePageContent() {
   const [emailId, setEmailId] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [bookingSchedule, setBookingSchedule] = useState<BookingScheduleData | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [validityDays, setValidityDays] = useState<number | "custom">(7);
   const [validUntil, setValidUntil] = useState(
@@ -1251,12 +1406,78 @@ function CreateQuotePageContent() {
   const { data: linkedLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
     skip: !quoteLeadId,
   });
+  const bookingScheduleInitialData = React.useMemo(
+    () =>
+      buildBookingScheduleInitialData(
+        quoteToEdit ??
+          previewQuote ??
+          linkedLeadDetails?.booking,
+      ),
+    [
+      linkedLeadDetails?.booking,
+      previewQuote,
+      quoteToEdit,
+    ],
+  );
+  const effectiveBookingSchedule = bookingSchedule ?? bookingScheduleInitialData;
+  const bookingDurationHours = React.useMemo(() => {
+    if (!effectiveBookingSchedule) {
+      return null;
+    }
+
+    const calculateDurationHours = (startTime: string, endTime: string) => {
+      const [startHour, startMinute] = startTime.split(":").map(Number);
+      const [endHour, endMinute] = endTime.split(":").map(Number);
+
+      if (
+        !Number.isFinite(startHour) ||
+        !Number.isFinite(startMinute) ||
+        !Number.isFinite(endHour) ||
+        !Number.isFinite(endMinute)
+      ) {
+        return null;
+      }
+
+      const diffInMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+      return diffInMinutes > 0 ? Math.round((diffInMinutes / 60) * 100) / 100 : null;
+    };
+
+    if (effectiveBookingSchedule.booking_type === "single_day") {
+      return calculateDurationHours(
+        effectiveBookingSchedule.start_time.slice(0, 5),
+        effectiveBookingSchedule.end_time.slice(0, 5),
+      );
+    }
+
+    const bookingDays = Array.isArray(effectiveBookingSchedule.booking_days)
+      ? effectiveBookingSchedule.booking_days
+      : [];
+
+    const dayDurations = bookingDays
+      .map((day) => calculateDurationHours(day.start_time.slice(0, 5), day.end_time.slice(0, 5)))
+      .filter((duration): duration is number => typeof duration === "number" && duration > 0);
+
+    return dayDurations.length > 0 ? Math.max(...dayDurations) : null;
+  }, [effectiveBookingSchedule]);
   const convertModalInitialData = React.useMemo(
     () =>
       convertModalInitialDataOverride ||
+      buildConvertBookingModalInitialDataFromSchedule(
+        effectiveBookingSchedule,
+        address,
+      ) ||
       buildConvertModalInitialData(linkedLeadDetails?.booking),
-    [convertModalInitialDataOverride, linkedLeadDetails],
+    [address, convertModalInitialDataOverride, effectiveBookingSchedule, linkedLeadDetails],
   );
+
+  const syncQuoteDetailState = React.useCallback((quoteDetail: SalesQuoteDetailData | null) => {
+    setQuoteToEdit(quoteDetail);
+    setBookingSchedule(buildBookingScheduleInitialData(quoteDetail));
+  }, []);
+
+  React.useEffect(() => {
+    setBookingSchedule(null);
+  }, [editQuoteId, editVersionId]);
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -1949,16 +2170,23 @@ function CreateQuotePageContent() {
     setView(requestedEditView);
   }, [editQuoteId, requestedEditView]);
 
+  const getServiceDurationCap = React.useCallback(() => bookingDurationHours, [bookingDurationHours]);
+
   const handleConfigUpdate = (
     serviceId: string,
     field: string,
     value: number,
   ) => {
+    const normalizedValue = Math.max(0, value);
+
     setServiceConfigs((prev) => ({
       ...prev,
       [serviceId]: {
         ...prev[serviceId],
-        [field]: Math.max(0, value),
+        [field]:
+          field === "duration" && bookingDurationHours !== null
+            ? Math.min(normalizedValue, getServiceDurationCap() ?? normalizedValue)
+            : normalizedValue,
       },
     }));
   };
@@ -2222,11 +2450,15 @@ function CreateQuotePageContent() {
         newSelected = [...prev, serviceId];
         // Initialize config for the new service
         if (!serviceConfigs[serviceId]) {
+          const initialDuration =
+            bookingDurationHours !== null
+              ? Math.min(4, bookingDurationHours)
+              : 4;
           setServiceConfigs((prevConfigs) => ({
             ...prevConfigs,
             [serviceId]: {
               quantity: 1,
-              duration: 4,
+              duration: initialDuration,
               crewSize: 1,
               estimatedPrice: price,
             },
@@ -2611,16 +2843,17 @@ function CreateQuotePageContent() {
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
   const shouldHideBackButton = isQuoteSaved || (!isEditMode && !!createdQuoteId);
+  const hasRequiredBookingSchedule = view !== "details" || Boolean(effectiveBookingSchedule);
 
 
-  const canContinueToNextStep = currentStepValidation.isValid;
+  const canContinueToNextStep = currentStepValidation.isValid && hasRequiredBookingSchedule;
   const canPrimaryAction =
     isEditMode
       ? isFullEditFlow
         ? view === "tax"
           ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
-          : currentStepValidation.isValid
-        : currentStepValidation.isValid
+          : currentStepValidation.isValid && hasRequiredBookingSchedule
+        : currentStepValidation.isValid && hasRequiredBookingSchedule
       : view === "tax"
         ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
         : canContinueToNextStep;
@@ -2628,6 +2861,11 @@ function CreateQuotePageContent() {
   const handleContinue = async () => {
     if (!currentStepValidation.isValid) {
       toast.error(getQuoteValidationMessage(currentStepValidation));
+      return;
+    }
+
+    if (view === "details" && !effectiveBookingSchedule) {
+      toast.error("Please select a booking date and time or choose TBD.");
       return;
     }
 
@@ -3110,6 +3348,7 @@ function CreateQuotePageContent() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
@@ -3143,6 +3382,7 @@ function CreateQuotePageContent() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
@@ -3177,6 +3417,7 @@ function CreateQuotePageContent() {
         discountValue,
         taxLabel,
         normalizedTaxRate,
+        bookingSchedule: effectiveBookingSchedule,
         selectedShootType: quoteDraftSelectedShootType,
         shootTypes: quoteDraftShootTypes,
         selectedEditingTypes,
@@ -3211,6 +3452,7 @@ function CreateQuotePageContent() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedServices,
@@ -3300,6 +3542,7 @@ function CreateQuotePageContent() {
       buildQuoteReviewChangesData({
         quote: quoteToEdit,
         currentDraftLineItems,
+        bookingSchedule: effectiveBookingSchedule,
         nextTotal: totalAfterTax,
         clientName,
         emailId,
@@ -3322,6 +3565,7 @@ function CreateQuotePageContent() {
       discountType,
       discountValue,
       emailId,
+      effectiveBookingSchedule,
       normalizedTaxRate,
       phoneNumber,
       projectDescription,
@@ -3434,6 +3678,7 @@ function CreateQuotePageContent() {
 
       if (persistedQuote) {
         setQuoteToEdit(persistedQuote);
+        setBookingSchedule(buildBookingScheduleInitialData(persistedQuote));
       }
 
       if (action === "save") {
@@ -3502,6 +3747,8 @@ function CreateQuotePageContent() {
       if (!quoteDetail) {
         throw new Error("Quote preview could not be loaded");
       }
+
+      syncQuoteDetailState(quoteDetail);
 
       if (shouldOpenPreview) {
         setPreviewQuoteId(savedQuoteId);
@@ -3642,6 +3889,13 @@ function CreateQuotePageContent() {
             ? response.error
             : "Failed to update quote",
         );
+      }
+
+      const updatedQuote =
+        unwrapSalesQuoteDetail(response?.data ?? null) ?? quoteToEdit;
+
+      if (updatedQuote) {
+        syncQuoteDetailState(updatedQuote);
       }
 
       toast.success("Quote updated successfully");
@@ -3823,6 +4077,16 @@ function CreateQuotePageContent() {
       return;
     }
     if (isConvertedToBooking) {
+      return;
+    }
+
+    const directBookingData = buildConvertBookingModalInitialDataFromSchedule(
+      effectiveBookingSchedule,
+      address,
+    );
+
+    if (directBookingData) {
+      void handleConvertBookingSubmit(directBookingData);
       return;
     }
 
@@ -6092,6 +6356,7 @@ function CreateQuotePageContent() {
                                 serviceId,
                                 editingTypeId,
                               );
+                              const serviceDurationCap = getServiceDurationCap();
                               const serviceTotal = isEditingService
                                 ? quantity * estimatedPrice
                                 : config.duration *
@@ -6187,20 +6452,21 @@ function CreateQuotePageContent() {
                                         <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
                                           {config.duration}
                                         </div>
-                                        <button
-                                          onClick={() =>
-                                            handleConfigUpdate(
-                                              serviceId,
-                                              "duration",
-                                              config.duration + 0.5,
-                                            )
-                                          }
-                                          className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                        >
-                                          <Plus size={16} strokeWidth={2.5} />
-                                        </button>
+                                          <button
+                                            onClick={() =>
+                                              handleConfigUpdate(
+                                                serviceId,
+                                                "duration",
+                                                config.duration + 0.5,
+                                              )
+                                            }
+                                            disabled={bookingDurationHours !== null && serviceDurationCap !== null && config.duration >= serviceDurationCap}
+                                            className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                                          >
+                                            <Plus size={16} strokeWidth={2.5} />
+                                          </button>
+                                        </div>
                                       </div>
-                                    </div>
                                   )}
 
                                   <div className="flex flex-col gap-2">
@@ -7166,6 +7432,12 @@ function CreateQuotePageContent() {
                     colors={isDark ? darkThemeColors : undefined}
                   />
                 </div>
+
+                <BookingDateTimeSection
+                  isDark={isDark}
+                  initialData={effectiveBookingSchedule}
+                  onChange={setBookingSchedule}
+                />
 
                 <div className="relative">
                   <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>

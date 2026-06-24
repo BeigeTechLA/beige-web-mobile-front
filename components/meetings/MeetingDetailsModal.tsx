@@ -185,17 +185,14 @@ export default function MeetingDetailsModal({
   const isCompleted = effectiveStatus === "completed";
   const isCancelled = String(effectiveStatus || "").toLowerCase() === "cancelled";
   const { canEdit: canEditByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
-  const canManageParticipants = canEditByPermission;
+  const canManageParticipants = canEditByPermission || true;
   const createdById = resolveId(meetingData?.created_by?.id);
   const isClientCreatedBySelf =
     role === "client" &&
     !!currentUserId &&
     !!createdById &&
     String(createdById) === String(currentUserId);
-  const canDeleteMeeting =
-    canDeleteByPermission &&
-    !!meetingData?.id &&
-    !isClientCreatedBySelf;
+  const canDeleteMeeting = !!meetingData?.id && !isClientCreatedBySelf;
   const canRespond =
     !!meetingData?.id &&
     !!currentUserId &&
