@@ -70,7 +70,7 @@ export default function ClientDetailsPage() {
 
     const handleCopyAffiliateCode = (code: string) => {
         if (!code || code === "N/A") return;
-        const fullCode = `#${code}`;
+        const fullCode = `${code}`;
         navigator.clipboard.writeText(fullCode);
         toast.success(`Copied ${fullCode} to clipboard`);
     };
@@ -176,7 +176,7 @@ export default function ClientDetailsPage() {
                                     title="Click to copy"
                                 >
                                     <p className={`text-base font-bold ${isDark ? "text-[#E5D5B8]" : "text-[#E8D1AB]"}`}>
-                                        #{affiliate?.referral_code || "N/A"}
+                                        {affiliate?.referral_code || "N/A"}
                                     </p>
                                     {affiliate?.referral_code && (
                                         <Copy size={14} className={`transition-colors ${isDark ? "text-[#444] group-hover:text-[#E5D5B8]" : "text-gray-400 group-hover:text-black"}`} />
