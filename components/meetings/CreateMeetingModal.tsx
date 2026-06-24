@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Info,
   Loader2,
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DatePicker, datePickerColours } from "@/components/ui/Datepicker";
+import { DatePicker } from "@/components/ui/Datepicker";
 import { TimePicker } from "@/components/ui/Timepicker";
 import {
   Select,
@@ -93,11 +93,13 @@ interface ProjectSource {
 
 interface CrewSource {
   id?: string | number;
+  user_id?: string | number;
   crew_member_id?: string | number;
   email?: string;
   first_name?: string;
   last_name?: string;
   crew_member?: {
+    user_id?: string | number;
     crew_member_id?: string | number;
     first_name?: string;
     last_name?: string;
@@ -168,7 +170,7 @@ const formatRoleLabel = (value?: string) =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const getCrewId = (member: CrewSource | null | undefined) =>
-  String(member?.crew_member_id || member?.crew_member?.crew_member_id || member?.id || "");
+  String(member?.user_id || member?.crew_member?.user_id || member?.crew_member_id || member?.crew_member?.crew_member_id || member?.id || "");
 
 const getCrewName = (member: CrewSource | null | undefined) =>
   `${member?.crew_member?.first_name || member?.first_name || ""} ${member?.crew_member?.last_name || member?.last_name || ""}`.trim() ||
@@ -269,6 +271,7 @@ export default function CreateMeetingModal({
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
+  const projectsRequestIdRef = useRef(0);
 
   const fixedOrder = !!orderId;
 
@@ -351,19 +354,21 @@ export default function CreateMeetingModal({
   }, [isOpen, orderId]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      projectsRequestIdRef.current += 1;
+      setIsLoadingProjects(false);
+      return;
+    }
 
-    let cancelled = false;
+    const requestId = projectsRequestIdRef.current + 1;
+    projectsRequestIdRef.current = requestId;
 
     const loadProjects = async () => {
       setIsLoadingProjects(true);
       try {
-        const [projectsResponse, directory] = await Promise.all([
-          adminApi.getProjects({}),
-          externalChatApi.getDirectory(),
-        ]);
+        const projectsResponse = await adminApi.getProjects({ summary_only: true });
 
-        if (cancelled) return;
+        if (projectsRequestIdRef.current !== requestId) return;
         const rawProjectResults =
           projectsResponse?.data?.projects ||
           projectsResponse?.data?.results ||
@@ -379,28 +384,28 @@ export default function CreateMeetingModal({
             return ownerUserId && String(currentUserId || "") === ownerUserId;
           });
 
-        const normalizedProjects = normalizedProjectSources
-          .filter((item) => getProjectId(item))
-          .map((item) => ({
+        const normalizedProjects = Array.from(
+          new Map(normalizedProjectSources
+            .filter((item) => getProjectId(item))
+            .map((item) => [getProjectId(item), {
             id: getProjectId(item),
             label: getProjectOptionLabel(item),
             description:
               resolveClientName(item) ||
               resolveClientEmail(item) ||
               (getProjectId(item) ? `Booking #${getProjectId(item)}` : "Project"),
-          }));
+            }] as const)
+          ).values()
+        );
 
         setProjects(normalizedProjects);
-        setDirectory({
-          staff: directory.staff || [],
-          creativePartners: directory.creativePartners || [],
-        });
       } catch (error) {
-        if (!cancelled) {
+        if (projectsRequestIdRef.current === requestId) {
+          setProjects([]);
           toast.error(error instanceof Error ? error.message : "Failed to load meeting data");
         }
       } finally {
-        if (!cancelled) {
+        if (projectsRequestIdRef.current === requestId) {
           setIsLoadingProjects(false);
         }
       }
@@ -408,9 +413,34 @@ export default function CreateMeetingModal({
 
     loadProjects();
     return () => {
-      cancelled = true;
+      if (projectsRequestIdRef.current === requestId) {
+        projectsRequestIdRef.current += 1;
+      }
     };
   }, [currentUserId, isOpen, role]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    externalChatApi.getDirectory()
+      .then((directory) => {
+        if (cancelled) return;
+        setDirectory({
+          staff: directory.staff || [],
+          creativePartners: directory.creativePartners || [],
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Failed to load meeting participant directory", error);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !selectedOrderId) return;
@@ -614,7 +644,7 @@ export default function CreateMeetingModal({
         return;
       }
 
-      const createdMeeting = await meetingsApi.createMeeting({
+      await meetingsApi.createMeeting({
         order_id: activeOrderId,
         meeting_date_time: startIso,
         meeting_end_time: endIso,
@@ -629,23 +659,6 @@ export default function CreateMeetingModal({
         participants: managerParticipantIds,
         send_notification: sendNotification,
       });
-
-      const createdMeetingId = createdMeeting?.id;
-      if (createdMeetingId) {
-        if (cpParticipantIds.length > 0) {
-          await meetingsApi.addParticipants(createdMeetingId, {
-            role: "cp",
-            user_ids: cpParticipantIds,
-          });
-        }
-
-        if (managerParticipantIds.length > 0) {
-          await meetingsApi.addParticipants(createdMeetingId, {
-            role: "manager",
-            user_ids: managerParticipantIds,
-          });
-        }
-      }
 
       toast.success("Meeting created successfully");
       onCreated?.();
