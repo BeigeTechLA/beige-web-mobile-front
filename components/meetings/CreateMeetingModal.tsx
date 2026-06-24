@@ -24,6 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi } from "@/lib/meetingsApi";
+import { getMinimumMeetingEndTime, getMinimumSelectableMeetingTime } from "@/lib/meetingStatus";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
@@ -234,12 +235,10 @@ export default function CreateMeetingModal({
   const currentUserName = getCurrentUserName(user);
 
   const getNextValidTime = () => {
-    const now = new Date();
-    const next = new Date(now);
-    next.setSeconds(0, 0);
-    next.setHours(now.getHours() + 1, 0, 0, 0);
-    return next;
+    return getMinimumSelectableMeetingTime(1);
   };
+
+  const getMinimumStartTime = () => getMinimumSelectableMeetingTime(1);
 
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState(orderId ? String(orderId) : "");
@@ -618,8 +617,8 @@ export default function CreateMeetingModal({
       return;
     }
 
-    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-      toast.error("Meeting end time must be after the start time.");
+    if (new Date(endIso).getTime() < new Date(startIso).getTime() + 60 * 60 * 1000) {
+      toast.error("Meeting end time must be at least 1 hour after the start time.");
       return;
     }
 
@@ -774,7 +773,7 @@ export default function CreateMeetingModal({
                       label="Start Time"
                       value={meetingStartTime}
                       onChange={setMeetingStartTime}
-                      minTime={isToday ? getNextValidTime() : null}
+                      minTime={isToday ? getMinimumStartTime() : null}
                       isDark={isDark}
                     />
                   </div>
@@ -784,7 +783,7 @@ export default function CreateMeetingModal({
                       label="End Time"
                       value={meetingEndTime}
                       onChange={setMeetingEndTime}
-                      minTime={meetingStartTime || (isToday ? getNextValidTime() : null)}
+                      minTime={getMinimumMeetingEndTime(meetingStartTime) || (isToday ? getNextValidTime() : null)}
                       isDark={isDark}
                     />
                   </div>
