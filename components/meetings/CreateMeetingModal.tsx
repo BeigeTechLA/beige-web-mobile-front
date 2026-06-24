@@ -679,7 +679,7 @@ export default function CreateMeetingModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto px-4 py-8">
-      <div className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-black/10"}`} onClick={onClose} />
+      <div className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-black/10"}`} />
 
       <div className={`relative mx-auto flex max-h-[calc(100vh-4rem)] w-full max-w-[860px] flex-col rounded-2xl lg:rounded-4xl border shadow-2xl ${isDark ? "shadow-black/40 border-[#262626] bg-[#090909]" : "shadow-[#64646f33] bg-[#FFFFFF] border-[#FFFFFF66]"}`}>
         <div className={`flex items-start justify-between border-b p-4 lg:px-6 lg:py-5 ${isDark ? "border-white/10" : "border-[#CACACA]"}`}>
