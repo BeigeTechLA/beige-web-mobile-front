@@ -22,13 +22,15 @@ import {
 } from "@mui/icons-material";
 import {
   useLoginMutation,
-  useGetPermissionsQuery,
+  useLazyGetPermissionsQuery,
 } from "@/lib/redux/features/auth/authApi";
 import Cookies from "js-cookie";
 import { useQuickRegisterMutation } from "@/lib/redux/features/auth/authApi";
-import { useAuth } from "@/lib/hooks/useAuth";
 import type { BookingData } from "@/lib/types";
 import { sanitizePhoneInput } from "@/lib/utils/phone";
+import { useAppDispatch } from "@/lib/redux/hooks";
+import { setCredentials } from "@/lib/redux/features/auth/authSlice";
+import { fetchAndCommitUserPermissions } from "@/lib/permissionsActions";
 
 type BookingFormData = BookingData;
 
@@ -63,7 +65,7 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
   bookingData,
   onClose,
 }) => {
-  const { login } = useAuth();
+  const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -88,7 +90,7 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
   const [loginAPI, { isLoading: isLoginLoading }] = useLoginMutation();
   const [quickRegister, { isLoading: isRegisterLoading }] =
     useQuickRegisterMutation();
-  const [fetchPermissions] = useLazyGetAuthPermissionsQuery();
+  const [fetchPermissions] = useLazyGetPermissionsQuery();
 
   const isLoading = isLoginLoading || isRegisterLoading;
 
@@ -205,8 +207,11 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
         } catch {}
       }
 
-      // Use the login method from useAuth hook to handle all state updates
-      login(normalizedUser, token);
+      // We already have the token/user from this mutation, so update auth state directly.
+      dispatch(setCredentials({ user: normalizedUser, token }));
+      await fetchAndCommitUserPermissions(dispatch, normalizedUser.id || normalizedUser.userId, {
+        broadcast: false,
+      });
 
       // Call success callback with user data
       onAuthenticated(normalizedUser);
@@ -279,8 +284,10 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
         } catch {}
       }
 
-      // Use the login method from useAuth hook to handle all state updates
-      login(normalizedUser, result.token);
+      dispatch(setCredentials({ user: normalizedUser, token: result.token }));
+      await fetchAndCommitUserPermissions(dispatch, normalizedUser.id || normalizedUser.userId, {
+        broadcast: false,
+      });
 
       // Call success callback with user data
       onAuthenticated(normalizedUser);
