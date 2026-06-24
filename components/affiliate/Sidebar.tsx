@@ -150,10 +150,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2" key={`affiliate-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
+            // Role and permissions checks are disabled for client/affiliate
+            /*
             if (item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");
               if (!canView) return null;
             }
+            */
 
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.includes(item.name);
