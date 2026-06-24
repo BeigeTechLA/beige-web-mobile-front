@@ -100,6 +100,7 @@ export function LoginForm() {
       const loggedInEmail = String(user?.email || data.email || "").trim().toLowerCase()
 
       pushToDataLayer("login", {
+        method: "email", // Added the official GA4 standard parameter
         custom_user_id: user?.id || null,
         email: data.email, // using form data
         user_type: userTypeName,

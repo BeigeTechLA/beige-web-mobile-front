@@ -1031,7 +1031,6 @@ function StripePaymentFormMulti({
       }
     }
 
-
     // add GA event when payment is initiated
     pushToDataLayer("booking_payment_initiated ", {
       type: "Action Tracking",
@@ -1048,6 +1047,7 @@ function StripePaymentFormMulti({
         phone: booking.phone,
       }
     });
+    console.log("after GA booking_payment_initiated  call");
 
     // 100% DISCOUNT CASE: Bypass Stripe
     if (isFree) {
@@ -1070,6 +1070,8 @@ function StripePaymentFormMulti({
           booking_id: booking?.bookingId,
           payment_status: "Success (100% Discount)"
         });
+        console.log("after GA payment_success after 100% DISCOUNT CASE: Bypass Stripe");
+
       } catch (err) {
         onError("Failed to process free booking");
       } finally {
@@ -1123,6 +1125,8 @@ function StripePaymentFormMulti({
           payment_status: `Fail: ${paymentError.message || "Payment failed"}`
         });
 
+        console.log("after GA payment_success in paymentError section");
+
         onError(paymentError.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
         // add GA event when payment succeeds
@@ -1138,6 +1142,8 @@ function StripePaymentFormMulti({
           booking_id: booking?.bookingId,
           payment_status: "Success"
         });
+
+        console.log("after GA payment_success when payment succeeded");
 
         await onSuccess(
           paymentIntent.id,
@@ -1160,6 +1166,7 @@ function StripePaymentFormMulti({
         payment_status: `Fail: ${err instanceof Error ? err.message : "An unexpected error occurred"}`
       });
 
+        console.log("after GA payment_success after Unexpected payment error");
       onError(
         err instanceof Error ? err.message : "An unexpected error occurred",
       );
