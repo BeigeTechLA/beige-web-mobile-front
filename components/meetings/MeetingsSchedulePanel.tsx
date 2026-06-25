@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
-import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
+import { canRespondToMeeting, formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
 import {
   Select,
   SelectContent,
@@ -328,13 +328,15 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                     !!currentUserId &&
                     !!createdById &&
                     String(currentUserId) === createdById;
+                  const isWithinResponseWindow = canRespondToMeeting(meeting);
                   const canRespond =
                     !!meeting.id &&
                     !!currentUserId &&
                     role !== "admin" &&
                     !isClientCreatedBySelf &&
+                    isWithinResponseWindow &&
                     !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
-                  const canDeleteThisMeeting = !isClientCreatedBySelf;
+                  const canDeleteThisMeeting = role === "admin";
                   const isResponding = respondingMeetingId === meetingId;
 
                   return (

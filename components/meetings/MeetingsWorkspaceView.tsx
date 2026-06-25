@@ -111,8 +111,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const effectiveRoleForActions: RoleVariant = isAdminView ? "admin" : role;
   const canCreateMeeting =
     effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
-  const canDeleteMeeting =
-    effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
+  const canDeleteMeeting = effectiveRoleForActions === "admin";
 
   const loadMeetings = useCallback(async () => {
     setLoading(true);

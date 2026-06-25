@@ -92,6 +92,14 @@ type CreatorQuotePayload = {
   skip_discount: boolean;
   skip_margin: boolean;
   studio_total: number;
+  studio_items?: Array<{
+    studio_id: string;
+    name: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+    pricing_mode: "hourly" | "weekend";
+  }>;
   content_type?: string;
   shoot_hours?: number;
   shoot_start_date?: string | null;
@@ -459,7 +467,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           : null;
 
         const quotePayload: CreatorQuotePayload = {
-          creator_ids: hasSelectedCreatorPricing ? data.selectedCrewIds : [],
+          // Saved quotes are catalog/role based, so preview must use the same
+          // role counts instead of re-deriving roles from creator profiles.
+          creator_ids: [],
           role_counts: isEditingOnly
             ? { editor: 1 }
             : useContentHouseInclusivePricing && !hasSelectedCreatorPricing
@@ -471,6 +481,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           skip_discount: true,
           skip_margin: true,
           studio_total: selectedStudiosTotal || 0,
+          studio_items: selectedStudios.map((studio) => ({
+            studio_id: studio.studioId,
+            name: studio.name,
+            quantity: studio.quantity,
+            unit_price: studio.unitPrice,
+            total: studio.totalPrice,
+            pricing_mode: studio.pricingMode,
+          })),
         };
 
         if (isEditingOnly) {

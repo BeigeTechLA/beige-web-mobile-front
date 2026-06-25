@@ -25,7 +25,7 @@ import {
 } from "@/lib/meetingsApi";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
 import { cn } from "@/lib/utils";
-import { formatMeetingStatusLabel, getEffectiveMeetingStatus } from "@/lib/meetingStatus";
+import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMinimumMeetingEndTime, getMinimumSelectableMeetingTime } from "@/lib/meetingStatus";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
@@ -184,36 +184,41 @@ export default function MeetingDetailsModal({
   const effectiveStatus = getEffectiveMeetingStatus(meetingData);
   const isCompleted = effectiveStatus === "completed";
   const isCancelled = String(effectiveStatus || "").toLowerCase() === "cancelled";
-  const { canEdit: canEditByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
-  const canManageParticipants = canEditByPermission || true;
+  const { canEdit: canEditByPermission } = usePermissions("meetings");
+  const isAdmin = role === "admin";
+  const canManageParticipants = true;
   const createdById = resolveId(meetingData?.created_by?.id);
   const isClientCreatedBySelf =
     role === "client" &&
     !!currentUserId &&
     !!createdById &&
     String(createdById) === String(currentUserId);
-  const canDeleteMeeting = !!meetingData?.id && !isClientCreatedBySelf;
+  const canDeleteMeeting = !!meetingData?.id && isAdmin;
+  const meetingStartMs = meetingData?.meeting_date_time ? new Date(meetingData.meeting_date_time).getTime() : NaN;
+  const meetingStartValid = Number.isFinite(meetingStartMs);
+  const editCutoffMs = meetingStartValid ? meetingStartMs - 60 * 60 * 1000 : NaN;
   const canRespond =
     !!meetingData?.id &&
     !!currentUserId &&
-    role !== "admin" &&
+    !isAdmin &&
     !isClientCreatedBySelf &&
+    meetingStartValid &&
+    Date.now() < editCutoffMs &&
     !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
   const currentResponse = getParticipantResponse(meetingData, {
     id: currentUserId,
     email: currentUserEmail || "",
   });
-  const meetingStartMs = meetingData?.meeting_date_time ? new Date(meetingData.meeting_date_time).getTime() : NaN;
-  const meetingStartValid = Number.isFinite(meetingStartMs);
-  const editCutoffMs = meetingStartValid ? meetingStartMs - 60 * 60 * 1000 : NaN;
+  const minimumEditStartTime = getMinimumSelectableMeetingTime(1);
   const canAdminEditOrReschedule =
     canEditByPermission &&
     !!meetingData?.id &&
+    isAdmin &&
     !isCompleted &&
     !isCancelled &&
     meetingStartValid &&
     Date.now() < editCutoffMs;
-  const isPastEditCutoff = canEditByPermission && meetingStartValid && Date.now() >= editCutoffMs;
+  const isPastEditCutoff = meetingStartValid && Date.now() >= editCutoffMs;
 
   const participants = useMemo(() => getAllParticipants(meetingData), [meetingData]);
 
@@ -245,6 +250,15 @@ export default function MeetingDetailsModal({
     setEditMeetingStartTime(start && !Number.isNaN(start.getTime()) ? start : null);
     setEditMeetingEndTime(end && !Number.isNaN(end.getTime()) ? end : null);
   }, [meetingData]);
+
+  useEffect(() => {
+    if (!editMeetingStartTime) return;
+    const minimumEndTime = getMinimumMeetingEndTime(editMeetingStartTime, 1);
+    if (!minimumEndTime) return;
+    if (!editMeetingEndTime || editMeetingEndTime.getTime() < minimumEndTime.getTime()) {
+      setEditMeetingEndTime(minimumEndTime);
+    }
+  }, [editMeetingStartTime, editMeetingEndTime]);
 
   const refreshMeeting = useCallback(async () => {
     if (!meeting?.id) return;
@@ -405,8 +419,8 @@ export default function MeetingDetailsModal({
       return;
     }
 
-    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-      toast.error("Meeting end time must be after the start time.");
+    if (new Date(endIso).getTime() < new Date(startIso).getTime() + 60 * 60 * 1000) {
+      toast.error("Meeting end time must be at least 1 hour after the start time.");
       return;
     }
 
@@ -634,7 +648,7 @@ export default function MeetingDetailsModal({
                           label="Start Time"
                           value={editMeetingStartTime}
                           onChange={setEditMeetingStartTime}
-                          minTime={isEditDateToday ? new Date() : null}
+                          minTime={isEditDateToday ? minimumEditStartTime : null}
                           isDark={isDark}
                         />
                       </div>
@@ -643,7 +657,7 @@ export default function MeetingDetailsModal({
                           label="End Time"
                           value={editMeetingEndTime}
                           onChange={setEditMeetingEndTime}
-                          minTime={editMeetingStartTime || (isEditDateToday ? new Date() : null)}
+                          minTime={getMinimumMeetingEndTime(editMeetingStartTime) || (isEditDateToday ? minimumEditStartTime : null)}
                           isDark={isDark}
                         />
                       </div>
@@ -748,7 +762,7 @@ export default function MeetingDetailsModal({
                   email: participant?.email || "",
                 });
                 const statusClass = STATUS_CLASS[response] || STATUS_CLASS.pending;
-                const removable = canManageParticipants && !isCompleted && !["client", "admin"].includes(String(participant?.role || ""));
+                const removable = canManageParticipants && !isCompleted;
                 const isCurrentUserParticipant =
                   !!currentUserId && String(participant?.id || "") === String(currentUserId);
 

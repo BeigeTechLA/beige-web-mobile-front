@@ -49,7 +49,19 @@ const getFileMeta = (contentType?: string, title?: string) => {
   return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
 };
 
-export const AffiliateFileCard = ({ file, onMenuTrigger, stage = "post-production" }: { file: any, onMenuTrigger: (e: React.MouseEvent<HTMLButtonElement>) => void, stage?: 'pre-production' | 'post-production' }) => {
+interface AffiliateFileCardData {
+    title?: string;
+    contentType?: string;
+    userInitials?: string;
+    uploaderName?: string;
+    lastOpened?: string;
+    statusLabel?: string;
+    statusClassName?: string;
+    versionLabel?: string;
+    versionClassName?: string;
+}
+
+export const AffiliateFileCard = ({ file, onMenuTrigger, stage = "post-production" }: { file: AffiliateFileCardData, onMenuTrigger: (e: React.MouseEvent<HTMLButtonElement>) => void, stage?: 'pre-production' | 'post-production' }) => {
     const meta = getFileMeta(file.contentType, file.title);
     const FileIcon = meta.icon;
 
@@ -99,7 +111,10 @@ export const AffiliateFileCard = ({ file, onMenuTrigger, stage = "post-productio
                 <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-black text-sm font-bold">
                     {file.userInitials}
                 </div>
-                <span className="text-[#CDC5C5] text-sm">Opened {file.lastOpened}</span>
+                <div className="min-w-0">
+                    <div className="truncate text-sm text-[#CDC5C5]">Uploaded by {file.uploaderName || "Unknown uploader"}</div>
+                    <div className="text-[10px] text-[#CDC5C5]/60">{file.lastOpened || "just now"}</div>
+                </div>
             </div>
         </div>
     );
