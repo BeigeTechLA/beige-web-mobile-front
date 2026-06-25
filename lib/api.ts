@@ -2229,7 +2229,7 @@ export const adminApi = {
       };
     }
   },
-  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string } = {}) => {
+  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string; include_archived?: boolean; archived_only?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-clients', { params });
       return response.data;
@@ -2299,6 +2299,37 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch client details',
+      };
+    }
+  },
+
+  deleteClient: async (clientId: string | number) => {
+    try {
+      const response = await api.delete(`admin/delete-client/${clientId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Client Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete client',
+      };
+    }
+  },
+
+  restoreClient: async (clientId: string | number, reason = "Archived by mistake.", mode = "normal") => {
+    try {
+      const response = await api.post(`admin/restore-client/${clientId}`, {
+        reason,
+        mode,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Restore Client Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to restore client',
       };
     }
   },

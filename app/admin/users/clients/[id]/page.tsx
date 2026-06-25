@@ -13,7 +13,9 @@ import {
     Phone,
     Hash,
     ShieldCheck,
-    Copy
+    Copy,
+    Clock3,
+    History
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { format } from "date-fns";
@@ -29,6 +31,73 @@ const formatCurrency = (amount: string | number) => {
         style: 'currency',
         currency: 'USD',
     }).format(Number(amount));
+};
+
+const formatDateTime = (value?: string) => {
+    if (!value) return { date: "N/A", time: "" };
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return { date: value, time: "" };
+    return {
+        date: format(parsed, "MMM d, yyyy"),
+        time: format(parsed, "h:mm a"),
+    };
+};
+
+const getHistoryActorName = (entry: any) => {
+    return (
+        entry?.acted_by?.name ||
+        entry?.actor?.name ||
+        entry?.user?.name ||
+        entry?.created_by?.name ||
+        entry?.performed_by?.name ||
+        entry?.admin_name ||
+        entry?.changed_by ||
+        "Admin"
+    );
+};
+
+const getHistoryAvatar = (entry: any) => {
+    return (
+        entry?.acted_by?.avatar ||
+        entry?.actor?.avatar ||
+        entry?.user?.avatar ||
+        entry?.created_by?.avatar ||
+        entry?.performed_by?.avatar ||
+        entry?.admin_avatar ||
+        entry?.avatar ||
+        ""
+    );
+};
+
+const getHistoryActionLabel = (entry: any) => {
+    const rawAction = String(
+        entry?.action ||
+        entry?.event ||
+        entry?.type ||
+        entry?.action_type ||
+        entry?.status ||
+        ""
+    ).toLowerCase();
+
+    if (rawAction.includes("restor")) return "restored";
+    if (rawAction.includes("archiv") || rawAction.includes("delet")) return "deleted";
+    return rawAction || "updated";
+};
+
+const buildHistorySentence = (entry: any, clientName: string) => {
+    const actorName = getHistoryActorName(entry);
+    const actionLabel = getHistoryActionLabel(entry);
+    const subject = entry?.client_name || entry?.name || clientName;
+
+    if (actionLabel === "restored") {
+        return `${subject} was restored by ${actorName}`;
+    }
+
+    if (actionLabel === "deleted") {
+        return `${subject} was deleted by ${actorName}`;
+    }
+
+    return `${subject} was updated by ${actorName}`;
 };
 
 export default function ClientDetailsPage() {
@@ -97,6 +166,11 @@ export default function ClientDetailsPage() {
     const affiliate = clientData?.affiliate;
     const accountCredit = clientData?.account_credit;
     const creditHistory = clientData?.credit_history || [];
+    const archiveHistorySource = clientData?.archive_history || clientData?.archiveHistory || clientData?.archived_history || client?.archive_history || [];
+    const archiveHistory = Array.isArray(archiveHistorySource)
+        ? archiveHistorySource
+        : archiveHistorySource?.items || archiveHistorySource?.history || archiveHistorySource?.data || [];
+    const clientName = client?.name || "This user";
 
     const clientType = client?.client_type === "registered" ? "registered" : "guest";
     const clientTypeLabel = clientType === "registered" ? "Registered" : "Guest";
@@ -214,6 +288,8 @@ export default function ClientDetailsPage() {
                         </div>
                     </div>
                 </div>
+
+               
 
                 {/* Shoots Management Section */}
               {/* <div className={`border rounded-2xl p-8 space-y-6 ${isDark ? "bg-[#0D0D0D] border-[#222]" : "bg-gray-50 border-gray-100"}`}>
@@ -395,6 +471,73 @@ export default function ClientDetailsPage() {
                             </table>
                         </div>
                     </div>
+                     {/* Archive History */}
+                <div className="space-y-4">
+                    <h2 className="text-[22px] lg:text-[26px] font-bold leading-none">Archive History</h2>
+
+                    <div className={`rounded-2xl border p-5 lg:p-6 ${isDark ? "bg-[#0D0D0D] border-[#222]" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
+                        {Array.isArray(archiveHistory) && archiveHistory.length > 0 ? (
+                            <div className="space-y-4">
+                                {archiveHistory.map((entry: any, index: number) => {
+                                    const { date, time } = formatDateTime(entry?.created_at || entry?.timestamp || entry?.date || entry?.archived_at || entry?.restored_at);
+                                    const actorName = getHistoryActorName(entry);
+                                    const avatar = getHistoryAvatar(entry);
+                                    const sentence = buildHistorySentence(entry, clientName);
+                                    const isNested = index > 0;
+                                    const isRestore = getHistoryActionLabel(entry) === "restored";
+
+                                    return (
+                                        <div
+                                            key={entry?.archive_history_id || entry?.id || `${date}-${time}-${index}`}
+                                            className={`relative ${isNested ? "pl-10 lg:pl-14" : ""}`}
+                                        >
+                                            {isNested ? (
+                                                <div className={`absolute left-4 top-0 h-full w-px ${isDark ? "bg-white/10" : "bg-black/10"}`} />
+                                            ) : null}
+
+                                            <div className={`flex items-start gap-4 rounded-2xl border p-4 lg:p-5 ${isDark ? (isRestore ? "bg-[#050505] border-white/10" : "bg-[#111] border-white/10") : (isRestore ? "bg-[#FAFAFA] border-[#E7E7E7]" : "bg-[#FFF8F8] border-[#F0D9D9]")}`}>
+                                                <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg ${isRestore ? (isDark ? "bg-[#E8F5E9] text-[#166534]" : "bg-[#EAF9EE] text-[#15803D]") : (isDark ? "bg-[#FFD5E8] text-black" : "bg-[#F3D6F1] text-black")}`}>
+                                                    {avatar ? (
+                                                        <img src={avatar} alt={actorName} className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-sm font-semibold">{getInitials(actorName)}</span>
+                                                    )}
+                                                </div>
+
+                                                <div className="min-w-0 flex-1">
+                                                    <p className={`text-[15px] lg:text-base font-medium leading-relaxed ${isDark ? "text-white" : "text-black"}`}>
+                                                        <span className={isDark ? "text-[#E5D5B8]" : "text-[#B08A3C]"}>{sentence}</span>
+                                                    </p>
+
+                                                    <div className={`mt-1 flex flex-wrap items-center gap-2 text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                                        <span>{date}</span>
+                                                        <span>•</span>
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <Clock3 size={13} />
+                                                            {time || "N/A"}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span className="capitalize">{getHistoryActionLabel(entry)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className={`flex items-center gap-3 rounded-2xl border p-5 ${isDark ? "border-white/10 bg-[#111]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
+                                <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${isDark ? "bg-white/5 text-[#E5D5B8]" : "bg-black/5 text-black"}`}>
+                                    <History size={20} />
+                                </div>
+                                <div>
+                                    <p className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>No archive history found.</p>
+                                    <p className={`text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>This client has not been archived or restored yet.</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
                 </div>
             </div>
         </>
