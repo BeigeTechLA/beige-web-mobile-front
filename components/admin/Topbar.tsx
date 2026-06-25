@@ -144,7 +144,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
         </div >
 
         {/* Right: Desktop Actions */}
-        <div className="flex flex-wrap items-center justify-end gap-3 min-w-0 max-w-full">
+        <div className="flex flex-nowrap items-center justify-end gap-3 min-w-0 max-w-full overflow-x-auto no-scrollbar">
           {actions}
 
           {
