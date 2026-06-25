@@ -190,12 +190,12 @@ export default function AdminRoleEditDetailsRoute() {
       if (!mounted) return;
 
       const availableRoles: AdminRoleRecord[] = Array.isArray(rolesResponse?.data)
-        ? rolesResponse.data.filter((role) => String(role.role_id) !== SUPER_ADMIN_ROLE_ID)
+        ? rolesResponse.data
         : [];
       setRoleOptions(
         availableRoles.map((role) => ({
           value: String(role.role_id),
-          label: role.name,
+          label: Number(role.role_id) === Number(SUPER_ADMIN_ROLE_ID) ? "Super Admin" : role.name,
         })),
       );
 
