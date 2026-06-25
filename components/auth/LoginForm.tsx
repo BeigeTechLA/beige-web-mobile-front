@@ -107,7 +107,6 @@ export function LoginForm() {
         page_name: "Login Page",
         location_in_website: "login_page",
         duration_on_page: performance.now() / 1000,
-        // Phone might be in the result object depending on your API
         phone: user?.phone || null,
       });
       // ---------------------------
