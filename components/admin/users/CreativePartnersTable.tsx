@@ -1,7 +1,8 @@
+//@/components/admin/users/CreativePartnersTable.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight, Search, ChevronDown, Check, X, AlertCircle, Mail, Briefcase, Calendar, Hash, Trash2, Loader2 } from "lucide-react";
+import { ChevronRight, Search, ChevronDown, Check, X, AlertCircle, Mail, Briefcase, Calendar, Hash, Trash2, Loader2, Edit, Pencil, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -24,8 +25,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useTheme } from 'next-themes';
+import { DeleteConfirmationModal } from "@/components/admin/users/DeleteConfirmationModal";
+import { SuccessModal } from "@/components/admin/SuccessModal";
+import ArchiveHistoryDrawer from "./ArchiveHistoryDrawer";
 
-type UserStatus = "Approved" | "Pending" | "Rejected";
+type UserStatus = "Approved" | "Pending" | "Rejected" | "Archive";
+type UserType = "Client" | "Creative Partner";
 
 const CREATIVE_PARTNERS_FILTERS_STORAGE_KEY = "admin-users-creative-partners-filters";
 
@@ -41,6 +46,7 @@ interface CreativePartner {
   email: string;
   location: string;
   role: string;
+  type: UserType;
   status: UserStatus;
   joinDate: string;
   initials: string;
@@ -73,7 +79,7 @@ const formatLocation = (locationInput?: unknown) => {
       .trim();
 
   const parts = addressStr
-    .split(/[,،，]/)
+    .split(/[,،،]/)
     .map((part) => part.trim())
     .filter(Boolean);
 
@@ -102,27 +108,28 @@ const formatLocation = (locationInput?: unknown) => {
 };
 
 const INITIAL_DATA: CreativePartner[] = [
-  { id: "#123456", name: "Ethan Carter", email: "ethanc4519@yahoo.com", location: "N/A", role: "Videographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "EC" },
-  { id: "#123456", name: "Lana Guzman", email: "lanaguzman@gmail.com", location: "N/A", role: "Photographer", status: "Pending", joinDate: "Jan 13, 2026", initials: "LG" },
-  { id: "#123456", name: "John Lee", email: "johnlee45@gmail.com", location: "N/A", role: "Photographer", status: "Pending", joinDate: "Jan 13, 2026", initials: "JL" },
-  { id: "#123456", name: "Maya Ross", email: "mayaross@yahoo.com", location: "N/A", role: "Director", status: "Rejected", joinDate: "Jan 13, 2026", initials: "MR" },
-  { id: "#123456", name: "Emily Davis", email: "emilydavis@yahoo.com", location: "N/A", role: "Producer", status: "Pending", joinDate: "Jan 13, 2026", initials: "ED" },
-  { id: "#123456", name: "Prince Carter", email: "princecarter@yahoo.com", location: "N/A", role: "Videographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "PC" },
-  { id: "#123456", name: "Daniel Roberts", email: "danielrobert@gmail.com", location: "N/A", role: "Photographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "DR" },
-  { id: "#123456", name: "Jake Ross", email: "jakeross25@yahoo.com", location: "N/A", role: "Photographer", status: "Approved", joinDate: "Jan 13, 2026", initials: "JR" },
-  { id: "#123456", name: "Sophia Johnson", email: "sophiaJ6545@yahoo.com", location: "N/A", role: "Director", status: "Rejected", joinDate: "Jan 13, 2026", initials: "SJ" },
+  { id: "#123456", name: "Ethan Carter", email: "ethanc4519@yahoo.com", location: "N/A", role: "Videographer", type: "Client", status: "Approved", joinDate: "Jan 13, 2026", initials: "EC" },
+  { id: "#123456", name: "Lana Guzman", email: "lanaguzman@gmail.com", location: "N/A", role: "Photographer", type: "Client", status: "Pending", joinDate: "Jan 13, 2026", initials: "LG" },
+  { id: "#123456", name: "John Lee", email: "johnlee45@gmail.com", location: "N/A", role: "Photographer", type: "Creative Partner", status: "Pending", joinDate: "Jan 13, 2026", initials: "JL" },
+  { id: "#123456", name: "Maya Ross", email: "mayaross@yahoo.com", location: "N/A", role: "Director", type: "Client", status: "Rejected", joinDate: "Jan 13, 2026", initials: "MR" },
+  { id: "#123456", name: "Emily Davis", email: "emilydavis@yahoo.com", location: "N/A", role: "Producer", type: "Client", status: "Pending", joinDate: "Jan 13, 2026", initials: "ED" },
+  { id: "#123456", name: "Prince Carter", email: "princecarter@yahoo.com", location: "N/A", role: "Videographer", type: "Client", status: "Archive", joinDate: "Jan 13, 2026", initials: "PC" },
+  { id: "#123456", name: "Daniel Roberts", email: "danielrobert@gmail.com", location: "N/A", role: "Photographer", type: "Creative Partner", status: "Approved", joinDate: "Jan 13, 2026", initials: "DR" },
+  { id: "#123456", name: "Jake Ross", email: "jakeross25@yahoo.com", location: "N/A", role: "Photographer", type: "Creative Partner", status: "Archive", joinDate: "Jan 13, 2026", initials: "JR" },
+  { id: "#123456", name: "Sophia Johnson", email: "sophiaJ6545@yahoo.com", location: "N/A", role: "Director", type: "Client", status: "Rejected", joinDate: "Jan 13, 2026", initials: "SJ" },
 ];
 
 const StatusBadge = ({ status, mobile }: { status: UserStatus; mobile?: boolean }) => {
   const styles = {
-    Approved: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
-    Pending: "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-    Rejected: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
+    Approved: "bg-[#D4FFE4] text-[#16A34A] border-[#16A34A]/20",
+    Pending: "bg-[#FFF4C9] text-[#BA6605] border-[#BA6605]/20",
+    Rejected: "bg-[#FEF3F2] text-[#B42318] border-[#B42318]/20",
+    Archive: "bg-[#B7B7B7] text-[#3F4040] border-[#3F4040]/20",
   };
 
   const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
   return (
-    <span className={`${padding} rounded-full font-semibold border  ${styles[status]}`}>
+    <span className={`${padding} rounded-full font-semibold border ${styles[status]}`}>
       {status}
     </span>
   );
@@ -177,6 +184,13 @@ export const CreativePartnersTable = () => {
   const [expandedRows, setExpandedRows] = useState(new Set());
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [archiveHistoryModalOpen, setArchiveHistoryModalOpen] = useState(false);
+
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
   const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteActionType, setDeleteActionType] = useState<"hard_delete" | "soft_delete" | "blocked" | null>(null);
@@ -299,6 +313,9 @@ export const CreativePartnersTable = () => {
               }
             }
 
+            // Determine type based on role
+            const userType: UserType = member.role?.role_name ? "Creative Partner" : "Client";
+
             // Get profile photo from crew_member_files
             const profilePhoto = member.crew_member_files?.find(
               (file: any) => file.file_type === 'profile_photo'
@@ -315,6 +332,7 @@ export const CreativePartnersTable = () => {
             let displayStatus: UserStatus = "Pending";
             if (apiStatus === "approved") displayStatus = "Approved";
             else if (apiStatus === "rejected") displayStatus = "Rejected";
+            else if (apiStatus === "archived") displayStatus = "Archive";
 
             return {
               id: `#${member.crew_member_id}`,
@@ -322,6 +340,7 @@ export const CreativePartnersTable = () => {
               email: member.email || "No Email",
               location,
               role: displayRole,
+              type: userType,
               status: displayStatus,
               joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
               initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
@@ -445,12 +464,11 @@ export const CreativePartnersTable = () => {
     e.stopPropagation();
 
     const cleanId = id.replace('#', '');
-    setIsDeleting(true); // Re-use isDeleting state for the loading spinner or just to prevent multiple clicks
+    setIsDeleting(true);
 
     try {
       const response = await adminApi.checkCpDeleteStatus(cleanId);
       if (response && response.success !== false) {
-        // If API is successful, THEN open the modal and set the ID
         setSelectedDeleteId(id);
         setDeleteActionType(response.action_type || "hard_delete");
         setDeleteMessage(response.message || "Are you sure you want to delete this creative partner?");
@@ -470,7 +488,6 @@ export const CreativePartnersTable = () => {
   const handleConfirmDelete = async () => {
     if (!selectedDeleteId) return;
 
-    // If it's blocked, we shouldn't be able to delete, but just in case
     if (deleteActionType === 'blocked') {
       setDeleteModalOpen(false);
       return;
@@ -485,6 +502,7 @@ export const CreativePartnersTable = () => {
         setUsers(users.filter(u => u.id !== selectedDeleteId));
         setDeleteModalOpen(false);
         setSelectedDeleteId(null);
+        setSuccessModalOpen(true);
       } else {
         toast.error(response?.error || response?.message || "Failed to delete creative partner");
       }
@@ -497,23 +515,68 @@ export const CreativePartnersTable = () => {
   };
 
 
+  const handleConfirmRestore = async () => {
+    setIsRestoring(true);
+    try {
+      // API call to restore user
+      //await api.restoreUser(selectedUserId);
+      setRestoreModalOpen(false);
+      setSuccessModalOpen(true);
+    } catch (error) {
+      toast.error("Failed to restore user");
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const handleViewArchive = () => {
+    setSuccessModalOpen(false);
+    setArchiveHistoryModalOpen(true);
+    refreshUsersList();
+  };
+
+  const [activeTab, setActiveTab] = useState<"All Users" | "Users" | "Creative Partners">("Creative Partners");
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className={`text-lg lg:text-2xl font-semibold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Creative Partners</h1>
-        <p className={`${isDark ? "text-[#888]" : "text-[#666]"} text-xs lg:text-base leading-none`}>Manage and review all onboarded creative professionals in one place.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className={`text-lg lg:text-2xl font-semibold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Creative Partners</h1>
+          <p className={`${isDark ? "text-[#888]" : "text-[#666]"} text-xs lg:text-base leading-none`}>Manage and review all onboarded creative professionals in one place.</p>
+        </div>
+        <SortDateButton
+          selectedDate={selectedDate}
+          onDateChange={handleDateSort}
+        />
+      </div>
+
+      <div className={`inline-flex rounded-lg p-1 ${isDark ? "bg-[#1A1A1A]" : "bg-[#F5F5F5]"}`}>
+        {(["All Users", "Users", "Creative Partners"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all ${activeTab === tab
+              ? isDark
+                ? "bg-[#E5D5B8] text-black"
+                : "bg-white text-black shadow-sm"
+              : isDark
+                ? "text-[#888] hover:text-white"
+                : "text-[#666] hover:text-black"
+              }`}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4">
-        {/* Search & Status Filter */}
         <div className="flex items-center gap-4 flex-1">
           <div className="relative flex-1 max-w-md min-w-[240px]">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
             <input
               type="text"
-              placeholder="Search ..."
+              placeholder="Search Users.."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -526,55 +589,29 @@ export const CreativePartnersTable = () => {
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className={`w-[180px] rounded-lg h-[46px] capitalize transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
               }`}>
-              <SelectValue placeholder="All Status" />
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className={isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="archived">Archive</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* <button className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors">
-                        <span>All Status</span>
-                        <ChevronRight className="rotate-90" size={16} />
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors">
-                        <Filter size={16} />
-                        <span>Filters</span>
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors">
-                        <ArrowUpRight size={16} />
-                        <span>Export</span>
-                    </button>
-                    <button className="px-6 py-2.5 bg-[#E5D5B8] text-black font-semibold rounded-lg hover:bg-[#d4c3a3] transition-colors">
-                        Book a Shoot
-                    </button> */}
-          {/* <SortDateButton
-            selectedDate={selectedDate}
-            onDateChange={handleDateSort}
-          /> */}
         </div>
       </div>
 
       {/* Table */}
       <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"}`}>
-        {/* --- DESKTOP TABLE VIEW --- */}
         <div className="hidden lg:block w-full overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className={`text-sm font-medium border-b cursor-pointer leading-none tracking-normal ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
                 <th className="py-5 px-6 font-medium">User ID</th>
-                <th className="py-5 px-6 font-medium">
-                  <div className="flex flex-col">
-                    <span>Creative Name / Email Id</span>
-                  </div>
-                </th>
-                <th className="py-5 px-6 font-medium">Roles</th>
-                <th className="py-5 px-6 font-medium">Location</th>
+                <th className="py-5 px-6 font-medium">User Name</th>
+                <th className="py-5 px-6 font-medium">Contact / Roles</th>
+                <th className="py-5 px-6 font-medium">Type</th>
                 <th className="py-5 px-6 font-medium">Status</th>
                 <th className="py-5 px-6 font-medium text-right">Action</th>
               </tr>
@@ -629,29 +666,38 @@ export const CreativePartnersTable = () => {
                         </div>
                         <div>
                           <p className="font-medium">{user.name}</p>
-                          <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-sm mt-0.5 break-all`}>{user.email}</p>
                           <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-[10px] mt-0.5 uppercase tracking-wider font-bold`}>
                             {user.joinDate}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-5 px-6">{user.role}</td>
-                    <td className="py-5 px-6">{user.location}</td>
+                    <td className="py-5 px-6">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm">{user.email}</p>
+                        <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-xs`}>{user.role}</p>
+                      </div>
+                    </td>
+                    <td className="py-5 px-6">{user.type}</td>
                     <td className="py-5 px-6">
                       <StatusBadge status={user.status} />
                     </td>
                     <td className="py-5 px-6 text-center">
-                      <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-3 whitespace-nowrap">
                         {user.status === 'Approved' && (
                           <>
                             <button
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="hover:text-red-500 transition-colors"
+                              className={`${isDark ? "text-[#FFF] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}
                             >
-                              <Trash2 size={18} />
+                              <Pencil size={20} />
                             </button>
-                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
+                            <button
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className={`${isDark ? "text-[#FFF] hover:text-red-500" : "text-[#888] hover:text-red-500"} transition-colors`}
+                            >
+                              <Trash2 size={20} />
+                            </button>
+                            <button className={`${isDark ? "text-[#FFF] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
                           </>
@@ -659,20 +705,14 @@ export const CreativePartnersTable = () => {
                         {user.status === 'Pending' && (
                           <>
                             <button
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                            <button
                               onClick={(e) => handleApprove(user.id, e)}
-                              className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors"
+                              className="px-4 py-1.5 bg-[#D4F4DD] text-[#16A34A] text-xs font-semibold rounded-lg hover:bg-[#bfead0] transition-colors"
                             >
                               Approve
                             </button>
                             <button
                               onClick={(e) => handleDecline(user.id, e)}
-                              className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2"
+                              className="px-4 py-1.5 text-[#DC2626] text-xs font-semibold hover:bg-[#FEE2E2] rounded-lg transition-colors"
                             >
                               Decline
                             </button>
@@ -684,10 +724,21 @@ export const CreativePartnersTable = () => {
                         {user.status === 'Rejected' && (
                           <>
                             <button
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="text-[#E0E0E0] hover:text-red-500 transition-colors"
+                              className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}
                             >
-                              <Trash2 size={18} />
+                              <Info size={18} />
+                            </button>
+                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
+                              <ChevronRight size={20} />
+                            </button>
+                          </>
+                        )}
+                        {user.status === 'Archive' && (
+                          <>
+                            <button
+                              className="px-4 py-1.5 bg-[#93C5FD] text-[#1E40AF] text-xs font-semibold rounded-lg hover:bg-[#bfdbfe] transition-colors"
+                            >
+                              Restore
                             </button>
                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
@@ -767,10 +818,10 @@ export const CreativePartnersTable = () => {
                             <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Role</p>
                             <p className={`text-xs ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.role}</p>
                           </div>
-                          {/* <div >
-                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Email ID</p>
-                            <p className={`text-xs break-all ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.email}</p>
-                          </div> */}
+                          <div>
+                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Type</p>
+                            <p className={`text-xs break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.type}</p>
+                          </div>
                           <div>
                             <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Location</p>
                             <p className={`text-xs break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.location}</p>
@@ -780,27 +831,28 @@ export const CreativePartnersTable = () => {
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
                           <div className="flex gap-2">
-                            <button
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20"
-                            >
-                              <Trash2 size={18} />
-                            </button>
                             {user.status === 'Pending' && (
                               <>
                                 <button
                                   onClick={(e) => handleDecline(user.id, e)}
-                                  className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors"
+                                  className="px-4 py-2 text-[#DC2626] text-xs font-semibold hover:bg-[#FEE2E2] rounded-lg transition-colors"
                                 >
                                   Decline
                                 </button>
                                 <button
                                   onClick={(e) => handleApprove(user.id, e)}
-                                  className="px-4 py-2 bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold rounded-lg hover:bg-[#22C55E]/20 transition-colors border border-[#22C55E]/20"
+                                  className="px-4 py-2 bg-[#D4F4DD] text-[#16A34A] text-xs font-semibold rounded-lg hover:bg-[#bfead0] transition-colors"
                                 >
                                   Approve
                                 </button>
                               </>
+                            )}
+                            {user.status === 'Archive' && (
+                              <button
+                                className="px-4 py-2 bg-[#93C5FD] text-[#1E40AF] text-xs font-semibold rounded-lg hover:bg-[#bfdbfe] transition-colors"
+                              >
+                                Restore
+                              </button>
                             )}
                           </div>
                           <button
@@ -887,65 +939,47 @@ export const CreativePartnersTable = () => {
         </div>
       )}
 
-      {/* Delete Modal */}
-      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent className={`border transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-gray-200 text-black"}`}>
-          <DialogHeader>
-            <DialogTitle>
-              {deleteActionType === 'blocked' ? "Action Blocked" : "Delete Creative Partner"}
-            </DialogTitle>
-            <DialogDescription className="text-[#888]">
-              {deleteMessage}
-            </DialogDescription>
-            {deleteActionType === 'blocked' && (
-              <DialogDescription className="text-[#E8D1AB] mt-2 font-medium">
-                To delete this creative partner, you must first reassign their upcoming shoots to another professional.
-              </DialogDescription>
-            )}
-          </DialogHeader>
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+        }}
+        onConfirm={handleConfirmDelete}
+        title={`Delete User`}
+        description={`Are you sure you want to delete this User`}
+        buttonText={`Confirm Delete`}
+        isLoading={isDeleting}
+        isDark={isDark}
+      />
 
-          {deleteActionType === 'blocked' && deleteBlockedData && deleteBlockedData.length > 0 && (
-            <div className="mt-4 space-y-3">
-              <h4 className={`text-sm font-bold ${isDark ? "text-white" : "text-black"}`}>Assigned Shoots:</h4>
-              <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2">
-                {deleteBlockedData.map((shoot: any, index: number) => (
-                  <div
-                    key={index}
-                    className={`p-3 rounded-lg border flex justify-between items-center transition-colors ${isDark
-                      ? "bg-[#1A1A1A] border-[#333]"
-                      : "bg-gray-50 border-gray-100"
-                      }`}
-                  >
-                    <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{shoot.name}</span>
-                    <span className={`text-xs ${isDark ? "text-[#888]" : "text-gray-400"}`}>{new Date(shoot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      <SuccessModal
+        isOpen={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        onConfirm={handleViewArchive}
+        title="User Deleted Successfully"
+        description="The user was deleted successfully and is now available in Archive History for reference."
+        buttonText="View Archive History"
+        isDark={isDark}
+      />
 
-          <DialogFooter className="mt-6 flex gap-2 sm:justify-end">
-            <button
-              onClick={() => setDeleteModalOpen(false)}
-              className={`px-4 py-2 text-sm font-bold rounded-lg border transition-all ${isDark
-                ? "bg-[#1A1A1A] text-white border-[#333] hover:bg-white/10"
-                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                }`}
-            >
-              {deleteActionType === 'blocked' ? "Close" : "Cancel"}
-            </button>
-            {deleteActionType !== 'blocked' && (
-              <button
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-50"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ArchiveHistoryDrawer
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+
+        DeleteConfirmationModal={DeleteConfirmationModal}
+        SuccessModal={SuccessModal}
+
+        RestoreModalOpen={restoreModalOpen}
+        setRestoreModalOpen={setRestoreModalOpen}
+        handleConfirmRestore={handleConfirmRestore}
+        isRestoring={isRestoring}
+
+        successModalOpen={successModalOpen}
+        setSuccessModalOpen={setSuccessModalOpen}
+        handleViewArchive={handleViewArchive}
+
+        isDark={true}
+      />
     </div>
   );
 };
