@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useAppSelector } from "@/lib/redux/hooks";
 
 import { OverallShootsTable } from "@/components/admin/OverallShootsTable";
 import { LeadsShootsTable } from "@/components/admin/LeadsShootsTable";
@@ -22,6 +23,7 @@ export default function AdminDashboardPage() {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { canCreate } = usePermissions("shoots");
+  const user = useAppSelector((state) => state.auth.user);
 
   useEffect(() => setMounted(true), []);
   const pathname = usePathname();
@@ -34,6 +36,7 @@ export default function AdminDashboardPage() {
 
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
+  const roleLabel = user?.user_type_id === 8 || user?.userTypeId === 8 ? "Super Admin" : "Admin";
 
   return (
     <>
@@ -56,7 +59,7 @@ export default function AdminDashboardPage() {
         <div className="flex justify-between items-center">
           <div className="text-white">
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
-              }`}>Welcome back, Admin !</h1>
+              }`}>Welcome back, {roleLabel} !</h1>
             <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Monitor revenue, shoots, Users, and performance metrics in one centralized dashboard.</p>
           </div>
           <SortDateButton

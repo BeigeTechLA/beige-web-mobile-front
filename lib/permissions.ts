@@ -357,3 +357,37 @@ export const canAccessPortalPath = (
 
   return hasModulePermission(permissions, matchedRule.permissionKeys, "view");
 };
+
+export const getUserTypeId = (user: { user_type_id?: number; userTypeId?: number } | null | undefined) => {
+  if (!user) return null;
+
+  return user.user_type_id ?? user.userTypeId ?? null;
+};
+
+export const isSuperAdminUser = (user: { user_type_id?: number; userTypeId?: number } | null | undefined) =>
+  getUserTypeId(user) === 8;
+
+export const getSuperAdminPermissions = (): PermissionsMap =>
+  Object.fromEntries(
+    [
+      "dashboard",
+      "availability",
+      "file_manager",
+      "finances",
+      "invoices",
+      "meetings",
+      "messages",
+      "quotes",
+      "roles_permissions",
+      "sales_representative",
+      "shoots",
+      "users",
+      "settings",
+      "profile",
+      "affiliate",
+      "request_shoots",
+    ].map((moduleKey) => [
+      moduleKey,
+      { view: true, create: true, edit: true, delete: true },
+    ]),
+  ) as PermissionsMap;

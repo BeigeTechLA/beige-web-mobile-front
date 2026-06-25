@@ -79,6 +79,8 @@ const resolvePermissionScope = (value?: string | null) => {
   return "admin";
 };
 
+const SUPER_ADMIN_ROLE_ID = "8";
+
 export default function AdminRoleEditDetailsRoute() {
   const pathname = usePathname();
   const router = useRouter();
@@ -86,6 +88,7 @@ export default function AdminRoleEditDetailsRoute() {
   const roleId = searchParams.get("role_id");
   const userId = searchParams.get("user_id");
   const mode = roleId ? "role" : "user";
+  const isSuperAdminRole = mode === "role" && roleId === SUPER_ADMIN_ROLE_ID;
 
   const dispatch = useAppDispatch();
   const { canDelete } = usePermissions("roles_permissions");
@@ -187,7 +190,7 @@ export default function AdminRoleEditDetailsRoute() {
       if (!mounted) return;
 
       const availableRoles: AdminRoleRecord[] = Array.isArray(rolesResponse?.data)
-        ? rolesResponse.data
+        ? rolesResponse.data.filter((role) => String(role.role_id) !== SUPER_ADMIN_ROLE_ID)
         : [];
       setRoleOptions(
         availableRoles.map((role) => ({
@@ -508,7 +511,7 @@ export default function AdminRoleEditDetailsRoute() {
             >
               {deleteLabel}
             </button> */}
-            {mode === "role" && canDelete ? (
+            {mode === "role" && canDelete && !isSuperAdminRole ? (
               <button
                 onClick={() => setIsDeleteModalOpen(true)}
                 className="inline-flex h-12 items-center justify-center rounded-[12px] border border-[#F04438]/20 bg-[#F04438]/10 px-6 text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95"
@@ -516,12 +519,14 @@ export default function AdminRoleEditDetailsRoute() {
                 {deleteLabel}
               </button>
             ) : null}
-            <button
-              onClick={() => setIsUpdateModalOpen(true)}
-              className="inline-flex h-12 items-center justify-center rounded-[12px] bg-[#E5D5B8] px-8 text-[15px] font-bold text-black transition-all hover:bg-[#d6c29b] active:scale-95"
-            >
-              {mode === "role" ? "Edit Role" : "Change Role"}
-            </button>
+            {!isSuperAdminRole ? (
+              <button
+                onClick={() => setIsUpdateModalOpen(true)}
+                className="inline-flex h-12 items-center justify-center rounded-[12px] bg-[#E5D5B8] px-8 text-[15px] font-bold text-black transition-all hover:bg-[#d6c29b] active:scale-95"
+              >
+                {mode === "role" ? "Edit Role" : "Change Role"}
+              </button>
+            ) : null}
           </div>
         }
       />
@@ -533,13 +538,13 @@ export default function AdminRoleEditDetailsRoute() {
         created={createdAt}
         updated={updatedAt}
         rows={rows}
-        readOnly={false}
+        readOnly={isSuperAdminRole}
         isLoading={isLoading}
         description={mode === "role" ? roleDescription : undefined}
-        primaryActionLabel={primaryActionLabel}
+        primaryActionLabel={isSuperAdminRole ? "Super Admin" : primaryActionLabel}
         onRowsChange={setRows}
-        onOpenModal={() => setIsUpdateModalOpen(true)}
-        onPrimaryAction={mode === "role" ? handlePrimaryAction : handleUpdateUserPermissions}
+        onOpenModal={isSuperAdminRole ? undefined : () => setIsUpdateModalOpen(true)}
+        onPrimaryAction={isSuperAdminRole ? undefined : mode === "role" ? handlePrimaryAction : handleUpdateUserPermissions}
         onInvalidAccessAttempt={handleInvalidAccessAttempt}
       />
 
@@ -549,17 +554,19 @@ export default function AdminRoleEditDetailsRoute() {
         </div>
       ) : null}
 
-      <UpdateRoleModal
-        isOpen={isUpdateModalOpen}
-        onClose={() => setIsUpdateModalOpen(false)}
-        onUpdate={handleModalUpdate}
-        currentRole={currentRoleId}
-        roleName={roleName}
-        description={roleDescription}
-        mode={mode === "role" ? "role" : "assign"}
-        roles={roleOptions}
-        title={mode === "role" ? "Edit Role" : "Change Role"}
-      />
+      {!isSuperAdminRole ? (
+        <UpdateRoleModal
+          isOpen={isUpdateModalOpen}
+          onClose={() => setIsUpdateModalOpen(false)}
+          onUpdate={handleModalUpdate}
+          currentRole={currentRoleId}
+          roleName={roleName}
+          description={roleDescription}
+          mode={mode === "role" ? "role" : "assign"}
+          roles={roleOptions}
+          title={mode === "role" ? "Edit Role" : "Change Role"}
+        />
+      ) : null}
 
       <RoleUpdatedSuccessModal
         isOpen={isSuccessModalOpen}

@@ -30,6 +30,8 @@ const CARD_TONES = [
   "bg-[#F3E8C6] text-[#161616]",
 ];
 
+const SUPER_ADMIN_ROLE_ID = 8;
+
 const getInitials = (value: string) =>
   value
     .split(" ")
@@ -54,6 +56,18 @@ const formatDateTime = (value: string | null) => {
     minute: "2-digit",
   }).format(date);
 };
+
+const sortRolesForDisplay = (inputRoles: AdminRoleRecord[]) =>
+  [...inputRoles].sort((a, b) => {
+    const aIsSuperAdmin = Number(a.role_id) === SUPER_ADMIN_ROLE_ID;
+    const bIsSuperAdmin = Number(b.role_id) === SUPER_ADMIN_ROLE_ID;
+
+    if (aIsSuperAdmin !== bIsSuperAdmin) {
+      return aIsSuperAdmin ? -1 : 1;
+    }
+
+    return 0;
+  });
 
 const mapRoleToCard = (role: AdminRoleRecord, index: number): RoleCardData => ({
   id: String(role.role_id),
@@ -159,7 +173,7 @@ export function RolesPermissionsPage({
   }, [searchQuery, sortOrder]);
 
   const roleCards = useMemo<RoleCardData[]>(() => {
-    return roles.map((role, index) => {
+      return sortRolesForDisplay(roles).map((role, index) => {
       const roleUsers = users.filter(
         (user) => user.role_id != null && user.role_id === role.role_id,
       );
@@ -269,15 +283,25 @@ export function RolesPermissionsPage({
                 <RoleCard
                   key={card.id}
                   card={card}
-                  onEdit={canEdit ? (id) => router.push(`/admin/roles-permissions/edit-details?role_id=${id}`) : undefined}
-                  onViewUsers={(id) => {
-                    const role = roles.find((item) => String(item.role_id) === String(id));
-                    router.push(
-                      `/admin/roles-permissions/role-users?role_id=${id}&role_name=${encodeURIComponent(
-                        role?.name || "Role",
-                      )}`,
-                    );
-                  }}
+                  onEdit={
+                    canEdit && Number(card.id) !== SUPER_ADMIN_ROLE_ID
+                      ? (id) => {
+                          router.push(`/admin/roles-permissions/edit-details?role_id=${id}`);
+                        }
+                      : undefined
+                  }
+                  onViewUsers={
+                    Number(card.id) === SUPER_ADMIN_ROLE_ID
+                      ? undefined
+                      : (id) => {
+                          const role = roles.find((item) => String(item.role_id) === String(id));
+                          router.push(
+                            `/admin/roles-permissions/role-users?role_id=${id}&role_name=${encodeURIComponent(
+                              role?.name || "Role",
+                            )}`,
+                          );
+                        }
+                  }
                 />
               ))}
 
