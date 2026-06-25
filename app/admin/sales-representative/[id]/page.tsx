@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -2620,7 +2621,17 @@ export default function LeadDetailPage() {
                         Quote Pricing Details
                       </h2>
                       <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                        Converted from quote {quotePricingDetails.quoteDisplayNumber}
+                        Converted from quote{" "}
+                        {quotePricingDetails.quoteId ? (
+                          <Link
+                            href={`/admin/quotes/${encodeURIComponent(String(quotePricingDetails.quoteId))}`}
+                            className="font-medium text-inherit underline decoration-current underline-offset-4 transition-colors hover:opacity-80"
+                          >
+                            {quotePricingDetails.quoteDisplayNumber}
+                          </Link>
+                        ) : (
+                          <span>{quotePricingDetails.quoteDisplayNumber}</span>
+                        )}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
