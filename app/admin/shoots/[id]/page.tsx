@@ -521,7 +521,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             {convertedSalesQuoteId ? (
               <Button
                 onClick={handlePreviewConvertedQuote}
-                className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+                className="h-12 shrink-0 whitespace-nowrap rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed"
               >
                 <Eye size={14} />
                 Preview Quote
