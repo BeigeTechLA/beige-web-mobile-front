@@ -1387,22 +1387,30 @@ export default function QuotesDashboardPage({
     }
   };
 
-  const renderBookingStatus = (bookingStatus: string) => {
+  const renderBookingStatus = (bookingStatus: string, leadId?: string) => {
     if (bookingStatus === "Converted to Booking") {
       return (
-        <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 border-transperent bg-[#DCFCE7] text-[#27AE60]">
+        <span
+          onClick={(e) => {
+            if (leadId) {
+              e.preventDefault();
+              e.stopPropagation();
+              handleGoToLead(leadId);
+            }
+          }}
+          className="inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 border-transparent bg-[#DCFCE7] text-[#27AE60] cursor-pointer hover:bg-[#cbf9da] transition-colors relative z-30"
+        >
           {bookingStatus}
         </span>
       );
     }
 
     return (
-        <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 border-transperent bg-[#FFECCF] text-[#C26A00]">
+      <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 border-transparent bg-[#FFECCF] text-[#C26A00]">
         {bookingStatus}
       </span>
     );
   };
-
   const statsIcons: Record<string, React.ReactNode> = {
     "Total Quotes": <CustomDollarIcon size={20} />,
     "Rejected Quotes": <CustomCrossIcon size={20} />,
@@ -1988,7 +1996,7 @@ export default function QuotesDashboardPage({
                             {/* Desktop Specific Cells */}
                             <td className="hidden px-6 py-4 md:table-cell max-w-0 w-full"><p className="truncate">{quote.project}</p></td>
                             <td className="hidden px-6 py-4 md:table-cell align-middle">
-                                {renderBookingStatus(quote.bookingStatus)}
+                                {renderBookingStatus(quote.bookingStatus, quote.leadId)}
                             </td>
                             <td className="hidden px-6 py-4 font-medium md:table-cell">{formatCurrency(quote.amountValue)}</td>
 
@@ -2038,7 +2046,7 @@ export default function QuotesDashboardPage({
                                     </div>
                                     <div>
                                       <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Booking Status</p>
-                                      {renderBookingStatus(quote.bookingStatus)}
+                                        {renderBookingStatus(quote.bookingStatus, quote.leadId)}
                                     </div>
                                     <div className="text-right">
                                       <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Amount</p>
