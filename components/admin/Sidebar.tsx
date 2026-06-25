@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useAppSelector } from '@/lib/redux/hooks';
-import { hasModulePermission } from '@/lib/permissions';
+import { hasModulePermission, isSuperAdminUser } from '@/lib/permissions';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -113,6 +113,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     permissions: state.auth.permissions,
     permissionsVersion: state.auth.permissionsVersion,
   }));
+  const isSuperAdmin = isSuperAdminUser(user);
 
   const initialPath = useRef(pathname);
 
@@ -150,6 +151,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }, [pathname, onClose]);
 
   const isDark = !mounted || theme === "dark";
+  const userRoleLabel =
+    user?.user_type_id === 8 || user?.userTypeId === 8
+      ? "Super Admin"
+      : "Admin";
 
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
@@ -246,9 +251,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2" key={`admin-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
-            if (item.permissionKeys && item.permissionKeys.length > 0) {
+            if (item.name === "Roles & Permissions") {
+              if (!isSuperAdmin) return null;
+            } else if (item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");
-              if (!canView) return null;
+              if (!canView && !isSuperAdmin) return null;
             }
 
             const hasChildren = item.children && item.children.length > 0;
@@ -333,7 +340,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             {user?.name?.[0] || "A"}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{user?.name || "Admin"}</p>
+            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{userRoleLabel}</p>
+            <p className={`text-xs truncate ${isDark ? "text-white/45" : "text-[#101010]/45"}`}>{user?.name || "Admin"}</p>
             <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
           </div>
         </div>

@@ -32,6 +32,14 @@ type RoleApiRecord = {
   role_id?: string | number;
 };
 
+const SUPER_ADMIN_ROLE_ID = 8;
+
+const formatRoleLabel = (role: RoleApiRecord) => {
+  const rawId = Number(role?.user_type_id ?? role?.role_id);
+  if (rawId === SUPER_ADMIN_ROLE_ID) return "Super Admin";
+  return role?.user_role ?? role?.name ?? `Role ${rawId || ""}`.trim();
+};
+
 type InternalCredentialForm = {
   name: string;
   email: string;
@@ -94,7 +102,7 @@ function InternalCredentialsPageContent() {
       if (response?.success && Array.isArray(response.data)) {
         const options = response.data
           .map((role: RoleApiRecord) => ({
-            label: role?.user_role ?? role?.name ?? `Role ${role?.user_type_id}`,
+            label: formatRoleLabel(role),
             value: Number(role?.user_type_id ?? role?.role_id),
           }))
           .filter((role: RoleOption) => Number.isFinite(role.value));

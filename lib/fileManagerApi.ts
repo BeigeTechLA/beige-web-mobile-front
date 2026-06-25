@@ -92,6 +92,7 @@ interface ExternalWorkspaceFolder {
 interface ExternalWorkspaceFile {
   id: string;
   name: string;
+  author?: string;
   path: string;
   fullPath?: string;
   size?: number;
@@ -395,6 +396,7 @@ export interface UiFileItem {
   title: string;
   lastOpened: string;
   userInitials: string;
+  uploaderName: string;
   downloadUrl?: string;
   fileCategory: string;
   fileSizeBytes: number;
@@ -1228,6 +1230,7 @@ export const mapFilesForUi = (files: ProjectFileItem[]): UiFileItem[] =>
     title: file.file_name,
     lastOpened: formatRelativeTime(file.updated_at || file.created_at),
     userInitials: getInitials(file.uploaded_by?.name),
+    uploaderName: file.uploaded_by?.name || "Unknown uploader",
     fileCategory: file.file_category,
     fileSizeBytes: file.file_size_bytes,
   }));
@@ -1324,7 +1327,8 @@ export const mapExternalFilesToUi = (files: ExternalWorkspaceFile[]): UiFileItem
     id: file.id,
     title: file.name,
     lastOpened: formatRelativeTime(file.updatedAt || file.createdAt),
-    userInitials: getDisplayInitials(file.name),
+    userInitials: getDisplayInitials(file.author || "Unknown uploader"),
+    uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
     fileCategory: file.contentType || "file",
     fileSizeBytes: file.size || 0,
     filepath: file.path,

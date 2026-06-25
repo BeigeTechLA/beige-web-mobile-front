@@ -72,6 +72,7 @@ interface BrowserFile {
   contentType?: string;
   lastOpened: string;
   userInitials: string;
+  uploaderName: string;
   metadata?: Record<string, unknown>;
   size?: number;
 }
@@ -281,7 +282,8 @@ export default function AffiliateFileManager() {
           filepath: file.path,
           contentType: file.contentType,
           lastOpened: file.updatedAt || file.createdAt || "",
-          userInitials: getInitials(file.name),
+          userInitials: getInitials(file.author || "Unknown uploader"),
+          uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
           metadata: file.metadata || {},
           size: file.size || 0,
         }))
@@ -310,7 +312,8 @@ export default function AffiliateFileManager() {
                 filepath: file.path,
                 contentType: file.contentType,
                 lastOpened: file.updatedAt || file.createdAt || "",
-                userInitials: getInitials(file.name),
+                userInitials: getInitials(file.author || "Unknown uploader"),
+                uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
                 metadata: file.metadata || {},
                 size: file.size || 0,
               }));
@@ -1532,7 +1535,7 @@ export default function AffiliateFileManager() {
                 {selectedWorkspace?.externalId}
               </p>
 
-              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
+              {/* {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
               {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
@@ -1542,7 +1545,7 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
           </div>
         </div>

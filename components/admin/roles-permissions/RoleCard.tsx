@@ -81,22 +81,33 @@ export function RoleCard({ card, onEdit, onViewUsers }: RoleCardProps) {
       </div>
 
       <div className="mt-5 max-w-[520px] sm:mt-6">
-        <h3 className="text-[18px] font-semibold tracking-tight text-white sm:text-[19px] lg:text-[20px]">
-          {card.name}
-        </h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-[18px] font-semibold tracking-tight text-white sm:text-[19px] lg:text-[20px]">
+            {card.name}
+          </h3>
+          {card.roleId === 8 ? (
+            <span className="inline-flex h-6 items-center rounded-full border border-[#E5D5B8]/20 bg-[#E5D5B8]/10 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#E5D5B8]">
+              Super Admin
+            </span>
+          ) : null}
+        </div>
         <p className="mt-2 max-w-[560px] text-[12px] leading-snug text-white/55 line-clamp-2 sm:text-[13px] lg:text-[13px]">
           {card.description}
         </p>
       </div>
 
       <div className="mt-auto flex items-end justify-between pt-5">
-        <button
-          type="button"
-          onClick={() => onEdit?.(card.id)}
-          className="text-[13px] font-medium text-[#E5D5B8] underline decoration-[#E5D5B8]/35 underline-offset-4 transition hover:text-[#f1e3c7] hover:decoration-[#E5D5B8]"
-        >
-          Edit Role
-        </button>
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={() => onEdit(card.id)}
+            className="text-[13px] font-medium text-[#E5D5B8] underline decoration-[#E5D5B8]/35 underline-offset-4 transition hover:text-[#f1e3c7] hover:decoration-[#E5D5B8]"
+          >
+            Edit Role
+          </button>
+        ) : (
+          <span className="text-[13px] font-medium text-white/25">Edit Role</span>
+        )}
         <button
           type="button"
           onClick={() => onViewUsers?.(card.id)}

@@ -8,6 +8,15 @@ import type {
   PricingItem,
 } from "@/lib/api/pricing";
 
+type StudioQuoteItem = {
+  studio_id: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  pricing_mode: "hourly" | "weekend";
+};
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:5001/v1/";
 
@@ -92,6 +101,7 @@ export const pricingApi = createApi({
         notes?: string;
         shoot_start_date?: string;
         studio_total?: number;
+        studio_items?: StudioQuoteItem[];
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
       }
@@ -167,6 +177,7 @@ export const pricingApi = createApi({
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
         add_on_items?: SelectedItem[];
         studio_total?: number;
+        studio_items?: StudioQuoteItem[];
         skip_discount?: boolean;
         skip_margin?: boolean;
       }

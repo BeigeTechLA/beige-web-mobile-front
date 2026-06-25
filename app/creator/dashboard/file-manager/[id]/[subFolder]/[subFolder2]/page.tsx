@@ -624,7 +624,6 @@ export default function CreatorSubFolderDetailsPage() {
   const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
   const uploadFolderPath = useMemo(() => {
     if (!canUpload || !workspaceName) return undefined;
-    const phaseFolder = phaseSlug === "post-production" ? "Post-Production" : "Pre-Production";
     const versionToUpload = selectedUploadVersion || nextBulkUploadVersion || 1;
     let targetPath = currentFolderPath;
     if (isRevisionRootFolder) {
@@ -637,10 +636,15 @@ export default function CreatorSubFolderDetailsPage() {
         .join("/");
       targetPath = `${editRoot || "Edits"}/Revisions/Version${versionToUpload}`;
     }
+    if (isCommonEventWorkspace) {
+      return `${workspaceName}/${targetPath}`;
+    }
+    const phaseFolder = phaseSlug === "post-production" ? "Post-Production" : "Pre-Production";
     return `${workspaceName}/${phaseFolder}/${targetPath}`;
   }, [
     canUpload,
     currentFolderPath,
+    isCommonEventWorkspace,
     isRevisionRootFolder,
     isSelectedForEditsFolder,
     nextBulkUploadVersion,
