@@ -71,6 +71,7 @@ interface BrowserFile {
   contentType?: string;
   lastOpened: string;
   userInitials: string;
+  uploaderName: string;
   metadata?: Record<string, unknown>;
   size?: number;
 }
@@ -159,8 +160,10 @@ export default function AffiliateFileManager() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
   const [isSendingEditRequest, setIsSendingEditRequest] = useState(false);
   const [editRequestSentCount, setEditRequestSentCount] = useState(0);
+  const fileCardStage = selectedPhase === "post" ? "post-production" : "pre-production";
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerName, setViewerName] = useState("");
@@ -277,7 +280,8 @@ export default function AffiliateFileManager() {
           filepath: file.path,
           contentType: file.contentType,
           lastOpened: file.updatedAt || file.createdAt || "",
-          userInitials: getInitials(file.name),
+          userInitials: getInitials(file.author || "Unknown uploader"),
+          uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
           metadata: file.metadata || {},
           size: file.size || 0,
         }))
@@ -306,7 +310,8 @@ export default function AffiliateFileManager() {
                 filepath: file.path,
                 contentType: file.contentType,
                 lastOpened: file.updatedAt || file.createdAt || "",
-                userInitials: getInitials(file.name),
+                userInitials: getInitials(file.author || "Unknown uploader"),
+                uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
                 metadata: file.metadata || {},
                 size: file.size || 0,
               }));
@@ -632,7 +637,11 @@ export default function AffiliateFileManager() {
     }
   };
 
-  const handleReviewRevisionFile = async (file: BrowserFile, action: "approve" | "request_revision") => {
+  const handleReviewRevisionFile = async (
+    file: BrowserFile,
+    action: "approve" | "request_revision",
+    options?: { showToast?: boolean; reloadPhase?: boolean }
+  ) => {
     if (!selectedWorkspace || !file.filepath) return;
 
     try {
@@ -643,15 +652,67 @@ export default function AffiliateFileManager() {
         action,
       });
 
-      if (action === "approve") {
-        toast.success("File approved and moved to Final Deliverables");
-      } else {
-        toast.success(`Revision requested. Version${result?.nextVersionNumber || ""} is ready for upload.`);
+      if (options?.showToast !== false) {
+        if (action === "approve") {
+          toast.success("File approved and moved to Final Deliverables");
+        } else {
+          toast.success(`Revision requested. Version${result?.nextVersionNumber || ""} is ready for upload.`);
+        }
       }
-      await loadPhase(selectedWorkspace, selectedPhase || "post", selectedPath);
+
+      if (options?.reloadPhase !== false) {
+        await loadPhase(selectedWorkspace, selectedPhase || "post", selectedPath);
+      }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to update review status");
     } finally {
+      setReviewingFilePath(null);
+    }
+  };
+
+  const handleApproveAllRevisionFiles = async () => {
+    if (!selectedWorkspace) return;
+
+    const selectedRevisionFiles = selectedFilePaths.length
+      ? phaseFiles.filter((file) => selectedFilePaths.includes(file.filepath || ""))
+      : [];
+
+    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles).filter(
+      (file) => String(file.metadata?.editStatus || "").toLowerCase() !== "approved"
+    );
+
+    if (!filesToApprove.length) return;
+
+    try {
+      setIsSendingEditRequest(true);
+      const progressToastId = toast.loading(`Approving 0/${filesToApprove.length} files...`);
+      let approvedCount = 0;
+
+      for (const file of filesToApprove) {
+        if (!file.filepath) continue;
+        await fileManagerApi.reviewRevisionFile({
+          externalId: selectedWorkspace.externalId,
+          filepath: file.filepath,
+          action: "approve",
+        });
+        approvedCount += 1;
+        toast.loading(`Approving ${approvedCount}/${filesToApprove.length} files...`, {
+          id: progressToastId,
+        });
+      }
+
+      toast.success(`Approved ${approvedCount}/${filesToApprove.length} files and moved them to Final Deliverables`, {
+        id: progressToastId,
+      });
+      await loadPhase(selectedWorkspace, selectedPhase || "post", selectedPath);
+      if (isSelectionMode) {
+        setSelectedFilePaths([]);
+        setIsSelectionMode(false);
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve files");
+    } finally {
+      setIsSendingEditRequest(false);
       setReviewingFilePath(null);
     }
   };
@@ -938,6 +999,27 @@ export default function AffiliateFileManager() {
   );
   const hasMoreFiles = filteredFiles.length > visibleFileCount;
 
+  const hasPendingRevisionFiles = useMemo(
+    () =>
+      isRevisionVersionBrowser &&
+      phaseFiles.some((file) => String(file.metadata?.editStatus || "").toLowerCase() !== "approved"),
+    [phaseFiles, isRevisionVersionBrowser]
+  );
+
+  const selectedPendingFiles = useMemo(
+    () =>
+      selectedFilePaths.length
+        ? phaseFiles.filter(
+            (file) =>
+              selectedFilePaths.includes(file.filepath || "") &&
+              String(file.metadata?.editStatus || "").toLowerCase() !== "approved"
+          )
+        : [],
+    [phaseFiles, selectedFilePaths]
+  );
+
+  const canApproveSelectedFiles = isSelectionMode && selectedPendingFiles.length > 0;
+
   useEffect(() => {
     setVisibleFileCount(FILES_PAGE_SIZE);
   }, [selectedWorkspace?.externalId, selectedPhase, selectedPath, searchTerm, phaseFiles.length]);
@@ -1183,11 +1265,15 @@ export default function AffiliateFileManager() {
           <div className="mb-3 lg:mb-5 flex items-center justify-end">
             {canUploadInSelectedPhase ? (
               <Button
-                onClick={() => setIsUploadModalOpen(true)}
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
                 className={`border transition-colors ${isDark
                   ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
                   : "border-black/15 bg-white text-black hover:bg-zinc-50 shadow-sm"
-                  }`}
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 <Upload size={18} /> Upload Files
               </Button>
@@ -1436,7 +1522,7 @@ export default function AffiliateFileManager() {
                       : "bg-black/[0.04] text-[#B38F43] border-black/5"
                     }`}
                 >
-                  {canUploadInSelectedPhase ? "Upload EnabledD" : "View Only"}
+                  {canUploadInSelectedPhase ? "Upload Enabled" : "View Only"}
                 </span>
               </div>
 
@@ -1447,7 +1533,7 @@ export default function AffiliateFileManager() {
                 {selectedWorkspace?.externalId}
               </p>
 
-              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
+              {/* {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
               {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
@@ -1457,27 +1543,34 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
           </div>
         </div>
 
-        {filteredFiles.length > 0 ? (
-          <div className="flex flex-wrap justify-end gap-2">
-            {isRevisionVersionBrowser ? (
-              <Button
-                className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
-                disabled={Boolean(reviewingFilePath)}
-                onClick={async () => {
-                  for (const file of visibleFiles) {
-                    await handleReviewRevisionFile(file, "approve");
-                  }
-                }}
-              >
-                <Check size={16} />
-                Approve All
-              </Button>
-            ) : null}
+       {filteredFiles.length > 0 ? (
+  <div className="flex flex-wrap justify-end gap-2">
+    {isSelectionMode ? (
+      canApproveSelectedFiles ? (
+        <Button
+          className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
+          disabled={Boolean(reviewingFilePath) || isSendingEditRequest}
+          onClick={handleApproveAllRevisionFiles}
+        >
+          <Check size={16} />
+          {`Approve Selected (${selectedPendingFiles.length})`}
+        </Button>
+      ) : null
+    ) : hasPendingRevisionFiles ? (
+      <Button
+        className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
+        disabled={Boolean(reviewingFilePath) || isSendingEditRequest}
+        onClick={handleApproveAllRevisionFiles}
+      >
+        <Check size={16} />
+        Approve All
+      </Button>
+    ) : null}
 
             {isSelectionMode && isRawFootageBrowser ? (
               <Button
@@ -1638,40 +1731,45 @@ export default function AffiliateFileManager() {
                       isRevisionVersionBrowser &&
                       String(file.metadata?.editStatus || "").toLowerCase() !== "approved";
 
-                    return (
-                      <FileCard
-                        key={file.id}
-                        file={{
-                          ...file,
-                          previewUrl: previewUrls[file.id],
-                          lastOpened: formatRelativeTime(file.lastOpened),
-                          statusLabel: statusBadge.label,
-                          statusClassName: statusBadge.className,
-                        }}
-                        onOpen={() => handleOpenFile(file)}
-                        onDownload={() => handleDownloadFile(file)}
-                        isSelected={
-                          isSelectionMode && selectedFilePaths.includes(file.filepath || "")
-                        }
-                        onSelect={
-                          isSelectionMode
-                            ? () => toggleFileSelection(file.filepath || "")
-                            : undefined
-                        }
-                        onApprove={
-                          canReviewVersionFile && reviewingFilePath !== file.filepath
-                            ? () => handleReviewRevisionFile(file, "approve")
-                            : undefined
-                        }
-                        onRequestRevision={
-                          canReviewVersionFile && reviewingFilePath !== file.filepath
-                            ? () => handleReviewRevisionFile(file, "request_revision")
-                            : undefined
-                        }
-                        isDark={isDark}
-                      />
-                    );
-                  })}
+  return (
+    <FileCard
+      key={file.id}
+      file={{
+        ...file,
+        previewUrl: previewUrls[file.id],
+        lastOpened: formatRelativeTime(file.lastOpened),
+        statusLabel: statusBadge.label,
+        statusClassName: statusBadge.className,
+      }}
+      stage={fileCardStage}
+      onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+      onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
+      isSelected={
+        isSelectionMode && selectedFilePaths.includes(file.filepath || "")
+      }
+      onSelect={
+        isSelectionMode
+          ? () => toggleFileSelection(file.filepath || "")
+          : undefined
+      }
+      onApprove={
+        !selectionLockActive &&
+        canReviewVersionFile &&
+        reviewingFilePath !== file.filepath
+          ? () => handleReviewRevisionFile(file, "approve")
+          : undefined
+      }
+      onRequestRevision={
+        !selectionLockActive &&
+        canReviewVersionFile &&
+        reviewingFilePath !== file.filepath
+          ? () => handleReviewRevisionFile(file, "request_revision")
+          : undefined
+      }
+      isDark={isDark}
+    />
+  );
+})}
                 </div>
                 {hasMoreFiles ? (
                   <div className="flex justify-center">
@@ -1689,10 +1787,10 @@ export default function AffiliateFileManager() {
               <EmptyFileState
                 title="No File Uploaded"
                 description="No files have been uploaded for this project yet."
-                onAction={canUploadInSelectedPhase ? () => setIsUploadModalOpen(true) : undefined}
-                actionLabel={canUploadInSelectedPhase ? "Upload Files" : undefined}
-                isDark={isDark}
-              />
+            onAction={canUploadInSelectedPhase && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+            actionLabel={canUploadInSelectedPhase && !selectionLockActive ? "Upload Files" : undefined}
+            isDark={isDark}
+          />
             )}
           </div>
         ) : null}

@@ -86,6 +86,7 @@ export default function CreatorSubFolderDetailsPage() {
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const isPhaseRoute = phaseSlug === "pre-production" || phaseSlug === "post-production";
   const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -621,7 +622,6 @@ export default function CreatorSubFolderDetailsPage() {
   const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
   const uploadFolderPath = useMemo(() => {
     if (!canUpload || !workspaceName) return undefined;
-    const phaseFolder = phaseSlug === "post-production" ? "Post-Production" : "Pre-Production";
     const versionToUpload = selectedUploadVersion || nextBulkUploadVersion || 1;
     let targetPath = currentFolderPath;
     if (isRevisionRootFolder) {
@@ -634,10 +634,15 @@ export default function CreatorSubFolderDetailsPage() {
         .join("/");
       targetPath = `${editRoot || "Edits"}/Revisions/Version${versionToUpload}`;
     }
+    if (isCommonEventWorkspace) {
+      return `${workspaceName}/${targetPath}`;
+    }
+    const phaseFolder = phaseSlug === "post-production" ? "Post-Production" : "Pre-Production";
     return `${workspaceName}/${phaseFolder}/${targetPath}`;
   }, [
     canUpload,
     currentFolderPath,
+    isCommonEventWorkspace,
     isRevisionRootFolder,
     isSelectedForEditsFolder,
     nextBulkUploadVersion,
@@ -686,6 +691,7 @@ export default function CreatorSubFolderDetailsPage() {
   const someVisibleFilesSelected =
     visibleFiles.some((file) => selectedFilePaths.includes(file.filepath || "")) &&
     !allVisibleFilesSelected;
+  const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
 
   const toggleFileSelection = (filepath: string) => {
     setSelectedFilePaths((prev) =>
@@ -766,7 +772,11 @@ export default function CreatorSubFolderDetailsPage() {
 	              ) : null}
 	              {showHeaderUploadButton ? (
 	                <Button
-	                  onClick={() => openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null)}
+	                  onClick={() => {
+                      if (selectionLockActive) return;
+                      openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null);
+                    }}
+                    disabled={selectionLockActive}
 	                  className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
 	                >
 	                  <Upload size={18} />
@@ -978,7 +988,7 @@ export default function CreatorSubFolderDetailsPage() {
                       const statusBadge = getSelectedFileStatusBadge(file as unknown as Record<string, unknown>);
                       const revisionState = getSelectedFileRevisionState(file as unknown as Record<string, unknown>);
                       return (
-                        <FileCard
+                          <FileCard
                           key={file.id}
                           file={{
                             ...file,
@@ -988,15 +998,16 @@ export default function CreatorSubFolderDetailsPage() {
                             versionLabel: statusBadge?.versionLabel,
                             versionClassName: statusBadge?.versionClassName,
                           }}
-                          onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-                          onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                          stage={fileCardStage}
+                          onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
+                          onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
                           onUploadEdited={
-                            isSelectedForEditsFolder && revisionState.nextUploadVersion
+                            !selectionLockActive && isSelectedForEditsFolder && revisionState.nextUploadVersion
                               ? () => openUploadModalForVersion(revisionState.nextUploadVersion)
                               : undefined
                           }
                           onDelete={
-                            canDeleteFiles
+                            !selectionLockActive && canDeleteFiles
                               ? () => {
                                   setSelectedFile(file as unknown as Record<string, unknown>);
                                   setIsDeleteModalOpen(true);
@@ -1065,8 +1076,8 @@ export default function CreatorSubFolderDetailsPage() {
                         return (
 	                      <tr
 	                        key={file.id}
-	                        className={`group cursor-pointer transition-colors hover:bg-white/[0.02] ${isSelectionMode && selectedFilePaths.includes(file.filepath || "") ? "bg-white/[0.04]" : ""}`}
-	                        onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+	                        className={`group transition-colors ${selectionLockActive ? "cursor-default" : "cursor-pointer hover:bg-white/[0.02]"} ${isSelectionMode && selectedFilePaths.includes(file.filepath || "") ? "bg-white/[0.04]" : ""}`}
+	                        onClick={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
 	                      >
                           {isSelectionMode ? (
                             <td className="whitespace-nowrap px-6 py-5" onClick={(e) => e.stopPropagation()}>
@@ -1135,6 +1146,7 @@ export default function CreatorSubFolderDetailsPage() {
 	                              className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
 	                              onClick={(e) => {
 	                                e.stopPropagation();
+                                  if (selectionLockActive) return;
 	                                handleDownloadFile(file as unknown as Record<string, unknown>);
 	                              }}
 		                            >
@@ -1149,6 +1161,7 @@ export default function CreatorSubFolderDetailsPage() {
                                         className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#E8D1AB]"
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          if (selectionLockActive) return;
                                           openUploadModalForVersion(revisionState.nextUploadVersion);
                                         }}
                                         title={`Upload Version${revisionState.nextUploadVersion}`}
@@ -1163,6 +1176,7 @@ export default function CreatorSubFolderDetailsPage() {
                                 className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  if (selectionLockActive) return;
                                   setSelectedFile(file as unknown as Record<string, unknown>);
                                   setIsDeleteModalOpen(true);
                                 }}

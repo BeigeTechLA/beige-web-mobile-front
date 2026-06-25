@@ -50,7 +50,7 @@ export interface DiscountTier {
 }
 
 export interface QuoteLineItem {
-  item_id: number;
+  item_id: number | null;
   item_name: string;
   category_name: string;
   category_slug: string;
@@ -87,7 +87,7 @@ export interface SavedQuote extends QuoteCalculation {
   line_items: Array<{
     line_item_id: number;
     quote_id: number;
-    item_id: number;
+    item_id: number | null;
     item_name: string;
     quantity: number;
     unit_price: number;
@@ -332,4 +332,3 @@ export const pricingApi = {
 };
 
 export default pricingApi;
-

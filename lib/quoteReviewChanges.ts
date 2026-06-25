@@ -1,7 +1,7 @@
 import { format, isValid, parseISO } from "date-fns";
 
 import type { SalesQuoteDetailData } from "@/lib/api";
-import type { QuoteDraftPayload } from "@/lib/quoteDraft";
+import type { QuoteDraftBookingSchedule, QuoteDraftPayload } from "@/lib/quoteDraft";
 import {
   formatQuoteItemDisplayName,
   getQuoteDisplayShootTypeLabel,
@@ -54,6 +54,7 @@ type BuildCurrentDraftReviewItemsInput = {
 type BuildQuoteReviewChangesDataInput = {
   quote: SalesQuoteDetailData | null | undefined;
   currentDraftLineItems: QuoteReviewComparableItem[];
+  bookingSchedule?: QuoteDraftBookingSchedule | null;
   nextTotal: number;
   clientName: string;
   emailId: string;
@@ -120,6 +121,96 @@ const formatEditorDate = (value: string) => {
 
   const parsedDate = parseISO(value);
   return isValid(parsedDate) ? format(parsedDate, "MMMM d, yyyy") : value;
+};
+
+type ReviewBookingDay = {
+  date?: string | null;
+  event_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+};
+
+type ReviewBookingScheduleLike = {
+  booking_type?: string | null;
+  time_zone?: string | null;
+  start_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  booking_days?: ReviewBookingDay[] | null;
+  converted_booking_details?: ReviewBookingScheduleLike | null;
+} | null | undefined;
+
+const formatEditorTime = (value?: string | null) => {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed ? trimmed.slice(0, 5) : "";
+};
+
+const resolveReviewBookingSchedule = (
+  value: ReviewBookingScheduleLike,
+): ReviewBookingScheduleLike => {
+  if (!value) {
+    return null;
+  }
+
+  return value.converted_booking_details ?? value;
+};
+
+const formatBookingScheduleForReview = (
+  value: ReviewBookingScheduleLike,
+) => {
+  const schedule = resolveReviewBookingSchedule(value);
+  if (!schedule) {
+    return "";
+  }
+
+  const bookingDays = Array.isArray(schedule.booking_days)
+    ? schedule.booking_days
+        .map((day) => {
+          const date = getQuoteText(day?.date, day?.event_date);
+          const startTime = formatEditorTime(day?.start_time);
+          const endTime = formatEditorTime(day?.end_time);
+          return date && startTime && endTime
+            ? { date, startTime, endTime }
+            : null;
+        })
+        .filter(
+          (day): day is { date: string; startTime: string; endTime: string } =>
+            Boolean(day),
+        )
+    : [];
+  const hasAnyBookingFields =
+    Boolean(schedule.booking_type) ||
+    Boolean(schedule.start_date) ||
+    Boolean(schedule.start_time) ||
+    Boolean(schedule.end_time) ||
+    bookingDays.length > 0;
+
+  if (schedule.booking_type === "tbd" || !hasAnyBookingFields) {
+    return "TBD";
+  }
+
+  const shouldUseMultiDay =
+    schedule.booking_type === "multi_day" || bookingDays.length > 1;
+
+  if (shouldUseMultiDay) {
+    if (!bookingDays.length) {
+      return "Multiple Days";
+    }
+
+    return `Multiple Days: ${bookingDays
+      .map((day) => `${formatEditorDate(day.date)} ${day.startTime} - ${day.endTime}`)
+      .join("; ")}`;
+  }
+
+  const startDate = getQuoteText(schedule.start_date, bookingDays[0]?.date);
+  const startTime = formatEditorTime(schedule.start_time) || bookingDays[0]?.startTime || "";
+  const endTime = formatEditorTime(schedule.end_time) || bookingDays[0]?.endTime || "";
+
+  if (!startDate || !startTime || !endTime) {
+    return "Date & time not set";
+  }
+
+  return `Single Day: ${formatEditorDate(startDate)} ${startTime} - ${endTime}`;
 };
 
 export const buildCurrentDraftReviewItems = ({
@@ -211,6 +302,7 @@ export const buildCurrentDraftReviewItems = ({
 export const buildQuoteReviewChangesData = ({
   quote,
   currentDraftLineItems,
+  bookingSchedule,
   nextTotal,
   clientName,
   emailId,
@@ -226,6 +318,7 @@ export const buildQuoteReviewChangesData = ({
   shootTypeLabel,
 }: BuildQuoteReviewChangesDataInput) => {
   const originalLineItems = quote ? normalizeQuoteLineItems(quote) : [];
+  const previousBookingSchedule = quote?.converted_booking_details ?? quote;
   const previousTotal = Math.max(
     0,
     getQuoteNumber(
@@ -368,6 +461,12 @@ export const buildQuoteReviewChangesData = ({
       label: "Tax Type",
       previousValue: getQuoteText(quote?.tax_type, "Sales Tax") || "Sales Tax",
       nextValue: taxLabel || "Sales Tax",
+    },
+    {
+      id: "booking_schedule",
+      label: "Booking Date & Time",
+      previousValue: formatBookingScheduleForReview(previousBookingSchedule as ReviewBookingScheduleLike),
+      nextValue: formatBookingScheduleForReview(bookingSchedule as ReviewBookingScheduleLike),
     },
   ];
 

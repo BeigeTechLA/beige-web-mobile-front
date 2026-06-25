@@ -87,6 +87,7 @@ interface FileCardFile {
   contentType?: string;
   previewUrl?: string;
   userInitials?: string;
+  uploaderName?: string;
   lastOpened?: string;
   statusLabel?: string;
   statusClassName?: string;
@@ -106,6 +107,7 @@ const formatFileSize = (bytes?: number) => {
 
 export const FileCard = ({
   file,
+  stage = "post-production",
   onMenuTrigger,
   onOpen,
   onDownload,
@@ -129,7 +131,8 @@ export const FileCard = ({
   onRequestRevision?: () => void,
   isSelected?: boolean,
   onSelect?: (selected: boolean) => void,
-  isDark?: boolean
+  isDark?: boolean,
+  stage?: 'pre-production' | 'post-production'
 }) => {
   const meta = getFileMeta(file.contentType, file.title);
   const FileIcon = meta.icon;
@@ -230,20 +233,22 @@ export const FileCard = ({
             <span className={`font-semibold text-sm truncate max-w-[70%] ${isDark ? 'text-white' : 'text-black'}`} title={file.title}>
               {file.title}
             </span>
-            {file.statusLabel && (
+            {stage === 'post-production' && file.statusLabel && (
               <span className={`shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border ${file.versionClassName || "bg-purple-500/10 text-purple-400 border-purple-500/20"}`}>
                 {file.versionLabel || (file.statusLabel.includes("Version") ? file.statusLabel.split(" ")[0] + " Latest" : "V1 Latest")}
               </span>
             )}
           </div>
-          <div>
-            <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium leading-none ${
-              file.statusClassName || 
-              (isDark ? "border-[#3B82F6]/30 bg-[#3B82F6]/15 text-[#93C5FD]" : "border-blue-200 bg-blue-50 text-blue-600")
-            }`}>
-              {file.statusLabel || "Raw Files Uploaded"}
-            </span>
-          </div>
+          {stage === 'post-production' && (
+            <div>
+              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium leading-none ${
+                file.statusClassName || 
+                (isDark ? "border-[#3B82F6]/30 bg-[#3B82F6]/15 text-[#93C5FD]" : "border-blue-200 bg-blue-50 text-blue-600")
+              }`}>
+                {file.statusLabel || "Raw Files Uploaded"}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Footer Area with Initials, Uploader, Date and Menu */}
@@ -254,7 +259,7 @@ export const FileCard = ({
             </div>
             <div className="flex flex-col min-w-0">
               <span className={`text-xs font-medium truncate ${isDark ? 'text-[#CDC5C5]' : 'text-[#333333]'}`}>
-                Uploaded by {file.userInitials || "Creator"}
+                Uploaded by {file.uploaderName || "Unknown uploader"}
               </span>
               <span className={`text-[10px] ${isDark ? 'text-[#CDC5C5]/60' : 'text-[#666666]/60'}`}>
                 {file.lastOpened || "just now"}

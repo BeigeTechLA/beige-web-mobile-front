@@ -639,6 +639,11 @@ export default function ExternalChatView({
     ) as Array<{ id?: string; name?: string; email?: string; role?: string }>;
   }, [participants]);
 
+  const chatUserId = useMemo(() => {
+    const participant = participantList.find((item) => participantMatchesAppUser(item, effectiveUser));
+    return participant?.id ? String(participant.id) : userId;
+  }, [participantList, effectiveUser, userId]);
+
   const scopedRooms = useMemo(
     () =>
       (role === "cp" || role === "client") && !bookingId
@@ -2027,7 +2032,7 @@ export default function ExternalChatView({
                           participantRoleMap,
                         });
                         const isSystem = message.message_type === "system";
-                        const isOwn = sender?.id && userId ? String(sender.id) === userId : false;
+                        const isOwn = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
                         const isEditing = editingMessageId === messageId;
                         const groupedReactions = Object.values(
                           (message.reactions || []).reduce(
@@ -2039,7 +2044,7 @@ export default function ExternalChatView({
                               }
                               acc[emoji].count += 1;
                               acc[emoji].users.push(reaction.user_name || "User");
-                              if (userId && reaction.user_id != null && String(reaction.user_id) === userId) {
+                              if (chatUserId && reaction.user_id != null && String(reaction.user_id) === chatUserId) {
                                 acc[emoji].reactedByCurrentUser = true;
                               }
                               return acc;

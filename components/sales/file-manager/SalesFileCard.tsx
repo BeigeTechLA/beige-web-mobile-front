@@ -49,7 +49,7 @@ const getFileMeta = (contentType?: string, title?: string) => {
   return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
 };
 
-export const SalesFileCard = ({ file, onMenuTrigger }: { file: any, onMenuTrigger: (e: React.MouseEvent<HTMLButtonElement>) => void }) => {
+export const SalesFileCard = ({ file, onMenuTrigger, stage = "post-production" }: { file: any, onMenuTrigger: (e: React.MouseEvent<HTMLButtonElement>) => void, stage?: 'pre-production' | 'post-production' }) => {
     const meta = getFileMeta(file.contentType, file.title);
     const FileIcon = meta.icon;
 
@@ -67,6 +67,23 @@ export const SalesFileCard = ({ file, onMenuTrigger }: { file: any, onMenuTrigge
                         <MoreVertical size={24} />
                     </Button>
                 </div>
+
+                {stage === "post-production" && (file.statusLabel || file.versionLabel) ? (
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                        <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium leading-none ${
+                          file.statusClassName || "border-[#3B82F6]/30 bg-[#3B82F6]/15 text-[#93C5FD]"
+                        }`}>
+                            {file.statusLabel || "Raw Files Uploaded"}
+                        </span>
+                        {file.versionLabel ? (
+                            <span className={`shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border ${
+                              file.versionClassName || "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                            }`}>
+                                {file.versionLabel}
+                            </span>
+                        ) : null}
+                    </div>
+                ) : null}
 
                 {/* File Preview Area */}
                 <div className="aspect-23/18 bg-[#202020] rounded-md flex items-center justify-center">
