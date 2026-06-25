@@ -45,6 +45,7 @@ const formatDateTime = (value?: string) => {
 
 const getHistoryActorName = (entry: any) => {
     return (
+        entry?.performed_by_name ||
         entry?.acted_by?.name ||
         entry?.actor?.name ||
         entry?.user?.name ||
@@ -79,6 +80,8 @@ const getHistoryActionLabel = (entry: any) => {
         ""
     ).toLowerCase();
 
+    if (rawAction.includes("restore_blocked") || rawAction.includes("blocked")) return "blocked";
+    if (rawAction.includes("converted_to_creator") || rawAction.includes("creative_partner") || rawAction.includes("creator")) return "creative partner signup";
     if (rawAction.includes("restor")) return "restored";
     if (rawAction.includes("archiv") || rawAction.includes("delet")) return "deleted";
     return rawAction || "updated";
@@ -95,6 +98,13 @@ const buildHistorySentence = (entry: any, clientName: string) => {
 
     if (actionLabel === "deleted") {
         return `${subject} was deleted by ${actorName}`;
+    }
+
+    if (actionLabel === "creative partner signup") {
+        const isSelfSignup = String(entry?.performed_by_role || "").toLowerCase() === "self_signup";
+        return isSelfSignup
+            ? `${subject} signed up as a creative partner`
+            : `${subject} was converted to a creative partner by ${actorName}`;
     }
 
     return `${subject} was updated by ${actorName}`;
@@ -167,9 +177,11 @@ export default function ClientDetailsPage() {
     const accountCredit = clientData?.account_credit;
     const creditHistory = clientData?.credit_history || [];
     const archiveHistorySource = clientData?.archive_history || clientData?.archiveHistory || clientData?.archived_history || client?.archive_history || [];
-    const archiveHistory = Array.isArray(archiveHistorySource)
+    const rawArchiveHistory = Array.isArray(archiveHistorySource)
         ? archiveHistorySource
         : archiveHistorySource?.items || archiveHistorySource?.history || archiveHistorySource?.data || [];
+    const archiveHistory = Array.isArray(rawArchiveHistory) ? rawArchiveHistory : [];
+    const visibleArchiveHistory = archiveHistory.filter((entry) => getHistoryActionLabel(entry) !== "blocked");
     const clientName = client?.name || "This user";
 
     const clientType = client?.client_type === "registered" ? "registered" : "guest";
@@ -476,9 +488,9 @@ export default function ClientDetailsPage() {
                     <h2 className="text-[22px] lg:text-[26px] font-bold leading-none">Archive History</h2>
 
                     <div className={`rounded-2xl border p-5 lg:p-6 ${isDark ? "bg-[#0D0D0D] border-[#222]" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
-                        {Array.isArray(archiveHistory) && archiveHistory.length > 0 ? (
+                        {Array.isArray(visibleArchiveHistory) && visibleArchiveHistory.length > 0 ? (
                             <div className="space-y-4">
-                                {archiveHistory.map((entry: any, index: number) => {
+                                {visibleArchiveHistory.map((entry: any, index: number) => {
                                     const { date, time } = formatDateTime(entry?.created_at || entry?.timestamp || entry?.date || entry?.archived_at || entry?.restored_at);
                                     const actorName = getHistoryActorName(entry);
                                     const avatar = getHistoryAvatar(entry);

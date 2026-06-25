@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -624,6 +625,9 @@ export default function LeadDetailPage() {
     primaryQuote?.quote_id ??
     booking?.quote_id ??
     null;
+  const quoteDetailHref = quotePricingDetails?.quoteId
+    ? `/admin/quotes/${encodeURIComponent(String(quotePricingDetails.quoteId))}`
+    : null;
   const canEditQuote = Boolean(editableQuoteId);
   const hasQuoteLevelDiscount = Number(quotePricingDetails?.discountAmount ?? 0) > 0;
   const isDiscountLockedByQuote = isQuoteConvertedLead && hasQuoteLevelDiscount;
@@ -1540,6 +1544,24 @@ export default function LeadDetailPage() {
                   <p>
                     Lead Source : <span className={isDark ? "text-white capitalize" : "text-black capitalize"}>{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
                   </p>
+                  {quotePricingDetails && (
+                    <>
+                      <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
+                      <p>
+                        Converted Quote :{" "}
+                        {quoteDetailHref ? (
+                          <Link
+                            href={quoteDetailHref}
+                            className={`${isDark ? "text-[#E8D1AB]" : "text-[#8A6A00]"} font-medium underline decoration-current underline-offset-4 transition-colors hover:opacity-80`}
+                          >
+                            {quotePricingDetails.quoteDisplayNumber}
+                          </Link>
+                        ) : (
+                          <span className={isDark ? "text-white" : "text-black"}>{quotePricingDetails.quoteDisplayNumber}</span>
+                        )}
+                      </p>
+                    </>
+                  )}
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <div className="relative inline-flex items-center gap-2 flex-nowrap overflow-visible">
                     <p className="whitespace-nowrap">
@@ -2620,7 +2642,17 @@ export default function LeadDetailPage() {
                         Quote Pricing Details
                       </h2>
                       <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                        Converted from quote {quotePricingDetails.quoteDisplayNumber}
+                        Converted from quote{" "}
+                        {quoteDetailHref ? (
+                          <Link
+                            href={quoteDetailHref}
+                            className="font-medium text-inherit underline decoration-current underline-offset-4 transition-colors hover:opacity-80"
+                          >
+                            {quotePricingDetails.quoteDisplayNumber}
+                          </Link>
+                        ) : (
+                          <span>{quotePricingDetails.quoteDisplayNumber}</span>
+                        )}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
