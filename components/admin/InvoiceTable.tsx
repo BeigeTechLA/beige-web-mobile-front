@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Eye, Loader2, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { salesApi } from "@/lib/api";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
@@ -47,6 +47,7 @@ interface InvoiceTableInvoiceRow {
   clientName: string;
   clientEmail: string;
   leadOrQuoteId: string;
+  leadOrQuoteHref: string | null;
   paymentStatus: string;
   overallPaymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
@@ -69,6 +70,7 @@ interface InvoiceTableGroupRow {
   clientName: string;
   clientEmail: string;
   leadOrQuoteId: string;
+  leadOrQuoteHref: string | null;
   paymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
   invoiceSendStatus: "sent" | "not_sent";
@@ -150,15 +152,35 @@ const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
     return `Quote Id : ${item.quote_id}`;
   }
 
-  if (item.client_lead_id) {
-    return `Client Lead Id : ${item.client_lead_id}`;
-  }
-
   if (item.lead_id) {
     return `Lead Id : ${item.lead_id}`;
   }
+
+  if (item.client_lead_id) {
+    return `Client Lead Id : ${item.client_lead_id}`;
+  }
   
   return "N/A";
+};
+
+const getLeadOrQuoteHref = (item: InvoiceHistoryItem, isSalesRoute: boolean) => {
+  if (item.quote_id) {
+    return `/admin/quotes/${item.quote_id}`;
+  }
+
+  if (item.lead_id) {
+    return isSalesRoute
+      ? `/sales/leads/${item.lead_id}`
+      : `/admin/sales-representative/${item.lead_id}`;
+  }
+
+  if (item.client_lead_id) {
+    return isSalesRoute
+      ? `/sales/client/${item.client_lead_id}`
+      : `/admin/sales-representative/client/${item.client_lead_id}`;
+  }
+
+  return null;
 };
 
 const getInvoiceGroupKey = (item: InvoiceHistoryItem) => {
@@ -319,6 +341,7 @@ const mapInvoiceHistoryItemsToRows = (
       clientName: item.client_name || "N/A",
       clientEmail: item.client_email || "N/A",
       leadOrQuoteId: getLeadOrQuoteValue(item),
+      leadOrQuoteHref: getLeadOrQuoteHref(item, Boolean(isSalesRoute)),
       paymentStatus: normalizeStatus(item.payment_status),
       overallPaymentStatus: normalizeStatus(item.booking_payment_status || item.payment_status),
       invoiceMethod,
@@ -364,6 +387,7 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
         clientName: parentInvoice.clientName,
         clientEmail: parentInvoice.clientEmail,
         leadOrQuoteId: parentInvoice.leadOrQuoteId,
+        leadOrQuoteHref: parentInvoice.leadOrQuoteHref,
         paymentStatus: groupPaymentStatus,
         invoiceMethod: parentInvoice.invoiceMethod,
         invoiceSendStatus: parentInvoice.invoiceSendStatus,
@@ -487,6 +511,7 @@ const buildGooglePdfViewerUrl = (invoiceUrl: string) => {
 
 export const InvoiceTable = () => {
   const { theme, resolvedTheme } = useTheme();
+  const router = useRouter();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -591,6 +616,27 @@ export const InvoiceTable = () => {
 
   const handleGroupAction = (row: InvoiceTableGroupRow) => {
     toggleGroup(row.groupKey);
+  };
+
+  const renderLinkedId = (label: string, href: string | null, className: string) => {
+    if (!href) {
+      return <span className={className}>{label}</span>;
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          router.push(href);
+        }}
+        className={`inline-block max-w-full ${className} text-left font-medium text-inherit decoration-current underline-offset-4 transition-colors hover:opacity-80`}
+        title={`Open ${label}`}
+        aria-label={`Open ${label}`}
+      >
+        {label}
+      </button>
+    );
   };
 
   const handleGroupKeyDown = (
@@ -719,7 +765,9 @@ export const InvoiceTable = () => {
                   </div>
                   <div>
                     <p className={isDark ? "text-white/40" : "text-[#888]"}>Lead ID/Quote ID</p>
-                    <p className={isDark ? "text-white/80" : "text-[#333]"}>{row.leadOrQuoteId}</p>
+                    <div className={isDark ? "text-white/80" : "text-[#333]"}>
+                      {renderLinkedId(row.leadOrQuoteId, row.leadOrQuoteHref, "text-sm")}
+                    </div>
                   </div>
                 </div>
 
@@ -870,7 +918,9 @@ export const InvoiceTable = () => {
                           <p className="truncate" title={row.clientEmail}>{row.clientEmail}</p>
                         </td>
                         <td className={`py-5 px-6 align-top text-base ${isDark ? "text-[#666666]" : "text-[#777]"}`}>
-                          <p className="truncate" title={row.leadOrQuoteId}>{row.leadOrQuoteId}</p>
+                          <div className="truncate" title={row.leadOrQuoteId}>
+                            {renderLinkedId(row.leadOrQuoteId, row.leadOrQuoteHref, "truncate text-base")}
+                          </div>
                         </td>
                         <td className="py-5 px-6 align-top">
                           <LeadsStatusBadge status={row.paymentStatus} />
@@ -894,7 +944,15 @@ export const InvoiceTable = () => {
                       </tr>
                       {isExpanded && (
                         <tr
-                          className={`border-b transition-colors ${isDark ? "border-[#1D1D1D] bg-white/[0.015]" : "border-[#F5F0E7] bg-[#FFFDF8]"}`}
+                          className={`border-b transition-colors ${
+                                row.invoicePdf || row.bookingIdValue ? "cursor-pointer" : "cursor-not-allowed"
+                              } ${isDark ? "border-[#1D1D1D] bg-white/[0.015]" : "border-[#F5F0E7] bg-[#FFFDF8]"}`}                          
+                          onClick={(event) => {
+                              event.stopPropagation();
+                              if (!row.invoicePdf && !row.bookingIdValue) return;
+
+                              handleViewDocument(row.invoicePdf, row.bookingIdValue, "invoice");
+                           }}                        
                         >
                           <td className="py-4 pl-14 pr-6 align-top">
                             <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
@@ -912,7 +970,9 @@ export const InvoiceTable = () => {
                             <p className="truncate" title={row.clientEmail}>{row.clientEmail}</p>
                           </td>
                           <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#777]" : "text-[#888]"}`}>
-                            <p className="truncate" title={row.leadOrQuoteId}>{row.leadOrQuoteId}</p>
+                            <div className="truncate" title={row.leadOrQuoteId}>
+                              {renderLinkedId(row.leadOrQuoteId, row.leadOrQuoteHref, "truncate text-sm")}
+                            </div>
                           </td>
                           <td className="py-4 px-6 align-top">
                             <LeadsStatusBadge status={row.paymentStatus} />
@@ -939,7 +999,14 @@ export const InvoiceTable = () => {
                       {isExpanded && receiptRows.map((invoice) => (
                         <tr
                           key={invoice.id}
-                          className={`border-b transition-colors ${isDark ? "border-[#1D1D1D] bg-white/[0.015]" : "border-[#F5F0E7] bg-[#FFFDF8]"}`}
+                          className={`border-b transition-colors ${
+                                invoice.invoicePdf ? "cursor-pointer" : "cursor-not-allowed"
+                              } ${isDark ? "border-[#1D1D1D] bg-white/[0.015]" : "border-[#F5F0E7] bg-[#FFFDF8]"}`}
+                              onClick={(event) => {
+                                    event.stopPropagation();
+                                    if (!invoice.invoicePdf) return;
+                                    handleViewDocument(invoice.invoicePdf, invoice.bookingIdValue, invoice.documentKind);
+                          }}
                         >
                           <td className="py-4 pl-14 pr-6 align-top">
                             <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
@@ -960,7 +1027,9 @@ export const InvoiceTable = () => {
                             <p className="truncate" title={invoice.clientEmail}>{invoice.clientEmail}</p>
                           </td>
                           <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#777]" : "text-[#888]"}`}>
-                            <p className="truncate" title={invoice.leadOrQuoteId}>{invoice.leadOrQuoteId}</p>
+                            <div className="truncate" title={invoice.leadOrQuoteId}>
+                              {renderLinkedId(invoice.leadOrQuoteId, invoice.leadOrQuoteHref, "truncate text-sm")}
+                            </div>
                           </td>
                           <td className="py-4 px-6 align-top">
                             <LeadsStatusBadge status={invoice.paymentStatus} />

@@ -102,6 +102,8 @@ type ChartPoint = {
 
 type DisplayQuoteRow = {
   id: string;
+  leadId: string; 
+  bookingStatus: string;
   quoteNumber: string;
   client: string;
   location: string;
@@ -170,6 +172,7 @@ type QuoteActionMenuProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onViewDetails: () => void;
+  onGoToLead?: () => void;
   onDuplicate: () => void;
   onEdit: () => void;
   onPaymentTransaction: () => void;
@@ -236,6 +239,7 @@ const QuoteActionMenu = ({
   open,
   onOpenChange,
   onViewDetails,
+  onGoToLead,
   onDuplicate,
   onEdit,
   onPaymentTransaction,
@@ -288,6 +292,14 @@ const QuoteActionMenu = ({
           }`}
       >
         <div className="flex flex-col p-1.5" onClick={(e) => e.stopPropagation()}>
+          {onGoToLead ? (
+            <QuoteActionMenuButton
+              icon={<ChevronRight size={18} />}
+              label="Go to Lead"
+              onClick={handleAction(onGoToLead)}
+              isDark={isDark}
+            />
+          ) : null}
           <QuoteActionMenuButton
             icon={<FileText size={18} />}
             label="View Details"
@@ -977,10 +989,16 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     "Location not specified"
   );
   const amountValue = getNumber(quote.total_amount, quote.total, quote.amount);
+  const leadId = quote.lead_id ? String(quote.lead_id) : "";
+  const bookingStatus = quote.lead_id ? "Converted to Booking" : "Pending Booking";
+
+
 
   return {
     id: String(quote.sales_quote_id ?? quote.quote_id ?? quote.id ?? index),
     quoteNumber,
+    leadId,
+    bookingStatus,
     client,
     location,
     initials: getInitials(client),
@@ -1001,6 +1019,7 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     searchValue: [
       client,
       project,
+      leadId,
       salesperson,
       quoteNumber,
       getText(quote.client_email, quote.guest_email, quote.client_phone),
@@ -1278,6 +1297,16 @@ export default function QuotesDashboardPage({
     router.push(`${detailBaseHref}/${quoteId}`);
   };
 
+  const handleGoToLead = (leadId: string) => {
+    if (!leadId) {
+      toast.error("Lead id is missing.");
+      return;
+    }
+
+    setOpenActionMenuId(null);
+    router.push(`/admin/sales-representative/${leadId}`);
+  };
+
   const handlePaymentTransaction = (quoteId: string) => {
     if (!quoteId) {
       toast.error("Quote id is missing.");
@@ -1346,6 +1375,22 @@ export default function QuotesDashboardPage({
     } finally {
       setIsEditAccessSubmitting(false);
     }
+  };
+
+  const renderBookingStatus = (bookingStatus: string) => {
+    if (bookingStatus === "Converted to Booking") {
+      return (
+        <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 border-transperent bg-[#DCFCE7] text-[#27AE60]">
+          {bookingStatus}
+        </span>
+      );
+    }
+
+    return (
+        <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 border-transperent bg-[#FFECCF] text-[#C26A00]">
+        {bookingStatus}
+      </span>
+    );
   };
 
   const statsIcons: Record<string, React.ReactNode> = {
@@ -1867,6 +1912,7 @@ export default function QuotesDashboardPage({
                   >
                     <th className="px-6 py-4 font-medium w-[25%]">Client Name</th>
                     <th className="px-6 py-4 font-medium w-[10%]">Project</th>
+                    <th className="px-6 py-4 font-medium w-[10%]">Booking Status</th>
                     <th className="px-6 py-4 font-medium w-[10%]">Amount</th>
                     <th className="px-6 py-4 font-medium w-[17%]">Quote Status</th>
                     <th className="px-6 py-4 font-medium w-[16%]">Valid Until</th>
@@ -1929,6 +1975,9 @@ export default function QuotesDashboardPage({
 
                             {/* Desktop Specific Cells */}
                             <td className="hidden px-6 py-4 md:table-cell max-w-0 w-full"><p className="truncate">{quote.project}</p></td>
+                            <td className="hidden px-6 py-4 md:table-cell align-middle">
+                                {renderBookingStatus(quote.bookingStatus)}
+                            </td>
                             <td className="hidden px-6 py-4 font-medium md:table-cell">{formatCurrency(quote.amountValue)}</td>
 
                             {/* Status Cell (Responsive alignment) */}
@@ -1948,6 +1997,7 @@ export default function QuotesDashboardPage({
                                 onViewDetails={() => {
                                   handleViewQuoteDetails(quote.id);
                                 }}
+                                onGoToLead={quote.leadId ? () => handleGoToLead(quote.leadId) : undefined}
                                 onDuplicate={() => {
                                   void handleDuplicateQuote(quote.id);
                                 }}
@@ -1971,6 +2021,10 @@ export default function QuotesDashboardPage({
                                     <div>
                                       <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Project</p>
                                       <p className={`font-medium truncate ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.project}</p>
+                                    </div>
+                                    <div>
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Booking Status</p>
+                                      {renderBookingStatus(quote.bookingStatus)}
                                     </div>
                                     <div className="text-right">
                                       <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Amount</p>
@@ -1996,6 +2050,7 @@ export default function QuotesDashboardPage({
                                         onViewDetails={() => {
                                           handleViewQuoteDetails(quote.id);
                                         }}
+                                        onGoToLead={quote.leadId ? () => handleGoToLead(quote.leadId) : undefined}
                                         onDuplicate={() => {
                                           void handleDuplicateQuote(quote.id);
                                         }}
@@ -2019,7 +2074,7 @@ export default function QuotesDashboardPage({
                   ) : (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="px-6 py-16 text-center">
                         No results found.
                       </td>
@@ -2031,7 +2086,7 @@ export default function QuotesDashboardPage({
                 {filteredQuotesData.length > 0 && totalListPages > 1 && (
                   <tfoot>
                     <tr className={isDark ? "bg-[#101010]" : "bg-[#fff]"}>
-                      <td colSpan={7} className="px-4 py-4 md:px-6">
+                      <td colSpan={8} className="px-4 py-4 md:px-6">
                         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                           <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-[#999]"}`}>
                             Showing {listStartIndex + 1} to {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of {totalFilteredQuotes}
