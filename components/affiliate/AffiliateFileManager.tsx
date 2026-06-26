@@ -587,6 +587,12 @@ export default function AffiliateFileManager() {
     };
   };
 
+  const isReviewableRevisionFile = useCallback((file: BrowserFile) => {
+    if (!isRevisionVersionBrowser) return false;
+    const editStatus = String(file.metadata?.editStatus || "").toLowerCase();
+    return editStatus !== "approved" && editStatus !== "revision_requested";
+  }, [isRevisionVersionBrowser]);
+
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
 
@@ -679,11 +685,12 @@ export default function AffiliateFileManager() {
       ? phaseFiles.filter((file) => selectedFilePaths.includes(file.filepath || ""))
       : [];
 
-    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles).filter(
-      (file) => String(file.metadata?.editStatus || "").toLowerCase() !== "approved"
-    );
+    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles).filter(isReviewableRevisionFile);
 
-    if (!filesToApprove.length) return;
+    if (!filesToApprove.length) {
+      toast.info("No uploaded revision files are ready for approval.");
+      return;
+    }
 
     try {
       setIsSendingEditRequest(true);
@@ -1004,8 +1011,8 @@ export default function AffiliateFileManager() {
   const hasPendingRevisionFiles = useMemo(
     () =>
       isRevisionVersionBrowser &&
-      phaseFiles.some((file) => String(file.metadata?.editStatus || "").toLowerCase() !== "approved"),
-    [phaseFiles, isRevisionVersionBrowser]
+      phaseFiles.some(isReviewableRevisionFile),
+    [phaseFiles, isRevisionVersionBrowser, isReviewableRevisionFile]
   );
 
   const selectedPendingFiles = useMemo(
@@ -1014,10 +1021,10 @@ export default function AffiliateFileManager() {
         ? phaseFiles.filter(
             (file) =>
               selectedFilePaths.includes(file.filepath || "") &&
-              String(file.metadata?.editStatus || "").toLowerCase() !== "approved"
+              isReviewableRevisionFile(file)
           )
         : [],
-    [phaseFiles, selectedFilePaths]
+    [phaseFiles, selectedFilePaths, isReviewableRevisionFile]
   );
 
   const canApproveSelectedFiles = isSelectionMode && selectedPendingFiles.length > 0;
@@ -1729,9 +1736,7 @@ export default function AffiliateFileManager() {
                   {visibleFiles.map((file) => {
                     const statusBadge = getFileStatusBadge(file);
 
-                    const canReviewVersionFile =
-                      isRevisionVersionBrowser &&
-                      String(file.metadata?.editStatus || "").toLowerCase() !== "approved";
+                    const canReviewVersionFile = isReviewableRevisionFile(file);
 
   return (
     <FileCard
