@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -575,6 +575,10 @@ function StripePaymentFormMulti({
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
 
+  // State and Ref for GA4 event: add_payment_info
+  const [isStripeComplete, setIsStripeComplete] = useState(false);   //To check for card details fill up
+  const paymentTrackedRef = useRef(false);   //To check for card details fill up
+
   const isFree = amount === 0;
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
@@ -603,6 +607,26 @@ function StripePaymentFormMulti({
     quote?.applied_discount_code || quote?.discount_code
   );
 
+  // GA4 begin_checkout event which fires once payment interface loads
+  useEffect(() => {
+    pushToDataLayer("begin_checkout", {
+      currency: "USD",
+      value: booking?.totalAmount || amount,
+
+      // Custom Platform Context
+      page_name: "Payment Page",
+      location_in_website: "book_a_shoot_payment_page",
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      booking_id: booking?.bookingId,
+      items: [{
+        item_name: booking?.shoot_name || "Shoot Booking",
+        price: booking?.totalAmount || amount,
+        quantity: 1
+      }]
+    });
+  }, []);
+
   useEffect(() => {
     if (!isReferralLocked) return;
     if (referralCode.length === 0) return;
@@ -628,7 +652,7 @@ function StripePaymentFormMulti({
   }, [discountValid, urlDiscount, activeDiscountCode, isValidatingDiscount, discountCode]);
 
   // Debounced referral code validation
-  const validateReferralCode = React.useCallback(
+  const validateReferralCode = useCallback(
     debounce(async (code: string) => {
       if (!code || code.length < 4) {
         setReferralCodeValid(null);
@@ -723,7 +747,7 @@ function StripePaymentFormMulti({
   };
 
   // Debounced discount code validation
-  const validateDiscountCode = React.useCallback(
+  const validateDiscountCode = useCallback(
     debounce(async (code: string) => {
       if (!code || code.length < 4) {
         setDiscountValid(null);
@@ -1006,6 +1030,56 @@ function StripePaymentFormMulti({
     }
   };
 
+  const checkAndTrackPaymentInfo = (isCardComplete: boolean, paymentType: "credit_card" | "account_credit" = "credit_card") => {
+    // If we already tracked payment info during this page session, skip to prevent duplicates
+    if (paymentTrackedRef.current) return;
+
+    const isNameFilled = cardholderName.trim().length > 2;
+
+    // Scenario A: It's an Account Credit toggle (immediate track on check)
+    if (paymentType === "account_credit") {
+      pushToDataLayer("add_payment_info", {
+        currency: "USD",
+        value: booking?.totalAmount || amount,
+        payment_type: "account_credit",
+        coupon: discountCode || undefined,
+        page_name: "Payment Page",
+        location_in_website: "book_a_shoot_payment_page",
+        user_id: isAuthenticated ? user?.id : "Unknown",
+        booking_id: booking?.bookingId,
+        items: [{
+          item_name: booking?.shoot_name || "Shoot Booking",
+          price: booking?.totalAmount || amount,
+          quantity: 1
+        }]
+      });
+
+      paymentTrackedRef.current = true; // Lock it down
+      return;
+    }
+
+    // Scenario B: Standard Credit Card checking rules
+    if (isCardComplete && isNameFilled) {
+      pushToDataLayer("add_payment_info", {
+        currency: "USD",
+        value: booking?.totalAmount || amount,
+        payment_type: "credit_card",
+        coupon: discountCode || undefined,
+        page_name: "Payment Page",
+        location_in_website: "book_a_shoot_payment_page",
+        user_id: isAuthenticated ? user?.id : "Unknown",
+        booking_id: booking?.bookingId,
+        items: [{
+          item_name: booking?.shoot_name || "Shoot Booking",
+          price: booking?.totalAmount || amount,
+          quantity: 1
+        }]
+      });
+
+      paymentTrackedRef.current = true; // Lock it down
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1053,8 +1127,7 @@ function StripePaymentFormMulti({
         phone: booking.phone,
       }
     });
-    console.log("after GA booking_payment_initiated  call");
-
+    console.log("after GA booking_payment_initiated call");
     console.log(booking)
 
     // 100% DISCOUNT CASE: Bypass Stripe
@@ -1066,7 +1139,7 @@ function StripePaymentFormMulti({
           clientSecret,
           referralCodeValid ? referralCode : undefined,
         );
-        
+
         pushToDataLayer("purchase", {
           transaction_id: clientSecret || booking?.bookingId, // Mock ID from backend
           value: 0,
@@ -1233,7 +1306,16 @@ function StripePaymentFormMulti({
                 Card Details
               </label>
               <div className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 flex items-center outline-none focus-within:border-white/50 bg-[#272626]">
-                <CardElement options={CARD_ELEMENT_OPTIONS} className="w-full" />
+                <CardElement
+                  options={CARD_ELEMENT_OPTIONS}
+                  className="w-full"
+                  onChange={(event) => {
+                    setIsStripeComplete(event.complete);
+                    if (event.complete) {
+                      checkAndTrackPaymentInfo(true);
+                    }
+                  }}
+                />
               </div>
             </div>
 
@@ -1246,6 +1328,9 @@ function StripePaymentFormMulti({
                 type="text"
                 value={cardholderName}
                 onChange={(e) => setCardholderName(e.target.value)}
+                onBlur={() => {
+                  checkAndTrackPaymentInfo(isStripeComplete);
+                }}
                 className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white/50 bg-[#272626]"
                 placeholder="Ex. John Doe"
                 required={!isFree}
@@ -1393,7 +1478,14 @@ function StripePaymentFormMulti({
                 className="sr-only"
                 checked={Boolean(useAccountCredit && canApplyAccountCredit)}
                 disabled={!canApplyAccountCredit}
-                onChange={(e) => onToggleAccountCredit(e.target.checked)}
+                onChange={(e) => {
+                  onToggleAccountCredit(e.target.checked);
+                  if (e.target.checked) {
+                    checkAndTrackPaymentInfo(false, "account_credit");
+                  } else {
+                    paymentTrackedRef.current = false;
+                  }
+                }}
               />
               <div
                 className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${useAccountCredit && canApplyAccountCredit
@@ -1525,8 +1617,8 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
   const [useAccountCredit, setUseAccountCredit] = useState(false);
-  const paymentIntentRequestId = React.useRef(0);
-  const bookingEmail = React.useMemo(() => {
+  const paymentIntentRequestId = useRef(0);
+  const bookingEmail = useMemo(() => {
     const value =
       paymentDetails?.booking?.guest_email ||
       paymentDetails?.booking?.guestEmail ||
@@ -1535,7 +1627,7 @@ function MultiCreatorPaymentContent() {
       "";
     return String(value).trim().toLowerCase();
   }, [paymentDetails, summaryData]);
-  const loginRedirectTo = React.useMemo(() => {
+  const loginRedirectTo = useMemo(() => {
     const currentSearch = searchParams.toString();
     const currentPath = currentSearch ? `/search-results/payment?${currentSearch}` : "/search-results/payment";
     const baseLogin = `/login?returnTo=${encodeURIComponent(currentPath)}`;
@@ -1555,6 +1647,7 @@ function MultiCreatorPaymentContent() {
       sessionStorage.removeItem("beige_payment_booking_email");
     };
   }, [bookingEmail, step]);
+
   const isBookingOwner = Boolean(
     isAuthenticated &&
     bookingEmail &&

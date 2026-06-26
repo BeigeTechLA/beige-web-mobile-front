@@ -110,6 +110,9 @@ export const BookAShootV3 = () => {
           setDraftBookingId(result.data.booking_id);
           setLeadId(result.data.lead_id);
           setLeadTracked(true);
+
+          // generate_lead GA4 event can be called here but the parent function (trackLoggedInUser) is currently not being called. Hence not adding
+
           console.log("Lead tracked for logged-in user:", result.data);
         } catch (error) {
           console.error("Failed to track lead for logged-in user:", error);
@@ -235,14 +238,14 @@ export const BookAShootV3 = () => {
         }
 
         // add GA event on click of "Continue" in the first step
-        pushToDataLayer("service_details_submitted_step1", {
-          type: "Action Tracking",
-          page_name: "Book-a-shoot Page",
+        pushToDataLayer("generate_lead", {
+          value: 0, // Standard parameters
+          currency: "USD",
+          page_name: "Book-a-shoot Page",  // Custom data schema
           location_in_website: "book_a_shoot_step1",
           duration_on_page: performance.now() / 1000,
-          phone: user?.phone_number,
-          user_id: user?.id,
-          user_type: userTypeName,
+          user_id: user?.id || "Guest",
+          user_type: userTypeName || "Guest",
           booking_id: result?.data?.booking_id,
           booking_form_fields: formFields,
           email: formData.email,
@@ -516,7 +519,7 @@ export const BookAShootV3 = () => {
       const bookingDaysPayload = formData.bookingDays?.map((d) => ({
         date: d.date,
         start_time: d.startTime,
-        end_time: d.endTime, 
+        end_time: d.endTime,
         duration_hours: calculateDayHours(d.startTime, d.endTime),
         time_zone: browserTimeZone
       })) || [];
@@ -534,12 +537,12 @@ export const BookAShootV3 = () => {
         booking_type: formData.bookingType,
         booking_days: primaryStudio
           ? [{
-              date: primaryStudio.selectedDate,
-              start_time: primaryStudio.startTime,
-              end_time: primaryStudio.endTime,
-              duration_hours: primaryStudio.quantity,
-              time_zone: browserTimeZone,
-            }]
+            date: primaryStudio.selectedDate,
+            start_time: primaryStudio.startTime,
+            end_time: primaryStudio.endTime,
+            duration_hours: primaryStudio.quantity,
+            time_zone: browserTimeZone,
+          }]
           : bookingDaysPayload,
         start_date: primaryStudio?.selectedDate || startDate,
         start_time: primaryStudio?.startTime || startTime,
@@ -790,7 +793,7 @@ const LeaveConfirmationModal = ({
           </button>
         </div>
       </div>
-    {/* </div> */}
-</div>
+      {/* </div> */}
+    </div>
   );
 };
