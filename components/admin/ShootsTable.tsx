@@ -21,6 +21,7 @@ import {
 import Lottie from "lottie-react";
 import redAnimation from "@/public/animations/Red.json";
 import yellowAnimation from "@/public/animations/Yellow.json";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
@@ -878,6 +879,8 @@ export const ShootsTable = ({
     router.push(`${detailBasePath}/${cleanId}`);
   };
 
+  const getShootDetailHref = (id: string) => `${detailBasePath}/${id.replace(/^#/, "").trim()}`;
+
   const getApiShootId = (id: string) => id.replace(/^#/, '').trim();
 
   const handleMissingFieldsSaved = (updated: {
@@ -1464,11 +1467,11 @@ export const ShootsTable = ({
                                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>
                                       {shoot.price}
                                     </p>
-                                    <span className="text-[10px] font-bold text-green-600 uppercase">
+                                    <span className="text-[10px] font-bold text-green-600 uppercase whitespace-nowrap">
                                       Paid: {shoot.paidAmount}
                                     </span>
                                     {shoot.rawPending > 0 && (
-                                      <span className="text-[10px] font-bold text-orange-500 uppercase leading-none mt-0.5">
+                                      <span className="text-[10px] font-bold text-orange-500 uppercase leading-none mt-0.5 whitespace-nowrap">
                                         Pending: {shoot.pendingAmount}
                                       </span>
                                     )}
@@ -1607,14 +1610,21 @@ export const ShootsTable = ({
 
                     const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
 
+                    const shootDetailHref = getShootDetailHref(shoot.id);
+
                     return (
                       <tr
                         key={idx}
-                        onClick={() => handleRowClick(shoot.id)}
-                        className={`group border-b transition-colors last:border-0 cursor-pointer relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
+                        className={`group border-b transition-colors last:border-0 relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
-                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                          <div className="flex items-center gap-2">
+                        <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          <Link
+                            href={shootDetailHref}
+                            className="absolute inset-0 z-20"
+                            aria-label={`Open shoot ${shoot.customerName}`}
+                            prefetch={false}
+                          />
+                          <div className="relative z-10 pointer-events-none flex items-center gap-2">
                             <div
                               className="w-8 h-8 shrink-0 flex items-center justify-center relative"
                               onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
@@ -1657,11 +1667,17 @@ export const ShootsTable = ({
                                 </div>
                               )}
                             </div>
-                            {shoot.id}
+                            <span>{shoot.id}</span>
                           </div>
                         </td>
-                        <td className={`py-5 px-6 relative border-y ${borderClass}`}>
-                          <div className="flex items-center gap-3">
+                        <td className={`relative py-5 px-6 border-y ${borderClass}`}>
+                          <Link
+                            href={shootDetailHref}
+                            className="absolute inset-0 z-20"
+                            aria-label={`Open shoot ${shoot.customerName}`}
+                            prefetch={false}
+                          />
+                          <div className="relative z-10 pointer-events-none flex items-center gap-3">
                             <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                               {shoot.initials}
                             </div>
@@ -1673,20 +1689,42 @@ export const ShootsTable = ({
                             </div>
                           </div>
                         </td>
-                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
-                        <td className={`py-5 px-6 text-base leading-tight border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                            <div className="flex flex-col">
-                              <span className="font-semibold">{shoot.price}</span>
-                              <span className="text-[10px] text-green-600 font-bold uppercase">Paid: {shoot.paidAmount}</span>
-                              {shoot.rawPending > 0 && (
-                                  <span className="text-[10px] font-bold text-orange-500 uppercase">
-                                  Pending: {shoot.pendingAmount}
+                        <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          <Link
+                            href={shootDetailHref}
+                            className="absolute inset-0 z-20"
+                            aria-label={`Open shoot ${shoot.customerName}`}
+                            prefetch={false}
+                          />
+                          <div className="relative z-10 pointer-events-none">{shoot.category}</div>
+                        </td>
+                        <td className={`relative py-5 px-6 text-base leading-tight border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          <Link
+                            href={shootDetailHref}
+                            className="absolute inset-0 z-20"
+                            aria-label={`Open shoot ${shoot.customerName}`}
+                            prefetch={false}
+                          />
+                          <div className="relative z-10 pointer-events-none flex flex-col">
+                            <span className="font-semibold">{shoot.price}</span>
+                            <span className="text-[10px] text-green-600 font-bold uppercase whitespace-nowrap">Paid: {shoot.paidAmount}</span>
+                            {shoot.rawPending > 0 && (
+                              <span className="text-[10px] font-bold text-orange-500 uppercase whitespace-nowrap">
+                                Pending: {shoot.pendingAmount}
                               </span>
-                              )}
+                            )}
                           </div>
                         </td>                      
-                        <td className={`py-5 px-6 border-y ${borderClass}`}>
-                          <StatusBadge status={shoot.status} />
+                        <td className={`relative py-5 px-6 border-y ${borderClass}`}>
+                          <Link
+                            href={shootDetailHref}
+                            className="absolute inset-0 z-20"
+                            aria-label={`Open shoot ${shoot.customerName}`}
+                            prefetch={false}
+                          />
+                          <div className="relative z-10 pointer-events-none">
+                            <StatusBadge status={shoot.status} />
+                          </div>
                         </td>
                         <td className={`py-5 px-6 text-right border-y border-r ${borderClass}`}>
                           <div className="relative flex justify-end" data-card-actions>
