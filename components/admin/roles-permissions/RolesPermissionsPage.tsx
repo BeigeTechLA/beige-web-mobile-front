@@ -124,6 +124,18 @@ export function RolesPermissionsPage({
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [selectedRestoreUser, setSelectedRestoreUser] = useState<PermissionUser | null>(null);
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    subtext: string;
+    buttonText: string;
+    isSubmitting?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    subtext: "",
+    buttonText: "Done",
+  });
 
   const loadRoles = useCallback(async () => {
     setIsLoadingRoles(true);
@@ -244,6 +256,12 @@ export function RolesPermissionsPage({
 
     await Promise.all([loadRoles(), loadUsers()]);
     setIsDeleteModalOpen(false);
+    setSuccessModal({
+      isOpen: true,
+      title: "User Deleted Successfully",
+      subtext: `${selectedUser.name} has been deleted successfully.`,
+      buttonText: "Done",
+    });
     setSelectedUser(null);
   };
 
@@ -263,6 +281,12 @@ export function RolesPermissionsPage({
 
     await Promise.all([loadRoles(), loadUsers()]);
     setIsRestoreModalOpen(false);
+    setSuccessModal({
+      isOpen: true,
+      title: "User Restored Successfully",
+      subtext: `${selectedRestoreUser.name} has been restored successfully and moved back to the active user list.`,
+      buttonText: "Done",
+    });
     setSelectedRestoreUser(null);
   };
 
@@ -351,6 +375,18 @@ export function RolesPermissionsPage({
               onRowClick={handleOpenUserDetails}
               onDelete={canDelete ? handleOpenDeleteModal : undefined}
               onRestore={canDelete ? handleOpenRestoreModal : undefined}
+              successModal={
+                successModal.isOpen
+                  ? {
+                      ...successModal,
+                      onSubmit: () =>
+                        setSuccessModal((current) => ({
+                          ...current,
+                          isOpen: false,
+                        })),
+                    }
+                  : undefined
+              }
             />
           </div>
         </div>
