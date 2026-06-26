@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTheme } from 'next-themes';
-import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
-import ClientActionSuccessModal from "@/components/admin/users/ClientActionSuccessModal";
+import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
+import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 type ClientsTab = "active" | "all" | "archived";
@@ -580,7 +580,7 @@ export const ClientsTable = () => {
                 </div>
             )}
 
-            <DeleteConfirmationModal
+            <ActionModal
                 isOpen={isActionModalOpen}
                 onClose={() => {
                     if (isProcessingClientAction) return;
@@ -590,33 +590,32 @@ export const ClientsTable = () => {
                 }}
                 onConfirm={handleConfirmClientAction}
                 isLoading={isProcessingClientAction}
-                title={selectedClientIsArchived ? "Restore Client" : "Delete User"}
+                title={selectedClientIsArchived ? "Restore User" : "Delete User"}
                 description={
                     selectedClient
                         ? selectedClientIsArchived
-                            ? `Are you sure you want to restore ${selectedClient.name}?`
+                            ? `Are you sure you want to restore ${selectedClient.name}? This will move the user back to the active user list.`
                             : `Are you sure you want to delete ${selectedClient.name}? This action cannot be undone.`
                         : "Are you sure you want to update this user?"
                 }
                 confirmLabel={selectedClientIsArchived ? "Restore" : "Delete"}
-                loadingLabel={selectedClientIsArchived ? "Restoring..." : "Deleting..."}
-                isDark={isDark}
+                tone={selectedClientIsArchived ? "success" : "danger"}
             />
 
-            <ClientActionSuccessModal
-                open={isSuccessModalOpen}
-                title={completedAction === "restore" ? "User Restored Successfully" : "User Deleted Successfully"}
-                description={
-                    completedAction === "restore"
-                        ? `${completedClientName || "The user"} has been restored successfully and moved back to the active user list.`
-                        : `${completedClientName || "The user"} has been deleted successfully.`
-                }
-                buttonLabel="Done"
-                onClose={() => {
+            <ActionSuccessModal
+                isOpen={isSuccessModalOpen}
+                onSubmit={() => {
                     setIsSuccessModalOpen(false);
                     setCompletedAction(null);
                     setCompletedClientName("");
                 }}
+                title={completedAction === "restore" ? "User Restored Successfully" : "User Deleted Successfully"}
+                subtext={
+                    completedAction === "restore"
+                        ? `${completedClientName || "The user"} has been restored successfully and moved back to the active user list.`
+                        : `${completedClientName || "The user"} has been deleted successfully.`
+                }
+                buttonText="Done"
             />
         </div>
     );

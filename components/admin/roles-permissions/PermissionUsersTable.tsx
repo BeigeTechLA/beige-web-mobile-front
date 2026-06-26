@@ -17,6 +17,7 @@ import {
   PermissionUser,
 } from "@/components/admin/roles-permissions/types";
 import { USER_BADGE_TONES } from "@/components/admin/roles-permissions/data";
+import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 
 type PermissionUsersTableProps = {
   users: PermissionUser[];
@@ -27,9 +28,17 @@ type PermissionUsersTableProps = {
   onRestore?: (user: PermissionUser) => void;
   onRowClick?: (user: PermissionUser) => void;
   roleId?: string | number;
+  successModal?: {
+    isOpen: boolean;
+    title: string;
+    subtext: string;
+    buttonText?: string;
+    onSubmit: () => void;
+    isSubmitting?: boolean;
+  };
 };
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 const buildPaginationItems = (currentPage: number, totalPages: number) => {
   if (totalPages <= 1) return [1];
@@ -62,6 +71,7 @@ const buildPaginationItems = (currentPage: number, totalPages: number) => {
 
 function StatusPill({ status }: { status: PermissionStatus }) {
   const active = status === "Active";
+  const displayStatus = active ? "Active" : "Archived";
 
   return (
     <span
@@ -70,7 +80,7 @@ function StatusPill({ status }: { status: PermissionStatus }) {
           : "bg-[#EA54551A] text-[#EA5455]" // Light red background with dark red text (Vuexy Style)
         }`}
     >
-      {status}
+      {displayStatus}
     </span>
   );
 }
@@ -162,6 +172,7 @@ export function PermissionUsersTable({
   onRestore,
   onRowClick,
   roleId,
+  successModal,
 }: PermissionUsersTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -381,7 +392,7 @@ export function PermissionUsersTable({
               <SelectContent className="border-white/10 bg-[#171717] text-white">
                 <SelectItem value="all">Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="in-active">In-Active</SelectItem>
+                <SelectItem value="in-active">Archived</SelectItem>
               </SelectContent>
             </Select>
 
@@ -516,7 +527,7 @@ export function PermissionUsersTable({
                         {user.name}
                       </p>
                       <p className="mt-1 truncate text-[12px] text-white/40">{user.subtitle}</p>
-                      {user.status === "In-Active" && user.deleted_by_name ? (
+                      {user.status !== "Active" && user.deleted_by_name ? (
                         <p className="mt-1 truncate text-[12px] text-[#EA5455]/80">
                           Deleted by {user.deleted_by_name}
                         </p>
@@ -566,7 +577,7 @@ export function PermissionUsersTable({
                     <button
                       type="button"
                       disabled={!onEdit || user.status !== "Active"}
-                      title={user.status === "Active" ? "Edit user" : "Inactive users cannot be edited"}
+                      title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
                       className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -576,7 +587,7 @@ export function PermissionUsersTable({
                     >
                       <Pencil size={16} />
                     </button>
-                    {user.status === "In-Active" ? (
+                    {user.status !== "Active" ? (
                       <button
                         type="button"
                         disabled={!onRestore}
@@ -606,7 +617,7 @@ export function PermissionUsersTable({
                     <button
                       type="button"
                       disabled={!canOpenUser || user.status !== "Active"}
-                      title={user.status === "Active" ? "Open details" : "Inactive users do not open details"}
+                      title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
                       className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -683,82 +694,124 @@ export function PermissionUsersTable({
         </div>
       ) : null}
     </div>
-    {historyUser ? (
-      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setHistoryUser(null)}>
-        <aside
-          className="ml-auto flex h-full w-full max-w-[430px] flex-col border-l border-white/10 bg-[#050505] text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
-            <div className="min-w-0">
-              <h2 className="text-[18px] font-bold">Archive User History</h2>
-              <p className="mt-1 truncate text-sm text-white/45">{historyUser.name}</p>
+    {successModal ? (
+      <ActionSuccessModal
+        isOpen={successModal.isOpen}
+        onSubmit={successModal.onSubmit}
+        isSubmitting={successModal.isSubmitting}
+        title={successModal.title}
+        subtext={successModal.subtext}
+        buttonText={successModal.buttonText ?? "Done"}
+      />
+    ) : null}
+      {historyUser ? (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setHistoryUser(null)}>
+          <aside
+            className="ml-auto flex h-full w-full max-w-full md:max-w-[50%] flex-col border-l border-white/[0.07] bg-[#0d0d0d] text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-[22px] pb-5 pt-[22px] border-b border-white/[0.08]">
+              <h2 className="text-[19px] font-bold tracking-[-0.3px]">Archive Users History</h2>
+              <button
+                type="button"
+                onClick={() => setHistoryUser(null)}
+                className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-white/[0.09] text-white/55 transition hover:bg-white/15 hover:text-white"
+                aria-label="Close"
+              >
+                <X size={14} strokeWidth={2} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setHistoryUser(null)}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 transition hover:bg-white/15 hover:text-white"
-              aria-label="Close archive users history"
-            >
-              <X size={18} />
-            </button>
-          </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5">
-            {selectedUserHistoryGroups.length > 0 ? (
-              <div className="space-y-3">
-                {selectedUserHistoryGroups.map(({ deleted, restored }) => {
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-3.5 flex flex-col gap-2.5">
+              {selectedUserHistoryGroups.length > 0 ? (
+                selectedUserHistoryGroups.map(({ deleted, restored }) => {
                   const deletedTime = formatDateParts(deleted.created_at || "");
                   const restoredTime = restored ? formatDateParts(restored.created_at || "") : null;
                   const deletedBy = deleted.performed_by_name || "Admin";
-                  const deletedRole = deleted.performed_by_role ? ` - ${deleted.performed_by_role}` : "";
+                  const deletedRole = deleted.performed_by_role ? ` – ${deleted.performed_by_role}` : "";
                   const restoredBy = restored?.performed_by_name || "Admin";
 
                   return (
-                    <div key={deleted.history_id} className="rounded-lg border border-white/10 bg-[#171717] p-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-bold ${deleted.badgeTone}`}>
-                          {deleted.badge}
+                    <div key={deleted.history_id} className="relative rounded-[14px] border border-white/[0.07] bg-[#1a1a1a] p-4">
+                      <div className="relative z-10 flex items-start gap-[13px]">
+
+                        {/* Left col: avatar */}
+                        <div className="relative z-10 flex w-[46px] shrink-0 flex-col items-center self-stretch">
+                          <div className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[11px] text-sm font-bold tracking-[0.3px] ${deleted.badgeTone}`}>
+                            {deleted.avatarUrl
+                              ? <img src={deleted.avatarUrl} alt={deleted.userName} className="h-full w-full object-cover" />
+                              : deleted.badge
+                            }
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-medium leading-relaxed text-white">
+
+                        {/* Right col: text + restore card */}
+                        <div className="relative z-10 flex-1 min-w-0 pt-px">
+                          <p className="text-[13.5px] font-medium leading-[1.5] text-white/90">
                             {deleted.userName} was deleted by {deletedBy}
-                            <span className="text-[#E5D5B8]">{deletedRole}</span>
+                            <span className="text-[#C9A96E]">{deletedRole}</span>
                           </p>
-                          <p className="mt-1 text-[11px] text-white/40">
-                            {deletedTime.date} <span className="mx-1">•</span> {deletedTime.time || "N/A"}
+                          <p className="mt-1 text-[11.5px] text-white/32">
+                            {deletedTime.date} <span className="mx-1 opacity-50">•</span> {deletedTime.time || "N/A"}
                           </p>
 
-                          {restored && restoredTime ? (
-                            <div className="relative mt-3 pl-8">
-                              <div className="absolute left-3 top-0 h-full w-px bg-white/10" />
-                              <div className="rounded-md border border-white/10 bg-[#111] px-3 py-2">
-                                <p className="text-[11px] font-medium text-white/85">
-                                  {restored.userName} was restored by {restoredBy}
-                                </p>
-                                <p className="mt-1 text-[10px] text-white/35">
-                                  {restoredTime.date} <span className="mx-1">•</span> {restoredTime.time || "N/A"}
-                                </p>
+                          {restored && restoredTime && (
+                            <div className="relative mt-4">
+                              
+                              <svg
+                                aria-hidden="true"
+                                className="pointer-events-none absolute -left-[59px] top-[-58px] z-0 h-[90px] w-[165px]"
+                                viewBox="0 0 165 90"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path
+                                  d="M 23 35 V 72 Q 23 82 33 82 H 165"
+                                  fill="none"
+                                  stroke="rgba(255,255,255,0.15)"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+
+                                <div className="relative z-10 ml-[32px] flex items-center gap-2.5 rounded-[10px] border border-white/[0.07] bg-[#131313] px-3 py-2.5">                          <div className="h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[8px] bg-white/[0.08]">
+                                  {restored.avatarUrl
+                                    ? <img src={restored.avatarUrl} alt={restoredBy} className="h-full w-full object-cover" />
+                                    : <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-white/50">{restoredBy.slice(0, 2).toUpperCase()}</div>
+                                  }
+                                </div>
+                                <div>
+                                  <p className="text-[11.5px] font-medium text-white/80">
+                                    {restored.userName} was restored by {restoredBy}
+                                  </p>
+                                  <p className="mt-0.5 text-[10.5px] text-white/28">
+                                    {restoredTime.date} <span className="mx-[3px] opacity-40">•</span> {restoredTime.time || "N/A"}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          ) : null}
+                          )}
                         </div>
+
                       </div>
                     </div>
                   );
-                })}
-              </div>
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center rounded-lg border border-white/10 bg-white/[0.02] px-6 text-center">
-                <History size={28} className="text-[#E5D5B8]" />
-                <p className="mt-3 text-sm font-semibold text-white">No archive history found</p>
-                <p className="mt-1 text-xs text-white/40">This user has not been deleted or restored yet.</p>
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
-    ) : null}
+                })
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center rounded-lg border border-white/10 bg-white/[0.02] px-6 text-center">
+                  <History size={28} className="text-[#C9A96E]" />
+                  <p className="mt-3 text-sm font-semibold text-white">No archive history found</p>
+                  <p className="mt-1 text-xs text-white/40">This user has not been deleted or restored yet.</p>
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </>
   );
 }
+  

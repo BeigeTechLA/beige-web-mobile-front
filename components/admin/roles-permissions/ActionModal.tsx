@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,22 +26,31 @@ type ActionModalProps = {
 
 const toneStyles = {
   default: {
-    icon: Info,
-    iconWrap: "border-[#E5D5B8]/20 bg-[#E5D5B8]/10",
-    iconColor: "text-[#E5D5B8]",
-    confirm: "bg-[#E5D5B8] text-black hover:bg-[#d6c29b]",
+    iconBg: "bg-[#2A1F00]",
+    iconBorder: "border-[#E5A700]/20",
+    iconColor: "text-[#E5A700]",
+    iconRing: "shadow-[0_0_0_6px_rgba(229,167,0,0.10)]",
+    primaryBg: "bg-[#E5D5B8]",
+    primaryText: "text-[#120F08]",
+    primaryHover: "hover:bg-[#D9C59D]",
   },
   danger: {
-    icon: AlertTriangle,
-    iconWrap: "border-[#F04438]/20 bg-[#F04438]/10",
-    iconColor: "text-[#F04438]",
-    confirm: "bg-[#F04438] text-white hover:bg-[#d7372d]",
+    iconBg: "bg-[#2A1F00]",
+    iconBorder: "border-[#E5A700]/20",
+    iconColor: "text-[#E5A700]",
+    iconRing: "shadow-[0_0_0_6px_rgba(229,167,0,0.10)]",
+    primaryBg: "bg-[#E8D1AB]",
+    primaryText: "text-black",
+    primaryHover: "hover:bg-[#E8D1AB]/70",
   },
   success: {
-    icon: CheckCircle2,
-    iconWrap: "border-[#28C76F]/20 bg-[#28C76F]/10",
-    iconColor: "text-[#28C76F]",
-    confirm: "bg-[#E5D5B8] text-black hover:bg-[#d6c29b]",
+    iconBg: "bg-[#2A1F00]",
+    iconBorder: "border-[#E5A700]/20",
+    iconColor: "text-[#E5A700]",
+    iconRing: "shadow-[0_0_0_6px_rgba(229,167,0,0.10)]",
+    primaryBg: "bg-[#E8D1AB]",
+    primaryText: "text-black",
+    primaryHover: "hover:bg-[#E8D1AB]/70",
   },
 };
 
@@ -57,59 +66,64 @@ export function ActionModal({
   isLoading = false,
   hideCancel = false,
 }: ActionModalProps) {
-  const Icon = toneStyles[tone].icon;
+  const styles = toneStyles[tone];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)] [&>button]:hidden">
-        <DialogHeader className="border-b border-white/10 px-8 py-6 text-left">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className={`rounded-2xl border p-3 ${toneStyles[tone].iconWrap}`}>
-                <Icon className={toneStyles[tone].iconColor} size={20} />
-              </div>
-              <div>
-                <DialogTitle className="text-[24px] font-bold text-white">
-                  {title}
-                </DialogTitle>
-                <DialogDescription className="mt-2 text-sm leading-relaxed text-white/60">
-                  {description}
-                </DialogDescription>
-              </div>
+      <DialogContent className="max-w-[520px] overflow-hidden rounded-[24px] border border-white/10 bg-[#0B0B0B] p-0 text-white shadow-[0_40px_120px_rgba(0,0,0,0.78)] [&>button]:hidden">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            aria-label="Close modal"
+            className="absolute right-4 top-4 rounded-lg p-2 text-white/40 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <X size={18} />
+          </button>
+
+          <div className="flex flex-col items-center px-6 pb-5 pt-11 text-center sm:px-8">
+            <div
+              className={`mb-5 flex h-[58px] w-[58px] items-center justify-center rounded-full border ${styles.iconBg} ${styles.iconBorder} ${styles.iconRing}`}
+            >
+              <AlertCircle className={styles.iconColor} size={26} strokeWidth={1.8} />
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-full bg-white/5 p-2 text-white/60 transition-colors hover:text-white"
-            >
-              <X size={18} />
-            </button>
+            <DialogHeader className="space-y-0">
+              <DialogTitle className="text-[20px] font-semibold leading-snug tracking-[-0.01em] text-white">
+                {title}
+              </DialogTitle>
+              <DialogDescription className="mt-2 text-[13px] leading-relaxed text-white/45">
+                {description}
+              </DialogDescription>
+            </DialogHeader>
           </div>
-        </DialogHeader>
 
-        <DialogFooter className="px-8 py-6 sm:justify-end">
-          <div className="flex w-full gap-3 sm:w-auto">
-            {!hideCancel ? (
+          <DialogFooter className="px-6 pb-6 pt-1 sm:px-8 sm:pb-8">
+            <div className={`grid w-full gap-3 ${hideCancel ? "" : "grid-cols-1 sm:grid-cols-2"}`}>
+              {!hideCancel && (
+                <Button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isLoading}
+                  className="h-12 rounded-xl border border-white/10 bg-transparent text-[13px] font-medium text-white/75 shadow-none transition hover:bg-white/5 hover:text-white"
+                >
+                  {cancelLabel}
+                </Button>
+              )}
               <Button
                 type="button"
-                onClick={onClose}
+                onClick={onConfirm ?? onClose}
                 disabled={isLoading}
-                className="flex-1 bg-white text-black hover:bg-white/90 sm:flex-none"
+                className={`h-12 rounded-xl text-[13px] font-semibold shadow-none transition ${styles.primaryBg} ${styles.primaryText} ${styles.primaryHover} ${
+                  hideCancel ? "w-full" : ""
+                }`}
               >
-                {cancelLabel}
+                {isLoading ? "Please wait..." : confirmLabel}
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              onClick={onConfirm ?? onClose}
-              disabled={isLoading}
-              className={`flex-1 sm:flex-none ${toneStyles[tone].confirm}`}
-            >
-              {isLoading ? "Please wait..." : confirmLabel}
-            </Button>
-          </div>
-        </DialogFooter>
+            </div>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
