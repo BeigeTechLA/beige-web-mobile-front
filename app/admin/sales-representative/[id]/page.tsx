@@ -2643,9 +2643,9 @@ export default function LeadDetailPage() {
                       </h2>
                       <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
                         Converted from quote{" "}
-                        {quotePricingDetails.quoteId ? (
+                        {quoteDetailHref ? (
                           <Link
-                            href={`/admin/quotes/${encodeURIComponent(String(quotePricingDetails.quoteId))}`}
+                            href={quoteDetailHref}
                             className="font-medium text-inherit underline decoration-current underline-offset-4 transition-colors hover:opacity-80"
                           >
                             {quotePricingDetails.quoteDisplayNumber}

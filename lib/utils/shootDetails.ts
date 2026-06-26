@@ -109,10 +109,16 @@ export const getShootFilesText = (project: Record<string, unknown> | null | unde
 
 type ProjectScheduleDay = {
   duration_hours?: number | string | null;
+  date?: string | null;
+  event_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  time_zone?: string | null;
 };
 
 type ProjectScheduleLike = {
   booking_days?: ProjectScheduleDay[] | null;
+  time_zone?: string | null;
   event_date?: string | null;
   start_time?: string | null;
   end_time?: string | null;
@@ -127,7 +133,9 @@ const formatProjectDateValue = (value?: string | null) => {
     return "N/A";
   }
 
-  const parsedDate = new Date(value);
+  const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value);
   if (Number.isNaN(parsedDate.getTime())) {
     return "N/A";
   }
@@ -234,4 +242,27 @@ export const getProjectScheduleTimeText = (project: ProjectScheduleLike | null |
   }
 
   return getProjectTimeText(project);
+};
+
+export const getProjectScheduleTooltipText = (project: ProjectScheduleLike | null | undefined) => {
+  const bookingDays = getProjectBookingDays(project);
+
+  if (bookingDays.length <= 1) {
+    return "";
+  }
+
+  const lines = bookingDays
+    .filter((day) => day?.event_date || day?.date)
+    .map((day) => {
+      const dateValue = day?.event_date || day?.date || null;
+      const startText = formatProjectTimeValue(day?.start_time);
+      const endText = formatProjectTimeValue(day?.end_time);
+      const timeText = startText && endText
+        ? `${startText} - ${endText}`
+        : startText || endText || "Time not set";
+
+      return `${formatProjectDateValue(dateValue)} - ${timeText}`;
+    });
+
+  return lines.join("\n");
 };

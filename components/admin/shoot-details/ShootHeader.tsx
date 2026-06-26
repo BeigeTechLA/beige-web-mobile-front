@@ -11,6 +11,7 @@ import {
   getProjectDateText,
   getPaymentStatusMeta,
   getProjectScheduleTimeText,
+  getProjectScheduleTooltipText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils"
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/src/components/landing/ui/tooltip";
 
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
@@ -34,6 +36,14 @@ type ShootHeaderProject = {
   start_time?: string;
   end_time?: string;
   event_start_time?: string;
+  booking_days?: Array<{
+    date?: string | null;
+    event_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    time_zone?: string | null;
+  }> | null;
+  time_zone?: string | null;
   total_paid_amount?: string | number;
   total_value_amount?: string | number;
   converted_sales_quote_id?: string | number | null;
@@ -103,6 +113,50 @@ const getLocationText = (project?: ShootHeaderProject): string => {
   ].map(toDisplayText).filter(Boolean);
 
   return locationParts.join(", ") || "No location specified";
+};
+
+const ScheduleTooltipValue = ({
+  value,
+  tooltip,
+  isDark,
+}: {
+  value: string;
+  tooltip: string;
+  isDark: boolean;
+}) => {
+  if (!tooltip) {
+    return <span className={`inline-block max-w-full whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{value}</span>;
+  }
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={`inline-block max-w-full select-none whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}
+          >
+            {value}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          align="end"
+          sideOffset={6}
+          avoidCollisions
+          style={{
+            backgroundColor: isDark ? "#111111" : "#ffffff",
+            color: isDark ? "#ffffff" : "#111111",
+            borderColor: isDark ? "#3D3D3D" : "#E7D7BC",
+          }}
+          className={cn(
+            "max-w-[260px] select-none whitespace-pre-line rounded-lg border px-2.5 py-1.5 text-[11px] leading-4 shadow-lg",
+          )}
+        >
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 };
 
 interface ShootHeaderProps {
@@ -296,6 +350,7 @@ export default function ShootHeader({
   }, [projectId]);
   const projectDateText = getProjectDateText(project);
   const projectTimeText = getProjectScheduleTimeText(project);
+  const scheduleTooltipText = getProjectScheduleTooltipText(project);
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
@@ -544,11 +599,15 @@ export default function ShootHeader({
               <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Schedule & Location</p>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Shoot Date :</span>
-                <span title={projectDateText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectDateText}</span>
+                <ScheduleTooltipValue
+                  value={projectDateText}
+                  tooltip={projectDateText === "Multiple Days" ? scheduleTooltipText : ""}
+                  isDark={isDark}
+                />
               </div>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Time :</span>
-                <span title={projectTimeText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectTimeText}</span>
+                <span className={`inline-block max-w-full whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectTimeText}</span>
               </div>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Location :</span>
