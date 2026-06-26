@@ -73,6 +73,38 @@ export const getEffectiveMeetingStatus = (meeting?: Pick<MeetingItem, "meeting_s
   return storedStatus;
 };
 
+export const canRespondToMeeting = (
+  meeting?: Pick<MeetingItem, "meeting_date_time"> | null,
+  hoursBeforeStart = 1
+) => {
+  if (!meeting?.meeting_date_time) return false;
+
+  const startMs = new Date(meeting.meeting_date_time).getTime();
+  if (!Number.isFinite(startMs)) return false;
+
+  return Date.now() < startMs - hoursBeforeStart * 60 * 60 * 1000;
+};
+
+export const getMinimumSelectableMeetingTime = (hoursAhead = 1) => {
+  const minTime = new Date(Date.now() + hoursAhead * 60 * 60 * 1000);
+  minTime.setSeconds(0, 0);
+
+  if (minTime.getMinutes() > 0) {
+    minTime.setHours(minTime.getHours() + 1, 0, 0, 0);
+  } else {
+    minTime.setMinutes(0, 0, 0);
+  }
+
+  return minTime;
+};
+
+export const getMinimumMeetingEndTime = (startTime?: Date | null, hoursAfterStart = 1) => {
+  if (!startTime || Number.isNaN(startTime.getTime())) return null;
+  const minEndTime = new Date(startTime.getTime() + hoursAfterStart * 60 * 60 * 1000);
+  minEndTime.setSeconds(0, 0);
+  return minEndTime;
+};
+
 export const formatMeetingStatusLabel = (value?: string) =>
   String(value || "pending")
     .replace(/_/g, " ")

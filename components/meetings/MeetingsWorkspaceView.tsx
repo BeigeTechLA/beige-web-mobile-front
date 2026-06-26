@@ -105,12 +105,12 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
-  const normalizedUserRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
-  const isSalesAdminView = role === "sales" && normalizedUserRole === "sales_admin";
+  const isSalesAdminView = role === "sales";
   const isAdminView = role === "admin" || isSalesAdminView;
   const effectiveRoleForActions: RoleVariant = isAdminView ? "admin" : role;
-  const canCreateMeeting = effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
-  const canDeleteMeeting = effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
+  const canCreateMeeting =
+    effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
+  const canDeleteMeeting = effectiveRoleForActions === "admin";
 
   const loadMeetings = useCallback(async () => {
     setLoading(true);
@@ -144,8 +144,6 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         meeting.meeting_title,
         meeting.order?.name,
         meeting.description,
-        meeting.admin?.name,
-        ...(meeting.cps || []).map((participant) => participant.name || participant.email),
         ...(meeting.participants || []).map((participant) => participant.name || participant.email),
       ]
         .filter(Boolean)

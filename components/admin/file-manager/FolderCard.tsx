@@ -5,6 +5,27 @@ import { Button } from '@/components/ui/button';
 import FileActionMenu from './FileActionMenu';
 import { useResolvedTheme } from '@/lib/useResolvedTheme';
 
+const formatFolderTimestamp = (value?: string) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "recently";
+  if (raw === "recently" || raw === "just now") return raw;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+
+  const datePart = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed);
+  const timePart = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+
+  return `${datePart}\n${timePart}`;
+};
+
 interface FolderCardProps {
   title: string;
   fileCount: number;
@@ -169,9 +190,13 @@ export const FolderCard: React.FC<FolderCardProps> = ({
         <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-[#000] text-base">
           {userInitials}
         </div>
-        <span className={`text-sm ${isDark ? "text-[#CDC5C5]" : "text-[#000000]"}`}>
-          Updated {lastOpened}
-        </span>
+        <span
+            className={`text-sm whitespace-pre-line ${
+              isDark ? "text-[#CDC5C5]" : "text-[#000000]"
+            }`}
+          >
+            {`Updated on ${formatFolderTimestamp(lastOpened)}`}
+          </span>
       </div>
 
       {/* Menu Overlay */}

@@ -106,28 +106,66 @@ const PreviewAmountList = ({
   title,
   items,
   isDark,
+  showQuantity = false,
 }: {
   title: string;
   items: NormalizedQuoteLineItem[];
   isDark: boolean;
+  showQuantity?: boolean;
 }) => {
   if (items.length === 0) {
     return null;
   }
 
+  const gridLayout = "grid grid-cols-[10fr_3fr_4fr_3fr_4fr] gap-2";
+
   return (
     <section className="space-y-4">
       <SectionTitle isDark={isDark}>{title}</SectionTitle>
+
+      {showQuantity && (
+        <div
+          className={`${gridLayout} border-b pb-3 text-[9px] font-medium lg:text-sm ${
+            isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
+          }`}
+        >
+          <p>Description</p>
+          <p className="text-center">Qty</p>
+          <div className="col-span-2" />
+          <p className="text-right">Amount</p>
+        </div>
+      )}
+
       <div className="space-y-2.5 lg:space-y-4">
         {items.map((item) => (
-          <div
-            key={item.id}
-            className={`flex items-center justify-between gap-6 text-[11px] lg:text-lg ${isDark ? "text-white/90" : "text-black/85"}`}
-          >
-            <p className="min-w-0 truncate">{item.name}</p>
-            <p className={`shrink-0 text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
-              {formatQuoteCurrency(item.amount)}
-            </p>
+          <div key={item.id}>
+            {showQuantity ? (
+              <div
+                className={`${gridLayout} items-center text-[11px] lg:text-base ${
+                  isDark ? "text-white/90" : "text-black/80"
+                }`}
+              >
+                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                  {item.name}
+                </p>
+                <p className="text-center">{formatCount(item.quantity)}</p>
+                <div className="col-span-2" />
+                <p className={`font-medium text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
+                  {formatQuoteCurrency(item.amount)}
+                </p>
+              </div>
+            ) : (
+              <div
+                className={`flex items-center justify-between gap-6 text-[11px] lg:text-base ${
+                  isDark ? "text-white/90" : "text-black/85"
+                }`}
+              >
+                <p className="min-w-0 truncate font-medium">{item.name}</p>
+                <p className={`shrink-0 text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
+                  {formatQuoteCurrency(item.amount)}
+                </p>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -368,9 +406,9 @@ export default function QuotePreviewDocument({
 
         {addonItems.length > 0 || logisticsItems.length > 0 || customItems.length > 0 ? (
           <div className={`space-y-4 lg:space-y-8 border-t pt-4 lg:pt-8 ${isDark ? "border-white/10" : "border-[#00000014]"}`}>
-            <PreviewAmountList title="Add-ons" items={addonItems} isDark={isDark} />
+            <PreviewAmountList title="Add-ons" items={addonItems} isDark={isDark} showQuantity={true} />
             <PreviewAmountList title="Logistics" items={logisticsItems} isDark={isDark} />
-            <PreviewAmountList title="Custom Items" items={customItems} isDark={isDark} />
+            <PreviewAmountList title="Custom Items" items={customItems} isDark={isDark}  />
           </div>
         ) : null}
 

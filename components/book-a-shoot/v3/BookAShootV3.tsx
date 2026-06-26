@@ -355,7 +355,7 @@ export const BookAShootV3 = () => {
       const calculateDurationHours = () => {
         if (formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0) {
           const total = formData.bookingDays.reduce((sum, d) => sum + calculateDayHours(d.startTime, d.endTime), 0);
-          return Math.max(1, Math.round(total));
+          return Math.max(1, Math.round(total * 100) / 100);
         }
 
         if (!formData.startDate || !formData.endDate) return 3; // Default fallback
@@ -363,21 +363,33 @@ export const BookAShootV3 = () => {
         const end = parseDate(formData.endDate);
         if (!start || !end) return 3;
         const diffMs = end.getTime() - start.getTime();
-        // Round to nearest hour, minimum 1
-        return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+        // Preserve quarter/half hours so saved pricing matches confirmation.
+        return Math.max(1, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
       };
 
       const isEditingOnly =
         formData.contentType.length === 1 &&
         formData.contentType.includes("editing");
-      const shootHours = isEditingOnly ? 0 : calculateDurationHours();
       const selectedStudios = normalizeSelectedStudios(formData);
       const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
-      const isStudioBooking = formData.shootType === "studio";
-      const useContentHouseInclusivePricing =
-        isStudioBooking && selectedStudios.length > 0;
-      const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
       const primaryStudio = selectedStudios[0];
+      const shootHours = isEditingOnly
+        ? 0
+        : primaryStudio
+          ? calculateDayHours(primaryStudio.startTime, primaryStudio.endTime)
+          : calculateDurationHours();
+      const isStudioBooking = formData.shootType === "studio";
+      const hasSelectedCreatorPricing =
+        !isEditingOnly &&
+        (
+          (formData.selectedCrewIds?.length || 0) > 0 ||
+          Number(formData.roleCounts?.videographer || 0) > 0 ||
+          Number(formData.roleCounts?.photographer || 0) > 0 ||
+          Number(formData.roleCounts?.cinematographer || 0) > 0
+        );
+      const useContentHouseInclusivePricing =
+        isStudioBooking && selectedStudios.length > 0 && !hasSelectedCreatorPricing;
+      const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
       const studioStartDateTime = primaryStudio?.selectedDate && primaryStudio?.startTime
         ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
         : "";
@@ -480,6 +492,14 @@ export const BookAShootV3 = () => {
             }
             quotePayload.notes = formData.specialInstructions || undefined;
             quotePayload.studio_total = selectedStudiosTotal || 0;
+            quotePayload.studio_items = selectedStudios.map((studio) => ({
+              studio_id: studio.studioId,
+              name: studio.name,
+              quantity: studio.quantity,
+              unit_price: studio.unitPrice,
+              total: studio.totalPrice,
+              pricing_mode: studio.pricingMode,
+            }));
           }
 
           const savedQuote = await saveQuote(quotePayload).unwrap();
@@ -496,7 +516,7 @@ export const BookAShootV3 = () => {
       const bookingDaysPayload = formData.bookingDays?.map((d) => ({
         date: d.date,
         start_time: d.startTime,
-        end_time: d.endTime,
+        end_time: d.endTime, 
         duration_hours: calculateDayHours(d.startTime, d.endTime),
         time_zone: browserTimeZone
       })) || [];

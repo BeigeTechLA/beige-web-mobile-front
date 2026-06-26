@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
@@ -17,7 +17,7 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText } from "lucide-react";
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle, ExternalLink, Download } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
@@ -63,7 +63,21 @@ type ProjectDetails = {
   assignedCrew?: unknown[];
   assigned_crews?: unknown[];
   assigned_post_production_members?: unknown[];
+  payment_history?: PaymentHistoryItem[];
   [key: string]: unknown;
+};
+
+type PaymentHistoryItem = {
+  id?: string | number;
+  type?: string | null;
+  receipt_number?: string | null;
+  invoice_number?: string | null;
+  method?: string | null;
+  amount?: string | number | null;
+  status?: string | null;
+  paid_at?: string | null;
+  receipt_url?: string | null;
+  receipt_download_url?: string | null;
 };
 
 type QuoteVersionItem = {
@@ -118,6 +132,32 @@ const getConvertedQuoteAmount = async (quoteId: string) => {
   );
 };
 
+const formatCurrency = (value: string | number | null | undefined) => {
+  const numericValue = Number(value || 0);
+  if (!Number.isFinite(numericValue)) return "$0.00";
+
+  return numericValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatPaymentDate = (value: string | null | undefined) => {
+  if (!value) return "Date unavailable";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Date unavailable";
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+};
+
+const asArray = <T,>(value: unknown): T[] => Array.isArray(value) ? value : [];
+
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
@@ -162,6 +202,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
     ? project.needs_attention.missing_fields
     : [];
+  const hasMissingFields = missingFields.length > 0;
   const hasFormDetails = !missingFields.includes("onboarding_form");
   const assignmentMissingDetails =
     project?.needs_attention?.required ? getCpAssignmentMissingDetails(project) : [];
@@ -222,11 +263,20 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null);
 
       if (quoteDetail && quoteDetailResponse?.data) {
-        const rawDetail = quoteDetailResponse.data;
+        const rawDetail = quoteDetailResponse.data as {
+          signature_base64?: string | null;
+          signer_name?: string | null;
+          signed_at?: string | null;
+        };
+        const signedQuoteDetail = quoteDetail as SalesQuoteDetailData & {
+          signature_base64?: string | null;
+          signer_name?: string | null;
+          signed_at?: string | null;
+        };
 
-        (quoteDetail as any).signature_base64 = rawDetail.signature_base64;
-        (quoteDetail as any).signer_name = rawDetail.signer_name;
-        (quoteDetail as any).signed_at = rawDetail.signed_at;
+        signedQuoteDetail.signature_base64 = rawDetail.signature_base64;
+        signedQuoteDetail.signer_name = rawDetail.signer_name;
+        signedQuoteDetail.signed_at = rawDetail.signed_at;
       }
 
       if (!quoteDetail) {
@@ -243,103 +293,119 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  useEffect(() => {
-    const fetchProjectAndSkills = async () => {
-      try {
-        const [projectResponse, skillsResponse] = await Promise.all([
-          adminApi.getProjectDetails(id),
-          adminApi.getSkills()
-        ]);
+  const fetchProjectAndSkills = useCallback(async (showLoader = false) => {
+    if (!id) return;
 
-        // 1. Create Skills Map
-        const skillsMap: Record<number, string> = {};
-        if (skillsResponse && skillsResponse.data) {
-          const skillsList: SkillOption[] = Array.isArray(skillsResponse.data)
-            ? skillsResponse.data
-            : (skillsResponse.data?.data || []);
-          skillsList.forEach((skill) => {
-            const name = skill.name || skill.skill_name || skill.title;
-            if (skill.id && name) skillsMap[Number(skill.id)] = name;
-          });
+    if (showLoader) {
+      setLoading(true);
+    }
+
+    try {
+      const [projectResponse, skillsResponse] = await Promise.all([
+        adminApi.getProjectDetails(id),
+        adminApi.getSkills()
+      ]);
+
+      // 1. Create Skills Map
+      const skillsMap: Record<number, string> = {};
+      if (skillsResponse && skillsResponse.data) {
+        const skillsList: SkillOption[] = Array.isArray(skillsResponse.data)
+          ? skillsResponse.data
+          : (skillsResponse.data?.data || []);
+        skillsList.forEach((skill) => {
+          const name = skill.name || skill.skill_name || skill.title;
+          if (skill.id && name) skillsMap[Number(skill.id)] = name;
+        });
+      }
+
+      const responseData = projectResponse?.data || null;
+
+      const projectData: ProjectDetails | undefined =
+        responseData?.project || responseData || projectResponse;
+
+      if (projectData) {
+        // 3. Map Skills Needed to Names
+        let skillsText = "";
+        if (projectData.skills_needed) {
+          try {
+            let parsedIds = projectData.skills_needed;
+
+            // Only attempt to parse if it's a string that looks like JSON (starts with [ or {)
+            if (typeof projectData.skills_needed === 'string' &&
+              (projectData.skills_needed.trim().startsWith('[') || projectData.skills_needed.trim().startsWith('{'))) {
+              try {
+                parsedIds = JSON.parse(projectData.skills_needed);
+              } catch {
+                // If parsing fails, keep it as a string
+                parsedIds = projectData.skills_needed;
+              }
+            }
+
+            if (Array.isArray(parsedIds)) {
+              skillsText = (parsedIds as Array<string | number>)
+                .map(id => skillsMap[Number(id)])
+                .filter(Boolean)
+                .join(", ");
+            } else if (typeof parsedIds === 'string') {
+              // If it's a plain string, use it directly
+              skillsText = parsedIds;
+            }
+          } catch (e) {
+            console.error("Unexpected error processing skills_needed:", e);
+            skillsText = projectData.skills_needed;
+          }
         }
 
-        const responseData = projectResponse?.data || null;
+        const assignedCrew = asArray(
+          responseData?.assignedCrew ?? projectData?.assignedCrew ?? projectData?.assigned_crews
+        );
+        const assignedPostProductionMembers = asArray(
+          responseData?.assignedPostProductionMembers ??
+          projectData?.assignedPostProductionMembers ??
+          projectData?.assigned_post_production_members
+        );
 
-        const projectData: ProjectDetails | undefined =
-          responseData?.project || responseData || projectResponse;
+        const nextProject: ProjectDetails = {
+          ...projectData,
+          payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
+          payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
+          pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
+          manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
+          payment_history: responseData?.payment_history || projectData?.payment_history || [],
+          lead_details: responseData?.lead_details || projectData?.lead_details || null,
+          assignedCrew,
+          assigned_crews: assignedCrew,
+          assignedPostProductionMembers,
+          assigned_post_production_members: assignedPostProductionMembers,
+          skills_needed: skillsText || projectData.skills_needed
+        };
 
-        if (projectData) {
-          // 3. Map Skills Needed to Names
-          let skillsText = "";
-          if (projectData.skills_needed) {
-            try {
-              let parsedIds = projectData.skills_needed;
-
-              // Only attempt to parse if it's a string that looks like JSON (starts with [ or {)
-              if (typeof projectData.skills_needed === 'string' &&
-                (projectData.skills_needed.trim().startsWith('[') || projectData.skills_needed.trim().startsWith('{'))) {
-                try {
-                  parsedIds = JSON.parse(projectData.skills_needed);
-                } catch {
-                  // If parsing fails, keep it as a string
-                  parsedIds = projectData.skills_needed;
-                }
-              }
-
-              if (Array.isArray(parsedIds)) {
-                skillsText = (parsedIds as Array<string | number>)
-                  .map(id => skillsMap[Number(id)])
-                  .filter(Boolean)
-                  .join(", ");
-              } else if (typeof parsedIds === 'string') {
-                // If it's a plain string, use it directly
-                skillsText = parsedIds;
-              }
-            } catch (e) {
-              console.error("Unexpected error processing skills_needed:", e);
-              skillsText = projectData.skills_needed;
+        const quoteId = String(nextProject.converted_sales_quote_id || "").trim();
+        if (quoteId) {
+          try {
+            const convertedQuoteAmount = await getConvertedQuoteAmount(quoteId);
+            if (convertedQuoteAmount !== undefined) {
+              nextProject.converted_quote_amount = convertedQuoteAmount;
             }
+          } catch (error) {
+            console.error("Failed to resolve converted quote amount:", error);
           }
-
-          const nextProject: ProjectDetails = {
-            ...projectData,
-            payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
-            payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
-            pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
-            manual_payment_summary: responseData?.manual_payment_summary || projectData?.manual_payment_summary || null,
-            lead_details: responseData?.lead_details || projectData?.lead_details || null,
-            assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
-            assignedPostProductionMembers:
-              responseData?.assignedPostProductionMembers ||
-              projectData?.assignedPostProductionMembers ||
-              projectData?.assigned_post_production_members ||
-              [],
-            skills_needed: skillsText || projectData.skills_needed
-          };
-
-          const quoteId = String(nextProject.converted_sales_quote_id || "").trim();
-          if (quoteId) {
-            try {
-              const convertedQuoteAmount = await getConvertedQuoteAmount(quoteId);
-              if (convertedQuoteAmount !== undefined) {
-                nextProject.converted_quote_amount = convertedQuoteAmount;
-              }
-            } catch (error) {
-              console.error("Failed to resolve converted quote amount:", error);
-            }
-          }
-
-          setProject(nextProject);
         }
-      } catch (error) {
-        console.error("Failed to fetch shoot details:", error);
-      } finally {
+
+        setProject(nextProject);
+      }
+    } catch (error) {
+      console.error("Failed to fetch shoot details:", error);
+    } finally {
+      if (showLoader) {
         setLoading(false);
       }
-    };
-
-    if (id) fetchProjectAndSkills();
+    }
   }, [id]);
+
+  useEffect(() => {
+    fetchProjectAndSkills(true);
+  }, [fetchProjectAndSkills]);
 
   if (!mounted) return null;
 
@@ -362,7 +428,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  const handleMissingFieldsSaved = (updated: {
+  const handleMissingFieldsSaved = async (updated: {
     shootId: string;
     location?: string;
     bookingType: "single_day" | "multi_day";
@@ -377,50 +443,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     }>;
     remainingMissingFields: string[];
   }) => {
-    setProject((prev) => {
-      if (!prev) return prev;
-
-      const next: ProjectDetails = {
-        ...prev,
-        needs_attention:
-          updated.remainingMissingFields.length > 0
-            ? {
-              required: true,
-              missing_fields: updated.remainingMissingFields,
-            }
-            : undefined,
-      };
-
-      if (updated.location) {
-        next.location = updated.location;
-        next.event_location = updated.location;
-      }
-
-      if (updated.bookingType === "single_day" && updated.rawDate) {
-        next.event_date = new Date(updated.rawDate).toISOString().slice(0, 10);
-        next.start_time = updated.startTime || next.start_time;
-        next.end_time = updated.endTime || next.end_time;
-      }
-
-      if (updated.bookingType === "multi_day" && updated.bookingDays?.length) {
-        const firstDay = updated.bookingDays[0];
-        next.event_date = firstDay.date;
-        next.start_time = firstDay.start_time;
-        next.end_time = firstDay.end_time;
-        next.booking_days = updated.bookingDays.map((day) => ({
-          date: day.date,
-          event_date: day.date,
-          start_time: day.start_time,
-          end_time: day.end_time,
-        }));
-      }
-
-      return next;
-    });
-
     if (updated.remainingMissingFields.length === 0) {
       setIsMissingFieldsModalOpen(false);
     }
+
+    await fetchProjectAndSkills(false);
   };
 
   const handleViewInvoice = async () => {
@@ -448,34 +475,17 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         manual: isManualInvoice,
         cacheBust: true,
       });
-      const brandedDownloadUrl = buildBeigeInvoiceUrl(numericBookingId, {
-        manual: isManualInvoice,
-        download: true,
-        cacheBust: true,
-      });
 
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         toast.error("Preview URL not available");
         return;
       }
 
-      if (hostedInvoiceUrl && !invoicePdfUrl) {
-        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      if (hostedInvoiceUrl || invoicePdfUrl) {
+        window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
       }
 
-      if (invoicePdfUrl) {
-        if (isManualInvoice) {
-          window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
-        } else {
-          const link = document.createElement("a");
-          link.href = brandedDownloadUrl;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.click();
-        }
-      }
-
-      toast.success(isManualInvoice ? "Invoice opened" : "Invoice opened and download started");
+      toast.success("Invoice opened");
     } catch (error) {
       console.error("Failed to preview invoice", error);
       toast.error(error instanceof Error ? error.message : "Failed to preview invoice");
@@ -540,6 +550,28 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         {/* Main Content (Left Scroll Window) */}
         <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
 
+          {hasMissingFields ? (
+            <div
+              className={`-mx-4 -mt-4 mb-4 lg:-mx-10 lg:-mt-10 lg:mb-6 flex items-center justify-between gap-4 border-y px-4 py-3 sm:px-6 lg:px-8 ${isDark
+                ? "border-[#4E4128] bg-[#E8D1AB1A] text-[#E6D8B6]"
+                : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
+                }`}
+            >
+              <p className="min-w-0 truncate text-sm font-medium sm:text-base">
+                {missingFields.length} Attention Required
+              </p>
+
+              <Button
+                type="button"
+                onClick={() => setIsMissingFieldsModalOpen(true)}
+                className="shrink-0 rounded-md bg-black px-5 py-2.5 text-sm font-medium text-[#E6D8B6] transition-colors hover:bg-black/90"
+              >
+                <AlertCircle size={16} className="mr-2" />
+                Take Action
+              </Button>
+            </div>
+          ) : null}
+
           <ShootHeader
             activeTab={activeTab}
             project={project}
@@ -577,6 +609,85 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       onRequestAssignment={handleAssignmentRequest}
                     />
                   </div>
+                  {Array.isArray(project?.payment_history) && project.payment_history.length > 0 ? (
+                    <div className="px-5 mt-6">
+                      <div className={`rounded-xl border overflow-hidden ${isDark ? "border-[#2D2D2D] bg-[#101010]" : "border-[#E5E5E5] bg-white"}`}>
+                        <div className={`flex items-center justify-between gap-3 border-b px-4 py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#EFEFEF]"}`}>
+                          <div>
+                            <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Payment History</h3>
+                            <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                              View or download receipts collected for this shoot.
+                            </p>
+                          </div>
+                        </div>
+                        <div className={`divide-y ${isDark ? "divide-[#252525]" : "divide-[#F1F1F1]"}`}>
+                          {project.payment_history.map((payment, index) => {
+                            const method = String(payment.method || payment.type || "Payment").replace(/_/g, " ");
+                            const receiptUrl = String(payment.receipt_url || "").trim();
+                            const receiptDownloadUrl = String(payment.receipt_download_url || "").trim();
+
+                            return (
+                              <div
+                                key={payment.id || `${method}-${index}`}
+                                className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-[1.2fr_0.8fr_0.8fr_auto]"
+                              >
+                                <div>
+                                  <p className={`text-sm font-medium capitalize ${isDark ? "text-white" : "text-black"}`}>{method}</p>
+                                  <p className={`mt-1 text-xs capitalize ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                    {payment.status || "paid"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className={`text-xs uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-black/35"}`}>Date</p>
+                                  <p className={`mt-1 text-sm ${isDark ? "text-white/75" : "text-black/70"}`}>
+                                    {formatPaymentDate(payment.paid_at)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className={`text-xs uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-black/35"}`}>Amount</p>
+                                  <p className={`mt-1 text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
+                                    {formatCurrency(payment.amount)}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 md:justify-end">
+                                  <a
+                                    href={receiptUrl || undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-disabled={!receiptUrl}
+                                    className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors ${receiptUrl
+                                      ? isDark
+                                        ? "border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"
+                                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"
+                                      : "pointer-events-none border-transparent bg-zinc-200 text-zinc-400"
+                                      }`}
+                                  >
+                                    <ExternalLink size={14} />
+                                    View
+                                  </a>
+                                  <a
+                                    href={receiptDownloadUrl || undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-disabled={!receiptDownloadUrl}
+                                    className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${receiptDownloadUrl
+                                      ? isDark
+                                        ? "border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"
+                                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"
+                                      : "pointer-events-none border-transparent bg-zinc-200 text-zinc-400"
+                                      }`}
+                                    title="Download receipt"
+                                  >
+                                    <Download size={15} />
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} />
                   </div>
