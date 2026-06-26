@@ -1913,7 +1913,6 @@ export const BookAStudio = () => {
           data={formData}
           updateData={updateData}
           onBack={() => {
-            updateData({ selectedCrewIds: [] });
             setActiveStep(5);
           }}
           onNext={() => undefined}
