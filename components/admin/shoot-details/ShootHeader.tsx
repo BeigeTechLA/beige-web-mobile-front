@@ -83,6 +83,11 @@ const getAmount = (...values: unknown[]): number | undefined => {
   return undefined;
 };
 
+const formatCurrencyLike = (value: unknown): string => {
+  const amount = getAmount(value) ?? 0;
+  return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
 
@@ -378,7 +383,15 @@ export default function ShootHeader({
             elements.push(
               <div key="meta-row-1" className="flex flex-wrap gap-x-8 gap-y-1 mb-1">
                 {meta.priceLabel && <span>Pricing: {meta.priceLabel}</span>}
-                {meta.totalPrice && <span>Total Price: ${meta.totalPrice}</span>}
+                {meta.totalPrice && (
+                  <span>
+                    Total Price: {
+                      finalValue > (getAmount(meta.totalPrice) ?? 0)
+                        ? finalValueText
+                        : formatCurrencyLike(meta.totalPrice)
+                    }
+                  </span>
+                )}
               </div>
             );
 
