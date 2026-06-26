@@ -53,6 +53,7 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
         Approved: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
         Pending: "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
         Inactive: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
+        Archived: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
         Rejected: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
     };
     const displayStatus = styles[status] ? status : "Pending";
@@ -217,7 +218,7 @@ export const ClientsTable = () => {
                         const archivedIndicator = client.is_archived ?? client.archived ?? client.is_deleted ?? client.deleted_at ?? client.client_status ?? client.status;
                         const statusMapping = (val: any) => {
                             if (val === 1 || val === "Active" || val === "approved") return "Active";
-                            if (val === 0 || val === "Inactive" || val === "rejected") return "Inactive";
+                            if (val === 0 || val === "Inactive" || val === "rejected") return "Archived";
                             if (String(val).toLowerCase() === "archived") return "Inactive";
                             return "Pending";
                         };
