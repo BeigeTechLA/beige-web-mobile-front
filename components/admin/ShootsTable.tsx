@@ -69,6 +69,10 @@ interface ShootRecord {
   category: string;
   price: string;
   rawPrice: number; // Added for correct numerical sorting
+  paidAmount: string;   
+  pendingAmount: string; 
+  rawPaid: number;       
+  rawPending: number; 
   status: ShootStatus;
   hasAssignedCp: boolean;
   notesCount: number;
@@ -537,6 +541,8 @@ export const ShootsTable = ({
           // Sorting Helpers
           const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
           const resolvedPriceSource = project.total_value_amount ?? project.total_paid_amount ?? project.budget;
+          const rawPaid = parseFloat(project.paid_amount || 0);
+          const rawPending = parseFloat(project.pending_amount || 0);
           const priceValue = resolvedPriceSource
             ? parseFloat(resolvedPriceSource)
             : project.budget ? parseFloat(project.budget) : 0;
@@ -568,6 +574,10 @@ export const ShootsTable = ({
                 ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : "$0.00",
             rawPrice: priceValue,
+            rawPaid: rawPaid,
+            rawPending: rawPending,
+            paidAmount: `$${rawPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            pendingAmount: `$${rawPending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             status: statusLabel,
             hasAssignedCp,
             notesCount: Number.isFinite(notesCount) ? notesCount : 0,
@@ -1450,7 +1460,19 @@ export const ShootsTable = ({
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
                                   <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Price</p>
-                                  <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.price}</p>
+                                  <div className="text-right flex flex-col">
+                                   <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>
+                                      {shoot.price}
+                                    </p>
+                                    <span className="text-[10px] font-bold text-green-600 uppercase">
+                                      Paid: {shoot.paidAmount}
+                                    </span>
+                                    {shoot.rawPending > 0 && (
+                                      <span className="text-[10px] font-bold text-orange-500 uppercase leading-none mt-0.5">
+                                        Pending: {shoot.pendingAmount}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
 
@@ -1652,7 +1674,17 @@ export const ShootsTable = ({
                           </div>
                         </td>
                         <td className={`py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
-                        <td className={`py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.price}</td>
+                        <td className={`py-5 px-6 text-base leading-tight border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                            <div className="flex flex-col">
+                              <span className="font-semibold">{shoot.price}</span>
+                              <span className="text-[10px] text-green-600 font-bold uppercase">Paid: {shoot.paidAmount}</span>
+                              {shoot.rawPending > 0 && (
+                                  <span className="text-[10px] font-bold text-orange-500 uppercase">
+                                  Pending: {shoot.pendingAmount}
+                              </span>
+                              )}
+                          </div>
+                        </td>                      
                         <td className={`py-5 px-6 border-y ${borderClass}`}>
                           <StatusBadge status={shoot.status} />
                         </td>
