@@ -102,6 +102,76 @@ export const equipmentApi = {
   },
 };
 
+export type CompensationRateType = 'flat' | 'hourly';
+
+export type CompensationSaveCpPayload = {
+  crew_member_id: number;
+  rate_type: CompensationRateType;
+  base_payout: number;
+  editing_payout: number;
+  travel_adjustment: number;
+  bonus_adjustment: number;
+  notes?: string;
+  hourly_rate?: number;
+  hours_worked?: number;
+};
+
+export type CompensationSavePayload = {
+  compensation_method: 'equal_split' | 'role_based' | 'manual';
+  cps: CompensationSaveCpPayload[];
+};
+
+export type CompensationAdvancePayload = {
+  advance_amount: number;
+  payment_date: string;
+  notes?: string;
+};
+
+export const compensationApi = {
+  getBookingCompensation: async (bookingId: number | string) => {
+    const response = await api.get(`/compensation/booking/${bookingId}`);
+    return response.data;
+  },
+
+  getCpCompensation: async (bookingId: number | string, crewMemberId: number | string) => {
+    const response = await api.get(`/compensation/booking/${bookingId}/cp/${crewMemberId}`);
+    return response.data;
+  },
+
+  saveBookingCompensation: async (bookingId: number | string, payload: CompensationSavePayload) => {
+    const response = await api.post(`/compensation/booking/${bookingId}/save`, payload);
+    return response.data;
+  },
+
+  submitBookingCompensation: async (bookingId: number | string) => {
+    const response = await api.post(`/compensation/booking/${bookingId}/submit`);
+    return response.data;
+  },
+
+  addAdvancePayment: async (
+    bookingId: number | string,
+    crewMemberId: number | string,
+    payload: CompensationAdvancePayload
+  ) => {
+    const response = await api.post(`/compensation/booking/${bookingId}/cp/${crewMemberId}/advance`, payload);
+    return response.data;
+  },
+
+  cancelAdvancePayment: async (
+    bookingId: number | string,
+    crewMemberId: number | string,
+    advanceId: number | string
+  ) => {
+    const response = await api.patch(`/compensation/booking/${bookingId}/cp/${crewMemberId}/advance/${advanceId}/cancel`);
+    return response.data;
+  },
+
+  getCompensationLogs: async (bookingId: number | string) => {
+    const response = await api.get(`/compensation/booking/${bookingId}/logs`);
+    return response.data;
+  },
+};
+
 export const paymentApi = {
   createIntent: async (
     creatorId: string,
@@ -3375,3 +3445,4 @@ export const salesApi = {
     return `${baseUrl}signatures/download/${quote_id}`;
   },
 };
+

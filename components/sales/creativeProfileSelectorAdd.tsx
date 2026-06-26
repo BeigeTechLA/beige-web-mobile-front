@@ -9,7 +9,7 @@ import { Separator } from '@/src/components/landing/Separator';
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 const DEFAULT_RADIUS = 50;
 
-type CreativeWithDistance = {
+export type CreativeWithDistance = {
   id: number;
   first_name?: string;
   last_name?: string;
@@ -138,6 +138,7 @@ export const CreativeProfileSelectorAdd = ({
   selectedIds: externalSelectedIds,
   onChange,
   onSelectionUpdate,
+  onSelectedCreativesChange,
   leadId,
   projectId,
   currentLocation,
@@ -152,6 +153,7 @@ export const CreativeProfileSelectorAdd = ({
   selectedIds?: number[],
   onChange?: (ids: number[]) => void,
   onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void,
+  onSelectedCreativesChange?: (creatives: CreativeWithDistance[]) => void,
   leadId?: number | string,
   projectId?: number | string,
   currentLocation?: string,
@@ -425,6 +427,14 @@ export const CreativeProfileSelectorAdd = ({
       onSelectionUpdate(counts);
     }
   }, [counts, onSelectionUpdate]);
+
+  useEffect(() => {
+    onSelectedCreativesChange?.(
+      selectedIds
+        .map((id) => creatives.find((creative) => creative.id === id))
+        .filter((creative): creative is CreativeWithDistance => Boolean(creative))
+    );
+  }, [creatives, onSelectedCreativesChange, selectedIds]);
 
   const toggleBucket = (bucketLimit: number) => {
     setExpandedBuckets((current) =>

@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect, use } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, Camera, Video } from "lucide-react";
+import { ArrowLeft, Camera, Send, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAssignCrewFromShootMutation } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
 import { toast } from "sonner";
-import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
+import { CreativeProfileSelectorAdd, type CreativeWithDistance } from "@/components/sales/creativeProfileSelectorAdd";
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
+import { AddCompensationModal } from "@/components/admin/shoot-details/AddCompensationModal";
+import { CompensationSuccessModal } from "@/components/admin/shoot-details/CompensationSuccessModal";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
 
@@ -39,6 +41,11 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"assign" | "compensation">("assign");
+  const [isCompensationOpen, setIsCompensationOpen] = useState(false);
+  const [selectedCreatives, setSelectedCreatives] = useState<CreativeWithDistance[]>([]);
+  const [isCompensationSuccessOpen, setIsCompensationSuccessOpen] = useState(false);
+  const [isPreparingCompensation, setIsPreparingCompensation] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
@@ -86,6 +93,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     const isOverPhotographers = selectionCounts.photographer > reqCounts.photographer;
 
     if (isOverVideographers || isOverPhotographers) {
+      setConfirmAction("assign");
       setIsConfirmModalOpen(true);
       return;
     }
@@ -93,8 +101,27 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     executeAssignment();
   };
 
-  const executeAssignment = async () => {
+  const handleContinueToCompensation = async () => {
+    if (selectedCreativeIds.length === 0) {
+      toast.error("Please select at least one creative");
+      return;
+    }
+
+    const isOverVideographers = selectionCounts.videographer > reqCounts.videographer;
+    const isOverPhotographers = selectionCounts.photographer > reqCounts.photographer;
+
+    if (isOverVideographers || isOverPhotographers) {
+      setConfirmAction("compensation");
+      setIsConfirmModalOpen(true);
+      return;
+    }
+
+    executeAssignment({ openCompensation: true });
+  };
+
+  const executeAssignment = async (options?: { openCompensation?: boolean }) => {
     setIsConfirmModalOpen(false);
+    if (options?.openCompensation) setIsPreparingCompensation(true);
     try {
       const response = await assignCrew({
         project_id: Number(projectId),
@@ -103,7 +130,12 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
       if (response.success) {
         toast.success("Crew assigned successfully");
-        router.back();
+        if (options?.openCompensation) {
+          setIsCompensationOpen(true);
+        } else {
+          setIsCompensationOpen(false);
+          setIsCompensationSuccessOpen(true);
+        }
       } else {
         if (response.errors && Array.isArray(response.errors)) {
           toast.error(response.errors.join(", "));
@@ -123,6 +155,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       } else {
         toast.error("An error occurred while assigning crew");
       }
+    } finally {
+      if (options?.openCompensation) setIsPreparingCompensation(false);
     }
   };
 
@@ -164,10 +198,68 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       <AssignmentConfirmationModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={executeAssignment}
+        onConfirm={() => executeAssignment({ openCompensation: confirmAction === "compensation" })}
         videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
       />
+      <AddCompensationModal
+        isOpen={isCompensationOpen}
+        bookingId={projectId}
+        creatives={selectedCreatives}
+        onClose={() => setIsCompensationOpen(false)}
+        onSubmit={() => {
+          setIsCompensationOpen(false);
+          setIsCompensationSuccessOpen(true);
+        }}
+        isSubmitting={isLoading}
+      />
+      <CompensationSuccessModal
+        open={isCompensationSuccessOpen}
+        onOpenChange={(open) => {
+          setIsCompensationSuccessOpen(open);
+          if (!open) router.back();
+        }}
+      />
+
+      {selectedCreativeIds.length > 0 && (
+        <div
+          className={`sticky top-0 z-30 flex min-h-12 items-center justify-between gap-4 border-b px-4 py-2 lg:px-10 ${
+            isDark
+              ? "border-[#4A443A] bg-[#211F1B] text-white"
+              : "border-[#D8C7A8] bg-[#F0E7D7] text-black"
+          }`}
+        >
+          <span className="text-xs font-medium sm:text-sm">
+            {selectedCreativeIds.length}{" "}
+            {selectedCreativeIds.length === 1 ? "Creative" : "Creatives"} Selected
+          </span>
+
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setSelectedCreativeIds([])}
+              disabled={isLoading}
+              className="text-xs underline underline-offset-2 transition-opacity hover:opacity-75 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+            >
+              Clear Selection
+            </button>
+
+            <Button
+              type="button"
+              onClick={handleContinueToCompensation}
+              disabled={isLoading || isPreparingCompensation}
+              className={`h-9 gap-2 rounded border px-4 text-xs font-semibold sm:px-6 ${
+                isDark
+                  ? "border-[#E8D1AB] bg-black text-[#E8D1AB] hover:bg-[#17130D]"
+                  : "border-black bg-black text-[#E8D1AB] hover:bg-black/85"
+              }`}
+            >
+              <Send size={13} />
+              {isLoading || isPreparingCompensation ? "Continuing..." : "Continue to Compensation"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className={`min-h-screen overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
         <Button
@@ -185,6 +277,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           selectedIds={selectedCreativeIds}
           onChange={setSelectedCreativeIds}
           onSelectionUpdate={setSelectionCounts}
+          onSelectedCreativesChange={setSelectedCreatives}
           currentLocation={projectLocation}
           targets={reqCounts}
           roleType={roleType}
