@@ -69,8 +69,31 @@ export type AdminUserRoleRecord = {
   role_id: number | null;
   role_name: string | null;
   created_at: string | null;
+  updated_at?: string | null;
   is_active: number;
   status_label: 'Active' | 'In-Active';
+  archive_history?: ArchiveHistoryRecord[];
+  last_archive_event?: ArchiveHistoryRecord | null;
+  deleted_by_name?: string | null;
+  deleted_at?: string | null;
+  restored_by_name?: string | null;
+  restored_at?: string | null;
+};
+
+export type ArchiveHistoryRecord = {
+  history_id: number;
+  target_type: string;
+  target_id: number;
+  user_id: number | null;
+  action: string;
+  reason: string | null;
+  performed_by_user_id: number | null;
+  performed_by_name: string | null;
+  performed_by_role: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  metadata?: unknown;
+  created_at: string | null;
 };
 
 export type PermissionModuleRecord = {
@@ -112,6 +135,7 @@ export type UserRoleDetailsResponse = {
     updated_at?: string | null;
   };
   display_role: string | null;
+  archive_history?: ArchiveHistoryRecord[];
   permissions: Record<string, Record<string, boolean>>;
 };
 
@@ -2521,6 +2545,20 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to delete user',
+      };
+    }
+  },
+
+  restoreUser: async (userId: number | string, reason = "Restored from roles and permissions") => {
+    try {
+      const response = await api.post(`admin/restore-user/${userId}`, { reason });
+      return response.data;
+    } catch (error: any) {
+      console.error('Restore User Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to restore user',
       };
     }
   },

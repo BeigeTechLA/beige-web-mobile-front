@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDownAZ, ArrowUpAZ } from "lucide-react";
 import { PermissionUsersTable } from "@/components/admin/roles-permissions/PermissionUsersTable";
@@ -40,7 +40,7 @@ const getInitials = (value: string) =>
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("") || "NA";
 
-const formatDateTime = (value: string | null) => {
+const formatDateTime = (value?: string | null) => {
   if (!value) return "-";
 
   const date = new Date(value);
@@ -100,6 +100,10 @@ const mapUserToPermissionUser = (
   status: user.status_label,
   badge: getInitials(user.name),
   badgeTone: USER_BADGE_TONES[index % USER_BADGE_TONES.length],
+  archive_history: user.archive_history,
+  last_archive_event: user.last_archive_event,
+  deleted_by_name: user.deleted_by_name,
+  deleted_at: user.deleted_at,
 });
 
 export function RolesPermissionsPage({
@@ -117,65 +121,62 @@ export function RolesPermissionsPage({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<PermissionUser | null>(null);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [selectedRestoreUser, setSelectedRestoreUser] = useState<PermissionUser | null>(null);
+
+  const loadRoles = useCallback(async () => {
+    setIsLoadingRoles(true);
+    setRolesError("");
+
+    const response = await adminApi.getRoles({
+      search: searchQuery,
+      sort_by: "created_at",
+      order: sortOrder,
+    });
+
+    if (response?.success && Array.isArray(response.data)) {
+      setRoles(response.data);
+    } else {
+      setRoles([]);
+      setRolesError(response?.error || response?.message || "Failed to load roles");
+    }
+
+    setIsLoadingRoles(false);
+  }, [searchQuery, sortOrder]);
+
+  const loadUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
+    setUsersError("");
+
+    const response = await adminApi.getUsersWithRoles({
+      search: searchQuery,
+      sort_by: "created_at",
+      order: "desc",
+    });
+
+    if (response?.success && Array.isArray(response.data)) {
+      setUsers(response.data.map(mapUserToPermissionUser));
+    } else {
+      setUsers([]);
+      setUsersError(response?.error || response?.message || "Failed to load users");
+    }
+
+    setIsLoadingUsers(false);
+  }, [searchQuery]);
 
   useEffect(() => {
-    let mounted = true;
-
-    const loadRoles = async () => {
-      setIsLoadingRoles(true);
-      setRolesError("");
-
-      const response = await adminApi.getRoles({
-        search: searchQuery,
-        sort_by: "created_at",
-        order: sortOrder,
-      });
-
-      if (!mounted) return;
-
-      if (response?.success && Array.isArray(response.data)) {
-        setRoles(response.data);
-      } else {
-        setRoles([]);
-        setRolesError(response?.error || response?.message || "Failed to load roles");
-      }
-
-      setIsLoadingRoles(false);
+    const loadPage = async () => {
+      await Promise.all([loadRoles(), loadUsers()]);
     };
 
-    const loadUsers = async () => {
-      setIsLoadingUsers(true);
-      setUsersError("");
-
-      const response = await adminApi.getUsersWithRoles({
-        search: searchQuery,
-        sort_by: "created_at",
-        order: "desc",
-      });
-
-      if (!mounted) return;
-
-      if (response?.success && Array.isArray(response.data)) {
-        setUsers(response.data.map(mapUserToPermissionUser));
-      } else {
-        setUsers([]);
-        setUsersError(response?.error || response?.message || "Failed to load users");
-      }
-
-      setIsLoadingUsers(false);
-    };
-
-    void Promise.all([loadRoles(), loadUsers()]);
-
-    return () => {
-      mounted = false;
-    };
-  }, [searchQuery, sortOrder]);
+    void loadPage();
+  }, [loadRoles, loadUsers]);
 
   const roleCards = useMemo<RoleCardData[]>(() => {
       return sortRolesForDisplay(roles).map((role, index) => {
       const roleUsers = users.filter(
-        (user) => user.role_id != null && user.role_id === role.role_id,
+        (user) => user.role_id != null && user.role_id === role.role_id && user.status === "Active",
       );
       const badgeTexts = roleUsers
         .slice(0, 3)
@@ -217,6 +218,11 @@ export function RolesPermissionsPage({
     setIsDeleteModalOpen(true);
   };
 
+  const handleOpenRestoreModal = (user: PermissionUser) => {
+    setSelectedRestoreUser(user);
+    setIsRestoreModalOpen(true);
+  };
+
   const handleOpenUserDetails = (user: PermissionUser) => {
     if (!canEdit) return;
     router.push(`/admin/roles-permissions/edit-details?user_id=${user.id}`);
@@ -236,9 +242,28 @@ export function RolesPermissionsPage({
       return;
     }
 
-    setUsers((current) => current.filter((user) => user.id !== selectedUser.id));
+    await Promise.all([loadRoles(), loadUsers()]);
     setIsDeleteModalOpen(false);
     setSelectedUser(null);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!selectedRestoreUser) return;
+
+    setIsRestoring(true);
+    const response = await adminApi.restoreUser(selectedRestoreUser.id);
+    setIsRestoring(false);
+
+    if (response?.success === false) {
+      setUsersError(response?.error || response?.message || "Failed to restore user");
+      setIsRestoreModalOpen(false);
+      setSelectedRestoreUser(null);
+      return;
+    }
+
+    await Promise.all([loadRoles(), loadUsers()]);
+    setIsRestoreModalOpen(false);
+    setSelectedRestoreUser(null);
   };
 
   return (
@@ -325,6 +350,7 @@ export function RolesPermissionsPage({
               onEdit={handleOpenUserDetails}
               onRowClick={handleOpenUserDetails}
               onDelete={canDelete ? handleOpenDeleteModal : undefined}
+              onRestore={canDelete ? handleOpenRestoreModal : undefined}
             />
           </div>
         </div>
@@ -347,6 +373,25 @@ export function RolesPermissionsPage({
         tone="danger"
         confirmLabel={isDeleting ? "Deleting..." : "Delete User"}
         isLoading={isDeleting}
+      />
+
+      <ActionModal
+        isOpen={isRestoreModalOpen}
+        onClose={() => {
+          if (isRestoring) return;
+          setIsRestoreModalOpen(false);
+          setSelectedRestoreUser(null);
+        }}
+        onConfirm={handleConfirmRestore}
+        title="Restore User"
+        description={
+          selectedRestoreUser
+            ? `Restore ${selectedRestoreUser.name} and move them back to the active user list?`
+            : "Restore this user and move them back to the active user list?"
+        }
+        tone="success"
+        confirmLabel={isRestoring ? "Restoring..." : "Restore User"}
+        isLoading={isRestoring}
       />
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
+import { ChevronRight, History, Pencil, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,6 +24,7 @@ type PermissionUsersTableProps = {
   error?: string;
   onEdit?: (user: PermissionUser) => void;
   onDelete?: (user: PermissionUser) => void;
+  onRestore?: (user: PermissionUser) => void;
   onRowClick?: (user: PermissionUser) => void;
   roleId?: string | number;
 };
@@ -139,6 +140,10 @@ const mapApiUserToPermissionUser = (
   created: user.created_at || "",
   updated: user.updated_at || user.created_at || "",
   status: user.status_label,
+  archive_history: user.archive_history,
+  last_archive_event: user.last_archive_event,
+  deleted_by_name: user.deleted_by_name,
+  deleted_at: user.deleted_at,
   badge: user.name
     .split(" ")
     .filter(Boolean)
@@ -154,6 +159,7 @@ export function PermissionUsersTable({
   error = "",
   onEdit,
   onDelete,
+  onRestore,
   onRowClick,
   roleId,
 }: PermissionUsersTableProps) {
@@ -167,6 +173,7 @@ export function PermissionUsersTable({
   const [serverError, setServerError] = useState("");
   const [serverLoading, setServerLoading] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [historyUser, setHistoryUser] = useState<PermissionUser | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -282,6 +289,42 @@ export function PermissionUsersTable({
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
   const canOpenUser = Boolean(onEdit || onRowClick);
+  const selectedUserHistoryGroups = useMemo(() => {
+    if (!historyUser) return [];
+
+    const historyEntries = (historyUser.archive_history || [])
+      .map((entry) => ({
+        ...entry,
+        userId: historyUser.id,
+        userName: historyUser.name,
+        role: historyUser.role,
+        badge: historyUser.badge,
+        badgeTone: historyUser.badgeTone,
+      }))
+      .filter((entry) => entry.action === "deleted" || entry.action === "restored")
+      .sort((first, second) => {
+        const firstTime = new Date(first.created_at || "").getTime();
+        const secondTime = new Date(second.created_at || "").getTime();
+        return (Number.isNaN(secondTime) ? 0 : secondTime) - (Number.isNaN(firstTime) ? 0 : firstTime);
+      });
+
+    return historyEntries
+      .filter((entry) => entry.action === "deleted")
+      .map((deletedEntry) => {
+        const deletedAt = new Date(deletedEntry.created_at || "").getTime();
+        const restoreEntry = historyEntries.find((entry) => {
+          if (entry.userId !== deletedEntry.userId || entry.action !== "restored") return false;
+          const restoredAt = new Date(entry.created_at || "").getTime();
+          return !Number.isNaN(restoredAt) && !Number.isNaN(deletedAt) && restoredAt > deletedAt;
+        });
+
+        return {
+          deleted: deletedEntry,
+          restored: restoreEntry || null,
+        };
+      })
+      .slice(0, 20);
+  }, [historyUser]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -319,6 +362,7 @@ export function PermissionUsersTable({
   const showError = error || serverError;
 
   return (
+    <>
     <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#111111]">
       <div className="px-6 py-6">
         {/* Table Header Section: Title and Right-aligned Filters */}
@@ -444,9 +488,12 @@ export function PermissionUsersTable({
               <tr
                 key={user.id}
                 className={`group text-white transition-colors hover:bg-white/[0.02] ${
-                  canOpenUser ? "cursor-pointer" : "cursor-default"
+                  canOpenUser && user.status === "Active" ? "cursor-pointer" : "cursor-default"
                 }`}
-                onClick={() => onRowClick?.(user)}
+                onClick={() => {
+                  if (user.status !== "Active") return;
+                  onRowClick?.(user);
+                }}
               >
                 <td className="px-4 py-5">
                   <Checkbox
@@ -469,6 +516,11 @@ export function PermissionUsersTable({
                         {user.name}
                       </p>
                       <p className="mt-1 truncate text-[12px] text-white/40">{user.subtitle}</p>
+                      {user.status === "In-Active" && user.deleted_by_name ? (
+                        <p className="mt-1 truncate text-[12px] text-[#EA5455]/80">
+                          Deleted by {user.deleted_by_name}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </td>
@@ -502,32 +554,63 @@ export function PermissionUsersTable({
                   <div className="flex items-center justify-end gap-3">
                     <button
                       type="button"
-                      disabled={!onEdit}
+                      title="View user history"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-[#E5D5B8]/10 hover:text-[#E5D5B8]"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setHistoryUser(user);
+                      }}
+                    >
+                      <History size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!onEdit || user.status !== "Active"}
+                      title={user.status === "Active" ? "Edit user" : "Inactive users cannot be edited"}
                       className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (user.status !== "Active") return;
                         onEdit?.(user);
                       }}
                     >
                       <Pencil size={16} />
                     </button>
+                    {user.status === "In-Active" ? (
+                      <button
+                        type="button"
+                        disabled={!onRestore}
+                        title="Restore user"
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-[#28C76F]/10 hover:text-[#28C76F] disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onRestore?.(user);
+                        }}
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!onDelete}
+                        title="Delete user"
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDelete?.(user);
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      disabled={!onDelete}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDelete?.(user);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canOpenUser}
+                      disabled={!canOpenUser || user.status !== "Active"}
+                      title={user.status === "Active" ? "Open details" : "Inactive users do not open details"}
                       className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (user.status !== "Active") return;
                         if (onEdit) {
                           onEdit(user);
                           return;
@@ -600,5 +683,82 @@ export function PermissionUsersTable({
         </div>
       ) : null}
     </div>
+    {historyUser ? (
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setHistoryUser(null)}>
+        <aside
+          className="ml-auto flex h-full w-full max-w-[430px] flex-col border-l border-white/10 bg-[#050505] text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
+            <div className="min-w-0">
+              <h2 className="text-[18px] font-bold">Archive User History</h2>
+              <p className="mt-1 truncate text-sm text-white/45">{historyUser.name}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setHistoryUser(null)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 transition hover:bg-white/15 hover:text-white"
+              aria-label="Close archive users history"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-5">
+            {selectedUserHistoryGroups.length > 0 ? (
+              <div className="space-y-3">
+                {selectedUserHistoryGroups.map(({ deleted, restored }) => {
+                  const deletedTime = formatDateParts(deleted.created_at || "");
+                  const restoredTime = restored ? formatDateParts(restored.created_at || "") : null;
+                  const deletedBy = deleted.performed_by_name || "Admin";
+                  const deletedRole = deleted.performed_by_role ? ` - ${deleted.performed_by_role}` : "";
+                  const restoredBy = restored?.performed_by_name || "Admin";
+
+                  return (
+                    <div key={deleted.history_id} className="rounded-lg border border-white/10 bg-[#171717] p-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-bold ${deleted.badgeTone}`}>
+                          {deleted.badge}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-medium leading-relaxed text-white">
+                            {deleted.userName} was deleted by {deletedBy}
+                            <span className="text-[#E5D5B8]">{deletedRole}</span>
+                          </p>
+                          <p className="mt-1 text-[11px] text-white/40">
+                            {deletedTime.date} <span className="mx-1">•</span> {deletedTime.time || "N/A"}
+                          </p>
+
+                          {restored && restoredTime ? (
+                            <div className="relative mt-3 pl-8">
+                              <div className="absolute left-3 top-0 h-full w-px bg-white/10" />
+                              <div className="rounded-md border border-white/10 bg-[#111] px-3 py-2">
+                                <p className="text-[11px] font-medium text-white/85">
+                                  {restored.userName} was restored by {restoredBy}
+                                </p>
+                                <p className="mt-1 text-[10px] text-white/35">
+                                  {restoredTime.date} <span className="mx-1">•</span> {restoredTime.time || "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center rounded-lg border border-white/10 bg-white/[0.02] px-6 text-center">
+                <History size={28} className="text-[#E5D5B8]" />
+                <p className="mt-3 text-sm font-semibold text-white">No archive history found</p>
+                <p className="mt-1 text-xs text-white/40">This user has not been deleted or restored yet.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+    ) : null}
+    </>
   );
 }

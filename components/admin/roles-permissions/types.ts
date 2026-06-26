@@ -28,6 +28,24 @@ export type PermissionUser = {
   status: PermissionStatus;
   badge: string;
   badgeTone: string;
+  archive_history?: Array<{
+    history_id: number;
+    action: string;
+    performed_by_name: string | null;
+    performed_by_role: string | null;
+    reason: string | null;
+    created_at: string | null;
+  }>;
+  last_archive_event?: {
+    history_id: number;
+    action: string;
+    performed_by_name: string | null;
+    performed_by_role: string | null;
+    reason: string | null;
+    created_at: string | null;
+  } | null;
+  deleted_by_name?: string | null;
+  deleted_at?: string | null;
 };
 
 export type PermissionColumnKey = "view" | "create" | "edit" | "delete";
