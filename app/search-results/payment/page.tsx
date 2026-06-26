@@ -607,26 +607,6 @@ function StripePaymentFormMulti({
     quote?.applied_discount_code || quote?.discount_code
   );
 
-  // GA4 begin_checkout event which fires once payment interface loads
-  useEffect(() => {
-    pushToDataLayer("begin_checkout", {
-      currency: "USD",
-      value: booking?.totalAmount || amount,
-
-      // Custom Platform Context
-      page_name: "Payment Page",
-      location_in_website: "book_a_shoot_payment_page",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
-      booking_id: booking?.bookingId,
-      items: [{
-        item_name: booking?.shoot_name || "Shoot Booking",
-        price: booking?.totalAmount || amount,
-        quantity: 1
-      }]
-    });
-  }, []);
-
   useEffect(() => {
     if (!isReferralLocked) return;
     if (referralCode.length === 0) return;
@@ -1128,7 +1108,6 @@ function StripePaymentFormMulti({
       }
     });
     console.log("after GA booking_payment_initiated call");
-    console.log(booking)
 
     // 100% DISCOUNT CASE: Bypass Stripe
     if (isFree) {
@@ -1157,7 +1136,6 @@ function StripePaymentFormMulti({
             quantity: 1
           }]
         });
-
         console.log("after GA purchase after 100% DISCOUNT CASE: Bypass Stripe");
 
       } catch (err) {
@@ -1263,8 +1241,8 @@ function StripePaymentFormMulti({
         email: isAuthenticated ? user?.email : booking.email,
         phone: isAuthenticated ? user?.phone_number : booking.phone,
       });
-
       console.log("after GA payment_failed after Unexpected payment error");
+
       onError(
         err instanceof Error ? err.message : "An unexpected error occurred",
       );

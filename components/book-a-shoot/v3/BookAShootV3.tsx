@@ -459,6 +459,7 @@ export const BookAShootV3 = () => {
       // 5. SAVE QUOTE (API Call)
       // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
       let savedQuoteId: number | null = null;
+      let savedQuoteTotal: number | null = null;
 
       const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
         ? formData.bookingDays
@@ -507,6 +508,8 @@ export const BookAShootV3 = () => {
 
           const savedQuote = await saveQuote(quotePayload).unwrap();
           savedQuoteId = savedQuote.quote_id;
+          savedQuoteTotal = savedQuote.total;
+
           console.log("Pricing Quote Generated:", savedQuoteId);
         } catch (quoteError) {
           console.error("Pricing Calculation Error:", quoteError);
@@ -602,21 +605,42 @@ export const BookAShootV3 = () => {
       }
 
       // add GA event on payment submit in step4
-      pushToDataLayer("booking_payment_confirm_submit", {
-        type: "Action Tracking",
+      // pushToDataLayer("booking_payment_confirm_submit", {
+      //   type: "Action Tracking",
+      //   page_name: "Book-a-shoot Page",
+      //   location_in_website: "book_a_shoot_review_confirm",
+      //   user_id: isAuthenticated ? user?.id : "Unknown",
+      //   user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      //   email: isAuthenticated ? user?.email : formData.email,
+      //   phone: isAuthenticated ? user?.phone_number : formData.phone,
+      //   duration_on_page: performance.now() / 1000,
+      //   booking_id: formData?.bookingId,
+      //   booking_form_fields: {
+      //     full_name: formData.fullName,
+      //     phone: formData.phone,
+      //   }
+      // });
+
+      // --- NATIVE GA4 BEGIN_CHECKOUT FOR DIRECT BOOKING FLOW ---
+      pushToDataLayer("begin_checkout", {
+        currency: "USD",
+        value: savedQuoteTotal || 0,
+
+        // Context updates matching where the user is standing
         page_name: "Book-a-shoot Page",
-        location_in_website: "book_a_shoot_review_confirm",
+        location_in_website: "book_a_shoot_review_confirm_btn",
+
         user_id: isAuthenticated ? user?.id : "Unknown",
         user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
-        email: isAuthenticated ? user?.email : formData.email,
-        phone: isAuthenticated ? user?.phone_number : formData.phone,
-        duration_on_page: performance.now() / 1000,
-        booking_id: formData?.bookingId,
-        booking_form_fields: {
-          full_name: formData.fullName,
-          phone: formData.phone,
-        }
+        booking_id: submissionResult?.booking_id || draftBookingId,
+
+        items: [{
+          item_name: finalBookingData?.order_name || "Shoot Booking",
+          price: savedQuoteTotal || 0,
+          quantity: 1
+        }]
       });
+      // ---------------------------------------------------------
 
       toast.success("Booking Secured!", {
         description: "Redirecting to secure payment gateway...",
