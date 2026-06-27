@@ -68,8 +68,8 @@ export const salesApi = createApi({
         booking_type?: "single_day" | "multi_day";
         booking_days?: Array<Record<string, any>>;
         edits_needed?: boolean;
-        video_edit_types?: string[];
-        photo_edit_types?: string[];
+        video_edit_types?: Array<string | { slug: string; quantity: number }>;
+        photo_edit_types?: Array<string | { slug: string; quantity: number }>;
         estimated_delivery_date?: string | null;
         studio_total?: number;
         studio_items?: Array<{
@@ -404,6 +404,9 @@ export const salesApi = createApi({
         location_longitude?: number;
         description?: string;        // Added
         reference_links?: string | string[];    // Changed to accept array
+        edits_needed?: boolean;
+        video_edit_types?: Array<string | { slug: string; quantity: number }>;
+        photo_edit_types?: Array<string | { slug: string; quantity: number }>;
       }
     >({
       query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id

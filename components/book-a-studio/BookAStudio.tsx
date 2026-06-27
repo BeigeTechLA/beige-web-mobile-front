@@ -1313,7 +1313,11 @@ const CreatorDetailsStep = ({
     const nextCount = Math.max(0, currentCount + delta);
     const next = source.filter((item) => item !== key);
     for (let index = 0; index < nextCount; index += 1) next.push(key);
-    updateData(type === "video" ? { videoEditTypes: next } : { photoEditTypes: next });
+    const otherEditTypes = type === "video" ? data.photoEditTypes : data.videoEditTypes;
+    updateData({
+      ...(type === "video" ? { videoEditTypes: next } : { photoEditTypes: next }),
+      editsNeeded: next.length > 0 || otherEditTypes.length > 0,
+    });
   };
 
   const saveCrewAndContinue = async () => {
@@ -1328,6 +1332,7 @@ const CreatorDetailsStep = ({
     }
 
     try {
+      const hasEditSelections = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
       const response = await updateBookingCrew({
         booking_id: data.bookingId,
         crew_roles: {
@@ -1346,6 +1351,9 @@ const CreatorDetailsStep = ({
           data.locationDetails?.center?.[0] ??
           undefined,
         reference_links: data.referenceLinks,
+        edits_needed: hasEditSelections,
+        video_edit_types: buildEditTypeCounts(data.videoEditTypes),
+        photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
       }).unwrap();
 
       const serverCrewRoles = response.data?.crew_roles || {
@@ -1368,7 +1376,7 @@ const CreatorDetailsStep = ({
         videographyCount: serverCrewRoles.videographer || videoCount,
         photographyCount: serverCrewRoles.photographer || photoCount,
         crewCount: (serverCrewRoles.videographer || videoCount) + (serverCrewRoles.photographer || photoCount),
-        editsNeeded: data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0,
+        editsNeeded: hasEditSelections,
       });
 
       onBrowseCreators();
@@ -1677,9 +1685,9 @@ export const BookAStudio = () => {
         ...day,
         time_zone: day.timeZone || browserTimeZone,
       })),
-      edits_needed: formData.editsNeeded,
-      video_edit_types: formData.videoEditTypes,
-      photo_edit_types: formData.photoEditTypes,
+      edits_needed: formData.editsNeeded || formData.videoEditTypes.length > 0 || formData.photoEditTypes.length > 0,
+      video_edit_types: buildEditTypeCounts(formData.videoEditTypes),
+      photo_edit_types: buildEditTypeCounts(formData.photoEditTypes),
       studio_total: selectedStudiosTotal,
       studio_items: selectedStudios.map((studio) => ({
         studio_id: studio.studioId,
@@ -1858,7 +1866,11 @@ export const BookAStudio = () => {
       return (
         <CreatorDetailsStep
           {...stepProps}
-          onBrowseCreators={async () => setActiveStep(3)}
+          onBrowseCreators={async () => {
+            const bookingId = await saveStudioDraft();
+            if (!bookingId) return;
+            setActiveStep(3);
+          }}
         />
       );
     }
