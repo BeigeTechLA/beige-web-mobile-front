@@ -452,13 +452,13 @@ export function PermissionUsersTable({
         <table className="w-full table-fixed">
           <thead>
             <tr className="border-b border-white/5 bg-white/[0.02] text-left text-[14px] font-semibold text-[#D9C8A3]">
-              <th className="w-[5%] px-4 py-4">
+              {/* <th className="w-[5%] px-4 py-4">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(value) => toggleAll(value === true)}
                   className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
                 />
-              </th>
+              </th> */}
               <th className="w-[25%] px-4 py-4">Names</th>
               <th className="w-[16%] px-4 py-4">Roles</th>
               <th className="w-[14%] px-4 py-4">Created</th>
@@ -506,14 +506,14 @@ export function PermissionUsersTable({
                   onRowClick?.(user);
                 }}
               >
-                <td className="px-4 py-5">
+                {/* <td className="px-4 py-5">
                   <Checkbox
                     checked={selectedRows.includes(user.id)}
                     onCheckedChange={(value) => toggleOne(user.id, value === true)}
                     onClick={(event) => event.stopPropagation()}
                     className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
                   />
-                </td>
+                </td> */}
 
                 <td className="px-4 py-5">
                   <div className="flex items-center gap-3">
