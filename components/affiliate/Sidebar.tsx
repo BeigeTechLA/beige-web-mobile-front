@@ -1,11 +1,13 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, MouseEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, X, Settings, Calendar, Search, type LucideIcon, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { pushToDataLayer } from "@/lib/gtm";
+import { Button } from "../ui/button";
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -118,6 +120,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     router.push("/");
   };
 
+  const handleBookAShoot = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    pushToDataLayer("book_shoot_started", {
+      type: "Action Tracking",
+      page_name: "Dashboard",
+      location_in_website: "menubar",
+      duration_on_page: performance.now() / 1000,
+    });
+    router.push('/book-a-shoot')
+  }
+
   return (
     <aside className={`
       w-full lg:w-64 border-r flex flex-col justify-between py-6 lg:py-9 px-5 h-full overflow-hidden transition-colors duration-100
@@ -162,6 +175,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);
             const isDisabled = item.isDisabled;
+            const bookingClicked = item.name === "Book A Shoot";
 
             const baseClass = `w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm font-medium`;
             const activeClass = "bg-[#E5D5B8] text-[#171717]";
@@ -185,6 +199,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     <item.icon size={20} {...(item.name === 'Quotes' ? { isActive: active } : {})} />
                     <span>{item.name}</span>
                   </div>
+                ) : bookingClicked ? (
+                  <Link
+                    href={item.link || '#'}
+                    onClick={handleBookAShoot}
+                    className={`${baseClass} ${active ? activeClass : inactiveClass}`}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <item.icon size={20} {...(item.name === 'Quotes' ? { isActive: active } : {})} />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  </Link>
                 ) : (
                   <Link
                     href={item.link || '#'}
