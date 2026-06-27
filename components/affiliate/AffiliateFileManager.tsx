@@ -508,7 +508,7 @@ export default function AffiliateFileManager() {
       .trim()
       .toLowerCase();
 
-  const getLatestRevisionForFile = (file: BrowserFile) => {
+  const getLatestRevisionForFile = useCallback((file: BrowserFile) => {
     const fileKey = normalizeFileKey(file.title);
     const matches = revisionFiles
       .filter((revisionFile) => normalizeFileKey(revisionFile.title) === fileKey)
@@ -519,7 +519,19 @@ export default function AffiliateFileManager() {
       .filter((item) => item.version > 0)
       .sort((a, b) => b.version - a.version);
     return matches[0] || null;
-  };
+  }, [revisionFiles]);
+
+  const getReviewTargetForFile = useCallback((file: BrowserFile) => {
+    if (isRevisionVersionBrowser) {
+      return file;
+    }
+
+    if (isSelectedForEditsBrowser) {
+      return getLatestRevisionForFile(file)?.file || null;
+    }
+
+    return null;
+  }, [getLatestRevisionForFile, isRevisionVersionBrowser, isSelectedForEditsBrowser]);
 
   const getFileStatusBadge = (file: BrowserFile) => {
     if (isRawFootageBrowser) {
@@ -586,10 +598,14 @@ export default function AffiliateFileManager() {
   };
 
   const isReviewableRevisionFile = useCallback((file: BrowserFile) => {
-    if (!isRevisionVersionBrowser) return false;
     const editStatus = String(file.metadata?.editStatus || "").toLowerCase();
     return editStatus !== "approved" && editStatus !== "revision_requested";
-  }, [isRevisionVersionBrowser]);
+  }, []);
+
+  const isReviewableClientFile = useCallback((file: BrowserFile) => {
+    const targetFile = getReviewTargetForFile(file);
+    return Boolean(targetFile && isReviewableRevisionFile(targetFile));
+  }, [getReviewTargetForFile, isReviewableRevisionFile]);
 
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
@@ -683,7 +699,12 @@ export default function AffiliateFileManager() {
       ? phaseFiles.filter((file) => selectedFilePaths.includes(file.filepath || ""))
       : [];
 
-    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles).filter(isReviewableRevisionFile);
+    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles)
+      .map((file) => getReviewTargetForFile(file))
+      .filter((file): file is BrowserFile => Boolean(file && isReviewableRevisionFile(file)))
+      .filter((file, index, files) =>
+        files.findIndex((item) => item.filepath === file.filepath) === index
+      );
 
     if (!filesToApprove.length) {
       toast.info("No uploaded revision files are ready for approval.");
@@ -1008,9 +1029,9 @@ export default function AffiliateFileManager() {
 
   const hasPendingRevisionFiles = useMemo(
     () =>
-      isRevisionVersionBrowser &&
-      phaseFiles.some(isReviewableRevisionFile),
-    [phaseFiles, isRevisionVersionBrowser, isReviewableRevisionFile]
+      (isRevisionVersionBrowser || isSelectedForEditsBrowser) &&
+      phaseFiles.some(isReviewableClientFile),
+    [phaseFiles, isRevisionVersionBrowser, isSelectedForEditsBrowser, isReviewableClientFile]
   );
 
   const selectedPendingFiles = useMemo(
@@ -1019,10 +1040,10 @@ export default function AffiliateFileManager() {
         ? phaseFiles.filter(
             (file) =>
               selectedFilePaths.includes(file.filepath || "") &&
-              isReviewableRevisionFile(file)
+              isReviewableClientFile(file)
           )
         : [],
-    [phaseFiles, selectedFilePaths, isReviewableRevisionFile]
+    [phaseFiles, selectedFilePaths, isReviewableClientFile]
   );
 
   const canApproveSelectedFiles = isSelectionMode && selectedPendingFiles.length > 0;
@@ -1733,8 +1754,11 @@ export default function AffiliateFileManager() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                   {visibleFiles.map((file) => {
                     const statusBadge = getFileStatusBadge(file);
-
-                    const canReviewVersionFile = isReviewableRevisionFile(file);
+                    const reviewTargetFile = getReviewTargetForFile(file);
+                    const canReviewVersionFile = Boolean(
+                      reviewTargetFile && isReviewableRevisionFile(reviewTargetFile)
+                    );
+                    const reviewingTargetPath = reviewTargetFile?.filepath || file.filepath;
 
   return (
     <FileCard
@@ -1760,15 +1784,15 @@ export default function AffiliateFileManager() {
       onApprove={
         !selectionLockActive &&
         canReviewVersionFile &&
-        reviewingFilePath !== file.filepath
-          ? () => handleReviewRevisionFile(file, "approve")
+        reviewingFilePath !== reviewingTargetPath
+          ? () => handleReviewRevisionFile(reviewTargetFile || file, "approve")
           : undefined
       }
       onRequestRevision={
         !selectionLockActive &&
         canReviewVersionFile &&
-        reviewingFilePath !== file.filepath
-          ? () => handleReviewRevisionFile(file, "request_revision")
+        reviewingFilePath !== reviewingTargetPath
+          ? () => handleReviewRevisionFile(reviewTargetFile || file, "request_revision")
           : undefined
       }
       isDark={isDark}
