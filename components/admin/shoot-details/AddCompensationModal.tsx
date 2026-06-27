@@ -430,20 +430,20 @@ export function AddCompensationModal({
 
   return (
     <div className="fixed inset-0 z-[70] flex justify-end bg-black/75 font-sans backdrop-blur-sm">
-      <div className="flex h-full w-full max-w-[740px] flex-col overflow-hidden border-l border-white/15 bg-[#050505] text-white shadow-[-18px_0_50px_rgba(0,0,0,0.5)]">
-        <header className="flex min-h-[100px] items-start justify-between border-b border-white/15 px-5 pb-5 pt-5 sm:px-6">
-          <div>
-            <h2 className="text-[24px] font-semibold leading-tight sm:text-[28px]">Add Compensation</h2>
+      <div className="flex h-full w-full flex-col overflow-hidden bg-[#050505] text-white shadow-[-18px_0_50px_rgba(0,0,0,0.5)] sm:max-w-[740px] sm:border-l sm:border-white/15">
+        <header className="flex min-h-[82px] items-start justify-between gap-3 border-b border-white/15 px-4 pb-4 pt-4 sm:min-h-[100px] sm:px-6 sm:pb-5 sm:pt-5">
+          <div className="min-w-0">
+            <h2 className="text-[21px] font-semibold leading-tight sm:text-[28px]">Add Compensation</h2>
             <p className="mt-1.5 text-[13px] text-white/50 sm:text-[15px]">Configure compensation for selected CPs</p>
           </div>
-          <button onClick={onClose} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#292525] text-white/90 hover:bg-[#353030]">
-            <X className="h-6 w-6" />
+          <button onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#292525] text-white/90 hover:bg-[#353030] sm:h-12 sm:w-12">
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
         </header>
 
-        <div className="no-scrollbar overflow-y-auto px-5 pb-5 sm:px-7">
+        <div className="no-scrollbar overflow-y-auto px-4 pb-5 sm:px-7">
           <p className="mb-3 mt-6 text-[15px] font-medium">Select Compensation Method</p>
-          <div className="grid h-[50px] grid-cols-3 rounded-[8px] border border-white/10 bg-[#1A1A1A] p-1.5 text-[14px] text-white/70">
+          <div className="grid min-h-[50px] grid-cols-3 rounded-[8px] border border-white/10 bg-[#1A1A1A] p-1.5 text-[12px] text-white/70 sm:text-[14px]">
             {([["equal", "Equal Split"], ["role", "Role Based"], ["manual", "Manual"]] as const).map(([value, label]) => (
               <button
                 key={value}
@@ -456,7 +456,7 @@ export function AddCompensationModal({
             ))}
           </div>
 
-          <div className="my-4 grid min-h-[100px] grid-cols-2 items-center gap-3 rounded-[8px] bg-[#2D2921] px-4 py-3 sm:grid-cols-4">
+          <div className="my-4 grid min-h-[100px] grid-cols-1 items-start gap-3 rounded-[8px] bg-[#2D2921] px-4 py-3 min-[420px]:grid-cols-2 sm:grid-cols-4">
             <Metric label="Total Shoot Amount" value={loadingSummary ? "Loading..." : money(shootAmount)} note="Overall Budget" />
             <Metric label="Total Compensation" value={money(totalCompensation)} note={`${shootAmount ? ((totalCompensation / shootAmount) * 100).toFixed(1) : "0.0"}% of budget`} />
             <Metric label="Estimated Margin" value={money(estimatedMargin)} note={`${shootAmount ? ((estimatedMargin / shootAmount) * 100).toFixed(1) : "0.0"}% margin`} green />
@@ -476,8 +476,8 @@ export function AddCompensationModal({
               <p className="mt-2 text-[12px] text-white/55 sm:text-[13px]">{profitability}</p>
             </div>
             {exceeds25 && (
-              <div className="col-span-2 flex items-center gap-3 rounded-[8px] bg-[#FFF3C4] px-4 py-3 text-[13px] text-[#A85B00] sm:col-span-4">
-                <AlertTriangle size={18} />
+              <div className="flex items-start gap-3 rounded-[8px] bg-[#FFF3C4] px-4 py-3 text-[12px] text-[#A85B00] min-[420px]:col-span-2 sm:col-span-4 sm:text-[13px]">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0" />
                 <span><strong>Warning: Payout Exceeds 25%</strong><br />Consider reducing compensation to maintain healthy margins.</span>
               </div>
             )}
@@ -501,7 +501,7 @@ export function AddCompensationModal({
                 <section key={key} className="overflow-hidden rounded-[8px] bg-[#202020]">
                   <button
                     onClick={() => setExpandedId(expanded ? null : key)}
-                    className="flex min-h-[92px] w-full items-center gap-3 border-b border-white/25 px-5 py-4 text-left"
+                    className="flex min-h-[92px] w-full flex-wrap items-center gap-3 border-b border-white/25 px-4 py-4 text-left sm:flex-nowrap sm:px-5"
                   >
                     <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-[#393939] text-[15px]">
                       {(creative.first_name?.[0] || name[0] || "C").toUpperCase()}
@@ -510,16 +510,16 @@ export function AddCompensationModal({
                       <span className="block truncate text-[16px] font-semibold">{name}</span>
                       <span className="block truncate text-[12px] text-white/45">{role}</span>
                     </span>
-                    <span className="rounded-full bg-[#F0DDB8] px-4 py-2 text-[12px] text-black">
+                    <span className="order-4 w-full rounded-full bg-[#F0DDB8] px-4 py-2 text-[12px] text-black sm:order-none sm:w-auto">
                       <strong className="text-[16px]">{creative.compensation === null ? "Not Set" : money(cpTotal || 0)}</strong>{" "}
                       <span className="text-black/50">{isSubmitted ? "Submitted" : creative.compensation?.status || "Total Compensation"}</span>
                     </span>
-                    {expanded ? <ChevronUp size={22} className="text-[#E8D1AB]" /> : <ChevronDown size={22} />}
+                    {expanded ? <ChevronUp size={22} className="ml-auto text-[#E8D1AB] sm:ml-0" /> : <ChevronDown size={22} className="ml-auto sm:ml-0" />}
                   </button>
 
                   {expanded && (
-                    <div className="p-5">
-                      <div className="grid h-[58px] grid-cols-2 rounded-[12px] border border-white/15 bg-[#181818] p-1.5 text-[16px]">
+                    <div className="p-4 sm:p-5">
+                      <div className="grid min-h-[54px] grid-cols-2 rounded-[12px] border border-white/15 bg-[#181818] p-1.5 text-[14px] sm:h-[58px] sm:text-[16px]">
                         <RateTab active={rateType === "flat"} onClick={() => {
                           if (isSubmitted) return;
                           setRateTypes((old) => ({ ...old, [key]: "flat" }));
@@ -540,7 +540,7 @@ export function AddCompensationModal({
                         <Field label="Base Payout*" value={form.base_payout} onChange={(value) => updateForm(key, { base_payout: value })} disabled={isSubmitted} />
                       ) : (
                         <>
-                          <div className="mt-5 grid h-[120px] grid-cols-[minmax(120px,1fr)_48px_minmax(105px,160px)_48px_minmax(105px,160px)_20px] items-center gap-2.5 rounded-[13px] border border-white/25 bg-[#101010] px-4">
+                          <div className="mt-5 grid grid-cols-[1fr_auto_auto] items-center gap-2.5 rounded-[13px] border border-white/25 bg-[#101010] px-4 py-4 sm:h-[120px] sm:grid-cols-[minmax(120px,1fr)_48px_minmax(105px,160px)_48px_minmax(105px,160px)_20px] sm:py-0">
                             <div className="min-w-0">
                               <p className="whitespace-nowrap text-[15px] font-medium">Per Hour Rate</p>
                               <p className="mt-2 text-[22px] font-semibold leading-none text-[#E8D1AB]">{money(numeric(form.hourly_rate))}.00</p>
@@ -553,7 +553,7 @@ export function AddCompensationModal({
                             }}>
                               <Minus size={17} />
                             </SmallButton>
-                            <span className="flex h-12 w-full items-center justify-center rounded-[9px] border border-white/20 bg-[#181818] text-[15px] font-semibold">{count} Hours</span>
+                            <span className="col-span-3 flex h-12 w-full items-center justify-center rounded-[9px] border border-white/20 bg-[#181818] text-[15px] font-semibold sm:col-span-1">{count} Hours</span>
                             <SmallButton onClick={() => {
                               if (isSubmitted) return;
                               const next = count + 1;
@@ -562,10 +562,10 @@ export function AddCompensationModal({
                             }}>
                               <Plus size={17} />
                             </SmallButton>
-                            <div className="flex h-12 w-full items-center rounded-[9px] border border-white/20 bg-[#181818] px-4 text-[15px] text-white"><span className="mr-3 text-white/35">$</span><input value={form.hourly_rate} onChange={(event) => updateForm(key, { hourly_rate: event.target.value.replace(/[^\d.]/g, "") })} disabled={isSubmitted} className="w-full bg-transparent outline-none" /></div>
-                            <Check size={19} strokeWidth={2.5} className="text-[#00D084]" />
+                            <div className="col-span-3 flex h-12 w-full items-center rounded-[9px] border border-white/20 bg-[#181818] px-4 text-[15px] text-white sm:col-span-1"><span className="mr-3 text-white/35">$</span><input value={form.hourly_rate} onChange={(event) => updateForm(key, { hourly_rate: event.target.value.replace(/[^\d.]/g, "") })} disabled={isSubmitted} className="w-full bg-transparent outline-none" /></div>
+                            <Check size={19} strokeWidth={2.5} className="hidden text-[#00D084] sm:block" />
                           </div>
-                          <div className="mt-6 flex min-h-[70px] items-center justify-between rounded-[15px] bg-[#292929] px-9 py-4 text-[18px]">
+                          <div className="mt-6 flex min-h-[70px] flex-col items-start justify-center gap-2 rounded-[15px] bg-[#292929] px-4 py-4 text-[16px] min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between sm:px-9 sm:text-[18px]">
                             <span className="font-medium">Total Hours ({count})</span>
                             <strong className="text-[22px] text-[#E8D1AB]">{money(numeric(form.hourly_rate) * count)}.00</strong>
                           </div>
@@ -573,7 +573,7 @@ export function AddCompensationModal({
                       )}
 
                       <p className="mb-3 mt-5 text-[16px] font-medium text-white">Other Payouts</p>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
                         <Field label="Editing Payout" value={form.editing_payout} onChange={(value) => updateForm(key, { editing_payout: value })} disabled={isSubmitted} />
                         <Field label="Travel Adjustment" value={form.travel_adjustment} onChange={(value) => updateForm(key, { travel_adjustment: value })} disabled={isSubmitted} />
                       </div>
@@ -593,7 +593,7 @@ export function AddCompensationModal({
                         </span>
                       </button>
                       {advancePayments[key] && (
-                        <div className="mt-5 flex items-center justify-between rounded-[12px] bg-[#2B2B2B] px-5 py-4 text-[17px]">
+                        <div className="mt-5 flex flex-col gap-2 rounded-[12px] bg-[#2B2B2B] px-5 py-4 text-[15px] min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between sm:text-[17px]">
                           <span>Advance: {money(advancePayments[key].amount)} on {advancePayments[key].date}</span>
                           <strong className="text-[#E8D1AB]">Remaining: {money(Math.max(calculateCpTotal(key) - advancePayments[key].amount, 0))}</strong>
                         </div>
@@ -607,7 +607,7 @@ export function AddCompensationModal({
           </div>
         </div>
 
-        <footer className="grid grid-cols-2 gap-4 border-t border-white/10 bg-black px-6 py-5 sm:px-8">
+        <footer className="grid grid-cols-1 gap-3 border-t border-white/10 bg-black px-4 py-4 min-[420px]:grid-cols-2 sm:gap-4 sm:px-8 sm:py-5">
           <Button onClick={onClose} className="h-[52px] rounded-[9px] bg-[#202020] text-[15px] font-semibold text-white hover:bg-[#2A2A2A]">
             Back
           </Button>
@@ -722,23 +722,23 @@ function AdvancePaymentModal({ creative, initialValue, total, bookingId, onBefor
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-4">
       <div className="no-scrollbar max-h-[94vh] w-full max-w-[680px] overflow-y-auto rounded-[14px] border border-white/20 bg-black text-white shadow-2xl">
-        <header className="flex items-center justify-between border-b border-white/20 px-8 py-6">
-          <h3 className="text-[27px] font-semibold">Advance Payment</h3>
-          <button onClick={onClose} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#292525]">
-            <X size={27} />
+        <header className="flex items-center justify-between gap-4 border-b border-white/20 px-4 py-4 sm:px-8 sm:py-6">
+          <h3 className="text-[22px] font-semibold sm:text-[27px]">Advance Payment</h3>
+          <button onClick={onClose} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#292525] sm:h-14 sm:w-14">
+            <X className="h-6 w-6 sm:h-7 sm:w-7" />
           </button>
         </header>
 
-        <div className="space-y-5 px-8 py-7">
+        <div className="space-y-5 px-4 py-5 sm:px-8 sm:py-7">
           <div className="rounded-[8px] bg-[#302C24] px-5 py-4">
             <p className="text-[13px]">Total Compensation for {name}</p>
             <p className="mt-1 text-[22px] font-semibold text-[#E8D1AB]">{money(total)}</p>
           </div>
 
-          <fieldset className="min-h-[90px] rounded-[12px] border border-white/30 px-5 pb-3">
-            <legend className="px-2 text-[16px] text-white/55">Enter Advance Amount</legend>
+          <fieldset className="min-h-[82px] rounded-[12px] border border-white/30 px-4 pb-3 sm:min-h-[90px] sm:px-5">
+            <legend className="px-2 text-[14px] text-white/55 sm:text-[16px]">Enter Advance Amount</legend>
             <input
               value={amount}
               onChange={(event) => setAmount(event.target.value.replace(/[^\d.]/g, ""))}
@@ -760,19 +760,19 @@ function AdvancePaymentModal({ creative, initialValue, total, bookingId, onBefor
             labelSx={{ fontSize: "16px" }}
           />
 
-          <fieldset className="rounded-[12px] border border-white/30 px-5 pb-4">
-            <legend className="px-2 text-[16px] text-white/55">Notes</legend>
-            <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Add notes about this advance payment..." className="min-h-[140px] resize-none rounded-none border-0 bg-transparent px-0 py-4 text-[16px] text-white placeholder:text-white/40 focus:ring-0" />
+          <fieldset className="rounded-[12px] border border-white/30 px-4 pb-4 sm:px-5">
+            <legend className="px-2 text-[14px] text-white/55 sm:text-[16px]">Notes</legend>
+            <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Add notes about this advance payment..." className="min-h-[110px] resize-none rounded-none border-0 bg-transparent px-0 py-4 text-[15px] text-white placeholder:text-white/40 focus:ring-0 sm:min-h-[140px] sm:text-[16px]" />
           </fieldset>
 
           {numericAmount > 0 && (
-            <div className="space-y-3 rounded-[12px] bg-[#2B2B2B] px-5 py-5 text-[17px]">
-              <div className="flex justify-between"><span>Advance Payment</span><strong>{money(numericAmount)}</strong></div>
-              <div className="flex justify-between"><span>Remaining Balance</span><strong className="text-emerald-400">{money(total - numericAmount)}</strong></div>
+            <div className="space-y-3 rounded-[12px] bg-[#2B2B2B] px-4 py-5 text-[15px] sm:px-5 sm:text-[17px]">
+              <div className="flex items-center justify-between gap-3"><span>Advance Payment</span><strong>{money(numericAmount)}</strong></div>
+              <div className="flex items-center justify-between gap-3"><span>Remaining Balance</span><strong className="text-emerald-400">{money(total - numericAmount)}</strong></div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-5 pt-3">
+          <div className="grid grid-cols-1 gap-3 pt-3 min-[420px]:grid-cols-2 sm:gap-5">
             <Button onClick={onClose} className="h-14 rounded-[8px] bg-[#242424] text-[16px] text-white hover:bg-[#303030]">Cancel</Button>
             <Button onClick={saveAdvance} disabled={saving || numericAmount <= 0 || numericAmount > total || !date} className="h-14 rounded-[8px] bg-[#E8D1AB] text-[16px] text-black hover:bg-[#DCC397]">{saving ? "Saving..." : "Save Advance"}</Button>
           </div>
