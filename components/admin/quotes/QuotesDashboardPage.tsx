@@ -1614,7 +1614,7 @@ export default function QuotesDashboardPage({
     !hasActiveFilters;
 
   return (
-    <div className={`min-h-screen overflow-hidden ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
+    <div className={`min-h-screen overflow-x-clip ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
       <TopbarComponent
         pathname={pathname}
         actions={
@@ -1641,7 +1641,7 @@ export default function QuotesDashboardPage({
         }
       />
 
-      <div className="p-4 lg:p-10">
+      <div className="p-4 pb-8 lg:p-10">
         <div className="mb-8 flex items-start justify-between">
           <div className="max-w-1/2">
             <h1 className="mb-2 font-semibold lg:text-2xl">Quotes Module</h1>
@@ -2158,21 +2158,18 @@ export default function QuotesDashboardPage({
             </div>
           </div>
         )}
-      </div>
 
-      {!loading && !showEmptyState && canCreate && (
-        <div
-          className={`fixed bottom-0 left-0 right-0 z-[40] flex gap-2 px-6 pb-6 lg:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
-            }`}
-        >
-          <Button
-            onClick={() => router.push(createHref)}
-            className="h-14 w-full rounded-md border border-white/20 bg-[#E5D5B8] text-sm font-semibold text-black shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:bg-[#d4c3a3] active:scale-[0.98]"
-          >
-            Create New Quote
-          </Button>
-        </div>
-      )}
+        {!loading && !showEmptyState && (
+          <div className="mt-6 pb-[env(safe-area-inset-bottom)] lg:hidden">
+            <Button
+              onClick={() => router.push(createHref)}
+              className="h-14 w-full rounded-md border border-white/20 bg-[#E5D5B8] text-sm font-semibold text-black shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:bg-[#d4c3a3] active:scale-[0.98]"
+            >
+              Create New Quote
+            </Button>
+          </div>
+        )}
+      </div>
 
       <EditAccessModalComponent
         open={Boolean(editAccessState)}
