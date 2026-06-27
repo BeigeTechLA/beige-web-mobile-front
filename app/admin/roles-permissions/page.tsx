@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
+import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { RolesPermissionsPage } from "@/components/admin/RolesPermissionsPage";
@@ -13,8 +14,17 @@ export default function AdminRolesPermissionsRoute() {
   const pathname = usePathname();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const { canCreate } = usePermissions("roles_permissions");
   const { canCreate: canCreateUser } = usePermissions("users");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const activeTheme = resolvedTheme ?? theme;
+  const isDark = !mounted || activeTheme === "dark";
 
   return (
     <PermissionGuard module="roles_permissions" action="view">
@@ -26,14 +36,22 @@ export default function AdminRolesPermissionsRoute() {
         }}
         actions={
           <>
-            <div className="hidden xl:flex items-center h-12 flex-1 min-w-[280px] max-w-[420px] rounded-xl border border-white/10 bg-[#202020] px-4 text-white/70">
-              <Search size={18} className="mr-3 text-white/40" />
+            <div
+              className={`hidden xl:flex items-center h-12 flex-1 min-w-[280px] max-w-[420px] rounded-xl border px-4 transition-colors ${
+                isDark
+                  ? "border-white/10 bg-[#202020] text-white/70"
+                  : "border-[#E3E3E3] bg-white text-[#323232]"
+              }`}
+            >
+              <Search size={18} className={`mr-3 ${isDark ? "text-white/40" : "text-[#32323266]"}`} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search"
-                className="w-full bg-transparent text-sm text-white placeholder:text-white/35 focus:outline-none"
+                className={`w-full bg-transparent text-sm focus:outline-none ${
+                  isDark ? "text-white placeholder:text-white/35" : "text-[#323232] placeholder:text-[#32323266]"
+                }`}
               />
             </div>
 

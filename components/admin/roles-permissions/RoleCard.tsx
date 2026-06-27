@@ -6,6 +6,7 @@ import { RoleCardData } from "@/components/admin/roles-permissions/types";
 
 type RoleCardProps = {
   card: RoleCardData;
+  isDark?: boolean;
   onEdit?: (id: string) => void;
   onViewUsers?: (id: string) => void;
 };
@@ -26,14 +27,18 @@ const getBadgeText = (value: string) => {
     .slice(0, 4);
 };
 
-export function RoleCard({ card, onEdit, onViewUsers }: RoleCardProps) {
+export function RoleCard({ card, isDark = true, onEdit, onViewUsers }: RoleCardProps) {
   const fallbackBadges = card.members.filter((member) => !member.isCountBadge);
   const countBadge = card.members.find((member) => member.isCountBadge);
 
   return (
-    <div className="group flex min-h-[224px] w-full max-w-[367px] flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#161616] px-4 py-4 shadow-[0_14px_28px_rgba(0,0,0,0.28)] transition-all duration-300 hover:border-white/15 hover:shadow-[0_20px_38px_rgba(0,0,0,0.34)] sm:px-5 sm:py-5 lg:px-6 lg:py-5">
+    <div className={`group flex min-h-[224px] w-full max-w-[367px] flex-col overflow-hidden rounded-[24px] border px-4 py-4 shadow-[0_14px_28px_rgba(0,0,0,0.28)] transition-all duration-300 sm:px-5 sm:py-5 lg:px-6 lg:py-5 ${
+      isDark
+        ? "border-white/10 bg-[#161616] hover:border-white/15 hover:shadow-[0_20px_38px_rgba(0,0,0,0.34)]"
+        : "border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)] hover:border-[#D8D8D8] hover:shadow-[0_16px_30px_rgba(16,16,16,0.12)]"
+    }`}>
       <div className="flex items-start justify-between gap-4">
-        <span className="pt-1 text-[13px] font-medium text-white/45 sm:text-[14px]">
+        <span className={`pt-1 text-[13px] font-medium sm:text-[14px] ${isDark ? "text-white/45" : "text-[#101010]"}`}>
           {card.usersLabel}
         </span>
 
@@ -45,7 +50,8 @@ export function RoleCard({ card, onEdit, onViewUsers }: RoleCardProps) {
               <div
                 key={member.id}
                 className={[
-                  "relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#1a1a1a] bg-[#f4e6c7] text-[11px] font-semibold text-[#111111] shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:h-11 sm:w-11 sm:text-[12px]",
+                  "relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border text-[11px] font-semibold shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:h-11 sm:w-11 sm:text-[12px]",
+                  isDark ? "border-[#1a1a1a] bg-[#f4e6c7] text-[#111111]" : "border-white bg-[#EDEDED] text-[#101010]",
                   index === 0 ? "" : "-ml-1 sm:-ml-2",
                 ].join(" ")}
                 style={{ zIndex: fallbackBadges.length - index }}
@@ -67,7 +73,9 @@ export function RoleCard({ card, onEdit, onViewUsers }: RoleCardProps) {
 
           {countBadge && (
             <div
-              className="relative -ml-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#1a1a1a] bg-[#E9D4A9] text-[15px] font-medium text-[#111111] shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:-ml-2 sm:h-11 sm:w-11 sm:text-[16px]"
+              className={`relative -ml-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border text-[15px] font-medium shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:-ml-2 sm:h-11 sm:w-11 sm:text-[16px] ${
+                isDark ? "border-[#1a1a1a] bg-[#E9D4A9] text-[#111111]" : "border-white bg-[#E5D5B8] text-[#101010]"
+              }`}
               style={{ zIndex: 0 }}
             >
               <span className="relative z-10">
@@ -82,16 +90,18 @@ export function RoleCard({ card, onEdit, onViewUsers }: RoleCardProps) {
 
       <div className="mt-5 max-w-[520px] sm:mt-6">
         <div className="flex items-center gap-3">
-          <h3 className="text-[18px] font-semibold tracking-tight text-white sm:text-[19px] lg:text-[20px]">
+          <h3 className={`text-[18px] font-semibold tracking-tight sm:text-[19px] lg:text-[20px] ${isDark ? "text-white" : "text-[#101010]"}`}>
             {card.name}
           </h3>
           {card.roleId === 8 ? (
-            <span className="inline-flex h-6 items-center rounded-full border border-[#E5D5B8]/20 bg-[#E5D5B8]/10 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#E5D5B8]">
+            <span className={`inline-flex h-6 items-center rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+              isDark ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/10 text-[#E5D5B8]" : "border-[#C9A96E]/20 bg-[#C9A96E]/10 text-[#8E6A2A]"
+            }`}>
               Super Admin
             </span>
           ) : null}
         </div>
-        <p className="mt-2 max-w-[560px] text-[12px] leading-snug text-white/55 line-clamp-2 sm:text-[13px] lg:text-[13px]">
+        <p className={`mt-2 max-w-[560px] text-[12px] leading-snug line-clamp-2 sm:text-[13px] lg:text-[13px] ${isDark ? "text-white/55" : "text-[#32323299]"}`}>
           {card.description}
         </p>
       </div>
@@ -101,19 +111,31 @@ export function RoleCard({ card, onEdit, onViewUsers }: RoleCardProps) {
           <button
             type="button"
             onClick={() => onEdit(card.id)}
-            className="text-[13px] font-medium text-[#E5D5B8] underline decoration-[#E5D5B8]/35 underline-offset-4 transition hover:text-[#f1e3c7] hover:decoration-[#E5D5B8]"
+            className={`text-[13px] font-medium underline underline-offset-4 transition ${
+              isDark
+                ? "text-[#E5D5B8] decoration-[#E5D5B8]/35 hover:text-[#f1e3c7] hover:decoration-[#E5D5B8]"
+                : "text-[#8E6A2A] decoration-[#8E6A2A]/30 hover:text-[#6f531f] hover:decoration-[#8E6A2A]"
+            }`}
           >
             Edit Role
           </button>
         ) : (
-          <span className="text-[13px] font-medium text-white/25">Edit Role</span>
+          <span className={`text-[13px] font-medium ${isDark ? "text-white/25" : "text-[#32323240]"}`}>Edit Role</span>
         )}
         <button
           type="button"
           onClick={() => onViewUsers?.(card.id)}
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-[#2a2a2a] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#343434] hover:scale-110 active:scale-95 sm:h-10 sm:w-10"
+          className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border text-white transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 active:scale-95 sm:h-10 sm:w-10 ${
+            isDark
+              ? "border-white/10 bg-[#2a2a2a] hover:bg-[#343434]"
+              : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F5F5F5]"
+          }`}
         >
-          <ArrowUpRight size={15} strokeWidth={2.25} />
+          <ArrowUpRight
+            size={15}
+            strokeWidth={2.25}
+            className={isDark ? "text-white" : "text-[#323232]"}
+          />
         </button>
       </div>
     </div>

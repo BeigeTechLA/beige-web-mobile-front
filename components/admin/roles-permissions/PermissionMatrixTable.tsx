@@ -1,6 +1,7 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import {
   PermissionColumnKey,
   PermissionMatrixRow,
@@ -32,16 +33,17 @@ export function PermissionMatrixTable({
   onReadOnlyClick,
   onInvalidAccessAttempt,
 }: PermissionMatrixTableProps) {
+  const { isDark } = useResolvedTheme();
+
   const toggleSelection = (rowId: string, checked: boolean) => {
     if (readOnly) return;
     onChange?.(
       rows.map((row) => {
         if (row.id === rowId) {
           const newAccess = { ...row.access };
-          // Only toggle actions that are allowed for this module
-          const actionsToToggle = row.allowedActions || accessColumns.map(c => c.key);
-          
-          actionsToToggle.forEach(action => {
+          const actionsToToggle = row.allowedActions || accessColumns.map((c) => c.key);
+
+          actionsToToggle.forEach((action) => {
             newAccess[action] = checked;
           });
 
@@ -78,10 +80,8 @@ export function PermissionMatrixTable({
       rows.map((row) => {
         if (row.id === rowId) {
           const updatedAccess = { ...row.access, [key]: checked };
-          const actionsToCheck = row.allowedActions || accessColumns.map(c => c.key);
-          
-          // Row is 'selected' only if ALL its allowed actions are checked
-          const allAllowedChecked = actionsToCheck.every(action => updatedAccess[action]);
+          const actionsToCheck = row.allowedActions || accessColumns.map((c) => c.key);
+          const allAllowedChecked = actionsToCheck.every((action) => updatedAccess[action]);
 
           return {
             ...row,
@@ -118,12 +118,18 @@ export function PermissionMatrixTable({
 
   return (
     <div
-      className={`overflow-hidden rounded-[32px] ${className}`}
+      className={`overflow-hidden rounded-[32px] ${
+        isDark ? "border border-[#333] bg-[#111]" : "border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"
+      } ${className}`}
     >
       <div className="overflow-x-auto">
         <table className="min-w-[1100px] w-full">
           <thead>
-            <tr className="text-left text-[14px] font-semibold text-[#D9C8A3]/60 uppercase tracking-wider">
+            <tr
+              className={`text-left text-[14px] font-semibold uppercase tracking-wider ${
+                isDark ? "text-[#D9C8A3]/60" : "text-[#32323299]"
+              }`}
+            >
               {showSelectionColumn ? (
                 <th className="px-6 py-5">
                   <div className="flex items-center gap-3">
@@ -131,7 +137,11 @@ export function PermissionMatrixTable({
                       checked={allSelected}
                       onCheckedChange={(value) => toggleAllRows(value === true)}
                       disabled={readOnly}
-                      className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
+                      className={`h-5 w-5 rounded-md bg-transparent disabled:cursor-not-allowed ${
+                        isDark
+                          ? "border-white/20 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                          : "border-[#D0D0D0] data-[state=checked]:border-[#C9A96E] data-[state=checked]:bg-[#C9A96E] data-[state=checked]:text-white"
+                      }`}
                     />
                     <span>Select All</span>
                   </div>
@@ -152,11 +162,14 @@ export function PermissionMatrixTable({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+
+          <tbody className={`divide-y ${isDark ? "divide-[#333]" : "divide-[#E3E3E3]"}`}>
             {rows.map((row) => (
               <tr
                 key={row.id}
-                className="group text-white transition-colors hover:bg-white/[0.02]"
+                className={`group transition-colors ${
+                  isDark ? "text-white hover:bg-white/[0.02]" : "text-[#101010] hover:bg-black/[0.015]"
+                }`}
               >
                 {showSelectionColumn ? (
                   <td className="px-6 py-6">
@@ -166,12 +179,22 @@ export function PermissionMatrixTable({
                         toggleSelection(row.id, value === true)
                       }
                       disabled={readOnly}
-                      className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
+                      className={`h-5 w-5 rounded-md bg-transparent disabled:cursor-not-allowed ${
+                        isDark
+                          ? "border-white/20 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                          : "border-[#D0D0D0] data-[state=checked]:border-[#C9A96E] data-[state=checked]:bg-[#C9A96E] data-[state=checked]:text-white"
+                      }`}
                     />
                   </td>
                 ) : null}
 
-                <td className="px-6 py-8 text-[16px] font-medium transition-colors group-hover:text-[#E5D5B8]">{row.label}</td>
+                <td
+                  className={`px-6 py-8 text-[16px] font-medium transition-colors ${
+                    isDark ? "group-hover:text-[#E5D5B8]" : "group-hover:text-[#8E6A2A]"
+                  }`}
+                >
+                  {row.label}
+                </td>
 
                 {accessColumns.map((column) => (
                   <td key={column.key} className="px-6 py-8 text-center">
@@ -183,10 +206,14 @@ export function PermissionMatrixTable({
                             toggleAccess(row.id, column.key, value === true)
                           }
                           disabled={readOnly}
-                          className="h-6 w-6 rounded-md border-white/10 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black disabled:cursor-not-allowed"
+                          className={`h-6 w-6 rounded-md bg-transparent disabled:cursor-not-allowed ${
+                            isDark
+                              ? "border-white/10 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                              : "border-[#D0D0D0] data-[state=checked]:border-[#C9A96E] data-[state=checked]:bg-[#C9A96E] data-[state=checked]:text-white"
+                          }`}
                         />
                       ) : (
-                        <span className="text-white/10">—</span>
+                        <span className={isDark ? "text-white/10" : "text-[#32323240]"}>—</span>
                       )}
                     </div>
                   </td>

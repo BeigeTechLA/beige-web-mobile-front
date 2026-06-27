@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Copy, Eye, EyeOff, Sparkles } from "lucide-react";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
 import { adminApi } from "@/lib/api";
@@ -71,7 +72,7 @@ export default function InternalCredentialsPage() {
 
   if (isLoading || !allowed) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+      <div className="flex min-h-[400px] items-center justify-center text-[#32323299] dark:text-white/60">
         {!isLoading && !allowed ? "No Permission" : null}
       </div>
     );
@@ -82,6 +83,8 @@ export default function InternalCredentialsPage() {
 
 function InternalCredentialsPageContent() {
   const pathname = usePathname();
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -89,6 +92,13 @@ function InternalCredentialsPageContent() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [passwordWasGenerated, setPasswordWasGenerated] = useState(false);
   const [form, setForm] = useState<InternalCredentialForm>(DEFAULT_FORM);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const activeTheme = resolvedTheme ?? theme;
+  const isDark = !mounted || activeTheme === "dark";
 
   useEffect(() => {
     let mounted = true;
@@ -232,26 +242,41 @@ function InternalCredentialsPageContent() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="bg-[radial-gradient(circle_at_top_left,_rgba(229,213,184,0.12),_transparent_28%),linear-gradient(180deg,_rgba(17,17,17,0.92),_rgba(12,12,12,1))] px-4 py-4 lg:px-6 lg:py-4">
+      <div
+        className={`px-4 py-4 lg:px-6 lg:py-4 transition-colors duration-300 ${
+          isDark
+            ? "bg-[radial-gradient(circle_at_top_left,_rgba(229,213,184,0.12),_transparent_28%),linear-gradient(180deg,_rgba(17,17,17,0.92),_rgba(12,12,12,1))]"
+            : "bg-[radial-gradient(circle_at_top_left,_rgba(229,213,184,0.18),_transparent_28%),linear-gradient(180deg,_#F6F1E7,_#FFFFFF)]"
+        }`}
+      >
         <div className="mx-auto max-w-4xl">
-          <Card className="border-white/10 bg-[#151515]/95 shadow-[0_10px_40px_rgba(0,0,0,0.24)] backdrop-blur">
+          <Card
+            className={`shadow-[0_10px_40px_rgba(0,0,0,0.24)] backdrop-blur transition-colors duration-300 ${
+              isDark
+                ? "border-white/10 bg-[#151515]/95"
+                : "border-[#E3E3E3] bg-white/95"
+            }`}
+          >
             <CardContent className="px-4 py-4 sm:px-5">
               <div className="space-y-5">
                 <section className="space-y-4">
                   <div className="space-y-0.5">
-                    <h2 className="text-sm font-semibold text-white">User Information</h2>
-                    <p className="text-xs text-white/45">Enter the contact details and assign the role.</p>
+                    <h2 className={`text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>User Information</h2>
+                    <p className={`text-xs ${isDark ? "text-white/45" : "text-[#32323299]"}`}>Enter the contact details and assign the role.</p>
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">
+                      <label className={`text-xs font-medium uppercase tracking-[0.2em] ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
                         Full Name
                       </label>
                       <Input
                         autoComplete="off"
                         className={cn(
-                          "border-white/15 bg-[#111111] transition-all placeholder:text-white/35 focus-visible:border-[#E5D5B8] focus-visible:ring-[#E5D5B8]/30",
+                          "transition-all focus-visible:border-[#E5D5B8] focus-visible:ring-[#E5D5B8]/30",
+                          isDark
+                            ? "border-white/15 bg-[#111111] text-white placeholder:text-white/35"
+                            : "border-[#E3E3E3] bg-white text-[#101010] placeholder:text-[#32323266]",
                           errors.name && "border-[#F04438]",
                         )}
                         placeholder="Full name"
@@ -262,7 +287,7 @@ function InternalCredentialsPageContent() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">
+                      <label className={`text-xs font-medium uppercase tracking-[0.2em] ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
                         Email
                       </label>
                       <Input
@@ -270,7 +295,10 @@ function InternalCredentialsPageContent() {
                         autoComplete="off"
                         name="internal-email"
                         className={cn(
-                          "border-white/15 bg-[#111111] transition-all placeholder:text-white/35 focus-visible:border-[#E5D5B8] focus-visible:ring-[#E5D5B8]/30",
+                          "transition-all focus-visible:border-[#E5D5B8] focus-visible:ring-[#E5D5B8]/30",
+                          isDark
+                            ? "border-white/15 bg-[#111111] text-white placeholder:text-white/35"
+                            : "border-[#E3E3E3] bg-white text-[#101010] placeholder:text-[#32323266]",
                           errors.email && "border-[#F04438]",
                         )}
                         placeholder="Email"
@@ -283,13 +311,16 @@ function InternalCredentialsPageContent() {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">
+                      <label className={`text-xs font-medium uppercase tracking-[0.2em] ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
                         Phone Number
                       </label>
                       <Input
                         autoComplete="off"
                         className={cn(
-                          "border-white/15 bg-[#111111] transition-all placeholder:text-white/35 focus-visible:border-[#E5D5B8] focus-visible:ring-[#E5D5B8]/30",
+                          "transition-all focus-visible:border-[#E5D5B8] focus-visible:ring-[#E5D5B8]/30",
+                          isDark
+                            ? "border-white/15 bg-[#111111] text-white placeholder:text-white/35"
+                            : "border-[#E3E3E3] bg-white text-[#101010] placeholder:text-[#32323266]",
                           errors.phone_number && "border-[#F04438]",
                         )}
                         placeholder="Phone number (optional)"
@@ -302,7 +333,7 @@ function InternalCredentialsPageContent() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">
+                      <label className={`text-xs font-medium uppercase tracking-[0.2em] ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
                         Role
                       </label>
                       <Select
@@ -312,13 +343,16 @@ function InternalCredentialsPageContent() {
                       >
                         <SelectTrigger
                           className={cn(
-                            "h-12 w-full border-white/15 bg-[#111111] text-white transition-all focus:ring-[#E5D5B8]/30",
+                            "h-12 w-full transition-all focus:ring-[#E5D5B8]/30",
+                            isDark
+                              ? "border-white/15 bg-[#111111] text-white"
+                              : "border-[#E3E3E3] bg-white text-[#101010]",
                             errors.user_type && "border-[#F04438]",
                           )}
                         >
                           <SelectValue placeholder={loadingRoles ? "Loading roles..." : "Select role"} />
                         </SelectTrigger>
-                        <SelectContent className="border border-white/15 bg-[#111111] text-white">
+                        <SelectContent className={isDark ? "border border-white/15 bg-[#111111] text-white" : "border border-[#E3E3E3] bg-white text-[#101010]"}>
                           {roleOptions.map((role) => (
                             <SelectItem key={role.value} value={String(role.value)}>
                               {role.label}
@@ -331,18 +365,18 @@ function InternalCredentialsPageContent() {
                   </div>
                 </section>
 
-                <section className="space-y-4 border-t border-white/10 pt-4">
+                <section className={`space-y-4 border-t pt-4 ${isDark ? "border-white/10" : "border-[#E3E3E3]"}`}>
                   <div className="space-y-0.5">
-                    <h2 className="text-sm font-semibold text-white">Security</h2>
-                    <p className="text-xs text-white/45">
+                    <h2 className={`text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>Security</h2>
+                    <p className={`text-xs ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
                       Control password visibility, generation, and strength.
                     </p>
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                    <div className={`space-y-3 rounded-2xl border p-4 ${isDark ? "border-white/10 bg-white/[0.02]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
                       <div className="space-y-2">
-                        <label className="text-xs font-medium uppercase tracking-[0.2em] text-white/45">
+                        <label className={`text-xs font-medium uppercase tracking-[0.2em] ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
                           Password
                         </label>
                         <div className="relative">
@@ -351,7 +385,10 @@ function InternalCredentialsPageContent() {
                             autoComplete="new-password"
                             name="internal-password"
                             className={cn(
-                              "pr-28 border-white/15 bg-[#111111] transition-all placeholder:text-white/35 focus-visible:border-[#E5D5B8] focus-visible:ring-[#E5D5B8]/30",
+                              "pr-28 transition-all focus-visible:border-[#E5D5B8] focus-visible:ring-[#E5D5B8]/30",
+                              isDark
+                                ? "border-white/15 bg-[#111111] text-white placeholder:text-white/35"
+                                : "border-[#E3E3E3] bg-white text-[#101010] placeholder:text-[#32323266]",
                               errors.password && "border-[#F04438]",
                             )}
                             placeholder="Password"
@@ -368,7 +405,9 @@ function InternalCredentialsPageContent() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={handleCopyPassword}
-                                className="h-8 w-8 rounded-md text-white/60 hover:bg-white/5 hover:text-white"
+                                className={`h-8 w-8 rounded-md transition-colors ${
+                                  isDark ? "text-white/60 hover:bg-white/5 hover:text-white" : "text-[#32323299] hover:bg-black/5 hover:text-[#101010]"
+                                }`}
                                 aria-label="Copy password"
                               >
                                 <Copy className="h-4 w-4" />
@@ -379,7 +418,9 @@ function InternalCredentialsPageContent() {
                               variant="ghost"
                               size="icon"
                               onClick={() => setPasswordVisible((prev) => !prev)}
-                              className="h-8 w-8 rounded-md text-white/60 hover:bg-white/5 hover:text-white"
+                              className={`h-8 w-8 rounded-md transition-colors ${
+                                isDark ? "text-white/60 hover:bg-white/5 hover:text-white" : "text-[#32323299] hover:bg-black/5 hover:text-[#101010]"
+                              }`}
                               aria-label={passwordVisible ? "Hide password" : "Show password"}
                             >
                               {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -390,12 +431,12 @@ function InternalCredentialsPageContent() {
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-white/50">Password Strength</span>
+                          <span className={isDark ? "text-white/50" : "text-[#32323299]"}>Password Strength</span>
                           <span className={cn("font-medium", passwordStrength ? STRENGTH_STYLES[passwordStrength] : "text-transparent")}>
                             {passwordStrength || "\u00A0"}
                           </span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-white/8">
+                        <div className={`h-2 overflow-hidden rounded-full ${isDark ? "bg-white/8" : "bg-[#E9E9E9]"}`}>
                           <div
                             className={cn(
                               "h-full rounded-full transition-all duration-300",
@@ -413,39 +454,43 @@ function InternalCredentialsPageContent() {
                           type="button"
                           variant="outline"
                           onClick={handleGeneratePassword}
-                          className="h-10 w-full border-white/15 bg-white/5 text-white hover:bg-white/10"
+                          className={`h-10 w-full transition-colors ${
+                            isDark
+                              ? "border-white/15 bg-white/5 text-white hover:bg-white/10"
+                              : "border-[#E3E3E3] bg-white text-[#101010] hover:bg-[#F7F7F7]"
+                          }`}
                         >
                           <Sparkles className="h-4 w-4" />
                           Generate Password
                         </Button>
-                        <p className="text-xs leading-5 text-white/45">
+                        <p className={`text-xs leading-5 ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
                           Strong passwords are 12 characters with mixed character types.
                         </p>
                         {errors.password ? <p className="text-xs text-[#F04438]">{errors.password}</p> : null}
                         {passwordWasGenerated ? (
-                          <p className="text-xs text-white/45">Password generated and ready to copy.</p>
+                          <p className={`text-xs ${isDark ? "text-white/45" : "text-[#32323299]"}`}>Password generated and ready to copy.</p>
                         ) : null}
                       </div>
                     </div>
 
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                    <div className={`space-y-3 rounded-2xl border p-4 ${isDark ? "border-white/10 bg-white/[0.02]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
                       <div className="space-y-0.5">
-                        <h2 className="text-sm font-semibold text-white">Credential Preview</h2>
-                        <p className="text-xs text-white/45">Live read-only summary before you submit.</p>
+                        <h2 className={`text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>Credential Preview</h2>
+                        <p className={`text-xs ${isDark ? "text-white/45" : "text-[#32323299]"}`}>Live read-only summary before you submit.</p>
                       </div>
 
                       <div className="grid gap-3 text-sm">
-                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
-                          <p className="text-xs uppercase tracking-[0.18em] text-white/40">Email</p>
-                          <p className="mt-1 break-all text-white">{form.email.trim() || "Not set"}</p>
+                        <div className={`rounded-xl border px-4 py-2.5 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-[#E3E3E3] bg-white"}`}>
+                          <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-[#32323299]"}`}>Email</p>
+                          <p className={`mt-1 break-all ${isDark ? "text-white" : "text-[#101010]"}`}>{form.email.trim() || "Not set"}</p>
                         </div>
-                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
-                          <p className="text-xs uppercase tracking-[0.18em] text-white/40">Selected Role</p>
-                          <p className="mt-1 text-white">{selectedRoleLabel}</p>
+                        <div className={`rounded-xl border px-4 py-2.5 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-[#E3E3E3] bg-white"}`}>
+                          <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-[#32323299]"}`}>Selected Role</p>
+                          <p className={`mt-1 ${isDark ? "text-white" : "text-[#101010]"}`}>{selectedRoleLabel}</p>
                         </div>
-                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
-                          <p className="text-xs uppercase tracking-[0.18em] text-white/40">Password</p>
-                          <p className="mt-1 text-white">{maskedPassword}</p>
+                        <div className={`rounded-xl border px-4 py-2.5 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-[#E3E3E3] bg-white"}`}>
+                          <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-[#32323299]"}`}>Password</p>
+                          <p className={`mt-1 ${isDark ? "text-white" : "text-[#101010]"}`}>{maskedPassword}</p>
                         </div>
                       </div>
 
@@ -453,7 +498,11 @@ function InternalCredentialsPageContent() {
                         type="button"
                         variant="outline"
                         onClick={handleCopyCredentials}
-                        className="h-10 w-full border-white/15 bg-white/5 text-white hover:bg-white/10"
+                        className={`h-10 w-full transition-colors ${
+                          isDark
+                            ? "border-white/15 bg-white/5 text-white hover:bg-white/10"
+                            : "border-[#E3E3E3] bg-white text-[#101010] hover:bg-[#F7F7F7]"
+                        }`}
                       >
                         <Copy className="h-4 w-4" />
                         Copy Credentials
@@ -463,7 +512,7 @@ function InternalCredentialsPageContent() {
                 </section>
               </div>
 
-              <div className="mt-4 border-t border-white/10 pt-4">
+              <div className={`mt-4 border-t pt-4 ${isDark ? "border-white/10" : "border-[#E3E3E3]"}`}>
                 <div className="flex flex-col items-left gap-2">
                   {/* <div className="text-center text-sm leading-6 text-white/55">
                     The create button is locked while the request is in flight.
