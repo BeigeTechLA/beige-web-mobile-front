@@ -62,6 +62,7 @@ const menuItems = [
       { name: 'Transactions', link: '/admin/finances/transactions' },
       { name: 'Disputes', link: '/admin/finances/disputes' },
       { name: 'Beige credit points', link: '/admin/finances/creditPoints' },
+      { name: 'CP Compensation', link: '/admin/finances/cpCompensation' },
 
     ] },
 
