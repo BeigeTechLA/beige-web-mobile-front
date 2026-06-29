@@ -155,17 +155,7 @@ export default function CreatorFileManagerPage() {
 
   const ensureAssignedWorkspace = async (folder: UiFolderItem) => {
     const projectId = String(folder.id || "");
-    if (folder.resourcePath || isCommonEventWorkspaceId(projectId)) return projectId;
-
-    const created = await fileManagerApi.createExternalWorkspace(
-      projectId,
-      folder.title || `project_#${projectId}`
-    );
-    if (!created?.data?.workspace?.externalId) {
-      throw new Error("Failed to create file manager workspace");
-    }
-    await loadProjects();
-    return created.data.workspace.externalId;
+    return projectId;
   };
 
   const handleOpenFolder = async (folder: UiFolderItem) => {
