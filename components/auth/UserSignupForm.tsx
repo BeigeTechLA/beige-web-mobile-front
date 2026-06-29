@@ -85,15 +85,25 @@ export function UserSignupForm() {
       // --- GA4 SIGNUP TRACKING ---
       const userTypeName = "Client";
 
-      pushToDataLayer("sign_up_completed_user", {
+      // pushToDataLayer("sign_up_completed_user", {
+      //   custom_user_id: result?.userId || null,
+      //   email: data.email, // using form data
+      //   user_type: userTypeName,
+      //   page_name: "User Signup Page",
+      //   location_in_website: "signup_user_page",
+      //   duration_on_page: performance.now() / 1000,
+      //   phone: data.phone || null,
+      // });
+      pushToDataLayer("sign_up", {
+        method: "email", // Official standard parameter
         custom_user_id: result?.userId || null,
-        email: data.email, // using form data
-        user_type: userTypeName,
+        user_type: "Client",
         page_name: "User Signup Page",
         location_in_website: "signup_user_page",
         duration_on_page: performance.now() / 1000,
-        phone: data.phone || null,
+        email: data.email,
       });
+
       // ---------------------------
 
       const verifyParams = new URLSearchParams({ email: data.email })

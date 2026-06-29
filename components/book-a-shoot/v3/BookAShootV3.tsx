@@ -110,6 +110,9 @@ export const BookAShootV3 = () => {
           setDraftBookingId(result.data.booking_id);
           setLeadId(result.data.lead_id);
           setLeadTracked(true);
+
+          // generate_lead GA4 event can be called here but the parent function (trackLoggedInUser) is currently not being called. Hence not adding
+
           console.log("Lead tracked for logged-in user:", result.data);
         } catch (error) {
           console.error("Failed to track lead for logged-in user:", error);
@@ -235,14 +238,14 @@ export const BookAShootV3 = () => {
         }
 
         // add GA event on click of "Continue" in the first step
-        pushToDataLayer("service_details_submitted_step1", {
-          type: "Action Tracking",
-          page_name: "Book-a-shoot Page",
+        pushToDataLayer("generate_lead", {
+          value: 0, // Standard parameters
+          currency: "USD",
+          page_name: "Book-a-shoot Page",  // Custom data schema
           location_in_website: "book_a_shoot_step1",
           duration_on_page: performance.now() / 1000,
-          phone: user?.phone_number,
-          user_id: user?.id,
-          user_type: userTypeName,
+          user_id: user?.id || "Guest",
+          user_type: userTypeName || "Guest",
           booking_id: result?.data?.booking_id,
           booking_form_fields: formFields,
           email: formData.email,
@@ -456,6 +459,7 @@ export const BookAShootV3 = () => {
       // 5. SAVE QUOTE (API Call)
       // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
       let savedQuoteId: number | null = null;
+      let savedQuoteTotal: number | null = null;
 
       const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
         ? formData.bookingDays
@@ -504,6 +508,8 @@ export const BookAShootV3 = () => {
 
           const savedQuote = await saveQuote(quotePayload).unwrap();
           savedQuoteId = savedQuote.quote_id;
+          savedQuoteTotal = savedQuote.total;
+
           console.log("Pricing Quote Generated:", savedQuoteId);
         } catch (quoteError) {
           console.error("Pricing Calculation Error:", quoteError);
@@ -516,7 +522,7 @@ export const BookAShootV3 = () => {
       const bookingDaysPayload = formData.bookingDays?.map((d) => ({
         date: d.date,
         start_time: d.startTime,
-        end_time: d.endTime, 
+        end_time: d.endTime,
         duration_hours: calculateDayHours(d.startTime, d.endTime),
         time_zone: browserTimeZone
       })) || [];
@@ -534,12 +540,12 @@ export const BookAShootV3 = () => {
         booking_type: formData.bookingType,
         booking_days: primaryStudio
           ? [{
-              date: primaryStudio.selectedDate,
-              start_time: primaryStudio.startTime,
-              end_time: primaryStudio.endTime,
-              duration_hours: primaryStudio.quantity,
-              time_zone: browserTimeZone,
-            }]
+            date: primaryStudio.selectedDate,
+            start_time: primaryStudio.startTime,
+            end_time: primaryStudio.endTime,
+            duration_hours: primaryStudio.quantity,
+            time_zone: browserTimeZone,
+          }]
           : bookingDaysPayload,
         start_date: primaryStudio?.selectedDate || startDate,
         start_time: primaryStudio?.startTime || startTime,
@@ -599,21 +605,42 @@ export const BookAShootV3 = () => {
       }
 
       // add GA event on payment submit in step4
-      pushToDataLayer("booking_payment_confirm_submit", {
-        type: "Action Tracking",
+      // pushToDataLayer("booking_payment_confirm_submit", {
+      //   type: "Action Tracking",
+      //   page_name: "Book-a-shoot Page",
+      //   location_in_website: "book_a_shoot_review_confirm",
+      //   user_id: isAuthenticated ? user?.id : "Unknown",
+      //   user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      //   email: isAuthenticated ? user?.email : formData.email,
+      //   phone: isAuthenticated ? user?.phone_number : formData.phone,
+      //   duration_on_page: performance.now() / 1000,
+      //   booking_id: formData?.bookingId,
+      //   booking_form_fields: {
+      //     full_name: formData.fullName,
+      //     phone: formData.phone,
+      //   }
+      // });
+
+      // --- NATIVE GA4 BEGIN_CHECKOUT FOR DIRECT BOOKING FLOW ---
+      pushToDataLayer("begin_checkout", {
+        currency: "USD",
+        value: savedQuoteTotal || 0,
+
+        // Context updates matching where the user is standing
         page_name: "Book-a-shoot Page",
-        location_in_website: "book_a_shoot_review_confirm",
+        location_in_website: "book_a_shoot_review_confirm_btn",
+
         user_id: isAuthenticated ? user?.id : "Unknown",
         user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
-        email: isAuthenticated ? user?.email : formData.email,
-        phone: isAuthenticated ? user?.phone_number : formData.phone,
-        duration_on_page: performance.now() / 1000,
-        booking_id: formData?.bookingId,
-        booking_form_fields: {
-          full_name: formData.fullName,
-          phone: formData.phone,
-        }
+        booking_id: submissionResult?.booking_id || draftBookingId,
+
+        items: [{
+          item_name: finalBookingData?.order_name || "Shoot Booking",
+          price: savedQuoteTotal || 0,
+          quantity: 1
+        }]
       });
+      // ---------------------------------------------------------
 
       toast.success("Booking Secured!", {
         description: "Redirecting to secure payment gateway...",
@@ -790,7 +817,7 @@ const LeaveConfirmationModal = ({
           </button>
         </div>
       </div>
-    {/* </div> */}
-</div>
+      {/* </div> */}
+    </div>
   );
 };
