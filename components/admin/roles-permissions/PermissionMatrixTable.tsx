@@ -81,6 +81,11 @@ export function PermissionMatrixTable({
         if (row.id === rowId) {
           const updatedAccess = { ...row.access, [key]: checked };
           const actionsToCheck = row.allowedActions || accessColumns.map((c) => c.key);
+          if (key === "view") {
+            actionsToCheck.forEach((action) => {
+              updatedAccess[action] = checked;
+            });
+          }
           const allAllowedChecked = actionsToCheck.every((action) => updatedAccess[action]);
 
           return {

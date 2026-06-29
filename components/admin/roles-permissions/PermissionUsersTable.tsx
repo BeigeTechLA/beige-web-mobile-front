@@ -96,7 +96,7 @@ const formatDateParts = (value: string) => {
   }
 
   return {
-    date: format(date, "MM/dd/yyyy"),
+    date: format(date, "d, MMMM yyyy"), 
     time: format(date, "h:mm a"),
   };
 };

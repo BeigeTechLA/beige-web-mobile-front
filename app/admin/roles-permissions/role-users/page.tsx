@@ -6,17 +6,22 @@ import { ArrowLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { adminApi, type AdminUserRoleRecord } from "@/lib/api";
 
-const formatDate = (value: string | null) => {
+const formatDate = (value: string | null | undefined) => {
   if (!value) return "-";
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return new Intl.DateTimeFormat("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
-  }).format(date);
+  const day = date.getDate();
+  const month = new Intl.DateTimeFormat("en-US", { month: "long" }).format(date);
+  const year = date.getFullYear();
+  
+  // const time = new Intl.DateTimeFormat("en-US", {
+  //   hour: "2-digit",
+  //   minute: "2-digit",
+  //   hour12: true,
+  // }).format(date);
+
+  return `${day}, ${month} ${year}`;
 };
 
 const getInitials = (value: string) =>
@@ -27,6 +32,37 @@ const getInitials = (value: string) =>
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("") || "NA";
 
+const ITEMS_PER_PAGE = 10;
+
+const buildPaginationItems = (currentPage: number, totalPages: number) => {
+  if (totalPages <= 1) return [1];
+
+  const pages: Array<number | "..."> = [];
+  const delta = 1;
+  const left = Math.max(2, currentPage - delta);
+  const right = Math.min(totalPages - 1, currentPage + delta);
+
+  pages.push(1);
+
+  if (left > 2) {
+    pages.push("...");
+  }
+
+  for (let page = left; page <= right; page += 1) {
+    pages.push(page);
+  }
+
+  if (right < totalPages - 1) {
+    pages.push("...");
+  }
+
+  if (totalPages > 1) {
+    pages.push(totalPages);
+  }
+
+  return pages;
+};
+
 export default function RoleUsersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,6 +72,7 @@ export default function RoleUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     let mounted = true;
@@ -87,6 +124,21 @@ export default function RoleUsersPage() {
   }, [searchQuery, users]);
 
   const totalUsers = users.length;
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <PermissionGuard module="roles_permissions" action="view">
@@ -177,7 +229,7 @@ export default function RoleUsersPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((user) => (
+                    paginatedUsers.map((user) => (
                       <tr
                         key={user.user_id}
                         className="cursor-pointer text-white transition-colors hover:bg-white/[0.02]"
@@ -196,7 +248,9 @@ export default function RoleUsersPage() {
                           </p>
                         </td>
                         <td className="px-4 py-5 text-[14px] text-white/60">
-                          <span className="block truncate" title={user.email}>{user.email}</span>
+                          <span className="block truncate" title={user.email}>
+                            {user.email}
+                          </span>
                         </td>
                         <td className="px-4 py-5">
                           <span
@@ -233,6 +287,61 @@ export default function RoleUsersPage() {
                 </tbody>
               </table>
             </div>
+
+            {!isLoading && !error && filteredUsers.length > 0 ? (
+              <div className="flex flex-col gap-4 border-t border-white/5 px-6 py-5 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-white/45">
+                  Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
+                  {filteredUsers.length} users
+                </p>
+
+                {totalPages > 1 ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                      disabled={safeCurrentPage === 1}
+                      className="inline-flex h-10 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-white/35 transition hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      Previous
+                    </button>
+
+                    {paginationItems.map((item, index) =>
+                      item === "..." ? (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="flex h-10 w-10 items-center justify-center text-sm text-white/30"
+                        >
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setCurrentPage(item)}
+                          className={`flex h-10 w-10 items-center justify-center rounded-[16px] border text-sm font-semibold transition ${
+                            safeCurrentPage === item
+                              ? "border-[#E5D5B8] bg-[#E5D5B8] text-[#111111]"
+                              : "border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.05] hover:text-white"
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      ),
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                      disabled={safeCurrentPage === totalPages}
+                      className="inline-flex h-10 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-white/35 transition hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      Next
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

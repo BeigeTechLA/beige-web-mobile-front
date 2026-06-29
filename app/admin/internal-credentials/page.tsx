@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Copy, Eye, EyeOff, Sparkles } from "lucide-react";
+import { ArrowLeft, Copy, Eye, EyeOff, Sparkles } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
@@ -250,6 +251,18 @@ function InternalCredentialsPageContent() {
         }`}
       >
         <div className="mx-auto max-w-4xl">
+          <div className="mb-4">
+            <Link
+              href="/admin/roles-permissions"
+              className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+                isDark ? "text-white/70 hover:text-white" : "text-[#32323299] hover:text-[#101010]"
+              }`}
+            >
+              <ArrowLeft size={16} />
+              Back
+            </Link>
+          </div>
+
           <Card
             className={`shadow-[0_10px_40px_rgba(0,0,0,0.24)] backdrop-blur transition-colors duration-300 ${
               isDark

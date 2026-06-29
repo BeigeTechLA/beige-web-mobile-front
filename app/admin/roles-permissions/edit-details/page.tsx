@@ -36,13 +36,17 @@ const formatDateTime = (value: string | null | undefined) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return new Intl.DateTimeFormat("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
-    hour: "numeric",
+  const day = date.getDate();
+  const month = new Intl.DateTimeFormat("en-US", { month: "long" }).format(date);
+  const year = date.getFullYear();
+  
+  const time = new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
     minute: "2-digit",
+    hour12: true,
   }).format(date);
+
+  return `${day}, ${month} ${year} , ${time}`;
 };
 
 type RoleOption = {
@@ -202,7 +206,6 @@ export default function AdminRoleEditDetailsRoute() {
       if (mode === "role" && roleId) {
         const response = await adminApi.getRoleById(roleId);
         if (!mounted) return;
-
         if (response?.success && response?.data?.role) {
           const nextScope = resolvePermissionScope(response.data.role.name);
           const baseRows = await loadPermissionRows(nextScope);
