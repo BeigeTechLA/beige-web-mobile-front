@@ -1727,9 +1727,9 @@ export default function ExternalChatView({
                                   {previewSender ? `${previewSender}: ` : ""}
                                   {previewText}
                                 </p>
-                                <p className={`mt-2 truncate text-xs transition-colors ${isDark ? "text-white/28" : "text-black/40"}`}>
+                                {/* <p className={`mt-2 truncate text-xs transition-colors ${isDark ? "text-white/28" : "text-black/40"}`}>
                                   {`${roomParticipantCount || 1} ${(roomParticipantCount || 1) === 1 ? "participant" : "participants"}`}
-                                </p>
+                                </p> */}
                               </div>
                               <div className={`flex shrink-0 flex-col items-end gap-2 pt-0.5 text-xs transition-colors ${isDark ? "text-white/32" : "text-black/40"}`}>
                                 <div className="flex items-center gap-1.5">
@@ -1747,13 +1747,13 @@ export default function ExternalChatView({
                                 ) : null}
                               </div>
                             </div>
-                            <div className={`mt-3 flex items-center justify-between text-xs transition-colors ${isDark ? "text-white/24" : "text-black/35"}`}>
+                            {/* <div className={`mt-3 flex items-center justify-between text-xs transition-colors ${isDark ? "text-white/24" : "text-black/35"}`}>
                               <span>#{room.chat_id || "room"}</span>
                               <span className="inline-flex items-center gap-1">
                                 {getStatusIcon(room.status)}
                                 {room.status || "active"}
                               </span>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       </button>
