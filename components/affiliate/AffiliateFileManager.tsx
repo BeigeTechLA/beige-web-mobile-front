@@ -32,6 +32,7 @@ import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import {
   fileManagerApi,
+  formatFileManagerWorkspaceName,
   inferWorkspaceCategory,
   isCommonEventWorkspaceId,
   isRecentWithinHours,
@@ -181,12 +182,16 @@ export default function AffiliateFileManager() {
 
       const mapped = externalWorkspaces
         .map((workspace) => {
+          const displayName = workspace.isCommonEvent
+            ? workspace.folderName || "Common Event"
+            : formatFileManagerWorkspaceName(workspace.folderName);
+
           return {
             externalId: String(workspace.externalId),
-            title: workspace.folderName || "Common Event",
+            title: displayName,
             fileCount: Number(workspace.fileCount || 0),
             lastOpened: workspace.updatedAt || workspace.createdAt || "",
-            userInitials: getInitials(workspace.folderName),
+            userInitials: getInitials(displayName),
             category: inferWorkspaceCategory(
               workspace.folderName
             ),
