@@ -170,7 +170,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               if (!canView) return null;
             }
             */
-
             const hasChildren = item?.children && item?.children.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);

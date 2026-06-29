@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDownAZ, ArrowUpAZ } from "lucide-react";
+import { useTheme } from "next-themes";
 import { PermissionUsersTable } from "@/components/admin/roles-permissions/PermissionUsersTable";
 import { RoleCard } from "@/components/admin/roles-permissions/RoleCard";
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
@@ -110,6 +111,8 @@ export function RolesPermissionsPage({
   searchQuery = "",
 }: RolesPermissionsPageProps) {
   const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const { canEdit, canDelete } = usePermissions("roles_permissions");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [roles, setRoles] = useState<AdminRoleRecord[]>([]);
@@ -136,6 +139,12 @@ export function RolesPermissionsPage({
     subtext: "",
     buttonText: "Done",
   });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = !mounted || theme === "dark";
 
   const loadRoles = useCallback(async () => {
     setIsLoadingRoles(true);
@@ -292,20 +301,24 @@ export function RolesPermissionsPage({
 
   return (
     <>
-      <div className="overflow-hidden px-4 pb-16 pt-6 lg:px-10 lg:pb-24 lg:pt-10">
+      <div
+        className={`overflow-hidden px-4 pb-16 pt-6 transition-colors duration-300 lg:px-10 lg:pb-24 lg:pt-10 ${
+          isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-[#323232]"
+        }`}
+      >
         <div className="mx-auto w-full max-w-[1270px]">
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-[610px]">
-                <h1 className="text-[32px] font-bold tracking-tight text-white lg:text-[36px]">
+                <h1 className={`text-[32px] font-bold tracking-tight lg:text-[36px] transition-colors duration-300 ${isDark ? "text-white" : "text-[#101010]"}`}>
                   Roles & Permissions
                 </h1>
-                <p className="mt-3 max-w-[560px] text-[15px] leading-relaxed text-white/50">
+                <p className={`mt-3 max-w-[560px] text-[15px] leading-relaxed transition-colors duration-300 ${isDark ? "text-white/50" : "text-[#323232B2]"}`}>
                   A role provided access to predefined menus and features so that
                   depending on assigned role an administrator can have access to what
                   user needs.
                 </p>
-                <p className="mt-3 text-sm text-white/35">{rolesSummary}</p>
+                <p className={`mt-3 text-sm transition-colors duration-300 ${isDark ? "text-white/35" : "text-[#010101]"}`}>{rolesSummary}</p>
               </div>
 
               <button
@@ -313,18 +326,22 @@ export function RolesPermissionsPage({
                 onClick={() =>
                   setSortOrder((current) => (current === "desc" ? "asc" : "desc"))
                 }
-                className="inline-flex h-12 items-center gap-3 rounded-full border border-white/10 bg-transparent px-6 text-[15px] font-medium text-white/70 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
+                className={`inline-flex h-12 items-center gap-3 rounded-full border px-6 text-[15px] font-medium transition-colors duration-300 ${
+                  isDark
+                    ? "border-white/10 bg-transparent text-white/70 hover:border-white/20 hover:bg-white/5 hover:text-white"
+                    : "border-[#D9D9D9] bg-white text-[#323232] hover:border-[#CFCFCF] hover:bg-[#F7F7F7] hover:text-[#101010]"
+                }`}
               >
                 <span>{sortOrder === "desc" ? "Newest First" : "Oldest First"}</span>
                 {sortOrder === "desc" ? (
-                  <ArrowDownAZ size={18} className="text-white/40" />
+                  <ArrowDownAZ size={18} className={isDark ? "text-white/40" : "text-[#32323266]"} />
                 ) : (
-                  <ArrowUpAZ size={18} className="text-white/40" />
+                  <ArrowUpAZ size={18} className={isDark ? "text-white/40" : "text-[#32323266]"} />
                 )}
               </button>
             </div>
 
-            <div className="border-t border-dashed border-white/10" />
+            <div className={`border-t border-dashed transition-colors duration-300 ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`} />
 
             <div className="grid justify-items-start gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {!isLoadingRoles &&
@@ -332,6 +349,7 @@ export function RolesPermissionsPage({
                 <RoleCard
                   key={card.id}
                   card={card}
+                  isDark={isDark}
                   onEdit={
                     canEdit && Number(card.id) !== SUPER_ADMIN_ROLE_ID
                       ? (id) => {
@@ -355,13 +373,17 @@ export function RolesPermissionsPage({
               ))}
 
               {isLoadingRoles && (
-                <div className="col-span-full rounded-[32px] border border-white/10 bg-[#111111] px-6 py-10 text-center text-white/50">
+                <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center transition-colors duration-300 ${
+                  isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"
+                }`}>
                   Loading roles...
                 </div>
               )}
 
               {!isLoadingRoles && !roles.length && (
-                <div className="col-span-full rounded-[32px] border border-white/10 bg-[#111111] px-6 py-10 text-center text-white/50">
+                <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center transition-colors duration-300 ${
+                  isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"
+                }`}>
                   {rolesError || "No roles found."}
                 </div>
               )}
@@ -369,6 +391,7 @@ export function RolesPermissionsPage({
 
             <PermissionUsersTable
               users={users}
+              isDark={isDark}
               isLoading={isLoadingUsers}
               error={usersError}
               onEdit={handleOpenUserDetails}

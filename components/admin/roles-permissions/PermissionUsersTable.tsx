@@ -18,9 +18,11 @@ import {
 } from "@/components/admin/roles-permissions/types";
 import { USER_BADGE_TONES } from "@/components/admin/roles-permissions/data";
 import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type PermissionUsersTableProps = {
   users: PermissionUser[];
+  isDark?: boolean;
   isLoading?: boolean;
   error?: string;
   onEdit?: (user: PermissionUser) => void;
@@ -174,6 +176,7 @@ export function PermissionUsersTable({
   roleId,
   successModal,
 }: PermissionUsersTableProps) {
+  const { isDark } = useResolvedTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("all");
@@ -372,24 +375,45 @@ export function PermissionUsersTable({
   const showLoading = isLoading || serverLoading;
   const showError = error || serverError;
 
+  const shellClass = isDark
+    ? "overflow-hidden rounded-[32px] border border-[#333] bg-[#111111]"
+    : "overflow-hidden rounded-[32px] border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]";
+  const titleTextClass = isDark ? "text-white" : "text-[#101010]";
+  const borderToneClass = isDark ? "border-white/10" : "border-[#E3E3E3]";
+  const selectTriggerClass = isDark
+    ? "border-white/10 bg-[#1c1c1c] text-white/50 hover:bg-[#252525]"
+    : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]";
+  const selectContentClass = isDark
+    ? "border-white/10 bg-[#171717] text-white"
+    : "border-[#E3E3E3] bg-white text-[#323232]";
+  const searchClass = isDark
+    ? "border-white/10 bg-[#171717] text-white placeholder:text-white/30 focus:ring-[#E5D5B8]/50"
+    : "border-[#E3E3E3] bg-white text-[#323232] placeholder:text-[#32323266] focus:ring-[#C9A96E]/40";
+  const rowClass = isDark
+    ? "group border-b border-[#222] text-white transition-colors hover:bg-white/[0.02]"
+    : "group border-b border-[#E5E5E5] text-[#323232] transition-colors hover:bg-black/[0.015]";
+  const paginatorSurface = isDark
+    ? "border-white/10 bg-[#171717] text-white/60 hover:bg-white/[0.06] hover:text-white"
+    : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-black/[0.03] hover:text-[#101010]";
+
   return (
     <>
-    <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#111111]">
+    <div className={shellClass}>
       <div className="px-6 py-6">
         {/* Table Header Section: Title and Right-aligned Filters */}
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-7 w-[3px] rounded-full bg-[#E5D5B8]" />
-            <h2 className="text-[20px] font-semibold text-white">All Users</h2>
-          </div>
+            <div className="flex items-center gap-3">
+              <div className="h-7 w-[3px] rounded-full bg-[#E5D5B8]" />
+            <h2 className={`text-[20px] font-semibold transition-colors duration-300 ${titleTextClass}`}>All Users</h2>
+            </div>
 
           {/* Horizontal row of pill-shaped filters as per Vuexy/Figma */}
-          <div className="flex flex-row items-center gap-2 sm:gap-3 ml-auto md:ml-0">
+          <div className="ml-auto flex flex-row items-center gap-2 sm:gap-3 md:ml-0">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-10 min-w-[90px] rounded-full border-white/10 bg-[#1c1c1c] px-4 text-[13px] font-medium text-white/50 transition hover:bg-[#252525] focus:ring-0 focus:ring-offset-0">
+              <SelectTrigger className={`h-10 min-w-[90px] rounded-full px-4 text-[13px] font-medium transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent className="border-white/10 bg-[#171717] text-white">
+              <SelectContent className={selectContentClass}>
                 <SelectItem value="all">Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="in-active">Archived</SelectItem>
@@ -397,10 +421,10 @@ export function PermissionUsersTable({
             </Select>
 
             <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="h-10 min-w-[90px] rounded-full border-white/10 bg-[#1c1c1c] px-4 text-[13px] font-medium text-white/50 transition hover:bg-[#252525] focus:ring-0 focus:ring-offset-0">
+              <SelectTrigger className={`h-10 min-w-[90px] rounded-full px-4 text-[13px] font-medium transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
                 <SelectValue placeholder="Month" />
               </SelectTrigger>
-              <SelectContent className="border-white/10 bg-[#171717] text-white">
+              <SelectContent className={selectContentClass}>
                 <SelectItem value="all">Month</SelectItem>
                 <SelectItem value="1">Jan</SelectItem>
                 <SelectItem value="2">Feb</SelectItem>
@@ -418,10 +442,10 @@ export function PermissionUsersTable({
             </Select>
 
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="h-10 min-w-[70px] rounded-full border-white/10 bg-[#1c1c1c] px-4 text-[13px] font-medium text-white/50 transition hover:bg-[#252525] focus:ring-0 focus:ring-offset-0">
+              <SelectTrigger className={`h-10 min-w-[70px] rounded-full px-4 text-[13px] font-medium transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
                 <SelectValue placeholder="All" />
               </SelectTrigger>
-              <SelectContent className="border-white/10 bg-[#171717] text-white">
+              <SelectContent className={selectContentClass}>
                 <SelectItem value="all">All</SelectItem>
                 {roleOptions.map((role) => (
                   <SelectItem key={role} value={role.toLowerCase()}>
@@ -436,14 +460,14 @@ export function PermissionUsersTable({
         {/* Search Bar Section */}
         <div className="relative mt-6">
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+            className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-[#32323266]"}`}
             size={18}
           />
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search"
-            className="h-12 w-full rounded-2xl border border-white/10 bg-[#171717] pl-11 pr-4 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#E5D5B8]/50"
+            className={`h-12 w-full rounded-2xl border pl-11 pr-4 text-sm focus:outline-none focus:ring-1 ${searchClass}`}
           />
         </div>
       </div>
@@ -451,14 +475,14 @@ export function PermissionUsersTable({
       <div className="w-full">
         <table className="w-full table-fixed">
           <thead>
-            <tr className="border-b border-white/5 bg-white/[0.02] text-left text-[14px] font-semibold text-[#D9C8A3]">
-              <th className="w-[5%] px-4 py-4">
+            <tr className={`border-b text-left text-[14px] font-semibold ${isDark ? "border-white/5 bg-white/[0.02] text-[#D9C8A3]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
+              {/* <th className="w-[5%] px-4 py-4">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(value) => toggleAll(value === true)}
                   className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
                 />
-              </th>
+              </th> */}
               <th className="w-[25%] px-4 py-4">Names</th>
               <th className="w-[16%] px-4 py-4">Roles</th>
               <th className="w-[14%] px-4 py-4">Created</th>
@@ -468,10 +492,10 @@ export function PermissionUsersTable({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-white/5">
+          <tbody>
             {showLoading && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-white/50">
+                <td colSpan={7} className={`px-4 py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
                   Loading users...
                 </td>
               </tr>
@@ -487,7 +511,7 @@ export function PermissionUsersTable({
 
             {!showLoading && !showError && filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-white/50">
+                <td colSpan={7} className={`px-4 py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
                   No users found.
                 </td>
               </tr>
@@ -498,7 +522,7 @@ export function PermissionUsersTable({
               paginatedUsers.map((user) => (
               <tr
                 key={user.id}
-                className={`group text-white transition-colors hover:bg-white/[0.02] ${
+                className={`${rowClass} last:border-b-0 ${
                   canOpenUser && user.status === "Active" ? "cursor-pointer" : "cursor-default"
                 }`}
                 onClick={() => {
@@ -506,14 +530,14 @@ export function PermissionUsersTable({
                   onRowClick?.(user);
                 }}
               >
-                <td className="px-4 py-5">
+                {/* <td className="px-4 py-5">
                   <Checkbox
                     checked={selectedRows.includes(user.id)}
                     onCheckedChange={(value) => toggleOne(user.id, value === true)}
                     onClick={(event) => event.stopPropagation()}
                     className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
                   />
-                </td>
+                </td> */}
 
                 <td className="px-4 py-5">
                   <div className="flex items-center gap-3">
@@ -523,10 +547,10 @@ export function PermissionUsersTable({
                       {user.badge}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-bold text-white group-hover:text-[#E5D5B8] transition-colors">
+                      <p className={`truncate text-[15px] font-bold transition-colors ${isDark ? "text-white group-hover:text-[#E5D5B8]" : "text-[#101010] group-hover:text-[#8E6A2A]"}`}>
                         {user.name}
                       </p>
-                      <p className="mt-1 truncate text-[12px] text-white/40">{user.subtitle}</p>
+                      <p className={`mt-1 truncate text-[12px] ${isDark ? "text-white/40" : "text-[#32323266]"}`}>{user.subtitle}</p>
                       {user.status !== "Active" && user.deleted_by_name ? (
                         <p className="mt-1 truncate text-[12px] text-[#EA5455]/80">
                           Deleted by {user.deleted_by_name}
@@ -538,19 +562,19 @@ export function PermissionUsersTable({
 
                 {/* Roles column: Plain text with chevron as per Figma design (No background pill) */}
                 <td className="px-4 py-5">
-                  <div className="flex items-center gap-2 truncate text-[14px] font-medium text-white/90">
+                  <div className={`flex items-center gap-2 truncate text-[14px] font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>
                     <span className="truncate">{user.role}</span>
                   </div>
                 </td>
 
-                <td className="px-4 py-5 text-[14px] text-white/60">
+                <td className={`px-4 py-5 text-[14px] ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
                   <div className="flex flex-col leading-tight">
                     <span>{formatDateParts(user.created).date}</span>
                     <span className="text-[12px] text-white/35">{formatDateParts(user.created).time}</span>
                   </div>
                 </td>
 
-                <td className="px-4 py-5 text-[14px] text-white/60">
+                <td className={`px-4 py-5 text-[14px] ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
                   <div className="flex flex-col leading-tight">
                     <span>{formatDateParts(user.updated).date}</span>
                     <span className="text-[12px] text-white/35">{formatDateParts(user.updated).time}</span>
@@ -566,7 +590,7 @@ export function PermissionUsersTable({
                     <button
                       type="button"
                       title="View user history"
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-[#E5D5B8]/10 hover:text-[#E5D5B8]"
+                      className={`flex h-8 w-8 items-center justify-center rounded-full transition ${isDark ? "bg-white/5 text-white/60 hover:bg-[#E5D5B8]/10 hover:text-[#E5D5B8]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#E5D5B8]/10 hover:text-[#8E6A2A]"}`}
                       onClick={(event) => {
                         event.stopPropagation();
                         setHistoryUser(user);
@@ -578,7 +602,7 @@ export function PermissionUsersTable({
                       type="button"
                       disabled={!onEdit || user.status !== "Active"}
                       title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
                       onClick={(event) => {
                         event.stopPropagation();
                         if (user.status !== "Active") return;
@@ -592,7 +616,7 @@ export function PermissionUsersTable({
                         type="button"
                         disabled={!onRestore}
                         title="Restore user"
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-[#28C76F]/10 hover:text-[#28C76F] disabled:cursor-not-allowed disabled:opacity-40"
+                        className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-[#28C76F]/10 hover:text-[#28C76F]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#28C76F]/10 hover:text-[#28C76F]"}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           onRestore?.(user);
@@ -605,7 +629,7 @@ export function PermissionUsersTable({
                         type="button"
                         disabled={!onDelete}
                         title="Delete user"
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                        className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-red-500/10 hover:text-red-400" : "bg-black/[0.04] text-[#32323299] hover:bg-red-500/10 hover:text-red-500"}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           onDelete?.(user);
@@ -618,7 +642,7 @@ export function PermissionUsersTable({
                       type="button"
                       disabled={!canOpenUser || user.status !== "Active"}
                       title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
                       onClick={(event) => {
                         event.stopPropagation();
                         if (user.status !== "Active") return;
@@ -640,8 +664,8 @@ export function PermissionUsersTable({
       </div>
 
       {!isLoading && !error && filteredUsers.length > 0 ? (
-        <div className="flex flex-col gap-4 border-t border-white/5 px-6 py-5 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-white/40">
+        <div className={`flex flex-col gap-4 border-t px-6 py-5 md:flex-row md:items-center md:justify-between ${borderToneClass}`}>
+          <p className={`text-sm ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
             Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
             {filteredUsers.length} users
           </p>
@@ -652,7 +676,7 @@ export function PermissionUsersTable({
                 type="button"
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                 disabled={safeCurrentPage === 1}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#171717] px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                className={`inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${paginatorSurface}`}
               >
                 Previous
               </button>
@@ -670,10 +694,10 @@ export function PermissionUsersTable({
                     key={item}
                     type="button"
                     onClick={() => setCurrentPage(item)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold transition ${
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-semibold transition ${
                       safeCurrentPage === item
-                        ? "bg-[#E5D5B8] text-[#111111]"
-                        : "border border-white/10 bg-[#171717] text-white/60 hover:bg-white/[0.06] hover:text-white"
+                        ? "border-[#E5D5B8] bg-[#E5D5B8] text-[#111111]"
+                        : paginatorSurface
                     }`}
                   >
                     {item}
@@ -685,7 +709,7 @@ export function PermissionUsersTable({
                 type="button"
                 onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                 disabled={safeCurrentPage === totalPages}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-[#171717] px-4 text-sm font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                className={`inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${paginatorSurface}`}
               >
                 Next
               </button>
@@ -705,18 +729,24 @@ export function PermissionUsersTable({
       />
     ) : null}
       {historyUser ? (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setHistoryUser(null)}>
+        <div className={`fixed inset-0 z-50 ${isDark ? "bg-black/60 backdrop-blur-sm" : "bg-black/30 backdrop-blur-[2px]"}`} onClick={() => setHistoryUser(null)}>
           <aside
-            className="ml-auto flex h-full w-full max-w-full md:max-w-[50%] flex-col border-l border-white/[0.07] bg-[#0d0d0d] text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
+            className={`ml-auto flex h-full w-full max-w-full md:max-w-[50%] flex-col border-l shadow-[0_24px_80px_rgba(0,0,0,0.65)] ${
+              isDark
+                ? "border-white/[0.07] bg-[#0d0d0d] text-white"
+                : "border-[#E3E3E3] bg-white text-[#323232]"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-[22px] pb-5 pt-[22px] border-b border-white/[0.08]">
+            <div className={`flex items-center justify-between px-[22px] pb-5 pt-[22px] border-b ${isDark ? "border-white/[0.08]" : "border-[#E3E3E3]"}`}>
               <h2 className="text-[19px] font-bold tracking-[-0.3px]">Archive Users History</h2>
               <button
                 type="button"
                 onClick={() => setHistoryUser(null)}
-                className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-white/[0.09] text-white/55 transition hover:bg-white/15 hover:text-white"
+                className={`flex h-[38px] w-[38px] items-center justify-center rounded-full transition ${
+                  isDark ? "bg-white/[0.09] text-white/55 hover:bg-white/15 hover:text-white" : "bg-[#F0F0F0] text-[#32323299] hover:bg-[#E8E8E8] hover:text-[#101010]"
+                }`}
                 aria-label="Close"
               >
                 <X size={14} strokeWidth={2} />
@@ -724,7 +754,7 @@ export function PermissionUsersTable({
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-3.5 flex flex-col gap-2.5">
+            <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3.5">
               {selectedUserHistoryGroups.length > 0 ? (
                 selectedUserHistoryGroups.map(({ deleted, restored }) => {
                   const deletedTime = formatDateParts(deleted.created_at || "");
@@ -734,7 +764,7 @@ export function PermissionUsersTable({
                   const restoredBy = restored?.performed_by_name || "Admin";
 
                   return (
-                    <div key={deleted.history_id} className="relative rounded-[14px] border border-white/[0.07] bg-[#1a1a1a] p-4">
+                    <div key={deleted.history_id} className={`relative rounded-[14px] border p-4 ${isDark ? "border-white/[0.07] bg-[#1a1a1a]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
                       <div className="relative z-10 flex items-start gap-[13px]">
 
                         {/* Left col: avatar */}
@@ -749,11 +779,11 @@ export function PermissionUsersTable({
 
                         {/* Right col: text + restore card */}
                         <div className="relative z-10 flex-1 min-w-0 pt-px">
-                          <p className="text-[13.5px] font-medium leading-[1.5] text-white/90">
+                          <p className={`text-[13.5px] font-medium leading-[1.5] ${isDark ? "text-white/90" : "text-[#101010]"}`}>
                             {deleted.userName} was deleted by {deletedBy}
                             <span className="text-[#C9A96E]">{deletedRole}</span>
                           </p>
-                          <p className="mt-1 text-[11.5px] text-white/32">
+                          <p className={`mt-1 text-[11.5px] ${isDark ? "text-white/32" : "text-[#32323266]"}`}>
                             {deletedTime.date} <span className="mx-1 opacity-50">•</span> {deletedTime.time || "N/A"}
                           </p>
 
@@ -777,17 +807,18 @@ export function PermissionUsersTable({
                                 />
                               </svg>
 
-                                <div className="relative z-10 ml-[32px] flex items-center gap-2.5 rounded-[10px] border border-white/[0.07] bg-[#131313] px-3 py-2.5">                          <div className="h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[8px] bg-white/[0.08]">
+                                <div className={`relative z-10 ml-[32px] flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 ${isDark ? "border-white/[0.07] bg-[#131313]" : "border-[#E3E3E3] bg-white"}`}>
+                                  <div className={`h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[8px] ${isDark ? "bg-white/[0.08]" : "bg-black/[0.04]"}`}>
                                   {restored.avatarUrl
                                     ? <img src={restored.avatarUrl} alt={restoredBy} className="h-full w-full object-cover" />
-                                    : <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-white/50">{restoredBy.slice(0, 2).toUpperCase()}</div>
+                                    : <div className={`flex h-full w-full items-center justify-center text-[10px] font-bold ${isDark ? "text-white/50" : "text-[#32323280]"}`}>{restoredBy.slice(0, 2).toUpperCase()}</div>
                                   }
                                 </div>
                                 <div>
-                                  <p className="text-[11.5px] font-medium text-white/80">
+                                  <p className={`text-[11.5px] font-medium ${isDark ? "text-white/80" : "text-[#101010]"}`}>
                                     {restored.userName} was restored by {restoredBy}
                                   </p>
-                                  <p className="mt-0.5 text-[10.5px] text-white/28">
+                                  <p className={`mt-0.5 text-[10.5px] ${isDark ? "text-white/28" : "text-[#32323266]"}`}>
                                     {restoredTime.date} <span className="mx-[3px] opacity-40">•</span> {restoredTime.time || "N/A"}
                                   </p>
                                 </div>
@@ -801,10 +832,10 @@ export function PermissionUsersTable({
                   );
                 })
               ) : (
-                <div className="flex h-full flex-col items-center justify-center rounded-lg border border-white/10 bg-white/[0.02] px-6 text-center">
+                <div className={`flex h-full flex-col items-center justify-center rounded-lg border px-6 text-center ${isDark ? "border-[#333] bg-white/[0.02]" : "border-[#E3E3E3] bg-white"}`}>
                   <History size={28} className="text-[#C9A96E]" />
-                  <p className="mt-3 text-sm font-semibold text-white">No archive history found</p>
-                  <p className="mt-1 text-xs text-white/40">This user has not been deleted or restored yet.</p>
+                  <p className={`mt-3 text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>No archive history found</p>
+                  <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-[#32323266]"}`}>This user has not been deleted or restored yet.</p>
                 </div>
               )}
             </div>
