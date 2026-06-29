@@ -25,115 +25,13 @@ import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import {
   fileManagerApi,
-  getDisplayInitials,
   isCommonEventWorkspaceId,
-  isVisibleToNonAdminByVisibleUntil,
   isRecentWithinHours,
   mapExternalWorkspaceToFolderCard,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
-import { GetUpcomingShoots, getAcceptedShoots, getPendingProjects } from "@/lib/api";
 import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
-
-type CreatorAssignmentStatus = "Pending" | "Confirmed" | "Completed" | "Rejected";
-
-interface CreatorAssignedProject {
-  projectId: string;
-  title: string;
-  status: CreatorAssignmentStatus;
-  updatedAt?: string;
-  createdAt?: string;
-}
-
-const getNestedRecord = (value: unknown, key: string): Record<string, unknown> | null => {
-  if (!value || typeof value !== "object") return null;
-  const child = (value as Record<string, unknown>)[key];
-  return child && typeof child === "object" ? (child as Record<string, unknown>) : null;
-};
-
-const getStringValue = (value: unknown, keys: string[]) => {
-  if (!value || typeof value !== "object") return "";
-  const record = value as Record<string, unknown>;
-  for (const key of keys) {
-    const raw = record[key];
-    if (raw !== undefined && raw !== null && String(raw).trim()) {
-      return String(raw).trim();
-    }
-  }
-  return "";
-};
-
-const getAssignedProjectId = (item: unknown) => {
-  const project = getNestedRecord(item, "project");
-  return getStringValue(item, ["project_id", "id", "stream_project_booking_id", "booking_id"]) ||
-    getStringValue(project, ["stream_project_booking_id", "project_id", "id", "booking_id"]);
-};
-
-const getAssignedProjectTitle = (item: unknown, projectId: string) => {
-  const project = getNestedRecord(item, "project");
-  return getStringValue(item, ["project_name", "title", "name", "shoot_name"]) ||
-    getStringValue(project, ["project_name", "title", "name", "shoot_name"]) ||
-    `Project #${projectId}`;
-};
-
-const getAssignedProjectDate = (item: unknown) => {
-  const project = getNestedRecord(item, "project");
-  return getStringValue(item, ["updated_at", "updatedAt", "event_date", "shoot_date", "created_at", "createdAt"]) ||
-    getStringValue(project, ["updated_at", "updatedAt", "event_date", "shoot_date", "created_at", "createdAt"]);
-};
-
-const normalizeFolderToken = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 48);
-
-const buildAssignedWorkspaceFolderName = (assignment: CreatorAssignedProject) =>
-  `${normalizeFolderToken(assignment.title) || "project"}_#${assignment.projectId}`;
-
-const mapAssignedProjectToFolderCard = (
-  assignment: CreatorAssignedProject,
-  basePath: string
-): UiFolderItem => ({
-  id: assignment.projectId,
-  title: buildAssignedWorkspaceFolderName(assignment),
-  fileCount: 0,
-  category: `${assignment.status} Assignment`,
-  isLinked: true,
-  lastOpened: assignment.updatedAt || assignment.createdAt ? "recently" : "not opened yet",
-  userInitials: getDisplayInitials(assignment.title),
-  href: `${basePath}/${assignment.projectId}`,
-  updatedAtRaw: assignment.updatedAt || assignment.createdAt,
-});
-
-const appendAssignments = (
-  target: Map<string, CreatorAssignedProject>,
-  items: unknown,
-  status: CreatorAssignmentStatus
-) => {
-  if (!Array.isArray(items)) return;
-  items.forEach((item) => {
-    const projectId = getAssignedProjectId(item);
-    if (!projectId || target.has(projectId)) return;
-    target.set(projectId, {
-      projectId,
-      title: getAssignedProjectTitle(item, projectId),
-      status,
-      updatedAt: getAssignedProjectDate(item),
-    });
-  });
-};
-
-const getApiArray = (response: unknown) => {
-  if (!response || typeof response !== "object") return [];
-  const record = response as Record<string, unknown>;
-  if (Array.isArray(record.data)) return record.data;
-  const data = record.data && typeof record.data === "object" ? (record.data as Record<string, unknown>) : null;
-  if (data && Array.isArray(data.data)) return data.data;
-  return [];
-};
 
 export default function CreatorFileManagerPage() {
   const router = useRouter();
@@ -158,7 +56,6 @@ export default function CreatorFileManagerPage() {
     label?: string;
   } | null>(null);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
-  const [assignedProjects, setAssignedProjects] = useState<Map<string, CreatorAssignedProject>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,55 +72,12 @@ export default function CreatorFileManagerPage() {
     try {
       setLoading(true);
       setError(null);
-      const storedUser = typeof window !== "undefined" ? localStorage.getItem("revure_user") : null;
-      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const crewMemberId = Number(parsedUser?.crew_member_id || 0);
-
-      if (!crewMemberId) {
-        setProjects([]);
-        setError("Creator profile not found.");
-        return;
-      }
-
-      const [data, pendingRes, upcomingRes, acceptedRes] = await Promise.all([
-        fileManagerApi.listExternalWorkspaces(),
-        getPendingProjects({ crew_member_id: crewMemberId }),
-        GetUpcomingShoots({ crew_member_id: crewMemberId }),
-        getAcceptedShoots({ crew_member_id: crewMemberId }),
-      ]);
-
-      const assignmentMap = new Map<string, CreatorAssignedProject>();
-      appendAssignments(assignmentMap, getApiArray(pendingRes), "Pending");
-      appendAssignments(assignmentMap, getApiArray(upcomingRes), "Confirmed");
-      appendAssignments(assignmentMap, getApiArray(acceptedRes), "Confirmed");
-      setAssignedProjects(assignmentMap);
-
-      const projectWorkspaces = data.filter(
-        (workspace) => {
-          const isCommonEventWorkspace = isCommonEventWorkspaceId(workspace.externalId);
-
-          if (isCommonEventWorkspace) {
-            return isVisibleToNonAdminByVisibleUntil(workspace.visibleUntil);
-          }
-
-          return assignmentMap.has(String(workspace.externalId));
-        }
-      );
-
-      const workspaceIds = new Set(projectWorkspaces.map((workspace) => String(workspace.externalId)));
-      const missingAssignedFolders = Array.from(assignmentMap.values())
-        .filter((assignment) => !workspaceIds.has(assignment.projectId))
-        .map((assignment) =>
-          mapAssignedProjectToFolderCard(assignment, "/creator/dashboard/file-manager")
-        );
+      const data = await fileManagerApi.listExternalWorkspaces();
 
       setProjects(
-        [
-          ...projectWorkspaces.map((workspace) =>
-            mapExternalWorkspaceToFolderCard(workspace, "/creator/dashboard/file-manager")
-          ),
-          ...missingAssignedFolders,
-        ]
+        data.map((workspace) =>
+          mapExternalWorkspaceToFolderCard(workspace, "/creator/dashboard/file-manager")
+        )
       );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load file manager projects");
@@ -303,12 +157,9 @@ export default function CreatorFileManagerPage() {
     const projectId = String(folder.id || "");
     if (folder.resourcePath || isCommonEventWorkspaceId(projectId)) return projectId;
 
-    const assignment = assignedProjects.get(projectId);
-    if (!assignment) return projectId;
-
     const created = await fileManagerApi.createExternalWorkspace(
       projectId,
-      buildAssignedWorkspaceFolderName(assignment)
+      folder.title || `project_#${projectId}`
     );
     if (!created?.data?.workspace?.externalId) {
       throw new Error("Failed to create file manager workspace");
