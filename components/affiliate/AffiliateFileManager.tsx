@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Cookies from "js-cookie";
 import {
   ArrowLeft,
   Camera,
@@ -31,12 +30,10 @@ import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
-import { affiliateApi } from "@/lib/api";
 import {
   fileManagerApi,
   inferWorkspaceCategory,
   isCommonEventWorkspaceId,
-  isVisibleToNonAdminByVisibleUntil,
   isRecentWithinHours,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -83,11 +80,6 @@ interface FaceMatchItem {
   url?: string;
 }
 
-interface ProjectLite {
-  project_name?: string;
-  stream_project_booking_id?: string | number;
-  booking_id?: string | number;
-}
 const FILES_PAGE_SIZE = 20;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -181,58 +173,22 @@ export default function AffiliateFileManager() {
   const { isDark } = useResolvedTheme()
 
   const loadRoot = async () => {
-    const token = Cookies.get("revure_token");
-    if (!token) {
-      setError("Please log in to view your files.");
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
-      const [shootsResponse, externalWorkspaces] = await Promise.all([
-        affiliateApi.getMyShoots(token, { range: "all" }),
-        fileManagerApi.listExternalWorkspaces(),
-      ]);
-
-      const projects = Array.isArray(shootsResponse?.data?.projects)
-        ? shootsResponse.data.projects
-        : [];
-      const projectMap = new Map<string, ProjectLite>();
-
-      projects.forEach((item: unknown) => {
-        const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-        const nestedProject =
-          row.project && typeof row.project === "object"
-            ? (row.project as ProjectLite)
-            : null;
-        const project = nestedProject || (row as ProjectLite);
-        const bookingId = String(
-          project?.stream_project_booking_id || project?.booking_id || ""
-        );
-        if (bookingId) {
-          projectMap.set(bookingId, project);
-        }
-      });
+      const externalWorkspaces = await fileManagerApi.listExternalWorkspaces();
 
       const mapped = externalWorkspaces
-        .filter((workspace) =>
-          (isCommonEventWorkspaceId(workspace.externalId) &&
-            isVisibleToNonAdminByVisibleUntil(workspace.visibleUntil)) ||
-          projectMap.has(String(workspace.externalId))
-        )
         .map((workspace) => {
-          const project = projectMap.get(String(workspace.externalId));
           return {
             externalId: String(workspace.externalId),
-            title: workspace.folderName || project?.project_name || "Common Event",
+            title: workspace.folderName || "Common Event",
             fileCount: Number(workspace.fileCount || 0),
             lastOpened: workspace.updatedAt || workspace.createdAt || "",
-            userInitials: getInitials(workspace.folderName || project?.project_name),
+            userInitials: getInitials(workspace.folderName),
             category: inferWorkspaceCategory(
-              workspace.folderName || project?.project_name
+              workspace.folderName
             ),
             updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
             visibleUntil: workspace.visibleUntil || null,
