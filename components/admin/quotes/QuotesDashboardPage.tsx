@@ -1920,8 +1920,8 @@ export default function QuotesDashboardPage({
             </div>
 
             {/* Table Section */}
-            <div className={`mb-5 lg:mb-20 overflow-hidden rounded-2xl md:mb-0 ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"}`}>
-              <table className="w-full text-left border-collapse">
+             <div className={`mb-5 lg:mb-20 overflow-x-auto overflow-y-hidden rounded-2xl md:mb-0 [-webkit-overflow-scrolling:touch] ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"}`}>
+              <table className="min-w-full text-left border-collapse">
                 <thead>
                   {/* Desktop Headers */}
                   <tr
@@ -1963,9 +1963,9 @@ export default function QuotesDashboardPage({
                             className={`relative group cursor-pointer rounded-b-lg border-b transition-colors ${isDark ? "border-[#3D3D3D]/50 hover:bg-white/5" : "border-[#E3E3E3] hover:bg-black/5"} ${isExpanded ? (isDark ? "bg-[#202020] border-none" : "bg-[#F9F9F9] border-none") : ""}`}
                           >
                               <td className="px-4 py-4 md:px-6">
-                              <Link
+                             <Link
                                 href={`${detailBaseHref}/${quote.id}`}
-                                className="absolute inset-0 z-0"
+                                className="absolute inset-0 z-0 hidden md:block"
                                 aria-label={`Open quote ${quote.quoteNumber}`}
                                 prefetch={false}
                               />
