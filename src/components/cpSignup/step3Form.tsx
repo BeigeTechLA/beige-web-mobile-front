@@ -152,19 +152,19 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
 
       pushToDataLayer("sign_up", {
         method: "email", // Official standard parameter
-        custom_user_id: data.crew_member_id,
+        user_id: data.crew_member_id,
         user_type: "Creative Partner",
         page_name: "Creative Partner Signup Page: Step 3",
         location_in_website: "creative_partner_signup_step3",
         duration_on_page: performance.now() / 1000,
         email: data.email,
         phone: data.phone || null,
-        cp_signup_form: {
-          social_professional_link: JSON.stringify(socialLinksPayload),
-          work_upload: JSON.stringify(workMetadata),
-          certifications: data?.certifications.length > 0 ? true : false,
-          documents: (resumeFile || Array.isArray(portfolio)) ? true : false
-        }
+        // cp_signup_form: {
+        //   social_professional_link: JSON.stringify(socialLinksPayload),
+        //   work_upload: JSON.stringify(workMetadata),
+        //   certifications: data?.certifications.length > 0 ? true : false,
+        //   documents: (resumeFile || Array.isArray(portfolio)) ? true : false
+        // }
       });
       // ---------------------------
 

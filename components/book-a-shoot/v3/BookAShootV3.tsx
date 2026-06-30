@@ -232,9 +232,17 @@ export const BookAShootV3 = () => {
           edits_needed: formData.editsNeeded
         };
 
+        let combinedEditTypes = "none";
         if (formData.editsNeeded) {
           formFields.photo_edit_types = formData.photoEditTypes.join(", ");
           formFields.video_edit_types = formData.videoEditTypes.join(", ");
+
+          const edits = [
+            ...(formData.photoEditTypes || []),
+            ...(formData.videoEditTypes || [])
+          ].filter(Boolean); // Remove any empty/falsy values
+
+          combinedEditTypes = edits.length > 0 ? edits.join(", ") : "none";
         }
 
         // add GA event on click of "Continue" in the first step
@@ -247,9 +255,30 @@ export const BookAShootV3 = () => {
           user_id: user?.id || "Guest",
           user_type: userTypeName || "Guest",
           booking_id: result?.data?.booking_id,
-          booking_form_fields: formFields,
           email: formData.email,
         });
+
+        pushToDataLayer("service_details_submitted_step1", {
+          type: "Action Tracking",
+          page_name: "Book-a-shoot Page",
+          location_in_website: "book_a_shoot_step1",
+          duration_on_page: performance.now() / 1000,
+          phone: user?.phone_number,
+          user_id: user?.id || "Guest",
+          user_type: userTypeName || "Guest",
+          booking_id: result?.data?.booking_id,
+          email: formData.email,
+
+          // Flat fields passed individually for seamless GA4 tracking:
+          form_content_type: formFields.content_type,
+          form_shoot_type: formFields.shoot_type,
+          form_shoot_date_time: formFields.shoot_date_time,
+          form_edits_needed: formFields.edits_needed ? "true" : "false", // Convert boolean to a clear string
+          form_edit_types: combinedEditTypes,
+          form_booking_type: formData.bookingType,
+        });
+
+        console.log("Generate_lead pushed to DL");
 
         setLeadTracked(true);
       } catch (error) {
@@ -280,12 +309,14 @@ export const BookAShootV3 = () => {
         page_name: "Book-a-shoot Page",
         location_in_website: `book_a_shoot_step${crewMatchingStep}`,
         duration_on_page: performance.now() / 1000,
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : formData.email,
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.user_type_id !== undefined
+          ? USER_TYPE[user.user_type_id]
+          : "Guest",
         email: isAuthenticated ? user?.email : "Unknown",
         phone: isAuthenticated ? user?.phone_number : "Unknown",
         booking_id: formData?.bookingId,
-        booking_form_fields: formFields
+        // booking_form_fields: formFields
       });
 
       // Step 3 -> Loading -> Crew Selection
@@ -610,7 +641,7 @@ export const BookAShootV3 = () => {
       //   page_name: "Book-a-shoot Page",
       //   location_in_website: "book_a_shoot_review_confirm",
       //   user_id: isAuthenticated ? user?.id : "Unknown",
-      //   user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      //   user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",,
       //   email: isAuthenticated ? user?.email : formData.email,
       //   phone: isAuthenticated ? user?.phone_number : formData.phone,
       //   duration_on_page: performance.now() / 1000,
@@ -626,14 +657,16 @@ export const BookAShootV3 = () => {
         currency: "USD",
         value: savedQuoteTotal || 0,
 
-        // Context updates matching where the user is standing
         page_name: "Book-a-shoot Page",
         location_in_website: "book_a_shoot_review_confirm_btn",
 
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
-        booking_id: submissionResult?.booking_id || draftBookingId,
+        email: isAuthenticated ? user?.email : formData.email,
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+        full_name: formData.fullName,
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
 
+        booking_id: submissionResult?.booking_id || draftBookingId,
         items: [{
           item_name: finalBookingData?.order_name || "Shoot Booking",
           price: savedQuoteTotal || 0,

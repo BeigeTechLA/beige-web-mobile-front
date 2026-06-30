@@ -966,8 +966,12 @@ export default function QuotePreviewPageShell({
       value: quote?.total || 0,
       page_name: "Preview Quotes Page",
       location_in_website: "preview_quotes_continue_to_payment_btn",
+      email: quote?.client_email || "Unknown",
       user_id: quote?.client_user_id || "Unknown",
       user_type: "Client",
+      full_name: quote?.client_name || "Client",
+      phone: quote?.client_phone || "Unknown",
+
       booking_id: bookingId,
       items: [{
         item_name: "Shoot Booking",
