@@ -181,14 +181,24 @@ export default function MeetingsStructure({
                   >
                     {/* COLUMN 1: Meeting */}
                     <td className={`p-5 text-base border-t ${borderClass}`}>
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <TruncatedMeetingTitle
-                          title={meeting.meeting_title || meeting.order?.name || "Meeting"}
-                          isDark={isDark}
-                        />
+                      <div className="flex flex-col min-w-0">
+                        {(meeting.meeting_title || meeting.order?.name || "Meeting")
+                          .split(" - ")
+                          .reverse()
+                          .map((part, i) => (
+                            <div 
+                              key={i} 
+                              className={i === 1 ? "scale-95 origin-left" : ""}
+                            >
+                              <TruncatedMeetingTitle
+                                title={part.trim()}
+                                isDark={true}
+                              />
+                            </div>
+                          ))}
                         {meeting.meeting_type && (
-                          <p className={`text-sm capitalize font-semibold ${isDark ? "text-white/45" : "text-gray-500"}`}>
-                            Type: {meeting.meeting_type.split("_").join(" ")}
+                          <p className={`text-sm capitalize font-semibold mt-1 ${isDark ? "text-white/45" : "text-gray-500"}`}>
+                            Stage: {meeting.meeting_type.split("_").join(" ")}
                           </p>
                         )}
                         {/* {meeting.description && (
@@ -380,11 +390,21 @@ function MobileMeetingRow({
             }`}>
             <ChevronDown size={16} />
           </div>
-          <div className="min-w-0">
-            <TruncatedMeetingTitle
-              title={meeting.meeting_title || meeting.order?.name || "Meeting"}
-              isDark={isDark}
-            />
+          <div className="flex flex-col min-w-0">
+            {(meeting.meeting_title || meeting.order?.name || "Meeting")
+              .split(" - ")
+              .reverse()
+              .map((part, i) => (
+                <div 
+                  key={i} 
+                  className={i === 1 ? "scale-95 origin-left" : ""}
+                >
+                  <TruncatedMeetingTitle
+                    title={part.trim()}
+                    isDark={true}
+                  />
+                </div>
+              ))}
           </div>
         </div>
         <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${getMeetingStatusClasses(effectiveStatus, isDark)}`}>
@@ -409,7 +429,7 @@ function MobileMeetingRow({
                 {meeting.meeting_type && (
                   <div>
                     <p className={`text-xs uppercase font-semibold tracking-wider ${isDark ? "text-white/45" : "text-gray-400"}`}>
-                      Meeting Type
+                      Meeting Stage
                     </p>
                     <p className={`text-sm mt-0.5 capitalize font-medium ${isDark ? "text-white/80" : "text-gray-700"}`}>
                       {meeting.meeting_type.split("_").join(" ")}

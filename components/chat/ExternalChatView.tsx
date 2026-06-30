@@ -243,6 +243,42 @@ const getRoomParticipantSummary = (room?: ExternalChatRoom | null, currentUserId
   return getParticipantSummary(dedupedParticipants, currentUserId);
 };
 
+const toTitleCaseWord = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return "";
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+};
+
+const getFirstName = (value?: string | null) =>
+  String(value || "")
+    .replace(/#/g, " ")
+    .split(/[\s_]+/)
+    .map((part) => part.trim())
+    .find(Boolean) || "";
+
+const getRoomDisplayName = (room?: ExternalChatRoom | null) => {
+  if (!room) return "Messages";
+
+  const roomName = String(room.name || "").trim();
+  const isDirectRoomName = /^direct[\s_]+/i.test(roomName);
+  const directName = roomName.replace(/^direct[\s_]+/i, "").trim();
+  if (isDirectRoomName && directName) return directName;
+
+  const hashId = String(roomName.match(/#\s*([A-Za-z0-9-]+)/)?.[1] || "").trim();
+  const roomNameWithoutId = roomName.replace(/#\s*[A-Za-z0-9-]+/g, " ");
+  const nameSegments = roomNameWithoutId
+    .split("_")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const clientNameSegment = nameSegments[nameSegments.length - 1] || roomNameWithoutId;
+  const firstName = toTitleCaseWord(getFirstName(clientNameSegment));
+
+  if (firstName && hashId) return `${firstName}_#${hashId.replace(/^#/, "")}`;
+  if (firstName) return firstName;
+  if (roomName) return roomName;
+  return "Messages";
+};
+
 const getRoomPreviewText = (room?: ExternalChatRoom | null) => {
   const text = room?.last_message?.message?.trim();
   if (text) return text;
@@ -662,7 +698,7 @@ export default function ExternalChatView({
     if (!search.trim()) return sortedRooms;
     const query = search.trim().toLowerCase();
     return sortedRooms.filter((room) =>
-      [room.name, room.chat_id, room.last_message?.message]
+      [getRoomDisplayName(room), room.name, room.chat_id, room.last_message?.message]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     );
@@ -1554,7 +1590,7 @@ export default function ExternalChatView({
     appendEmojiToDraft(emojiData.emoji);
   };
 
-  const selectedRoomTitle = selectedRoom?.name || "Messages";
+  const selectedRoomTitle = selectedRoom ? getRoomDisplayName(selectedRoom) : "Messages";
   const latestDate = visibleMessages[visibleMessages.length - 1]?.createdAt || selectedRoom?.updatedAt || selectedRoom?.createdAt;
   const isDirectRoomLoading = shouldUseDirectRoom && loading;
 
@@ -1687,6 +1723,7 @@ export default function ExternalChatView({
                 ) : (
                   filteredRooms.map((room) => {
                     const roomId = getRoomId(room);
+                    const roomDisplayName = getRoomDisplayName(room);
                     const isSelected = roomId === getRoomId(selectedRoom);
                     const previewText = getRoomPreviewText(room);
                     const previewSender = getRoomPreviewSender(room, userId);
@@ -1707,7 +1744,7 @@ export default function ExternalChatView({
                       >
                         <div className="flex items-start gap-2 lg:gap-4">
                           <div className="relative flex h-11 w-11 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0] text-sm lg:text-lg font-semibold text-[#222]">
-                            {getInitials(room.name)}
+                            {getInitials(roomDisplayName)}
                             {roomUnreadCount > 0 ? (
                               <span className={`absolute bottom-0 right-0 flex h-7 min-w-7 items-center justify-center rounded-full border-2 px-1 text-xs font-semibold ${isDark ? "border-[#171717] bg-[#E5D5B8] text-black" : "border-white bg-black text-white"}`}>
                                 {Math.min(roomUnreadCount, 99)}
@@ -1718,7 +1755,7 @@ export default function ExternalChatView({
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className={`break-words pr-2 text-sm lg:text-base font-semibold leading-5 transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                                  {room.name || `Chat ${room.chat_id || ""}`}
+                                  {roomDisplayName}
                                 </p>
                                 <p className={`mt-2 truncate text-sm lg:text-base transition-colors ${roomUnreadCount > 0
                                   ? isDark ? "font-medium text-white/82" : "font-semibold text-black"
@@ -1727,9 +1764,9 @@ export default function ExternalChatView({
                                   {previewSender ? `${previewSender}: ` : ""}
                                   {previewText}
                                 </p>
-                                <p className={`mt-2 truncate text-xs transition-colors ${isDark ? "text-white/28" : "text-black/40"}`}>
+                                {/* <p className={`mt-2 truncate text-xs transition-colors ${isDark ? "text-white/28" : "text-black/40"}`}>
                                   {`${roomParticipantCount || 1} ${(roomParticipantCount || 1) === 1 ? "participant" : "participants"}`}
-                                </p>
+                                </p> */}
                               </div>
                               <div className={`flex shrink-0 flex-col items-end gap-2 pt-0.5 text-xs transition-colors ${isDark ? "text-white/32" : "text-black/40"}`}>
                                 <div className="flex items-center gap-1.5">
@@ -1747,13 +1784,13 @@ export default function ExternalChatView({
                                 ) : null}
                               </div>
                             </div>
-                            <div className={`mt-3 flex items-center justify-between text-xs transition-colors ${isDark ? "text-white/24" : "text-black/35"}`}>
+                            {/* <div className={`mt-3 flex items-center justify-between text-xs transition-colors ${isDark ? "text-white/24" : "text-black/35"}`}>
                               <span>#{room.chat_id || "room"}</span>
                               <span className="inline-flex items-center gap-1">
                                 {getStatusIcon(room.status)}
                                 {room.status || "active"}
                               </span>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       </button>
