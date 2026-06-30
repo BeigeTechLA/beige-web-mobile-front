@@ -398,6 +398,26 @@ export default function SalesLeadDetailsPage() {
   const booking = lead?.booking;
   const primaryQuote = booking?.primary_quote;
   const projectedQuote = lead?.projected_quote;
+  const leadRecord = lead as unknown as Record<string, unknown> | null;
+  const customQuoteRecord = lead?.custom_quote as unknown as Record<string, unknown> | null;
+  const leadPaymentSummary = leadRecord?.payment_summary;
+  const customQuotePaymentSummary = customQuoteRecord?.payment_summary;
+  const paymentSummary =
+    (leadPaymentSummary && typeof leadPaymentSummary === "object"
+      ? leadPaymentSummary as Record<string, unknown>
+      : null) ||
+    (customQuotePaymentSummary && typeof customQuotePaymentSummary === "object"
+      ? customQuotePaymentSummary as Record<string, unknown>
+      : null);
+  const paymentSummaryStatus = String(paymentSummary?.payment_status || "").trim().toLowerCase();
+  const paymentSummaryPaidAmount = Number(paymentSummary?.paid_amount ?? NaN);
+  const paymentSummaryDueAmount = Number(paymentSummary?.due_amount ?? NaN);
+  const paymentSummaryCreditUsedAmount = Number(paymentSummary?.credit_used_amount ?? NaN);
+  const hasAuthoritativePaymentSummary = Boolean(paymentSummary);
+  const isPaymentSummaryPaid =
+    hasAuthoritativePaymentSummary &&
+    (["paid", "no_payment_due", "completed", "success"].includes(paymentSummaryStatus) ||
+      (Number.isFinite(paymentSummaryDueAmount) && paymentSummaryDueAmount <= 0.009));
   const rawAdditionalPayment = lead?.custom_quote?.additional_payment;
   const normalizedLeadPaymentStatus = String(lead?.payment_status || "").trim().toLowerCase();
   const normalizedAdditionalPaymentStatus = String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase();
@@ -452,9 +472,10 @@ export default function SalesLeadDetailsPage() {
       return null;
     }
 
-    const leadSignalsPaid =
-      ["paid", "success", "completed"].includes(normalizedLeadPaymentStatus) ||
-      Boolean(booking?.payment_id || booking?.payment_completed_at);
+    const leadSignalsPaid = hasAuthoritativePaymentSummary
+      ? isPaymentSummaryPaid
+      : ["paid", "success", "completed"].includes(normalizedLeadPaymentStatus) ||
+        Boolean(booking?.payment_id || booking?.payment_completed_at);
     const isSettledAdditionalPayment =
       leadSignalsPaid &&
       additionalPaymentOutstandingAmount <= 0.009 &&
@@ -490,6 +511,8 @@ export default function SalesLeadDetailsPage() {
     additionalPaymentOutstandingAmount,
     booking?.payment_completed_at,
     booking?.payment_id,
+    hasAuthoritativePaymentSummary,
+    isPaymentSummaryPaid,
   ]);
 
   const isQuoteConvertedLead = useMemo(() => {
@@ -799,10 +822,12 @@ export default function SalesLeadDetailsPage() {
     normalizedRevisionPaymentStatus === "partially_paid";
   const isAmountPaid =
     !isRevisionPaymentPending &&
-    (["paid", "success", "completed"].includes(
-      String(lead?.payment_status || "").trim().toLowerCase()
-    ) ||
-      Boolean(booking?.payment_id || booking?.payment_completed_at));
+    (hasAuthoritativePaymentSummary
+      ? isPaymentSummaryPaid
+      : (["paid", "success", "completed"].includes(
+        String(lead?.payment_status || "").trim().toLowerCase()
+      ) ||
+        Boolean(booking?.payment_id || booking?.payment_completed_at)));
   const showCompletedPaymentMessage =
     isAmountPaid && !hasPendingAdditionalPayment;
 
@@ -834,7 +859,9 @@ export default function SalesLeadDetailsPage() {
   const discountAmount = isQuoteConvertedLead
     ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
     : Number(lead?.pricing_breakdown?.discount ?? 0);
-  const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
+  const creditApplied = Number.isFinite(paymentSummaryCreditUsedAmount)
+    ? paymentSummaryCreditUsedAmount
+    : Number(lead?.pricing_breakdown?.credit_applied || 0);
   const hasAdditionalRevisionAmount =
     Boolean(additionalPaymentDetails) &&
     Math.abs(Number(additionalPaymentDetails?.additionalAmount || 0)) > 0;
@@ -934,11 +961,15 @@ export default function SalesLeadDetailsPage() {
       (lead?.custom_quote ?? null) as any,
       {
         totalAmountOverride: resolvedTotal,
-        previouslyPaidOverride: Number(lead?.pricing_breakdown?.total_paid ?? 0) || undefined,
+        previouslyPaidOverride:
+          (Number.isFinite(paymentSummaryPaidAmount) ? paymentSummaryPaidAmount : Number(lead?.pricing_breakdown?.total_paid ?? 0)) ||
+          undefined,
         previousTotalOverride:
           Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
           undefined,
-        collectedAmountOverride: Number(lead?.collected_amount ?? 0) || undefined,
+        collectedAmountOverride:
+          (Number.isFinite(paymentSummaryPaidAmount) ? paymentSummaryPaidAmount : Number(lead?.collected_amount ?? 0)) ||
+          undefined,
         manualPaidOverride: hasFullPayment ? resolvedTotal : partialPaid,
       }
     );
@@ -958,9 +989,11 @@ export default function SalesLeadDetailsPage() {
     lead?.pricing_breakdown?.total_amount,
     lead?.pricing_breakdown?.total_paid,
     latestManualPaymentEntry?.data?.total_amount,
+    paymentSummaryPaidAmount,
     total,
   ]);
   const shouldForceFullyPaid =
+    !hasAuthoritativePaymentSummary &&
     isAmountPaid &&
     !hasPendingAdditionalPayment &&
     (Number(lead?.outstanding_amount ?? 0) <= 0.009 || Number(additionalPaymentDetails?.outstandingAmount ?? 0) <= 0.009);
@@ -972,6 +1005,22 @@ export default function SalesLeadDetailsPage() {
         hasFullPayment: true,
         isPartiallyPaid: false,
         canTakePayment: false,
+      }
+    : hasAuthoritativePaymentSummary
+      ? {
+        ...manualPaymentSummary,
+        paidAmount: Number.isFinite(paymentSummaryPaidAmount) ? paymentSummaryPaidAmount : manualPaymentSummary.paidAmount,
+        pendingAmount: Number.isFinite(paymentSummaryDueAmount) ? paymentSummaryDueAmount : manualPaymentSummary.pendingAmount,
+        hasFullPayment: isPaymentSummaryPaid,
+        isPartiallyPaid: paymentSummaryStatus === "partially_paid" || (
+          Number.isFinite(paymentSummaryPaidAmount) &&
+          paymentSummaryPaidAmount > 0 &&
+          Number.isFinite(paymentSummaryDueAmount) &&
+          paymentSummaryDueAmount > 0
+        ),
+        canTakePayment: Number.isFinite(paymentSummaryDueAmount)
+          ? paymentSummaryDueAmount > 0
+          : manualPaymentSummary.canTakePayment,
       }
     : manualPaymentSummary;
   const displayPaidAmount = Math.max(
