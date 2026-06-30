@@ -473,7 +473,7 @@ const resolveInvoiceViewUrl = (
   if (typeof window === "undefined") return null;
 
   if (documentKind === "invoice" && bookingIdValue) {
-    return buildBeigeInvoiceUrl(bookingIdValue, { cacheBust: true });
+    return buildBeigeInvoiceUrl(bookingIdValue, { manual: true, cacheBust: true });
   }
 
   if (!invoicePdf) {
