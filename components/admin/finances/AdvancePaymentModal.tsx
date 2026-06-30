@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,22 +14,32 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 export type AdvancePaymentModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  rowContext: ShootCPRow | null;
-  onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => void;
-  isSubmitting?: boolean;
+  //rowContext: ShootCPRow | null;
+  //onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => void;
+  //isSubmitting?: boolean;
 };
 
 export default function AdvancePaymentModal({
-  onSubmit,
-  isSubmitting = false,
+  //onSubmit,
+  //isSubmitting = false,
   isOpen,
   onClose,
-  rowContext
+  //rowContext
 }: AdvancePaymentModalProps) {
   const { isDark } = useResolvedTheme();
   const [notes, setNotes] = useState<string>("");
   const [advanceAmount, setAdvanceAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<Date | null>(null);
+
+  const compensation = 6250;
+  const [remaining, setRemaining] = useState(0);
+
+  useEffect(() => {
+    const value =
+      compensation - (Number(advanceAmount) || 0);
+
+    setRemaining(value);
+  }, [advanceAmount]);
 
   if (!isOpen) {
     return null;
@@ -44,14 +54,14 @@ export default function AdvancePaymentModal({
   };
 
   return (
-    <div className={`fixed inset-0 z-[140] flex items-center justify-center p-3 backdrop-blur-md lg:p-5 ${isDark ? "bg-black/82":"bg-white/82"}`}>
-      <div className={`relative max-h-[90vh] w-full lg:max-w-xl overflow-y-auto rounded-[16px] border transition-colors duration-200 ${isDark
+    <div className={`fixed inset-0 z-[140] flex items-center justify-center p-3 backdrop-blur-md lg:p-5 ${isDark ? "bg-black/82" : "bg-white/82"}`}>
+      <div className={`relative max-h-[90vh] w-full lg:max-w-xl overflow-y-auto rounded-2xl border transition-colors duration-200 ${isDark
         ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
         : "border-[#D7D7D7] bg-white text-black shadow-2xl"
         }`}>
 
         {/* Header Block Panel */}
-        <div className={`sticky top-0 inset-x-0 flex items-center z-20 justify-between border-b p-4 lg:p-7 ${isDark ? "border-white/40" : "border-[#D7D7D7]"}`}>
+        <div className={`sticky top-0 inset-x-0 flex items-center z-20 justify-between border-b p-4 lg:p-7 ${isDark ? "bg-black border-white/40" : "border-[#D7D7D7]"}`}>
 
           <h2 className={`pr-4 text-lg lg:text-3xl font-bold ${isDark ? "text-white" : "text-black"}`}>
             Advance Payment
@@ -72,12 +82,13 @@ export default function AdvancePaymentModal({
               Total Compensation for Ethan Cole
             </p>
             <p className="mt-1 text-[#E8D1AB] text-lg lg:text-2xl font-bold">
-              {formatCurrency(rowContext?.cpPayout || 6250)}
+              {/* {formatCurrency(rowContext?.cpPayout || 6250)} */}
+              {compensation}
             </p>
           </div>
 
           <div>
-            <div className={`rounded-2xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
+            <div className={`rounded-xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
               <div className="absolute -top-3 left-3 px-2 text-sm lg:text-base z-10">
                 <span className={`px-2 font-medium ${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"}`}>
                   New Payout Amount*
@@ -97,11 +108,11 @@ export default function AdvancePaymentModal({
             selectedDate={paymentDate}
             onDateChange={handleDateChange}
             width="w-full"
-            classnames={`!rounded-2xl h-14 lg:h-20 w-full resize-none px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white " : "text-black "}`}
+            classnames={`!rounded-xl h-14 lg:h-20 w-full resize-none px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white " : "text-black "}`}
             labelClasses={`${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"} text-sm lg:text-base z-10 px-1`}
           />
 
-          <div className={`rounded-2xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
+          <div className={`rounded-xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
             <div className="absolute -top-3 left-3 px-2 text-sm lg:text-base z-10">
               <span className={`px-2 font-medium ${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"}`}>
                 Notes
@@ -114,6 +125,23 @@ export default function AdvancePaymentModal({
               className={`min-h-[90px] w-full resize-none border-0 bg-transparent px-0 pt-4 text-sm lg:text-base outline-none lg:min-h-[160px] lg:text-base ${isDark ? "text-white placeholder:text-white/50" : "text-black placeholder:text-[#9F9FA9]"}`}
             />
           </div>
+
+          {advanceAmount != null && (
+            <div className="rounded-xl bg-[#2B2B2B] p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white">Advance Payment</span>
+                <span className="text-md font-semibold text-white">
+                  ${advanceAmount?.toLocaleString() || "0"}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-sm text-white">Remaining Balance</span>
+                <span className="text-md font-semibold text-[#10B981]">
+                  ${remaining.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -131,10 +159,10 @@ export default function AdvancePaymentModal({
           </Button>
           <Button
             type="button"
-            disabled={isSubmitting || !notes.trim()}
+            //disabled={isSubmitting || !notes.trim()}
             onClick={() => {
               console.log("Modification Submission Fired");
-              onSubmit({ reason: notes, advanceAmount: advanceAmount, paymentDate: paymentDate });
+              //onSubmit({ reason: notes, advanceAmount: advanceAmount, paymentDate: paymentDate });
               onClose();
             }}
             className="h-10 lg:h-12 w-full rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base"
