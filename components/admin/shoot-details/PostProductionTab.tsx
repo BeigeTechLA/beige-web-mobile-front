@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
@@ -9,7 +9,6 @@ import {
   FileSpreadsheet,
   FileText,
   FileVideo,
-  Folder,
   FolderSearch,
   Grid3X3,
   LayoutGrid,
@@ -85,7 +84,17 @@ const getFileMeta = (contentType?: string, title?: string) => {
   return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
 };
 
-export default function PostProductionTab({ projectId }: { projectId: string }) {
+type PostProductionTabProps = {
+  projectId: string;
+  onTimelineDetailsChange?: (details: { rawFilesUploaded: boolean }) => void;
+};
+
+const normalizeFolderTitle = (value: unknown) => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+type UiPostProductionFolder = ReturnType<typeof mapExternalFoldersToUi>[number];
+type UiPostProductionFile = ReturnType<typeof mapExternalFilesToUi>[number];
+
+export default function PostProductionTab({ projectId, onTimelineDetailsChange }: PostProductionTabProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -94,8 +103,8 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
   const viewMode = (searchParams.get("view") as "grid" | "list") || "grid";
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [folders, setFolders] = useState<any[]>([]);
-  const [files, setFiles] = useState<any[]>([]);
+  const [folders, setFolders] = useState<UiPostProductionFolder[]>([]);
+  const [files, setFiles] = useState<UiPostProductionFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
@@ -112,31 +121,36 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
     setIsOpen(false);
   };
 
-  const loadPostProduction = async () => {
+  const loadPostProduction = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await fileManagerApi.getExternalWorkspaceFiles(projectId, "post");
-      setFolders(
-        mapExternalFoldersToUi(
-          response?.folders || [],
-          (folder) =>
-            `/admin/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
-        )
+      const mappedFolders = mapExternalFoldersToUi(
+        response?.folders || [],
+        (folder) =>
+          `/admin/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
       );
+      setFolders(mappedFolders);
       setFiles(mapExternalFilesToUi(response?.files || []));
-    } catch (err: any) {
-      setError(err?.message || "Failed to load post-production folders");
+      onTimelineDetailsChange?.({
+        rawFilesUploaded: mappedFolders.some((folder) => {
+          const title = normalizeFolderTitle(folder.title || folder.rawName || folder.resourcePath);
+          return title.includes("rawfootage") && Number(folder.fileCount || 0) > 0;
+        }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load post-production folders");
     } finally {
       setLoading(false);
     }
-  };
+  }, [onTimelineDetailsChange, projectId]);
 
   useEffect(() => {
     if (projectId) {
       loadPostProduction();
     }
-  }, [projectId]);
+  }, [loadPostProduction, projectId]);
 
   useEffect(() => {
     const previewableFiles = files.filter(

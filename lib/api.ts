@@ -1882,6 +1882,21 @@ export const adminApi = {
     }
   },
 
+  getShootActivity: async (id: string | number) => {
+    try {
+      const response = await api.get(`admin/shoots/${id}/activity`);
+      return response.data;
+    } catch (error: unknown) {
+      const apiError = error as { response?: { data?: { message?: string } }; message?: string };
+      console.error('Get Shoot Activity Error:', apiError.response?.data || apiError.message);
+      return {
+        success: false,
+        data: null,
+        error: apiError.response?.data?.message || 'Failed to fetch shoot activity',
+      };
+    }
+  },
+
   getCrewMemberDetail: async (id: string) => {
     try {
       const response = await api.get(`admin/crew-member/${id}`);

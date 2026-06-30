@@ -14,16 +14,36 @@ import AffiliateMeetingOverviewChart from "./shoot-details/AffiliateMeetingOverv
 import AffiliateMessagesTab from "./shoot-details/AffiliateMessagesTab";
 
 import { affiliateApi, adminApi } from "@/lib/api";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 import { Button } from "@/src/components/landing/ui/button";
 import { Loader2, X, Eye } from "lucide-react";
 import Cookies from "js-cookie";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import {
+  getProjectTimelineDetails,
+  getTimelineDetailsFromPostProductionFiles,
+  mergeProjectTimelineDetails,
+} from "@/lib/utils/projectTimelineDetails";
+import type { PostProductionTimelineDetails, RevisionVersionTimelineDetails } from "@/lib/types";
 
 interface AffiliateShootDetailsProps {
   shootId: string;
   onBack?: () => void; // Added from Dev 2
 }
+
+type AffiliateProjectDetails = {
+  postProduction?: PostProductionTimelineDetails | null;
+  revisionVersions?: RevisionVersionTimelineDetails[] | null;
+  [key: string]: unknown;
+};
+
+type SkillOption = {
+  id?: string | number;
+  name?: string;
+  skill_name?: string;
+  title?: string;
+};
 
 export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShootDetailsProps) {
   const router = useRouter();
@@ -32,7 +52,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const activeTab = searchParams.get("tab") || "Overview";
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<AffiliateProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   // State to handle mobile timeline visibility
@@ -66,15 +86,28 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
         const skillsMap: Record<number, string> = {};
         if (skillsResponse && skillsResponse.data) {
           const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
+          skillsList.forEach((s: SkillOption) => {
             const name = s.name || s.skill_name || s.title;
-            if (s.id && name) skillsMap[s.id] = name;
+            if (s.id && name) skillsMap[Number(s.id)] = name;
           });
         }
 
         // --- MERGED CONFLICT AREA: Data Extraction ---
         const responseData = projectResponse?.data || null;
         const projectData = responseData?.project || responseData || projectResponse;
+        const bookingIdForFiles =
+          projectData?.booking_id || projectData?.stream_project_booking_id || shootId;
+        let fileTimelineDetails = getTimelineDetailsFromPostProductionFiles(null);
+        try {
+          const postFilesResponse = await fileManagerApi.getExternalWorkspaceFiles(String(bookingIdForFiles), "post");
+          fileTimelineDetails = getTimelineDetailsFromPostProductionFiles(postFilesResponse);
+        } catch (error) {
+          console.warn("Failed to derive timeline details from post-production files:", error);
+        }
+        const timelineDetails = mergeProjectTimelineDetails(
+          getProjectTimelineDetails(responseData, projectData, projectResponse),
+          fileTimelineDetails
+        );
 
         if (projectData) {
           let skillsText = "";
@@ -85,7 +118,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
                 (projectData.skills_needed.trim().startsWith('[') || projectData.skills_needed.trim().startsWith('{'))) {
                 try {
                   parsedIds = JSON.parse(projectData.skills_needed);
-                } catch (e) {
+                } catch {
                   parsedIds = projectData.skills_needed;
                 }
               }
@@ -107,6 +140,8 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
           setProject({
             ...(responseData || {}),
             ...projectData,
+            postProduction: timelineDetails.postProduction,
+            revisionVersions: timelineDetails.revisionVersions,
             skills_needed: skillsText || projectData.skills_needed || "N/A"
           });
         }
@@ -195,7 +230,11 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
       {/* Right Sidebar (Timeline) */}
       <div className="hidden lg:block">
-        <AffiliateProjectTimeline status={resolveTimelineStage(project)} />
+        <AffiliateProjectTimeline
+          status={resolveTimelineStage(project)}
+          postProduction={project?.postProduction}
+          revisionVersions={project?.revisionVersions}
+        />
       </div>
 
       {/* Mobile Timeline Overlay */}
@@ -213,7 +252,11 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
             </div>
 
             <div className="h-full overflow-y-auto">
-              <AffiliateProjectTimeline status={resolveTimelineStage(project)} />
+              <AffiliateProjectTimeline
+                status={resolveTimelineStage(project)}
+                postProduction={project?.postProduction}
+                revisionVersions={project?.revisionVersions}
+              />
             </div>
           </div>
         </div>

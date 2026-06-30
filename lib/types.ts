@@ -257,6 +257,27 @@ export interface BookingResponse {
   confirmation_number?: string;
 }
 
+export type PostProductionTimelineStatus = 'not_started' | 'in_progress' | 'completed';
+
+export interface PostProductionTimelineDetails {
+  rawFilesUploaded?: boolean | number | string;
+  raw_files_uploaded?: boolean | number | string;
+  rawFilesUploadedAt?: string | null;
+  raw_files_uploaded_at?: string | null;
+  editingStatus?: PostProductionTimelineStatus | null;
+  editing_status?: PostProductionTimelineStatus | null;
+}
+
+export interface RevisionVersionTimelineDetails {
+  versionNumber?: number | string;
+  version_number?: number | string;
+  version?: number | string;
+  currentVersion?: number | string;
+  current_version?: number | string;
+  uploadedAt?: string | null;
+  uploaded_at?: string | null;
+}
+
 // Waitlist Types
 export interface WaitlistData {
   name: string;

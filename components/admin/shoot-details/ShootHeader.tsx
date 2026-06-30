@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -60,6 +60,33 @@ type ShootHeaderProject = {
   [key: string]: unknown;
 };
 
+type ShootActivityClient = {
+  name?: string | null;
+  initials?: string | null;
+  avatar?: string | null;
+};
+
+type ShootActivityItem = {
+  id?: string | number;
+  type?: string | null;
+  message?: string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  actorAvatar?: string | null;
+  targetName?: string | null;
+  amount?: string | number | null;
+  createdAt?: string | null;
+};
+
+type ShootActivityData = {
+  client?: ShootActivityClient | null;
+  createdActivity?: {
+    message?: string | null;
+    createdAt?: string | null;
+  } | null;
+  activities?: ShootActivityItem[];
+};
+
 const parseAmount = (value: unknown): number => {
   const amount = Number(value);
   return Number.isFinite(amount) ? amount : 0;
@@ -85,6 +112,21 @@ const getAmount = (...values: unknown[]): number | undefined => {
 const formatCurrencyLike = (value: unknown): string => {
   const amount = getAmount(value) ?? 0;
   return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const formatActivityDate = (value?: string | null): string => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
@@ -190,6 +232,10 @@ export default function ShootHeader({
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isActivityOpen, setIsActivityOpen] = React.useState(false);
+  const [activityData, setActivityData] = React.useState<ShootActivityData | null>(null);
+  const [isActivityLoading, setIsActivityLoading] = React.useState(false);
+  const [activityError, setActivityError] = React.useState<string | null>(null);
   const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
@@ -351,6 +397,44 @@ export default function ShootHeader({
       isMounted = false;
     };
   }, [projectId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadShootActivity = async () => {
+      if (!isActivityOpen || !projectId) return;
+
+      setIsActivityLoading(true);
+      setActivityError(null);
+
+      try {
+        const response = await adminApi.getShootActivity(projectId);
+        if (!isMounted) return;
+
+        if (response?.success === false) {
+          setActivityData(null);
+          setActivityError(response?.error || "Failed to load activity");
+          return;
+        }
+
+        setActivityData(response?.data || null);
+      } catch (error) {
+        if (!isMounted) return;
+        setActivityData(null);
+        setActivityError(error instanceof Error ? error.message : "Failed to load activity");
+      } finally {
+        if (isMounted) {
+          setIsActivityLoading(false);
+        }
+      }
+    };
+
+    loadShootActivity();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isActivityOpen, projectId]);
   const projectDateText = getProjectDateText(project);
   const projectTimeText = getProjectScheduleTimeText(project);
   const scheduleTooltipText = getProjectScheduleTooltipText(project);
@@ -482,6 +566,15 @@ export default function ShootHeader({
 
   if (!mounted) return null;
 
+  const activityItems = activityData?.activities || [];
+  const activityClient = activityData?.client || null;
+  const createdActivity = activityData?.createdActivity || null;
+  const activityClientInitials = activityClient?.initials || getInitials(activityClient?.name || projectName);
+  const createdActivityMessage =
+    createdActivity?.message ||
+    `${activityClient?.name || projectName} Has Created a Shoot - Client`;
+  const createdActivityDate = formatActivityDate(createdActivity?.createdAt) || "Jan 13, 2026, 10:24 AM";
+
   return (
     <div data-active-tab={activeTab}>
       <button
@@ -548,20 +641,33 @@ export default function ShootHeader({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-3 mb-2">
-                  <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                    {projectName}
-                    {skillsText && skillsText !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({skillsText})</span>}
-                  </h1>
-                  <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
-                    {resolvedStatusLabel}
-                  </span>
-                  {convertedSalesQuoteId ? (
-                    <span className="border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534] text-xs font-semibold px-3 py-1 rounded-full">
-                      Converted to Booking
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                      {projectName}
+                      {skillsText && skillsText !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({skillsText})</span>}
+                    </h1>
+                    <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
+                      {resolvedStatusLabel}
                     </span>
-                  ) : null}
+                    {convertedSalesQuoteId ? (
+                      <span className="border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534] text-xs font-semibold px-3 py-1 rounded-full">
+                        Converted to Booking
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsActivityOpen(true)}
+                    className={`ml-auto inline-flex h-9 shrink-0 items-center justify-center rounded-full border px-5 text-xs font-semibold underline underline-offset-4 transition-colors ${isDark
+                      ? "border-white/20 bg-[#242424] text-white hover:bg-[#2F2F2F]"
+                      : "border-black/10 bg-white text-black hover:bg-zinc-50"
+                      }`}
+                  >
+                    View Activity
+                  </button>
                 </div>
                 <div className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
                   {renderDescription(descriptionText)}
@@ -670,6 +776,99 @@ export default function ShootHeader({
           </div>
         </div>
       </div>
+
+      {isActivityOpen ? (
+        <div className="fixed inset-0 z-[1000] bg-black/70">
+          <button
+            type="button"
+            aria-label="Close activity drawer"
+            className="absolute inset-0 cursor-default"
+            onClick={() => setIsActivityOpen(false)}
+          />
+          <aside className="fixed inset-y-0 right-0 h-dvh w-full max-w-[568px] overflow-y-auto border-l border-[#191919] bg-black shadow-[-18px_0_40px_rgba(0,0,0,0.45)]">
+            <div className="mx-[30px] flex h-[74px] items-center justify-between border-b border-[#3C3C3C]">
+              <h2 className="text-[20px] font-bold leading-none text-white">View Activity</h2>
+              <button
+                type="button"
+                onClick={() => setIsActivityOpen(false)}
+                className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#2D2A2A] text-white transition-colors hover:bg-[#3A3636]"
+                aria-label="Close activity drawer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-[31px] py-[23px]">
+              <div className="min-h-[573px] rounded-[8px] border border-[#2A2A2A] bg-[#1D1C1B] px-[22px] py-[22px]">
+                <div className="flex gap-[12px]">
+                  <div className="flex h-[45px] w-[45px] shrink-0 items-center justify-center rounded-[4px] bg-[#FFC3F0] text-[16px] font-medium text-black">
+                    {activityClientInitials}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="pt-[7px] text-[12px] font-semibold leading-none text-white">{createdActivityMessage}</p>
+                    <p className="mt-[8px] text-[11px] leading-none text-[#7C7C7C]">{createdActivityDate}</p>
+
+                    <div className="relative mt-[17px] space-y-[12px]">
+                      {!isActivityLoading && !activityError && activityItems.length > 0 ? (
+                        <span className="absolute -left-[35px] top-[-10px] bottom-[39px] w-px border-l border-[#3E3E3E]" />
+                      ) : null}
+                      {isActivityLoading ? (
+                        <div className="flex h-[160px] items-center justify-center text-[#777777]">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <span className="text-xs">Loading activity...</span>
+                        </div>
+                      ) : activityError ? (
+                        <div className="rounded-[4px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-200">
+                          {activityError}
+                        </div>
+                      ) : activityItems.length === 0 ? (
+                        <div className="rounded-[4px] border border-[#3A3A3A] bg-[#191919] px-4 py-4 text-xs text-[#777777]">
+                          No activity found.
+                        </div>
+                      ) : (
+                        activityItems.map((item, index) => {
+                          const avatar = item.actorAvatar || null;
+                          const itemInitials = getInitials(item.actorName || item.actorRole || "Activity");
+                          const itemDate = formatActivityDate(item.createdAt) || "Jan 26, 2026, 11:00 AM";
+
+                          return (
+                            <div key={item.id || `${item.message}-${index}`} className="relative pl-[36px]">
+                              <span className="absolute -left-[35px] top-[21px] h-[20px] w-[71px] rounded-bl-[8px] border-b border-l border-[#3E3E3E]" />
+                              <div className="min-h-[78px] rounded-[6px] border border-[#3A3A3A] bg-[#191919] px-[17px] py-[17px]">
+                                <div className="flex items-center gap-[13px]">
+                                  <div className="flex h-[39px] w-[39px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-[#E8F8DF] text-[11px] font-semibold text-black">
+                                    {avatar ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={avatar}
+                                        alt=""
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      itemInitials
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="whitespace-normal text-[12px] font-medium leading-[16px] text-white">{item.message || "Activity updated"}</p>
+                                    <p className="mt-[7px] text-[12px] leading-none text-[#777777]">
+                                      {itemDate}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </div>
   );
 }
+

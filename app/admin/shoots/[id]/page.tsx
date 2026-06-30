@@ -17,10 +17,16 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle, ExternalLink, Download } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import {
+  getProjectTimelineDetails,
+  getTimelineDetailsFromPostProductionFiles,
+  mergeProjectTimelineDetails,
+} from "@/lib/utils/projectTimelineDetails";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
@@ -39,6 +45,15 @@ type ProjectDetails = {
   project_name?: string;
   skills_needed?: string | Array<string | number> | null;
   status?: number;
+  postProduction?: {
+    rawFilesUploaded?: boolean;
+    rawFilesUploadedAt?: string | null;
+    editingStatus?: "not_started" | "in_progress" | "completed" | null;
+  } | null;
+  revisionVersions?: Array<{
+    versionNumber?: number | string;
+    uploadedAt?: string | null;
+  }>;
   description?: string;
   event_date?: string;
   start_time?: string;
@@ -224,6 +239,20 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     action?.();
   };
 
+  const handleTimelineDetailsFromPostProduction = useCallback((details: { rawFilesUploaded: boolean }) => {
+    setProject((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        postProduction: {
+          ...(current.postProduction || {}),
+          rawFilesUploaded: details.rawFilesUploaded,
+        },
+      };
+    });
+  }, []);
+
   const handlePreviewConvertedQuote = async () => {
     if (!convertedSalesQuoteId) {
       toast.error("Converted quote is not available");
@@ -364,9 +393,24 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           projectData?.assignedPostProductionMembers ??
           projectData?.assigned_post_production_members
         );
+        const bookingIdForFiles =
+          projectData?.booking_id || projectData?.stream_project_booking_id || id;
+        let fileTimelineDetails = getTimelineDetailsFromPostProductionFiles(null);
+        try {
+          const postFilesResponse = await fileManagerApi.getExternalWorkspaceFiles(String(bookingIdForFiles), "post");
+          fileTimelineDetails = getTimelineDetailsFromPostProductionFiles(postFilesResponse);
+        } catch (error) {
+          console.warn("Failed to derive timeline details from post-production files:", error);
+        }
+        const timelineDetails = mergeProjectTimelineDetails(
+          getProjectTimelineDetails(responseData, projectData, projectResponse),
+          fileTimelineDetails
+        );
 
         const nextProject: ProjectDetails = {
           ...projectData,
+          postProduction: timelineDetails.postProduction,
+          revisionVersions: timelineDetails.revisionVersions,
           payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
           payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
           pricing_breakdown: responseData?.pricing_breakdown || projectData?.pricing_breakdown || null,
@@ -702,7 +746,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
               {(activeTab === "Post_Production" || activeTab === "Post Production") && (
                 <div className="px-5">
-                  <PostProductionTab projectId={String(bookingId)} />
+                  <PostProductionTab
+                    projectId={String(bookingId)}
+                    onTimelineDetailsChange={handleTimelineDetailsFromPostProduction}
+                  />
                 </div>
               )}
 
@@ -755,7 +802,12 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
         {/* Right Sidebar (Timeline Desktop Only) */}
         <div className="hidden lg:block h-full overflow-y-auto no-scrollbar shrink-0">
-          <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
+          <ProjectTimeline
+            status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })}
+            projectId={String(bookingId)}
+            postProduction={project?.postProduction}
+            revisionVersions={project?.revisionVersions}
+          />
         </div>
 
         {/* Mobile Timeline Overlay Drawer */}
@@ -767,7 +819,12 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 <X size={20} />
               </button>
               <div className="h-full overflow-y-auto">
-                <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
+                <ProjectTimeline
+                  status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })}
+                  projectId={String(bookingId)}
+                  postProduction={project?.postProduction}
+                  revisionVersions={project?.revisionVersions}
+                />
               </div>
             </div>
           </div>

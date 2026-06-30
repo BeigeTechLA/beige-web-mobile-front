@@ -15,10 +15,16 @@ import MeetingOverviewChart from "@/components/production-manager/shoot-details/
 import MessagesTab from "@/components/production-manager/shoot-details/MessagesTab";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 import { CircleX, Loader2, X, SlidersHorizontal, Eye } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import {
+  getProjectTimelineDetails,
+  getTimelineDetailsFromPostProductionFiles,
+  mergeProjectTimelineDetails,
+} from "@/lib/utils/projectTimelineDetails";
 
 type SkillOption = {
   id?: string | number;
@@ -30,6 +36,15 @@ type SkillOption = {
 type ProjectDetails = {
   project_name?: string;
   skills_needed?: string | Array<string | number> | null;
+  postProduction?: {
+    rawFilesUploaded?: boolean;
+    rawFilesUploadedAt?: string | null;
+    editingStatus?: "not_started" | "in_progress" | "completed" | null;
+  } | null;
+  revisionVersions?: Array<{
+    versionNumber?: number | string;
+    uploadedAt?: string | null;
+  }>;
   payment_status?: string | null;
   payment_id?: string | number | null;
   [key: string]: unknown;
@@ -81,6 +96,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
         const responseData = projectResponse?.data || null;
         const projectData: ProjectDetails = responseData?.project || responseData || projectResponse;
+        const bookingIdForFiles =
+          projectData?.booking_id || projectData?.stream_project_booking_id || id;
+        let fileTimelineDetails = getTimelineDetailsFromPostProductionFiles(null);
+        try {
+          const postFilesResponse = await fileManagerApi.getExternalWorkspaceFiles(String(bookingIdForFiles), "post");
+          fileTimelineDetails = getTimelineDetailsFromPostProductionFiles(postFilesResponse);
+        } catch (error) {
+          console.warn("Failed to derive timeline details from post-production files:", error);
+        }
+        const timelineDetails = mergeProjectTimelineDetails(
+          getProjectTimelineDetails(responseData, projectData, projectResponse),
+          fileTimelineDetails
+        );
 
         if (projectData) {
           // 3. Map Skills Needed to Names
@@ -117,6 +145,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           setProject({
             ...projectData,
+            postProduction: timelineDetails.postProduction,
+            revisionVersions: timelineDetails.revisionVersions,
             payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
             payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             skills_needed: skillsText || projectData.skills_needed || "N/A"
@@ -241,7 +271,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
         {/* Right Sidebar (Timeline) */}
         < div className="hidden lg:block" >
-          <ProjectTimeline status={resolveTimelineStage(project)} />
+          <ProjectTimeline
+            status={resolveTimelineStage(project)}
+            postProduction={project?.postProduction}
+            revisionVersions={project?.revisionVersions}
+          />
         </div>
 
         {/* Mobile Timeline Overlay (Conditional) */}
@@ -260,7 +294,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               </div>
 
               <div className="h-full overflow-y-auto">
-                <ProjectTimeline status={resolveTimelineStage(project)} />
+                <ProjectTimeline
+                  status={resolveTimelineStage(project)}
+                  postProduction={project?.postProduction}
+                  revisionVersions={project?.revisionVersions}
+                />
               </div>
             </div>
           </div>

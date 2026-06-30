@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { User, Folder, Calendar, FolderOpen, FileEdit, CheckCircle, FileCheck } from "lucide-react";
 import { useTheme } from "next-themes";
+import type { PostProductionTimelineDetails, RevisionVersionTimelineDetails } from "@/lib/types";
 
 const steps = [
     { id: 1, label: "Initiated", icon: User, status: "completed", line: true },
@@ -14,13 +15,34 @@ const steps = [
     { id: 7, label: "Assets Delivered", icon: FileCheck, status: "pending", line: false },
 ];
 
-export default function ProjectTimeline({ status = 0 }: { status?: number }) {
+type ProjectTimelineProps = {
+    status?: number;
+    postProduction?: PostProductionTimelineDetails | null;
+    revisionVersions?: RevisionVersionTimelineDetails[] | null;
+};
+
+const isTimelineTrue = (value: unknown) => {
+    return value === true || value === 1 || value === "1" || String(value).toLowerCase() === "true";
+};
+
+const getRevisionVersionNumber = (version: RevisionVersionTimelineDetails) => {
+    return version.versionNumber ?? version.version_number ?? version.version ?? version.currentVersion ?? version.current_version;
+};
+
+export default function ProjectTimeline({ status = 0, postProduction, revisionVersions }: ProjectTimelineProps) {
     const { theme, resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    useEffect(() => {
+        console.log("[ProjectTimeline] received timeline sub-items", {
+            postProduction,
+            revisionVersions,
+        });
+    }, [postProduction, revisionVersions]);
 
     const isDark = !mounted || (resolvedTheme === "dark" || theme === "dark");
 
@@ -39,6 +61,54 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
     if (!mounted) return null;
 
     const currentStepId = getCurrentStep();
+    const revisionItems = Array.isArray(revisionVersions)
+        ? [...revisionVersions].sort((a, b) => Number(getRevisionVersionNumber(a) ?? 0) - Number(getRevisionVersionNumber(b) ?? 0))
+        : [];
+
+    const getSubItems = (label: string) => {
+        if (label === "Post_Production") {
+            const items: string[] = [];
+            const rawFilesUploaded = isTimelineTrue(postProduction?.rawFilesUploaded) || isTimelineTrue(postProduction?.raw_files_uploaded);
+            const editingStatus = postProduction?.editingStatus ?? postProduction?.editing_status;
+
+            if (rawFilesUploaded) {
+                items.push("Raw Files uploaded");
+            }
+            if (editingStatus === "in_progress") {
+                items.push("Editing - In Progress");
+            }
+            if (editingStatus === "completed") {
+                items.push("Editing - Completed");
+            }
+            return items;
+        }
+
+        if (label === "Revision") {
+            return revisionItems
+                .map(getRevisionVersionNumber)
+                .filter((versionNumber) => versionNumber !== undefined && versionNumber !== null)
+                .map((versionNumber) => `Version ${versionNumber}`);
+        }
+
+        return [];
+    };
+
+    const renderSubItems = (items: string[]) => {
+        if (items.length === 0) return null;
+
+        return (
+            <div className="mt-3 flex flex-col gap-2">
+                {items.map((item) => (
+                    <div key={item} className="flex items-start gap-2">
+                        <span className={`mt-0.5 h-5 w-px border-l border-dashed ${isDark ? "border-[#444444]" : "border-[#CCCCCC]"}`} />
+                        <span className={`pt-0.5 text-xs font-medium leading-4 ${isDark ? "text-white/45" : "text-[#8A8A8A]"}`}>
+                            - - {item}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
     return (
         <div className={`h-full w-80 shrink-0 mt-1 pt-8 lg:pt-6 transition-colors duration-300 border-l ${isDark ? "bg-[#111111] border-[#222222]" : "bg-[#FFFFFF] border-[#D8D8D8]"
@@ -52,8 +122,8 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
                 {steps.map((step) => {
                     const isCompleted = step.id < currentStepId;
                     const isCurrent = step.id === currentStepId;
-                    const isPending = step.id > currentStepId;
                     const isActive = isCompleted || isCurrent;
+                    const subItems = getSubItems(step.label);
 
                     return (
                         <div key={step.id} className="relative flex gap-4">
@@ -82,6 +152,7 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
                                     }`}>
                                     {step.label}
                                 </p>
+                                {renderSubItems(subItems)}
                             </div>
                         </div>
                     );

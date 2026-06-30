@@ -14,10 +14,16 @@ import SalesPostProductionTab from "@/components/sales/shoot-details/PostProduct
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 import { adminApi } from "@/lib/api";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import {
+  getProjectTimelineDetails,
+  getTimelineDetailsFromPostProductionFiles,
+  mergeProjectTimelineDetails,
+} from "@/lib/utils/projectTimelineDetails";
 
 type SkillOption = {
   id?: string | number;
@@ -29,6 +35,15 @@ type SkillOption = {
 type ProjectDetails = {
   project_name?: string;
   skills_needed?: string | Array<string | number> | null;
+  postProduction?: {
+    rawFilesUploaded?: boolean;
+    rawFilesUploadedAt?: string | null;
+    editingStatus?: "not_started" | "in_progress" | "completed" | null;
+  } | null;
+  revisionVersions?: Array<{
+    versionNumber?: number | string;
+    uploadedAt?: string | null;
+  }>;
   payment_status?: string | null;
   payment_id?: string | number | null;
   lead_details?: unknown;
@@ -77,6 +92,19 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
 
         const responseData = projectResponse?.data || null;
         const projectData: ProjectDetails = responseData?.project || responseData || projectResponse;
+        const bookingIdForFiles =
+          projectData?.booking_id || projectData?.stream_project_booking_id || id;
+        let fileTimelineDetails = getTimelineDetailsFromPostProductionFiles(null);
+        try {
+          const postFilesResponse = await fileManagerApi.getExternalWorkspaceFiles(String(bookingIdForFiles), "post");
+          fileTimelineDetails = getTimelineDetailsFromPostProductionFiles(postFilesResponse);
+        } catch (error) {
+          console.warn("Failed to derive timeline details from post-production files:", error);
+        }
+        const timelineDetails = mergeProjectTimelineDetails(
+          getProjectTimelineDetails(responseData, projectData, projectResponse),
+          fileTimelineDetails
+        );
 
         if (projectData) {
           let skillsText = "";
@@ -110,6 +138,8 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
 
           setProject({
             ...projectData,
+            postProduction: timelineDetails.postProduction,
+            revisionVersions: timelineDetails.revisionVersions,
             payment_status: responseData?.payment_status ?? projectData?.payment_status ?? null,
             payment_id: responseData?.payment_id ?? projectData?.payment_id ?? null,
             lead_details: responseData?.lead_details || projectData?.lead_details || null,
@@ -191,7 +221,11 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
         </div>
 
         <div className="hidden lg:block">
-          <ProjectTimeline status={resolveTimelineStage(project)} />
+          <ProjectTimeline
+            status={resolveTimelineStage(project)}
+            postProduction={project?.postProduction}
+            revisionVersions={project?.revisionVersions}
+          />
         </div>
 
         {isTimelineOpen && (
@@ -207,7 +241,11 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
               </div>
 
               <div className="h-full overflow-y-auto">
-                <ProjectTimeline status={resolveTimelineStage(project)} />
+                <ProjectTimeline
+                  status={resolveTimelineStage(project)}
+                  postProduction={project?.postProduction}
+                  revisionVersions={project?.revisionVersions}
+                />
               </div>
             </div>
           </div>
