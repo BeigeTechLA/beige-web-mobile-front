@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCards } from "swiper/modules";
 import { useTheme } from "next-themes";
@@ -57,6 +57,12 @@ interface CrewAssignment {
 
 export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssignment }: AssignedCPProps) {
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Automatically determine if we are in the sales or admin context
+  const routePrefix = pathname.startsWith("/sales") ? "/sales" : "/admin";
+
+
   const { theme, resolvedTheme } = useTheme();
   const { canEdit } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
@@ -77,7 +83,9 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
   const hasCPs = crewMembers.length > 0;
 
   const handleOpenAssignment = () => {
-    const goToAddCreatives = () => router.push(`/admin/shoots/${projectId}/add-creatives`);
+    //const goToAddCreatives = () => router.push(`/admin/shoots/${projectId}/add-creatives`);
+    const goToAddCreatives = () => router.push(`${routePrefix}/shoots/${projectId}/add-creatives`);
+
     if (onRequestAssignment) {
       onRequestAssignment(goToAddCreatives);
       return;
