@@ -13,6 +13,8 @@ import { meetingsApi, type MeetingItem } from "@/lib/meetingsApi";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useAppSelector } from "@/lib/redux/hooks";
+import { hasModulePermission } from "@/lib/permissions";
 import EmptyMeetingState from "./EmptyMeetingState";
 import {
   Tooltip,
@@ -112,12 +114,11 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
+  const permissions = useAppSelector((state) => state.auth.permissions);
   const isSalesAdminView = role === "sales";
   const isAdminView = role === "admin" || isSalesAdminView;
   const effectiveRoleForActions: RoleVariant = isAdminView ? "admin" : role;
-  const canCreateMeeting =
-    effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
-  const canDeleteMeeting = effectiveRoleForActions === "admin";
+  const canCreateMeeting = hasModulePermission(permissions, ["meetings"], "create");
 
   const loadMeetings = useCallback(async () => {
     setLoading(true);
@@ -276,7 +277,6 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
             currentUserId={currentUserId}
             role={role}
             isAdminView={isAdminView}
-            canDeleteMeeting={canDeleteMeeting}
             respondingMeetingId={respondingMeetingId}
             handleRespond={handleRespond}
             setSelectedMeeting={setSelectedMeeting}

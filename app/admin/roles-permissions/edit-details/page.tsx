@@ -239,7 +239,7 @@ export default function AdminRoleEditDetailsRoute() {
           setPermissionScope(nextScope);
           setStatus(data.user.status_label || "Active");
           setCreatedAt(formatDateTime(data.user.created_at));
-          setUpdatedAt(formatDateTime(data.role?.updated_at || data.user.created_at));
+          setUpdatedAt(formatDateTime(data.user.updated_at));
           setRoleDescription(data.role?.description || "");
           await loadUserPermissions({
             nextUserId: String(userId),

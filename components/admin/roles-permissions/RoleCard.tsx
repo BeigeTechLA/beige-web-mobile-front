@@ -125,16 +125,15 @@ export function RoleCard({ card, isDark = true, onEdit, onViewUsers }: RoleCardP
         <button
           type="button"
           onClick={() => onViewUsers?.(card.id)}
-          className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border text-white transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 active:scale-95 sm:h-10 sm:w-10 ${
+          className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:scale-110 active:scale-95 ${
             isDark
-              ? "border-white/10 bg-[#2a2a2a] hover:bg-[#343434]"
-              : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F5F5F5]"
+              ? "border-white/10 bg-[#2a2a2a]"
+              : "border-[#E3E3E3] bg-white"
           }`}
         >
           <ArrowUpRight
             size={15}
             strokeWidth={2.25}
-            className={isDark ? "text-white" : "text-[#323232]"}
           />
         </button>
       </div>

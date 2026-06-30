@@ -4,10 +4,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PermissionMatrixTable } from "@/components/admin/roles-permissions/PermissionMatrixTable";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import {
-  type PermissionColumnKey,
-  type PermissionMatrixRow,
-} from "@/components/admin/roles-permissions/types";
+import { type PermissionMatrixRow } from "@/components/admin/roles-permissions/types";
 
 type RoleEditDetailsPageProps = {
   title: string;
@@ -23,7 +20,6 @@ type RoleEditDetailsPageProps = {
   onRowsChange?: (rows: PermissionMatrixRow[]) => void;
   onOpenModal?: () => void;
   onPrimaryAction?: () => void;
-  onInvalidAccessAttempt?: (row: PermissionMatrixRow, key: PermissionColumnKey) => void;
 };
 
 const getInitials = (value: string) =>
@@ -48,7 +44,6 @@ export function RoleEditDetailsPage({
   onRowsChange,
   onOpenModal,
   onPrimaryAction,
-  onInvalidAccessAttempt,
 }: RoleEditDetailsPageProps) {
   const router = useRouter();
   const { isDark } = useResolvedTheme();
@@ -102,7 +97,6 @@ export function RoleEditDetailsPage({
               showSelectionColumn
               readOnly={readOnly}
               onReadOnlyClick={onOpenModal}
-              onInvalidAccessAttempt={onInvalidAccessAttempt}
               className="border-none !bg-transparent"
             />
           )}

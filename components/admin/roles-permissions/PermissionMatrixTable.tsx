@@ -14,7 +14,6 @@ type PermissionMatrixTableProps = {
   className?: string;
   readOnly?: boolean;
   onReadOnlyClick?: () => void;
-  onInvalidAccessAttempt?: (row: PermissionMatrixRow, key: PermissionColumnKey) => void;
 };
 
 const accessColumns: { key: PermissionColumnKey; label: string }[] = [
@@ -31,7 +30,6 @@ export function PermissionMatrixTable({
   className = "",
   readOnly = false,
   onReadOnlyClick,
-  onInvalidAccessAttempt,
 }: PermissionMatrixTableProps) {
   const { isDark } = useResolvedTheme();
 
@@ -68,19 +66,17 @@ export function PermissionMatrixTable({
       return;
     }
 
-    const targetRow = rows.find((row) => row.id === rowId);
-    if (!targetRow) return;
-
-    if (checked && key !== "view" && !targetRow.access.view) {
-      onInvalidAccessAttempt?.(targetRow, key);
-      return;
-    }
-
     onChange?.(
       rows.map((row) => {
         if (row.id === rowId) {
           const updatedAccess = { ...row.access, [key]: checked };
           const actionsToCheck = row.allowedActions || accessColumns.map((c) => c.key);
+
+          // Any non-view permission depends on view access.
+          if (checked && key !== "view") {
+            updatedAccess.view = true;
+          }
+
           if (key === "view") {
             actionsToCheck.forEach((action) => {
               updatedAccess[action] = checked;
