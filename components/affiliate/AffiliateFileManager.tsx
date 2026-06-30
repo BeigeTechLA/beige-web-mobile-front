@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Cookies from "js-cookie";
 import {
   ArrowLeft,
   Camera,
   CheckSquare,
   Download,
   ExternalLink,
+  Calendar,
   FolderOpen,
   Grid3X3,
   History,
@@ -15,9 +15,10 @@ import {
   LinkIcon,
   List,
   Loader2,
+  Check,
   Search,
+  Send,
   Upload,
-  X as CloseIcon,
 } from "lucide-react";
 import { useViewMode } from "@/hooks/useViewMode";
 import { Button } from "@/components/ui/button";
@@ -29,9 +30,9 @@ import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
-import { affiliateApi } from "@/lib/api";
 import {
   fileManagerApi,
+  formatFileManagerWorkspaceName,
   inferWorkspaceCategory,
   isCommonEventWorkspaceId,
   isRecentWithinHours,
@@ -49,12 +50,14 @@ interface WorkspaceCard {
   userInitials: string;
   category: string;
   updatedAtRaw?: string;
+  visibleUntil?: string | null;
   consoleUrl?: string | null;
 }
 
 interface BrowserFolder {
   name: string;
   title: string;
+  path?: string;
   fileCount: number;
   lastOpened: string;
 }
@@ -66,6 +69,9 @@ interface BrowserFile {
   contentType?: string;
   lastOpened: string;
   userInitials: string;
+  uploaderName: string;
+  metadata?: Record<string, unknown>;
+  size?: number;
 }
 
 interface FaceMatchItem {
@@ -75,11 +81,6 @@ interface FaceMatchItem {
   url?: string;
 }
 
-interface ProjectLite {
-  project_name?: string;
-  stream_project_booking_id?: string | number;
-  booking_id?: string | number;
-}
 const FILES_PAGE_SIZE = 20;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -91,6 +92,7 @@ const prettifyFolderName = (name?: string) => {
   if (normalized === "Pre-Production") return "Pre Production";
   if (normalized === "Post-Production") return "Post Production";
   if (normalized === "Raw Footage") return "Raw Footages";
+  if (normalized === "Revisions") return "Revision";
   return normalized.replace(/-/g, " ");
 };
 
@@ -143,12 +145,18 @@ export default function AffiliateFileManager() {
   const [selectedPath, setSelectedPath] = useState("");
   const [phaseFolders, setPhaseFolders] = useState<BrowserFolder[]>([]);
   const [phaseFiles, setPhaseFiles] = useState<BrowserFile[]>([]);
+  const [revisionFiles, setRevisionFiles] = useState<BrowserFile[]>([]);
   const [isPhaseLoading, setIsPhaseLoading] = useState(false);
+  const [reviewingFilePath, setReviewingFilePath] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
+  const [isSendingEditRequest, setIsSendingEditRequest] = useState(false);
+  const [editRequestSentCount, setEditRequestSentCount] = useState(0);
+  const fileCardStage = selectedPhase === "post" ? "post-production" : "pre-production";
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerName, setViewerName] = useState("");
@@ -166,59 +174,29 @@ export default function AffiliateFileManager() {
   const { isDark } = useResolvedTheme()
 
   const loadRoot = async () => {
-    const token = Cookies.get("revure_token");
-    if (!token) {
-      setError("Please log in to view your files.");
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
-      const [shootsResponse, externalWorkspaces] = await Promise.all([
-        affiliateApi.getMyShoots(token, { range: "all" }),
-        fileManagerApi.listExternalWorkspaces(),
-      ]);
-
-      const projects = Array.isArray(shootsResponse?.data?.projects)
-        ? shootsResponse.data.projects
-        : [];
-      const projectMap = new Map<string, ProjectLite>();
-
-      projects.forEach((item: unknown) => {
-        const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-        const nestedProject =
-          row.project && typeof row.project === "object"
-            ? (row.project as ProjectLite)
-            : null;
-        const project = nestedProject || (row as ProjectLite);
-        const bookingId = String(
-          project?.stream_project_booking_id || project?.booking_id || ""
-        );
-        if (bookingId) {
-          projectMap.set(bookingId, project);
-        }
-      });
+      const externalWorkspaces = await fileManagerApi.listExternalWorkspaces();
 
       const mapped = externalWorkspaces
-        .filter((workspace) =>
-          isCommonEventWorkspaceId(workspace.externalId) ||
-          projectMap.has(String(workspace.externalId))
-        )
         .map((workspace) => {
-          const project = projectMap.get(String(workspace.externalId));
+          const displayName = workspace.isCommonEvent
+            ? workspace.folderName || "Common Event"
+            : formatFileManagerWorkspaceName(workspace.folderName);
+
           return {
             externalId: String(workspace.externalId),
-            title: workspace.folderName || project?.project_name || "Common Event",
+            title: displayName,
             fileCount: Number(workspace.fileCount || 0),
             lastOpened: workspace.updatedAt || workspace.createdAt || "",
-            userInitials: getInitials(workspace.folderName || project?.project_name),
+            userInitials: getInitials(displayName),
             category: inferWorkspaceCategory(
-              workspace.folderName || project?.project_name
+              workspace.folderName
             ),
             updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
+            visibleUntil: workspace.visibleUntil || null,
             consoleUrl: workspace.consoleUrl,
           };
         });
@@ -239,9 +217,10 @@ export default function AffiliateFileManager() {
     try {
       setIsPhaseLoading(true);
       setError(null);
+      const isCommonEventWorkspace = isCommonEventWorkspaceId(workspace.externalId);
       const response = await fileManagerApi.getExternalWorkspaceFiles(
         workspace.externalId,
-        phase,
+        isCommonEventWorkspace ? undefined : phase,
         path || undefined
       );
 
@@ -249,6 +228,7 @@ export default function AffiliateFileManager() {
         (response.folders || []).map((folder) => ({
           name: folder.name,
           title: prettifyFolderName(folder.name),
+          path: folder.path,
           fileCount: Number(folder.fileCount || 0),
           lastOpened: folder.updatedAt || folder.createdAt || "",
         }))
@@ -261,9 +241,50 @@ export default function AffiliateFileManager() {
           filepath: file.path,
           contentType: file.contentType,
           lastOpened: file.updatedAt || file.createdAt || "",
-          userInitials: getInitials(file.name),
+          userInitials: getInitials(file.author || "Unknown uploader"),
+          uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
+          metadata: file.metadata || {},
+          size: file.size || 0,
         }))
       );
+
+      const normalizedPath = path.trim().toLowerCase().replace(/[_\s]+/g, "-");
+      if (phase === "post" && (normalizedPath.endsWith("selected-for-edits") || normalizedPath.includes("/revisions"))) {
+        try {
+          const revisions = await fileManagerApi.getExternalWorkspaceFiles(
+            workspace.externalId,
+            "post",
+            "Edits/Revisions"
+          );
+          const versionFolders = revisions.folders || [];
+          const nestedFiles = await Promise.all(
+            versionFolders.map(async (folder) => {
+              const versionPath = ["Edits/Revisions", folder.name].filter(Boolean).join("/");
+              const versionData = await fileManagerApi.getExternalWorkspaceFiles(
+                workspace.externalId,
+                "post",
+                versionPath
+              );
+              return (versionData.files || []).map((file) => ({
+                id: file.id,
+                title: file.name,
+                filepath: file.path,
+                contentType: file.contentType,
+                lastOpened: file.updatedAt || file.createdAt || "",
+                userInitials: getInitials(file.author || "Unknown uploader"),
+                uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
+                metadata: file.metadata || {},
+                size: file.size || 0,
+              }));
+            })
+          );
+          setRevisionFiles(nestedFiles.flat());
+        } catch {
+          setRevisionFiles([]);
+        }
+      } else {
+        setRevisionFiles([]);
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to load folder contents"));
     } finally {
@@ -284,6 +305,7 @@ export default function AffiliateFileManager() {
         (response.folders || []).map((folder) => ({
           name: folder.name,
           title: prettifyFolderName(folder.name),
+          path: folder.path,
           fileCount: Number(folder.fileCount || 0),
           lastOpened: folder.updatedAt || folder.createdAt || "",
         }))
@@ -425,6 +447,111 @@ export default function AffiliateFileManager() {
     );
   };
 
+  const normalizedSelectedPath = selectedPath
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  const isRawFootageBrowser = selectedPhase === "post" && normalizedSelectedPath === "raw-footage";
+  const isSelectedForEditsBrowser =
+    selectedPhase === "post" &&
+    (normalizedSelectedPath === "selected-for-edits" || normalizedSelectedPath.endsWith("/selected-for-edits"));
+  const isRevisionVersionBrowser =
+    selectedPhase === "post" &&
+    /(^|\/)version\d+$/i.test(selectedPath.trim());
+
+  const getVersionNumberFromPath = (path?: string) => {
+    const match = String(path || "").match(/\/Version(\d+)\//i) || String(path || "").match(/(^|\/)Version(\d+)$/i);
+    return match?.[2] ? Number(match[2]) : match?.[1] && /^\d+$/.test(match[1]) ? Number(match[1]) : null;
+  };
+
+  const normalizeFileKey = (value?: string) =>
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  const getLatestRevisionForFile = (file: BrowserFile) => {
+    const fileKey = normalizeFileKey(file.title);
+    const matches = revisionFiles
+      .filter((revisionFile) => normalizeFileKey(revisionFile.title) === fileKey)
+      .map((revisionFile) => ({
+        file: revisionFile,
+        version: getVersionNumberFromPath(revisionFile.filepath) || Number(revisionFile.metadata?.currentVersion || 0),
+      }))
+      .filter((item) => item.version > 0)
+      .sort((a, b) => b.version - a.version);
+    return matches[0] || null;
+  };
+
+  const getFileStatusBadge = (file: BrowserFile) => {
+    if (isRawFootageBrowser) {
+      return {
+        label: "Raw Files Uploaded",
+        className: "border-[#3B82F6]/30 bg-[#3B82F6]/15 text-[#93C5FD]",
+      };
+    }
+    const editStatus = String(file.metadata?.editStatus || "").toLowerCase();
+    const currentVersion = getVersionNumberFromPath(file.filepath) || Number(file.metadata?.currentVersion || 0);
+
+    if (editStatus === "approved") {
+      return {
+        label: "Approved",
+        className: "border-[#22C55E]/30 bg-[#22C55E]/15 text-[#22C55E]",
+      };
+    }
+
+    if (editStatus === "revision_requested") {
+      return {
+        label: "Revision Requested",
+        className: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]",
+      };
+    }
+
+    if (isRevisionVersionBrowser && currentVersion) {
+      return {
+        label: `Version${currentVersion} Uploaded`,
+        className: "border-[#7C3AED]/30 bg-[#7C3AED]/15 text-[#C4B5FD]",
+      };
+    }
+
+    if (isSelectedForEditsBrowser) {
+      const latest = getLatestRevisionForFile(file);
+      if (!latest) {
+        return {
+          label: "Version1 Pending",
+          className: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]",
+        };
+      }
+      const latestStatus = String(latest.file.metadata?.editStatus || "").toLowerCase();
+      if (latestStatus === "approved") {
+        return {
+          label: "Approved",
+          className: "border-[#22C55E]/30 bg-[#22C55E]/15 text-[#22C55E]",
+        };
+      }
+      if (latestStatus === "revision_requested") {
+        return {
+          label: "Revision Requested",
+          className: "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]",
+        };
+      }
+      return {
+        label: `Version${latest.version} Uploaded`,
+        className: "border-[#7C3AED]/30 bg-[#7C3AED]/15 text-[#C4B5FD]",
+      };
+    }
+
+    return {
+      label: "File Selected For Edits",
+      className: "border-[#7C3AED]/30 bg-[#7C3AED]/15 text-[#C4B5FD]",
+    };
+  };
+
+  const isReviewableRevisionFile = useCallback((file: BrowserFile) => {
+    if (!isRevisionVersionBrowser) return false;
+    const editStatus = String(file.metadata?.editStatus || "").toLowerCase();
+    return editStatus !== "approved" && editStatus !== "revision_requested";
+  }, [isRevisionVersionBrowser]);
+
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
 
@@ -445,6 +572,117 @@ export default function AffiliateFileManager() {
 
     setSelectedFilePaths([]);
     setIsSelectionMode(false);
+  };
+
+  const handleSendForEdits = async () => {
+    if (!selectedWorkspace || !isRawFootageBrowser || selectedFilePaths.length === 0) return;
+
+    try {
+      setIsSendingEditRequest(true);
+      const result = await fileManagerApi.copyExternalFiles({
+        externalId: selectedWorkspace.externalId,
+        phase: "post",
+        targetPath: "Edits/Selected for Edits",
+        sourcePaths: selectedFilePaths,
+      });
+
+      const copiedCount = Number(result?.successCount || 0);
+      if (!copiedCount) {
+        const firstError = result?.items?.find((item) => !item.success)?.error;
+        toast.error(firstError || "No files were sent for edits");
+        return;
+      }
+
+      setEditRequestSentCount(copiedCount);
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+      toast.success(`${copiedCount} file${copiedCount === 1 ? "" : "s"} sent for edits`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to send files for edits");
+    } finally {
+      setIsSendingEditRequest(false);
+    }
+  };
+
+  const handleReviewRevisionFile = async (
+    file: BrowserFile,
+    action: "approve" | "request_revision",
+    options?: { showToast?: boolean; reloadPhase?: boolean }
+  ) => {
+    if (!selectedWorkspace || !file.filepath) return;
+
+    try {
+      setReviewingFilePath(file.filepath);
+      const result = await fileManagerApi.reviewRevisionFile({
+        externalId: selectedWorkspace.externalId,
+        filepath: file.filepath,
+        action,
+      });
+
+      if (options?.showToast !== false) {
+        if (action === "approve") {
+          toast.success("File approved and moved to Final Deliverables");
+        } else {
+          toast.success(`Revision requested. Version${result?.nextVersionNumber || ""} is ready for upload.`);
+        }
+      }
+
+      if (options?.reloadPhase !== false) {
+        await loadPhase(selectedWorkspace, selectedPhase || "post", selectedPath);
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to update review status");
+    } finally {
+      setReviewingFilePath(null);
+    }
+  };
+
+  const handleApproveAllRevisionFiles = async () => {
+    if (!selectedWorkspace) return;
+
+    const selectedRevisionFiles = selectedFilePaths.length
+      ? phaseFiles.filter((file) => selectedFilePaths.includes(file.filepath || ""))
+      : [];
+
+    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles).filter(isReviewableRevisionFile);
+
+    if (!filesToApprove.length) {
+      toast.info("No uploaded revision files are ready for approval.");
+      return;
+    }
+
+    try {
+      setIsSendingEditRequest(true);
+      const progressToastId = toast.loading(`Approving 0/${filesToApprove.length} files...`);
+      let approvedCount = 0;
+
+      for (const file of filesToApprove) {
+        if (!file.filepath) continue;
+        await fileManagerApi.reviewRevisionFile({
+          externalId: selectedWorkspace.externalId,
+          filepath: file.filepath,
+          action: "approve",
+        });
+        approvedCount += 1;
+        toast.loading(`Approving ${approvedCount}/${filesToApprove.length} files...`, {
+          id: progressToastId,
+        });
+      }
+
+      toast.success(`Approved ${approvedCount}/${filesToApprove.length} files and moved them to Final Deliverables`, {
+        id: progressToastId,
+      });
+      await loadPhase(selectedWorkspace, selectedPhase || "post", selectedPath);
+      if (isSelectionMode) {
+        setSelectedFilePaths([]);
+        setIsSelectionMode(false);
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve files");
+    } finally {
+      setIsSendingEditRequest(false);
+      setReviewingFilePath(null);
+    }
   };
 
   const fileToBase64 = (file: File) =>
@@ -688,6 +926,8 @@ export default function AffiliateFileManager() {
       items = items.filter((workspace) =>
         isRecentWithinHours(workspace.updatedAtRaw, 24 * 5)
       );
+    } else if (selectedTab === "Common events") {
+      items = items.filter((workspace) => isCommonEventWorkspaceId(workspace.externalId));
     }
     // else if (selectedTab === "Shared" || selectedTab === "Trash") {
     //   items = [];
@@ -727,14 +967,39 @@ export default function AffiliateFileManager() {
   );
   const hasMoreFiles = filteredFiles.length > visibleFileCount;
 
+  const hasPendingRevisionFiles = useMemo(
+    () =>
+      isRevisionVersionBrowser &&
+      phaseFiles.some(isReviewableRevisionFile),
+    [phaseFiles, isRevisionVersionBrowser, isReviewableRevisionFile]
+  );
+
+  const selectedPendingFiles = useMemo(
+    () =>
+      selectedFilePaths.length
+        ? phaseFiles.filter(
+            (file) =>
+              selectedFilePaths.includes(file.filepath || "") &&
+              isReviewableRevisionFile(file)
+          )
+        : [],
+    [phaseFiles, selectedFilePaths, isReviewableRevisionFile]
+  );
+
+  const canApproveSelectedFiles = isSelectionMode && selectedPendingFiles.length > 0;
+
   useEffect(() => {
     setVisibleFileCount(FILES_PAGE_SIZE);
   }, [selectedWorkspace?.externalId, selectedPhase, selectedPath, searchTerm, phaseFiles.length]);
 
+  const isSelectedWorkspaceCommonEvent = Boolean(
+    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
+  );
+
   const breadcrumb = useMemo(() => {
     const items = ["File Manager"];
     if (selectedWorkspace) items.push(selectedWorkspace.title);
-    if (selectedPhase) {
+    if (selectedPhase && !isSelectedWorkspaceCommonEvent) {
       items.push(selectedPhase === "pre" ? "Pre Production" : "Post Production");
     }
     if (selectedPath) {
@@ -744,12 +1009,9 @@ export default function AffiliateFileManager() {
         .forEach((segment) => items.push(prettifyFolderName(segment)));
     }
     return items;
-  }, [selectedWorkspace, selectedPhase, selectedPath]);
+  }, [isSelectedWorkspaceCommonEvent, selectedWorkspace, selectedPhase, selectedPath]);
 
   const canRunFaceScan = Boolean(
-    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
-  );
-  const isSelectedWorkspaceCommonEvent = Boolean(
     selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
   );
   const canUploadInSelectedPhase = Boolean(
@@ -875,7 +1137,7 @@ export default function AffiliateFileManager() {
           >
             {/* Top Section */}
             <div className="p-5 flex-1">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start gap-2 justify-between">
                 <div className="flex gap-3 items-start min-w-0">
                   <div className="shrink-0">
                     <FolderOpen
@@ -883,7 +1145,7 @@ export default function AffiliateFileManager() {
                       size={24}
                     />
                   </div>
-                  <div className="min-w-0 flex flex-col items-start">
+                  <div className="min-w-0 text-left">
                     <h3
                       className={`font-semibold text-sm leading-tight truncate transition-colors ${isDark ? "text-white" : "text-black"}`}
                       title={workspace.title}
@@ -932,6 +1194,7 @@ export default function AffiliateFileManager() {
   const renderWorkspacePhases = () => {
     if (!selectedWorkspace) return null;
 
+    const isCommonEventWorkspace = isCommonEventWorkspaceId(selectedWorkspace.externalId);
     const preFolder = workspaceFolders.find(
       (folder) => folder.title === "Pre Production"
     );
@@ -939,10 +1202,18 @@ export default function AffiliateFileManager() {
       (folder) => folder.title === "Post Production"
     );
 
-    const phaseCards = [
-      { id: "pre", title: "Pre Production", fileCount: preFolder?.fileCount || 0 },
-      { id: "post", title: "Post Production", fileCount: postFolder?.fileCount || 0 },
-    ];
+    const phaseCards = isCommonEventWorkspace
+      ? workspaceFolders.map((folder) => ({
+        id: folder.name,
+        title: folder.title,
+        path: folder.name,
+        fileCount: folder.fileCount || 0,
+        lastOpened: folder.lastOpened,
+      }))
+      : [
+        { id: "pre", title: "Pre Production", fileCount: preFolder?.fileCount || 0 },
+        { id: "post", title: "Post Production", fileCount: postFolder?.fileCount || 0 },
+      ];
 
     if (isPhaseLoading) {
       return (
@@ -962,11 +1233,15 @@ export default function AffiliateFileManager() {
           <div className="mb-3 lg:mb-5 flex items-center justify-end">
             {canUploadInSelectedPhase ? (
               <Button
-                onClick={() => setIsUploadModalOpen(true)}
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
                 className={`border transition-colors ${isDark
                   ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
                   : "border-black/15 bg-white text-black hover:bg-zinc-50 shadow-sm"
-                  }`}
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 <Upload size={18} /> Upload Files
               </Button>
@@ -1096,14 +1371,14 @@ export default function AffiliateFileManager() {
                   title={phase.title}
                   fileCount={phase.fileCount}
                   lastOpened={formatRelativeTime(
-                    (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
+                    ("lastOpened" in phase ? phase.lastOpened : phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
                     selectedWorkspace.lastOpened
                   )}
                   userInitials={selectedWorkspace.userInitials}
                   onOpenLinkModal={() => { }}
                   onOpen={() => {
-                    setSelectedPhase(phase.id as "pre" | "post");
-                    setSelectedPath("");
+                    setSelectedPhase(isCommonEventWorkspace ? "pre" : phase.id as "pre" | "post");
+                    setSelectedPath(isCommonEventWorkspace ? String(phase.path || phase.title) : "");
                     setSearchTerm("");
                   }}
                   showMenu={false}
@@ -1112,8 +1387,12 @@ export default function AffiliateFileManager() {
             </div>
           ) : (
             <EmptyFileState
-              title="No matching folders"
-              description="Try another search term to find the project phase."
+              title={isCommonEventWorkspace ? "No Folder Created" : "No matching folders"}
+              description={
+                isCommonEventWorkspace
+                  ? "No creative partner folders are available in this event yet."
+                  : "Try another search term to find the project phase."
+              }
               isDark={isDark}
             />
           )}
@@ -1133,6 +1412,44 @@ export default function AffiliateFileManager() {
 
     return (
       <div className="space-y-4 lg:space-y-8">
+        {selectedFilePaths.length > 0 ? (
+          <div className="flex flex-col gap-3 border border-[#E8D1AB]/20 bg-[#171717] rounded-xl px-5 py-4 text-sm lg:flex-row lg:items-center lg:justify-between shadow-lg">
+            <p className="font-semibold text-[#E8D1AB]">
+              {selectedFilePaths.length} File{selectedFilePaths.length === 1 ? "" : "s"} Selected for Edits
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                className="text-sm font-medium text-white/70 underline underline-offset-4 transition hover:text-white"
+                onClick={() => {
+                  setSelectedFilePaths([]);
+                  setIsSelectionMode(false);
+                }}
+              >
+                Clear Selection
+              </button>
+              {isRawFootageBrowser ? (
+                <Button
+                  className="h-10 gap-2 rounded-xl bg-[#E8D1AB] hover:bg-[#D4C3A3] px-5 text-sm font-semibold text-black transition-colors"
+                  onClick={handleSendForEdits}
+                  disabled={isSendingEditRequest}
+                >
+                  {isSendingEditRequest ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                  Send For Edits
+                </Button>
+              ) : (
+                <Button
+                  className="h-10 gap-2 rounded-xl bg-white/10 hover:bg-white/20 px-5 text-sm font-semibold text-white transition-colors"
+                  onClick={handleBatchDownload}
+                >
+                  <Download size={16} />
+                  Download
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : null}
+
         <div>
           <div className="flex items-start gap-5 mb-2 lg:mb-6">
             {/* Initials Placeholder Avatar */}
@@ -1148,16 +1465,20 @@ export default function AffiliateFileManager() {
                   {selectedWorkspace?.title}
                 </h1>
                 <span
-                  className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border flex items-center gap-1.5 h-fit w-fit transition-colors ${selectedPhase === "post"
+                  className={`px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs font-medium border flex items-center gap-1.5 h-fit w-fit transition-colors ${isSelectedWorkspaceCommonEvent
                     ? isDark
-                      ? "bg-[#E8D2FB] text-[#540B94] border-white/5"
-                      : "bg-[#F3E8FF] text-[#540B94] border-black/5"
-                    : isDark
-                      ? "bg-[#FDF4FF] text-[#C026D3] border-white/5"
-                      : "bg-[#FCE7F3] text-[#9D174D] border-black/5"
+                      ? "bg-[#E5D5B8]/15 text-[#E8D1AB] border-[#E5D5B8]/20"
+                      : "bg-[#FFF7E8] text-[#8A6A32] border-[#E8D1AB]/50"
+                    : selectedPhase === "post"
+                      ? isDark
+                        ? "bg-[#E8D2FB] text-[#540B94] border-white/5"
+                        : "bg-[#F3E8FF] text-[#540B94] border-black/5"
+                      : isDark
+                        ? "bg-[#FDF4FF] text-[#C026D3] border-white/5"
+                        : "bg-[#FCE7F3] text-[#9D174D] border-black/5"
                     }`}
                 >
-                  {selectedPhase === "post" ? "Post Production" : "Pre Production"}
+                  {isSelectedWorkspaceCommonEvent ? "Common Event Folder" : selectedPhase === "post" ? "Post Production" : "Pre Production"}
                 </span>
                 <span
                   className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${canUploadInSelectedPhase
@@ -1180,8 +1501,8 @@ export default function AffiliateFileManager() {
                 {selectedWorkspace?.externalId}
               </p>
 
-              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
-              {/* {selectedWorkspace?.consoleUrl ? (
+              {/* {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
+              {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -1195,29 +1516,91 @@ export default function AffiliateFileManager() {
           </div>
         </div>
 
-        {
-          filteredFiles.length > 0 ? (
-            <div className="flex justify-end">
+       {filteredFiles.length > 0 ? (
+  <div className="flex flex-wrap justify-end gap-2">
+    {isSelectionMode ? (
+      canApproveSelectedFiles ? (
+        <Button
+          className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
+          disabled={Boolean(reviewingFilePath) || isSendingEditRequest}
+          onClick={handleApproveAllRevisionFiles}
+        >
+          <Check size={16} />
+          {`Approve Selected (${selectedPendingFiles.length})`}
+        </Button>
+      ) : null
+    ) : hasPendingRevisionFiles ? (
+      <Button
+        className="gap-2 h-10 rounded-lg bg-[#22C55E] px-4 text-white hover:bg-[#16A34A]"
+        disabled={Boolean(reviewingFilePath) || isSendingEditRequest}
+        onClick={handleApproveAllRevisionFiles}
+      >
+        <Check size={16} />
+        Approve All
+      </Button>
+    ) : null}
+
+            {isSelectionMode && isRawFootageBrowser ? (
               <Button
                 variant="ghost"
                 onClick={() => {
-                  const nextMode = !isSelectionMode;
-                  setIsSelectionMode(nextMode);
-                  if (!nextMode) setSelectedFilePaths([]);
+                  const visiblePaths = visibleFiles
+                    .map((file) => file.filepath)
+                    .filter(Boolean);
+
+                  const allSelected =
+                    visiblePaths.length > 0 &&
+                    visiblePaths.every((path) => selectedFilePaths.includes(path));
+
+                  setSelectedFilePaths((prev) => {
+                    if (allSelected) {
+                      return prev.filter((path) => !visiblePaths.includes(path));
+                    }
+
+                    return Array.from(new Set([...prev, ...visiblePaths]));
+                  });
                 }}
-                className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
-                  ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
-                  : isDark
-                    ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
-                    : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
+                className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isDark
+                  ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                  : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
                   }`}
               >
-                <CheckSquare size={18} />
-                <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded border ${visibleFiles.length > 0 &&
+                    visibleFiles.every((file) =>
+                      selectedFilePaths.includes(file.filepath || "")
+                    )
+                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
+                    : isDark
+                      ? "border-white/50 text-transparent"
+                      : "border-black/40 text-transparent"
+                    }`}
+                >
+                  <CheckSquare size={12} />
+                </span>
+                <span>Select All</span>
               </Button>
-            </div>
-          ) : null
-        }
+            ) : null}
+
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const nextMode = !isSelectionMode;
+                setIsSelectionMode(nextMode);
+                if (!nextMode) setSelectedFilePaths([]);
+              }}
+              className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
+                ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                : isDark
+                  ? "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                  : "bg-white text-black/70 border-black/10 hover:text-black hover:bg-black/[0.02] hover:border-black/20 shadow-xs"
+                }`}
+            >
+              <CheckSquare size={18} />
+              <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+            </Button>
+          </div>
+        ) : null}
 
         {
           canRunFaceScan && faceMatches.length > 0 ? (
@@ -1309,21 +1692,50 @@ export default function AffiliateFileManager() {
             {filteredFiles.length > 0 ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-                  {visibleFiles.map((file) => (
-                    <FileCard
-                      key={file.id}
-                      file={{
-                        ...file,
-                        previewUrl: previewUrls[file.id],
-                        lastOpened: formatRelativeTime(file.lastOpened),
-                      }}
-                      onOpen={() => handleOpenFile(file)}
-                      onDownload={() => handleDownloadFile(file)}
-                      isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
-                      onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
-                      isDark={isDark}
-                    />
-                  ))}
+                  {visibleFiles.map((file) => {
+                    const statusBadge = getFileStatusBadge(file);
+
+                    const canReviewVersionFile = isReviewableRevisionFile(file);
+
+  return (
+    <FileCard
+      key={file.id}
+      file={{
+        ...file,
+        previewUrl: previewUrls[file.id],
+        lastOpened: formatRelativeTime(file.lastOpened),
+        statusLabel: statusBadge.label,
+        statusClassName: statusBadge.className,
+      }}
+      stage={fileCardStage}
+      onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+      onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
+      isSelected={
+        isSelectionMode && selectedFilePaths.includes(file.filepath || "")
+      }
+      onSelect={
+        isSelectionMode
+          ? () => toggleFileSelection(file.filepath || "")
+          : undefined
+      }
+      onApprove={
+        !selectionLockActive &&
+        canReviewVersionFile &&
+        reviewingFilePath !== file.filepath
+          ? () => handleReviewRevisionFile(file, "approve")
+          : undefined
+      }
+      onRequestRevision={
+        !selectionLockActive &&
+        canReviewVersionFile &&
+        reviewingFilePath !== file.filepath
+          ? () => handleReviewRevisionFile(file, "request_revision")
+          : undefined
+      }
+      isDark={isDark}
+    />
+  );
+})}
                 </div>
                 {hasMoreFiles ? (
                   <div className="flex justify-center">
@@ -1341,10 +1753,10 @@ export default function AffiliateFileManager() {
               <EmptyFileState
                 title="No File Uploaded"
                 description="No files have been uploaded for this project yet."
-                onAction={canUploadInSelectedPhase ? () => setIsUploadModalOpen(true) : undefined}
-                actionLabel={canUploadInSelectedPhase ? "Upload Files" : undefined}
-                isDark={isDark}
-              />
+            onAction={canUploadInSelectedPhase && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+            actionLabel={canUploadInSelectedPhase && !selectionLockActive ? "Upload Files" : undefined}
+            isDark={isDark}
+          />
             )}
           </div>
         ) : null}
@@ -1404,6 +1816,7 @@ export default function AffiliateFileManager() {
               {[
                 { name: "All Files", icon: FolderOpen },
                 { name: "Linked to folders", icon: Link },
+                { name: "Common events", icon: Calendar },
                 { name: "Recent", icon: History },
                 // { name: "Shared", icon: Share2 },
                 // { name: "Trash", icon: Trash2 },
@@ -1566,15 +1979,22 @@ export default function AffiliateFileManager() {
 
       {selectedFilePaths.length > 0 ? (
         <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
-          <div className={`flex items-center justify-between gap-4 rounded-2xl border p-4 shadow-2xl transition-all duration-300 ${isDark
-            ? "border-[#E8D1AB]/50 bg-[#171717]"
-            : "border-[#B38F43]/40 bg-white"
-            }`}>
+          <div
+            className={`flex items-center justify-between gap-4 rounded-2xl border p-4 shadow-2xl transition-all duration-300 ${isDark
+              ? "border-[#E8D1AB]/50 bg-[#171717]"
+              : "border-[#B38F43]/40 bg-white"
+              }`}
+          >
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
                 {selectedFilePaths.length}
               </div>
-              <span className={`font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>Files selected</span>
+              <span
+                className={`font-medium transition-colors ${isDark ? "text-white" : "text-black"
+                  }`}
+              >
+                Files selected
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1592,9 +2012,10 @@ export default function AffiliateFileManager() {
                 Clear
               </Button>
 
-              {/* Structural Vertical Segment Separator */}
-              <div className={`mx-1 h-6 w-[1px] transition-colors ${isDark ? "bg-white/10" : "bg-black/10"
-                }`} />
+              <div
+                className={`mx-1 h-6 w-[1px] transition-colors ${isDark ? "bg-white/10" : "bg-black/10"
+                  }`}
+              />
 
               <Button
                 className={`gap-2 border transition-all ${isDark
@@ -1607,16 +2028,96 @@ export default function AffiliateFileManager() {
                 Download
               </Button>
             </div>
+          </div>
+        </div>
+      ) : null}
 
-            <button
+      {editRequestSentCount > 0 ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="relative w-full max-w-[430px] overflow-hidden rounded-3xl border border-white/10 bg-[#0A0A0A] px-6 pb-8 pt-10 text-center shadow-2xl">
+            {/* Soft background glow */}
+            <div className="pointer-events-none absolute left-1/2 top-10 h-32 w-32 -translate-x-1/2 rounded-full bg-[#E8D1AB]/10 blur-[50px]" />
+
+            {/* SVG Checkmark and Confetti */}
+            <div className="relative mx-auto mb-6 flex h-32 w-32 items-center justify-center">
+              <svg
+                width="140"
+                height="140"
+                viewBox="0 0 140 140"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="overflow-visible"
+              >
+                {/* Gold Confetti Diamond */}
+                <path d="M 45 35 L 48 40 L 45 45 L 42 40 Z" fill="#E8D1AB" />
+
+                {/* Purple Confetti Diamond */}
+                <path d="M 98 32 L 101 37 L 98 42 L 95 37 Z" fill="#A78BFA" />
+
+                {/* Blue Confetti Star */}
+                <path d="M 28 55 L 30 58 L 33 55 L 30 52 Z" fill="#60A5FA" />
+
+                {/* Green Confetti Star */}
+                <path d="M 112 55 L 114 58 L 117 55 L 114 52 Z" fill="#34D399" />
+
+                {/* Pink Confetti circle */}
+                <circle cx="30" cy="85" r="3.5" fill="#F472B6" />
+
+                {/* Orange Confetti circle */}
+                <circle cx="110" cy="85" r="4.5" fill="#FB923C" />
+
+                {/* Light Blue Confetti circle */}
+                <circle cx="70" cy="22" r="3.5" fill="#38BDF8" />
+
+                {/* Curved confetti lines */}
+                <path
+                  d="M 35 40 Q 32 30 40 25"
+                  stroke="#FBBF24"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <path
+                  d="M 105 40 Q 108 30 100 25"
+                  stroke="#34D399"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+
+                {/* Main Beige Badge Circle */}
+                <circle cx="70" cy="70" r="36" fill="#E8D1AB" />
+
+                {/* Black Checkmark inside Circle */}
+                <path
+                  d="M 57 70 L 66 79 L 83 60"
+                  stroke="#000000"
+                  strokeWidth="5.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            </div>
+
+            <h3 className="relative text-xl font-semibold text-white">
+              Edit request sent
+            </h3>
+
+            <p className="relative mt-2 text-sm text-white/60">
+              {editRequestSentCount}{" "}
+              {editRequestSentCount === 1 ? "file has" : "files have"} been sent for
+              revision.
+            </p>
+
+            <Button
+              className="relative mt-6 w-full rounded-xl bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
               onClick={() => {
-                setSelectedFilePaths([]);
-                setIsSelectionMode(false);
+                setEditRequestSentCount(0);
               }}
-              className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
             >
-              <CloseIcon size={20} />
-            </button>
+              Done
+            </Button>
           </div>
         </div>
       ) : null}

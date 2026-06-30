@@ -41,6 +41,7 @@ export interface ExternalChatRoom {
   cp_ids?: ExternalChatParticipantItem[];
   pm_id?: ExternalChatUser | string | number | null;
   production_ids?: ExternalChatParticipantItem[];
+  participants?: ExternalChatParticipantItem[];
   unread_counts?: Record<string, number>;
   unread_count?: number;
   unreadCount?: number;
@@ -104,6 +105,7 @@ interface RoomResponse {
   cp_ids?: ExternalChatParticipantItem[];
   pm_id?: ExternalChatUser | string | number | null;
   production_ids?: ExternalChatParticipantItem[];
+  participants?: ExternalChatParticipantItem[];
   unread_counts?: Record<string, number>;
   unread_count?: number;
   unreadCount?: number;
@@ -157,6 +159,20 @@ interface DirectoryResponse {
   };
 }
 
+export interface ExternalChatRoomListParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  search?: string;
+  cp_id?: string;
+  client_id?: string;
+  manager_id?: string;
+  pm_id?: string;
+  production_id?: string;
+  order_id?: string;
+  populate?: string;
+}
+
 export interface ExternalParticipantsPayload {
   client?: ExternalChatUser | null;
   cps?: ExternalChatParticipantItem[];
@@ -174,7 +190,7 @@ export const externalChatApi = {
     return null;
   },
 
-  async listRooms(params?: { page?: number; limit?: number; sortBy?: string; search?: string }) {
+  async listRooms(params?: ExternalChatRoomListParams) {
     const response = await apiClient.get<RoomListResponse>("external-chat/rooms", params);
     return response.data?.results || response.data?.rooms || response.results || [];
   },

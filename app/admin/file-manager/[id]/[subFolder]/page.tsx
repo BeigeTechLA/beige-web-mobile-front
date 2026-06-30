@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
   ArrowLeft,
@@ -43,6 +43,7 @@ import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
   getDisplayInitials,
+  isCommonEventWorkspaceId,
   mapExternalFilesToUi,
   mapExternalFoldersToUi,
   slugToWorkspaceName,
@@ -140,10 +141,20 @@ const getPhaseRelativePath = (resourcePath?: string, fallbackName?: string) => {
 export default function AdminFileManagerPhasePage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string; subFolder: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
+  const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
+  const isPhaseRoute = phaseSlug === "pre-production" || phaseSlug === "post-production";
+  const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
+  const isCommonEventPhaseFolder = isCommonEventWorkspace && isPhaseRoute;
+  const rootFolderPath = useMemo(
+    () => String(searchParams.get("path") || slugToWorkspaceName(phaseSlug) || "").trim(),
+    [phaseSlug, searchParams]
+  );
   const isPreProduction = phaseSlug !== "post-production";
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
   const { isDark } = useResolvedTheme();
 
   const [workspaceName, setWorkspaceName] = useState("");
@@ -189,8 +200,12 @@ export default function AdminFileManagerPhasePage() {
     try {
       setLoading(true);
       setError(null);
-      const phase = phaseSlug === "post-production" ? "post" : "pre";
-      const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(projectId, phase);
+      const phase = isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre";
+      const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
+        projectId,
+        phase,
+        isCommonEventRootFolder ? rootFolderPath : undefined
+      );
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
@@ -215,11 +230,31 @@ export default function AdminFileManagerPhasePage() {
     return () => {
       mounted = false;
     };
-  }, [projectId, phaseSlug]);
+  }, [projectId, phaseSlug, isCommonEventRootFolder, rootFolderPath]);
 
   const viewState = useMemo(() => {
     if (!workspaceName) {
       return { title: "Folder", kind: "folders" as const, folders: [], files: [] };
+    }
+
+    if (isCommonEventRootFolder) {
+      return {
+        title: rootFolderPath || slugToWorkspaceName(phaseSlug),
+        kind: workspaceFolders.length > 0 ? "mixed" as const : "files" as const,
+        folders: mapExternalFoldersToUi(
+          workspaceFolders,
+          (folder) => {
+            const childPath = [rootFolderPath, folder.name].filter(Boolean).join("/");
+            const slug = folder.name.toLowerCase().replace(/\s+/g, "-");
+            const query = new URLSearchParams();
+            if (childPath) query.set("path", childPath);
+            if (folder.name) query.set("name", String(folder.name));
+            const queryString = query.toString();
+            return `/admin/file-manager/${projectId}/${phaseSlug}/${slug}${queryString ? `?${queryString}` : ""}`;
+          }
+        ),
+        files: mapExternalFilesToUi(workspaceFiles),
+      };
     }
 
     if (phaseSlug === "post-production") {
@@ -229,9 +264,12 @@ export default function AdminFileManagerPhasePage() {
         folders: mapExternalFoldersToUi(
           workspaceFolders,
           (folder) => {
+            const childPath = isCommonEventPhaseFolder
+              ? [rootFolderPath, folder.name].filter(Boolean).join("/")
+              : tryDecodeURIComponent(String(folder.name));
             const slug = folder.name.toLowerCase().replace(/\s+/g, "-");
             const query = new URLSearchParams();
-            if (folder.name) query.set("path", tryDecodeURIComponent(String(folder.name)));
+            if (childPath) query.set("path", childPath);
             if (folder.name) query.set("name", String(folder.name));
             const queryString = query.toString();
             return `/admin/file-manager/${projectId}/post-production/${slug}${queryString ? `?${queryString}` : ""}`;
@@ -247,9 +285,12 @@ export default function AdminFileManagerPhasePage() {
       folders: mapExternalFoldersToUi(
         workspaceFolders,
         (folder) => {
+          const childPath = isCommonEventPhaseFolder
+            ? [rootFolderPath, folder.name].filter(Boolean).join("/")
+            : tryDecodeURIComponent(String(folder.name));
           const slug = folder.name.toLowerCase().replace(/\s+/g, "-");
           const query = new URLSearchParams();
-          if (folder.name) query.set("path", tryDecodeURIComponent(String(folder.name)));
+          if (childPath) query.set("path", childPath);
           if (folder.name) query.set("name", String(folder.name));
           const queryString = query.toString();
           return `/admin/file-manager/${projectId}/${phaseSlug}/${slug}${queryString ? `?${queryString}` : ""}`;
@@ -257,7 +298,7 @@ export default function AdminFileManagerPhasePage() {
       ),
       files: mapExternalFilesToUi(workspaceFiles),
     };
-  }, [phaseSlug, projectId, workspaceFiles, workspaceFolders, workspaceName]);
+  }, [isCommonEventPhaseFolder, isCommonEventRootFolder, phaseSlug, projectId, rootFolderPath, workspaceFiles, workspaceFolders, workspaceName]);
 
   const filteredFolders = useMemo(() => {
     let items = viewState.folders;
@@ -372,14 +413,23 @@ export default function AdminFileManagerPhasePage() {
     });
   };
 
-  const currentPhase = phaseSlug === "post-production" ? "post" : "pre";
+  const currentPhase = isCommonEventWorkspace ? undefined : phaseSlug === "post-production" ? "post" : "pre";
   const defaultUploadPath = workspaceName
-    ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
+    ? isCommonEventWorkspace
+      ? `${workspaceName}/${rootFolderPath}`
+      : `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
     : undefined;
 
+  const getFolderPath = (folder?: UiFolderItem | null) => {
+    if (!folder) return undefined;
+    if (isCommonEventWorkspace) {
+      return [rootFolderPath, folder.rawName || folder.title].filter(Boolean).join("/");
+    }
+    return getPhaseRelativePath(folder.resourcePath, folder.title);
+  };
+
   const getSelectedFolderPath = () => {
-    if (!selectedFolder) return undefined;
-    return getPhaseRelativePath(selectedFolder.resourcePath, selectedFolder.title);
+    return getFolderPath(selectedFolder);
   };
 
   const handleDownloadSelectedFolder = async () => {
@@ -419,7 +469,10 @@ export default function AdminFileManagerPhasePage() {
     if (!isPreProduction) return;
     try {
       const folderName = name.trim();
-      await fileManagerApi.createExternalFolder(projectId, folderName, { phase: currentPhase });
+      await fileManagerApi.createExternalFolder(projectId, folderName, {
+        phase: currentPhase,
+        path: isCommonEventWorkspace ? rootFolderPath : undefined,
+      });
       toast.success("Folder created");
       setIsCreateFolderModalOpen(false);
       setUploadFolderLabel(folderName);
@@ -707,7 +760,7 @@ export default function AdminFileManagerPhasePage() {
                               try {
                                 const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
                                   phase: currentPhase,
-                                  path: getSelectedFolderPath(),
+                                  path: getFolderPath(folder),
                                 });
                                 if (result?.url) {
                                   window.open(result.url, "_blank", "noopener,noreferrer");
@@ -743,6 +796,7 @@ export default function AdminFileManagerPhasePage() {
                         renderCard={(file) => (
                           <FileCard
                             file={{ ...file, previewUrl: previewUrls[file.id] }}
+                            stage={fileCardStage}
                             onOpen={() => handleOpenFile(file)}
                             onDownload={() => handleDownloadFile(file)}
                             onDelete={() => {
@@ -794,7 +848,7 @@ export default function AdminFileManagerPhasePage() {
                           try {
                             const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
                               phase: currentPhase,
-                              path: getPhaseRelativePath(folder.resourcePath, folder.title),
+                              path: getFolderPath(folder),
                             });
                             if (result?.url) {
                               window.open(result.url, "_blank", "noopener,noreferrer");
@@ -814,7 +868,7 @@ export default function AdminFileManagerPhasePage() {
                             resourceType: "folder",
                             externalId: String(projectId || ""),
                             phase: currentPhase,
-                            path: getPhaseRelativePath(folder.resourcePath, folder.title),
+                            path: getFolderPath(folder),
                             label: folder.title,
                           });
                           setIsShareModalOpen(true);
@@ -910,7 +964,7 @@ export default function AdminFileManagerPhasePage() {
                                 try {
                                   const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
                                     phase: currentPhase,
-                                    path: getPhaseRelativePath(folder.resourcePath, folder.title),
+                                    path: getFolderPath(folder),
                                   });
                                   if (result?.url) {
                                     window.open(result.url, "_blank", "noopener,noreferrer");
@@ -930,7 +984,7 @@ export default function AdminFileManagerPhasePage() {
                                   resourceType: "folder",
                                   externalId: String(projectId || ""),
                                   phase: currentPhase,
-                                  path: getPhaseRelativePath(folder.resourcePath, folder.title),
+                                  path: getFolderPath(folder),
                                   label: folder.title,
                                 });
                                 setIsShareModalOpen(true);
@@ -954,6 +1008,7 @@ export default function AdminFileManagerPhasePage() {
                                 <FileCard
                                   key={file.id}
                                   file={{ ...file, previewUrl: previewUrls[file.id] }}
+                                  stage={fileCardStage}
                                   onOpen={() => handleOpenFile(file)}
                                   onDownload={() => handleDownloadFile(file)}
                                   onDelete={() => {
@@ -1196,6 +1251,7 @@ export default function AdminFileManagerPhasePage() {
                         <FileCard
                           key={file.id}
                           file={{ ...file, previewUrl: previewUrls[file.id] }}
+                          stage={fileCardStage}
                           onOpen={() => handleOpenFile(file)}
                           onDownload={() => handleDownloadFile(file)}
                           onDelete={() => {

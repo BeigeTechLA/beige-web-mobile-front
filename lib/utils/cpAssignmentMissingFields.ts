@@ -59,8 +59,6 @@ const collectMissingFieldKeys = (source: UnknownRecord | null | undefined) => {
   const inferredMissing = [
     !isPresent(getNested(merged, ["event_location", "location"])) ? "event_location" : "",
     !isPresent(getNested(merged, ["event_date", "date", "start_date"])) && !hasBookingDays ? "event_date" : "",
-    !isPresent(getNested(merged, ["start_time", "event_start_time"])) && !bookingDays.some((day) => isPresent(day?.start_time)) ? "start_time" : "",
-    !isPresent(getNested(merged, ["end_time", "event_end_time"])) && !bookingDays.some((day) => isPresent(day?.end_time)) ? "end_time" : "",
   ].filter(Boolean);
 
   return [...explicitMissing, ...inferredMissing].map((field) => String(field).trim()).filter(Boolean);

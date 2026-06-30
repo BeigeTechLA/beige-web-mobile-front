@@ -56,6 +56,9 @@ const PREVIEW_BATCH_LIMIT = 12;
 const QUERY_IMAGE_MAX_EDGE = 1600;
 const QUERY_IMAGE_QUALITY = 0.92;
 const BACKGROUND_REINDEX_BATCH_LIMIT = 120;
+const FACE_SCAN_JOB_TIMEOUT_MS = 10 * 60 * 1000;
+const FACE_SCAN_JOB_POLL_BASE_INTERVAL_MS = 2500;
+const FACE_SCAN_JOB_POLL_MAX_INTERVAL_MS = 8000;
 
 const getScaledDimensions = (width: number, height: number, maxEdge: number) => {
   if (!width || !height) return { width: maxEdge, height: maxEdge };
@@ -68,12 +71,27 @@ const getScaledDimensions = (width: number, height: number, maxEdge: number) => 
   };
 };
 
-const dataUrlToBase64 = (dataUrl: string) => (dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl);
+const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-const optimizeDataUrlToBase64 = (dataUrl: string) =>
-  new Promise<string>((resolve, reject) => {
+const canvasToJpegBlob = (canvas: HTMLCanvasElement) =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Failed to prepare selected image"));
+          return;
+        }
+        resolve(blob);
+      },
+      "image/jpeg",
+      QUERY_IMAGE_QUALITY
+    );
+  });
+
+const optimizeDataUrlToBlob = (dataUrl: string) =>
+  new Promise<Blob>((resolve, reject) => {
     const image = new Image();
-    image.onload = () => {
+    image.onload = async () => {
       const { width, height } = getScaledDimensions(
         image.naturalWidth,
         image.naturalHeight,
@@ -90,15 +108,18 @@ const optimizeDataUrlToBase64 = (dataUrl: string) =>
       }
 
       context.drawImage(image, 0, 0, width, height);
-      const optimized = canvas.toDataURL("image/jpeg", QUERY_IMAGE_QUALITY);
-      resolve(dataUrlToBase64(optimized));
+      try {
+        resolve(await canvasToJpegBlob(canvas));
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error("Failed to prepare selected image"));
+      }
     };
     image.onerror = () => reject(new Error("Failed to process selected image"));
     image.src = dataUrl;
   });
 
-const fileToOptimizedBase64 = (file: File) =>
-  new Promise<string>((resolve, reject) => {
+const fileToOptimizedBlob = (file: File) =>
+  new Promise<Blob>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
       try {
@@ -107,8 +128,8 @@ const fileToOptimizedBase64 = (file: File) =>
           reject(new Error("Failed to read selected image"));
           return;
         }
-        const optimizedBase64 = await optimizeDataUrlToBase64(dataUrl);
-        resolve(optimizedBase64);
+        const optimizedBlob = await optimizeDataUrlToBlob(dataUrl);
+        resolve(optimizedBlob);
       } catch (error) {
         reject(error instanceof Error ? error : new Error("Failed to optimize selected image"));
       }
@@ -147,7 +168,6 @@ export default function AffiliateFindYourselfPage() {
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const activeScanIdRef = useRef(0);
   const workspaceDropdownRef = useRef<HTMLDivElement | null>(null);
-  const autoReindexTriggeredRef = useRef<Set<string>>(new Set());
 
   const resultCount = useMemo(() => faceMatches.length, [faceMatches]);
   const selectedWorkspaceCount = useMemo(() => selectedWorkspaceIds.length, [selectedWorkspaceIds]);
@@ -303,27 +323,6 @@ export default function AffiliateFindYourselfPage() {
   }, [selectedWorkspaceIds]);
 
   useEffect(() => {
-    if (!selectedWorkspaceIds.length) return;
-    selectedWorkspaceIds.forEach((workspaceId) => {
-      if (autoReindexTriggeredRef.current.has(workspaceId)) return;
-
-      const status = workspaceIndexStatusMap[workspaceId];
-      if (!status || status.state === "ready" || status.totalCandidates === 0) return;
-
-      autoReindexTriggeredRef.current.add(workspaceId);
-      void fileManagerApi
-        .reindexFaceEmbeddings({
-          externalId: workspaceId,
-          candidateLimit: BACKGROUND_REINDEX_BATCH_LIMIT,
-          concurrency: 2,
-        })
-        .catch(() => {
-          autoReindexTriggeredRef.current.delete(workspaceId);
-        });
-    });
-  }, [selectedWorkspaceIds, workspaceIndexStatusMap]);
-
-  useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (!workspaceDropdownRef.current) return;
       if (workspaceDropdownRef.current.contains(event.target as Node)) return;
@@ -393,7 +392,53 @@ export default function AffiliateFindYourselfPage() {
     }
   }, []);
 
-  const runFaceScanInSelectedFolders = async (scanImageBase64: string) => {
+  const uploadFaceScanQueryImage = useCallback(
+    async (imageBlob: Blob) => {
+      const primaryWorkspaceId = scanWorkspaces[0]?.externalId || selectedWorkspaceIds[0] || "";
+      const uploadPolicy = await fileManagerApi.getFaceScanQueryUploadPolicy({
+        externalId: primaryWorkspaceId || undefined,
+        fileContentType: imageBlob.type || "image/jpeg",
+        fileSize: imageBlob.size,
+      });
+
+      await fileManagerApi.uploadFaceScanQueryImage(uploadPolicy, imageBlob);
+      return uploadPolicy.scanImagePath;
+    },
+    [scanWorkspaces, selectedWorkspaceIds]
+  );
+
+  const waitForFaceScanJob = useCallback(
+    async (scanId: number, workspace: WorkspaceItem, jobId: string) => {
+      const startedAt = Date.now();
+      let pollDelayMs = FACE_SCAN_JOB_POLL_BASE_INTERVAL_MS;
+
+      while (Date.now() - startedAt < FACE_SCAN_JOB_TIMEOUT_MS) {
+        if (activeScanIdRef.current !== scanId) {
+          throw new Error("Face scan was replaced by a newer scan.");
+        }
+
+        const job = await fileManagerApi.getFaceScanJob(jobId, workspace.externalId);
+        if (job.status === "completed") {
+          return job.result || null;
+        }
+
+        if (job.status === "failed") {
+          throw new Error(job.errorMessage || "Face scan failed");
+        }
+
+        await delay(pollDelayMs);
+        pollDelayMs = Math.min(
+          FACE_SCAN_JOB_POLL_MAX_INTERVAL_MS,
+          Math.round(pollDelayMs * 1.5)
+        );
+      }
+
+      throw new Error("Face scan is taking too long. Please try again shortly.");
+    },
+    []
+  );
+
+  const runFaceScanInSelectedFolders = async (scanImagePath: string) => {
     if (!scanWorkspaces.length) {
       toast.error("No folders selected for scanning.");
       return;
@@ -406,13 +451,20 @@ export default function AffiliateFindYourselfPage() {
     activeScanIdRef.current = scanId;
 
     try {
-      const scanResults = await Promise.allSettled(
-        scanWorkspaces.map(async (workspace) => {
+      const scanResults: PromiseSettledResult<{
+        matches: FaceMatchItem[];
+        noFaceDetectedInScanImage: boolean;
+        queuedBackgroundIndex: boolean;
+      }>[] = [];
+      let shouldRefreshIndexStatus = false;
+
+      for (const workspace of scanWorkspaces) {
+        try {
           const indexStatus = workspaceIndexStatusMap[workspace.externalId];
           const isColdFolder = !indexStatus || indexStatus.readyCandidates === 0;
-          const fastResponse = await fileManagerApi.searchFaceMatches({
+          const fastJob = await fileManagerApi.createFaceScanJob({
             externalId: workspace.externalId,
-            scanImageBase64,
+            scanImagePath,
             threshold: FAST_SCAN_THRESHOLD,
             minScore: FAST_SCAN_THRESHOLD,
             maxResults: FAST_SCAN_MAX_RESULTS,
@@ -422,6 +474,7 @@ export default function AffiliateFindYourselfPage() {
             backgroundBatchLimit: BACKGROUND_REINDEX_BATCH_LIMIT,
             backgroundConcurrency: 2,
           });
+          const fastResponse = await waitForFaceScanJob(scanId, workspace, fastJob.jobId);
 
           const fastMatches = (fastResponse?.matches || []).map((match) => ({
             path: String(match.path || ""),
@@ -432,15 +485,20 @@ export default function AffiliateFindYourselfPage() {
           }));
 
           if (fastMatches.length >= 2) {
-            return {
-              matches: fastMatches,
-              noFaceDetectedInScanImage: Boolean(fastResponse?.noFaceDetectedInScanImage),
-            };
+            scanResults.push({
+              status: "fulfilled",
+              value: {
+                matches: fastMatches,
+                noFaceDetectedInScanImage: Boolean(fastResponse?.noFaceDetectedInScanImage),
+                queuedBackgroundIndex: Number(fastResponse?.backgroundIndexQueued || 0) > 0,
+              },
+            });
+            continue;
           }
 
-          const deepResponse = await fileManagerApi.searchFaceMatches({
+          const deepJob = await fileManagerApi.createFaceScanJob({
             externalId: workspace.externalId,
-            scanImageBase64,
+            scanImagePath,
             threshold: DEEP_SCAN_THRESHOLD,
             minScore: DEEP_SCAN_THRESHOLD,
             maxResults: FAST_SCAN_MAX_RESULTS,
@@ -450,6 +508,7 @@ export default function AffiliateFindYourselfPage() {
             backgroundBatchLimit: BACKGROUND_REINDEX_BATCH_LIMIT,
             backgroundConcurrency: 2,
           });
+          const deepResponse = await waitForFaceScanJob(scanId, workspace, deepJob.jobId);
 
           const deepMatches = (deepResponse?.matches || []).map((match) => ({
             path: String(match.path || ""),
@@ -459,14 +518,23 @@ export default function AffiliateFindYourselfPage() {
             workspaceId: workspace.externalId,
           }));
 
-          return {
-            matches: deepMatches.length ? deepMatches : fastMatches,
-            noFaceDetectedInScanImage:
-              Boolean(deepResponse?.noFaceDetectedInScanImage) ||
-              Boolean(fastResponse?.noFaceDetectedInScanImage),
-          };
-        })
-      );
+          scanResults.push({
+            status: "fulfilled",
+            value: {
+              matches: deepMatches.length ? deepMatches : fastMatches,
+              noFaceDetectedInScanImage:
+                Boolean(deepResponse?.noFaceDetectedInScanImage) ||
+                Boolean(fastResponse?.noFaceDetectedInScanImage),
+              queuedBackgroundIndex:
+                Number(fastResponse?.backgroundIndexQueued || 0) > 0 ||
+                Number(deepResponse?.backgroundIndexQueued || 0) > 0,
+            },
+          });
+        } catch (error) {
+          scanResults.push({ status: "rejected", reason: error });
+          continue;
+        }
+      }
 
       const merged: FaceMatchItem[] = [];
       let hasNoFaceDetection = false;
@@ -475,6 +543,9 @@ export default function AffiliateFindYourselfPage() {
           merged.push(...(result.value.matches || []).filter((item) => item.path));
           if (result.value.noFaceDetectedInScanImage) {
             hasNoFaceDetection = true;
+          }
+          if (result.value.queuedBackgroundIndex) {
+            shouldRefreshIndexStatus = true;
           }
         }
       });
@@ -504,7 +575,7 @@ export default function AffiliateFindYourselfPage() {
       setFaceMatches(deduped);
       toast.success(`Found ${deduped.length} matching photo${deduped.length === 1 ? "" : "s"}`);
       void hydratePreviewUrls(scanId, deduped.slice(0, PREVIEW_BATCH_LIMIT));
-      if (selectedWorkspaceIds.length) {
+      if (selectedWorkspaceIds.length && shouldRefreshIndexStatus) {
         const updatedStatuses = await Promise.allSettled(
           selectedWorkspaceIds.map((workspaceId) => fileManagerApi.getFaceScanIndexStatus(workspaceId))
         );
@@ -556,9 +627,18 @@ export default function AffiliateFindYourselfPage() {
       toast.error("Please choose an image for face scan.");
       return;
     }
+    if (!scanWorkspaces.length) {
+      toast.error("No folders selected for scanning.");
+      return;
+    }
 
-    const scanImageBase64 = await fileToOptimizedBase64(file);
-    await runFaceScanInSelectedFolders(scanImageBase64);
+    try {
+      const imageBlob = await fileToOptimizedBlob(file);
+      const scanImagePath = await uploadFaceScanQueryImage(imageBlob);
+      await runFaceScanInSelectedFolders(scanImagePath);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to prepare face scan image");
+    }
   };
 
   const startCameraStream = async (facingMode: "user" | "environment") => {
@@ -622,6 +702,11 @@ export default function AffiliateFindYourselfPage() {
 
   const handleCaptureFromCamera = async () => {
     if (!videoRef.current) return;
+    if (!scanWorkspaces.length) {
+      toast.error("No folders selected for scanning.");
+      return;
+    }
+
     const video = videoRef.current;
     const width = video.videoWidth;
     const height = video.videoHeight;
@@ -646,20 +731,16 @@ export default function AffiliateFindYourselfPage() {
       return;
     }
 
-    context.drawImage(video, 0, 0, scaledWidth, scaledHeight);
-    const dataUrl = canvas.toDataURL("image/jpeg", QUERY_IMAGE_QUALITY);
-    const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : "";
-
-    if (!base64) {
-      toast.error("Failed to capture image from camera.");
-      return;
-    }
-
     setIsCameraProcessing(true);
-    stopCamera();
     try {
-      await runFaceScanInSelectedFolders(base64);
+      context.drawImage(video, 0, 0, scaledWidth, scaledHeight);
+      const imageBlob = await canvasToJpegBlob(canvas);
+      stopCamera();
+      const scanImagePath = await uploadFaceScanQueryImage(imageBlob);
+      await runFaceScanInSelectedFolders(scanImagePath);
       handleCloseCamera();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to capture image from camera.");
     } finally {
       setIsCameraProcessing(false);
     }
@@ -819,18 +900,32 @@ export default function AffiliateFindYourselfPage() {
                         </div>
                         <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 lg:gap-2">
                           <span className="truncate text-xs lg:text-sm">{workspace.title}</span>
-                          <div className="flex items-center gap-2">
-                            <span className={`shrink-0 text-[10px] ${isSelected ? "text-black/65" : (isDark ? "text-white/45" : "text-black/45")}`}>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${
+                              isSelected
+                                ? "border-black/10 bg-black/5 text-black/65"
+                                : workspace.isCommonEvent
+                                  ? isDark
+                                    ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                                    : "border-[#E8D1AB]/45 bg-[#FFF7E8] text-[#7A5A24]"
+                                  : isDark
+                                    ? "border-white/10 bg-white/[0.06] text-white/60"
+                                    : "border-black/10 bg-black/[0.04] text-black/55"
+                            }`}>
                               {workspace.isCommonEvent ? "Common Event" : "Project"}
                             </span>
                             <span
-                              className={`shrink-0 rounded-full px-1.5 lg:px-2 py-0.5 text-[10px] ${indexLabel === "Ready"
+                              className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${indexLabel === "Ready"
                                 ? isSelected
-                                  ? "bg-black/10 text-black/70"
-                                  : "bg-emerald-500/20 text-emerald-200"
+                                  ? "border-black/10 bg-black/5 text-black/70"
+                                  : isDark
+                                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+                                    : "border-emerald-600/15 bg-emerald-50 text-emerald-700"
                                 : isSelected
-                                  ? "bg-black/10 text-black/70"
-                                  : "bg-amber-400/20 text-amber-800"
+                                  ? "border-black/10 bg-black/5 text-black/70"
+                                  : isDark
+                                    ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                                    : "border-amber-600/15 bg-amber-50 text-amber-700"
                                 }`}
                             >
                               {indexLabel}

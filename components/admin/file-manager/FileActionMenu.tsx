@@ -3,6 +3,7 @@
 import React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
+  CalendarClock,
   FolderOpen,
   Share2,
   Download,
@@ -21,11 +22,12 @@ interface FileActionMenuProps {
   onDelete?: () => void;
   onRename?: () => void;
   onShare?: () => void;
+  onEditVisibility?: () => void;
   isDark?: boolean;
 }
 
 const FileActionMenu: React.FC<FileActionMenuProps> = ({
-  isOpen, onClose, anchor, folderName, href, onOpen, onDownload, onDelete, onShare, isDark = true
+  isOpen, onClose, anchor, folderName, href, onOpen, onDownload, onDelete, onShare, onEditVisibility, isDark = true
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -90,6 +92,17 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
               onClose();
             }}
           /> */}
+          {onEditVisibility ? (
+            <MenuButton
+              icon={<CalendarClock size={18} />}
+              label="Visibility date"
+              onClick={() => {
+                onEditVisibility();
+                onClose();
+              }}
+              isDark={isDark}
+            />
+          ) : null}
         </div>
 
         {/* Divider */}

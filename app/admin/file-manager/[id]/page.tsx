@@ -16,10 +16,13 @@ import ShareResourceModal from "@/components/admin/file-manager/ShareResourceMod
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
+import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
   getDisplayInitials,
+  isCommonEventWorkspaceId,
+  isVisibleToNonAdminByVisibleUntil,
   mapExternalFoldersToUi,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
@@ -34,11 +37,13 @@ export default function AdminFolderDetailsPage() {
   const pathname = usePathname();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const { isDark } = useResolvedTheme();
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
+  const [workspaceVisibleUntil, setWorkspaceVisibleUntil] = useState<string | null>(null);
   const [folders, setFolders] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,16 +76,23 @@ export default function AdminFolderDetailsPage() {
         setWorkspaceName("");
         setWorkspaceCode(String(projectId || ""));
         setWorkspaceConsoleUrl(null);
+        setWorkspaceVisibleUntil(null);
         setFolders([]);
         return;
       }
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
+      setWorkspaceVisibleUntil(workspaceData.workspace.visibleUntil || null);
       setFolders(
         mapExternalFoldersToUi(
           workspaceData.folders,
-          (folder) => `/admin/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+          (folder) =>
+            isCommonEventWorkspace
+              ? `/admin/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
+                folder.name
+              )}`
+              : `/admin/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
         )
       );
     } catch (err: any) {
@@ -103,6 +115,27 @@ export default function AdminFolderDetailsPage() {
       mounted = false;
     };
   }, [projectId]);
+
+  const isVisibilityExpired =
+    isCommonEventWorkspace &&
+    Boolean(workspaceVisibleUntil) &&
+    !isVisibleToNonAdminByVisibleUntil(workspaceVisibleUntil);
+  const statusBadge = isVisibilityExpired
+    ? {
+        label: "Visibility expired",
+        className: "bg-[#4A3400] text-[#FACC15] border-[#F59E0B]/35",
+      }
+    : isCommonEventWorkspace
+      ? {
+          label: "Common Event",
+          className: isDark
+            ? "bg-black text-white border-white/10"
+            : "bg-gray-100 text-gray-900 border-gray-200",
+        }
+      : {
+          label: "Active Project",
+          className: "bg-[#D4FFE4] text-[#16A34A] border-[#6ce9a6]/20",
+        };
 
   const visibleFolders = useMemo(() => {
     let items = [...folders];
@@ -150,6 +183,7 @@ export default function AdminFolderDetailsPage() {
   };
 
   const getSelectedFolderPhase = () => {
+    if (isCommonEventWorkspace) return undefined;
     if (!selectedFolder?.title) return "root";
     return selectedFolder.title.toLowerCase().includes("post") ? "post" : "pre";
   };
@@ -159,6 +193,7 @@ export default function AdminFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
         phase: getSelectedFolderPhase(),
+        path: isCommonEventWorkspace ? selectedFolder.rawName || selectedFolder.title : undefined,
       });
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
@@ -229,8 +264,8 @@ export default function AdminFolderDetailsPage() {
                       <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                         {workspaceName}
                       </h1>
-                      <span className="hidden lg:block px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
-                        Active Project
+                      <span className={`hidden lg:block px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs lg:font-medium border h-fit w-fit ${statusBadge.className}`}>
+                        {statusBadge.label}
                       </span>
                     </div>
 
@@ -240,8 +275,8 @@ export default function AdminFolderDetailsPage() {
                       {workspaceCode}
                     </p>
 
-                    <span className="mt-2 block lg:hidden px-1.5 lg:px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-[10px] lg:text-xs lg:font-medium border border-[#6ce9a6]/20 h-fit w-fit">
-                      Active Project
+                    <span className={`mt-2 block lg:hidden px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs lg:font-medium border h-fit w-fit ${statusBadge.className}`}>
+                      {statusBadge.label}
                     </span>
                     {/* {workspaceConsoleUrl ? (
                     <a
@@ -300,7 +335,9 @@ export default function AdminFolderDetailsPage() {
                   </div>
                 </div>
 
-                {viewMode === "grid" ? (
+                {visibleFolders.length === 0 ? (
+                  <EmptyFolderState isDark={isDark} />
+                ) : viewMode === "grid" ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                     {visibleFolders.map((folder) => (
                       <FolderCard
@@ -318,7 +355,8 @@ export default function AdminFolderDetailsPage() {
                           setSelectedFolder(folder);
                           try {
                             const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
-                              phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                              phase: isCommonEventWorkspace ? undefined : folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                              path: isCommonEventWorkspace ? folder.rawName || folder.title : undefined,
                             });
                             if (result?.url) {
                               window.open(result.url, "_blank", "noopener,noreferrer");
@@ -336,7 +374,8 @@ export default function AdminFolderDetailsPage() {
                           setShareResource({
                             resourceType: "folder",
                             externalId: String(projectId || ""),
-                            phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                            phase: isCommonEventWorkspace ? undefined : folder.title.toLowerCase().includes("post") ? "post" : "pre",
+                            path: isCommonEventWorkspace ? folder.rawName || folder.title : undefined,
                             label: folder.title,
                           });
                           setIsShareModalOpen(true);
@@ -463,6 +502,7 @@ export default function AdminFolderDetailsPage() {
                 resourceType: "folder",
                 externalId: String(projectId || ""),
                 phase: getSelectedFolderPhase(),
+                path: isCommonEventWorkspace ? selectedFolder.rawName || selectedFolder.title : undefined,
                 label: selectedFolder.title,
               });
               setIsShareModalOpen(true);

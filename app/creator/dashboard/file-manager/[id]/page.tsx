@@ -79,16 +79,14 @@ export default function CreatorFolderDetailsPage() {
         mapExternalFoldersToUi(
           workspaceData.folders,
           (folder) =>
-          `/creator/dashboard/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+            `/creator/dashboard/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
+              folder.name
+            )}`
         )
       );
 
       if (isCommonEventWorkspace) {
-        const [preAccess, postAccess] = await Promise.allSettled([
-          fileManagerApi.getExternalWorkspaceFiles(projectId, "pre"),
-          fileManagerApi.getExternalWorkspaceFiles(projectId, "post"),
-        ]);
-        setHasCreatedCpFolders(preAccess.status === "fulfilled" && postAccess.status === "fulfilled");
+        setHasCreatedCpFolders((workspaceData.folders || []).length > 0);
       } else {
         setHasCreatedCpFolders(null);
       }
@@ -126,15 +124,6 @@ export default function CreatorFolderDetailsPage() {
     return items.filter((item) => item.title.toLowerCase().includes(query));
   }, [folders, searchTerm, status]);
 
-  const preProductionFolder = useMemo(
-    () => folders.find((folder) => folder.title.toLowerCase().includes("pre production")),
-    [folders]
-  );
-  const postProductionFolder = useMemo(
-    () => folders.find((folder) => folder.title.toLowerCase().includes("post production")),
-    [folders]
-  );
-
   const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, folder: UiFolderItem) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setSelectedFolder(folder);
@@ -149,6 +138,7 @@ export default function CreatorFolderDetailsPage() {
   };
 
   const getFolderPhase = (folder?: UiFolderItem | null) => {
+    if (isCommonEventWorkspace) return undefined;
     if (!folder?.title) return "root";
     return folder.title.toLowerCase().includes("post") ? "post" : "pre";
   };
@@ -157,7 +147,7 @@ export default function CreatorFolderDetailsPage() {
     const targetHref = folder.href || `/creator/dashboard/file-manager/${projectId}`;
     const phase = getFolderPhase(folder);
 
-    if (!isCommonEventWorkspace || (phase !== "pre" && phase !== "post")) {
+    if (isCommonEventWorkspace || (phase !== "pre" && phase !== "post")) {
       router.push(targetHref);
       return;
     }
@@ -176,6 +166,7 @@ export default function CreatorFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
         phase: getFolderPhase(targetFolder),
+        path: isCommonEventWorkspace ? targetFolder.rawName || targetFolder.title : undefined,
       });
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
@@ -211,46 +202,14 @@ export default function CreatorFolderDetailsPage() {
     if (!isCommonEventWorkspace) return;
     try {
       setIsCreatingMyFolder(true);
-      const results = await Promise.allSettled([
-        fileManagerApi.createCreatorEventFolder(String(projectId), undefined, { phase: "pre" }),
-        fileManagerApi.createCreatorEventFolder(String(projectId), undefined, { phase: "post" }),
-      ]);
-      const fulfilled = results
-        .filter((entry): entry is PromiseFulfilledResult<{ folderName?: string }> => entry.status === "fulfilled")
-        .map((entry) => entry.value);
-
-      if (!fulfilled.length) {
-        throw new Error("Failed to create Creative Partner folder");
-      }
-
+      await fileManagerApi.createCreatorEventFolder(String(projectId));
       setHasCreatedCpFolders(true);
-      toast.success("Your folders are ready in both Pre Production and Post Production. Open either folder below to upload files.");
+      toast.success("Your folder is ready. Open it below to upload files.");
       await loadWorkspace();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to create your folder");
     } finally {
       setIsCreatingMyFolder(false);
-    }
-  };
-
-  const handleOpenPersonalPhaseFolder = async (phase: "pre" | "post") => {
-    const phaseSlug = phase === "post" ? "post-production" : "pre-production";
-    try {
-      const phaseData = await fileManagerApi.getExternalWorkspaceFiles(projectId, phase);
-      const personalFolderName = String(phaseData?.folders?.[0]?.name || "").trim();
-
-      if (!personalFolderName) {
-        router.push(`/creator/dashboard/file-manager/${projectId}/${phaseSlug}`);
-        return;
-      }
-
-      router.push(
-        `/creator/dashboard/file-manager/${projectId}/${phaseSlug}/${personalFolderName
-          .toLowerCase()
-          .replace(/\s+/g, "-")}?path=${encodeURIComponent(personalFolderName)}`
-      );
-    } catch {
-      toast.error("Please create your folder first, then open Pre Production or Post Production.");
     }
   };
 
@@ -364,39 +323,11 @@ export default function CreatorFolderDetailsPage() {
 
             {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
               <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
-                No folders yet. Create one to get started - it will appear in both Pre Production and Post Production
-                {/* <br />
-                Once created, you can see your folder in Pre Production and Post Production as well. */}
+                No folder yet. Create your folder to get started.
               </div>
-            ) : isCommonEventWorkspace && hasCreatedCpFolders && (preProductionFolder || postProductionFolder) ? (
+            ) : isCommonEventWorkspace && hasCreatedCpFolders ? (
               <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
-                <p>
-                  Your folders are ready in both{" "}
-                  {preProductionFolder ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleOpenPersonalPhaseFolder("pre")}
-                      className="font-semibold underline underline-offset-4 transition-colors hover:text-[#F4E7CC]"
-                    >
-                      Pre Production
-                    </button>
-                  ) : (
-                    <span className="font-semibold">Pre Production</span>
-                  )}{" "}
-                  and{" "}
-                  {postProductionFolder ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleOpenPersonalPhaseFolder("post")}
-                      className="font-semibold underline underline-offset-4 transition-colors hover:text-[#F4E7CC]"
-                    >
-                      Post Production
-                    </button>
-                  ) : (
-                    <span className="font-semibold">Post Production</span>
-                  )}
-                  . Open either folder below to upload files.
-                </p>
+                <p>Your folder is ready. Open it below to upload files.</p>
               </div>
             ) : null}
 
@@ -425,6 +356,7 @@ export default function CreatorFolderDetailsPage() {
                         resourceType: "folder",
                         externalId: String(projectId || ""),
                         phase: getFolderPhase(folder),
+                        path: isCommonEventWorkspace ? folder.rawName || folder.title : undefined,
                         label: folder.title,
                       });
                       setIsShareModalOpen(true);
@@ -540,6 +472,7 @@ export default function CreatorFolderDetailsPage() {
               resourceType: "folder",
               externalId: String(projectId || ""),
               phase: getFolderPhase(selectedFolder),
+              path: isCommonEventWorkspace ? selectedFolder.rawName || selectedFolder.title : undefined,
               label: selectedFolder.title,
             });
             setIsShareModalOpen(true);

@@ -76,6 +76,7 @@ interface ExternalWorkspaceSummary {
   isCommonEvent?: boolean;
   eventId?: string | number;
   eventName?: string;
+  visibleUntil?: string | null;
 }
 
 interface ExternalWorkspaceFolder {
@@ -91,11 +92,13 @@ interface ExternalWorkspaceFolder {
 interface ExternalWorkspaceFile {
   id: string;
   name: string;
+  author?: string;
   path: string;
   fullPath?: string;
   size?: number;
   contentType?: string;
   isPublic?: boolean;
+  metadata?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -193,6 +196,7 @@ interface CommonEventResponse {
     eventSlug: string;
     externalId: string;
     rootPath?: string | null;
+    visibleUntil?: string | null;
     createdAt?: string;
     updatedAt?: string;
   }>;
@@ -204,6 +208,7 @@ interface CreateCommonEventResponse {
     eventName: string;
     eventSlug: string;
     externalId: string;
+    visibleUntil?: string | null;
     workspace?: ExternalWorkspaceSummary | null;
   };
 }
@@ -235,6 +240,42 @@ interface FaceScanResponse {
       [key: string]: unknown;
     }>;
     provider?: string | null;
+  };
+}
+
+interface FaceScanJobCreateResponse {
+  success: boolean;
+  data: {
+    jobId: string;
+    externalId: string;
+    status: "queued" | "processing" | "completed" | "failed";
+    queueMode?: "redis" | "local";
+  };
+}
+
+interface FaceScanQueryUploadPolicyResponse {
+  success: boolean;
+  data: {
+    url: string;
+    fields: Record<string, string>;
+    filePath: string;
+    scanImagePath: string;
+    success: boolean;
+  };
+}
+
+interface FaceScanJobStatusResponse {
+  success: boolean;
+  data: {
+    jobId: string;
+    externalId: string;
+    status: "queued" | "processing" | "completed" | "failed";
+    result?: FaceScanResponse["data"] | null;
+    errorMessage?: string | null;
+    attempts?: number;
+    queuedAt?: string;
+    startedAt?: string | null;
+    completedAt?: string | null;
   };
 }
 
@@ -344,6 +385,8 @@ export interface UiFolderItem {
   type?: string;
   resourcePath?: string;
   updatedAtRaw?: string;
+  visibleUntil?: string | null;
+  rawName?: string;
 }
 
 const DEFAULT_FILE_MANAGER_BASE_PATH = "/production-manager/file-manager";
@@ -353,11 +396,13 @@ export interface UiFileItem {
   title: string;
   lastOpened: string;
   userInitials: string;
+  uploaderName: string;
   downloadUrl?: string;
   fileCategory: string;
   fileSizeBytes: number;
   filepath?: string;
   contentType?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface FileCommentUser {
@@ -449,7 +494,43 @@ const prettifyExternalFolderName = (name?: string) => {
   if (normalized === "Pre-Production") return "Pre Production";
   if (normalized === "Post-Production") return "Post Production";
   if (normalized === "Raw Footage") return "Raw Footages";
+  if (normalized === "Revisions") return "Revision";
   return normalized.replace(/-/g, " ");
+};
+
+const toTitleCaseWord = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return "";
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+};
+
+const getFirstName = (value?: string | null) =>
+  String(value || "")
+    .replace(/#/g, " ")
+    .split(/[\s_]+/)
+    .map((part) => part.trim())
+    .find(Boolean) || "";
+
+export const formatFileManagerWorkspaceName = (name?: string | null) => {
+  const rawName = String(name || "").trim();
+  if (!rawName) return "Folder";
+
+  const isDirectWorkspace = /^direct[\s_]+/i.test(rawName);
+  const directName = rawName.replace(/^direct[\s_]+/i, "").trim();
+  if (isDirectWorkspace && directName) return directName;
+
+  const idFromName = String(rawName.match(/#\s*([A-Za-z0-9-]+)/)?.[1] || "").trim();
+  if (!idFromName) return rawName;
+
+  const nameWithoutId = rawName.replace(/#\s*[A-Za-z0-9-]+/g, " ");
+  const nameSegments = nameWithoutId
+    .split("_")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const clientNameSegment = nameSegments[nameSegments.length - 1] || nameWithoutId;
+  const firstName = toTitleCaseWord(getFirstName(clientNameSegment));
+
+  return firstName ? `${firstName}_#${idFromName.replace(/^#/, "")}` : rawName;
 };
 
 const formatRelativeTime = (value?: string) => {
@@ -545,11 +626,17 @@ export const fileManagerApi = {
     return response.data.workspaces || [];
   },
 
-  async listExternalWorkspacesPaginated(options?: { page?: number; limit?: number; search?: string }) {
+  async listExternalWorkspacesPaginated(options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    workspaceType?: "common-events" | "visibility-expired";
+  }) {
     const params: Record<string, string | number> = {};
     if (options?.page) params.page = options.page;
     if (options?.limit) params.limit = options.limit;
     if (options?.search) params.search = options.search;
+    if (options?.workspaceType) params.workspaceType = options.workspaceType;
 
     const response = await apiClient.get<ExternalWorkspacesResponse>(
       "external-file-manager/workspaces",
@@ -573,11 +660,20 @@ export const fileManagerApi = {
     return response.data || [];
   },
 
-  async createCommonEvent(eventName: string, externalId?: string) {
+  async createCommonEvent(eventName: string, options?: { externalId?: string; visibleUntil?: string | null }) {
     const response = await apiClient.post<CreateCommonEventResponse>("external-file-manager/common-events", {
       eventName,
-      externalId,
+      externalId: options?.externalId,
+      visibleUntil: options?.visibleUntil || null,
     });
+    return response.data;
+  },
+
+  async updateCommonEventVisibility(eventExternalId: string, visibleUntil?: string | null) {
+    const response = await apiClient.patch<CreateCommonEventResponse>(
+      `external-file-manager/common-events/${eventExternalId}`,
+      { visibleUntil: visibleUntil || null }
+    );
     return response.data;
   },
 
@@ -607,6 +703,7 @@ export const fileManagerApi = {
     externalId: string;
     scanImageBase64?: string;
     scanImageUrl?: string;
+    scanImagePath?: string;
     threshold?: number;
     minScore?: number;
     maxResults?: number;
@@ -618,6 +715,63 @@ export const fileManagerApi = {
     providerTimeoutMs?: number;
   }) {
     const response = await apiClient.post<FaceScanResponse>("external-file-manager/face-scan/search", payload);
+    return response.data;
+  },
+
+  async createFaceScanJob(payload: {
+    externalId: string;
+    scanImageBase64?: string;
+    scanImageUrl?: string;
+    scanImagePath?: string;
+    threshold?: number;
+    minScore?: number;
+    maxResults?: number;
+    candidateLimit?: number;
+    fallbackCandidateLimit?: number;
+    backgroundReindex?: boolean;
+    backgroundBatchLimit?: number;
+    backgroundConcurrency?: number;
+    includeLiveFallback?: boolean;
+    providerTimeoutMs?: number;
+  }) {
+    const response = await apiClient.post<FaceScanJobCreateResponse>(
+      "external-file-manager/face-scan/jobs",
+      payload
+    );
+    return response.data;
+  },
+
+  async getFaceScanQueryUploadPolicy(payload: {
+    externalId?: string;
+    fileContentType: string;
+    fileSize: number;
+  }) {
+    const response = await apiClient.post<FaceScanQueryUploadPolicyResponse>(
+      "external-file-manager/face-scan/query-upload-policy",
+      payload
+    );
+    return response.data;
+  },
+
+  async uploadFaceScanQueryImage(
+    uploadPolicy: { url: string; fields: Record<string, string> },
+    file: Blob,
+    signal?: AbortSignal
+  ) {
+    const data = new FormData();
+    Object.entries(uploadPolicy.fields || {}).forEach(([key, value]) => {
+      data.append(key, value);
+    });
+    data.append("file", file);
+
+    await axios.post(uploadPolicy.url, data, { signal });
+  },
+
+  async getFaceScanJob(jobId: string, externalId: string) {
+    const response = await apiClient.get<FaceScanJobStatusResponse>(
+      `external-file-manager/face-scan/jobs/${encodeURIComponent(String(jobId || ""))}`,
+      { externalId }
+    );
     return response.data;
   },
 
@@ -819,6 +973,62 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async copyExternalFiles(payload: {
+    externalId: string | number;
+    phase: "pre" | "post";
+    targetPath: string;
+    sourcePaths: string[];
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        total: number;
+        successCount: number;
+        failureCount: number;
+        targetPath: string;
+        items: Array<{
+          sourcePath: string;
+          destinationPath?: string;
+          success: boolean;
+          error?: string;
+          code?: number;
+        }>;
+      };
+    }>("external-file-manager/copy-files", {
+      externalId: String(payload.externalId),
+      phase: payload.phase,
+      targetPath: payload.targetPath,
+      sourcePaths: payload.sourcePaths,
+    });
+    return response.data;
+  },
+
+  async reviewRevisionFile(payload: {
+    externalId: string | number;
+    filepath: string;
+    action: "approve" | "request_revision";
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        action: "approve" | "request_revision";
+        versionNumber?: number;
+        nextVersionNumber?: number;
+        nextVersionPath?: string;
+        finalDeliverable?: {
+          id: string;
+          path: string;
+          name: string;
+        };
+      };
+    }>("external-file-manager/revision-file/review", {
+      externalId: String(payload.externalId),
+      filepath: payload.filepath,
+      action: payload.action,
+    });
+    return response.data;
+  },
+
   async createExternalShare(payload: {
     resourceType: "workspace" | "folder" | "file";
     externalId: string;
@@ -964,14 +1174,15 @@ export const mapProjectToFolderCard = (
   basePath: string = DEFAULT_FILE_MANAGER_BASE_PATH
 ): UiFolderItem => ({
   id: String(project.project_id),
-  title: project.project_name || project.project_code,
+  title: formatFileManagerWorkspaceName(project.project_name || project.project_code),
   fileCount: project.total_files_count || 0,
   category: project.state_display_name || project.current_state,
   isLinked: true,
   lastOpened: formatRelativeTime(project.updated_at || project.created_at),
-  userInitials: getInitials(project.assigned_creator?.name || project.client?.name),
+  userInitials: getDisplayInitials(formatFileManagerWorkspaceName(project.project_name || project.project_code)),
   href: `${basePath}/${project.project_id}`,
   updatedAtRaw: project.updated_at || project.created_at,
+  rawName: project.project_name || project.project_code,
 });
 
 export const buildProjectRootFolders = (
@@ -1030,12 +1241,12 @@ export const buildPostProductionFolders = (
     },
     {
       id: `${projectId}-edited`,
-      title: "Edited Footages",
+      title: "Edits",
       fileCount: byCategories(files, EDITED_FOOTAGE_CATEGORIES).length,
       lastOpened,
       userInitials,
-      type: "edited-footage",
-      href: `${projectPath}/post-production/edited-footage`,
+      type: "edits",
+      href: `${projectPath}/post-production/edits`,
     },
     {
       id: `${projectId}-final`,
@@ -1055,6 +1266,7 @@ export const mapFilesForUi = (files: ProjectFileItem[]): UiFileItem[] =>
     title: file.file_name,
     lastOpened: formatRelativeTime(file.updated_at || file.created_at),
     userInitials: getInitials(file.uploaded_by?.name),
+    uploaderName: file.uploaded_by?.name || "Unknown uploader",
     fileCategory: file.file_category,
     fileSizeBytes: file.file_size_bytes,
   }));
@@ -1072,7 +1284,7 @@ export const getFilesForFolderView = (
     return byCategories(files, RAW_FOOTAGE_CATEGORIES);
   }
 
-  if (phaseSlug === "post-production" && nestedSlug === "edited-footage") {
+  if (phaseSlug === "post-production" && (nestedSlug === "edits" || nestedSlug === "edited-footage")) {
     return byCategories(files, EDITED_FOOTAGE_CATEGORIES);
   }
 
@@ -1086,7 +1298,7 @@ export const getFilesForFolderView = (
 export const slugToWorkspaceName = (slug?: string) => {
   if (!slug) return "";
   if (slug === "raw-footage") return "Raw Footage";
-  if (slug === "edited-footage") return "Edited Footage";
+  if (slug === "edits" || slug === "edited-footage") return "Edits";
   if (slug === "final-deliverables") return "Final Deliverables";
   if (slug === "pre-production") return "Pre-Production";
   if (slug === "post-production") return "Post-Production";
@@ -1099,20 +1311,34 @@ export const slugToWorkspaceName = (slug?: string) => {
 export const isCommonEventWorkspaceId = (workspaceId?: string | number) =>
   String(workspaceId || "").toLowerCase().startsWith("event_");
 
+export const isVisibleToNonAdminByVisibleUntil = (visibleUntil?: string | null) => {
+  if (!visibleUntil) return true;
+
+  const [year, month, day] = String(visibleUntil).slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return true;
+
+  const visibleThrough = new Date(year, month - 1, day, 23, 59, 59, 999);
+  if (Number.isNaN(visibleThrough.getTime())) return true;
+
+  return Date.now() <= visibleThrough.getTime();
+};
+
 export const mapExternalWorkspaceToFolderCard = (
   workspace: ExternalWorkspaceSummary,
   basePath: string
 ): UiFolderItem => ({
   id: workspace.externalId,
-  title: workspace.folderName,
+  title: workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName),
   fileCount: workspace.fileCount || 0,
   category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
   isLinked: true,
   lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
-  userInitials: getDisplayInitials(workspace.folderName),
+  userInitials: getDisplayInitials(workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName)),
   href: `${basePath}/${workspace.externalId}`,
   resourcePath: workspace.rootPath,
   updatedAtRaw: workspace.updatedAt || workspace.createdAt,
+  visibleUntil: workspace.visibleUntil || null,
+  rawName: workspace.folderName,
 });
 
 export const mapExternalFoldersToUi = (
@@ -1122,6 +1348,7 @@ export const mapExternalFoldersToUi = (
   folders.map((folder) => ({
     id: folder.path,
     title: prettifyExternalFolderName(folder.name),
+    rawName: folder.name,
     fileCount: folder.fileCount || 0,
     category: folder.folderType || "folder",
     isLinked: true,
@@ -1137,9 +1364,11 @@ export const mapExternalFilesToUi = (files: ExternalWorkspaceFile[]): UiFileItem
     id: file.id,
     title: file.name,
     lastOpened: formatRelativeTime(file.updatedAt || file.createdAt),
-    userInitials: getDisplayInitials(file.name),
+    userInitials: getDisplayInitials(file.author || "Unknown uploader"),
+    uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
     fileCategory: file.contentType || "file",
     fileSizeBytes: file.size || 0,
     filepath: file.path,
     contentType: file.contentType || "application/octet-stream",
+    metadata: file.metadata || {},
   }));

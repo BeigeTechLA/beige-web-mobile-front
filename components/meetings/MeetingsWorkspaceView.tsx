@@ -23,6 +23,7 @@ import {
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import ParticipantAvatarStack from "./AvatarStack";
 import MeetingsStructure from "./MeetingsTable";
+import { SortDateButton } from "../admin/SortDateButton";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -93,6 +94,11 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [search, setSearch] = useState("");
   const [respondingMeetingId, setRespondingMeetingId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  
+  const handleDateSort = (date: Date | null) => {
+    setSelectedDate(date);
+  };
 
   const { isDark } = useResolvedTheme();
 
@@ -105,12 +111,12 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
-  const normalizedUserRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
-  const isSalesAdminView = role === "sales" && normalizedUserRole === "sales_admin";
+  const isSalesAdminView = role === "sales";
   const isAdminView = role === "admin" || isSalesAdminView;
   const effectiveRoleForActions: RoleVariant = isAdminView ? "admin" : role;
-  const canCreateMeeting = effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
-  const canDeleteMeeting = effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
+  const canCreateMeeting =
+    effectiveRoleForActions === "admin" || effectiveRoleForActions === "client";
+  const canDeleteMeeting = effectiveRoleForActions === "admin";
 
   const loadMeetings = useCallback(async () => {
     setLoading(true);
@@ -136,22 +142,28 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   }, [loadMeetings]);
 
   const filteredMeetings = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    if (!normalizedSearch) return meetings;
+      let result = meetings;
 
-    return meetings.filter((meeting) =>
+      if (selectedDate) {
+        const targetDate = selectedDate.toDateString();
+        result = result.filter((m) => 
+          m.meeting_date_time ? new Date(m.meeting_date_time).toDateString() === targetDate : false
+        );
+      }
+    const normalizedSearch = search.trim().toLowerCase();
+    if (!normalizedSearch) return result;
+
+    return result.filter((meeting) =>
       [
         meeting.meeting_title,
         meeting.order?.name,
         meeting.description,
-        meeting.admin?.name,
-        ...(meeting.cps || []).map((participant) => participant.name || participant.email),
         ...(meeting.participants || []).map((participant) => participant.name || participant.email),
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalizedSearch))
     );
-  }, [meetings, search]);
+  }, [meetings, search, selectedDate]);
 
   const handleRespond = useCallback(
     async (meetingId: string | number, response: "accepted" | "declined") => {
@@ -174,6 +186,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
 
       {/* Top Actions Panel */}
       <div className="mb-3 lg:mb-6 flex flex-col gap-4">
+       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className={`text-xl lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
             Meetings
@@ -184,7 +197,13 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
               : "Browse your scheduled meetings and jump into the related shoot when needed."}
           </p>
         </div>
-
+        <div className="flex-shrink-0">
+           <SortDateButton
+             selectedDate={selectedDate}
+             onDateChange={handleDateSort}
+            />
+          </div>
+        </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           {/* Search Input Box Container */}
           <div className="relative w-full lg:max-w-sm">

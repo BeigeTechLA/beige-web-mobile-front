@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, AlertCircle, Eye } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,38 +11,48 @@ import {
   getProjectDateText,
   getPaymentStatusMeta,
   getProjectScheduleTimeText,
+  getProjectScheduleTooltipText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils"
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/src/components/landing/ui/tooltip";
 
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
 type ShootHeaderProject = {
   payment_status?: string | null;
   payment_id?: string | number | null;
-  project_name?: string;
-  skills_needed?: string;
+  project_name?: unknown;
+  skills_needed?: unknown;
   status?: number;
   timeline_status?: number;
   timeline_label?: string;
-  description?: string;
+  description?: unknown;
   event_date?: string;
   start_time?: string;
   end_time?: string;
   event_start_time?: string;
+  booking_days?: Array<{
+    date?: string | null;
+    event_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    time_zone?: string | null;
+  }> | null;
+  time_zone?: string | null;
   total_paid_amount?: string | number;
   total_value_amount?: string | number;
   converted_sales_quote_id?: string | number | null;
   converted_quote_amount?: string | number;
   converted_quote_total?: string | number;
-  event_location?: string;
-  location?: string;
-  city?: string;
-  state?: string;
-  country?: string;
+  event_location?: unknown;
+  location?: unknown;
+  city?: unknown;
+  state?: unknown;
+  country?: unknown;
   needs_attention?: {
     required?: boolean;
     missing_fields?: string[];
@@ -72,17 +82,93 @@ const getAmount = (...values: unknown[]): number | undefined => {
   return undefined;
 };
 
+const formatCurrencyLike = (value: unknown): string => {
+  const amount = getAmount(value) ?? 0;
+  return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+
+const toDisplayText = (value: unknown): string => {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number") return String(value);
+  return "";
+};
+
+const getLocationText = (project?: ShootHeaderProject): string => {
+  const location = asRecord(project?.location);
+  const directLocation = toDisplayText(project?.event_location);
+  if (directLocation) return directLocation;
+
+  const nestedLocation = [
+    location?.formatted_address,
+    location?.address,
+    location?.name,
+    location?.label,
+  ].map(toDisplayText).find(Boolean);
+  if (nestedLocation) return nestedLocation;
+
+  const locationParts = [
+    project?.location,
+    project?.city,
+    project?.state,
+    project?.country,
+  ].map(toDisplayText).filter(Boolean);
+
+  return locationParts.join(", ") || "No location specified";
+};
+
+const ScheduleTooltipValue = ({
+  value,
+  tooltip,
+  isDark,
+}: {
+  value: string;
+  tooltip: string;
+  isDark: boolean;
+}) => {
+  if (!tooltip) {
+    return <span className={`inline-block max-w-full whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{value}</span>;
+  }
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={`inline-block max-w-full select-none whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}
+          >
+            {value}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          align="end"
+          sideOffset={6}
+          avoidCollisions
+          style={{
+            backgroundColor: isDark ? "#111111" : "#ffffff",
+            color: isDark ? "#ffffff" : "#111111",
+            borderColor: isDark ? "#3D3D3D" : "#E7D7BC",
+          }}
+          className={cn(
+            "max-w-[260px] select-none whitespace-pre-line rounded-lg border px-2.5 py-1.5 text-[11px] leading-4 shadow-lg",
+          )}
+        >
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 interface ShootHeaderProps {
   activeTab?: string;
   project?: ShootHeaderProject;
   projectId?: string;
   convertedSalesQuoteId?: string | null;
-  missingFields?: string[];
   hasFormDetails?: boolean;
-  onOpenMissingFields?: () => void;
 }
 
 export default function ShootHeader({
@@ -90,9 +176,7 @@ export default function ShootHeader({
   project,
   projectId,
   convertedSalesQuoteId = null,
-  missingFields = [],
   hasFormDetails = false,
-  onOpenMissingFields,
 }: ShootHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -188,7 +272,7 @@ export default function ShootHeader({
       : convertedPaidAmount >= convertedTotalValue && convertedTotalValue > 0
         ? "paid"
         : convertedPaidAmount > 0
-          ? "pending"
+          ? "Partially Paid"
           : "unpaid";
     effectivePaymentStatus = getPaymentStatusMeta(statusKey, project?.payment_id);
   }
@@ -215,10 +299,11 @@ export default function ShootHeader({
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
       : getShootFilesText(project);
-  const locationText =
-    project?.event_location ||
-    [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") ||
-    "No location specified";
+  const projectName = toDisplayText(project?.project_name) || "Untitled Project";
+  const skillsText = Array.isArray(project?.skills_needed)
+    ? project.skills_needed.map(toDisplayText).filter(Boolean).join(", ")
+    : toDisplayText(project?.skills_needed);
+  const locationText = getLocationText(project);
   const guestEmail = String(
     project?.guest_email ||
     (project?.lead_details as Record<string, unknown> | undefined)?.guest_email ||
@@ -231,8 +316,9 @@ export default function ShootHeader({
     (project?.lead_details as Record<string, unknown> | undefined)?.client_id ||
     0
   ) || null;
-  const descriptionText = project?.description
-    ? project.description.replace(/Matching Method:.*$/gm, "").trim()
+  const rawDescription = toDisplayText(project?.description);
+  const descriptionText = rawDescription
+    ? rawDescription.replace(/Matching Method:.*$/gm, "").trim()
     : "";
   const totalValueText = `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const totalReductionText = `$${totalReductionValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -267,10 +353,10 @@ export default function ShootHeader({
   }, [projectId]);
   const projectDateText = getProjectDateText(project);
   const projectTimeText = getProjectScheduleTimeText(project);
+  const scheduleTooltipText = getProjectScheduleTooltipText(project);
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
-  const hasMissingFields = missingFields.length > 0;
   const renderDescription = (text: string) => {
     if (!text) return <span>No description available.</span>;
 
@@ -295,7 +381,15 @@ export default function ShootHeader({
             elements.push(
               <div key="meta-row-1" className="flex flex-wrap gap-x-8 gap-y-1 mb-1">
                 {meta.priceLabel && <span>Pricing: {meta.priceLabel}</span>}
-                {meta.totalPrice && <span>Total Price: ${meta.totalPrice}</span>}
+                {meta.totalPrice && (
+                  <span>
+                    Total Price: {
+                      finalValue > (getAmount(meta.totalPrice) ?? 0)
+                        ? finalValueText
+                        : formatCurrencyLike(meta.totalPrice)
+                    }
+                  </span>
+                )}
               </div>
             );
 
@@ -398,6 +492,14 @@ export default function ShootHeader({
         <span className="text-sm font-medium">Back</span>
       </button>
 
+      <button
+        onClick={() => router.back()}
+        className={`lg:hidden transition-colors flex items-center gap-2 mb-5 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
+      >
+        <ArrowLeft size={20} />
+        <span className="text-sm font-medium">Back</span>
+      </button>
+
       {/* Top Bar */}
       <div className="hidden lg:flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
@@ -442,15 +544,15 @@ export default function ShootHeader({
       <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
           <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"}`}>
-            {getInitials(project?.project_name)}
+            {getInitials(projectName)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3 mb-2">
                   <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                    {project?.project_name || "Untitled Project"}
-                    {project?.skills_needed && project.skills_needed !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({project.skills_needed})</span>}
+                    {projectName}
+                    {skillsText && skillsText !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({skillsText})</span>}
                   </h1>
                   <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
                     {resolvedStatusLabel}
@@ -489,16 +591,6 @@ export default function ShootHeader({
                 ) : null}
               </div>
 
-              {hasMissingFields ? (
-                <button
-                  type="button"
-                  onClick={onOpenMissingFields}
-                  className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-[#E8D1AB]/25 bg-[#FFF4DA] px-3 py-2 text-xs font-semibold text-[#7A5A00] transition-colors hover:bg-[#FFEFC5] lg:mt-0 lg:self-start"
-                >
-                  <AlertCircle size={14} />
-                  Attention Needed
-                </button>
-              ) : null}
             </div>
           </div>
         </div>
@@ -510,11 +602,15 @@ export default function ShootHeader({
               <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Schedule & Location</p>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Shoot Date :</span>
-                <span title={projectDateText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectDateText}</span>
+                <ScheduleTooltipValue
+                  value={projectDateText}
+                  tooltip={projectDateText === "Multiple Days" ? scheduleTooltipText : ""}
+                  isDark={isDark}
+                />
               </div>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Time :</span>
-                <span title={projectTimeText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectTimeText}</span>
+                <span className={`inline-block max-w-full whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{projectTimeText}</span>
               </div>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Location :</span>

@@ -109,6 +109,7 @@ interface Props {
   colors?: Partial<DatePickerColors>;
   disabled?: boolean;
   format?: string;
+  placeholder?: string;
   sx?: SxProps<Theme>;
   floating?: boolean;
   labelSx?: SxProps<Theme>;
@@ -125,6 +126,7 @@ export const DatePicker: React.FC<Props> = ({
   colors: customColors,
   disabled = false,
   format = "MM/dd/yyyy",
+  placeholder,
   sx,
   labelSx,
   floating = false,
@@ -214,7 +216,7 @@ export const DatePicker: React.FC<Props> = ({
           slotProps={{
             textField: {
               fullWidth: true,
-              placeholder: floating ? "" : format.toUpperCase(),
+              placeholder: floating ? "" : placeholder ?? format.toUpperCase(),
               onClick: () => !disabled && setOpen(true),
               InputLabelProps: {
                 shrink: floating ? (open || !!value) : undefined,
