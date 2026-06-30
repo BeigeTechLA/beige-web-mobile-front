@@ -29,6 +29,7 @@ export interface ExternalChatRoom {
   name?: string;
   status?: "active" | "read_only" | "archived" | string;
   order_id?: string | number | { id?: string | number; name?: string };
+  external_order_ref?: string;
   last_message?: {
     id?: string;
     message?: string;

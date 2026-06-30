@@ -249,6 +249,55 @@ const getRoomPreviewText = (room?: ExternalChatRoom | null) => {
   return "No messages yet";
 };
 
+const getRoomBookingId = (room?: ExternalChatRoom | null) => {
+  const orderId = room?.order_id;
+  const candidates = [
+    room?.external_order_ref,
+    typeof orderId === "object" ? orderId?.id : orderId,
+  ];
+
+  const directId = candidates
+    .map((value) => String(value || "").trim())
+    .find(Boolean);
+
+  if (directId) return directId.replace(/^#/, "");
+
+  const nameMatch = String(room?.name || "").match(/#\s*([A-Za-z0-9-]+)/);
+  return nameMatch?.[1] || "";
+};
+
+const getRoomClientName = (room?: ExternalChatRoom | null) => {
+  const client = normalizeUser(room?.client_snapshot || room?.client_id);
+  const clientName = String(client?.name || "").trim();
+  const clientEmail = String(client?.email || "").trim();
+
+  if (clientName && clientName !== client?.id && clientName.toLowerCase() !== "client") return clientName;
+  if (clientEmail) return clientEmail;
+
+  const rawName = String(room?.name || "").trim();
+  const fallbackName = rawName
+    .replace(/#\s*[A-Za-z0-9-]+/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^(direct|shoot|project|booking)\s+/i, "")
+    .replace(/^(corporate event|wedding event|pre wedding|wedding|corporate|event|commercial|product|portrait|fashion|birthday|engagement)\s+/i, "")
+    .trim();
+
+  return fallbackName || "Client";
+};
+
+const getRoomDisplayTitle = (room?: ExternalChatRoom | null) => {
+  if (!room) return "Messages";
+
+  const clientName = getRoomClientName(room);
+  const bookingId = getRoomBookingId(room);
+
+  if (clientName && bookingId) return `${clientName} #${bookingId}`;
+  if (clientName) return clientName;
+  if (bookingId) return `Booking #${bookingId}`;
+  return room.name || `Chat ${room.chat_id || ""}`.trim() || "Messages";
+};
+
 const getRoomPreviewSender = (room?: ExternalChatRoom | null, currentUserId?: string | null) => {
   const sender = normalizeUser(room?.last_message?.sent_by);
   if (!sender?.name) return "";
@@ -662,7 +711,7 @@ export default function ExternalChatView({
     if (!search.trim()) return sortedRooms;
     const query = search.trim().toLowerCase();
     return sortedRooms.filter((room) =>
-      [room.name, room.chat_id, room.last_message?.message]
+      [getRoomDisplayTitle(room), room.name, getRoomBookingId(room), room.chat_id, room.last_message?.message]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     );
@@ -1554,7 +1603,7 @@ export default function ExternalChatView({
     appendEmojiToDraft(emojiData.emoji);
   };
 
-  const selectedRoomTitle = selectedRoom?.name || "Messages";
+  const selectedRoomTitle = getRoomDisplayTitle(selectedRoom);
   const latestDate = visibleMessages[visibleMessages.length - 1]?.createdAt || selectedRoom?.updatedAt || selectedRoom?.createdAt;
   const isDirectRoomLoading = shouldUseDirectRoom && loading;
 
@@ -1688,6 +1737,7 @@ export default function ExternalChatView({
                   filteredRooms.map((room) => {
                     const roomId = getRoomId(room);
                     const isSelected = roomId === getRoomId(selectedRoom);
+                    const roomDisplayTitle = getRoomDisplayTitle(room);
                     const previewText = getRoomPreviewText(room);
                     const previewSender = getRoomPreviewSender(room, userId);
                     const metaDate = room.updatedAt || room.createdAt || room.last_message?.createdAt;
@@ -1707,7 +1757,7 @@ export default function ExternalChatView({
                       >
                         <div className="flex items-start gap-2 lg:gap-4">
                           <div className="relative flex h-11 w-11 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0] text-sm lg:text-lg font-semibold text-[#222]">
-                            {getInitials(room.name)}
+                            {getInitials(roomDisplayTitle)}
                             {roomUnreadCount > 0 ? (
                               <span className={`absolute bottom-0 right-0 flex h-7 min-w-7 items-center justify-center rounded-full border-2 px-1 text-xs font-semibold ${isDark ? "border-[#171717] bg-[#E5D5B8] text-black" : "border-white bg-black text-white"}`}>
                                 {Math.min(roomUnreadCount, 99)}
@@ -1718,7 +1768,7 @@ export default function ExternalChatView({
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className={`break-words pr-2 text-sm lg:text-base font-semibold leading-5 transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                                  {room.name || `Chat ${room.chat_id || ""}`}
+                                  {roomDisplayTitle}
                                 </p>
                                 <p className={`mt-2 truncate text-sm lg:text-base transition-colors ${roomUnreadCount > 0
                                   ? isDark ? "font-medium text-white/82" : "font-semibold text-black"

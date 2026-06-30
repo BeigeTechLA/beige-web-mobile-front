@@ -148,6 +148,29 @@ interface ExternalWorkspacesResponse {
   };
 }
 
+export interface ShootWithoutFileManager {
+  bookingId: number;
+  folderName: string;
+  projectName: string | null;
+  clientName: string | null;
+  eventDate: string | null;
+}
+
+interface ShootsWithoutFileManagerResponse {
+  success: boolean;
+  data: {
+    shoots: ShootWithoutFileManager[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+    };
+  };
+}
+
 interface ExternalWorkspaceResponse {
   success: boolean;
   data: {
@@ -613,6 +636,29 @@ export const fileManagerApi = {
         page: options?.page || 1,
         limit: options?.limit || (response.data.workspaces || []).length || 1,
         total: (response.data.workspaces || []).length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    };
+  },
+
+  async listShootsWithoutFileManager(options?: { page?: number; limit?: number; search?: string }) {
+    const params: Record<string, string | number> = {};
+    if (options?.page) params.page = options.page;
+    if (options?.limit) params.limit = options.limit;
+    if (options?.search) params.search = options.search;
+
+    const response = await apiClient.get<ShootsWithoutFileManagerResponse>(
+      "external-file-manager/shoots-without-file-manager",
+      params
+    );
+    return {
+      shoots: response.data.shoots || [],
+      pagination: response.data.pagination || {
+        page: options?.page || 1,
+        limit: options?.limit || (response.data.shoots || []).length || 1,
+        total: (response.data.shoots || []).length,
         totalPages: 1,
         hasNextPage: false,
         hasPreviousPage: false,

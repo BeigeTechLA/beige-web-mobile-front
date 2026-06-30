@@ -26,6 +26,7 @@ import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
+import { CreateShootFolderModal } from "@/components/admin/file-manager/CreateShootFolderModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
@@ -118,7 +119,9 @@ export default function AdminFolderManagerPage() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [isCreatingShootFolder, setIsCreatingShootFolder] = useState(false);
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
+  const [isCreateShootFolderModalOpen, setIsCreateShootFolderModalOpen] = useState(false);
   const [isVisibilityModalOpen, setIsVisibilityModalOpen] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
@@ -551,6 +554,27 @@ export default function AdminFolderManagerPage() {
     }
   };
 
+  const handleCreateShootFolder = async ({ bookingId, folderName }: { bookingId: number; folderName: string }) => {
+    const trimmedFolderName = String(folderName || "").trim();
+    if (!bookingId || !trimmedFolderName) return;
+
+    try {
+      setIsCreatingShootFolder(true);
+      await fileManagerApi.createExternalWorkspace(bookingId, trimmedFolderName);
+      toast.success("Shoot folder created");
+      setIsCreateShootFolderModalOpen(false);
+      setCurrentPage(1);
+      await loadProjects(1, debouncedSearchTerm);
+      if (viewMode === "board") {
+        await loadBoardProjects(1, debouncedSearchTerm, false);
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create shoot folder");
+    } finally {
+      setIsCreatingShootFolder(false);
+    }
+  };
+
   const handleUpdateCommonEventVisibility = async ({ visibleUntil }: { name: string; visibleUntil?: string | null }) => {
     if (!selectedFolder?.id) return;
     try {
@@ -575,13 +599,22 @@ export default function AdminFolderManagerPage() {
   };
 
   const topbarActions = (
-    <Button
-      onClick={() => setIsCreateCommonEventModalOpen(true)}
-      disabled={isCreatingEvent}
-      className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-    >
-      {isCreatingEvent ? "Creating..." : "Create Common Event"}
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button
+        onClick={() => setIsCreateShootFolderModalOpen(true)}
+        disabled={isCreatingShootFolder}
+        className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+      >
+        {isCreatingShootFolder ? "Creating..." : "Create Shoot Folder"}
+      </Button>
+      <Button
+        onClick={() => setIsCreateCommonEventModalOpen(true)}
+        disabled={isCreatingEvent}
+        className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+      >
+        {isCreatingEvent ? "Creating..." : "Create Common Event"}
+      </Button>
+    </div>
   );
 
   return (
@@ -1002,6 +1035,16 @@ export default function AdminFolderManagerPage() {
           isDark={isDark}
         />
 
+        <CreateShootFolderModal
+          isOpen={isCreateShootFolderModalOpen}
+          onClose={() => {
+            if (!isCreatingShootFolder) setIsCreateShootFolderModalOpen(false);
+          }}
+          onCreate={handleCreateShootFolder}
+          isCreating={isCreatingShootFolder}
+          isDark={isDark}
+        />
+
         <CreateFolderModal
           isOpen={isVisibilityModalOpen}
           onClose={() => {
@@ -1036,13 +1079,22 @@ export default function AdminFolderManagerPage() {
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-          <Button
-            onClick={() => setIsCreateCommonEventModalOpen(true)}
-            disabled={isCreatingEvent}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-          >
-            {isCreatingEvent ? "Creating..." : "Create Common Event"}
-          </Button>
+          <div className="flex w-full gap-2">
+            <Button
+              onClick={() => setIsCreateShootFolderModalOpen(true)}
+              disabled={isCreatingShootFolder}
+              className="flex-1 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              {isCreatingShootFolder ? "Creating..." : "Create Shoot Folder"}
+            </Button>
+            <Button
+              onClick={() => setIsCreateCommonEventModalOpen(true)}
+              disabled={isCreatingEvent}
+              className="flex-1 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              {isCreatingEvent ? "Creating..." : "Create Common Event"}
+            </Button>
+          </div>
         </div>
       </div>
     </>
