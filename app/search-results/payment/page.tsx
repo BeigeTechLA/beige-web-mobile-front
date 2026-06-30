@@ -1025,7 +1025,7 @@ function StripePaymentFormMulti({
         coupon: discountCode || undefined,
         page_name: "Payment Page",
         location_in_website: "book_a_shoot_payment_page",
-        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
         booking_id: booking?.bookingId,
         items: [{
           item_name: booking?.shoot_name || "Shoot Booking",
@@ -1047,7 +1047,7 @@ function StripePaymentFormMulti({
         coupon: discountCode || undefined,
         page_name: "Payment Page",
         location_in_website: "book_a_shoot_payment_page",
-        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
         booking_id: booking?.bookingId,
         items: [{
           item_name: booking?.shoot_name || "Shoot Booking",
