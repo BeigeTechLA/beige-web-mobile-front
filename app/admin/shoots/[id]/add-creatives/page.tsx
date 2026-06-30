@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
+import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, Camera, Video } from "lucide-react";
+import { ArrowLeft, Camera, Send, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAssignCrewFromShootMutation } from "@/lib/redux/features/sales/salesApi";
-import Topbar from "@/components/admin/Topbar";
-import { toast } from "sonner";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
-import { useTheme } from "next-themes";
+import Topbar from "@/components/admin/Topbar";
+import AddCompendationModal from "@/components/admin/finances/AddCompensationModal";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -39,6 +40,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isAddCompOpen, setIsAddCompOpen] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
@@ -91,6 +93,10 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     }
 
     executeAssignment();
+  };
+
+  const handleContinueToCompensation = () => {
+    setIsAddCompOpen(true);
   };
 
   const executeAssignment = async () => {
@@ -169,12 +175,49 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
       />
 
+      {selectedCreativeIds.length > 0 && (
+        <div className="w-full flex flex-col items-start pt-3 px-6 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
+          <div className="w-full flex flex-row justify-between items-center mb-3">
+            {/* Left Side: Count */}
+            <div className="flex flex-row items-center">
+              <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-[#E8D1AB]">
+                {selectedCreativeIds.length} Creative{selectedCreativeIds.length !== 1 ? 's' : ''} Selected
+              </span>
+            </div>
+
+            {/* Right Side: Actions */}
+            <div className="flex flex-row items-center gap-2">
+              {/* Clear Selection Button */}
+              <button
+                onClick={() => setSelectedCreativeIds([])}
+                className="w-[132px] pt-[5px] pb-[7px] px-4 flex items-center justify-center rounded-lg bg-transparent hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-white underline text-center">
+                  Clear Selection
+                </span>
+              </button>
+
+              {/* Continue to Compensation Button */}
+              <button
+                onClick={() => { handleContinueToCompensation(); }}
+                className="w-[232px] pt-[5px] pb-[7px] px-4 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-black/90 transition-colors cursor-pointer"
+              >
+                <Send size={14} className="text-[#E8D1AB]" strokeWidth={1.5} />
+                <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-[#E8D1AB] underline text-center">
+                  Continue to Compensation
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       <div className={`min-h-screen overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
         <Button
           onClick={() => router.back()}
-          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${
-            isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"
-          }`}
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"
+            }`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back to Shoot Details</span>
@@ -189,6 +232,11 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           targets={reqCounts}
           roleType={roleType}
           isDark={isDark}
+        />
+
+        <AddCompendationModal
+          isOpen={isAddCompOpen}
+          onClose={() => setIsAddCompOpen(false)}
         />
       </div>
     </>

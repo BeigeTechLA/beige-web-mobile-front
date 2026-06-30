@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { X, ChevronDown, TrendingUp, Plus } from "lucide-react";
+import React, { use, useEffect, useMemo, useState } from "react";
+import { X, ChevronDown, TrendingUp, Plus, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import type { AddCpCompensationPayload, PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { any, string } from "zod";
+import AdvancePaymentModal from "./AdvancePaymentModal";
+import SuccessModal from "./SuccessModal";
 
 
 interface AddCompensationModalProps {
@@ -49,7 +52,21 @@ export default function AddCompensationModal({
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [compensationMethod, setCompensationMethod] = useState<"equal" | "role" | "manual">("equal");
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
+  const [rowContext, setRowContext] = useState(any);
   const [rateType, setRateType] = useState<"flat" | "hourly">("flat");
+  const [isAdvancePaymentOpen, setIsAdvancePaymentOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+
+  // const totalShootAmount = 50000;
+  // const totalCompensation = MOCK_SHOOT_DROPDOWN_DATA
+  //   .flatMap(shoot => shoot.creators)
+  //   .reduce((sum, creator) => sum + creator.total, 0);
+  // const estimatedMargin = totalShootAmount - totalCompensation;
+  // const marginPercentage = ((estimatedMargin / totalShootAmount) * 100).toFixed(1);
+  // const compensationPercentage = ((totalCompensation / totalShootAmount) * 100).toFixed(1);
+  // const compensationPercentageNum = parseFloat(compensationPercentage);
+
+  // const showWarning = compensationPercentageNum > 25;
   const [creatorForms, setCreatorForms] = useState<Record<string, CreatorFormState>>({});
   const [shootSearchQuery, setShootSearchQuery] = useState("");
 
@@ -116,6 +133,25 @@ export default function AddCompensationModal({
     );
   };
 
+  const handleAdvancePayment = (id: string) => {
+    const selectedRow = MOCK_SHOOT_DROPDOWN_DATA.find(
+      (item) => item.id === id
+    );
+
+    setRowContext(selectedRow);
+    setIsAdvancePaymentOpen(true);
+  };
+
+  const handleFormSubmit = () => {
+    setIsSuccessOpen(false);
+    if (!selectedShootId) return;
+    // onSubmit({
+    //   shootId: selectedShootId,
+    //   compensationMethod,
+    //   selectedCreators,
+    //   rateType,
+    // });
+    onClose();
   const updateCreatorForm = (creatorId: string, field: keyof CreatorFormState, value: string) => {
     setCreatorForms((prev) => ({
       ...prev,
@@ -432,11 +468,15 @@ export default function AddCompensationModal({
                             />
                           </div>
 
-                          <button type="button" className="text-base lg:text-lg text-[#E8D1AB] hover:underline font-medium flex items-center gap-1">
+                          <button
+                            onClick={() => handleAdvancePayment(creator.id)}
+                            type="button"
+                            className="text-base lg:text-lg text-[#E8D1AB] hover:underline font-medium flex items-center gap-1">
                             <Plus size={20} /> Add Advance Payment
                           </button>
                         </div>
-                      )}
+                      )
+                      }
                     </div>
                   );
                 })}
@@ -466,6 +506,19 @@ export default function AddCompensationModal({
         </div>
 
       </div>
-    </div>
+      <AdvancePaymentModal
+        isOpen={isAdvancePaymentOpen}
+        onClose={() => setIsAdvancePaymentOpen(false)}
+      />
+
+      <SuccessModal
+        isOpen={isSuccessOpen}
+        onSubmit={handleFormSubmit}
+        title="Request Sent Successfully"
+        subtext="This compensation request is now sent to the Finance for approval."
+        buttonText="Done"
+      />
+
+    </div >
   );
 }
