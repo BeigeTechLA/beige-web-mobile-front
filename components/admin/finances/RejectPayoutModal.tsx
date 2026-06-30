@@ -12,7 +12,7 @@ export type RejectPayoutModalProps = {
   isOpen: boolean;
   onClose: () => void;
   rowContext: ShootCPRow | null;
-  onSubmit: (payload: { reason: string; payoutAmount: string }) => void;
+  onSubmit: (payload: { reason: string }) => void;
   isSubmitting?: boolean;
 };
 

@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X, CheckCircle2, Edit3, XCircle, Clock } from "lucide-react";
 import { ShootCPRow } from "@/components/admin/finances/CPPayoutTable";
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import type { CpCompensationDetails } from "@/lib/api/cpCompensation";
 
 interface CompensationItem {
   id: string;
@@ -24,6 +25,8 @@ interface CompensationModalProps {
   isOpen: boolean;
   onClose: () => void;
   rowContext: ShootCPRow | null;
+  details?: CpCompensationDetails | null;
+  loading?: boolean;
   onModifyClick: () => void;
   onApproveClick: () => void;
   onRejectClick: () => void;
@@ -33,41 +36,38 @@ export default function CompensationModal({
   isOpen,
   onClose,
   rowContext,
+  details,
+  loading = false,
   onModifyClick,
   onApproveClick,
   onRejectClick
 }: CompensationModalProps) {
-  const [selectedCreators, setSelectedCreators] = useState<string[]>(["c1"]);
+  const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
 
   const { isDark } = useResolvedTheme()
+  const compensationList: CompensationItem[] = useMemo(() => (details?.creators || []).map((creator) => {
+    const itemAmount = (label: string) => creator.compensation_items.find((item) => item.label === label)?.amount || 0;
+    const latestAdvance = creator.advances?.[0];
+    return {
+      id: String(creator.creator_earning_id),
+      name: creator.creator_name || "Unknown Creator",
+      role: creator.cp_role || "Creative Partner",
+      total: creator.total_compensation,
+      base: itemAmount("Base Payout"),
+      editing: itemAmount("Editing Payout"),
+      travel: itemAmount("Travel Adjustment"),
+      bonus: itemAmount("Bonus/Other Adjustment"),
+      hasAdvance: Boolean(latestAdvance),
+      advanceAmount: latestAdvance?.amount,
+      advanceDate: latestAdvance?.processed_at || undefined,
+    };
+  }), [details?.creators]);
+
+  useEffect(() => {
+    setSelectedCreators(compensationList.map((creator) => creator.id));
+  }, [compensationList]);
 
   if (!isOpen || !rowContext) return null;
-
-  const compensationList: CompensationItem[] = [
-    {
-      id: "c1",
-      name: "Ethan Cole",
-      role: "Lead Photographer",
-      total: 6500,
-      base: 5000,
-      editing: 750,
-      travel: 500,
-      bonus: 250,
-    },
-    {
-      id: "c2",
-      name: "Michael Chen",
-      role: "Videographer",
-      total: 5500,
-      base: 4000,
-      editing: 600,
-      travel: 500,
-      bonus: 400,
-      hasAdvance: true,
-      advanceAmount: 2000,
-      advanceDate: "01-06-2026",
-    },
-  ];
 
   const handleCheckboxChange = (id: string) => {
     setSelectedCreators((prev) =>
@@ -104,6 +104,11 @@ export default function CompensationModal({
         </div>
 
         <div className="space-y-3 lg:space-y-5 p-5 lg:p-9">
+          {loading && (
+            <div className="rounded-lg border border-[#3D3D3D] bg-[#171717] p-4 text-sm text-white/60">
+              Loading compensation details...
+            </div>
+          )}
           {/* Quick Statistics Horizontal Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3">
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-2.5 lg:p-4">
@@ -134,6 +139,11 @@ export default function CompensationModal({
               </h3>
 
               <div className="space-y-4 ">
+                {!loading && compensationList.length === 0 && (
+                  <div className="rounded-lg border border-[#FFFFFF33] bg-[#141414] p-4 text-sm text-white/60">
+                    No compensation records found for this shoot.
+                  </div>
+                )}
                 {compensationList.map((creator) => {
                   const isChecked = selectedCreators.includes(creator.id);
                   return (
@@ -212,7 +222,7 @@ export default function CompensationModal({
                                   Approval Pending for the Advance Payment
                                 </p>
                                 <p className="text-[#BB4D00]">
-                                  {formatCurrency(creator.advanceAmount || 0)} on {creator.advanceDate}
+                                  {formatCurrency(creator.advanceAmount || 0)} on {creator.advanceDate ? new Date(creator.advanceDate).toLocaleDateString() : "Pending date"}
                                 </p>
                               </div>
                               <span className="text-sm lg:text-base font-semibold text-[#BA6605] bg-[#FACD9A] px-5 py-3 rounded-full">

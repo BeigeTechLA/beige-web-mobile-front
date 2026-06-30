@@ -12,7 +12,7 @@ export type ApprovePayoutModalProps = {
   isOpen: boolean;
   onClose: () => void;
   rowContext: ShootCPRow | null;
-  onSubmit: (payload: { reason: string; }) => void;
+  onSubmit: (payload: { reason?: string; }) => void;
   isSubmitting?: boolean;
 };
 
@@ -109,7 +109,7 @@ export default function ApprovePayoutModal({
           </Button>
           <Button
             type="button"
-            disabled={isSubmitting || !notes.trim()}
+            disabled={isSubmitting}
             onClick={() => {
               console.log("Approved Submission Fired");
               onSubmit({ reason: notes });

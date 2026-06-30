@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { CircleDollarSign, Clock, ShieldAlert, TrendingUp, Users } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { CircleDollarSign, Clock, ShieldAlert, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
@@ -22,6 +22,12 @@ import PaymentMethodSelectionModal from "@/components/admin/finances/PaymentMeth
 import AddReceiptModal, { ReceiptPayload } from "@/components/admin/finances/AddReceiptModal";
 import AddCompendationModal from "@/components/admin/finances/AddCompensationModal";
 import AdvancePaymentModal from "@/components/admin/finances/AdvancePaymentModal";
+import {
+  cpCompensationApi,
+  type AddCpCompensationPayload,
+  type CpCompensationDetails,
+  type PendingCompensationShoot,
+} from "@/lib/api/cpCompensation";
 
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 
@@ -176,12 +182,16 @@ const tabs: { label: string; value: TabType }[] = [
 
 export default function AdminFinancesPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const { isDark } = useResolvedTheme();
 
-  const [tableData, setTableData] = useState<ShootCPRow[]>(MOCK_SHOOT_DATA);
+  const [tableData, setTableData] = useState<ShootCPRow[]>([]);
+  const [pendingShoots, setPendingShoots] = useState<PendingCompensationShoot[]>([]);
+  const [details, setDetails] = useState<CpCompensationDetails | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [pendingShootsLoading, setPendingShootsLoading] = useState(false);
+  const [isAddSubmitting, setIsAddSubmitting] = useState(false);
   const [activeMetricId, setActiveMetricId] = useState("available");
   const [metricRange, setMetricRange] = useState("Month");
   const [dataType, setDataType] = useState<TabType>("shoots");
@@ -214,36 +224,72 @@ export default function AdminFinancesPage() {
     {
       id: "payout",
       label: "Total Payout",
-      value: new Intl.NumberFormat("en-US").format(69500),
+      value: new Intl.NumberFormat("en-US").format(tableData.reduce((sum, row) => sum + row.cpPayout, 0)),
       helperText: "Paid",
       icon: CircleDollarSign,
     },
     {
       id: "pending",
       label: "Pending Approval",
-      value: new Intl.NumberFormat("en-US").format(2),
+      value: new Intl.NumberFormat("en-US").format(tableData.filter((row) => row.status === "Finance Approval").length),
       helperText: "Awaiting approval",
       icon: Clock,
     },
     {
       id: "overmargin",
       label: "Over-Margin Shoots",
-      value: new Intl.NumberFormat("en-US").format(6),
+      value: new Intl.NumberFormat("en-US").format(tableData.filter((row) => row.margin < 10).length),
       helperText: "Requires review",
       icon: ShieldAlert,
     },
     {
       id: "partiallypaid",
       label: "Partially Paid",
-      value: new Intl.NumberFormat("en-US").format(265),
+      value: new Intl.NumberFormat("en-US").format(tableData.filter((row) => row.status === "Partially Paid").length),
       helperText: "Shoots paid partially",
       icon: TrendingUp,
     },
   ];
 
-  const handleRowClick = (row: ShootCPRow) => {
+  const loadHistory = useCallback(async (view: TabType) => {
+    setLoading(true);
+    try {
+      const rows = await cpCompensationApi.list(view);
+      setTableData(rows);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load CP compensation history");
+      setTableData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadPendingShoots = async () => {
+    setPendingShootsLoading(true);
+    try {
+      setPendingShoots(await cpCompensationApi.pendingShoots());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load pending compensation shoots");
+      setPendingShoots([]);
+    } finally {
+      setPendingShootsLoading(false);
+    }
+  };
+
+  const handleRowClick = async (row: ShootCPRow) => {
     setSelectedRow(row);
     setIsCompOpen(true);
+    const bookingId = row.bookingId || Number(row.id);
+    if (!bookingId) return;
+    setDetailsLoading(true);
+    try {
+      setDetails(await cpCompensationApi.details(bookingId));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load compensation details");
+      setDetails(null);
+    } finally {
+      setDetailsLoading(false);
+    }
   };
 
   const handleOpenModify = () => {
@@ -270,14 +316,28 @@ export default function AdminFinancesPage() {
     setIsAddCompOpen(true);
   };
 
+  const getActionEarningIds = () => {
+    if (selectedRow?.creatorEarningId) return [selectedRow.creatorEarningId];
+    return (details?.creators || []).map((creator) => creator.creator_earning_id);
+  };
+
   // --- SUBMISSION LIFECYCLE INTERCEPTORS ---
 
-  const handleModifySubmit = async () => {
+  const handleModifySubmit = async (payload: { reason: string; payoutAmount: string }) => {
     setIsModifySubmitting(true);
     try {
-      // Simulate API patch request pipeline
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      const earningId = getActionEarningIds()[0];
+      const amount = Number(String(payload.payoutAmount || "0").replace(/[$,]/g, ""));
+      if (!earningId || !(amount > 0)) {
+        toast.error("Select a compensation record and enter a valid payout amount");
+        return;
+      }
+      await cpCompensationApi.modify(earningId, {
+        modification_reason: payload.reason,
+        items: [{ label: "Base Payout", amount }],
+      });
       setIsModifyOpen(false);
+      await loadHistory(dataType);
 
       setSuccessTitle("Payout Modify Successfully");
       setSuccessSubtext(`The payout has been Modified`);
@@ -290,14 +350,20 @@ export default function AdminFinancesPage() {
     }
   };
 
-  const handleApproveSubmit = async () => {
+  const handleApproveSubmit = async (payload?: { reason?: string }) => {
     setIsApproveSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      const earningIds = getActionEarningIds();
+      if (!earningIds.length) {
+        toast.error("No compensation record found to approve");
+        return;
+      }
+      await Promise.all(earningIds.map((earningId) => cpCompensationApi.approve(earningId, payload?.reason)));
       setIsApproveOpen(false);
+      await loadHistory(dataType);
 
       setSuccessTitle("Payout Approved Successfully");
-      setSuccessSubtext("The payout has been approved for 2 Creative Partners and is now ready for payment processing.");
+      setSuccessSubtext(`The payout has been approved for ${earningIds.length} Creative Partner${earningIds.length === 1 ? "" : "s"} and is now ready for payment processing.`);
       setSuccessButtonText("");
       setIsSuccessOpen(true);
     } catch (error) {
@@ -307,11 +373,17 @@ export default function AdminFinancesPage() {
     }
   };
 
-  const handleRejectSubmit = async () => {
+  const handleRejectSubmit = async (payload: { reason: string }) => {
     setIsRejectSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      const earningIds = getActionEarningIds();
+      if (!earningIds.length) {
+        toast.error("No compensation record found to reject");
+        return;
+      }
+      await Promise.all(earningIds.map((earningId) => cpCompensationApi.reject(earningId, payload.reason)));
       setIsRejectOpen(false);
+      await loadHistory(dataType);
 
       setSuccessTitle("Payout Reject Successfully");
       setSuccessSubtext("The payout has been Rejected");
@@ -344,13 +416,59 @@ export default function AdminFinancesPage() {
     }
   };
 
-  useEffect(() => {
-    if (dataType === "shoots") {
-      setTableData(MOCK_SHOOT_DATA);
-    } else {
-      setTableData(MOCK_CREATORS_DATA);
+  const handleAdvanceSubmit = async (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => {
+    setIsModifySubmitting(true);
+    try {
+      const earningId = getActionEarningIds()[0];
+      const amount = Number(String(payload.advanceAmount || "0").replace(/[$,]/g, ""));
+      if (!earningId || !(amount > 0)) {
+        toast.error("Select a compensation record and enter a valid advance amount");
+        return;
+      }
+      await cpCompensationApi.addAdvance(earningId, {
+        amount,
+        payment_date: payload.paymentDate ? payload.paymentDate.toISOString().slice(0, 10) : undefined,
+        notes: payload.reason,
+      });
+      setIsAdvanceOpen(false);
+      await loadHistory(dataType);
+      setSuccessTitle("Advance Added Successfully");
+      setSuccessSubtext("The advance payment record has been added.");
+      setSuccessButtonText("");
+      setIsSuccessOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add advance payment");
+    } finally {
+      setIsModifySubmitting(false);
     }
-  }, [dataType]);
+  };
+
+  useEffect(() => {
+    loadHistory(dataType);
+  }, [dataType, loadHistory]);
+
+  useEffect(() => {
+    if (isAddCompOpen) {
+      loadPendingShoots();
+    }
+  }, [isAddCompOpen]);
+
+  const handleAddSubmit = async (payload: AddCpCompensationPayload) => {
+    setIsAddSubmitting(true);
+    try {
+      await cpCompensationApi.add(payload);
+      setIsAddCompOpen(false);
+      await Promise.all([loadHistory(dataType), loadPendingShoots()]);
+      setSuccessTitle("Compensation Added Successfully");
+      setSuccessSubtext("The compensation has been added and approved.");
+      setSuccessButtonText("");
+      setIsSuccessOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add compensation");
+    } finally {
+      setIsAddSubmitting(false);
+    }
+  };
 
   return (
     <>
@@ -430,6 +548,8 @@ export default function AdminFinancesPage() {
           isOpen={isCompOpen}
           onClose={() => setIsCompOpen(false)}
           rowContext={selectedRow}
+          details={details}
+          loading={detailsLoading}
           onModifyClick={handleOpenModify}
           onApproveClick={handleOpenApprove}
           onRejectClick={handleOpenReject}
@@ -438,6 +558,10 @@ export default function AdminFinancesPage() {
         <AddCompendationModal
           isOpen={isAddCompOpen}
           onClose={() => setIsAddCompOpen(false)}
+          shoots={pendingShoots}
+          loading={pendingShootsLoading}
+          isSubmitting={isAddSubmitting}
+          onSubmit={handleAddSubmit}
         />
 
         {/* Secondary Execution Action Modal Layer */}
@@ -492,7 +616,7 @@ export default function AdminFinancesPage() {
           onClose={() => setIsAdvanceOpen(false)}
           rowContext={selectedRow}
           isSubmitting={isModifySubmitting}
-          onSubmit={handleModifySubmit}
+          onSubmit={handleAdvanceSubmit}
         />
 
 

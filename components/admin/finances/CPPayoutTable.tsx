@@ -16,6 +16,9 @@ import {
 
 export type ShootCPRow = {
   id: string;
+  bookingId?: number;
+  creatorEarningId?: number;
+  creatorId?: number;
   shootName?: string;
   totalCP?: number;
   customerName: string;
@@ -405,7 +408,7 @@ export default function CPPayoutTable({
                           className={`text-xs font-semibold underline underline-offset-2 ${isDark ? "text-[#ECD7B4]" : "text-[#E8D1AB]"}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onRowClick(row.id);
+                            onRowClick(row);
                           }}
                         >
                           View Details

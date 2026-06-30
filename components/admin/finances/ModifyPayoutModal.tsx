@@ -124,7 +124,7 @@ export default function ModifyPayoutModal({
           </Button>
           <Button
             type="button"
-            disabled={isSubmitting || !notes.trim()}
+            disabled={isSubmitting || !notes.trim() || !payoutAmount.trim()}
             onClick={() => {
               console.log("Modification Submission Fired");
               onSubmit({ reason: notes, payoutAmount: payoutAmount });
