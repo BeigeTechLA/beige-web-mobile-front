@@ -39,7 +39,7 @@ const formatDateTime = (value: string | null | undefined) => {
   const day = date.getDate();
   const month = new Intl.DateTimeFormat("en-US", { month: "long" }).format(date);
   const year = date.getFullYear();
-  
+
   const time = new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -283,6 +283,13 @@ export default function AdminRoleEditDetailsRoute() {
       setCurrentRoleLabel(nextRoleName);
       setRoleDescription(nextDescription);
       setIsUpdateModalOpen(false);
+
+      setSuccessTitle("Role Updated Successfully");
+      setSuccessDescription(
+        "The role details have been updated successfully. Changes will reflect immediately across the platform.",
+      );
+      setIsSuccessModalOpen(true);
+
       return;
     }
 
@@ -293,6 +300,12 @@ export default function AdminRoleEditDetailsRoute() {
       setPermissionScope(resolvePermissionScope(nextRoleName));
       void handleAssignRole(selectedRoleId, nextRoleName);
     }
+
+    setSuccessTitle("Role Change Successfully");
+    setSuccessDescription(
+      "The role has been changed successfully. The changes will take effect immediately across the platform",
+    );
+    setIsSuccessModalOpen(true);
   };
 
   const handlePrimaryAction = async () => {
@@ -331,13 +344,13 @@ export default function AdminRoleEditDetailsRoute() {
 
     const response = hasUserCustomPermissions
       ? await adminApi.updateUserPermissions({
-          user_id: userId,
-          permissions: nextPermissions,
-        })
+        user_id: userId,
+        permissions: nextPermissions,
+      })
       : await adminApi.assignUserPermissions({
-          user_id: userId,
-          permissions: nextPermissions,
-        });
+        user_id: userId,
+        permissions: nextPermissions,
+      });
 
     setIsSaving(false);
 
@@ -408,9 +421,9 @@ export default function AdminRoleEditDetailsRoute() {
       setHasUserCustomPermissions(Object.keys(normalizedPermissions).length > 0);
       setCurrentRoleLabel(
         detailsResponse.data.display_role ||
-          detailsResponse.data.role?.name ||
-          selectedRoleLabel ||
-          currentRoleLabel,
+        detailsResponse.data.role?.name ||
+        selectedRoleLabel ||
+        currentRoleLabel,
       );
       setRoleDescription(detailsResponse.data.role?.description || "");
     }
