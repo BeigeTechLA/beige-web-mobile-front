@@ -1025,7 +1025,7 @@ function StripePaymentFormMulti({
         coupon: discountCode || undefined,
         page_name: "Payment Page",
         location_in_website: "book_a_shoot_payment_page",
-        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
         booking_id: booking?.bookingId,
         items: [{
           item_name: booking?.shoot_name || "Shoot Booking",
@@ -1047,7 +1047,7 @@ function StripePaymentFormMulti({
         coupon: discountCode || undefined,
         page_name: "Payment Page",
         location_in_website: "book_a_shoot_payment_page",
-        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
         booking_id: booking?.bookingId,
         items: [{
           item_name: booking?.shoot_name || "Shoot Booking",
@@ -1096,17 +1096,15 @@ function StripePaymentFormMulti({
       type: "Action Tracking",
       page_name: "Payment Page",
       location_in_website: "book_a_shoot_payment_page",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       email: isAuthenticated ? user?.email : booking.email,
       phone: isAuthenticated ? user?.phone_number : booking.phone,
       duration_on_page: performance.now() / 1000,
       booking_id: booking?.bookingId,
-      booking_form_fields: {
-        full_name: booking.fullName,
-        phone: booking.phone,
-      }
+      full_name: booking.fullName,
     });
+
     console.log("after GA booking_payment_initiated call");
 
     // 100% DISCOUNT CASE: Bypass Stripe
@@ -1127,8 +1125,8 @@ function StripePaymentFormMulti({
           type: "Action Tracking",
           page_name: "Payment Page",
           location_in_website: "book_a_shoot_payment_page",
-          user_id: isAuthenticated ? user?.id : "Unknown",
-          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          user_id: isAuthenticated ? user?.id : "Guest",
+          user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
           booking_id: booking?.booking_id,
           items: [{
             item_name: booking?.shoot_name || "Shoot Booking",
@@ -1191,8 +1189,8 @@ function StripePaymentFormMulti({
           payment_status: `Fail: ${paymentError.message || "Payment failed"}`,
           value: booking?.totalAmount,
           currency: "USD",
-          user_id: isAuthenticated ? user?.id : "Unknown",
-          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          user_id: isAuthenticated ? user?.id : "Guest",
+          user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
           email: isAuthenticated ? user?.email : booking.email,
           phone: isAuthenticated ? user?.phone_number : booking.phone,
         });

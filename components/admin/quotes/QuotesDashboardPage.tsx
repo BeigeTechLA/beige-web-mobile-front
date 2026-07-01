@@ -1969,7 +1969,6 @@ export default function QuotesDashboardPage({
                                 aria-label={`Open quote ${quote.quoteNumber}`}
                                 prefetch={false}
                               />
-
                               <div className="relative z-10 flex items-center gap-3 pointer-events-none">
                                 {/* Mobile Chevron */}
                                 <div

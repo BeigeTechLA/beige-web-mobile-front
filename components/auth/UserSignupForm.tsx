@@ -96,7 +96,7 @@ export function UserSignupForm() {
       // });
       pushToDataLayer("sign_up", {
         method: "email", // Official standard parameter
-        custom_user_id: result?.userId || null,
+        user_id: result?.userId || null,
         user_type: "Client",
         page_name: "User Signup Page",
         location_in_website: "signup_user_page",

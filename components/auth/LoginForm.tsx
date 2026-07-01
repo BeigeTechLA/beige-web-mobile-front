@@ -101,7 +101,7 @@ export function LoginForm() {
 
       pushToDataLayer("login", {
         method: "email", // Added the official GA4 standard parameter
-        custom_user_id: user?.id || null,
+        user_id: user?.id || null,
         email: data.email, // using form data
         user_type: userTypeName,
         page_name: "Login Page",
