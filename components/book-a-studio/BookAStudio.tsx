@@ -1656,6 +1656,7 @@ export const BookAStudio = () => {
     if (!validateStudioStep()) return null;
 
     const selectedStudios = normalizeSelectedStudios(formData);
+    const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
     const primaryStudio = selectedStudios[0];
     const browserTimeZone = getBrowserTimeZone();
     const payload = {
@@ -1679,6 +1680,15 @@ export const BookAStudio = () => {
       edits_needed: formData.editsNeeded,
       video_edit_types: formData.videoEditTypes,
       photo_edit_types: formData.photoEditTypes,
+      studio_total: selectedStudiosTotal,
+      studio_items: selectedStudios.map((studio) => ({
+        studio_id: studio.studioId,
+        name: studio.name,
+        quantity: studio.quantity,
+        unit_price: studio.unitPrice,
+        total: studio.totalPrice,
+        pricing_mode: studio.pricingMode,
+      })),
     };
 
     try {
@@ -1726,6 +1736,9 @@ export const BookAStudio = () => {
         Number(formData.roleCounts?.photographer || 0) > 0
           ? { item_id: 10, quantity: Number(formData.roleCounts?.photographer || 0) }
           : null,
+        Number(formData.roleCounts?.cinematographer || 0) > 0
+          ? { item_id: 12, quantity: Number(formData.roleCounts?.cinematographer || 0) }
+          : null,
       ].filter(Boolean) as Array<{ item_id: number; quantity: number }>;
       const totalShootHours = formData.bookingDays?.length
         ? formData.bookingDays.reduce((sum, day) => sum + Number(day.durationHours || 0), 0)
@@ -1741,6 +1754,17 @@ export const BookAStudio = () => {
           video_edit_types: formData.editsNeeded ? buildEditTypeCounts(formData.videoEditTypes) : [],
           photo_edit_types: formData.editsNeeded ? buildEditTypeCounts(formData.photoEditTypes) : [],
           studio_total: selectedStudiosTotal || 0,
+          studio_items: selectedStudios.map((studio) => ({
+            studio_id: studio.studioId,
+            name: studio.name,
+            quantity: studio.quantity,
+            unit_price: studio.unitPrice,
+            total: studio.totalPrice,
+            pricing_mode: studio.pricingMode,
+          })),
+          shoot_start_date: primaryStudio?.selectedDate
+            ? `${primaryStudio.selectedDate}T00:00:00.000Z`
+            : formData.startDate || undefined,
           notes: formData.specialInstructions || undefined,
         };
         const savedQuote = await saveQuote(quotePayload).unwrap();
@@ -1889,7 +1913,6 @@ export const BookAStudio = () => {
           data={formData}
           updateData={updateData}
           onBack={() => {
-            updateData({ selectedCrewIds: [] });
             setActiveStep(5);
           }}
           onNext={() => undefined}

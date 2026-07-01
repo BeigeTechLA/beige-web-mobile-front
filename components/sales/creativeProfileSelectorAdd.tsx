@@ -8,6 +8,7 @@ import { Separator } from '@/src/components/landing/Separator';
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 const DEFAULT_RADIUS = 50;
+const OVER_200_BUCKET = 250;
 
 export type CreativeWithDistance = {
   id: number;
@@ -186,9 +187,20 @@ export const CreativeProfileSelectorAdd = ({
     [appliedFilters.radius]
   );
 
+  const gridBucketLimits = useMemo(
+    () => {
+      if (hasActiveSearch) {
+        return CREATIVE_RADIUS_OPTIONS;
+      }
+
+      return activeBucketLimits;
+    },
+    [activeBucketLimits, hasActiveSearch]
+  );
+
   useEffect(() => {
-    setExpandedBuckets(activeBucketLimits);
-  }, [activeBucketLimits]);
+    setExpandedBuckets(gridBucketLimits);
+  }, [gridBucketLimits]);
 
   const parseDistance = (distance?: number | string) => {
     if (typeof distance === "number" && Number.isFinite(distance)) {
@@ -196,7 +208,8 @@ export const CreativeProfileSelectorAdd = ({
       if (distance <= 50) return 50;
       if (distance <= 100) return 100;
       if (distance <= 150) return 150;
-      return 200;
+      if (distance <= 200) return 200;
+      return OVER_200_BUCKET;
     }
 
     if (typeof distance === "string") {
@@ -213,7 +226,8 @@ export const CreativeProfileSelectorAdd = ({
       if (parsed <= 50) return 50;
       if (parsed <= 100) return 100;
       if (parsed <= 150) return 150;
-      return 200;
+      if (parsed <= 200) return 200;
+      return OVER_200_BUCKET;
     }
 
     return null;
@@ -349,9 +363,9 @@ export const CreativeProfileSelectorAdd = ({
       return [];
     }
 
-    return activeBucketLimits.map((upperBound, index) => {
-      const lowerBound = index === 0 ? 0 : activeBucketLimits[index - 1];
-      const label = `${lowerBound}-${upperBound} miles`;
+    return gridBucketLimits.map((upperBound, index) => {
+      const lowerBound = index === 0 ? 0 : gridBucketLimits[index - 1];
+      const label = upperBound === OVER_200_BUCKET ? "200+ miles" : `${lowerBound}-${upperBound} miles`;
 
       const items = filteredCreatives
         .map((creative) => ({
@@ -362,7 +376,7 @@ export const CreativeProfileSelectorAdd = ({
 
       return { lowerBound, upperBound, label, items };
     });
-  }, [activeBucketLimits, filteredCreatives, viewMode]);
+  }, [filteredCreatives, gridBucketLimits, viewMode]);
 
   const radiusFilteredCreatives = useMemo(() => {
     if (debouncedSearch) return filteredCreatives;
@@ -538,7 +552,7 @@ export const CreativeProfileSelectorAdd = ({
         <p className="text-sm font-medium">
           {hasActiveSearch
             ? "Searching all creative partners. Select any matching CP to assign them to this shoot."
-            : `Showing available CPs around the shoot location within ${appliedFilters.radius} miles.`}
+            : `Showing available CPs around the shoot location within ${appliedFilters.radius === OVER_200_BUCKET ? "200+ miles" : `${appliedFilters.radius} miles`}.`}
         </p>
         <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
           {hasActiveSearch

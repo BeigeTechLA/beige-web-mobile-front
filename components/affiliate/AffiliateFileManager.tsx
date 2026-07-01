@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Cookies from "js-cookie";
 import {
   ArrowLeft,
   Camera,
@@ -31,12 +30,11 @@ import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
-import { affiliateApi } from "@/lib/api";
 import {
   fileManagerApi,
+  formatFileManagerWorkspaceName,
   inferWorkspaceCategory,
   isCommonEventWorkspaceId,
-  isVisibleToNonAdminByVisibleUntil,
   isRecentWithinHours,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -71,6 +69,7 @@ interface BrowserFile {
   contentType?: string;
   lastOpened: string;
   userInitials: string;
+  uploaderName: string;
   metadata?: Record<string, unknown>;
   size?: number;
 }
@@ -82,11 +81,6 @@ interface FaceMatchItem {
   url?: string;
 }
 
-interface ProjectLite {
-  project_name?: string;
-  stream_project_booking_id?: string | number;
-  booking_id?: string | number;
-}
 const FILES_PAGE_SIZE = 20;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -180,58 +174,26 @@ export default function AffiliateFileManager() {
   const { isDark } = useResolvedTheme()
 
   const loadRoot = async () => {
-    const token = Cookies.get("revure_token");
-    if (!token) {
-      setError("Please log in to view your files.");
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
-      const [shootsResponse, externalWorkspaces] = await Promise.all([
-        affiliateApi.getMyShoots(token, { range: "all" }),
-        fileManagerApi.listExternalWorkspaces(),
-      ]);
-
-      const projects = Array.isArray(shootsResponse?.data?.projects)
-        ? shootsResponse.data.projects
-        : [];
-      const projectMap = new Map<string, ProjectLite>();
-
-      projects.forEach((item: unknown) => {
-        const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-        const nestedProject =
-          row.project && typeof row.project === "object"
-            ? (row.project as ProjectLite)
-            : null;
-        const project = nestedProject || (row as ProjectLite);
-        const bookingId = String(
-          project?.stream_project_booking_id || project?.booking_id || ""
-        );
-        if (bookingId) {
-          projectMap.set(bookingId, project);
-        }
-      });
+      const externalWorkspaces = await fileManagerApi.listExternalWorkspaces();
 
       const mapped = externalWorkspaces
-        .filter((workspace) =>
-          (isCommonEventWorkspaceId(workspace.externalId) &&
-            isVisibleToNonAdminByVisibleUntil(workspace.visibleUntil)) ||
-          projectMap.has(String(workspace.externalId))
-        )
         .map((workspace) => {
-          const project = projectMap.get(String(workspace.externalId));
+          const displayName = workspace.isCommonEvent
+            ? workspace.folderName || "Common Event"
+            : formatFileManagerWorkspaceName(workspace.folderName);
+
           return {
             externalId: String(workspace.externalId),
-            title: workspace.folderName || project?.project_name || "Common Event",
+            title: displayName,
             fileCount: Number(workspace.fileCount || 0),
             lastOpened: workspace.updatedAt || workspace.createdAt || "",
-            userInitials: getInitials(workspace.folderName || project?.project_name),
+            userInitials: getInitials(displayName),
             category: inferWorkspaceCategory(
-              workspace.folderName || project?.project_name
+              workspace.folderName
             ),
             updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
             visibleUntil: workspace.visibleUntil || null,
@@ -279,7 +241,8 @@ export default function AffiliateFileManager() {
           filepath: file.path,
           contentType: file.contentType,
           lastOpened: file.updatedAt || file.createdAt || "",
-          userInitials: getInitials(file.name),
+          userInitials: getInitials(file.author || "Unknown uploader"),
+          uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
           metadata: file.metadata || {},
           size: file.size || 0,
         }))
@@ -308,7 +271,8 @@ export default function AffiliateFileManager() {
                 filepath: file.path,
                 contentType: file.contentType,
                 lastOpened: file.updatedAt || file.createdAt || "",
-                userInitials: getInitials(file.name),
+                userInitials: getInitials(file.author || "Unknown uploader"),
+                uploaderName: file.author && file.author !== "Unknown" ? file.author : "Unknown uploader",
                 metadata: file.metadata || {},
                 size: file.size || 0,
               }));
@@ -582,6 +546,12 @@ export default function AffiliateFileManager() {
     };
   };
 
+  const isReviewableRevisionFile = useCallback((file: BrowserFile) => {
+    if (!isRevisionVersionBrowser) return false;
+    const editStatus = String(file.metadata?.editStatus || "").toLowerCase();
+    return editStatus !== "approved" && editStatus !== "revision_requested";
+  }, [isRevisionVersionBrowser]);
+
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
 
@@ -674,11 +644,12 @@ export default function AffiliateFileManager() {
       ? phaseFiles.filter((file) => selectedFilePaths.includes(file.filepath || ""))
       : [];
 
-    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles).filter(
-      (file) => String(file.metadata?.editStatus || "").toLowerCase() !== "approved"
-    );
+    const filesToApprove = (isSelectionMode ? selectedRevisionFiles : phaseFiles).filter(isReviewableRevisionFile);
 
-    if (!filesToApprove.length) return;
+    if (!filesToApprove.length) {
+      toast.info("No uploaded revision files are ready for approval.");
+      return;
+    }
 
     try {
       setIsSendingEditRequest(true);
@@ -999,8 +970,8 @@ export default function AffiliateFileManager() {
   const hasPendingRevisionFiles = useMemo(
     () =>
       isRevisionVersionBrowser &&
-      phaseFiles.some((file) => String(file.metadata?.editStatus || "").toLowerCase() !== "approved"),
-    [phaseFiles, isRevisionVersionBrowser]
+      phaseFiles.some(isReviewableRevisionFile),
+    [phaseFiles, isRevisionVersionBrowser, isReviewableRevisionFile]
   );
 
   const selectedPendingFiles = useMemo(
@@ -1009,10 +980,10 @@ export default function AffiliateFileManager() {
         ? phaseFiles.filter(
             (file) =>
               selectedFilePaths.includes(file.filepath || "") &&
-              String(file.metadata?.editStatus || "").toLowerCase() !== "approved"
+              isReviewableRevisionFile(file)
           )
         : [],
-    [phaseFiles, selectedFilePaths]
+    [phaseFiles, selectedFilePaths, isReviewableRevisionFile]
   );
 
   const canApproveSelectedFiles = isSelectionMode && selectedPendingFiles.length > 0;
@@ -1530,7 +1501,7 @@ export default function AffiliateFileManager() {
                 {selectedWorkspace?.externalId}
               </p>
 
-              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
+              {/* {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
               {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
@@ -1540,7 +1511,7 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
           </div>
         </div>
@@ -1724,9 +1695,7 @@ export default function AffiliateFileManager() {
                   {visibleFiles.map((file) => {
                     const statusBadge = getFileStatusBadge(file);
 
-                    const canReviewVersionFile =
-                      isRevisionVersionBrowser &&
-                      String(file.metadata?.editStatus || "").toLowerCase() !== "approved";
+                    const canReviewVersionFile = isReviewableRevisionFile(file);
 
   return (
     <FileCard
@@ -1885,6 +1854,9 @@ export default function AffiliateFileManager() {
             </div>
           </div>
 
+
+
+
           <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
             <div className="relative flex-1 max-w-xl">
               <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
@@ -2040,7 +2012,7 @@ export default function AffiliateFileManager() {
                   setIsSelectionMode(false);
                 }}
               >
-                Clear
+                Clearr
               </Button>
 
               <div

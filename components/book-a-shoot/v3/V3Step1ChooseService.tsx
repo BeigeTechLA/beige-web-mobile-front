@@ -42,7 +42,7 @@ import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, i
 import { AnimatePresence, motion } from "framer-motion";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
-import {getFormattedDateString} from "@/lib/utils";
+import { getFormattedDateString } from "@/lib/utils";
 import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE } from "./utils";
 
 interface Props {
@@ -438,9 +438,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_step1",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
-      email: isAuthenticated ? user?.email : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.user_type_id !== undefined
+        ? USER_TYPE[user.user_type_id]
+        : "Guest",
+      email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       duration_on_page: performance.now() / 1000,
     });
@@ -982,51 +984,51 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   }, [data, isEditingOnly, shouldBypassDateTime]);
 
-      const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
-      const current = [...data.contentType];
-      const isCurrentlySelected = current.includes(type);
-      const nextContentType = isCurrentlySelected
-        ? current.filter((t) => t !== type)
-        : [...current, type];
+  const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
+    const current = [...data.contentType];
+    const isCurrentlySelected = current.includes(type);
+    const nextContentType = isCurrentlySelected
+      ? current.filter((t) => t !== type)
+      : [...current, type];
 
-      if (nextContentType.length === 0) {
-        updateData({
-          contentType: [],
-          shootType: "",
-          startDate: "",
-          endDate: "",
-          expectedDeliveryDate: "",
-          editsNeeded: true,
-          videoEditTypes: [],
-          photoEditTypes: [],
-        });
-      } else {
-        // Determine if editing is selected to automatically set editsNeeded to true
-        const includesEditing = nextContentType.includes("editing");
-        
-        const updateObj: Partial<BookingDataV3> = { 
-          contentType: nextContentType,
-          editsNeeded: includesEditing ? true : data.editsNeeded // Force true if editing is checked
-        };
+    if (nextContentType.length === 0) {
+      updateData({
+        contentType: [],
+        shootType: "",
+        startDate: "",
+        endDate: "",
+        expectedDeliveryDate: "",
+        editsNeeded: true,
+        videoEditTypes: [],
+        photoEditTypes: [],
+      });
+    } else {
+      // Determine if editing is selected to automatically set editsNeeded to true
+      const includesEditing = nextContentType.includes("editing");
 
-        if (!nextContentType.includes("videographer")) {
-          updateObj.videoEditTypes = [];
-        } 
-        if (!nextContentType.includes("photographer")) {
-          updateObj.photoEditTypes = [];
-        }
-        if (!nextContentType.includes("editing")) {
-          updateObj.expectedDeliveryDate = "";
-        }
+      const updateObj: Partial<BookingDataV3> = {
+        contentType: nextContentType,
+        editsNeeded: includesEditing ? true : data.editsNeeded // Force true if editing is checked
+      };
 
-        updateData(updateObj);
+      if (!nextContentType.includes("videographer")) {
+        updateObj.videoEditTypes = [];
+      }
+      if (!nextContentType.includes("photographer")) {
+        updateObj.photoEditTypes = [];
+      }
+      if (!nextContentType.includes("editing")) {
+        updateObj.expectedDeliveryDate = "";
       }
 
-      setVisibleCount(INITIAL_COUNT);
-      if (nextContentType.length > 0) {
-        scrollToRef(shootTypeRef);
-      }
-    };
+      updateData(updateObj);
+    }
+
+    setVisibleCount(INITIAL_COUNT);
+    if (nextContentType.length > 0) {
+      scrollToRef(shootTypeRef);
+    }
+  };
   const validate = () => {
     if (!data.email) {
       toast.error("Please enter your email address");
@@ -1247,7 +1249,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     "editing",
                     // "cinematographer", This is not being mentioned in UI. Hence commented out
                   ],
-                  editsNeeded: true, 
+                  editsNeeded: true,
                 });
               else updateData({ contentType: [] });
             }}
@@ -1270,7 +1272,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             checked={data.contentType.includes("editing")}
             onChange={() => toggleContentType("editing")}
           />
-         
+
           <ContentTypeCheckbox
             label="Locations"
             subLabel="Coming Soon"
@@ -1295,13 +1297,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           {/* Shoot Type */}
           <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
             <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"}`}>
-           {data.contentType.includes("videographer") && data.contentType.includes("photographer")
-              ? "Video and Photo Shoot Type"
-              : data.contentType.includes("photographer")
-                ? "Photo Shoot Type"
-                : data.contentType.includes("videographer")
-                  ? "Video Shoot Type"
-                  : "Shoot Type"}
+              {data.contentType.includes("videographer") && data.contentType.includes("photographer")
+                ? "Video and Photo Shoot Type"
+                : data.contentType.includes("photographer")
+                  ? "Photo Shoot Type"
+                  : data.contentType.includes("videographer")
+                    ? "Video Shoot Type"
+                    : "Shoot Type"}
             </h3>
             {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
@@ -1391,18 +1393,18 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               </h3>
               <div className="flex flex-col lg:flex-row gap-6">
                 <div className="flex-1">
-                <DatePicker
-                  label="Select Date"
-                  value={expectedDeliveryDate}
-                  onChange={handleExpectedDeliveryDateChange}
-                  minDate={addDays(new Date(), 1)}
-                  colors={datePickerColours}
-                  format="MM/dd/yyyy"
-                  sx={{
-                    height: { xs: "56px", lg: "82px" },
-                    borderRadius: "16px",
-                  }}
-                />
+                  <DatePicker
+                    label="Select Date"
+                    value={expectedDeliveryDate}
+                    onChange={handleExpectedDeliveryDateChange}
+                    minDate={addDays(new Date(), 1)}
+                    colors={datePickerColours}
+                    format="MM/dd/yyyy"
+                    sx={{
+                      height: { xs: "56px", lg: "82px" },
+                      borderRadius: "16px",
+                    }}
+                  />
                 </div>
               </div>
               <div className="mt-4 inline-flex max-w-full rounded-xl bg-[#211F1C] px-4 py-3 text-sm font-medium text-[#E8D1AB]">
@@ -1413,398 +1415,398 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
           {/* Booking Type */}
 
-        {!isEditingOnly && !shouldBypassDateTime && (
-          <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-              }`}>
-              Select Booking Type
-            </h3>
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  setBookingType("single_day");
-                  setSelectedDates([]);
-                  setSameTimingsMulti(true);
-                  setMultiDayTimes({});
-                  updateData({ bookingType: "single_day", bookingDays: [] });
-                  scrollToRef(dateTimeRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
+          {!isEditingOnly && !shouldBypassDateTime && (
+            <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                }`}>
+                Select Booking Type
+              </h3>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setBookingType("single_day");
+                    setSelectedDates([]);
+                    setSameTimingsMulti(true);
+                    setMultiDayTimes({});
+                    updateData({ bookingType: "single_day", bookingDays: [] });
+                    scrollToRef(dateTimeRef);
+                  }}
+                  disabled={data.shootType === ""}
+                  className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                 >
-                  {bookingType === "single_day" && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  setBookingType("multi_day");
-                  updateData({ bookingType: "multi_day" });
-                  scrollToRef(dateTimeRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
+                  <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
+                  <div
+                    className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : "border border-[#E5E5E5]"
+                      }`}
+                  >
+                    {bookingType === "single_day" && (
+                      <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                    )}
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setBookingType("multi_day");
+                    updateData({ bookingType: "multi_day" });
+                    scrollToRef(dateTimeRef);
+                  }}
+                  disabled={data.shootType === ""}
+                  className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                 >
-                  {bookingType === "multi_day" && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
+                  <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
+                  <div
+                    className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : "border border-[#E5E5E5]"
+                      }`}
+                  >
+                    {bookingType === "multi_day" && (
+                      <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                    )}
+                  </div>
+                </button>
+              </div>
             </div>
-          </div>
-)}
+          )}
 
           {/* Date & Time */}
-        {!isEditingOnly && !shouldBypassDateTime && (
+          {!isEditingOnly && !shouldBypassDateTime && (
 
-          <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {bookingType === "single_day" ? (
-              <>
-                <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-                  }`}>
-                  Shoot Date & Time
-                </h3>
-                <div className="flex flex-col lg:flex-row gap-6">
-                  <div className="flex-1">
-                    <DatePicker
-                      label="Select Date"
-                      value={selectedShootDate}
-                      onChange={handleDateChange}
-                      minDate={new Date()}
-                      colors={datePickerColours}
-                      format="MM/dd/yyyy"
-                      sx={{
-                        height: { xs: "56px", md: "82px" },
-                        borderRadius: "16px",
+            <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              {bookingType === "single_day" ? (
+                <>
+                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                    }`}>
+                    Shoot Date & Time
+                  </h3>
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    <div className="flex-1">
+                      <DatePicker
+                        label="Select Date"
+                        value={selectedShootDate}
+                        onChange={handleDateChange}
+                        minDate={new Date()}
+                        colors={datePickerColours}
+                        format="MM/dd/yyyy"
+                        sx={{
+                          height: { xs: "56px", md: "82px" },
+                          borderRadius: "16px",
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <DropdownSelect
+                        title="Start Time"
+                        options={filteredStartTimeOptions}
+                        value={getStartTimeKey()}
+                        onChange={handleStartTimeChange}
+                        bgColour="bg-[#101010]"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <DropdownSelect
+                        title="End Time"
+                        options={filteredEndTimeOptions}
+                        value={getEndTimeKey()}
+                        onChange={handleEndTimeChange}
+                        bgColour="bg-[#101010]"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="relative mb-8 lg:mb-15">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                        }`}>
+                        Select Date
+                      </h3>
+                      <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
+                        <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                        <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
+                      </button>
+                    </div>
+
+                    {/* Horizontal Scroll Reel */}
+                    <div
+                      ref={reelRef}
+                      onWheel={(e) => {
+                        if (!reelRef.current) return;
+                        e.preventDefault();
+                        reelRef.current.scrollLeft += e.deltaY;
                       }}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <DropdownSelect
-                      title="Start Time"
-                      options={filteredStartTimeOptions}
-                      value={getStartTimeKey()}
-                      onChange={handleStartTimeChange}
-                      bgColour="bg-[#101010]"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <DropdownSelect
-                      title="End Time"
-                      options={filteredEndTimeOptions}
-                      value={getEndTimeKey()}
-                      onChange={handleEndTimeChange}
-                      bgColour="bg-[#101010]"
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="relative mb-8 lg:mb-15">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-                      }`}>
-                      Select Date
-                    </h3>
-                    <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
-                      <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                      <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
-                    </button>
-                  </div>
-
-                  {/* Horizontal Scroll Reel */}
-                  <div
-                    ref={reelRef}
-                    onWheel={(e) => {
-                      if (!reelRef.current) return;
-                      e.preventDefault();
-                      reelRef.current.scrollLeft += e.deltaY;
-                    }}
-                    onPointerDown={(e) => {
-                      if (!reelRef.current) return;
-                      isDraggingReel.current = true;
-                      didDragReel.current = false;
-                      dragStartX.current = e.clientX;
-                      dragStartY.current = e.clientY;
-                      dragStartScrollLeft.current = reelRef.current.scrollLeft;
-                    }}
-                    onPointerMove={(e) => {
-                      if (!reelRef.current || !isDraggingReel.current) return;
-                      const dx = e.clientX - dragStartX.current;
-                      const dy = e.clientY - dragStartY.current;
-                      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
-                        didDragReel.current = true;
-                      }
-                      if (didDragReel.current) {
-                        reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
-                      }
-                    }}
-                    onPointerUp={() => {
-                      isDraggingReel.current = false;
-                      if (didDragReel.current) {
-                        suppressChipClickUntil.current = Date.now() + 150;
-                      }
-                      setTimeout(() => {
+                      onPointerDown={(e) => {
+                        if (!reelRef.current) return;
+                        isDraggingReel.current = true;
                         didDragReel.current = false;
-                      }, 0);
-                    }}
-                    onPointerLeave={() => {
-                      isDraggingReel.current = false;
-                    }}
-                    className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
-                  >
-                    {reelDays.map((date) => {
-                      const isSelected = selectedDates.some(d => isSameDay(d, date));
-                      return (
-                        <button
-                          type="button"
-                          key={date.toISOString()}
-                          ref={(el) => {
-                            dateChipRefs.current[getDateKey(date)] = el;
-                          }}
-                          onClick={() => {
-                            if (Date.now() < suppressChipClickUntil.current) return;
-                            toggleDateSelection(date);
-                          }}
-                          className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
-                        >
-                          <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
-                          <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex gap-4">
-                    <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
-                    </div>
-                    <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
-                    </div>
-                  </div>
-
-                  {/* Calendar Popover */}
-                  <AnimatePresence>
-                    {isCalendarOpen && (
-                      <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
-                        <div className="flex justify-between items-center mb-6">
-                          <button type="button" onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
-                            <ChevronLeft size={20} />
+                        dragStartX.current = e.clientX;
+                        dragStartY.current = e.clientY;
+                        dragStartScrollLeft.current = reelRef.current.scrollLeft;
+                      }}
+                      onPointerMove={(e) => {
+                        if (!reelRef.current || !isDraggingReel.current) return;
+                        const dx = e.clientX - dragStartX.current;
+                        const dy = e.clientY - dragStartY.current;
+                        if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+                          didDragReel.current = true;
+                        }
+                        if (didDragReel.current) {
+                          reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
+                        }
+                      }}
+                      onPointerUp={() => {
+                        isDraggingReel.current = false;
+                        if (didDragReel.current) {
+                          suppressChipClickUntil.current = Date.now() + 150;
+                        }
+                        setTimeout(() => {
+                          didDragReel.current = false;
+                        }, 0);
+                      }}
+                      onPointerLeave={() => {
+                        isDraggingReel.current = false;
+                      }}
+                      className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                    >
+                      {reelDays.map((date) => {
+                        const isSelected = selectedDates.some(d => isSameDay(d, date));
+                        return (
+                          <button
+                            type="button"
+                            key={date.toISOString()}
+                            ref={(el) => {
+                              dateChipRefs.current[getDateKey(date)] = el;
+                            }}
+                            onClick={() => {
+                              if (Date.now() < suppressChipClickUntil.current) return;
+                              toggleDateSelection(date);
+                            }}
+                            className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                          >
+                            <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
+                            <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
                           </button>
-                          <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                          <div className="flex items-center gap-2">
-                            <button type="button" onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
-                              <ChevronRight size={20} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIsCalendarOpen(false)}
-                              className="rounded-full p-1 hover:bg-white/10 transition-colors"
-                              aria-label="Close calendar"
-                            >
-                              <X size={18} />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
-                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
-                        </div>
-                        <div className="grid grid-cols-7 gap-1">
-                          {calendarDays.map((date) => {
-                            const isSelected = selectedDates.some(d => isSameDay(d, date));
-                            return (
-                              <button
-                                type="button"
-                                key={date.toISOString()}
-                                onClick={() => {
-                                  toggleDateSelection(date);
-                                }}
-                                className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
-                              >
-                                {format(date, "d")}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                {/* timings selector will go here */}
-
-                {selectedDates.length > 0 && (
-                  <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
-                    <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
+                        );
+                      })}
+                    </div>
 
                     <div className="flex gap-4">
-                      <button
-                        type="button"
-                        onClick={() => handleSameTimingsModeChange(true)}
-                        disabled={data.shootType === ""}
-                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                      >
-                        <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                        <div
-                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                            }`}
-                        >
-                          {sameTimingsMulti && (
-                            <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                          )}
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSameTimingsModeChange(false)}
-                        disabled={data.shootType === ""}
-                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                      >
-                        <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                        <div
-                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                            }`}
-                        >
-                          {!sameTimingsMulti && (
-                            <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                          )}
-                        </div>
-                      </button>
+                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
+                      </div>
+                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
+                      </div>
                     </div>
 
-                    {
-                      sameTimingsMulti ? (
-                        <div>
-                          <div className="flex flex-col lg:flex-row gap-6">
-                            <div className="flex-1">
-                              <DropdownSelect
-                                title="Start Time"
-                                options={filteredStartTimeOptions}
-                                value={getStartTimeKey()}
-                                onChange={handleStartTimeChange}
-                                bgColour="bg-[#101010]"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <DropdownSelect
-                                title="End Time"
-                                options={filteredEndTimeOptions}
-                                value={getEndTimeKey()}
-                                onChange={handleEndTimeChange}
-                                bgColour="bg-[#101010]"
-                              />
-                            </div>
-                          </div>
-                          <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
-                            <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
-                          </p>
-                          <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                            <p className="text-white font-medium lg:text-[20px]">
-                              {getFormattedDateString(selectedDates)}
-                            </p>
-                            <p className="text-white/60  font-medium lg:text-[20px]">
-                              {getStartTimeKey() && getEndTimeKey()
-                                ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
-                                : "Select time"}
-                            </p>
-                            <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
-                              {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
-                                ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
-                                : "Duration Hour/Day"}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {selectedDates.map((date) => {
-                            const dateKey = getDateKey(date);
-                            const isExpanded = expandedDateKey === dateKey;
-                            return (
-                              <div
-                                key={date.toISOString()}
-                                ref={(el) => {
-                                  selectedDateCardRefs.current[dateKey] = el;
-                                }}
-                                className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                    {/* Calendar Popover */}
+                    <AnimatePresence>
+                      {isCalendarOpen && (
+                        <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
+                          <div className="flex justify-between items-center mb-6">
+                            <button type="button" onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
+                              <ChevronLeft size={20} />
+                            </button>
+                            <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
+                                <ChevronRight size={20} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsCalendarOpen(false)}
+                                className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                                aria-label="Close calendar"
                               >
+                                <X size={18} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
+                          </div>
+                          <div className="grid grid-cols-7 gap-1">
+                            {calendarDays.map((date) => {
+                              const isSelected = selectedDates.some(d => isSameDay(d, date));
+                              return (
                                 <button
                                   type="button"
+                                  key={date.toISOString()}
                                   onClick={() => {
-                                    const nextExpanded = isExpanded ? null : dateKey;
-                                    setExpandedDateKey(nextExpanded);
-                                    if (nextExpanded) {
-                                      requestAnimationFrame(() => {
-                                        selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
-                                          behavior: "smooth",
-                                          block: "nearest",
-                                          inline: "nearest",
-                                        });
-                                      });
-                                    }
+                                    toggleDateSelection(date);
                                   }}
-                                  className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}
+                                  className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
                                 >
-                                  <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
-                                  <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                  {format(date, "d")}
                                 </button>
-                                <AnimatePresence>
-                                  {isExpanded && (
-                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
-                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="Start Time"
-                                            options={getDateSpecificStartOptions(dateKey)}
-                                            value={multiDayTimes[dateKey]?.startKey || ""}
-                                            onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
-                                            bgColour="bg-[#101010]"
-                                          />
-                                        </div>
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="End Time"
-                                            options={getDateSpecificEndOptions(dateKey)}
-                                            value={multiDayTimes[dateKey]?.endKey || ""}
-                                            onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
-                                            bgColour="bg-[#101010]"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
-                                          Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
-                                            ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
-                                            : "Select time"}
-                                        </p>
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )
-                    }
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                )}
-              </>
-            )}
-          </div>
-)}
+                  {/* timings selector will go here */}
+
+                  {selectedDates.length > 0 && (
+                    <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+                      <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
+
+                      <div className="flex gap-4">
+                        <button
+                          type="button"
+                          onClick={() => handleSameTimingsModeChange(true)}
+                          disabled={data.shootType === ""}
+                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                        >
+                          <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                          <div
+                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                              }`}
+                          >
+                            {sameTimingsMulti && (
+                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                            )}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSameTimingsModeChange(false)}
+                          disabled={data.shootType === ""}
+                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                        >
+                          <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                          <div
+                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                              }`}
+                          >
+                            {!sameTimingsMulti && (
+                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                            )}
+                          </div>
+                        </button>
+                      </div>
+
+                      {
+                        sameTimingsMulti ? (
+                          <div>
+                            <div className="flex flex-col lg:flex-row gap-6">
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="Start Time"
+                                  options={filteredStartTimeOptions}
+                                  value={getStartTimeKey()}
+                                  onChange={handleStartTimeChange}
+                                  bgColour="bg-[#101010]"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="End Time"
+                                  options={filteredEndTimeOptions}
+                                  value={getEndTimeKey()}
+                                  onChange={handleEndTimeChange}
+                                  bgColour="bg-[#101010]"
+                                />
+                              </div>
+                            </div>
+                            <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
+                              <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                            </p>
+                            <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                              <p className="text-white font-medium lg:text-[20px]">
+                                {getFormattedDateString(selectedDates)}
+                              </p>
+                              <p className="text-white/60  font-medium lg:text-[20px]">
+                                {getStartTimeKey() && getEndTimeKey()
+                                  ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                                  : "Select time"}
+                              </p>
+                              <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
+                                {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                                  ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                                  : "Duration Hour/Day"}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {selectedDates.map((date) => {
+                              const dateKey = getDateKey(date);
+                              const isExpanded = expandedDateKey === dateKey;
+                              return (
+                                <div
+                                  key={date.toISOString()}
+                                  ref={(el) => {
+                                    selectedDateCardRefs.current[dateKey] = el;
+                                  }}
+                                  className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextExpanded = isExpanded ? null : dateKey;
+                                      setExpandedDateKey(nextExpanded);
+                                      if (nextExpanded) {
+                                        requestAnimationFrame(() => {
+                                          selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
+                                            behavior: "smooth",
+                                            block: "nearest",
+                                            inline: "nearest",
+                                          });
+                                        });
+                                      }
+                                    }}
+                                    className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}
+                                  >
+                                    <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
+                                    <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                  </button>
+                                  <AnimatePresence>
+                                    {isExpanded && (
+                                      <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                          <div className="flex-1">
+                                            <DropdownSelect
+                                              title="Start Time"
+                                              options={getDateSpecificStartOptions(dateKey)}
+                                              value={multiDayTimes[dateKey]?.startKey || ""}
+                                              onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
+                                              bgColour="bg-[#101010]"
+                                            />
+                                          </div>
+                                          <div className="flex-1">
+                                            <DropdownSelect
+                                              title="End Time"
+                                              options={getDateSpecificEndOptions(dateKey)}
+                                              value={multiDayTimes[dateKey]?.endKey || ""}
+                                              onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
+                                              bgColour="bg-[#101010]"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                          <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                            Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
+                                              ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
+                                              : "Select time"}
+                                          </p>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )
+                      }
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {/* Edits Needed */}
           <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
             {!data.contentType.includes("editing") && (

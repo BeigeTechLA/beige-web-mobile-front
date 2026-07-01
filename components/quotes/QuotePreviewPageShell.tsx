@@ -26,6 +26,7 @@ import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import SignatureModal from "@/components/signature/SignatureModal";
 import { ServiceAgreementModal } from "../common/ServiceAgreementModal";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export type QuotePreviewTopbarProps = {
   pathname: string;
@@ -256,14 +257,14 @@ const hasSignedOrAcceptedQuoteState = (value: unknown) => {
       "signer_name",
       "signerName",
     ]) ||
-      (status &&
-        [
-          "accepted",
-          "signed",
-          "converted",
-          "converted_to_booking",
-          "booking_created",
-        ].includes(status))
+    (status &&
+      [
+        "accepted",
+        "signed",
+        "converted",
+        "converted_to_booking",
+        "booking_created",
+      ].includes(status))
   );
 };
 
@@ -808,8 +809,8 @@ export default function QuotePreviewPageShell({
     latestVersionApprovalPending
       ? "We're preparing the latest version of your quote. It will be available here once it's ready."
       : errorReasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON
-      ? "We're opening the latest version of your quote."
-      : errorMessage || "The quote preview could not be loaded.";
+        ? "We're opening the latest version of your quote."
+        : errorMessage || "The quote preview could not be loaded.";
   const canContinueToPayment =
     hasValidPublicQuotePreview &&
     isQuoteSigned &&
@@ -959,6 +960,26 @@ export default function QuotePreviewPageShell({
       toast.error("Booking id missing for payment.");
       return;
     }
+
+    pushToDataLayer("begin_checkout", {
+      currency: "USD",
+      value: quote?.total || 0,
+      page_name: "Preview Quotes Page",
+      location_in_website: "preview_quotes_continue_to_payment_btn",
+      email: quote?.client_email || "Unknown",
+      user_id: quote?.client_user_id || "Unknown",
+      user_type: "Client",
+      full_name: quote?.client_name || "Client",
+      phone: quote?.client_phone || "Unknown",
+
+      booking_id: bookingId,
+      items: [{
+        item_name: "Shoot Booking",
+        price: quote?.total || 0,
+        quantity: 1
+      }]
+    });
+
     router.push(`/search-results/payment?shootId=${encodeURIComponent(bookingId)}`);
   };
 

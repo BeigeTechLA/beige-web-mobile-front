@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -16,8 +16,11 @@ import {
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTheme } from 'next-themes';
+import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
+import ClientActionSuccessModal from "@/components/admin/users/ClientActionSuccessModal";
 
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
+type ClientsTab = "active" | "all" | "archived";
 
 const CLIENTS_FILTERS_STORAGE_KEY = "admin-users-clients-filters";
 
@@ -27,6 +30,7 @@ type PersistedClientsFilters = {
     selectedDate: string | null;
     searchQuery: string;
     statusFilter: string;
+    activeTab: ClientsTab;
 };
 
 interface Client {
@@ -40,6 +44,7 @@ interface Client {
     imageUrl?: string | null;
     referralCode?: string | null;
     clientType?: "guest" | "registered";
+    isArchived?: boolean;
 }
 
 const StatusBadge = ({ status }: { status: UserStatus }) => {
@@ -48,6 +53,7 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
         Approved: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
         Pending: "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
         Inactive: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
+        Archived: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
         Rejected: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
     };
     const displayStatus = styles[status] ? status : "Pending";
@@ -79,9 +85,18 @@ export const ClientsTable = () => {
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [limit] = useState(50);
+    const [limit] = useState(20);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [activeTab, setActiveTab] = useState<ClientsTab>("all");
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+    const [selectedClient, setSelectedClient] = useState<{ id: string; name: string } | null>(null);
+    const [selectedClientIsArchived, setSelectedClientIsArchived] = useState(false);
+    const [isProcessingClientAction, setIsProcessingClientAction] = useState(false);
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [completedAction, setCompletedAction] = useState<"delete" | "restore" | null>(null);
+    const [completedClientName, setCompletedClientName] = useState("");
 
     // --- DATE FILTER STATES ---
     const [range, setRange] = useState<string>("all");
@@ -123,6 +138,10 @@ export const ClientsTable = () => {
                 if (typeof parsedFilters.currentPage === "number" && parsedFilters.currentPage > 0) {
                     setCurrentPage(parsedFilters.currentPage);
                 }
+
+                if (parsedFilters.activeTab && ["all", "active", "archived"].includes(parsedFilters.activeTab)) {
+                    setActiveTab(parsedFilters.activeTab as ClientsTab);
+                }
             }
         } catch (error) {
             console.error("Failed to restore client filters:", error);
@@ -140,10 +159,11 @@ export const ClientsTable = () => {
             selectedDate: selectedDate ? selectedDate.toISOString() : null,
             searchQuery,
             statusFilter,
+            activeTab,
         };
 
         localStorage.setItem(CLIENTS_FILTERS_STORAGE_KEY, JSON.stringify(filtersToPersist));
-    }, [currentPage, range, selectedDate, searchQuery, statusFilter, filtersInitialized]);
+    }, [currentPage, range, selectedDate, searchQuery, statusFilter, activeTab, filtersInitialized]);
 
     // Handle single date selection from theme datepicker
     const handleDateSort = (date: Date | null) => {
@@ -163,8 +183,17 @@ export const ClientsTable = () => {
                 const params: any = {
                     page: currentPage,
                     limit: limit,
-                    range: range
                 };
+
+                if (range !== "all") {
+                    params.range = range;
+                }
+
+                if (activeTab === "all") {
+                    params.include_archived = true;
+                } else if (activeTab === "archived") {
+                    params.archived_only = true;
+                }
 
                 if (debouncedSearch) params.search = debouncedSearch;
                 if (statusFilter !== "all") params.status = statusFilter;
@@ -186,9 +215,11 @@ export const ClientsTable = () => {
 
                     const mappedClients = data.map((client: any) => {
                         const fullName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown";
+                        const archivedIndicator = client.is_archived ?? client.archived ?? client.is_deleted ?? client.deleted_at ?? client.client_status ?? client.status;
                         const statusMapping = (val: any) => {
                             if (val === 1 || val === "Active" || val === "approved") return "Active";
-                            if (val === 0 || val === "Inactive" || val === "rejected") return "Inactive";
+                            if (val === 0 || val === "Inactive" || val === "rejected") return "Archived";
+                            if (String(val).toLowerCase() === "archived") return "Inactive";
                             return "Pending";
                         };
 
@@ -203,6 +234,12 @@ export const ClientsTable = () => {
                             imageUrl: client.profile_image || client.image || null,
                             referralCode: client.referral_code || null,
                             clientType: (client.client_type === "registered" ? "registered" : "guest"),
+                            isArchived:
+                                archivedIndicator === true ||
+                                archivedIndicator === 1 ||
+                                String(archivedIndicator).toLowerCase() === "archived" ||
+                                String(archivedIndicator).toLowerCase() === "deleted" ||
+                                String(archivedIndicator).toLowerCase() === "inactive" && Boolean(client.deleted_at),
                         };
                     });
                     setClients(mappedClients);
@@ -216,7 +253,7 @@ export const ClientsTable = () => {
         };
         if (!filtersInitialized) return;
         fetchClients();
-    }, [currentPage, limit, debouncedSearch, statusFilter, range, selectedDate, filtersInitialized]);
+    }, [activeTab, currentPage, limit, debouncedSearch, statusFilter, range, selectedDate, filtersInitialized, refreshKey]);
 
     // const handleRowClick = (id: string) => {
     //     // const cleanId = id.replace('#', '');
@@ -228,12 +265,86 @@ export const ClientsTable = () => {
         router.push(`/admin/users/clients/${cleanId}`);
     };
 
+    const handleTabChange = (tab: ClientsTab) => {
+        setActiveTab(tab);
+        setCurrentPage(1);
+    };
+
+    const handleActionClick = (client: Client, event: React.MouseEvent) => {
+        event.stopPropagation();
+        setSelectedClient(client);
+        setSelectedClientIsArchived(Boolean(client.isArchived));
+        setIsActionModalOpen(true);
+    };
+
+    const handleConfirmClientAction = async () => {
+        if (!selectedClient) return;
+
+        const cleanId = selectedClient.id.replace("#", "");
+        setIsProcessingClientAction(true);
+
+        try {
+            const response = selectedClientIsArchived
+                ? await adminApi.restoreClient(cleanId)
+                : await adminApi.deleteClient(cleanId);
+
+            if (response && response.success !== false) {
+                setIsActionModalOpen(false);
+                setSelectedClient(null);
+                setSelectedClientIsArchived(false);
+                setCompletedAction(selectedClientIsArchived ? "restore" : "delete");
+                setCompletedClientName(selectedClient.name);
+                setIsSuccessModalOpen(true);
+                setRefreshKey((current) => current + 1);
+            } else {
+                const friendlyMessage = selectedClientIsArchived
+                    ? "Unable to restore this client because the account is linked to an active creative partner profile."
+                    : "Unable to delete this client right now. Please try again.";
+
+                toast.error(
+                    friendlyMessage
+                );
+                console.error("Client action failed:", response);
+            }
+        } catch (error) {
+            console.error("Client action error:", error);
+            toast.error(
+                selectedClientIsArchived
+                    ? "Unable to restore this client right now."
+                    : "Unable to delete this client right now."
+            );
+        } finally {
+            setIsProcessingClientAction(false);
+        }
+    };
+
     return (
         <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
             {/* Header */}
             <div>
                 <h1 className={`text-lg lg:text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Users</h1>
                 <p className={isDark ? "text-[#888]" : "text-[#666]"}>Manage and review all registered users in one place.</p>
+            </div>
+
+            <div className={`flex items-center gap-1 p-1 rounded-xl w-fit border transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-[#F0F0F0] border-[#E3E3E3]"}`}>
+                {[
+                    { key: "all", label: "All Clients" },
+                    { key: "active", label: "Active Clients" },
+                    { key: "archived", label: "Archived Clients" },
+                ].map((tab) => (
+                    <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => handleTabChange(tab.key as ClientsTab)}
+                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                            activeTab === tab.key
+                                ? "bg-[#E5D5B8] text-black shadow-lg"
+                                : isDark ? "text-[#777] hover:text-white" : "text-[#666] hover:text-black"
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
             {/* Toolbar */}
@@ -378,9 +489,30 @@ export const ClientsTable = () => {
                                             )}
                                         </td>
                                         <td className="py-5 px-6 text-right">
-                                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
-                                                <ChevronRight size={20} />
-                                            </button>
+                                            {client.isArchived ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => handleActionClick(client, event)}
+                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${isDark
+                                                            ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                                            : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-50"
+                                                        }`}
+                                                    aria-label={`Restore ${client.name}`}
+                                                    title={`Restore ${client.name}`}
+                                                >
+                                                    Restore
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => handleActionClick(client, event)}
+                                                    className={`${isDark ? "text-[#666] hover:text-red-400" : "text-[#888] hover:text-red-500"} transition-colors`}
+                                                    aria-label={`Delete ${client.name}`}
+                                                    title={`Delete ${client.name}`}
+                                                >
+                                                    <Trash2 size={20} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -447,6 +579,45 @@ export const ClientsTable = () => {
                     </div>
                 </div>
             )}
+
+            <DeleteConfirmationModal
+                isOpen={isActionModalOpen}
+                onClose={() => {
+                    if (isProcessingClientAction) return;
+                    setIsActionModalOpen(false);
+                    setSelectedClient(null);
+                    setSelectedClientIsArchived(false);
+                }}
+                onConfirm={handleConfirmClientAction}
+                isLoading={isProcessingClientAction}
+                title={selectedClientIsArchived ? "Restore Client" : "Delete User"}
+                description={
+                    selectedClient
+                        ? selectedClientIsArchived
+                            ? `Are you sure you want to restore ${selectedClient.name}?`
+                            : `Are you sure you want to delete ${selectedClient.name}? This action cannot be undone.`
+                        : "Are you sure you want to update this user?"
+                }
+                confirmLabel={selectedClientIsArchived ? "Restore" : "Delete"}
+                loadingLabel={selectedClientIsArchived ? "Restoring..." : "Deleting..."}
+                isDark={isDark}
+            />
+
+            <ClientActionSuccessModal
+                open={isSuccessModalOpen}
+                title={completedAction === "restore" ? "User Restored Successfully" : "User Deleted Successfully"}
+                description={
+                    completedAction === "restore"
+                        ? `${completedClientName || "The user"} has been restored successfully and moved back to the active user list.`
+                        : `${completedClientName || "The user"} has been deleted successfully.`
+                }
+                buttonLabel="Done"
+                onClose={() => {
+                    setIsSuccessModalOpen(false);
+                    setCompletedAction(null);
+                    setCompletedClientName("");
+                }}
+            />
         </div>
     );
 };

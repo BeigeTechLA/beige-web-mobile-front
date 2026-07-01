@@ -836,6 +836,20 @@ export const MissingFieldsModal = ({
     router.push(`/admin/shoots/${normalizedShootId}/form-details/edit`);
   };
 
+  const handlePrimaryCompleteNow = () => {
+    if (needsOnboardingForm) {
+      handleFillManually();
+      return;
+    }
+
+    if (needsLocation || needsDate) {
+      setIsDateLocationModalOpen(true);
+      return;
+    }
+
+    onClose();
+  };
+
   const handleRemindOnboardingForm = async () => {
     const normalizedShootId = String(shootId || "").replace(/^#/, "").trim();
     if (!normalizedShootId) {
@@ -894,10 +908,10 @@ export const MissingFieldsModal = ({
         <div className="shrink-0 px-5 pt-5 pb-0 lg:px-6 lg:pt-6">
           <div className="pr-8 lg:pr-10">
             <h2 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
-              Complete Shoot Details
+              Complete Missing Shoot Details
             </h2>
             <p className={`mt-2 text-sm lg:text-base ${isDark ? "text-white/55" : "text-black/55"}`}>
-              Provide the following missing information to continue.
+              The following information is required before you can continue.
             </p>
           </div>
 
@@ -911,7 +925,7 @@ export const MissingFieldsModal = ({
                     </div>
                   </div>
                   <p className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
-                    Missing Fields :
+                    Missing Information
                   </p>
                   {missingFieldLabels.length > 0 ? (
                     missingFieldLabels.map((label) => {
@@ -951,9 +965,9 @@ export const MissingFieldsModal = ({
                       <FileText size={24} className={isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className={`text-sm lg:text-base font-bold ${isDark ? "text-white" : "text-black"}`}>Onboarding form is missing</p>
+                      <p className={`text-sm lg:text-base font-bold ${isDark ? "text-white" : "text-black"}`}>Onboarding Form Required</p>
                       <p className={`mt-1 text-sm lg:text-base ${isDark ? "text-white/55" : "text-black/55"}`}>
-                        You can complete it manually now or send a reminder email later.
+                        The client has not completed the onboarding form yet. You can complete it on their behalf or send a reminder on email.
                       </p>
                     </div>
                   </div>
@@ -965,7 +979,7 @@ export const MissingFieldsModal = ({
                       onClick={handleFillManually}
                       className="inline-flex min-w-[150px] items-center justify-center rounded-xl bg-[#E8D1AB] px-4 py-3 text-sm font-bold text-black transition-colors hover:bg-[#ddc79f]"
                     >
-                      Fill Manually
+                      Complete Now
                     </button>
                     <button
                       type="button"
@@ -983,7 +997,7 @@ export const MissingFieldsModal = ({
                           Sending...
                         </span>
                       ) : (
-                        "Remind Onboarding Form"
+                        "Send Reminder Email"
                       )}
                     </button>
                   </div>
@@ -1023,17 +1037,30 @@ export const MissingFieldsModal = ({
         </div>
 
         <div className={`shrink-0 border-t px-5 py-4 lg:px-6 lg:py-4 ${isDark ? "border-white/10" : "border-black/5"}`}>
-          <button
-            onClick={onClose}
-            disabled={isSaving || isReminderSending}
-            className={`flex h-14 w-full items-center justify-center rounded-xl text-sm font-semibold transition-colors ${
-              isDark
-                ? "bg-[#262626] text-white hover:bg-[#2F2F2F]"
-                : "bg-[#232323] text-white hover:bg-black"
-            } ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
-          >
-            Back
-          </button>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving || isReminderSending}
+              className={`flex h-12 min-w-[140px] items-center justify-center rounded-xl border px-6 text-sm font-semibold transition-colors ${
+                isDark
+                  ? "border-white/10 bg-[#262626] text-white hover:bg-[#2F2F2F]"
+                  : "border-black/10 bg-white text-black hover:bg-black/[0.04]"
+              } ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handlePrimaryCompleteNow}
+              disabled={isSaving || isReminderSending || !hasMissingFields}
+              className={`flex h-12 min-w-[160px] items-center justify-center rounded-xl bg-[#E8D1AB] px-6 text-sm font-bold text-black transition-colors hover:bg-[#ddc79f] ${
+                (isSaving || isReminderSending || !hasMissingFields) ? "cursor-not-allowed opacity-50" : ""
+              }`}
+            >
+              Complete Now
+            </button>
+          </div>
         </div>
 
       </div>
@@ -1051,10 +1078,10 @@ export const MissingFieldsModal = ({
             <div className="shrink-0 px-5 pt-5 pb-0 lg:px-6 lg:pt-6">
               <div className="pr-8 lg:pr-10">
                 <h2 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
-                  Complete Shoot Details
+                  Complete Missing Shoot Details
                 </h2>
                 <p className={`mt-2 text-sm lg:text-base ${isDark ? "text-white/55" : "text-black/55"}`}>
-                  Provide the following missing information to continue.
+                  The following information is required before you can continue.
                 </p>
               </div>
             </div>
