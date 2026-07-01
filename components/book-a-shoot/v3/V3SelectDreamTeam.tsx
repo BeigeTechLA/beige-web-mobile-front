@@ -49,7 +49,7 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
-const CREATORS_PAGE_SIZE = 6;
+const CREATORS_PAGE_SIZE = 20;
 
 export const V3SelectDreamTeam: React.FC<Props> = ({
   data,
