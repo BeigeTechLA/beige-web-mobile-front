@@ -1105,15 +1105,15 @@ export default function AdminSaleRepManagerPage() {
       <Topbar pathname={pathname}
         actions={
           <>
-            {canCreate && (
-              <Button
-                onClick={() => router.push("/admin/sales-representative/create-new-deal")}
-                className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
-                  }`}
-              >
-                Create New Lead
-              </Button>
-            )}
+            <Button
+              onClick={() => router.push("/admin/sales-representative/create-new-deal")}
+              disabled={!canCreate}
+              title={canCreate ? "Create New Lead" : "Create permission not allowed"}
+              className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
+                }`}
+            >
+              Create New Lead
+            </Button>
           </>
         }
       />
@@ -1657,14 +1657,14 @@ export default function AdminSaleRepManagerPage() {
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-          {canCreate && (
-            <Button
-              onClick={() => router.push("/admin/sales-representative/create-new-deal")}
-              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-            >
-              Create New Lead
-            </Button>
-          )}
+          <Button
+            onClick={() => router.push("/admin/sales-representative/create-new-deal")}
+            disabled={!canCreate}
+            title={canCreate ? "Create New Lead" : "Create permission not allowed"}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Create New Lead
+          </Button>
         </div>
       </div >
     </>

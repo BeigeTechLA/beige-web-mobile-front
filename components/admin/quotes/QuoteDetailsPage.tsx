@@ -2887,17 +2887,16 @@ export default function QuoteDetailsPage({
 
             {/* --- FLOATING MOBILE BUTTON --- */}
             <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
-              {canDelete && (
               <Button
                 type="button"
                 onClick={handleRejectQuote}
-                disabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                disabled={!canDelete || !quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                title={canDelete ? "Reject Quote" : "Delete permission not allowed"}
                 className="h-10 rounded-lg border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
               >
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
                 {isRejecting ? "Rejecting..." : isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus) ? "Rejected" : "Reject Quote"}
               </Button>
-              )}
               <Button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}

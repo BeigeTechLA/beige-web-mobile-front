@@ -60,26 +60,25 @@ export default function AdminRolesPermissionsRoute() {
               <ArrowUpToLine size={18} />
               Export
             </Button> */}
-{/* 
-            {canCreate && (
-              <Button
-                onClick={() => router.push("/admin/roles-permissions/add-new-role")}
-                className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
-              >
-                <Plus size={18} />
-                Add New Role
-              </Button>
-            )} */}
+            <Button
+              onClick={() => router.push("/admin/roles-permissions/add-new-role")}
+              disabled={!canCreate}
+              title={canCreate ? "Add New Role" : "Create permission not allowed"}
+              className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
+            >
+              <Plus size={18} />
+              Add New Role
+            </Button>
 
-            {canCreateUser && (
-              <Button
-                onClick={() => router.push("/admin/internal-credentials")}
-                className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
-              >
-                <Plus size={18} />
-                Add New User
-              </Button>
-            )}
+            <Button
+              onClick={() => router.push("/admin/internal-credentials")}
+              disabled={!canCreateUser}
+              title={canCreateUser ? "Add New User" : "Create permission not allowed"}
+              className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
+            >
+              <Plus size={18} />
+              Add New User
+            </Button>
           </>
         }
       />

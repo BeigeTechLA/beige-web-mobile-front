@@ -1238,21 +1238,20 @@ export const ShootsTable = ({
                               <MessageCirclePlus size={16} />
                               Notes
                             </button>
-                            {canDelete && (
                             <button
                               type="button"
+                              disabled={!canDelete}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenCardActionId(null);
                                 handleDeleteClick(e, shoot.id);
                               }}
-                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
                                 }`}
                             >
                               <Trash2 size={16} />
                               Delete
                             </button>
-                            )}
                           </div>
                         )}
                       </div>
@@ -1432,21 +1431,20 @@ export const ShootsTable = ({
                                         Notes {shoot.notesCount > 0 ? `(${shoot.notesCount})` : ""}
                                       </button>
 
-                                      {canDelete && (
                                       <button
                                         type="button"
+                                        disabled={!canDelete}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setOpenCardActionId(null);
                                           handleDeleteClick(e, shoot.id);
                                         }}
-                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
                                           }`}
                                       >
                                         <Trash2 size={16} />
                                         Delete
                                       </button>
-                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1788,20 +1786,19 @@ export const ShootsTable = ({
                                   Notes
                                 </button>
 
-                                {canDelete && (
                                 <button
                                   type="button"
+                                  disabled={!canDelete}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenCardActionId(null);
                                     handleDeleteClick(e, shoot.id);
                                   }}
-                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"}`}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"}`}
                                 >
                                   <Trash2 size={16} />
                                   Delete
                                 </button>
-                                )}
                               </div>
                             )}
                           </div>

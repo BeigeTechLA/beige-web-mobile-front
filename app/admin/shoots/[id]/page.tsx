@@ -412,7 +412,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   if (!mounted) return null;
 
   const handleDelete = async () => {
-    if (!canDelete) return;
+    if (!canEdit) return;
     if (!id) return;
 
     if (window.confirm("Are you sure you want to delete this shoot? This action cannot be undone.")) {
@@ -527,14 +527,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 Preview Quote
               </Button>
             ) : null}
-            {canDelete && (
-              <Button
-                className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
-                onClick={handleDelete}
-              >
-                <CircleX /> Cancel Shoot
-              </Button>
-            )}
+            <Button
+              className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
+              onClick={handleDelete}
+              disabled={!canEdit}
+              title={canEdit ? "Cancel Shoot" : "Edit permission not allowed"}
+            >
+              <CircleX /> Cancel Shoot
+            </Button>
             <Button
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
@@ -544,11 +544,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
             </Button>
-            {canEdit && (
-              <Button onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
-                Edit Shoot
-              </Button>
-            )}
+            <Button
+              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
+              disabled={!canEdit}
+              title={canEdit ? "Edit Shoot" : "Edit permission not allowed"}
+              className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7"
+            >
+              Edit Shoot
+            </Button>
           </>
         }
       />
@@ -800,19 +803,22 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             </Button>
           ) : null}
           <div className="flex gap-2 w-full">
-            {canDelete && (
-              <Button onClick={handleDelete} className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
-                Cancel Shoot
-              </Button>
-            )}
-            {canEdit && (
-              <Button
-                onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
-                className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
-              >
-                Edit Shoot
-              </Button>
-            )}
+            <Button
+              onClick={handleDelete}
+              disabled={!canEdit}
+              title={canEdit ? "Cancel Shoot" : "Edit permission not allowed"}
+              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}
+            >
+              Cancel Shoot
+            </Button>
+            <Button
+              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
+              disabled={!canEdit}
+              title={canEdit ? "Edit Shoot" : "Edit permission not allowed"}
+              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
+            >
+              Edit Shoot
+            </Button>
           </div>
 
           {/* Conditional Form Details Button */}

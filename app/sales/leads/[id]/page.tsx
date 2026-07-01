@@ -75,6 +75,7 @@ import {
 import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 // Swiper imports
@@ -300,6 +301,9 @@ export default function SalesLeadDetailsPage() {
     "view",
     "/sales/dashboard",
   );
+  const { canEdit: canManageSalesRepEdit } = usePermissions("sales_representative");
+  const { canCreate: canCreateShoot } = usePermissions("shoots");
+  const { canEdit: canManageQuotesEdit } = usePermissions("quotes");
 
   const [discount, setDiscount] = useState("");
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
@@ -1458,8 +1462,13 @@ export default function SalesLeadDetailsPage() {
                   Client Details
                 </h2>
                 <Button
-                  onClick={() => setIsIntentModalOpen(true)}
-                  className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
+                  onClick={() => {
+                    if (!canManageSalesRepEdit) return;
+                    setIsIntentModalOpen(true);
+                  }}
+                  disabled={!canManageSalesRepEdit}
+                  title={canManageSalesRepEdit ? "Update Intent" : "Edit permission not allowed"}
+                  className={`h-10 border px-5 rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isDark
                     ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
                     : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
                     }`}
@@ -1643,8 +1652,13 @@ export default function SalesLeadDetailsPage() {
                   </div>
 
                   <Button
-                    className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                    onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
+                    className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    onClick={() => {
+                      if (!canManageSalesRepEdit) return;
+                      router.push(`/sales/select-creatives?id=${leadId}`);
+                    }}
+                    disabled={!canManageSalesRepEdit}
+                    title={canManageSalesRepEdit ? "Add More CPs" : "Edit permission not allowed"}
                   >
                     <Plus size={18} /> Add More CPs
                   </Button>
@@ -1755,7 +1769,12 @@ export default function SalesLeadDetailsPage() {
                 {!isQuoteConvertedLead && (
                   <div className="group relative inline-flex">
                     <Button
-                      onClick={() => router.push(`/sales/client/${params.id}/edit-booking`)}
+                      onClick={() => {
+                        if (!canManageSalesRepEdit) return;
+                        router.push(`/sales/client/${params.id}/edit-booking`);
+                      }}
+                      disabled={!canManageSalesRepEdit}
+                      title={canManageSalesRepEdit ? "Edit Details" : "Edit permission not allowed"}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                     >
                       Edit Details
@@ -2157,8 +2176,16 @@ export default function SalesLeadDetailsPage() {
                 <Button
                   className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
-                  disabled={isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
-                  title={isDiscountLockedByQuote ? quoteDiscountLockMessage : discountAmount > 0 ? "Discount already applied" : undefined}
+                  disabled={isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0 || !canManageQuotesEdit}
+                  title={
+                    !canManageQuotesEdit
+                      ? "Edit permission not allowed"
+                      : isDiscountLockedByQuote
+                        ? quoteDiscountLockMessage
+                        : discountAmount > 0
+                          ? "Discount already applied"
+                          : undefined
+                  }
                 >
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
@@ -2402,7 +2429,7 @@ export default function SalesLeadDetailsPage() {
 
                     <Button
                       onClick={handleManualPaymentSubmit}
-                      disabled={isSubmittingManualPayment || isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment}
+                      disabled={isSubmittingManualPayment || isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit}
                       className={`h-11 text-sm font-semibold ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
                     >
                       {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}

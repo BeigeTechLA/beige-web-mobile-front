@@ -37,6 +37,7 @@ import { FileCard } from "@/components/admin/file-manager/FileCard";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
   getDisplayInitials,
@@ -144,7 +145,7 @@ export default function SubFolderDetailsPage() {
   const nestedSlug = params.subFolder2;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const currentPhase = isCommonEventWorkspace ? undefined : phaseSlug === "post-production" ? "post" : "pre";
-  const canUpload = true;
+  const { canCreate, canDelete } = usePermissions("file_manager");
   const folderPath = useMemo(() => {
     const queryPath = searchParams.get("path");
     const rawPath = queryPath ? tryDecodeURIComponent(queryPath).trim() : slugToWorkspaceName(nestedSlug);
@@ -611,7 +612,7 @@ export default function SubFolderDetailsPage() {
     : undefined;
 
   const handleCreateRevisionVersion = async () => {
-    if (!isRevisionRootFolder || isCreatingRevisionVersion) return;
+    if (!isRevisionRootFolder || isCreatingRevisionVersion || !canCreate) return;
 
     const versionName = `Version${nextRevisionFolderVersion}`;
     const versionPath = [folderPath, versionName].filter(Boolean).join("/");
@@ -639,7 +640,7 @@ export default function SubFolderDetailsPage() {
     <button
       type="button"
       onClick={handleCreateRevisionVersion}
-      disabled={isCreatingRevisionVersion}
+      disabled={isCreatingRevisionVersion || !canCreate}
       className={`flex min-h-[202px] w-full flex-col items-center justify-center gap-5 rounded-3xl border border-dashed p-5 text-center transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
         isDark
           ? "border-[#E8D1AB]/35 bg-[#18181b] hover:border-[#E8D1AB]/60 hover:bg-[#1c1c20]"
@@ -660,19 +661,17 @@ export default function SubFolderDetailsPage() {
       <Topbar
         pathname={pathname}
         actions={
-          canUpload ? (
-            <Button
-              onClick={() => {
-                if (selectionLockActive) return;
-                setIsUploadModalOpen(true);
-              }}
-              disabled={selectionLockActive}
-              className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Upload size={18} />
-              Upload Files
-            </Button>
-          ) : null
+          <Button
+            onClick={() => {
+              if (selectionLockActive || !canCreate) return;
+              setIsUploadModalOpen(true);
+            }}
+            disabled={selectionLockActive || !canCreate}
+            className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Upload size={18} />
+            Upload Files
+          </Button>
         }
       />
 
@@ -784,6 +783,7 @@ export default function SubFolderDetailsPage() {
                   <EmptyFileState
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                    actionDisabled={!canCreate}
                   />
                 ) : (
                   <div className="space-y-5">
@@ -832,6 +832,7 @@ export default function SubFolderDetailsPage() {
                               setSelectedFile(file);
                               setIsDeleteModalOpen(true);
                             } : undefined}
+                            deleteDisabled={!canDelete}
                             onShare={selectionLockActive ? undefined : () => {
                               setSelectedFile(file);
                               setShareResource({
@@ -857,6 +858,7 @@ export default function SubFolderDetailsPage() {
                   <EmptyFileState
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                    actionDisabled={!canCreate}
                   />
                 ) : (
                   <div className="space-y-4">
@@ -912,6 +914,7 @@ export default function SubFolderDetailsPage() {
                             setSelectedFile(file);
                             setIsDeleteModalOpen(true);
                           }}
+                          deleteDisabled={!canDelete}
                           isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                           onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                           isDark={isDark}
@@ -937,6 +940,7 @@ export default function SubFolderDetailsPage() {
                   <EmptyFileState
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                    actionDisabled={!canCreate}
                   />
                 ) : (
                   <>
@@ -1078,9 +1082,11 @@ export default function SubFolderDetailsPage() {
                               }}
                               onDelete={(e) => {
                                 e.stopPropagation();
+                                if (!canDelete) return;
                                 setSelectedFile(file);
                                 setIsDeleteModalOpen(true);
                               }}
+                              deleteDisabled={!canDelete}
                               isDeleting={openingFileId === file.id}
                             />
                             );
@@ -1224,10 +1230,11 @@ export default function SubFolderDetailsPage() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (selectionLockActive) return;
+                                        if (!canDelete) return;
                                         setSelectedFile(file);
                                         setIsDeleteModalOpen(true);
                                       }}
-                                      disabled={selectionLockActive}
+                                      disabled={selectionLockActive || !canDelete}
                                     >
                                       {openingFileId === file.id ? <span className="text-[10px] tracking-tighter">...</span> : <Trash2 size={16} />}
                                     </button>
@@ -1345,8 +1352,12 @@ export default function SubFolderDetailsPage() {
                 </Button>
 
                 <Button
-                  className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag"
-                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => {
+                    if (!canDelete) return;
+                    setIsDeleteModalOpen(true);
+                  }}
+                  disabled={!canDelete}
                 >
                   <TrashIcon size={18} />
                   <span className="hidden lg:block">Delete</span>
@@ -1367,10 +1378,10 @@ export default function SubFolderDetailsPage() {
         <div className={`lg:hidden fixed flex gap-2 items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
             onClick={() => {
-              if (selectionLockActive) return;
+              if (selectionLockActive || !canCreate) return;
               setIsUploadModalOpen(true);
             }}
-            disabled={selectionLockActive}
+            disabled={selectionLockActive || !canCreate}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
             <Upload size={20} />

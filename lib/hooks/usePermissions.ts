@@ -1,6 +1,6 @@
 import { usePathname } from "next/navigation";
 import { useAppSelector } from "../redux/hooks";
-import { hasModulePermission, isSuperAdminUser } from "../permissions";
+import { hasModulePermission } from "../permissions";
 
 /**
  * Custom hook to check module permissions globally.
@@ -11,21 +11,18 @@ export const usePermissions = (moduleKey?: string) => {
   const pathname = usePathname();
   const permissions = useAppSelector((state) => state.auth.permissions);
   const permissionsVersion = useAppSelector((state) => state.auth.permissionsVersion);
-  const user = useAppSelector((state) => state.auth.user);
-
   const isBypassedPortal = pathname?.startsWith("/affiliate") || pathname?.startsWith("/creator");
-  const isSuperAdmin = isSuperAdminUser(user);
 
   // If no moduleKey is provided, return all permissions
   if (!moduleKey) {
     return {
       allPermissions: permissions,
       permissionsVersion,
-      isLoading: isBypassedPortal || isSuperAdmin ? false : !permissions,
+      isLoading: isBypassedPortal ? false : !permissions,
     };
   }
 
-  if (isBypassedPortal || isSuperAdmin) {
+  if (isBypassedPortal) {
     return {
       canView: true,
       canEdit: true,

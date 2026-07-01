@@ -167,24 +167,23 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
                   const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
                   return (
                     <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveCP(Number(member.crew_member_id || member.id));
-                          }}
-                          disabled={removingCrewId === Number(member.crew_member_id || member.id)}
-                          className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
-                          aria-label="Remove CP"
-                        >
-                          {removingCrewId === Number(member.crew_member_id || member.id) ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                            <X size={18} />
-                          )}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveCP(Number(member.crew_member_id || member.id));
+                        }}
+                        disabled={!canEdit || removingCrewId === Number(member.crew_member_id || member.id)}
+                        className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Remove CP"
+                        title={canEdit ? "Remove CP" : "Edit permission not allowed"}
+                      >
+                        {removingCrewId === Number(member.crew_member_id || member.id) ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <X size={18} />
+                        )}
+                      </button>
                       <Image
                         src={getProfileImage(member)}
                         alt={`${member.crew_member?.first_name || ""} ${member.crew_member?.last_name || ""}`}
@@ -211,19 +210,24 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
               </p>
             </div>
 
-            {canEdit && (
-              <div className="flex flex-col lg:flex-row gap-4">
-                <Button onClick={handleOpenAssignment} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
-                  <Plus /> Add More CPs
-                </Button>
-              </div>
-            )}
+            <div className="flex flex-col lg:flex-row gap-4">
+              <Button
+                onClick={handleOpenAssignment}
+                disabled={!canEdit}
+                title={canEdit ? "Add More CPs" : "Edit permission not allowed"}
+                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
+              >
+                <Plus /> Add More CPs
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full py-10 relative z-30">
             <button
               onClick={handleOpenAssignment}
-              className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
+              disabled={!canEdit}
+              title={canEdit ? "Add CP" : "Edit permission not allowed"}
+              className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
             >
               <Plus size={40} className="text-black" />
             </button>

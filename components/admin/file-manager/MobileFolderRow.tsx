@@ -40,10 +40,12 @@ interface FolderEntry {
 export const MobileFolderRow = ({
   folder,
   handleOpenMenu,
+  menuDisabled = false,
   isDark = true
 }: {
   folder: FolderEntry;
   handleOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, folderTitle?: string) => void;
+  menuDisabled?: boolean;
   isDark?: boolean;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -75,12 +77,14 @@ export const MobileFolderRow = ({
           </span>
         </div>
         <Button
+          disabled={menuDisabled}
           className={`h-10 w-10 rounded-full p-0 transition-colors ${isDark
               ? "text-white hover:bg-white/10 hover:text-white/90"
               : "text-black hover:bg-black/5 hover:text-black/90"
             }`}
           onClick={(e) => {
             e.stopPropagation(); // Prevents the accordion from opening/closing
+            if (menuDisabled) return;
             handleOpenMenu(e, folder.title);
           }}
         >

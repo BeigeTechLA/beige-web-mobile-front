@@ -261,14 +261,16 @@ export const OverallShootsTable = () => {
                     <div className="text-right">
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
                       <div className="flex justify-end gap-2 mt-1">
-                        {canDelete && (
-                          <button
-                            onClick={(e) => handleDelete(e, shoot.id)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => {
+                            if (!canDelete) return;
+                            handleDelete(e, shoot.id);
+                          }}
+                          disabled={!canDelete}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
                         <button
                           onClick={() => handleRowClick(shoot.id)}
                           className="text-[#E5D5B8] text-sm font-medium">Details</button>
@@ -331,11 +333,16 @@ export const OverallShootsTable = () => {
                   <td className="py-2 px-4"><StatusBadge status={shoot.status} /></td>
                   <td className="py-2 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {canDelete && (
-                        <button onClick={(e) => handleDelete(e, shoot.id)} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}>
-                          <Trash2 size={18} />
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          if (!canDelete) return;
+                          handleDelete(e, shoot.id);
+                        }}
+                        disabled={!canDelete}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                      >
+                        <Trash2 size={18} />
+                      </button>
                       <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
                         <ChevronRight size={24} />
                       </button>

@@ -46,11 +46,14 @@ export default function AdminDashboardPage() {
             {/* <Button onClick={() => router.push("/admin/internal-credentials")} className="bg-white text-black hover:bg-white/90">
               Internal Credentials
             </Button> */}
-            {canCreate && (
-              <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black">
-                Book a Shoot
-              </Button>
-            )}
+            <Button
+              onClick={() => router.push("/book-a-shoot")}
+              disabled={!canCreate}
+              title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
+              className="bg-[#E5D5B8] text-black"
+            >
+              Book a Shoot
+            </Button>
           </div>
         }
       />
@@ -94,16 +97,16 @@ export default function AdminDashboardPage() {
         <LeadsShootsTable />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
-        {canCreate && (
-          <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-            <Button
-              onClick={() => router.push("/book-a-shoot")}
-              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-            >
-              Book a Shoot
-            </Button>
-          </div>
-        )}
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => router.push("/book-a-shoot")}
+            disabled={!canCreate}
+            title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Book a Shoot
+          </Button>
+        </div>
       </div>
     </>
   )
