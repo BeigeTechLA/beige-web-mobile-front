@@ -20,6 +20,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/src/components/landing/ui/tooltip"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import ParticipantAvatarStack from "./AvatarStack";
@@ -31,6 +39,19 @@ type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 interface MeetingsWorkspaceViewProps {
   role: RoleVariant;
 }
+
+const FILTER_STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "pending", label: "Pending" },
+  // { value: "confirmed", label: "Confirmed" },
+  // { value: "in_progress", label: "In Progress" },
+  { value: "ongoing", label: "Ongoing" },
+  // { value: "change_request", label: "Change Request" },
+  //{ value: "revision", label: "Revision" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "rescheduled", label: "Rescheduled" }
+] as const;
 
 const getParticipantResponse = (meeting: MeetingItem, userId?: string | number) => {
   const normalizedUserId = String(userId || "");
@@ -96,7 +117,8 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const [search, setSearch] = useState("");
   const [respondingMeetingId, setRespondingMeetingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
   };
@@ -122,35 +144,47 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const loadMeetings = useCallback(async () => {
     setLoading(true);
     setError("");
-    try {
-      const response =
-        isAdminView
-          ? await meetingsApi.listAll({ limit: 100, page: 1, sortBy: "meeting_date_time:desc" })
-          : currentUserId
-            ? await meetingsApi.listByUser(currentUserId, { limit: 100, page: 1, sortBy: "meeting_date_time:desc" })
-            : { results: [] };
 
-      setMeetings(response?.results || []);
+    try {
+      if (statusFilter !== "all") {
+        //params.status = statusFilter;
+        const response =
+          isAdminView
+            ? await meetingsApi.listAll({ limit: 100, page: 1, sortBy: "meeting_date_time:desc", status: statusFilter })
+            : currentUserId
+              ? await meetingsApi.listByUser(currentUserId, { limit: 100, page: 1, sortBy: "meeting_date_time:desc", status: statusFilter })
+              : { results: [] };
+        setMeetings(response?.results || []);
+      } else {
+        const response =
+          isAdminView
+            ? await meetingsApi.listAll({ limit: 100, page: 1, sortBy: "meeting_date_time:desc" })
+            : currentUserId
+              ? await meetingsApi.listByUser(currentUserId, { limit: 100, page: 1, sortBy: "meeting_date_time:desc" })
+              : { results: [] };
+        setMeetings(response?.results || []);
+      }
+
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load meetings");
     } finally {
       setLoading(false);
     }
-  }, [currentUserId, isAdminView]);
+  }, [currentUserId, isAdminView, statusFilter]);
 
   useEffect(() => {
     loadMeetings();
   }, [loadMeetings]);
 
   const filteredMeetings = useMemo(() => {
-      let result = meetings;
+    let result = meetings;
 
-      if (selectedDate) {
-        const targetDate = selectedDate.toDateString();
-        result = result.filter((m) => 
-          m.meeting_date_time ? new Date(m.meeting_date_time).toDateString() === targetDate : false
-        );
-      }
+    if (selectedDate) {
+      const targetDate = selectedDate.toDateString();
+      result = result.filter((m) =>
+        m.meeting_date_time ? new Date(m.meeting_date_time).toDateString() === targetDate : false
+      );
+    }
     const normalizedSearch = search.trim().toLowerCase();
     if (!normalizedSearch) return result;
 
@@ -187,21 +221,21 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
 
       {/* Top Actions Panel */}
       <div className="mb-3 lg:mb-6 flex flex-col gap-4">
-       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className={`text-xl lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-            Meetings
-          </h1>
-          <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
-            {role === "admin"
-              ? "Browse scheduled meetings across shoots and open each shoot for full management."
-              : "Browse your scheduled meetings and jump into the related shoot when needed."}
-          </p>
-        </div>
-        <div className="flex-shrink-0">
-           <SortDateButton
-             selectedDate={selectedDate}
-             onDateChange={handleDateSort}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            <h1 className={`text-xl lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+              Meetings
+            </h1>
+            <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
+              {role === "admin"
+                ? "Browse scheduled meetings across shoots and open each shoot for full management."
+                : "Browse your scheduled meetings and jump into the related shoot when needed."}
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <SortDateButton
+              selectedDate={selectedDate}
+              onDateChange={handleDateSort}
             />
           </div>
         </div>
@@ -222,6 +256,18 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
 
           {/* Primary Header Controls Group */}
           <div className="flex items-center gap-2 lg:gap-3 w-full lg:w-auto justify-end">
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                {FILTER_STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Button
               type="button"
               variant="outline"
