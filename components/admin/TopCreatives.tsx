@@ -24,11 +24,72 @@ import { adminApi } from "@/lib/api";
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
+type TopCreativePartnerApiItem = {
+  id?: number | string;
+  crew_member_id?: number | string;
+  user_id?: number | string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  total_earnings?: number | string | null;
+  total_payment?: number | string | null;
+  total_paid?: number | string | null;
+  total_compensation?: number | string | null;
+  compensation_amount?: number | string | null;
+  amount?: number | string | null;
+  avatar?: string | null;
+  profile_image?: string | null;
+  image?: string | null;
+  crew_member_files?: Array<{
+    file_type?: string;
+    file_url?: string;
+    file_path?: string;
+  }>;
+};
+
+type TopCreativePartner = {
+  id: number | string;
+  name: string;
+  email: string;
+  paymentTotal: number;
+  earnings: string;
+  image: string;
+  bgColor: string;
+};
+
+type TopCreativePartnerParams = {
+  range: string;
+  start_date?: string;
+  end_date?: string;
+};
+
+const parseMoneyValue = (value: unknown) => {
+  const parsed = Number(String(value ?? "").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getPartnerPaymentTotal = (partner: TopCreativePartnerApiItem) =>
+  parseMoneyValue(
+    partner.total_earnings ??
+      partner.total_payment ??
+      partner.total_paid ??
+      partner.total_compensation ??
+      partner.compensation_amount ??
+      partner.amount
+  );
+
+const formatCurrency = (value: number) =>
+  `$${value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 export const TopCreatives = () => {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(1);
-  const [partners, setPartners] = useState<any[]>([]);
+  const [partners, setPartners] = useState<TopCreativePartner[]>([]);
   const [range, setRange] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -39,7 +100,7 @@ export const TopCreatives = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const params: any = { range };
+        const params: TopCreativePartnerParams = { range };
         if (range === 'custom') {
           if (startDate) params.start_date = format(startDate, 'yyyy-MM-dd');
           if (endDate) params.end_date = format(endDate, 'yyyy-MM-dd');
@@ -47,28 +108,35 @@ export const TopCreatives = () => {
 
         const response = await adminApi.getTopCreativePartners(params);
         if (response && response.data) {
-          const data = Array.isArray(response.data) ? response.data : [];
-          const mappedPartners = data.map((partner: any, index: number) => ({
-            id: partner.id || index,
-            name: partner.name || "Unknown",
-            email: partner.email || "No Email",
-            earnings: partner.total_earnings
-              ? `$${parseFloat(partner.total_earnings).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : "$0.00",
-            image: (() => {
-              if (partner.avatar) return `${S3_PREFIX}${partner.avatar}`;
-              if (partner.crew_member_files?.length > 0) {
-                const photo = partner.crew_member_files.find((f: any) => f.file_type === "profile_photo" || f.file_type === "headshot");
-                if (photo) return photo.file_url || `${S3_PREFIX}${photo.file_path}`;
-              }
-              return "/images/placeholder-user.png";
-            })(),
-            bgColor: index % 3 === 0 ? "bg-blue-200" : index % 3 === 1 ? "bg-green-200" : "bg-orange-100",
-          }));
+          const data: TopCreativePartnerApiItem[] = Array.isArray(response.data) ? response.data : [];
+          const mappedPartners = data
+            .map((partner, index) => {
+              const paymentTotal = getPartnerPaymentTotal(partner);
+
+              return {
+                id: partner.id || partner.crew_member_id || partner.user_id || index,
+                name: partner.name || [partner.first_name, partner.last_name].filter(Boolean).join(" ") || "Unknown",
+                email: partner.email || "No Email",
+                paymentTotal,
+                earnings: formatCurrency(paymentTotal),
+                image: (() => {
+                  if (partner.avatar) return `${S3_PREFIX}${partner.avatar}`;
+                  if (partner.profile_image) return `${S3_PREFIX}${partner.profile_image}`;
+                  if (partner.image) return `${S3_PREFIX}${partner.image}`;
+                  if (partner.crew_member_files?.length > 0) {
+                    const photo = partner.crew_member_files.find((file) => file.file_type === "profile_photo" || file.file_type === "headshot");
+                    if (photo) return photo.file_url || `${S3_PREFIX}${photo.file_path}`;
+                  }
+                  return "/images/placeholder-user.png";
+                })(),
+                bgColor: index % 3 === 0 ? "bg-blue-200" : index % 3 === 1 ? "bg-green-200" : "bg-orange-100",
+              };
+            })
+            .sort((a, b) => b.paymentTotal - a.paymentTotal);
 
           if (mappedPartners.length > 0) {
             setPartners(mappedPartners);
-            setActiveIndex(Math.floor(mappedPartners.length / 2));
+            setActiveIndex(0);
           } else {
             setPartners([]);
           }
@@ -155,7 +223,7 @@ export const TopCreatives = () => {
             grabCursor={true}
             centeredSlides={true}
             slidesPerView={3}
-            initialSlide={Math.floor(partners.length / 2)}
+            initialSlide={0}
             loop={partners.length >= 5}
             mousewheel={{ forceToAxis: true }}
             coverflowEffect={{
