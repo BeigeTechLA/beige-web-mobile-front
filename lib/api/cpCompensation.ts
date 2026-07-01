@@ -15,7 +15,7 @@ type RawCpRow = Record<string, unknown> & {
   };
 };
 
-export type CpStatus = "pending_approval" | "approved" | "rejected" | "mixed" | "draft";
+export type CpStatus = "pending_approval" | "approved" | "paid" | "rejected" | "mixed" | "draft";
 
 export type CpCompensationItem = {
   compensation_item_id?: number;
@@ -34,6 +34,7 @@ export type CpCompensationCreator = {
   compensation_method?: string | null;
   total_compensation: number;
   advance_paid: number;
+  paid_total?: number;
   remaining_balance: number;
   compensation_items: CpCompensationItem[];
   advances?: Array<{
@@ -42,6 +43,16 @@ export type CpCompensationCreator = {
     status: string;
     processed_at?: string | null;
     notes?: string | null;
+  }>;
+  timeline?: Array<{
+    timeline_event_id?: number;
+    event_type?: string;
+    label?: string;
+    sub_label?: string | null;
+    amount?: number | null;
+    is_completed?: boolean;
+    event_date?: string | null;
+    sort_order?: number;
   }>;
 };
 
@@ -114,6 +125,8 @@ export const mapCpStatusToUi = (status?: string): ShootCPRow["status"] => {
       return "Finance Approval";
     case "approved":
       return "Approved";
+    case "paid":
+      return "Fully Paid";
     case "rejected":
       return "Pending";
     default:
@@ -167,7 +180,7 @@ export const mapCreatorRow = (row: RawCpRow): ShootCPRow => ({
   shootBudget: asNumber(row.shoot_amount),
   cpPayout: asNumber(row.cp_payout),
   margin: asNumber(row.margin_percent),
-  status: mapCpStatusToUi(asString(row.status)),
+  status: mapCpStatusToUi(asString(row.earning_status) === "paid" ? "paid" : asString(row.status)),
   category: getCategory(asString(row.shoot_type || row.content_type)),
   avatarImage: "",
   date: asString(row.event_date || row.latest_activity_at, new Date().toISOString()),
@@ -213,5 +226,17 @@ export const cpCompensationApi = {
 
   async addAdvance(earningId: number, payload: { amount: number; payment_date?: string; notes?: string }) {
     return apiClient.post<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/advance`, payload);
+  },
+
+  async processPayment(earningId: number, payload: {
+    amount: number;
+    payment_method: "stripe" | "manual" | "outside_platform";
+    payment_mode?: string;
+    proof_url?: string;
+    transaction_reference?: string;
+    notes?: string;
+    payment_scope?: "advance" | "final";
+  }) {
+    return apiClient.post<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/payment`, payload);
   },
 };

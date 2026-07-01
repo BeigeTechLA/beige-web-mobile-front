@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { X, ChevronDown, Download, FileDown } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -190,33 +190,8 @@ export default function AddReceiptModal({
             onClick={handleSave}
             className="h-10 lg:h-12 w-full lg:w-fit rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base disabled:opacity-40"
           >
-            Save
+            {isSubmitting ? "Recording..." : "Record Payment"}
           </Button>
-
-          {/* Historic Download Receipt Component Entry */}
-          <div className={`mt-4 rounded-xl border flex items-center justify-between h-12 lg:h-15  ${isDark ? "bg-[#101010] border-white/50" : "bg-zinc-50 border-zinc-200"}`}>
-            <div className="flex items-center gap-3 p-1.5">
-              <div className={`p-2.5 rounded-lg flex items-center justify-center ${isDark ? "bg-[#212121] text-[#E8D1AB]" : "bg-zinc-200 text-zinc-600"}`}>
-                <FileDown size={24} />
-              </div>
-              <div className="text-xs lg:text-sm flex flex-col">
-                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Full Paid $4000.00 via cash
-                </p>
-                <p className={`${isDark ? "text-[#8F8F8F]" : "text-zinc-400"}`}>
-                  May 4, 2026, 10:50 AM
-                </p>
-              </div>
-            </div>
-
-            <a
-              href="#"
-              download
-              className="h-12 lg:h-15 rounded-r-lg flex items-center justify-center gap-2 bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black px-4 transition-colors"
-            >
-              <span className="hidden lg:block">Download Proof</span> <Download size={20} />
-            </a>
-          </div>
 
         </div>
       </div>

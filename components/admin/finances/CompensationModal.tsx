@@ -11,6 +11,10 @@ interface CompensationItem {
   id: string;
   name: string;
   role: string;
+  approvalStatus?: string;
+  earningStatus?: string;
+  paidTotal?: number;
+  remainingBalance?: number;
   total: number;
   base: number;
   editing: number;
@@ -21,6 +25,13 @@ interface CompensationItem {
   advanceDate?: string;
 }
 
+type AuditEntry = {
+  id: string;
+  label: string;
+  subLabel?: string | null;
+  date?: string | null;
+};
+
 interface CompensationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,6 +41,7 @@ interface CompensationModalProps {
   onModifyClick: () => void;
   onApproveClick: () => void;
   onRejectClick: () => void;
+  onPaymentClick?: (creatorEarningId: number) => void;
 }
 
 export default function CompensationModal({
@@ -40,7 +52,8 @@ export default function CompensationModal({
   loading = false,
   onModifyClick,
   onApproveClick,
-  onRejectClick
+  onRejectClick,
+  onPaymentClick
 }: CompensationModalProps) {
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
 
@@ -52,6 +65,10 @@ export default function CompensationModal({
       id: String(creator.creator_earning_id),
       name: creator.creator_name || "Unknown Creator",
       role: creator.cp_role || "Creative Partner",
+      approvalStatus: creator.approval_status,
+      earningStatus: creator.earning_status,
+      paidTotal: creator.paid_total,
+      remainingBalance: creator.remaining_balance,
       total: creator.total_compensation,
       base: itemAmount("Base Payout"),
       editing: itemAmount("Editing Payout"),
@@ -63,11 +80,53 @@ export default function CompensationModal({
     };
   }), [details?.creators]);
 
+  const auditEntries: AuditEntry[] = useMemo(() => {
+    const logs: AuditEntry[] = [
+      ...(details?.audit_logs || []).map((log) => ({
+        id: `audit-${log.action}-${log.created_at || ""}`,
+        label: log.label || log.action || "Finance activity",
+        subLabel: log.notes,
+        date: log.created_at,
+      })),
+      ...(details?.creators || []).flatMap((creator) =>
+        (creator.timeline || []).map((event) => ({
+          id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || ""}-${event.sort_order || ""}-${event.event_date || ""}`,
+          label: event.label || event.event_type || "Payment activity",
+          subLabel: event.sub_label || creator.creator_name || null,
+          date: event.event_date,
+        }))
+      ),
+    ];
+
+    return logs
+      .filter((entry) => entry.label)
+      .sort((a, b) => {
+        const left = a.date ? new Date(a.date).getTime() : 0;
+        const right = b.date ? new Date(b.date).getTime() : 0;
+        return left - right;
+      });
+  }, [details]);
+
   useEffect(() => {
     setSelectedCreators(compensationList.map((creator) => creator.id));
   }, [compensationList]);
 
   if (!isOpen || !rowContext) return null;
+
+  const hasPendingApproval = compensationList.some((creator) => creator.approvalStatus === "pending_approval");
+
+  const formatAuditDate = (value?: string | null) => {
+    if (!value) return "Date not available";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString([], {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const handleCheckboxChange = (id: string) => {
     setSelectedCreators((prev) =>
@@ -146,6 +205,10 @@ export default function CompensationModal({
                 )}
                 {compensationList.map((creator) => {
                   const isChecked = selectedCreators.includes(creator.id);
+                  const isPendingApproval = creator.approvalStatus === "pending_approval";
+                  const isApproved = creator.approvalStatus === "approved";
+                  const remainingBalance = Number(creator.remainingBalance);
+                  const isPaid = creator.earningStatus === "paid" || (isApproved && Number.isFinite(remainingBalance) && remainingBalance <= 0);
                   return (
                     <div
                       key={creator.id}
@@ -210,8 +273,18 @@ export default function CompensationModal({
 
                         {/* Context Notice Alert Safeguard */}
                         <div className="text-xs text-[#E8D1AB] bg-[#211F1C] font-medium rounded-lg p-3 w-fit">
-                          Note : Select and Approve to Enable Payment
+                          {isPaid ? "Payment completed" : isApproved ? "Approved by finance. Ready for payment." : isPendingApproval ? "Note : Select and Approve to Enable Payment" : "No finance action available"}
                         </div>
+                        {(isPaid || Number(creator.paidTotal || 0) > 0) && (
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <span className="rounded-full border border-[#10B98166] bg-[#10B9811A] px-3 py-1 font-medium text-[#34D399]">
+                              Paid {formatCurrency(creator.paidTotal || creator.total)}
+                            </span>
+                            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 font-medium text-white/70">
+                              Remaining {formatCurrency(Math.max(Number(creator.remainingBalance || 0), 0))}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Pre-Shoot Advance Section Drawer */}
                         {creator.hasAdvance && (
@@ -238,7 +311,7 @@ export default function CompensationModal({
                         )}
 
                         {/* Context Action Button Panel inside individual active items */}
-                        {!creator.hasAdvance && isChecked && (
+                        {!creator.hasAdvance && isChecked && isPendingApproval && (
                           <div className="flex flex-col gap-3">
                             <button
                               onClick={onApproveClick}
@@ -263,6 +336,14 @@ export default function CompensationModal({
                               </button>
                             </div>
                           </div>
+                        )}
+                        {isChecked && isApproved && !isPaid && (
+                          <button
+                            onClick={() => onPaymentClick?.(Number(creator.id))}
+                            className="h-12 min-w-[180px] px-5 rounded-lg inline-flex items-center justify-center gap-2 bg-[#9810FA] hover:bg-[#9810FA]/90 text-white font-semibold text-sm whitespace-nowrap"
+                          >
+                            <CheckCircle2 size={16} /> Record Payment
+                          </button>
                         )}
                       </div>
                     </div>
@@ -305,49 +386,54 @@ export default function CompensationModal({
             <h3 className="lg:text-lg text-white text-semibold capitalize">
               Audit Log
             </h3>
-            <div className="flex items-start gap-3 text-xs lg:text-sm">
-              <Clock size={20} className="text-[#99A1AF] shrink-0" />
-              <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
-                <span className="text-white">Created shoot and assigned CPs</span>
-                <span className="text-white/50 whitespace-nowrap text-xs">28-05-2026 14:32 • Admin User</span>
+            {auditEntries.length === 0 ? (
+              <div className="rounded-lg border border-white/10 bg-[#141414] p-3 text-xs lg:text-sm text-white/50">
+                No audit activity recorded yet.
               </div>
-            </div>
-            <div className="flex items-start gap-3 text-xs lg:text-sm">
-              <Clock size={20} className="text-[#99A1AF] shrink-0" />
-              <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
-                <span className="text-white">Submitted to Finance for approval</span>
-                <span className="text-white/50 whitespace-nowrap text-xs">28-05-2026 14:45 • Admin User</span>
-              </div>
-            </div>
+            ) : (
+              auditEntries.map((entry, index) => (
+                <div key={`${entry.id}-${index}`} className="flex items-start gap-3 text-xs lg:text-sm">
+                  <Clock size={20} className="text-[#99A1AF] shrink-0" />
+                  <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
+                    <div>
+                      <span className="text-white">{entry.label}</span>
+                      {entry.subLabel && <p className="mt-0.5 text-xs text-white/45">{entry.subLabel}</p>}
+                    </div>
+                    <span className="text-white/50 whitespace-nowrap text-xs">{formatAuditDate(entry.date)}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         {/* Persistent Base Sticky Double Action Control Drawer */}
-        <div className="sticky bottom-0 inset-x-0 bg-[#0C0C0C] p-5 lg:p-9 flex flex-col gap-3 z-10 mt-auto">
-          <button
-              onClick={onApproveClick}
-              className="h-12 rounded-lg lg:hidden flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
-              <CheckCircle2 size={16} /> Approve All
-            </button>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+        {hasPendingApproval && (
+          <div className="sticky bottom-0 inset-x-0 bg-[#0C0C0C] p-5 lg:p-9 flex flex-col gap-3 z-10 mt-auto">
             <button
-              onClick={onApproveClick}
-              className="h-12 rounded-lg hidden lg:flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
-              <CheckCircle2 size={16} /> Approve All
-            </button>
-            <button
-              onClick={onModifyClick}
-              className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
-              <Edit3 size={16} /> Modify
-            </button>
-            <button
-              onClick={onRejectClick}
-              className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
-              <XCircle size={16} /> Reject All
-            </button>
+                onClick={onApproveClick}
+                className="h-12 rounded-lg lg:hidden flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
+                <CheckCircle2 size={16} /> Approve All
+              </button>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <button
+                onClick={onApproveClick}
+                className="h-12 rounded-lg hidden lg:flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
+                <CheckCircle2 size={16} /> Approve All
+              </button>
+              <button
+                onClick={onModifyClick}
+                className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
+                <Edit3 size={16} /> Modify
+              </button>
+              <button
+                onClick={onRejectClick}
+                className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
+                <XCircle size={16} /> Reject All
+              </button>
+            </div>
           </div>
-
-        </div>
+        )}
       </div>
     </div>
   );

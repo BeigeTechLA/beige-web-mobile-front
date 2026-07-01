@@ -10,11 +10,15 @@ import Image from "next/image";
 export type PaymentMethodSelectionModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  onStripeClick?: () => void;
+  onExternalClick?: () => void;
 };
 
 export default function PaymentMethodSelectionModal({
   isOpen,
   onClose,
+  onStripeClick,
+  onExternalClick,
 }: PaymentMethodSelectionModalProps) {
   const { isDark } = useResolvedTheme();
 
@@ -76,6 +80,7 @@ export default function PaymentMethodSelectionModal({
             </div>
 
             <Button
+              onClick={onStripeClick}
               className="mt-5 lg:mt-9 h-10 lg:h-12 w-full bg-[#155DFC] text-white"
             >
               Continue with Stripe
@@ -105,6 +110,7 @@ export default function PaymentMethodSelectionModal({
               </p>
             </div>
             <Button
+              onClick={onExternalClick}
               className="mt-5 lg:mt-9 h-10 lg:h-12 w-full bg-[#9810FA] text-white"
             >
               Record External Payment

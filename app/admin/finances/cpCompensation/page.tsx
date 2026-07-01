@@ -196,6 +196,7 @@ export default function AdminFinancesPage() {
   const [metricRange, setMetricRange] = useState("Month");
   const [dataType, setDataType] = useState<TabType>("shoots");
   const [selectedRow, setSelectedRow] = useState<ShootCPRow | null>(null);
+  const [selectedPaymentEarningId, setSelectedPaymentEarningId] = useState<number | null>(null);
 
   // Visibility States
   const [isCompOpen, setIsCompOpen] = useState(false);
@@ -312,6 +313,45 @@ export default function AdminFinancesPage() {
     setIsCompOpen(false);
   };
 
+  const handleOpenPayment = (creatorEarningId: number) => {
+    setSelectedPaymentEarningId(creatorEarningId);
+    setIsCompOpen(false);
+    setPaymentSelectionOpen(true);
+  };
+
+  const getPaymentAmount = (earningId: number | null) => {
+    const creator = details?.creators.find((item) => item.creator_earning_id === earningId);
+    return Number(creator?.remaining_balance || creator?.total_compensation || selectedRow?.cpPayout || 0);
+  };
+
+  const handleStripePayment = async () => {
+    setIsReceiptSubmitting(true);
+    try {
+      const earningId = selectedPaymentEarningId || getActionEarningIds()[0];
+      const amount = getPaymentAmount(earningId);
+      if (!earningId || !(amount > 0)) {
+        toast.error("No payable compensation balance found");
+        return;
+      }
+      await cpCompensationApi.processPayment(earningId, {
+        amount,
+        payment_method: "stripe",
+        payment_scope: "final",
+      });
+      setPaymentSelectionOpen(false);
+      setSelectedPaymentEarningId(null);
+      await loadHistory(dataType);
+      setSuccessTitle("Stripe Payment Started");
+      setSuccessSubtext("Creator payout has been sent for Stripe processing.");
+      setSuccessButtonText("");
+      setIsSuccessOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to process Stripe payment");
+    } finally {
+      setIsReceiptSubmitting(false);
+    }
+  };
+
   const handleAddCompensation = () => {
     setIsAddCompOpen(true);
   };
@@ -400,17 +440,37 @@ export default function AdminFinancesPage() {
   const handleReceiptSubmit = async (payload: ReceiptPayload) => {
     setIsReceiptSubmitting(true);
     try {
-      console.log("Submitting Receipt Data Form Context: ", payload);
-      // Simulate backend endpoint save transaction delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const earningId = selectedPaymentEarningId || getActionEarningIds()[0];
+      const amount = getPaymentAmount(earningId);
+      if (!earningId || !(amount > 0)) {
+        toast.error("No payable compensation balance found");
+        return;
+      }
+      await cpCompensationApi.processPayment(earningId, {
+        amount,
+        payment_method: "outside_platform",
+        payment_mode: payload.paymentMethod,
+        proof_url: payload.proofFile?.name || payload.transactionId,
+        transaction_reference: payload.transactionId,
+        notes: payload.notes,
+        payment_scope: "final",
+      });
       setIsReceiptOpen(false);
+      setSelectedPaymentEarningId(null);
+      await loadHistory(dataType);
+      if (selectedRow?.bookingId || selectedRow?.id) {
+        const bookingId = selectedRow.bookingId || Number(selectedRow.id);
+        if (bookingId) {
+          setDetails(await cpCompensationApi.details(bookingId));
+        }
+      }
 
-      setSuccessTitle("Receipt Added Successfully");
-      setSuccessSubtext("Success Message");
+      setSuccessTitle("Payment Recorded Successfully");
+      setSuccessSubtext("Creator payout has been marked as paid.");
       setSuccessButtonText(""); // Empty text triggers the outside click to close
       setIsSuccessOpen(true);
     } catch (error) {
-      toast.error("Failed to register payment receipt document");
+      toast.error(error instanceof Error ? error.message : "Failed to record payment");
     } finally {
       setIsReceiptSubmitting(false);
     }
@@ -553,6 +613,7 @@ export default function AdminFinancesPage() {
           onModifyClick={handleOpenModify}
           onApproveClick={handleOpenApprove}
           onRejectClick={handleOpenReject}
+          onPaymentClick={handleOpenPayment}
         />
 
         <AddCompendationModal
@@ -609,6 +670,11 @@ export default function AdminFinancesPage() {
         <PaymentMethodSelectionModal
           isOpen={isPaymentSelectionOpen}
           onClose={() => setPaymentSelectionOpen(false)}
+          onStripeClick={handleStripePayment}
+          onExternalClick={() => {
+            setPaymentSelectionOpen(false);
+            setIsReceiptOpen(true);
+          }}
         />
 
         <AdvancePaymentModal
