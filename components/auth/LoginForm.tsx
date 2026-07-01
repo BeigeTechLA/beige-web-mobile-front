@@ -193,7 +193,7 @@ export function LoginForm() {
           </div>
 
           <div className="relative space-y-1 lg:space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between lg:contents">
               <Label
                 htmlFor="password"
                 className="block text-sm font-medium text-[#A4A0A0] lg:absolute lg:-top-3 lg:left-4 lg:z-10 lg:px-2 lg:bg-[#101010] lg:text-white/60 lg:pointer-events-none"
@@ -215,7 +215,7 @@ export function LoginForm() {
                 Forgot your password?
               </Link>
             </div>
-            <div className="relative">
+            <div className="relative lg:!mt-0">
               <Input
                 id="password"
                 placeholder="Enter your password"
