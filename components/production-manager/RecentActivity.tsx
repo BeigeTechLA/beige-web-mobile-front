@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
+import { formatActivityDescription } from "@/lib/utils/activityText";
 
 type Activity = {
     id: number;
@@ -11,6 +12,15 @@ type Activity = {
     title: string;
     description: string;
     time: string;
+};
+
+type RecentActivityItem = {
+    title?: string;
+    description?: string;
+    text?: string;
+    activity_text?: string;
+    timestamp?: string;
+    created_at?: string;
 };
 
 const COLORS = [
@@ -34,11 +44,11 @@ export default function RecentActivity() {
                 const response = await adminApi.getRecentActivity(10);
                 if (!response.error && response.data) {
                     const data = Array.isArray(response.data) ? response.data : (response.data.items || []);
-                    const mappedActivities = data.map((item: any, index: number) => ({
+                    const mappedActivities = data.map((item: RecentActivityItem, index: number) => ({
                         id: index,
                         color: COLORS[index % COLORS.length],
                         title: item.title || "Activity Update",
-                        description: item.description || item.text || item.activity_text,
+                        description: formatActivityDescription(item.description || item.text || item.activity_text),
                         time: item.timestamp || item.created_at ? formatTime(item.timestamp || item.created_at) : "Just now",
                     }));
                     setActivities(mappedActivities);
@@ -68,7 +78,7 @@ export default function RecentActivity() {
             if (diffInSeconds < 172800) return "Yesterday";
 
             return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        } catch (e) {
+        } catch {
             return "Recently";
         }
     };
