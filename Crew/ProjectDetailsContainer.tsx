@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 // Added ChevronLeft to the imports
-import { X, Maximize2, MoreVertical, ChevronLeft } from "lucide-react"; 
+import { X, Maximize2, MoreVertical, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProjectTimeText, getShootFilesText } from "@/lib/utils/shootDetails";
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
@@ -15,14 +15,18 @@ import AffiliatePostProductionTab from "@/components/affiliate/shoot-details/Aff
 import MeetingSchedule from "@/components/admin/shoot-details/MeetingSchedule";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 
-export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
+export default function ProjectDetailsContainer({ apiResponse, onBack, currentCrewMemberId }: any) {
   const [activeTab, setActiveTab] = useState("shoot-details");
   const [phaseFileCount, setPhaseFileCount] = useState<number | null>(null);
 
-  if (!apiResponse) return null;
-
-  const project = apiResponse.project;
-  const crew = apiResponse.assignedCrew?.[0]?.crew_member;
+  const project = apiResponse?.project;
+  const clientName =
+    apiResponse?.lead_details?.client_name ||
+    project?.lead_details?.client_name ||
+    project?.client?.name ||
+    project?.client_name ||
+    project?.guest_name ||
+    "Client Not Specified";
   const projectId =
     project?.stream_project_booking_id || project?.project_id || project?.id;
   const projectTimeText = getProjectTimeText(project);
@@ -44,9 +48,12 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
     ? project.description.replace(/Matching Method:.*$/gm, "").trim()
     : "No description available.";
 
-     const formatDate = (dateStr?: string) => {
+  const formatDate = (dateStr?: string) => {
     if (!dateStr) return "TBD";
-    const date = new Date(dateStr);
+    const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const date = dateOnlyMatch
+      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      : new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
 
     return date.toLocaleDateString("en-GB", {
@@ -54,7 +61,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
       month: "short",
       year: "numeric",
     }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
-  }; 
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -96,6 +103,8 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
       isMounted = false;
     };
   }, [projectId]);
+
+  if (!apiResponse) return null;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col font-sans">
@@ -141,8 +150,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <h2 className="lg:text-2xl font-bold text-white/90">
-                    {crew ? `${crew.first_name} ${crew.last_name}` : project?.project_name || "Untitled Project"}
-                    {project?.skills_needed ? ` (${project.skills_needed})` : ""}
+                    {clientName}
                   </h2>
                   <span className="bg-[#E8D1AB]/10 text-[#E8D1AB] text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest border border-[#E8D1AB]/10">
                     {timelineLabel}
@@ -196,7 +204,11 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
           {/* 5. TAB CONTENT */}
           <div className="pt-4 pb-20">
             {activeTab === "shoot-details" && (
-                <ShootOverviewTab project={project} />
+                <ShootOverviewTab
+                  project={project}
+                  apiResponse={apiResponse}
+                  currentCrewMemberId={currentCrewMemberId}
+                />
             )}
             
             {activeTab === "pre-prod" && (
