@@ -414,6 +414,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       form_additional_details: data.specialInstructions,
       form_supporting_url: data.referenceLinks,
       form_cp_id: data?.selectedCrewIds,
+      form_selected_studio: data?.selectedStudioIds?.toString(),
+      form_studio_pricing_category: data?.selectedStudios?.map((studio) => studio.pricingCategory).toString(),
     });
   }, [])
 
