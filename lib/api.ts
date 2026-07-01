@@ -125,6 +125,7 @@ export type UserRoleDetailsResponse = {
     is_active: number;
     status_label: 'Active' | 'In-Active';
     created_at: string | null;
+    updated_at: string | null;
   };
   role: {
     role_id: number | null;

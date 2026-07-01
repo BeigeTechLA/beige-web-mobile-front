@@ -4,10 +4,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PermissionMatrixTable } from "@/components/admin/roles-permissions/PermissionMatrixTable";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import {
-  type PermissionColumnKey,
-  type PermissionMatrixRow,
-} from "@/components/admin/roles-permissions/types";
+import { type PermissionMatrixRow } from "@/components/admin/roles-permissions/types";
+import { useEffect, useState } from "react";
 
 type RoleEditDetailsPageProps = {
   title: string;
@@ -23,7 +21,6 @@ type RoleEditDetailsPageProps = {
   onRowsChange?: (rows: PermissionMatrixRow[]) => void;
   onOpenModal?: () => void;
   onPrimaryAction?: () => void;
-  onInvalidAccessAttempt?: (row: PermissionMatrixRow, key: PermissionColumnKey) => void;
 };
 
 const getInitials = (value: string) =>
@@ -39,7 +36,7 @@ export function RoleEditDetailsPage({
   roleLabel,
   status,
   created,
-  updated,
+  updated: initialUpdated, 
   rows,
   readOnly = false,
   isLoading = false,
@@ -48,10 +45,29 @@ export function RoleEditDetailsPage({
   onRowsChange,
   onOpenModal,
   onPrimaryAction,
-  onInvalidAccessAttempt,
 }: RoleEditDetailsPageProps) {
   const router = useRouter();
   const { isDark } = useResolvedTheme();
+  const [currentUpdated, setCurrentUpdated] = useState(initialUpdated);
+
+    useEffect(() => {
+    setCurrentUpdated(initialUpdated);
+  }, [initialUpdated]);
+
+   const handlePrimaryAction = async () => {
+    if (onPrimaryAction) {
+      await onPrimaryAction();
+      
+      const now = new Date().toLocaleString("en-US", {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      setCurrentUpdated(now);
+    }
+  };
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F4F5F7] text-[#101010]"}`}>
@@ -81,7 +97,7 @@ export function RoleEditDetailsPage({
               <div className={`mt-2 flex flex-wrap items-center gap-4 text-[14px] ${isDark ? "text-white/40" : "text-[#32323299]"}`}>
                 <span>Created : {created}</span>
                 <span className={`hidden h-4 w-px md:block ${isDark ? "bg-white/10" : "bg-[#D8D8D8]"}`} />
-                <span>Updated : {updated}</span>
+                <span>Updated : {currentUpdated}</span>
               </div>
               {description ? (
                 <p className={`mt-3 max-w-[900px] text-[15px] leading-relaxed ${isDark ? "text-white/55" : "text-[#32323299]"}`}>
@@ -102,7 +118,6 @@ export function RoleEditDetailsPage({
               showSelectionColumn
               readOnly={readOnly}
               onReadOnlyClick={onOpenModal}
-              onInvalidAccessAttempt={onInvalidAccessAttempt}
               className="border-none !bg-transparent"
             />
           )}
@@ -122,7 +137,7 @@ export function RoleEditDetailsPage({
           </button>
           <button
             type="button"
-            onClick={onPrimaryAction}
+            onClick={handlePrimaryAction}
             className={`h-[64px] min-w-[180px] rounded-[16px] text-[18px] font-bold transition-all active:scale-95 ${
               isDark
                 ? "bg-[#E5D5B8] text-black hover:bg-[#d6c29b]"

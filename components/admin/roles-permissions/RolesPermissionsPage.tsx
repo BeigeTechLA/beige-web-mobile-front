@@ -173,7 +173,7 @@ export function RolesPermissionsPage({
     const response = await adminApi.getUsersWithRoles({
       search: searchQuery,
       sort_by: "created_at",
-      order: "desc",
+      order: sortOrder,
     });
 
     if (response?.success && Array.isArray(response.data)) {
@@ -184,7 +184,7 @@ export function RolesPermissionsPage({
     }
 
     setIsLoadingUsers(false);
-  }, [searchQuery]);
+  }, [searchQuery,sortOrder]);
 
   useEffect(() => {
     const loadPage = async () => {
@@ -358,16 +358,14 @@ export function RolesPermissionsPage({
                       : undefined
                   }
                   onViewUsers={
-                    Number(card.id) === SUPER_ADMIN_ROLE_ID
-                      ? undefined
-                      : (id) => {
-                          const role = roles.find((item) => String(item.role_id) === String(id));
-                          router.push(
-                            `/admin/roles-permissions/role-users?role_id=${id}&role_name=${encodeURIComponent(
-                              role?.name || "Role",
-                            )}`,
-                          );
-                        }
+                    (id) => {
+                      const role = roles.find((item) => String(item.role_id) === String(id));
+                      router.push(
+                        `/admin/roles-permissions/role-users?role_id=${id}&role_name=${encodeURIComponent(
+                          role?.name || "Role",
+                        )}`,
+                      );
+                    }
                   }
                 />
               ))}
@@ -391,6 +389,7 @@ export function RolesPermissionsPage({
 
             <PermissionUsersTable
               users={users}
+              sortOrder={sortOrder} 
               isDark={isDark}
               isLoading={isLoadingUsers}
               error={usersError}

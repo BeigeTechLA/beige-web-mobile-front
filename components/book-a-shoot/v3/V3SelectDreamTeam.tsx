@@ -169,8 +169,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       shoot_location: data.location,
       additional_details: data.specialInstructions,
       supporting_url: data.referenceLinks,
-      videographyCount: data?.roleCounts?.videographer,
-      photographyCount: data?.roleCounts?.photographer,
+      videographyCount: data?.roleCounts?.videographer || 0,
+      photographyCount: data?.roleCounts?.photographer || 0,
     };
 
     const dlEvent = (creators.length > 0) ? "cp_selection_found" : "cp_selection_not_found"
@@ -179,12 +179,23 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-      email: isAuthenticated ? user?.email : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+      email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
-      booking_form_fields: formFields
+      // booking_form_fields: formFields
+
+      form_content_type: data.contentType.join(","),
+      form_shoot_type: data.shootType,
+      form_shoot_date_time: `${data.startDate} to ${data.endDate}`,
+      form_edits_needed: data.editsNeeded,
+      form_edit_types: [...data.photoEditTypes, ...data.videoEditTypes].join(", "),
+      form_booking_type: data.bookingType,
+      form_additional_creative: data.addTeamMembers ? (formFields.videographyCount + formFields.photographyCount) : data.addTeamMembers,
+      form_shoot_location: data.location,
+      form_additional_details: data.specialInstructions,
+      form_supporting_url: data.referenceLinks,
     });
   }, [creators])
 
@@ -197,7 +208,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
     // 1=Videographer, 11=Videographer (Pricing), 12=Cinematographer (Pricing/Video)
     const isVideo = roleName.includes("video") || roleId === 1 || roleId === 11 || roleId === 12 || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
-    
+
     // 2=Photographer, 10=Photographer (Pricing)
     const isPhoto = roleName.includes("photo") || roleId === 2 || roleId === 10 || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
 
@@ -301,14 +312,14 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     const targetP = requirements.required.photo;
 
     both.forEach(() => {
-        const deficitV = targetV - videoCount;
-        const deficitP = targetP - photoCount;
-        if (deficitV > 0 && deficitP > 0) videoCount++;
-        else if (deficitV > deficitP) videoCount++;
-        else if (deficitP > deficitV) photoCount++;
-        else {
-          if (videoCount <= photoCount) videoCount++;
-          else photoCount++;
+      const deficitV = targetV - videoCount;
+      const deficitP = targetP - photoCount;
+      if (deficitV > 0 && deficitP > 0) videoCount++;
+      else if (deficitV > deficitP) videoCount++;
+      else if (deficitP > deficitV) photoCount++;
+      else {
+        if (videoCount <= photoCount) videoCount++;
+        else photoCount++;
       }
     });
 
@@ -547,12 +558,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         page_name: "Book-a-shoot Page",
         location_in_website: "book_a_shoot_dream_team",
         duration_on_page: performance.now() / 1000,
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-        email: isAuthenticated ? user?.email : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+        email: isAuthenticated ? user?.email : data.email,
         phone: isAuthenticated ? user?.phone_number : "Unknown",
         booking_id: data?.bookingId,
-        booking_form_fields: { cp_id: selectedIds }
+        form_cp_id: selectedIds,
       });
       onNext();
     }
@@ -564,12 +575,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-      email: isAuthenticated ? user?.email : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+      email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
-      booking_form_fields: { cp_id: "Not Found" }
+      form_cp_id: "Not Found"
     });
     onNext()
   }
@@ -580,12 +591,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-      email: isAuthenticated ? user?.email : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+      email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
-      booking_form_fields: { cp_id: "Not Found" }
+      form_cp_id: "Not Found"
     });
     setShowSalesPopup(true)
   }
@@ -902,12 +913,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                       page_name: "Book-a-shoot Page",
                       location_in_website: "book_a_shoot_dream_team",
                       duration_on_page: performance.now() / 1000,
-                      user_id: isAuthenticated ? user?.id : "Unknown",
-                      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-                      email: isAuthenticated ? user?.email : "Unknown",
+                      user_id: isAuthenticated ? user?.id : "Guest",
+                      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+                      email: isAuthenticated ? user?.email : data.email,
                       phone: isAuthenticated ? user?.phone_number : "Unknown",
                       booking_id: data?.bookingId,
-                      booking_form_fields: { cp_id: "Not Selected" }
+                      form_cp_id: "Not Selected"
                     });
                     onNext();
                   }}

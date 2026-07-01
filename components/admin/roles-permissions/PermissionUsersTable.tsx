@@ -22,6 +22,7 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type PermissionUsersTableProps = {
   users: PermissionUser[];
+  sortOrder?: "asc" | "desc"; 
   isDark?: boolean;
   isLoading?: boolean;
   error?: string;
@@ -167,6 +168,7 @@ const mapApiUserToPermissionUser = (
 
 export function PermissionUsersTable({
   users,
+  sortOrder = "desc",
   isLoading = false,
   error = "",
   onEdit,
@@ -198,7 +200,10 @@ export function PermissionUsersTable({
   }, [searchQuery]);
 
   const queryParams = useMemo(() => {
-    const params: Record<string, string | number> = {};
+    const params: Record<string, string | number> = {
+      sort_by: "created_at", 
+      order: sortOrder,      
+    };
 
     if (roleId != null && String(roleId).trim()) {
       params.role_id = roleId;
@@ -212,11 +217,17 @@ export function PermissionUsersTable({
     if (statusFilter === "in-active") params.status = 0;
 
     if (monthFilter !== "all") {
+    const numericValue = parseInt(monthFilter, 10);
+    
+    if (!isNaN(numericValue)) {
+      params.month = numericValue;
+    } else {
       const monthValue = monthToNumber[monthFilter.toLowerCase()];
       if (monthValue) {
         params.month = monthValue;
       }
     }
+  }
 
     if (roleFilter !== "all") {
       const selectedRole = users.find(
@@ -228,7 +239,7 @@ export function PermissionUsersTable({
     }
 
     return params;
-  }, [debouncedSearchQuery, monthFilter, roleFilter, roleId, users, statusFilter]);
+  }, [debouncedSearchQuery, monthFilter, roleFilter, roleId, users, statusFilter,sortOrder]);
 
   useEffect(() => {
     let mounted = true;
