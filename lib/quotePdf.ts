@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFImage, type PDFFont, type PDFPage } from "pdf-lib";
 
 import type { SalesQuoteDetailData } from "@/lib/api";
 import {
@@ -37,6 +37,9 @@ const COMPANY_PROFILE = {
   email: "sales@beigecorporation.io",
   phone: "323-826-7230",
 };
+
+const S3_PREFIX =
+  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
 const sanitizePdfFileName = (value: string) =>
   value
@@ -138,8 +141,95 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   window.URL.revokeObjectURL(downloadUrl);
 };
 
-export const downloadQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | null) => {
-  const pdfBytes = await buildQuotePdf(quote, quoteId);
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const resolveSignatureSource = (...sources: Array<unknown>) => {
+  const baseUrl = S3_PREFIX.replace(/\/+$/, "");
+
+  for (const source of sources) {
+    if (typeof source !== "string") {
+      continue;
+    }
+
+    const value = source.trim();
+    if (!value) continue;
+    if (value.startsWith("data:")) return value;
+    if (/^[A-Za-z0-9+/=\r\n]+$/.test(value) && value.length > 80) {
+      return `data:image/png;base64,${value}`;
+    }
+    if (/^https?:\/\//i.test(value) && !/localhost|127\.0\.0\.1|::1/i.test(value)) {
+      return value;
+    }
+
+    const path = (value.match(/(?:^|\/)(signatures\/.+)$/i)?.[1] ?? value).replace(/^\/+/, "");
+    return `${baseUrl}/${path}`;
+  }
+
+  return null;
+};
+
+const dataUriToBytes = (source: string) => {
+  const match = source.match(/^data:image\/(png|jpe?g);base64,(.+)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const binary = window.atob(match[2].replace(/\s/g, ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return {
+    bytes,
+    type: match[1].toLowerCase().startsWith("jp") ? "jpg" : "png",
+  };
+};
+
+const loadSignatureImage = async (pdfDoc: PDFDocument, source: string | null) => {
+  if (!source) {
+    return null;
+  }
+
+  try {
+    if (source.startsWith("data:")) {
+      const imageData = dataUriToBytes(source);
+      if (!imageData) {
+        return null;
+      }
+
+      return imageData.type === "jpg"
+        ? pdfDoc.embedJpg(imageData.bytes)
+        : pdfDoc.embedPng(imageData.bytes);
+    }
+
+    const response = await fetch(source);
+    if (!response.ok) {
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return contentType.includes("jpeg") || contentType.includes("jpg") || /\.jpe?g(?:$|\?)/i.test(source)
+      ? pdfDoc.embedJpg(bytes)
+      : pdfDoc.embedPng(bytes);
+  } catch (error) {
+    console.warn("Failed to embed quote signature in PDF", error);
+    return null;
+  }
+};
+
+export const downloadQuotePdf = async (
+  quote: SalesQuoteDetailData,
+  quoteId?: string | null,
+  previewElement?: HTMLElement | null
+) => {
   const quoteData = unwrapSalesQuoteDetail(quote);
   const resolvedQuoteId = String(
     quoteData?.sales_quote_id ?? quoteData?.quote_id ?? quoteData?.id ?? quoteId ?? ""
@@ -149,7 +239,149 @@ export const downloadQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: st
     (resolvedQuoteId ? `Q-${resolvedQuoteId}` : "Draft Quote");
   const safeName = sanitizePdfFileName(quoteNumber) || "quote";
 
+  if (previewElement) {
+    await printQuotePreviewElement(previewElement, `${safeName}.pdf`);
+    return;
+  }
+
+  const pdfBytes = await buildQuotePdf(quote, quoteId);
   downloadBlob(new Blob([pdfBytes], { type: "application/pdf" }), `${safeName}.pdf`);
+};
+
+const printQuotePreviewElement = async (previewElement: HTMLElement, fileName: string) => {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    throw new Error("Quote PDF export is only available in the browser.");
+  }
+
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.opacity = "0";
+  document.body.appendChild(iframe);
+
+  const iframeDocument = iframe.contentDocument;
+  const iframeWindow = iframe.contentWindow;
+
+  if (!iframeDocument || !iframeWindow) {
+    iframe.remove();
+    throw new Error("Unable to prepare quote PDF export.");
+  }
+
+  const clonedPreview = previewElement.cloneNode(true) as HTMLElement;
+  clonedPreview.classList.add("quote-print-document");
+
+  const styleMarkup = Array.from(document.querySelectorAll<HTMLStyleElement | HTMLLinkElement>('style, link[rel="stylesheet"]'))
+    .map((node) => node.outerHTML)
+    .join("\n");
+
+  iframeDocument.open();
+  iframeDocument.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(fileName)}</title>
+        ${styleMarkup}
+        <style>
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+
+          html,
+          body {
+            margin: 0;
+            min-height: 100%;
+            background: #0f0f0f !important;
+            color: #ffffff !important;
+            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important;
+          }
+
+          * {
+            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important;
+          }
+
+          body {
+            padding: 0;
+          }
+
+          .quote-print-page {
+            background: #0f0f0f !important;
+            padding: 0;
+          }
+
+          .quote-print-document {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+          }
+
+          .quote-print-document section,
+          .quote-print-document .rounded-lg,
+          .quote-print-document .rounded-\\[20px\\],
+          .quote-print-document .rounded-\\[24px\\] {
+            break-inside: avoid;
+          }
+        </style>
+      </head>
+      <body>
+        <main class="quote-print-page"></main>
+      </body>
+    </html>
+  `);
+  iframeDocument.close();
+  iframeDocument.querySelector(".quote-print-page")?.appendChild(clonedPreview);
+
+  if (iframeDocument.fonts?.ready) {
+    await iframeDocument.fonts.ready.catch(() => undefined);
+  }
+
+  await new Promise((resolve) => window.setTimeout(resolve, 300));
+
+  await new Promise<void>((resolve) => {
+    const images = Array.from(iframeDocument.images);
+    if (images.length === 0) {
+      resolve();
+      return;
+    }
+
+    let loadedCount = 0;
+    const markLoaded = () => {
+      loadedCount += 1;
+      if (loadedCount >= images.length) {
+        resolve();
+      }
+    };
+
+    images.forEach((image) => {
+      if (image.complete) {
+        markLoaded();
+        return;
+      }
+
+      image.addEventListener("load", markLoaded, { once: true });
+      image.addEventListener("error", markLoaded, { once: true });
+    });
+  });
+
+  const previousTitle = document.title;
+  document.title = fileName.replace(/\.pdf$/i, "");
+
+  iframeWindow.focus();
+  iframeWindow.print();
+
+  window.setTimeout(() => {
+    document.title = previousTitle;
+    iframe.remove();
+  }, 1000);
 };
 
 const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | null) => {
@@ -209,9 +441,22 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
     quoteData.terms_conditions,
     getDefaultQuoteTerms(getQuoteText(quoteData.valid_until, quoteData.expires_at) || null)
   );
+  const signatureSource = resolveSignatureSource(
+    quoteData.signature_base64,
+    quoteData.signature_path,
+    (quoteData as Record<string, unknown>)?.signature_url,
+    (quoteData as Record<string, unknown>)?.file_url,
+    (quoteData as Record<string, unknown>)?.file_path,
+    (quote as Record<string, unknown>)?.signature_base64,
+    (quote as Record<string, unknown>)?.signature_path,
+    (quote as Record<string, unknown>)?.signature_url,
+    (quote as Record<string, unknown>)?.file_url,
+    (quote as Record<string, unknown>)?.file_path
+  );
   const pdfDoc = await PDFDocument.create();
   const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const signatureImage = await loadSignatureImage(pdfDoc, signatureSource);
 
   let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let cursorY = PAGE_HEIGHT - PAGE_MARGIN_TOP;
@@ -592,6 +837,60 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
       cursorY -= blockHeight;
     });
   }
+
+  const signerName = getQuoteText(
+    (quoteData as Record<string, unknown>)?.signer_name,
+    quoteData.client_name,
+    "Client"
+  );
+  const signatureDate = formatQuoteDate(quoteData.signed_at ?? quoteData.accepted_at ?? quoteData.updated_at);
+  const signatureBlockHeight = signatureImage ? 98 : 42;
+  ensureSpace(signatureBlockHeight + 16, "Signature");
+  drawSectionLabel("Signature");
+
+  const signatureBoxWidth = 190;
+  const signatureBoxHeight = 54;
+  const signatureBoxX = PAGE_WIDTH - PAGE_MARGIN_X - signatureBoxWidth;
+
+  if (signatureImage) {
+    page.drawRectangle({
+      x: signatureBoxX,
+      y: cursorY - signatureBoxHeight + 10,
+      width: signatureBoxWidth,
+      height: signatureBoxHeight,
+      color: COLORS.white,
+      borderColor: COLORS.lightBorder,
+      borderWidth: 1,
+    });
+
+    const scale = Math.min(
+      (signatureBoxWidth - 20) / signatureImage.width,
+      (signatureBoxHeight - 14) / signatureImage.height
+    );
+    const imageWidth = signatureImage.width * scale;
+    const imageHeight = signatureImage.height * scale;
+
+    page.drawImage(signatureImage as PDFImage, {
+      x: signatureBoxX + (signatureBoxWidth - imageWidth) / 2,
+      y: cursorY - signatureBoxHeight + 10 + (signatureBoxHeight - imageHeight) / 2,
+      width: imageWidth,
+      height: imageHeight,
+    });
+
+    cursorY -= signatureBoxHeight + 8;
+  } else {
+    cursorY -= 10;
+  }
+
+  page.drawLine({
+    start: { x: signatureBoxX, y: cursorY },
+    end: { x: signatureBoxX + signatureBoxWidth, y: cursorY },
+    color: COLORS.lightBorder,
+    thickness: 1,
+  });
+  drawRightAlignedText(page, signerName, signatureBoxX + signatureBoxWidth, cursorY - 14, 10.5, boldFont, COLORS.black);
+  drawRightAlignedText(page, signatureImage ? signatureDate : "Authorized Signature", signatureBoxX + signatureBoxWidth, cursorY - 30, 9.5, regularFont, COLORS.muted);
+  cursorY -= 44;
 
   ensureSpace(34, "Contact");
   drawDivider();

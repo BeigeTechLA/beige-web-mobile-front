@@ -143,7 +143,7 @@ export default function RequestsShootsPage() {
         getAcceptedShoots(commonPayload),
       ]);
 
-      let allProjects: any[] = [];
+      const allProjects: any[] = [];
       const pendingFiltered =
         pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
           ? pendingRes.data.filter((p: any) => {
@@ -229,9 +229,12 @@ export default function RequestsShootsPage() {
     return addressStr;
   };
 
-    const formatDate = (dateStr?: string) => {
+  const formatDate = (dateStr?: string) => {
     if (!dateStr) return "TBD";
-    const date = new Date(dateStr);
+    const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const date = dateOnlyMatch
+      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      : new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
 
     return date.toLocaleDateString("en-GB", {
@@ -338,6 +341,7 @@ export default function RequestsShootsPage() {
     return (
       <ProjectDetailsContainer
         apiResponse={projectDetailsData}
+        currentCrewMemberId={crewMemberId}
         onBack={() => {
           setProjectDetailsOpen(false);
           setProjectDetailsData(null);

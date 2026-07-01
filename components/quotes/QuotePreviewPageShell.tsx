@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Check, Copy, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, Loader2, Send } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -22,6 +22,7 @@ import {
   readQuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
 import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
+import { downloadQuotePdf } from "@/lib/quotePdf";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import SignatureModal from "@/components/signature/SignatureModal";
@@ -363,6 +364,32 @@ const QUOTE_PREVIEW_APPROVAL_PENDING_REASON = "QUOTE_PREVIEW_APPROVAL_PENDING";
 const isLatestApprovalPending = (approvalStatus: string | null) =>
   Boolean(approvalStatus && !["approved", "accepted"].includes(approvalStatus));
 
+const getQuoteValidityExpirationTime = (value: unknown) => {
+  const rawValue = getNormalizedString(value);
+  if (!rawValue) {
+    return null;
+  }
+
+  const dateMatch = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateMatch) {
+    const [, year, month, day] = dateMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day), 23, 59, 59, 999).getTime();
+  }
+
+  const parsedTime = new Date(rawValue).getTime();
+  return Number.isFinite(parsedTime) ? parsedTime : null;
+};
+
+const isQuoteValidityExpired = (quote: SalesQuoteDetailData | null | undefined) => {
+  const status = String(quote?.quote_status || quote?.status || "").trim().toLowerCase();
+  if (status === "expired") {
+    return true;
+  }
+
+  const expirationTime = getQuoteValidityExpirationTime(quote?.valid_until ?? quote?.expires_at);
+  return expirationTime !== null && Date.now() > expirationTime;
+};
+
 const ActionButton = ({
   onClick,
   className,
@@ -443,10 +470,12 @@ export default function QuotePreviewPageShell({
   const [latestPreviewApprovalStatus, setLatestPreviewApprovalStatus] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isPreparingLink, setIsPreparingLink] = useState(false);
   const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState<string | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
   const latestRedirectAttemptRef = useRef<string | null>(null);
+  const quotePreviewPrintRef = useRef<HTMLDivElement | null>(null);
   const [showSignature, setShowSignature] = useState(false);
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
@@ -765,8 +794,10 @@ export default function QuotePreviewPageShell({
     return "";
   }, [quote]);
   const quoteSent = isQuoteAlreadySent(quote);
+  const isQuoteExpired = isQuoteValidityExpired(quote);
+  const canShowShareActions = quoteDetailMode !== "public" && !isQuoteExpired;
   const canSendQuote =
-    showActionButtons && !loading && Boolean(resolvedQuoteId);
+    canShowShareActions && showActionButtons && !loading && Boolean(resolvedQuoteId);
   const copyQuoteUrl =
     generatedPreviewUrl ||
     (typeof window !== "undefined" && queryQuoteKey
@@ -949,6 +980,28 @@ export default function QuotePreviewPageShell({
     }
   };
 
+  const handleDownloadQuote = async () => {
+    if (!quote) {
+      toast.error("Quote preview data is unavailable.");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+    try {
+      await downloadQuotePdf(
+        quote,
+        resolvedQuoteId || queryQuoteId || queryQuoteKey,
+        quotePreviewPrintRef.current
+      );
+      toast.success("Quote PDF is ready to save.");
+    } catch (error) {
+      console.error("Failed to download quote PDF", error);
+      toast.error(error instanceof Error ? error.message : "Failed to download quote PDF");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   const handleContinueToPayment = () => {
     if (!isQuoteSigned) {
       toast.error("Please sign the quote before continuing to payment.");
@@ -989,7 +1042,22 @@ export default function QuotePreviewPageShell({
 
   const topbarActions = showActionButtons ? (
     <>
-      {quoteDetailMode !== "public" && (
+      {quote ? (
+        <ActionButton
+          onClick={() => {
+            void handleDownloadQuote();
+          }}
+          disabled={isDownloadingPdf}
+          className={`h-11 rounded-xl px-4 ${isDark
+            ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+            : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+            }`}
+        >
+          {isDownloadingPdf ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
+          {isDownloadingPdf ? "Downloading..." : "Download Quote"}
+        </ActionButton>
+      ) : null}
+      {canShowShareActions && (
         <ActionButton
           onClick={() => {
             void handleCopy();
@@ -1030,7 +1098,7 @@ export default function QuotePreviewPageShell({
           Continue to Payment
         </ActionButton>
       )}
-      {quoteDetailMode !== "public" && (
+      {canShowShareActions && (
         <ActionButton
           onClick={() => {
             void handleSendQuote();
@@ -1060,7 +1128,22 @@ export default function QuotePreviewPageShell({
       <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-14 lg:pt-8">
         {showActionButtons ? (
           <div className="mb-6 flex flex-col gap-2 lg:hidden">
-            {quoteDetailMode !== "public" && (
+            {quote ? (
+              <ActionButton
+                onClick={() => {
+                  void handleDownloadQuote();
+                }}
+                disabled={isDownloadingPdf}
+                className={`h-11 rounded-xl ${isDark
+                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                  }`}
+              >
+                {isDownloadingPdf ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
+                {isDownloadingPdf ? "Downloading..." : "Download Quote"}
+              </ActionButton>
+            ) : null}
+            {canShowShareActions && (
               <ActionButton
                 onClick={() => {
                   void handleCopy();
@@ -1103,7 +1186,7 @@ export default function QuotePreviewPageShell({
                 Continue to Payment
               </ActionButton>
             )}
-            {quoteDetailMode !== "public" && (
+            {canShowShareActions && (
               <ActionButton
                 onClick={() => { void handleSendQuote(); }}
                 disabled={!canSendQuote || isSending}
@@ -1146,16 +1229,18 @@ export default function QuotePreviewPageShell({
             Loading quote preview...
           </div>
         ) : quote ? (
-          <QuotePreviewDocument
-            quote={quote}
-            quoteId={queryQuoteId ?? queryQuoteKey}
-            showServiceAgreementAcceptance={quoteDetailMode === "public"}
-            acceptServiceAgreement={isQuoteSigned ? true : acceptServiceAgreement}
-            onAcceptServiceAgreementChange={setAcceptServiceAgreement}
-            onOpenServiceAgreement={() => {
-              setIsServiceAgreementOpen(true);
-            }}
-          />
+          <div ref={quotePreviewPrintRef}>
+            <QuotePreviewDocument
+              quote={quote}
+              quoteId={queryQuoteId ?? queryQuoteKey}
+              showServiceAgreementAcceptance={quoteDetailMode === "public"}
+              acceptServiceAgreement={isQuoteSigned ? true : acceptServiceAgreement}
+              onAcceptServiceAgreementChange={setAcceptServiceAgreement}
+              onOpenServiceAgreement={() => {
+                setIsServiceAgreementOpen(true);
+              }}
+            />
+          </div>
         ) : (
           <div
             className={`flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] px-6 text-center ${isDark

@@ -1963,13 +1963,12 @@ export default function QuotesDashboardPage({
                             className={`relative group cursor-pointer rounded-b-lg border-b transition-colors ${isDark ? "border-[#3D3D3D]/50 hover:bg-white/5" : "border-[#E3E3E3] hover:bg-black/5"} ${isExpanded ? (isDark ? "bg-[#202020] border-none" : "bg-[#F9F9F9] border-none") : ""}`}
                           >
                               <td className="px-4 py-4 md:px-6">
-                             <Link
+                               <Link
                                 href={`${detailBaseHref}/${quote.id}`}
                                 className="absolute inset-0 z-0 hidden md:block"
                                 aria-label={`Open quote ${quote.quoteNumber}`}
                                 prefetch={false}
                               />
-
                               <div className="relative z-10 flex items-center gap-3 pointer-events-none">
                                 {/* Mobile Chevron */}
                                 <div
