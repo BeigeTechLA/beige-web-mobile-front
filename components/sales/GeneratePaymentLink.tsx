@@ -400,7 +400,7 @@ const GeneratePaymentLink = ({
               </div>
             </div>
 
-            <div className="space-y-2">
+          {/*  <div className="space-y-2">
               <label className={`text-sm block font-light ${isDark ? "text-[#9F9FA9]" : "text-black/60"}`}>
                 Payment Amount
               </label>
@@ -425,7 +425,7 @@ const GeneratePaymentLink = ({
               <p className={`text-xs ${isDark ? "text-[#9F9FA9]" : "text-black/45"}`}>
                 Use this for deposits or partial payments. The remaining balance stays pending.
               </p>
-            </div>
+            </div> */}
 
             <Button
               onClick={handleGenerate}
