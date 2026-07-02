@@ -27,6 +27,7 @@ interface GeneratePaymentLinkProps {
     expires_at: string;
     is_used: boolean;
     is_expired: boolean;
+    requested_amount?: number | string | null;
   } | null;
   additionalPaymentStatus?: string | null;
   additionalPaymentOutstandingAmount?: number | string | null;
@@ -83,7 +84,14 @@ const GeneratePaymentLink = ({
   onBeforeGenerate,
 }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No");
-  const [paymentData, setPaymentData] = useState<{ url: string; id: number; isExpired: boolean } | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentData, setPaymentData] = useState<{
+    url: string;
+    id: number;
+    isExpired: boolean;
+    isUsed?: boolean;
+    requestedAmount?: number | string | null;
+  } | null>(null);
   const [resolvedBookingId, setResolvedBookingId] = useState<number | null>(null);
   const [resolvedLeadId, setResolvedLeadId] = useState<number | null>(null);
   const [isPreparingBooking, setIsPreparingBooking] = useState(false);
@@ -96,7 +104,9 @@ const GeneratePaymentLink = ({
       setPaymentData({
         url: activeLink.full_url,
         id: activeLink.payment_link_id,
-        isExpired: activeLink.is_expired
+        isExpired: activeLink.is_expired,
+        isUsed: activeLink.is_used,
+        requestedAmount: activeLink.requested_amount
       });
     }
   }, [activeLink]);
@@ -127,9 +137,13 @@ const GeneratePaymentLink = ({
   const showInvoiceActions =
     (!!paymentData && !paymentData.isExpired) || isPaidBooking || isPaymentPendingBooking || hasPendingAdditionalPayment;
   const showGenerateSection =
-    !isPaidBooking && !isPaymentPendingBooking && (!paymentData || (paymentData.isExpired && !activeLink));
+    !isPaidBooking &&
+    !isPaymentPendingBooking &&
+    (!paymentData || paymentData.isExpired || paymentData.isUsed);
   const shouldAttachDiscount =
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
+  const normalizedPaymentAmount = Number.parseFloat(paymentAmount);
+  const hasCustomPaymentAmount = paymentAmount.trim().length > 0;
 
   const handleGenerate = async () => {
     if (isReadOnly) return;
@@ -159,6 +173,11 @@ const GeneratePaymentLink = ({
       return;
     }
 
+    if (hasCustomPaymentAmount && (!Number.isFinite(normalizedPaymentAmount) || normalizedPaymentAmount <= 0)) {
+      toast.error("Enter a payment amount greater than $0.00");
+      return;
+    }
+
     try {
       let response:
         | { success?: boolean; data?: { url?: string; payment_link_id?: number } }
@@ -168,6 +187,7 @@ const GeneratePaymentLink = ({
           client_lead_id: nextLeadId,
           booking_id: nextBookingId,
           discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
+          requested_amount: hasCustomPaymentAmount ? normalizedPaymentAmount : undefined,
           expiry_hours: 2 // User requested 2 hours in example
         }).unwrap();
       } else {
@@ -175,6 +195,7 @@ const GeneratePaymentLink = ({
           lead_id: nextLeadId,
           booking_id: nextBookingId,
           discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
+          requested_amount: hasCustomPaymentAmount ? normalizedPaymentAmount : undefined,
           expiry_hours: 48
         }).unwrap();
       }
@@ -183,8 +204,11 @@ const GeneratePaymentLink = ({
         setPaymentData({
           url: response.data.url || "",
           id: response.data.payment_link_id,
-          isExpired: false
+          isExpired: false,
+          isUsed: false,
+          requestedAmount: hasCustomPaymentAmount ? normalizedPaymentAmount : null
         });
+        setPaymentAmount("");
         toast.success("Payment link generated successfully");
       }
     } catch (error: unknown) {
@@ -376,6 +400,33 @@ const GeneratePaymentLink = ({
               </div>
             </div>
 
+          {/*  <div className="space-y-2">
+              <label className={`text-sm block font-light ${isDark ? "text-[#9F9FA9]" : "text-black/60"}`}>
+                Payment Amount
+              </label>
+              <div className={`flex items-center rounded-xl border h-12 px-4 transition-colors ${
+                isDark ? "border-[#3D3D3D] bg-transparent text-white" : "border-[#D8D8D8] bg-white text-black"
+              }`}>
+                <span className={isDark ? "text-[#9F9FA9]" : "text-black/45"}>$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={paymentAmount}
+                  onChange={(event) => setPaymentAmount(event.target.value)}
+                  disabled={isReadOnly || isGenerating || isPreparingBooking}
+                  placeholder="Leave blank for full balance"
+                  className={`h-full min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-xs ${
+                    isDark ? "placeholder:text-[#9F9FA9]/70" : "placeholder:text-black/35"
+                  }`}
+                />
+              </div>
+              <p className={`text-xs ${isDark ? "text-[#9F9FA9]" : "text-black/45"}`}>
+                Use this for deposits or partial payments. The remaining balance stays pending.
+              </p>
+            </div> */}
+
             <Button
               onClick={handleGenerate}
               disabled={isReadOnly || isGenerating || isPreparingBooking}
@@ -404,6 +455,12 @@ const GeneratePaymentLink = ({
               </div>
 
               {!paymentData.isExpired && (
+                <>
+                {(paymentData.requestedAmount || activeLink?.requested_amount) ? (
+                  <p className={`text-sm ${isDark ? "text-white/70" : "text-black/60"}`}>
+                    Link amount: {formatCurrencyValue(paymentData.requestedAmount || activeLink?.requested_amount)}
+                  </p>
+                ) : null}
                 <div className="flex gap-2">
                   <div className={`flex-1 border rounded-lg px-4 py-3 text-xs lg:text-sm truncate transition-colors ${isDark ? "bg-[#101010] border-white/5 text-[#A1A1A1]" : "bg-white border-[#D8D8D8] text-black/60"
                     }`}>
@@ -418,6 +475,7 @@ const GeneratePaymentLink = ({
                     <ExternalLink size={18} />
                   </button>
                 </div>
+                </>
               )}
             </div>
 
