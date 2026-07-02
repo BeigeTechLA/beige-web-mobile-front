@@ -281,6 +281,8 @@ export default function ShootHeader({
 
   const manualPaidAmount = parseAmount(manualPaymentSummary.paidAmount);
   const manualPendingAmount = parseAmount(manualPaymentSummary.pendingAmount);
+  const summaryPaidAmount = getAmount(project?.paid_amount, project?.total_paid_amount);
+  const summaryPendingAmount = getAmount(project?.pending_amount, project?.due_amount);
   const hasMeaningfulManualProgress =
     Boolean(manualPaymentSummary.hasFullPayment) ||
     Boolean(manualPaymentSummary.isPartiallyPaid) ||
@@ -290,13 +292,21 @@ export default function ShootHeader({
 
   const paidAmountValue = isConvertedBooking
     ? convertedPaidAmount
-    : (hasMeaningfulManualProgress
+    : (summaryPaidAmount !== undefined
+      ? summaryPaidAmount
+      : hasMeaningfulManualProgress
       ? manualPaidAmount
       : isPaidStatus
         ? finalValue
         : 0);
 
-  const pendingAmountValue = isFullyDiscountedShoot ? 0 : Math.max(finalValue - paidAmountValue, 0);
+  const pendingAmountValue = isFullyDiscountedShoot
+    ? 0
+    : summaryPendingAmount !== undefined
+      ? summaryPendingAmount
+      : hasMeaningfulManualProgress && manualPendingAmount > 0
+        ? manualPendingAmount
+      : Math.max(finalValue - paidAmountValue, 0);
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`

@@ -1048,6 +1048,9 @@ export default function LeadDetailPage() {
     Number(lead?.pricing_breakdown?.total_paid ?? 0),
     Number(effectiveManualPaymentSummary.paidAmount ?? 0)
   );
+  const paymentActionOutstandingAmount = hasPendingAdditionalPayment
+    ? additionalPaymentDetails?.outstandingAmount ?? additionalPaymentOutstandingAmount
+    : effectiveManualPaymentSummary.pendingAmount;
 
   const manualPaymentEntries = useMemo(() => {
     return (lead?.activities || [])
@@ -2374,6 +2377,8 @@ export default function LeadDetailPage() {
               activeLink={lead?.active_payment_link}
               additionalPaymentStatus={rawAdditionalPayment?.payment_status}
               additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
+              paidAmount={effectiveManualPaymentSummary.paidAmount}
+              outstandingPaymentAmount={paymentActionOutstandingAmount}
               isReadOnly={isClosedLostLead}
               readOnlyMessage="Payment actions are disabled for Closed - Lost leads."
             />
