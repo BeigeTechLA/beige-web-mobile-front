@@ -10,12 +10,19 @@ import SocialLinksModal from "./SocialLinksModal";
 import UploadResumePortfolio from "./UploadResumePortfolio";
 import PortfolioLinksModal from "./PortfolioLinksModal";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
-import { useRegisterCreatorStep3Mutation } from "@/lib/redux/features/auth/authApi";
+import {
+  useRegisterCreatorStep1Mutation,
+  useRegisterCreatorStep2Mutation,
+  useRegisterCreatorStep3Mutation,
+} from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 import { pushToDataLayer } from "@/lib/gtm";
 
 export default function Step3Form({ data, setData, nextStep, prevStep }: { data: any, setData: any, nextStep: () => void, prevStep: () => void }) {
-  const [registerStep3, { isLoading }] = useRegisterCreatorStep3Mutation();
+  const [registerStep1, { isLoading: isStep1Loading }] = useRegisterCreatorStep1Mutation();
+  const [registerStep2, { isLoading: isStep2Loading }] = useRegisterCreatorStep2Mutation();
+  const [registerStep3, { isLoading: isStep3Loading }] = useRegisterCreatorStep3Mutation();
+  const isLoading = isStep1Loading || isStep2Loading || isStep3Loading;
 
   const [featuredWork, setFeaturedWork] = useState(data.featuredWork || []);
   const [links, setLinks] = useState(data.links || []);
@@ -61,13 +68,51 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
     }
 
     try {
-      if (!data.crew_member_id) {
-        toast.error("Session Error", { description: "Crew ID missing." });
-        return;
+      const step1FormData = new FormData();
+      step1FormData.append("first_name", data.firstName);
+      step1FormData.append("last_name", data.lastName);
+      step1FormData.append("email", data.email);
+      step1FormData.append("phone_number", data.phoneNumber);
+      step1FormData.append("password", data.password);
+
+      const locationAddress =
+        typeof data.location === "object" && data.location !== null
+          ? data.location.address
+          : data.location;
+      const locationLat =
+        typeof data.location === "object" && data.location !== null
+          ? data.location.lat
+          : null;
+      const locationLng =
+        typeof data.location === "object" && data.location !== null
+          ? data.location.lng
+          : null;
+
+      step1FormData.append("location", locationAddress || "");
+      if (typeof locationLat === "number") {
+        step1FormData.append("lat", locationLat.toString());
       }
+      if (typeof locationLng === "number") {
+        step1FormData.append("lng", locationLng.toString());
+      }
+      step1FormData.append("working_distance", data.workingDistance);
+      step1FormData.append("profile_photo", data.profileImage, "profile-picture.jpg");
+
+      const step1Response = await registerStep1(step1FormData).unwrap();
+      const crewMemberId = step1Response.crew_member_id;
+
+      await registerStep2({
+        crew_member_id: crewMemberId,
+        primary_role: data.roles,
+        years_of_experience: Number(data.yoe),
+        hourly_rate: Number(data.hourlyRate),
+        bio: data.bio || "",
+        skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
+        equipment_ownership: data.equipments || [],
+      }).unwrap();
 
       const formData = new FormData();
-      formData.append("crew_member_id", String(data.crew_member_id));
+      formData.append("crew_member_id", String(crewMemberId));
 
       // Optional: Resume
       const resumeFile = resume instanceof File ? resume : resume?.file;
@@ -133,6 +178,47 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
       // API CALL
       await registerStep3(formData).unwrap();
 
+      setData((prev) => ({
+        ...prev,
+        crew_member_id: crewMemberId,
+        user_id: step1Response?.user_id,
+      }));
+
+      pushToDataLayer("sign_up_step1_submit", {
+        cp_id: crewMemberId,
+        user_type: "Creative Partner",
+        page_name: "Creative Partner Signup Page: Step 1",
+        location_in_website: "creative_partner_signup_step1",
+        duration_on_page: performance.now() / 1000,
+        email: data.email,
+        phone: data.phoneNumber || null,
+        cp_signup_form: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          location: locationAddress,
+          shoot_radius: data.workingDistance,
+          profile_picture: data.profileImage ? true : false,
+        },
+      });
+
+      pushToDataLayer("sign_up_step2_submit", {
+        cp_id: crewMemberId,
+        user_type: "Creative Partner",
+        page_name: "Creative Partner Signup Page: Step 2",
+        location_in_website: "creative_partner_signup_step2",
+        duration_on_page: performance.now() / 1000,
+        email: data.email,
+        phone: data.phoneNumber || null,
+        cp_signup_form: {
+          primary_role: data.roles,
+          years_of_experience: Number(data.yoe),
+          hourly_rate: Number(data.hourlyRate),
+          bio: data.bio || "",
+          skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
+          equipment_ownership: data.equipments || [],
+        },
+      });
+
       // --- GA4 SIGNUP TRACKING ---
       // pushToDataLayer("sign_up_step3_submit", {
       //   cp_id: data.crew_member_id,
@@ -152,13 +238,13 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
 
       pushToDataLayer("sign_up", {
         method: "email", // Official standard parameter
-        user_id: data.crew_member_id,
+        user_id: crewMemberId,
         user_type: "Creative Partner",
         page_name: "Creative Partner Signup Page: Step 3",
         location_in_website: "creative_partner_signup_step3",
         duration_on_page: performance.now() / 1000,
         email: data.email,
-        phone: data.phone || null,
+        phone: data.phoneNumber || null,
         // cp_signup_form: {
         //   social_professional_link: JSON.stringify(socialLinksPayload),
         //   work_upload: JSON.stringify(workMetadata),

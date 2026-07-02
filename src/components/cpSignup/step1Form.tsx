@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft,
-  ArrowRight,
   Eye,
   EyeOff,
   Camera,
@@ -23,10 +22,8 @@ import {
 } from "lucide-react";
 import { distanceOptions } from "@/app/data/staticData";
 import Link from "next/link";
-import { useRegisterCreatorStep1Mutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/utils";
-import { pushToDataLayer } from "@/lib/gtm";
 
 interface SelectedImageState {
   file: File;
@@ -39,8 +36,6 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
   const [selectedImage, setSelectedImage] = useState<SelectedImageState | null>(null);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
-
-  const [registerStep1, { isLoading }] = useRegisterCreatorStep1Mutation();
 
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/20 p-4 text-white outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
@@ -104,77 +99,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
       return;
     }
 
-    try {
-      const formData = new FormData();
-      formData.append("first_name", data.firstName);
-      formData.append("last_name", data.lastName);
-      formData.append("email", data.email);
-      formData.append("phone_number", data.phoneNumber);
-      formData.append("password", data.password);
-
-      if (data.crew_member_id) {
-        formData.append("crew_member_id", data.crew_member_id);
-      }
-
-      if (data.user_id) {
-        formData.append("user_id", data.user_id);
-      }
-
-      const locationAddress =
-        typeof data.location === "object" && data.location !== null
-          ? data.location.address
-          : data.location;
-      const locationLat =
-        typeof data.location === "object" && data.location !== null
-          ? data.location.lat
-          : null;
-      const locationLng =
-        typeof data.location === "object" && data.location !== null
-          ? data.location.lng
-          : null;
-
-      formData.append("location", locationAddress || "");
-      if (typeof locationLat === "number") {
-        formData.append("lat", locationLat.toString());
-      }
-      if (typeof locationLng === "number") {
-        formData.append("lng", locationLng.toString());
-      }
-      formData.append("working_distance", data.workingDistance);
-      formData.append("profile_photo", data.profileImage, "profile-picture.jpg");
-
-      const response = await registerStep1(formData).unwrap();
-
-      setData({
-        ...data,
-        crew_member_id: response.crew_member_id,
-        user_id: response?.user_id,
-      });
-
-      // --- GA4 SIGNUP TRACKING ---
-      pushToDataLayer("sign_up_step1_submit", {
-        cp_id: response.crew_member_id,
-        user_type: "Creative Partner",
-        page_name: "Creative Partner Signup Page: Step 2",
-        location_in_website: "creative_partner_signup_step1",
-        duration_on_page: performance.now() / 1000,
-        email: data.email,
-        phone: data.phone || null,
-        cp_signup_form: {
-          first_name: data.firstName,
-          last_name: data.lastName,
-        location: locationAddress,
-        shoot_radius: data.workingDistance,
-        profile_picture: data.profileImage ? true : false,
-      }
-      });
-      // ---------------------------
-
-      toast.success("Step 1 completed!");
-      nextStep();
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Registration failed");
-    }
+    nextStep();
   };
 
   return (
@@ -323,7 +248,6 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           <button
             type="button"
             onClick={prevStep}
-            disabled={isLoading}
             className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/20 bg-[#101010] hover:bg-white/5 transition-colors disabled:opacity-50"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
@@ -332,15 +256,9 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           <button
             type="button"
             onClick={handleNext}
-            disabled={isLoading}
             className={`px-4 lg:px-10 h-14 lg:h-[76px] flex-1 flex items-center justify-center rounded-[12px] bg-[#E8D1AB] hover:bg-[#DCD1BE] transition-all disabled:opacity-50`}
           >
-            {isLoading ? (
-              <Loader2 className="animate-spin w-6 h-6 text-black" />
-            ) : (
-              // <ArrowRight className="w-6 h-6 text-black" />
-              <span className="lg:text-[20px] font-medium text-black">Next</span>
-            )}
+            <span className="lg:text-[20px] font-medium text-black">Next</span>
           </button>
         </div>
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,19 +8,13 @@ import AddEquipments from "./addEquipment";
 import AddSkills from "./addSkills";
 import {
   ArrowLeft,
-  ArrowRight,
   CircleDollarSign,
-  Loader2,
   Check,
 } from "lucide-react";
 import { roleOptions, videographerSkills, photographerSkills, editorSkills } from "@/app/data/staticData";
-import { useRegisterCreatorStep2Mutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
-import { pushToDataLayer } from "@/lib/gtm";
 
 export default function Step2Form({ data, setData, nextStep, prevStep }) {
-  const [registerStep2, { isLoading }] = useRegisterCreatorStep2Mutation();
-
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white placeholder:text-white/40 outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
 
   const noSpinners = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
@@ -59,11 +52,6 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   };
 
   const handleSubmit = async () => {
-    if (!data.crew_member_id) {
-      toast.error("Session Error", { description: "Crew ID missing. Please go back to step 1." });
-      return;
-    }
-
     if (!data.roles || data.roles.length === 0) {
       toast.error("Required Field", { description: "Please select at least one Role." });
       return;
@@ -85,47 +73,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
       return;
     }
 
-    try {
-      const payload = {
-        crew_member_id: data.crew_member_id,
-        primary_role: data.roles,
-        years_of_experience: Number(data.yoe),
-        hourly_rate: Number(data.hourlyRate),
-        bio: data.bio || "",
-        skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
-        equipment_ownership: data.equipments || [],
-      };
-
-      await registerStep2(payload).unwrap();
-
-      // --- GA4 SIGNUP TRACKING ---
-      pushToDataLayer("sign_up_step2_submit", {
-        cp_id: data.crew_member_id,
-        user_type: "Creative Partner",
-        page_name: "Creative Partner Signup Page: Step 2",
-        location_in_website: "creative_partner_signup_step2",
-        duration_on_page: performance.now() / 1000,
-        email: data.email,
-        phone: data.phone || null,
-        cp_signup_form: {
-          primary_role: data.roles,
-          years_of_experience: Number(data.yoe),
-          hourly_rate: Number(data.hourlyRate),
-          bio: data.bio || "",
-          skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
-          equipment_ownership: data.equipments || []
-        }
-      });
-      // ---------------------------
-
-
-      toast.success("Step 2 Completed");
-      nextStep();
-    } catch (err: any) {
-      toast.error("Failed to save", {
-        description: err?.data?.message || "Something went wrong."
-      });
-    }
+    nextStep();
   };
 
   const handleBioChange = (e) => {
@@ -272,7 +220,6 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           <button
             type="button"
             onClick={prevStep}
-            disabled={isLoading}
             className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/20 bg-[#101010] hover:bg-white/5 transition-colors disabled:opacity-50"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
@@ -281,15 +228,9 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isLoading}
             className={`px-4 lg:px-10 h-14 lg:h-[76px] flex-1 flex items-center justify-center rounded-[12px] bg-[#E8D1AB] hover:bg-[#DCD1BE] transition-all disabled:opacity-50`}
           >
-            {isLoading ? (
-              <Loader2 className="animate-spin w-6 h-6 text-black" />
-            ) : (
-              // <ArrowRight className="w-6 h-6 text-black" />
-              <span className="lg:text-[20px] font-medium text-black">Next</span>
-            )}
+            <span className="lg:text-[20px] font-medium text-black">Next</span>
           </button>
         </div>
 
