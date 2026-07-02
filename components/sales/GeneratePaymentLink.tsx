@@ -31,6 +31,8 @@ interface GeneratePaymentLinkProps {
   } | null;
   additionalPaymentStatus?: string | null;
   additionalPaymentOutstandingAmount?: number | string | null;
+  paidAmount?: number | string | null;
+  outstandingPaymentAmount?: number | string | null;
   isClientLead?: boolean;
   isDark?: boolean;
   isReadOnly?: boolean;
@@ -77,6 +79,8 @@ const GeneratePaymentLink = ({
   activeLink,
   additionalPaymentStatus,
   additionalPaymentOutstandingAmount,
+  paidAmount,
+  outstandingPaymentAmount,
   isClientLead,
   isDark = true,
   isReadOnly = false,
@@ -144,6 +148,22 @@ const GeneratePaymentLink = ({
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
   const normalizedPaymentAmount = Number.parseFloat(paymentAmount);
   const hasCustomPaymentAmount = paymentAmount.trim().length > 0;
+  const normalizedPaidAmount = Number(paidAmount ?? 0);
+  const normalizedOutstandingPaymentAmount = Number(
+    outstandingPaymentAmount ?? additionalPaymentOutstandingAmount ?? 0
+  );
+  const hasOutstandingPaymentAmount =
+    Number.isFinite(normalizedOutstandingPaymentAmount) &&
+    normalizedOutstandingPaymentAmount > 0.009;
+  const hasPaidAmount =
+    Number.isFinite(normalizedPaidAmount) &&
+    normalizedPaidAmount > 0.009;
+  const requestedPaymentAmount =
+    hasCustomPaymentAmount
+      ? normalizedPaymentAmount
+      : hasOutstandingPaymentAmount
+        ? normalizedOutstandingPaymentAmount
+        : undefined;
 
   const handleGenerate = async () => {
     if (isReadOnly) return;
@@ -187,7 +207,7 @@ const GeneratePaymentLink = ({
           client_lead_id: nextLeadId,
           booking_id: nextBookingId,
           discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
-          requested_amount: hasCustomPaymentAmount ? normalizedPaymentAmount : undefined,
+          requested_amount: requestedPaymentAmount,
           expiry_hours: 2 // User requested 2 hours in example
         }).unwrap();
       } else {
@@ -195,7 +215,7 @@ const GeneratePaymentLink = ({
           lead_id: nextLeadId,
           booking_id: nextBookingId,
           discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
-          requested_amount: hasCustomPaymentAmount ? normalizedPaymentAmount : undefined,
+          requested_amount: requestedPaymentAmount,
           expiry_hours: 48
         }).unwrap();
       }
@@ -206,7 +226,7 @@ const GeneratePaymentLink = ({
           id: response.data.payment_link_id,
           isExpired: false,
           isUsed: false,
-          requestedAmount: hasCustomPaymentAmount ? normalizedPaymentAmount : null
+          requestedAmount: requestedPaymentAmount ?? null
         });
         setPaymentAmount("");
         toast.success("Payment link generated successfully");
@@ -437,7 +457,12 @@ const GeneratePaymentLink = ({
             </Button>
             {hasPendingAdditionalPayment && (
               <p className={`text-xs ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
-                Outstanding amount: {formatCurrencyValue(additionalPaymentOutstandingAmount)}.
+                Outstanding amount: {formatCurrencyValue(normalizedOutstandingPaymentAmount)}.
+              </p>
+            )}
+            {(hasPaidAmount || hasOutstandingPaymentAmount) && (
+              <p className={`text-xs ${isDark ? "text-[#9F9FA9]" : "text-black/45"}`}>
+                Paid: {formatCurrencyValue(normalizedPaidAmount)}. Pending: {formatCurrencyValue(normalizedOutstandingPaymentAmount)}.
               </p>
             )}
           </div>
@@ -531,7 +556,7 @@ const GeneratePaymentLink = ({
               Additional payment is pending.
             </p>
             <p className={`text-xs mt-1 ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
-              Outstanding amount: {formatCurrencyValue(additionalPaymentOutstandingAmount)}. Use the buttons above to view the invoice or send it to the client.
+              Outstanding amount: {formatCurrencyValue(normalizedOutstandingPaymentAmount)}. Use the buttons above to view the invoice or send it to the client.
             </p>
           </div>
         ) : (
