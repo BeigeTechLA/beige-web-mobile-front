@@ -1,5 +1,6 @@
 type InvoiceUrlOptions = {
   manual?: boolean;
+  receipt?: boolean;
   download?: boolean;
   cacheBust?: boolean;
 };
@@ -8,10 +9,11 @@ export const buildBeigeInvoiceUrl = (
   bookingId: string | number,
   options: InvoiceUrlOptions = {}
 ) => {
-  const { manual = false, download = false, cacheBust = false } = options;
+  const { manual = false, receipt = false, download = false, cacheBust = false } = options;
   const params = new URLSearchParams();
 
   if (manual) params.set("manual", "1");
+  if (receipt) params.set("receipt", "1");
   if (download) params.set("download", "1");
   if (cacheBust) params.set("t", String(Date.now()));
 

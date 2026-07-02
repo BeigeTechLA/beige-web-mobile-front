@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
   Calendar,
+  CalendarX,
   ChevronLeft,
   History,
   Link,
@@ -32,6 +33,7 @@ import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManag
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
+  isVisibleToNonAdminByVisibleUntil,
   isRecentWithinHours,
   mapExternalWorkspaceToFolderCard,
   type UiFolderItem,
@@ -88,6 +90,14 @@ const getPageItems = (currentPage: number, totalPages: number) => {
   return items;
 };
 
+const getErrorMessage = (err: unknown, fallback: string) =>
+  err instanceof Error ? err.message : fallback;
+
+const isVisibilityExpiredFolder = (folder: UiFolderItem) =>
+  folder.category === "Common Event" &&
+  Boolean(folder.visibleUntil) &&
+  !isVisibleToNonAdminByVisibleUntil(folder.visibleUntil);
+
 export default function AdminFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -109,6 +119,8 @@ export default function AdminFolderManagerPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
+  const [isVisibilityModalOpen, setIsVisibilityModalOpen] = useState(false);
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [boardProjects, setBoardProjects] = useState<UiFolderItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -136,9 +148,12 @@ export default function AdminFolderManagerPage() {
     all: 0,
     shoot: 0,
     common: 0,
+    expired: 0,
     recent: 0,
   });
   const [error, setError] = useState<string | null>(null);
+  const projectsRequestRef = useRef(0);
+  const boardProjectsRequestRef = useRef(0);
   const boardTotalsRequestRef = useRef(0);
 
   const getUpdatedTimestamp = (value?: string) => {
@@ -163,40 +178,74 @@ export default function AdminFolderManagerPage() {
     { name: "All folders", icon: FolderOpen },
     { name: "Shoot folders", icon: Link },
     { name: "Common events", icon: Calendar },
+    { name: "Visibility expired", icon: CalendarX },
     { name: "Recent", icon: History },
     // { name: "Shared", icon: Share2 },
     // { name: "Trash", icon: Trash2 },
   ];
 
+  const handleTabChange = (nextTab: string) => {
+    // Invalidate any in-flight grid request immediately so late responses cannot
+    // flash stale data after the active tab changes.
+    projectsRequestRef.current += 1;
+    setLoading(true);
+    setError(null);
+    setCurrentPage(1);
+    setBoardPage(1);
+    setSelectedTab(nextTab);
+  };
+
   const loadProjects = async (page: number = 1, searchQuery: string = debouncedSearchTerm) => {
+    const requestId = ++projectsRequestRef.current;
+
     try {
-      setLoading(true);
-      setError(null);
+      if (requestId === projectsRequestRef.current) {
+        setLoading(true);
+        setError(null);
+      }
+
       const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
         page,
         limit: PAGE_SIZE,
         search: searchQuery,
+        workspaceType:
+          selectedTab === "Common events"
+            ? "common-events"
+            : selectedTab === "Visibility expired"
+            ? "visibility-expired"
+              : undefined,
       });
+
+      if (requestId !== projectsRequestRef.current) return;
 
       setProjects(workspaces.map((workspace) => mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")));
       setPagination(serverPagination);
       if (serverPagination.page !== page) {
         setCurrentPage(serverPagination.page);
       }
-    } catch (err: any) {
-      setError(err?.message || "Failed to load file manager projects");
+    } catch (err: unknown) {
+      if (requestId !== projectsRequestRef.current) return;
+      setError(getErrorMessage(err, "Failed to load file manager projects"));
     } finally {
-      setLoading(false);
+      if (requestId === projectsRequestRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const loadBoardProjects = useCallback(
     async (page: number = 1, searchQuery: string = debouncedSearchTerm, append = false) => {
+      const requestId = ++boardProjectsRequestRef.current;
+
       try {
         if (append) {
-          setBoardLoadingMore(true);
+          if (requestId === boardProjectsRequestRef.current) {
+            setBoardLoadingMore(true);
+          }
         } else {
-          setBoardLoadingInitial(true);
+          if (requestId === boardProjectsRequestRef.current) {
+            setBoardLoadingInitial(true);
+          }
         }
 
         const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
@@ -204,6 +253,8 @@ export default function AdminFolderManagerPage() {
           limit: PAGE_SIZE,
           search: searchQuery,
         });
+
+        if (requestId !== boardProjectsRequestRef.current) return;
 
         const mapped = workspaces.map((workspace) =>
           mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")
@@ -223,11 +274,14 @@ export default function AdminFolderManagerPage() {
         });
         setBoardPagination(serverPagination);
         setBoardPage(serverPagination.page || page);
-      } catch (err: any) {
-        setError(err?.message || "Failed to load file manager projects");
+      } catch (err: unknown) {
+        if (requestId !== boardProjectsRequestRef.current) return;
+        setError(getErrorMessage(err, "Failed to load file manager projects"));
       } finally {
-        setBoardLoadingInitial(false);
-        setBoardLoadingMore(false);
+        if (requestId === boardProjectsRequestRef.current) {
+          setBoardLoadingInitial(false);
+          setBoardLoadingMore(false);
+        }
       }
     },
     [debouncedSearchTerm]
@@ -236,7 +290,7 @@ export default function AdminFolderManagerPage() {
   useEffect(() => {
     setCurrentPage(1);
     setBoardPage(1);
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, selectedTab]);
 
   useEffect(() => {
     let mounted = true;
@@ -250,7 +304,7 @@ export default function AdminFolderManagerPage() {
     return () => {
       mounted = false;
     };
-  }, [currentPage, debouncedSearchTerm]);
+  }, [currentPage, debouncedSearchTerm, selectedTab]);
 
   useEffect(() => {
     if (viewMode !== "board") return;
@@ -316,6 +370,7 @@ export default function AdminFolderManagerPage() {
           all: applySharedFilters(allItems).length,
           shoot: applySharedFilters(allItems.filter((item) => item.category !== "Common Event")).length,
           common: applySharedFilters(allItems.filter((item) => item.category === "Common Event")).length,
+          expired: applySharedFilters(allItems.filter(isVisibilityExpiredFolder)).length,
           recent: applySharedFilters(
             allItems.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5))
           ).length,
@@ -364,6 +419,8 @@ export default function AdminFolderManagerPage() {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
     } else if (selectedTab === "Common events") {
       items = items.filter((item) => item.category === "Common Event");
+    } else if (selectedTab === "Visibility expired") {
+      items = items.filter(isVisibilityExpiredFolder);
     }
     // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
     //   items = [];
@@ -399,6 +456,14 @@ export default function AdminFolderManagerPage() {
         isLoadingMore: boardLoadingMore,
       },
       {
+        id: "visibility-expired",
+        title: "Visibility expired",
+        items: applySharedFilters(boardProjects.filter(isVisibilityExpiredFolder)),
+        totalCount: boardColumnTotals.expired,
+        hasMore: boardPagination.hasNextPage,
+        isLoadingMore: boardLoadingMore,
+      },
+      {
         id: "recent",
         title: "Recent",
         items: applySharedFilters(
@@ -417,6 +482,7 @@ export default function AdminFolderManagerPage() {
       boardColumnTotals.all,
       boardColumnTotals.shoot,
       boardColumnTotals.common,
+      boardColumnTotals.expired,
       boardColumnTotals.recent,
       status,
       selectedDate,
@@ -446,8 +512,8 @@ export default function AdminFolderManagerPage() {
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to download workspace");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to download workspace"));
     }
   };
 
@@ -462,27 +528,50 @@ export default function AdminFolderManagerPage() {
       setMenuAnchor(null);
       setSelectedFolder(null);
       await loadProjects(currentPage, debouncedSearchTerm);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to delete workspace");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to delete workspace"));
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleCreateCommonEventFolder = async ({ name }: { name: string }) => {
+  const handleCreateCommonEventFolder = async ({ name, visibleUntil }: { name: string; visibleUntil?: string | null }) => {
     const eventName = String(name || "").trim();
     if (!eventName) return;
     try {
       setIsCreatingEvent(true);
-      await fileManagerApi.createCommonEvent(eventName);
+      await fileManagerApi.createCommonEvent(eventName, { visibleUntil });
       toast.success("Common event folder created");
       setCurrentPage(1);
       await loadProjects(1, debouncedSearchTerm);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to create common event folder");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create common event folder");
     } finally {
       setIsCreatingEvent(false);
     }
+  };
+
+  const handleUpdateCommonEventVisibility = async ({ visibleUntil }: { name: string; visibleUntil?: string | null }) => {
+    if (!selectedFolder?.id) return;
+    try {
+      setIsUpdatingVisibility(true);
+      await fileManagerApi.updateCommonEventVisibility(String(selectedFolder.id), visibleUntil || null);
+      toast.success("Common event visibility updated");
+      await loadProjects(currentPage, debouncedSearchTerm);
+      if (viewMode === "board") {
+        await loadBoardProjects(1, debouncedSearchTerm, false);
+      }
+      setIsVisibilityModalOpen(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to update common event visibility");
+    } finally {
+      setIsUpdatingVisibility(false);
+    }
+  };
+
+  const openVisibilityModal = (folder: UiFolderItem) => {
+    setSelectedFolder(folder);
+    setIsVisibilityModalOpen(true);
   };
 
   const topbarActions = (
@@ -529,7 +618,7 @@ export default function AdminFolderManagerPage() {
               return (
                 <Button
                   key={tab.name}
-                  onClick={() => setSelectedTab(tab.name)}
+                  onClick={() => handleTabChange(tab.name)}
                   className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${isActive
                     ? isDark
                       ? "bg-white text-black shadow-lg scale-[1.02]"
@@ -609,6 +698,7 @@ export default function AdminFolderManagerPage() {
                   fileCount={folder.fileCount}
                   category={folder.category}
                   isLinked={folder.isLinked}
+                  visibilityExpired={isVisibilityExpiredFolder(folder)}
                   lastOpened={folder.lastOpened}
                   userInitials={folder.userInitials}
                   onOpenLinkModal={() => {
@@ -623,8 +713,8 @@ export default function AdminFolderManagerPage() {
                       if (result?.url) {
                         window.open(result.url, "_blank", "noopener,noreferrer");
                       }
-                    } catch (err: any) {
-                      toast.error(err?.message || "Failed to download workspace");
+                    } catch (err: unknown) {
+                      toast.error(getErrorMessage(err, "Failed to download workspace"));
                     }
                   }}
                   onDelete={() => {
@@ -635,6 +725,9 @@ export default function AdminFolderManagerPage() {
                     setSelectedFolder(folder);
                     setIsShareModalOpen(true);
                   }}
+                  onEditVisibility={
+                    folder.category === "Common Event" ? () => openVisibilityModal(folder) : undefined
+                  }
                   onRename={() => toast.info("Workspace rename will be the next safe step.")}
                 />
               ))}
@@ -653,6 +746,7 @@ export default function AdminFolderManagerPage() {
                   fileCount={folder.fileCount}
                   category={folder.category}
                   isLinked={folder.isLinked}
+                  visibilityExpired={isVisibilityExpiredFolder(folder)}
                   lastOpened={folder.lastOpened}
                   userInitials={folder.userInitials}
                   onOpenLinkModal={() => {
@@ -668,8 +762,8 @@ export default function AdminFolderManagerPage() {
                       if (result?.url) {
                         window.open(result.url, "_blank", "noopener,noreferrer");
                       }
-                    } catch (err: any) {
-                      toast.error(err?.message || "Failed to download workspace");
+                    } catch (err: unknown) {
+                      toast.error(getErrorMessage(err, "Failed to download workspace"));
                     }
                   }}
                   onDelete={() => {
@@ -680,6 +774,9 @@ export default function AdminFolderManagerPage() {
                     setSelectedFolder(folder);
                     setIsShareModalOpen(true);
                   }}
+                  onEditVisibility={
+                    folder.category === "Common Event" ? () => openVisibilityModal(folder) : undefined
+                  }
                   onRename={() => toast.info("Workspace rename will be the next safe step.")}
                 />
               )}
@@ -691,7 +788,7 @@ export default function AdminFolderManagerPage() {
                 {filteredFolders.map((folder) => (
                   <MobileFolderRow
                     key={folder.id}
-                    folder={folder}
+                    folder={{ ...folder, visibilityExpired: isVisibilityExpiredFolder(folder) }}
                     handleOpenMenu={(e) => handleOpenMenu(e, folder)}
                     isDark={isDark}
                   />
@@ -748,7 +845,12 @@ export default function AdminFolderManagerPage() {
 
                         {/* Linking Badges */}
                         <td className="py-5 px-6">
-                          {folder.isLinked ? (
+                          {isVisibilityExpiredFolder(folder) ? (
+                            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-500/15 px-2 py-1 text-[11px] font-medium leading-none text-amber-200">
+                              <CalendarX size={16} />
+                              Visibility expired
+                            </span>
+                          ) : folder.isLinked ? (
                             <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#6ce9a6]/20 bg-[#D4FFE4] px-2 py-1 text-[11px] font-medium leading-none text-[#16A34A]">
                               <LinkIcon size={16} />
                               Linked
@@ -858,6 +960,11 @@ export default function AdminFolderManagerPage() {
             onDownload={handleDownloadSelectedFolder}
             onShare={() => setIsShareModalOpen(true)}
             onDelete={() => setIsDeleteModalOpen(true)}
+            onEditVisibility={
+              selectedFolder?.category === "Common Event" && selectedFolder
+                ? () => openVisibilityModal(selectedFolder)
+                : undefined
+            }
             onRename={() => toast.info("Workspace rename will be the next safe step.")}
             isDark={isDark}
           />
@@ -887,7 +994,29 @@ export default function AdminFolderManagerPage() {
           }}
           onCreate={handleCreateCommonEventFolder}
           title="Create Common Event"
-          description="Create a common folder for admin uploads and file sharing"
+          description="Create a common folder for admin uploads and affiliate access"
+          showVisibilityUntil
+          allowPastVisibleUntil
+          submitLabel="Create Folder"
+          submittingLabel={isCreatingEvent ? "Creating..." : "Creating..."}
+          isDark={isDark}
+        />
+
+        <CreateFolderModal
+          isOpen={isVisibilityModalOpen}
+          onClose={() => {
+            if (!isUpdatingVisibility) setIsVisibilityModalOpen(false);
+          }}
+          onCreate={handleUpdateCommonEventVisibility}
+          title="Edit Visibility"
+          description="Set how long clients and creative partners can see this event"
+          initialName={selectedFolder?.title || ""}
+          initialVisibleUntil={selectedFolder?.visibleUntil || null}
+          showVisibilityUntil
+          allowPastVisibleUntil
+          nameDisabled
+          submitLabel="Save Date"
+          submittingLabel="Saving..."
           isDark={isDark}
         />
 

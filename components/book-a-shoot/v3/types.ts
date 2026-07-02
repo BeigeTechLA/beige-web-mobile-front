@@ -30,7 +30,7 @@ export type BookingDataV3 = {
     timeZone?: string;
   }[];
   // Service & Content
-  contentType: ("videographer" | "photographer" | "cinematographer" | "editing" | "studio")[];
+  contentType: ("studio" | "videographer" | "photographer" | "cinematographer" | "editing" | "studio")[];
   shootType: string;
 
   // Studio specific data

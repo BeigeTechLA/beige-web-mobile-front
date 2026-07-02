@@ -138,6 +138,9 @@ export const BookAShootV3 = () => {
           setDraftBookingId(result.data.booking_id);
           setLeadId(result.data.lead_id);
           setLeadTracked(true);
+
+          // generate_lead GA4 event can be called here but the parent function (trackLoggedInUser) is currently not being called. Hence not adding
+
           console.log("Lead tracked for logged-in user:", result.data);
         } catch (error) {
           console.error("Failed to track lead for logged-in user:", error);
@@ -255,24 +258,53 @@ export const BookAShootV3 = () => {
           edits_needed: formData.editsNeeded
         };
 
+        let combinedEditTypes = "none";
         if (formData.editsNeeded) {
           formFields.photo_edit_types = formData.photoEditTypes.join(", ");
           formFields.video_edit_types = formData.videoEditTypes.join(", ");
+
+          const edits = [
+            ...(formData.photoEditTypes || []),
+            ...(formData.videoEditTypes || [])
+          ].filter(Boolean); // Remove any empty/falsy values
+
+          combinedEditTypes = edits.length > 0 ? edits.join(", ") : "none";
         }
 
         // add GA event on click of "Continue" in the first step
+        pushToDataLayer("generate_lead", {
+          value: 0, // Standard parameters
+          currency: "USD",
+          page_name: "Book-a-shoot Page",  // Custom data schema
+          location_in_website: "book_a_shoot_step1",
+          duration_on_page: performance.now() / 1000,
+          user_id: user?.id || "Guest",
+          user_type: userTypeName || "Guest",
+          booking_id: result?.data?.booking_id,
+          email: formData.email,
+        });
+
         pushToDataLayer("service_details_submitted_step1", {
           type: "Action Tracking",
           page_name: "Book-a-shoot Page",
           location_in_website: "book_a_shoot_step1",
           duration_on_page: performance.now() / 1000,
           phone: user?.phone_number,
-          user_id: user?.id,
-          user_type: userTypeName,
+          user_id: user?.id || "Guest",
+          user_type: userTypeName || "Guest",
           booking_id: result?.data?.booking_id,
-          booking_form_fields: formFields,
           email: formData.email,
+
+          // Flat fields passed individually for seamless GA4 tracking:
+          form_content_type: formFields.content_type,
+          form_shoot_type: formFields.shoot_type,
+          form_shoot_date_time: formFields.shoot_date_time,
+          form_edits_needed: formFields.edits_needed ? "true" : "false", // Convert boolean to a clear string
+          form_edit_types: combinedEditTypes,
+          form_booking_type: formData.bookingType,
         });
+
+        console.log("Generate_lead pushed to DL");
 
         setLeadTracked(true);
         if (isStudioFlow) {
@@ -350,12 +382,14 @@ export const BookAShootV3 = () => {
         page_name: "Book-a-shoot Page",
         location_in_website: `book_a_shoot_step${crewMatchingStep}`,
         duration_on_page: performance.now() / 1000,
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : formData.email,
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.user_type_id !== undefined
+          ? USER_TYPE[user.user_type_id]
+          : "Guest",
         email: isAuthenticated ? user?.email : "Unknown",
         phone: isAuthenticated ? user?.phone_number : "Unknown",
         booking_id: formData?.bookingId,
-        booking_form_fields: formFields
+        // booking_form_fields: formFields
       });
 
       // Step 3 -> Loading -> Crew Selection
@@ -474,7 +508,7 @@ export const BookAShootV3 = () => {
       const calculateDurationHours = () => {
         if (formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0) {
           const total = formData.bookingDays.reduce((sum, d) => sum + calculateDayHours(d.startTime, d.endTime), 0);
-          return Math.max(1, Math.round(total));
+          return Math.max(1, Math.round(total * 100) / 100);
         }
 
         if (!formData.startDate || !formData.endDate) return 3; // Default fallback
@@ -482,21 +516,33 @@ export const BookAShootV3 = () => {
         const end = parseDate(formData.endDate);
         if (!start || !end) return 3;
         const diffMs = end.getTime() - start.getTime();
-        // Round to nearest hour, minimum 1
-        return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+        // Preserve quarter/half hours so saved pricing matches confirmation.
+        return Math.max(1, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
       };
 
       const isEditingOnly =
         formData.contentType.length === 1 &&
         formData.contentType.includes("editing");
-      const shootHours = isEditingOnly ? 0 : calculateDurationHours();
       const selectedStudios = normalizeSelectedStudios(formData);
       const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
-      const isStudioBooking = formData.shootType === "studio";
-      const useContentHouseInclusivePricing =
-        isStudioBooking && selectedStudios.length > 0;
-      const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
       const primaryStudio = selectedStudios[0];
+      const shootHours = isEditingOnly
+        ? 0
+        : primaryStudio
+          ? calculateDayHours(primaryStudio.startTime, primaryStudio.endTime)
+          : calculateDurationHours();
+      const isStudioBooking = formData.shootType === "studio";
+      const hasSelectedCreatorPricing =
+        !isEditingOnly &&
+        (
+          (formData.selectedCrewIds?.length || 0) > 0 ||
+          Number(formData.roleCounts?.videographer || 0) > 0 ||
+          Number(formData.roleCounts?.photographer || 0) > 0 ||
+          Number(formData.roleCounts?.cinematographer || 0) > 0
+        );
+      const useContentHouseInclusivePricing =
+        isStudioBooking && selectedStudios.length > 0 && !hasSelectedCreatorPricing;
+      const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
       const studioStartDateTime = primaryStudio?.selectedDate && primaryStudio?.startTime
         ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
         : "";
@@ -563,6 +609,7 @@ export const BookAShootV3 = () => {
       // 5. SAVE QUOTE (API Call)
       // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
       let savedQuoteId: number | null = null;
+      let savedQuoteTotal: number | null = null;
 
       const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
         ? formData.bookingDays
@@ -599,10 +646,20 @@ export const BookAShootV3 = () => {
             }
             quotePayload.notes = formData.specialInstructions || undefined;
             quotePayload.studio_total = selectedStudiosTotal || 0;
+            quotePayload.studio_items = selectedStudios.map((studio) => ({
+              studio_id: studio.studioId,
+              name: studio.name,
+              quantity: studio.quantity,
+              unit_price: studio.unitPrice,
+              total: studio.totalPrice,
+              pricing_mode: studio.pricingMode,
+            }));
           }
 
           const savedQuote = await saveQuote(quotePayload).unwrap();
           savedQuoteId = savedQuote.quote_id;
+          savedQuoteTotal = savedQuote.total;
+
           console.log("Pricing Quote Generated:", savedQuoteId);
         } catch (quoteError) {
           console.error("Pricing Calculation Error:", quoteError);
@@ -698,21 +755,44 @@ export const BookAShootV3 = () => {
       }
 
       // add GA event on payment submit in step4
-      pushToDataLayer("booking_payment_confirm_submit", {
-        type: "Action Tracking",
+      // pushToDataLayer("booking_payment_confirm_submit", {
+      //   type: "Action Tracking",
+      //   page_name: "Book-a-shoot Page",
+      //   location_in_website: "book_a_shoot_review_confirm",
+      //   user_id: isAuthenticated ? user?.id : "Unknown",
+      //   user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",,
+      //   email: isAuthenticated ? user?.email : formData.email,
+      //   phone: isAuthenticated ? user?.phone_number : formData.phone,
+      //   duration_on_page: performance.now() / 1000,
+      //   booking_id: formData?.bookingId,
+      //   booking_form_fields: {
+      //     full_name: formData.fullName,
+      //     phone: formData.phone,
+      //   }
+      // });
+
+      // --- NATIVE GA4 BEGIN_CHECKOUT FOR DIRECT BOOKING FLOW ---
+      pushToDataLayer("begin_checkout", {
+        currency: "USD",
+        value: savedQuoteTotal || 0,
+
         page_name: "Book-a-shoot Page",
-        location_in_website: "book_a_shoot_review_confirm",
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+        location_in_website: "book_a_shoot_review_confirm_btn",
+
         email: isAuthenticated ? user?.email : formData.email,
-        phone: isAuthenticated ? user?.phone_number : formData.phone,
-        duration_on_page: performance.now() / 1000,
-        booking_id: formData?.bookingId,
-        booking_form_fields: {
-          full_name: formData.fullName,
-          phone: formData.phone,
-        }
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+        full_name: formData.fullName,
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
+
+        booking_id: submissionResult?.booking_id || draftBookingId,
+        items: [{
+          item_name: finalBookingData?.order_name || "Shoot Booking",
+          price: savedQuoteTotal || 0,
+          quantity: 1
+        }]
       });
+      // ---------------------------------------------------------
 
       toast.success("Booking Secured!", {
         description: "Redirecting to secure payment gateway...",

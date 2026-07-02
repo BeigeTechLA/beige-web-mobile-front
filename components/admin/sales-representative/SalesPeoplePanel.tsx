@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, UserRound } from "lucide-react";
 
@@ -53,6 +53,37 @@ const getStatusMeta = (rep: SalesPerson, isDark: boolean) => {
   };
 };
 
+const ITEMS_PER_PAGE = 10;
+
+const buildPaginationItems = (currentPage: number, totalPages: number) => {
+  if (totalPages <= 1) return [1];
+
+  const pages: Array<number | "..."> = [];
+  const delta = 1;
+  const left = Math.max(2, currentPage - delta);
+  const right = Math.min(totalPages - 1, currentPage + delta);
+
+  pages.push(1);
+
+  if (left > 2) {
+    pages.push("...");
+  }
+
+  for (let page = left; page <= right; page += 1) {
+    pages.push(page);
+  }
+
+  if (right < totalPages - 1) {
+    pages.push("...");
+  }
+
+  if (totalPages > 1) {
+    pages.push(totalPages);
+  }
+
+  return pages;
+};
+
 export default function SalesPeoplePanel({
   salesPeople,
   loading,
@@ -61,6 +92,7 @@ export default function SalesPeoplePanel({
   detailBasePath,
 }: SalesPeoplePanelProps) {
   const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredSalesPeople = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -72,6 +104,22 @@ export default function SalesPeoplePanel({
         .some((value) => String(value).toLowerCase().includes(normalizedQuery))
     );
   }, [salesPeople, searchQuery, isDark]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSalesPeople.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedSalesPeople = filteredSalesPeople.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleOpenDetails = (rep: SalesPerson) => {
     router.push(`${detailBasePath}/${rep.id}`);
@@ -104,7 +152,7 @@ export default function SalesPeoplePanel({
                 </td>
               </tr>
             ) : (
-              filteredSalesPeople.map((rep) => (
+              paginatedSalesPeople.map((rep) => (
                 (() => {
                   const status = getStatusMeta(rep, isDark);
 
@@ -163,7 +211,7 @@ export default function SalesPeoplePanel({
             No sales people found.
           </div>
         ) : (
-          filteredSalesPeople.map((rep) => (
+          paginatedSalesPeople.map((rep) => (
             (() => {
               const status = getStatusMeta(rep, isDark);
 
@@ -193,6 +241,62 @@ export default function SalesPeoplePanel({
           ))
         )}
       </div>
+      {!loading && filteredSalesPeople.length > 0 ? (
+        <div className={`flex flex-col gap-4 border-t px-4 py-4 lg:flex-row lg:items-center lg:justify-between ${isDark ? "border-[#333] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
+          <p className={`text-sm ${isDark ? "text-white/45" : "text-[#666]"}`}>
+            Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredSalesPeople.length)} of{" "}
+            {filteredSalesPeople.length} users
+          </p>
+
+          {totalPages > 1 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={safeCurrentPage === 1}
+                className={`inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${isDark ? "border-[#333] bg-[#1A1A1A] text-white/60 hover:bg-white/10 hover:text-white" : "border-[#E5E5E5] bg-white text-[#333] hover:bg-zinc-50"}`}
+              >
+                Previous
+              </button>
+
+              {paginationItems.map((item, index) =>
+                item === "..." ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className={`flex h-9 w-9 items-center justify-center text-sm ${isDark ? "text-white/30" : "text-[#999]"}`}
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setCurrentPage(item)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition ${
+                      safeCurrentPage === item
+                        ? "border-[#E5D5B8] bg-[#E5D5B8] text-black"
+                        : isDark
+                          ? "border-[#333] bg-[#1A1A1A] text-white/60 hover:bg-white/10 hover:text-white"
+                          : "border-[#E5E5E5] bg-white text-[#333] hover:bg-zinc-50"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className={`inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${isDark ? "border-[#333] bg-[#1A1A1A] text-white/60 hover:bg-white/10 hover:text-white" : "border-[#E5E5E5] bg-white text-[#333] hover:bg-zinc-50"}`}
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

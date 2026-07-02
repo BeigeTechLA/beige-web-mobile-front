@@ -668,9 +668,6 @@ export default function CreatorDashboardPage() {
           <h1 className="text-2xl lg:text-3xl font-bold">Welcome back, {user?.name || "Partner"}</h1>
           <p className="text-sm lg:text-base text-white/60">Performance overview and shoot schedule</p>
         </div>
-        {/* <div className="flex items-center gap-3">
-
-        </div> */}
       </div>
 
       {/* Stats Cards (Luxury Style) */}

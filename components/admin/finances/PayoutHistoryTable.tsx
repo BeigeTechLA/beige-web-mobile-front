@@ -4,13 +4,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   ChevronDown,
-  ChevronRight,
   CircleAlert,
   Loader2,
+  MoreVertical,
   Pencil,
   Search,
+  ChevronRight,
+  ChevronLeft
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import {
   Select,
   SelectContent,
@@ -29,15 +31,15 @@ const PayoutStatusBadge = ({
   mobile?: boolean;
 }) => {
   const styles = {
-    Completed: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
-    Pending: "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-    Rejected: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
+    Completed: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]/20",
+    Pending: "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]/20",
+    Rejected: "bg-[#FEF3F2] text-[#B42318] border-[#FEF3F2]/20",
   };
 
-  const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
+  const padding = mobile ? "px-4 py-1 text-xs" : "px-5 py-2 text-sm";
 
   return (
-    <span className={`${padding} rounded-full font-semibold border ${styles[status]}`}>
+    <span className={`${padding} rounded-full font-medium border ${styles[status]}`}>
       {status}
     </span>
   );
@@ -110,8 +112,7 @@ export default function PayoutHistoryTable({
   onTypeChange,
   itemsPerPage = 7,
 }: PayoutHistoryTableProps) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const {isDark} =useResolvedTheme();
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(rows[0]?.id ?? null);
 
@@ -133,87 +134,77 @@ export default function PayoutHistoryTable({
     setExpandedRowId((current) => (current === id ? null : id));
   };
 
-  const renderDetailPanel = (row: PayoutHistoryRow) => (
-    <tr key={`${row.id}-details`}>
-      <td colSpan={7} className="px-5 pb-6 pt-0">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div
-            className={`rounded-xl border p-5 ${
-              isDark ? "border-[#2A2A2A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
-            }`}
-          >
-            <h4 className={`text-lg font-medium mb-5 ${isDark ? "text-white" : "text-[#171717]"}`}>
-              Payout Breakdown
-            </h4>
-            <div className="space-y-4">
-              <div className="flex justify-between text-lg">
-                <span className={isDark ? "text-white/60" : "text-[#676767]"}>
-                  Service Earnings
-                </span>
-                <span className={isDark ? "text-white" : "text-[#171717]"}>
-                  {row.breakdown?.earnings}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span className={isDark ? "text-white/60" : "text-[#676767]"}>
-                  Platform Fee (12%)
-                </span>
-                <span className={isDark ? "text-white" : "text-[#171717]"}>
-                  {row.breakdown?.fee}
-                </span>
-              </div>
-              <div className={`border-t pt-4 flex justify-between text-[18px] ${isDark ? "border-[#2A2A2A]" : "border-[#E5E5E5]"}`}>
-                <span className={isDark ? "text-white" : "text-[#171717]"}>Net Payout</span>
-                <span className="text-[#00C48C] font-semibold">{row.breakdown?.net}</span>
-              </div>
-            </div>
+  const DetailPanelContent = ({ row, isDark }: { row: PayoutHistoryRow; isDark: boolean }) => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className={`rounded-lg border p-5 ${isDark ? "border-[#262626] bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}>
+        <h4 className={`text-sm lg:text-base font-medium mb-4 ${isDark ? "text-white" : "text-[#171717]"}`}>
+          Payout Breakdown
+        </h4>
+        <div className="space-y-3 lg:space-y-4">
+          <div className="flex justify-between text-sm lg:text-base">
+            <span className={isDark ? "text-[#A0A0A0]" : "text-[#676767]"}>
+              Service Earnings
+            </span>
+            <span className={isDark ? "text-white" : "text-[#171717]"}>
+              {row.breakdown?.earnings}
+            </span>
           </div>
-
-          <div
-            className={`rounded-xl border p-5 ${
-              isDark ? "border-[#2A2A2A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
-            }`}
-          >
-            <h4 className={`text-lg font-medium mb-5 ${isDark ? "text-white" : "text-[#171717]"}`}>
-              Linked Invoices
-            </h4>
-            <div className="space-y-3">
-              {row.invoiceIds?.map((invoiceId) => (
-                <div
-                  key={invoiceId}
-                  className={`flex items-center justify-between rounded-xl px-4 py-3 ${
-                    isDark ? "bg-[#202020] text-white/80" : "bg-[#F7F7F7] text-[#171717]"
-                  }`}
-                >
-                  <span>{invoiceId}</span>
-                  <ChevronRight size={18} className={isDark ? "text-white/50" : "text-[#676767]"} />
-                </div>
-              ))}
-            </div>
+          <div className="flex justify-between text-sm lg:text-base">
+            <span className={isDark ? "text-[#A0A0A0]" : "text-[#676767]"}>
+              Platform Fee (12%)
+            </span>
+            <span className={isDark ? "text-white" : "text-[#171717]"}>
+              {row.breakdown?.fee}
+            </span>
+          </div>
+          <div className={`border-t pt-4 flex justify-between text-sm lg:text-base ${isDark ? "border-[#2A2A2A]" : "border-[#E5E5E5]"}`}>
+            <span className={isDark ? "text-white" : "text-[#171717]"}>Net Payout</span>
+            <span className="text-[#00C48C] font-semibold text-base lg:text-lg ">{row.breakdown?.net}</span>
           </div>
         </div>
+      </div>
+
+      <div className={`rounded-lg border p-5 ${isDark ? "border-[#262626] bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}>
+        <h4 className={`text-sm lg:text-base font-medium mb-4 ${isDark ? "text-white" : "text-[#171717]"}`}>
+          Linked Invoices
+        </h4>
+        <div className="space-y-3">
+          {row.invoiceIds?.map((invoiceId) => (
+            <div
+              key={invoiceId}
+              className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm ${isDark ? "bg-[#202020] text-white/80" : "bg-[#F7F7F7] text-[#171717]"}`}
+            >
+              <span>{invoiceId}</span>
+              <ChevronRight size={18} className={isDark ? "text-white/50" : "text-[#676767]"} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderDetailPanel = (row: PayoutHistoryRow) => (
+    <tr key={`${row.id}-details`}>
+      <td colSpan={7} className={`px-5 py-6 ${isDark ? "bg-[#0A0A0A]":"bg-[#F4F5F7]"}`}>
+        <DetailPanelContent row={row} isDark={isDark} />
       </td>
     </tr>
   );
 
   return (
-    <section
-      className={`w-full rounded-2xl border overflow-visible transition-all duration-300 ${
-        isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"
-      }`}
-    >
+    <section className={`w-full rounded-2xl border overflow-visible transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`}>
       <div className={`flex flex-col gap-4 p-5 lg:p-6 border-b ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
         <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-            <h3 className={isDark ? "text-white text-[18px]" : "text-[#323232] text-[18px]"}>
+            <h3 className={isDark ? "text-white text-lg" : "text-[#323232] text-lg"}>
               Payout History
             </h3>
           </div>
 
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2">
             <Select value={statusValue} onValueChange={onStatusChange}>
-              <SelectTrigger className={`w-[110px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
+              <SelectTrigger className={`w-[110px] rounded-full h-8 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
@@ -225,7 +216,7 @@ export default function PayoutHistoryTable({
             </Select>
 
             <Select value={monthValue} onValueChange={onMonthChange}>
-              <SelectTrigger className={`w-[110px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
+              <SelectTrigger className={`w-[110px] rounded-full h-8 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
                 <SelectValue placeholder="Month" />
               </SelectTrigger>
               <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
@@ -237,7 +228,7 @@ export default function PayoutHistoryTable({
             </Select>
 
             <Select value={typeValue} onValueChange={onTypeChange}>
-              <SelectTrigger className={`w-[90px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
+              <SelectTrigger className={`w-[90px] rounded-full h-8 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
                 <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
@@ -256,26 +247,28 @@ export default function PayoutHistoryTable({
             placeholder="Search by Shoot ID and Creator Name...."
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className={`w-full border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${
-              isDark
-                ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
-                : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-            }`}
+            className={`w-full border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark
+              ? "bg-[#202020] border-[#FFFFFF33] text-white focus:border-[#E8D1AB]"
+              : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+              }`}
           />
         </div>
       </div>
 
-      <div className="hidden lg:block overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      {/* ========================================== */}
+      {/* DESKTOP VIEW TABLE LAYOUT (Your shared code) */}
+      {/* ========================================== */}
+      <div className="hidden lg:block w-full overflow-hidden">
+        <table className="w-full text-left table-fixed border-collapse">
           <thead>
-            <tr className={`text-base font-medium border-b ${isDark ? "text-[#E8D1AB] border-[#333333]" : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"}`}>
-              <th className="py-5 px-6 font-medium">Shoot ID</th>
-              <th className="py-5 px-6 font-medium">Creator Name</th>
-              <th className="py-5 px-6 font-medium">Service Type</th>
-              <th className="py-5 px-6 font-medium">Net Payout</th>
-              <th className="py-5 px-6 font-medium">Payment Method</th>
-              <th className="py-5 px-6 font-medium">Status</th>
-              <th className="py-5 px-6 font-medium text-right">Action</th>
+            <tr className={`text-sm font-medium border-b ${isDark ? "text-[#E8D1AB] border-[#333333]" : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+              <th className="py-5 px-4 font-medium w-[12%] truncate">Shoot ID</th>
+              <th className="py-5 px-4 font-medium w-[20%] truncate">Creator Name</th>
+              <th className="py-5 px-4 font-medium w-[14%] truncate">Service Type</th>
+              <th className="py-5 px-4 font-medium w-[10%] truncate">Net Payout</th>
+              <th className="py-5 px-4 font-medium w-[13%] truncate">Payment Method</th>
+              <th className="py-5 px-4 font-medium w-[10%] truncate">Status</th>
+              <th className="py-5 px-4 font-medium w-[20%] text-right truncate">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -299,19 +292,19 @@ export default function PayoutHistoryTable({
                     onClick={() => toggleRow(row.id)}
                     className={`border-b transition-colors cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
                   >
-                    <td className={`py-6 px-6 whitespace-nowrap ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                      <div className="flex items-center gap-3">
+                    <td className={`p-5 truncate ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                      <div className="flex items-center gap-3 truncate">
                         <ChevronDown
-                          size={16}
-                          className={`transition-transform ${isExpanded ? "rotate-0" : "-rotate-90"} ${isDark ? "text-white/70" : "text-[#666]"}`}
+                          size={24}
+                          className={`transition-transform shrink-0 ${isExpanded ? "rotate-0" : "-rotate-90"} ${isDark ? "text-white/70" : "text-[#666]"}`}
                         />
-                        <span>{row.shootId}</span>
+                        <span className="truncate">{row.shootId}</span>
                       </div>
                     </td>
-                    <td className="py-6 px-6 min-w-[220px]">
-                      <div className="flex items-center gap-3">
+                    <td className="p-5">
+                      <div className="flex items-center gap-3 truncate">
                         <div
-                          className="relative w-12 h-12 shrink-0 rounded-xl overflow-hidden flex items-center justify-center text-black font-medium text-[18px]"
+                          className="relative w-13 h-13 shrink-0 rounded-xl overflow-hidden flex items-center justify-center text-black font-medium text-xl"
                           style={{ backgroundColor: row.avatarColor }}
                         >
                           {row.avatarImage ? (
@@ -320,58 +313,58 @@ export default function PayoutHistoryTable({
                             row.initials
                           )}
                         </div>
-                        <div>
-                          <p className={`max-w-[170px] truncate font-medium text-[18px] ${isDark ? "text-white" : "text-[#171717]"}`}>
+                        <div className="truncate">
+                          <p className={`truncate font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
                             {row.creatorName}
                           </p>
-                          <p className={`${isDark ? "text-white/40" : "text-[#666]"} text-sm mt-1`}>
+                          <p className={`truncate ${isDark ? "text-white/40" : "text-[#666]"}`}>
                             {row.date}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className={`py-6 px-6 min-w-[180px] whitespace-nowrap text-[18px] ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                    <td className={`p-5 truncate ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                       {row.serviceType}
                     </td>
-                    <td className={`py-6 px-6 whitespace-nowrap text-[18px] ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                    <td className={`p-5 truncate ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                       {row.netPayout}
                     </td>
-                    <td className={`py-6 px-6 min-w-[150px] whitespace-nowrap text-[18px] ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                    <td className={`p-5 truncate ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                       {row.paymentMethod}
                     </td>
-                    <td className="py-6 px-6">
+                    <td className="p-5 whitespace-nowrap">
                       <PayoutStatusBadge status={row.status} />
                     </td>
-                    <td className="py-6 px-6">
-                      <div className="flex min-h-[44px] items-center justify-end gap-4">
+                    <td className="p-5">
+                      <div className="flex min-h-[40px] items-center justify-end gap-3">
                         {showApprove && (
-                          <>
+                          <div className="flex items-center gap-2 shrink-0">
                             <button
                               onClick={(e) => e.stopPropagation()}
-                              className="px-4 py-2 rounded-lg bg-[#DCF7E8] text-[#179B57] text-sm font-medium"
+                              className="px-4 py-2 rounded-lg bg-[#EBFFF0] text-[#16A34A] text-xs font-medium shrink-0"
                             >
                               Approve
                             </button>
                             <button
                               onClick={(e) => e.stopPropagation()}
-                              className="text-[#FF8B7D] text-sm font-medium"
+                              className="text-[#F98A84] text-xs font-medium underline underline-offset-2 shrink-0"
                             >
                               Decline
                             </button>
-                          </>
+                          </div>
                         )}
                         {!showApprove && !showAlert && (
-                          <button onClick={(e) => e.stopPropagation()} className={isDark ? "text-white" : "text-[#171717]"}>
-                            <Pencil size={22} />
+                          <button onClick={(e) => e.stopPropagation()} className={`shrink-0 ${isDark ? "text-white" : "text-[#171717]"}`}>
+                            <Pencil size={30} />
                           </button>
                         )}
                         {showAlert && (
-                          <button onClick={(e) => e.stopPropagation()} className={isDark ? "text-white" : "text-[#171717]"}>
-                            <CircleAlert size={24} />
+                          <button onClick={(e) => e.stopPropagation()} className={`shrink-0 ${isDark ? "text-white" : "text-[#171717]"}`}>
+                            <CircleAlert size={30} />
                           </button>
                         )}
-                        <button type="button" onClick={(e) => e.stopPropagation()} className={isDark ? "text-white" : "text-[#171717]"}>
-                          <ChevronRight size={22} className={`transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                        <button type="button" onClick={(e) => e.stopPropagation()} className={`shrink-0 ${isDark ? "text-white" : "text-[#171717]"}`}>
+                          <MoreVertical size={30} />
                         </button>
                       </div>
                     </td>
@@ -390,82 +383,142 @@ export default function PayoutHistoryTable({
         </table>
       </div>
 
-      <div className="space-y-3 p-4 lg:hidden">
+      {/* ========================================================================= */}
+      {/* NEW MOBILE RESPONSIVE CARD DRAWER LAYOUT (Visible below lg break)         */}
+      {/* ========================================================================= */}
+      <div className="block lg:hidden">
         {loading ? (
-          <div className="flex justify-center py-10">
+          <div className="h-[200px] flex items-center justify-center">
             <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
           </div>
         ) : visibleRows.length > 0 ? (
-          visibleRows.map((row) => (
-            <article key={row.id} className={`rounded-[20px] border p-4 ${isDark ? "border-[#252525] bg-[#111111]" : "border-[#EFE4D6] bg-white"}`}>
-              <div className="flex items-start justify-between gap-3 mb-4">
-                    <button type="button" onClick={() => toggleRow(row.id)} className="flex items-center gap-3">
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform ${expandedRowId === row.id ? "rotate-0" : "-rotate-90"} ${isDark ? "text-white/70" : "text-[#666]"}`}
-                  />
-                  <span className={isDark ? "text-white" : "text-[#171717]"}>{row.shootId}</span>
-                </button>
-                <PayoutStatusBadge status={row.status} mobile />
-              </div>
-
-              <div className="flex items-center gap-3 mb-4">
+          visibleRows.map((row) => {
+            const isExpanded = expandedRowId === row.id;
+            return (
+              <div
+                key={row.id}
+                className={`transition-all duration-200 overflow-hidden ${isDark ? "bg-[#171717]" : "bg-white shadow-xs"}`}
+              >
                 <div
-                  className="relative w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center text-black font-medium text-[18px]"
-                  style={{ backgroundColor: row.avatarColor }}
+                  onClick={() => toggleRow(row.id)}
+                  className="flex items-center justify-between p-4 cursor-pointer"
                 >
-                  {row.avatarImage ? (
-                    <Image src={row.avatarImage} alt={row.creatorName} fill className="object-cover" />
-                  ) : (
-                    row.initials
-                  )}
-                </div>
-                <div>
-                  <p className={`font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>{row.creatorName}</p>
-                  <p className={`${isDark ? "text-white/40" : "text-[#666]"} text-sm`}>{row.date}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className={isDark ? "text-white/40" : "text-[#666]"}>Service</p>
-                  <p className={isDark ? "text-white" : "text-[#171717]"}>{row.serviceType}</p>
-                </div>
-                <div>
-                  <p className={isDark ? "text-white/40" : "text-[#666]"}>Payout</p>
-                  <p className={isDark ? "text-white" : "text-[#171717]"}>{row.netPayout}</p>
-                </div>
-                <div>
-                  <p className={isDark ? "text-white/40" : "text-[#666]"}>Method</p>
-                  <p className={isDark ? "text-white" : "text-[#171717]"}>{row.paymentMethod}</p>
-                </div>
-              </div>
-
-              {expandedRowId === row.id && (
-                <div className={`mt-4 pt-4 border-t ${isDark ? "border-[#2A2A2A]" : "border-[#E5E5E5]"}`}>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className={isDark ? "text-white/50" : "text-[#676767]"}>Net Payout</span>
-                      <span className="text-[#00C48C]">{row.breakdown?.net}</span>
+                  <div className="flex items-center gap-3">
+                    {/* Circle Rotation Trigger Indicator Wrapper */}
+                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors ${isDark ? "border-white/20 text-white/80" : "border-black/20 text-black/80"}`}>
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-180"}`}
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className={isDark ? "text-white/50" : "text-[#676767]"}>Invoice Count</span>
-                      <span className={isDark ? "text-white" : "text-[#171717]"}>{row.invoiceIds?.length || 0}</span>
+
+                    {/* Initials/Avatar Container Block */}
+                    <div
+                      className="w-6 h-6 rounded-sm flex items-center justify-center text-black font-semibold text-[10px] shrink-0"
+                      style={{ backgroundColor: row.avatarColor }}
+                    >
+                      {row.avatarImage ? (
+                        <div className="relative w-full h-full rounded-sm overflow-hidden">
+                          <Image src={row.avatarImage} alt={row.creatorName} fill className="object-cover" />
+                        </div>
+                      ) : (
+                        row.initials
+                      )}
+                    </div>
+
+                    {/* Metadata Content Stack Labels */}
+                    <div>
+                      <p className={`text-sm leading-tight ${isDark ? "text-white" : "text-black"}`}>
+                        {row.creatorName}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${isDark ? "text-white/50" : "text-black/50"}`}>
+                        {row.date}
+                      </p>
                     </div>
                   </div>
+
+                  {/* Right Status Badge Integration Segment */}
+                  <PayoutStatusBadge status={row.status} mobile={true} />
                 </div>
-              )}
-            </article>
-          ))
+
+                {/* Expanded Grid Configuration Panel (Image 2 Representation) */}
+                {isExpanded && (
+                  <div className={`space-y-4`}>
+                    {/* Primary Grid Properties Matrix */}
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm pl-14 pr-4 ">
+                      <div>
+                        <p className={`text-xs font-medium  ${isDark ? "text-white" : "text-black/40"}`}>Shoot ID</p>
+                        <p className={`mt-1 ${isDark ? "text-[#A1A1A1]" : "text-black/90"}`}>{row.shootId}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/40"}`}>Service Type</p>
+                        <p className={`mt-1 ${isDark ? "text-[#A1A1A1]" : "text-black/90"}`}>{row.serviceType}</p>
+                      </div>
+                      <div>
+                        <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/40"}`}>Payment Method</p>
+                        <p className={`mt-1 ${isDark ? "text-[#A1A1A1]" : "text-black/90"}`}>{row.paymentMethod}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/40"}`}>Net Payout</p>
+                        <p className={`mt-1 ${isDark ? "text-[#A1A1A1]" : "text-black/90"}`}>{row.netPayout}</p>
+                      </div>
+                    </div>
+
+                    {/* Quick Inline Trigger Action Controls row */}
+                    <div className="flex items-center justify-between pl-14 pr-4 pt-1">
+                      <span className={`text-xs font-medium ${isDark ? "text-white" : "text-black/40"}`}>Actions</span>
+                      <div className="flex items-center gap-2">
+                        {row.status === "Pending" && (
+                          <>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[#FF8B7D] text-xs font-medium px-1"
+                            >
+                              Decline
+                            </button>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="px-2.5 py-1.5 rounded-md bg-[#DCF7E8] text-[#179B57] text-xs font-medium"
+                            >
+                              Approve
+                            </button>
+                          </>
+                        )}
+                        <>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className={`p-1 ${isDark ? "text-white hover:text-white/70" : "text-black/70 hover:text-black"}`}
+                          >
+                            <Pencil size={20} />
+                          </button>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className={`p-1 ${isDark ? "text-white hover:text-white/70" : "text-black/70 hover:text-black"}`}
+                          >
+                            <MoreVertical size={24} />
+                          </button>
+                        </>
+                      </div>
+                    </div>
+
+                    {/* Sub-Panel Layout Extension Element Hook */}
+                    <div className={`p-5 ${isDark ? "bg-[#0A0A0A]" : "bg-[#F4F5F7]"}`}>
+                      <DetailPanelContent row={row} isDark={isDark} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         ) : (
-          <div className={`py-10 text-center ${isDark ? "text-white/50" : "text-[#777]"}`}>
+          <div className={`py-8 text-center text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
             No payout history found.
           </div>
         )}
       </div>
 
       {!loading && rows.length > 0 && (
-        <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+        <div className={`flex justify-center lg:justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
           <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
             Page {startIndex + 1} to {Math.min(startIndex + itemsPerPage, rows.length)}
           </div>
@@ -473,11 +526,11 @@ export default function PayoutHistoryTable({
             <button
               onClick={() => setCurrentPage(safePage - 1)}
               disabled={safePage === 1}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${
-                isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
+                }`}
             >
-              Previous
+              <span className="hidden lg:block">Previous</span>
+              <ChevronLeft size={24} className="block lg:hidden" />
             </button>
             <div className="flex gap-1">
               {paginationItems.map((page, index) =>
@@ -489,15 +542,14 @@ export default function PayoutHistoryTable({
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${
-                      safePage === page
-                        ? isDark
-                          ? "bg-[#E5D5B8] text-black"
-                          : "bg-[#E8D1AB] text-black"
-                        : isDark
+                    className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${safePage === page
+                      ? isDark
+                        ? "bg-[#E5D5B8] text-black"
+                        : "bg-[#E8D1AB] text-black"
+                      : isDark
                         ? "text-white/60 hover:bg-white/5"
                         : "text-[#666] hover:bg-zinc-100"
-                    }`}
+                      }`}
                   >
                     {page}
                   </button>
@@ -507,11 +559,10 @@ export default function PayoutHistoryTable({
             <button
               onClick={() => setCurrentPage(safePage + 1)}
               disabled={safePage === totalPages}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${
-                isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
             >
-              Next
+              <span className="hidden lg:block">Next</span>
+              <ChevronRight size={24} className="block lg:hidden" />
             </button>
           </div>
         </div>

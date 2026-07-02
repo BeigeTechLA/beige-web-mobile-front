@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { BasicDropdown } from "../admin/BasicDropdown";
 
-export const CREATIVE_RADIUS_OPTIONS = [10, 50, 100, 150, 200] as const;
+export const CREATIVE_RADIUS_OPTIONS = [10, 50, 100, 150, 200, 250] as const;
 export type CreativeRadiusOption = (typeof CREATIVE_RADIUS_OPTIONS)[number];
 
 interface FilterProps {
@@ -16,6 +16,7 @@ interface FilterProps {
 }
 
 const DEFAULT_RADIUS = 50;
+const formatRadiusLabel = (radius: number) => (radius === 250 ? "200+ miles" : `${radius} miles`);
 
 export const CreativeFilterModal = ({ isOpen, onClose, onApply, value, isDark = true }: FilterProps) => {
   const [selectedRadius, setSelectedRadius] = useState<number>(value ?? DEFAULT_RADIUS);
@@ -199,7 +200,7 @@ export const CreativeFilterModal = ({ isOpen, onClose, onApply, value, isDark = 
                         transform: isEdge ? (index === 0 ? "translateX(0%)" : "translateX(-100%)") : "translateX(-50%)",
                       }}
                     >
-                      {radius}
+                      {radius === 250 ? "200+" : radius}
                     </span>
                   );
                 })}
@@ -209,7 +210,7 @@ export const CreativeFilterModal = ({ isOpen, onClose, onApply, value, isDark = 
             <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
               isDark ? "border-white/10 bg-white/5 text-white/70" : "border-gray-200 bg-gray-50 text-black/60"
             }`}>
-              Selected radius: <span className="font-semibold text-[#E8D1AB]">{selectedRadius} miles</span>
+              Selected radius: <span className="font-semibold text-[#E8D1AB]">{formatRadiusLabel(selectedRadius)}</span>
             </div>
           </div>
         </div>
