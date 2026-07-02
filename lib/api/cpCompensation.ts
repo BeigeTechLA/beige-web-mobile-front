@@ -56,6 +56,18 @@ export type CpCompensationCreator = {
   }>;
 };
 
+export type CpPaymentHistoryItem = {
+  id?: string | number;
+  type?: string | null;
+  method?: string | null;
+  status?: string | null;
+  amount?: number | string | null;
+  paid_at?: string | null;
+  receipt_url?: string | null;
+  receipt_download_url?: string | null;
+  notes?: string | null;
+};
+
 export type CpCompensationDetails = {
   booking_id: number;
   shoot_name: string;
@@ -74,6 +86,8 @@ export type CpCompensationDetails = {
     status: CpStatus;
   };
   creators: CpCompensationCreator[];
+  payment_history?: CpPaymentHistoryItem[];
+  history?: CpPaymentHistoryItem[];
   audit_logs?: Array<{
     action: string;
     label?: string;

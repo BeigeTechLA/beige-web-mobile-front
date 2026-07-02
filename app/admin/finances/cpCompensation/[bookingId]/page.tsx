@@ -1,0 +1,331 @@
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { useParams, usePathname, useRouter } from "next/navigation";
+import { ChevronLeft, Download, ExternalLink, History, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+import Topbar from "@/components/admin/Topbar";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { cpCompensationApi, type CpCompensationDetails, type CpPaymentHistoryItem } from "@/lib/api/cpCompensation";
+import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/src/components/landing/ui/button";
+
+type HistoryEntry = {
+  id: string;
+  title: string;
+  subtitle: string;
+  amount: string;
+  dateLabel: string;
+  dateSortKey: number;
+  receiptUrl?: string | null;
+  receiptDownloadUrl?: string | null;
+};
+
+const formatHistoryDate = (value?: string | null) => {
+  if (!value) return "Date not available";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const mapPaymentEntry = (item: CpPaymentHistoryItem, index: number): HistoryEntry => {
+  const amount = Number(item.amount || 0);
+  const title = String(item.method || item.type || "Payment").replace(/_/g, " ");
+
+  return {
+    id: String(item.id || `payment-${index}`),
+    title,
+    subtitle: String(item.status || item.notes || "Payment recorded"),
+    amount: formatCurrency(amount),
+    dateLabel: formatHistoryDate(item.paid_at),
+    dateSortKey: item.paid_at ? new Date(item.paid_at).getTime() : 0,
+    receiptUrl: item.receipt_url || null,
+    receiptDownloadUrl: item.receipt_download_url || null,
+  };
+};
+
+export default function CpCompensationHistoryPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useParams<{ bookingId?: string | string[] }>();
+  const { isDark } = useResolvedTheme();
+
+  const bookingId = useMemo(() => {
+    const raw = params?.bookingId;
+    return Array.isArray(raw) ? raw[0] : raw;
+  }, [params?.bookingId]);
+
+  const numericBookingId = Number(bookingId);
+
+  const [details, setDetails] = useState<CpCompensationDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!Number.isFinite(numericBookingId) || numericBookingId <= 0) {
+      setLoading(false);
+      toast.error("Invalid booking ID for payment history.");
+      return;
+    }
+
+    let active = true;
+
+    const loadDetails = async () => {
+      setLoading(true);
+      try {
+        const response = await cpCompensationApi.details(numericBookingId);
+        if (active) {
+          setDetails(response);
+        }
+      } catch (error) {
+        if (active) {
+          setDetails(null);
+        }
+        toast.error(error instanceof Error ? error.message : "Failed to load payment history");
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadDetails();
+
+    return () => {
+      active = false;
+    };
+  }, [numericBookingId]);
+
+  const historyEntries = useMemo<HistoryEntry[]>(() => {
+    const paymentHistory = (details?.payment_history || details?.history || []) as CpPaymentHistoryItem[];
+    if (paymentHistory.length > 0) {
+      return paymentHistory
+        .map(mapPaymentEntry)
+        .sort((left, right) => right.dateSortKey - left.dateSortKey);
+    }
+
+    const creatorEntries = (details?.creators || []).flatMap((creator) => {
+      const creatorName = creator.creator_name || "Unknown Creator";
+      const role = creator.cp_role || "Creative Partner";
+
+      const advances = (creator.advances || []).map((advance, index) => {
+        const paidAt = advance.processed_at || null;
+        return {
+          id: `advance-${creator.creator_earning_id}-${advance.advance_id || index}`,
+          title: "Applied as partial payment",
+          subtitle: `${creatorName} - ${role}`,
+          amount: formatCurrency(advance.amount || 0),
+          dateLabel: formatHistoryDate(paidAt),
+          dateSortKey: paidAt ? new Date(paidAt).getTime() : 0,
+          receiptUrl: null,
+          receiptDownloadUrl: null,
+        };
+      });
+
+      const timeline = (creator.timeline || []).map((event, index) => {
+        const eventDate = event.event_date || null;
+        return {
+          id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || index}`,
+          title: event.label || event.event_type || "Payment activity",
+          subtitle: event.sub_label || creatorName,
+          amount: event.amount != null ? formatCurrency(event.amount) : formatCurrency(creator.total_compensation || 0),
+          dateLabel: formatHistoryDate(eventDate),
+          dateSortKey: eventDate ? new Date(eventDate).getTime() : 0,
+          receiptUrl: null,
+          receiptDownloadUrl: null,
+        };
+      });
+
+      return [...advances, ...timeline];
+    });
+
+    const auditEntries = (details?.audit_logs || []).map((log, index) => {
+      const eventDate = log.created_at || null;
+      return {
+        id: `audit-${index}-${log.action}-${eventDate || ""}`,
+        title: log.label || log.action || "Audit log",
+        subtitle: log.notes || "Finance activity",
+        amount: "",
+        dateLabel: formatHistoryDate(eventDate),
+        dateSortKey: eventDate ? new Date(eventDate).getTime() : 0,
+        receiptUrl: null,
+        receiptDownloadUrl: null,
+      };
+    });
+
+    return [...creatorEntries, ...auditEntries].sort((left, right) => right.dateSortKey - left.dateSortKey);
+  }, [details]);
+
+  const summaryCards = [
+    {
+      label: "Total CP Payout",
+      value: formatCurrency(details?.summary?.total_cp_payout || 0),
+    },
+    {
+      label: "Shoot Amount",
+      value: formatCurrency(details?.summary?.shoot_amount || 0),
+    },
+    {
+      label: "Margin",
+      value: `${Number(details?.summary?.margin_percent || 0).toFixed(1)}%`,
+    },
+    {
+      label: "Creators",
+      value: String(details?.creators?.length || 0),
+    },
+  ];
+
+  return (
+    <>
+      <Topbar pathname={pathname} />
+
+      <div
+        className={`min-h-screen space-y-5 p-4 lg:space-y-8 lg:px-10 lg:py-9 ${isDark ? "bg-[#0B0B0B]" : "bg-[#F4F5F7]"}`}
+        style={{ fontFamily: "var(--font-instrument-sans)" }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"}`}
+            >
+              <ChevronLeft size={16} />
+              Back
+            </button>
+            <div>
+              <h1 className={`text-lg lg:text-2xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                Payment History
+              </h1>
+              <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
+                {details?.shoot_name || `Booking #${bookingId || "Unknown"}`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {summaryCards.map((card) => (
+            <div
+              key={card.label}
+              className={`rounded-2xl border p-4 lg:p-5 ${isDark ? "border-white/5 bg-[#151515]" : "border-[#E5E5E5] bg-white"}`}
+            >
+              <p className={`text-[11px] uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/35"}`}>
+                {card.label}
+              </p>
+              <p className={`mt-2 text-base font-semibold lg:text-xl ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
+                {card.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <section className={`overflow-hidden rounded-2xl border ${isDark ? "border-white/5 bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}>
+          <div className={`flex items-center justify-between gap-4 border-b px-4 py-4 lg:px-5 ${isDark ? "border-white/5" : "border-[#EFEFEF]"}`}>
+            <div>
+              <h2 className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                Payment History
+              </h2>
+              <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                View compensation activity for this specific booking.
+              </p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex min-h-[240px] items-center justify-center">
+              <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
+            </div>
+          ) : historyEntries.length > 0 ? (
+            <div className={`divide-y ${isDark ? "divide-[#252525]" : "divide-[#F1F1F1]"}`}>
+              {historyEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="grid grid-cols-1 gap-4 px-4 py-4 sm:grid-cols-[1fr_auto] sm:items-start lg:px-5"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#2A2520] text-[#E8D1AB]" : "bg-[#F4EFE2] text-[#8A6A3D]"}`}>
+                      <History size={16} />
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                        {entry.title}
+                      </p>
+                      <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
+                        {entry.dateLabel}
+                        {entry.subtitle ? ` - ${entry.subtitle}` : ""}
+                      </p>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                        {entry.receiptUrl ? (
+                          <a
+                            href={entry.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-[#E8D1AB] hover:text-[#F4E8CF]" : "text-[#8A6A3D] hover:text-[#6E5430]"}`}
+                          >
+                            <ExternalLink size={12} />
+                            View Receipt
+                          </a>
+                        ) : (
+                          <span className={`${isDark ? "text-white/30" : "text-black/30"}`}>
+                            No receipt attached
+                          </span>
+                        )}
+
+                        {entry.receiptDownloadUrl && (
+                          <a
+                            href={entry.receiptDownloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-white/55 hover:text-white" : "text-black/55 hover:text-black"}`}
+                            title="Download receipt"
+                          >
+                            <Download size={12} />
+                            Download
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:text-right">
+                    <span className={`text-lg font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
+                      {entry.amount || "-"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={`flex min-h-[240px] items-center justify-center px-6 text-center ${isDark ? "text-white/45" : "text-black/45"}`}>
+              No payment history found for this booking yet.
+            </div>
+          )}
+        </section>
+
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            className={`h-11 rounded-lg px-5 text-sm font-semibold transition-colors ${isDark
+              ? "border-white/10 bg-[#171717] text-white hover:bg-[#202020]"
+              : "border-[#E5E5E5] bg-white text-black hover:bg-[#F4F5F7]"
+              }`}
+          >
+            Return
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}

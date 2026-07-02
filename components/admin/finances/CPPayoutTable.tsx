@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { formatRelativeOrAbsoluteDate, getColorThreshold, getDateColorThreshold, getInitials } from "@/lib/utils";
@@ -45,6 +45,7 @@ interface CPPayoutTableProps {
   loading?: boolean;
   type: "shoots" | "creators";
   onRowClick: (row: ShootCPRow) => void;
+  onViewHistory?: (row: ShootCPRow) => void;
 }
 
 const formatCurrency = (amount: number) => {
@@ -107,10 +108,12 @@ export default function CPPayoutTable({
   loading = false,
   type,
   onRowClick,
+  onViewHistory,
 }: CPPayoutTableProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -176,6 +179,19 @@ export default function CPPayoutTable({
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, monthFilter, statusFilter, sortFilter]);
+
+  useEffect(() => {
+    if (!openActionMenuId) return;
+
+    const handleDocumentClick = () => setOpenActionMenuId(null);
+    document.addEventListener("click", handleDocumentClick);
+    return () => document.removeEventListener("click", handleDocumentClick);
+  }, [openActionMenuId]);
+
+  const handleOpenHistory = (row: ShootCPRow) => {
+    setOpenActionMenuId(null);
+    onViewHistory?.(row);
+  };
 
   const totalPages = Math.max(1, Math.ceil(processedRows.length / itemsPerPage));
   const safePage = Math.min(currentPage, totalPages);
@@ -288,7 +304,16 @@ export default function CPPayoutTable({
               return (
                 <div
                   key={row.id}
-                  className={`p-4 border-b last:border-0 ${isDark ? "border-b-white/5" : "border-b-black/5"} ${(isRowExpanded ? (isDark ? "bg-white/5" : "bg-black/5") : "")}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onRowClick(row)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onRowClick(row);
+                    }
+                  }}
+                  className={`relative p-4 border-b last:border-0 cursor-pointer ${isDark ? "border-b-white/5" : "border-b-black/5"} ${(isRowExpanded ? (isDark ? "bg-white/5" : "bg-black/5") : "")}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -338,7 +363,7 @@ export default function CPPayoutTable({
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0 flex items-center gap-3">
+                    <div className="text-right shrink-0 flex items-center gap-2">
                       <div>
                         <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-[#171717]'}`}>${row.cpPayout}</p>
                         <p className="text-[11px]" style={{ color: getDateColorThreshold(row.date) }}>
@@ -346,18 +371,46 @@ export default function CPPayoutTable({
                         </p>
                       </div>
 
-                      {/* <button
+                      <button
                         type="button"
+                        aria-label="Open row actions"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onRowClick(row);
+                          setOpenActionMenuId((current) => (current === row.id ? null : row.id));
                         }}
                         className={`p-1.5 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
                       >
-                        <ChevronRight size={20} />
-                      </button> */}
+                        <EllipsisVertical size={16} />
+                      </button>
                     </div>
                   </div>
+
+                  {openActionMenuId === row.id && (
+                    <div
+                      className={`absolute right-4 top-16 z-[60] min-w-40 rounded-xl border shadow-xl ${isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenActionMenuId(null);
+                          onRowClick(row);
+                        }}
+                        className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
+                      >
+                        View details
+                      </button>
+                      {onViewHistory && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenHistory(row)}
+                          className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
+                        >
+                          View history
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Mobile Dropdown Subsections */}
                   {isRowExpanded && (
@@ -383,7 +436,7 @@ export default function CPPayoutTable({
                           <div className="text-right">
                             <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Shoot ID</p>
                             <p className={`text-xs font-medium uppercase tracking-wide ${isDark ? "text-white/80" : "text-zinc-700"}`}>
-                              {row.shootId || "—"}
+                              {row.shootId || "-"}
                             </p>
                           </div>
                         </>
@@ -413,6 +466,18 @@ export default function CPPayoutTable({
                         >
                           View Details
                         </button>
+                        {onViewHistory && (
+                          <button
+                            type="button"
+                            className={`mt-2 block text-xs font-semibold underline underline-offset-2 ${isDark ? "text-white/60" : "text-black/50"}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenHistory(row);
+                            }}
+                          >
+                            View History
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -445,7 +510,8 @@ export default function CPPayoutTable({
                   return (
                     <tr
                       key={row.id}
-                      className={`${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.03]"}`}
+                      onClick={() => onRowClick(row)}
+                      className={`${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.03]"} cursor-pointer`}
                     >
                       <td className={`px-5 py-4 font-medium max-w-[180px] truncate ${isDark ? "text-white" : "text-[#171717]"}`}>
                         {type === "shoots" ? (
@@ -489,7 +555,7 @@ export default function CPPayoutTable({
                         ) : (
                           <div className="flex flex-col text-left font-normal">
                             <span className={`font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}>
-                              {row.shootId || "—"}
+                              {row.shootId || "-"}
                             </span>
                             <span className={`text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
                               Created: {new Date(row.date).toLocaleDateString()}
@@ -540,16 +606,46 @@ export default function CPPayoutTable({
                         <FinanceStatusBadge status={row.status} />
                       </td>
                       <td className="px-5 py-4 text-right overflow-visible relative">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRowClick(row);
-                          }}
-                          className={`p-1.5 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
-                        >
-                          <ChevronRight size={20} />
-                        </button>
+                        <div className="relative inline-flex">
+                          <button
+                            type="button"
+                            aria-label="Open row actions"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionMenuId((current) => (current === row.id ? null : row.id));
+                            }}
+                            className={`p-2 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
+                          >
+                            <EllipsisVertical size={18} />
+                          </button>
+
+                          {openActionMenuId === row.id && (
+                            <div
+                              className={`absolute right-0 bottom-full mb-2 min-w-40 rounded-xl border shadow-xl z-[60] ${isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionMenuId(null);
+                                  onRowClick(row);
+                                }}
+                                className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
+                              >
+                                View details
+                              </button>
+                              {onViewHistory && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenHistory(row)}
+                                  className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
+                                >
+                                  View history
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown, TrendingUp, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, TrendingUp, X } from "lucide-react";
 
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -19,7 +19,13 @@ interface AddCompensationModalProps {
 type TabType = "equal" | "role" | "manual";
 
 type CreatorFormState = {
+  baseTarget: string;
   base: string;
+  rateType: "flat" | "hourly";
+  hourlyRate: string;
+  hours: string;
+  hourlyConfirmed: boolean;
+  hourlyCommittedTotal: string;
   editing: string;
   travel: string;
   bonus: string;
@@ -38,27 +44,83 @@ const formatShootOptionLabel = (shoot: PendingCompensationShoot) =>
   `#${shoot.booking_id} - ${shoot.shoot_name}`;
 
 const getPercentMeta = (percentage: number) => {
-  if (percentage >= 25 && percentage <= 35) {
+  if (percentage <= 25) {
     return {
       color: "#10B981",
       label: "Healthy",
     };
   }
 
-  if ((percentage >= 15 && percentage < 25) || (percentage > 35 && percentage <= 45)) {
+  if (percentage > 25 && percentage <= 50) {
     return {
       color: "#F59E0B",
-      label: percentage < 25 ? "Below target" : "Review margin",
+      label: "Review margin",
     };
   }
 
   return {
     color: "#EF4444",
-    label: percentage < 15 ? "Low payout" : "High payout risk",
+    label: "High payout risk",
   };
 };
 
 const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+const getCreatorTargetAmount = (form?: Partial<CreatorFormState>, rateType?: "flat" | "hourly") => {
+  if (rateType === "hourly") {
+    return parseAmount(form?.hourlyCommittedTotal || form?.baseTarget || "0");
+  }
+
+  return parseAmount(form?.baseTarget || "0");
+};
+
+const getAutoBaseAmount = (form?: Partial<CreatorFormState>, rateType?: "flat" | "hourly") => {
+  const target = getCreatorTargetAmount(form, rateType);
+  const otherPayouts = parseAmount(form?.editing || "0") + parseAmount(form?.travel || "0") + parseAmount(form?.bonus || "0");
+  return Math.max(target - otherPayouts, 0);
+};
+
+const getBasePayoutAmount = (
+  form?: Partial<CreatorFormState>,
+  rateType?: "flat" | "hourly",
+  compensationMethod?: TabType
+) => {
+  if (compensationMethod === "manual") {
+    return parseAmount(form?.baseTarget || "0");
+  }
+
+  return getAutoBaseAmount(form, rateType);
+};
+
+const getHourlyRateForAmount = (amount: string, hours: string) => {
+  const hourCount = Math.max(parseAmount(hours || "1"), 1);
+  return String(parseAmount(amount || "0") / hourCount);
+};
+
+const getMethodBaseTarget = (
+  creator: PendingCompensationShoot["creators"][number],
+  compensationMethod: TabType,
+  equalSplitTarget: number
+) => {
+  if (compensationMethod === "role") {
+    return String(creator.hourly_rate ?? equalSplitTarget);
+  }
+
+  return String(equalSplitTarget);
+};
+
+const getCreatorFormDefaults = (creatorHourlyRate = "", baseTarget = "0"): CreatorFormState => ({
+  baseTarget,
+  base: baseTarget,
+  rateType: "flat",
+  hourlyRate: creatorHourlyRate,
+  hours: "1",
+  hourlyConfirmed: true,
+  hourlyCommittedTotal: baseTarget,
+  editing: "0",
+  travel: "0",
+  bonus: "0",
+  notes: "",
+});
 
 export default function AddCompensationModal({
   isOpen,
@@ -72,7 +134,6 @@ export default function AddCompensationModal({
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [compensationMethod, setCompensationMethod] = useState<TabType>("equal");
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
-  const [rateType, setRateType] = useState<"flat" | "hourly">("flat");
   const [creatorForms, setCreatorForms] = useState<Record<string, CreatorFormState>>({});
   const [shootSearchQuery, setShootSearchQuery] = useState("");
 
@@ -102,6 +163,78 @@ export default function AddCompensationModal({
     });
   }, [shootSearchQuery, shoots]);
 
+  const resetFormState = useCallback(() => {
+    setSelectedShootId("");
+    setIsDropdownOpen(false);
+    setCompensationMethod("equal");
+    setSelectedCreators([]);
+    setCreatorForms({});
+    setShootSearchQuery("");
+  }, []);
+
+  const syncCreatorFormsForCompensationMethod = useCallback(() => {
+    if (!currentShoot) return;
+
+    const defaultPerCreator = currentShoot.creators.length
+      ? Math.round((Number(currentShoot.shoot_amount || 0) * 0.25) / currentShoot.creators.length)
+      : 0;
+
+    setCreatorForms((prev) => currentShoot.creators.reduce<Record<string, CreatorFormState>>((acc, creator) => {
+      const id = String(creator.creator_id);
+      const current = prev[id] || {};
+      const hours = current.hours || "1";
+      const methodBaseTarget = getMethodBaseTarget(creator, compensationMethod, defaultPerCreator);
+      const preservedBaseTarget = compensationMethod === "role"
+        ? methodBaseTarget
+        : (current.baseTarget || methodBaseTarget);
+      const creatorRateType = current.rateType || "flat";
+      const hourlyRate = creatorRateType === "hourly"
+        ? (current.hourlyRate || getHourlyRateForAmount(preservedBaseTarget, hours))
+        : current.hourlyRate || preservedBaseTarget;
+      const hourlyCommittedTotal = creatorRateType === "hourly"
+        ? preservedBaseTarget
+        : current.hourlyCommittedTotal || "";
+      const baseAmount = getBasePayoutAmount({
+        baseTarget: preservedBaseTarget,
+        hourlyRate,
+        hours,
+        hourlyCommittedTotal,
+        editing: current.editing || "0",
+        travel: current.travel || "0",
+        bonus: current.bonus || "0",
+        rateType: creatorRateType,
+      }, creatorRateType, compensationMethod);
+
+      const nextForm: CreatorFormState = {
+        baseTarget: preservedBaseTarget,
+        base: String(baseAmount),
+        rateType: creatorRateType,
+        hourlyRate: creatorRateType === "hourly"
+          ? (current.hourlyRate || getHourlyRateForAmount(String(baseAmount), hours))
+          : hourlyRate,
+        hours,
+        hourlyConfirmed: current.hourlyConfirmed ?? true,
+        hourlyCommittedTotal,
+        editing: current.editing || "0",
+        travel: current.travel || "0",
+        bonus: current.bonus || "0",
+        notes: current.notes || "",
+      };
+
+      acc[id] = nextForm;
+      return acc;
+    }, {}));
+  }, [compensationMethod, currentShoot]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      resetFormState();
+      return;
+    }
+
+    resetFormState();
+  }, [isOpen, resetFormState]);
+
   useEffect(() => {
     if (!currentShoot) {
       setSelectedCreators([]);
@@ -117,22 +250,24 @@ export default function AddCompensationModal({
     setCreatorForms(
       currentShoot.creators.reduce<Record<string, CreatorFormState>>((acc, creator) => {
         const id = String(creator.creator_id);
-        acc[id] = {
-          base: String(defaultPerCreator),
-          editing: "0",
-          travel: "0",
-          bonus: "0",
-          notes: ""
-        };
+        const baseTarget = getMethodBaseTarget(creator, compensationMethod, defaultPerCreator);
+        acc[id] = getCreatorFormDefaults(baseTarget, baseTarget);
         return acc;
       }, {})
     );
-  }, [currentShoot]);
+  }, [compensationMethod, currentShoot]);
+
+  useEffect(() => {
+    syncCreatorFormsForCompensationMethod();
+  }, [currentShoot, compensationMethod, syncCreatorFormsForCompensationMethod]);
 
   const getCreatorTotal = (creatorId: string) => {
     const form = creatorForms[creatorId];
     if (!form) return 0;
-    return parseAmount(form.base) + parseAmount(form.editing) + parseAmount(form.travel) + parseAmount(form.bonus);
+    return getBasePayoutAmount(form, form.rateType, compensationMethod)
+      + parseAmount(form.editing)
+      + parseAmount(form.travel)
+      + parseAmount(form.bonus);
   };
 
   const shootAmount = Number(currentShoot?.shoot_amount || 0);
@@ -155,8 +290,45 @@ export default function AddCompensationModal({
     setCreatorForms((prev) => ({
       ...prev,
       [creatorId]: {
-        ...(prev[creatorId] || { base: "0", editing: "0", travel: "0", bonus: "0", notes: "" }),
-        [field]: value,
+        ...(() => {
+          const existing = prev[creatorId] || getCreatorFormDefaults();
+          const nextRateType = (field === "rateType" ? value : existing.rateType || "flat") as "flat" | "hourly";
+          const isManualHourly = compensationMethod === "manual" && nextRateType === "hourly";
+          const draft = {
+            ...existing,
+            ...(field === "base" ? {} : { [field]: value }),
+            rateType: nextRateType,
+          };
+          const nextBase = compensationMethod === "manual"
+            ? String(parseAmount(field === "baseTarget" ? value : existing.baseTarget || existing.base || "0"))
+            : String(getBasePayoutAmount(draft, nextRateType, compensationMethod));
+          const nextHours = draft.hours || "1";
+
+          return {
+            ...draft,
+            hourlyCommittedTotal: isManualHourly
+              ? (existing.hourlyCommittedTotal || "")
+              : nextRateType === "hourly"
+                ? (existing.baseTarget || getCreatorFormDefaults().baseTarget)
+                : (existing.hourlyCommittedTotal || ""),
+            base: nextBase,
+            hourlyConfirmed: isManualHourly ? false : (nextRateType === "hourly" ? true : (existing.hourlyConfirmed ?? true)),
+            baseTarget:
+              isManualHourly
+                ? (field === "baseTarget" ? nextBase : (existing.baseTarget || "0"))
+                : compensationMethod === "manual"
+                ? nextBase
+                : nextRateType === "hourly"
+                ? String(existing.baseTarget || getCreatorFormDefaults().baseTarget)
+                : (existing.baseTarget || "0"),
+            hourlyRate:
+              isManualHourly
+                ? (field === "hourlyRate" ? value : (existing.hourlyRate || ""))
+                : nextRateType === "hourly"
+                ? getHourlyRateForAmount(nextBase, nextHours)
+                : (existing.hourlyRate || ""),
+          };
+        })(),
       },
     }));
   };
@@ -167,16 +339,46 @@ export default function AddCompensationModal({
     setIsDropdownOpen(false);
   };
 
+  const toggleHourlyConfirmation = (creatorId: string) => {
+    setCreatorForms((prev) => {
+      const current = prev[creatorId] || getCreatorFormDefaults();
+      const committedTotal = String(parseAmount(current.hourlyRate || current.baseTarget || "0") * Math.max(parseAmount(current.hours || "0"), 1));
+      const baseAmount = getBasePayoutAmount({ ...current, hourlyCommittedTotal: committedTotal, baseTarget: committedTotal }, current.rateType, compensationMethod);
+      return {
+        ...prev,
+        [creatorId]: {
+          ...current,
+          hourlyCommittedTotal: committedTotal,
+          hourlyConfirmed: true,
+          baseTarget: committedTotal,
+          base: String(baseAmount),
+        },
+      };
+    });
+  };
+
   const handleFormSubmit = async () => {
     if (!currentShoot) return;
 
     const creators = selectedCreators.map((creatorId) => {
-      const form = creatorForms[creatorId] || { base: "0", editing: "0", travel: "0", bonus: "0", notes: "" };
+      const form = creatorForms[creatorId] || {
+        baseTarget: "0",
+        base: "0",
+        rateType: "flat",
+        hourlyRate: "",
+        hours: "1",
+        hourlyConfirmed: false,
+        hourlyCommittedTotal: "",
+        editing: "0",
+        travel: "0",
+        bonus: "0",
+        notes: "",
+      };
       return {
         creator_id: Number(creatorId),
-        rate_type: rateType,
+        rate_type: form.rateType,
         items: [
-          { label: "Base Payout", amount: parseAmount(form.base) },
+          { label: "Base Payout", amount: getBasePayoutAmount(form, form.rateType, compensationMethod) },
           { label: "Editing Payout", amount: parseAmount(form.editing) },
           { label: "Travel Adjustment", amount: parseAmount(form.travel) },
           { label: "Bonus/Other Adjustment", amount: parseAmount(form.bonus) },
@@ -338,7 +540,18 @@ export default function AddCompensationModal({
                 {currentShoot.creators.map((creator) => {
                   const creatorId = String(creator.creator_id);
                   const isChecked = selectedCreators.includes(creatorId);
-                  const form = creatorForms[creatorId] || { base: "0", editing: "0", travel: "0", bonus: "0", notes: "" };
+                  const form = creatorForms[creatorId] || {
+                    baseTarget: "0",
+                    base: "0",
+                    hourlyRate: "",
+                    hours: "1",
+                    hourlyConfirmed: false,
+                    hourlyCommittedTotal: "",
+                    editing: "0",
+                    travel: "0",
+                    bonus: "0",
+                    notes: "",
+                  };
 
                   return (
                     <div
@@ -376,8 +589,8 @@ export default function AddCompensationModal({
                           <div className={`grid grid-cols-2 p-1.5 w-full h-11 lg:h-15 border rounded-lg h-14 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
                             <button
                               type="button"
-                              onClick={() => setRateType("flat")}
-                              className={`h-10 text-sm lg:text-base capitalize rounded-sm transition-all ${rateType === "flat"
+                              onClick={() => updateCreatorForm(creatorId, "rateType", "flat")}
+                              className={`h-10 text-sm lg:text-base capitalize rounded-sm transition-all ${form.rateType === "flat"
                                 ? "bg-[#E8D1AB33] text-[#E8D1AB] shadow-md font-semibold border border-[#E8D1AB]"
                                 : (isDark ? "text-white/60 hover:text-white" : "text-black/70 hover:text-black")}`}
                             >
@@ -385,8 +598,8 @@ export default function AddCompensationModal({
                             </button>
                             <button
                               type="button"
-                              onClick={() => setRateType("hourly")}
-                              className={`h-10 text-sm lg:text-base capitalize rounded-sm transition-all ${rateType === "hourly"
+                              onClick={() => updateCreatorForm(creatorId, "rateType", "hourly")}
+                              className={`h-10 text-sm lg:text-base capitalize rounded-sm transition-all ${form.rateType === "hourly"
                                 ? "bg-[#E8D1AB33] text-[#E8D1AB] shadow-md font-semibold border border-[#E8D1AB]"
                                 : (isDark ? "text-white/60 hover:text-white" : "text-black/70 hover:text-black")}`}
                             >
@@ -394,17 +607,102 @@ export default function AddCompensationModal({
                             </button>
                           </div>
 
-                          <div className={`relative rounded-xl border px-4 py-2 mt-2 ${isDark ? "border-[#5A5A5F] bg-[#0C0C0C]/40" : "border-[#e5e5e5] bg-[#D7D7D7]/40"}`}>
-                            <div className={`absolute -top-2.5 left-3 px-2 text-sm lg:text-base z-10 ${isDark ? "bg-[#0C0C0C] text-white/60" : "bg-[#D7D7D7] text-black/60"}`}>
-                              Base Payout*
+                          {form.rateType === "hourly" ? (
+                            <div className={`grid grid-cols-1 gap-3 lg:grid-cols-[minmax(160px,1fr)_auto_auto_auto_auto] items-center rounded-xl border px-3 py-3 mt-2 ${isDark ? "border-[#5A5A5F] bg-[#0C0C0C]/40" : "border-[#e5e5e5] bg-[#D7D7D7]/40"}`}>
+                              <div className="min-w-[180px] flex flex-col justify-center">
+                                <p className={`text-base lg:text-xl leading-none whitespace-nowrap ${isDark ? "text-white" : "text-black"}`}>Per Hour Rate</p>
+                                <p className="text-lg lg:text-xl font-semibold leading-none" style={{ color: "#E8D1AB" }}>
+                                  {form.hourlyRate ? formatCurrency(parseAmount(form.hourlyRate)) : "—"}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 lg:justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => updateCreatorForm(creatorId, "hours", String(Math.max(parseAmount(form.hours) - 1, 1)))}
+                                  className={`h-9 w-9 lg:h-10 lg:w-10 rounded-lg border text-xl leading-none transition-colors ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white hover:bg-white/5" : "border-[#D7D7D7] bg-[#F4F5F7] text-black hover:bg-white"}`}
+                                  aria-label="Decrease hours"
+                                >
+                                  -
+                                </button>
+                                <div className={`min-w-[100px] lg:min-w-[124px] rounded-lg border px-3 py-2 text-center ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#D7D7D7] bg-[#F4F5F7] text-black"}`}>
+                                  <span className="text-xs lg:text-sm font-medium whitespace-nowrap">{parseAmount(form.hours)} Hours</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => updateCreatorForm(creatorId, "hours", String(parseAmount(form.hours) + 1))}
+                                  className={`h-9 w-9 lg:h-10 lg:w-10 rounded-lg border text-xl leading-none transition-colors ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white hover:bg-white/5" : "border-[#D7D7D7] bg-[#F4F5F7] text-black hover:bg-white"}`}
+                                  aria-label="Increase hours"
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#D7D7D7] bg-[#F4F5F7]"}`}>
+                                <span className={`${isDark ? "text-white/50" : "text-black/50"} text-xs`}>$</span>
+                                <input
+                                  type="text"
+                                  value={form.hourlyRate}
+                                  onChange={(event) => {
+                                    if (compensationMethod === "manual") {
+                                      updateCreatorForm(creatorId, "hourlyRate", event.target.value);
+                                    }
+                                  }}
+                                  readOnly={compensationMethod !== "manual"}
+                                  aria-readonly={compensationMethod !== "manual"}
+                                  className={`w-full border-0 bg-transparent text-xs lg:text-sm outline-none ${compensationMethod === "manual" ? "" : "cursor-not-allowed"} ${isDark ? "text-white/90" : "text-black/90"}`}
+                                />
+                              </div>
+
+                              {compensationMethod !== "equal" && form.rateType === "hourly" && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleHourlyConfirmation(creatorId)}
+                                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors ${
+                                    form.hourlyConfirmed
+                                      ? "text-[#E8D1AB] hover:text-[#f0dec1]"
+                                      : "text-[#10B981] hover:text-[#34D399]"
+                                  }`}
+                                  aria-label={form.hourlyConfirmed ? "Unfinalize hourly rate" : "Finalize hourly rate"}
+                                  title={form.hourlyConfirmed ? "Unfinalize hourly rate" : "Finalize hourly rate"}
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+
+                              <div className={`lg:col-span-4 flex items-center justify-between rounded-md px-4 py-3 min-h-[56px] ${isDark ? "bg-[#1B1B1B] text-white" : "bg-[#3B3B3B] text-white"}`}>
+                                <span className="text-sm lg:text-base whitespace-nowrap">Total Hours ({parseAmount(form.hours)})</span>
+                                <span className="text-sm lg:text-base font-semibold" style={{ color: "#E8D1AB" }}>
+                                  {form.hourlyCommittedTotal ? formatCurrency(getCreatorTargetAmount(form, form.rateType)) : "—"}
+                                </span>
+                              </div>
+
+                              <p className={`lg:col-span-4 text-[10px] lg:text-[11px] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                Other payouts reduce the remaining base, and the hourly rate updates from that remaining amount.
+                              </p>
                             </div>
-                            <input
-                              type="text"
-                              value={form.base}
-                              onChange={(event) => updateCreatorForm(creatorId, "base", event.target.value)}
-                              className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
-                            />
-                          </div>
+                          ) : (
+                            <div className={`relative rounded-xl border px-4 py-2 mt-2 ${isDark ? "border-[#5A5A5F] bg-[#0C0C0C]/40" : "border-[#e5e5e5] bg-[#D7D7D7]/40"}`}>
+                              <div className={`absolute -top-2.5 left-3 px-2 text-sm lg:text-base z-10 ${isDark ? "bg-[#0C0C0C] text-white/60" : "bg-[#D7D7D7] text-black/60"}`}>
+                                Base Payout*
+                              </div>
+                              <input
+                                type="text"
+                                value={compensationMethod === "manual" ? form.baseTarget : form.base}
+                                onChange={(event) => {
+                                  if (compensationMethod === "manual") {
+                                    updateCreatorForm(creatorId, "baseTarget", event.target.value);
+                                  }
+                                }}
+                                readOnly={compensationMethod !== "manual"}
+                                aria-readonly={compensationMethod !== "manual"}
+                                className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${compensationMethod === "manual" ? "" : "cursor-not-allowed"} ${isDark ? "text-white/90" : "text-black/90"}`}
+                              />
+                              <p className={`mt-1 text-[11px] lg:text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                {compensationMethod === "manual" ? "Manually adjustable base payout." : "Auto-adjusted from other payouts."}
+                              </p>
+                            </div>
+                          )}
 
                           <p className={`text-sm lg:text-base font-medium uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>Other Payouts</p>
 

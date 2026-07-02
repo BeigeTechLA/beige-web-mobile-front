@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { CircleDollarSign, Clock, ShieldAlert, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
@@ -182,6 +182,7 @@ const tabs: { label: string; value: TabType }[] = [
 
 export default function AdminFinancesPage() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isDark } = useResolvedTheme();
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);
@@ -280,6 +281,7 @@ export default function AdminFinancesPage() {
   const handleRowClick = async (row: ShootCPRow) => {
     setSelectedRow(row);
     setIsCompOpen(true);
+    setDetails(null);
     const bookingId = row.bookingId || Number(row.id);
     if (!bookingId) return;
     setDetailsLoading(true);
@@ -291,6 +293,16 @@ export default function AdminFinancesPage() {
     } finally {
       setDetailsLoading(false);
     }
+  };
+
+  const handleViewHistory = (row: ShootCPRow) => {
+    const bookingId = row.bookingId || Number(row.id);
+    if (!bookingId) {
+      toast.error("This payout does not have a valid booking ID yet.");
+      return;
+    }
+
+    router.push(`/admin/finances/cpCompensation/${bookingId}`);
   };
 
   const handleOpenModify = () => {
@@ -590,6 +602,7 @@ export default function AdminFinancesPage() {
           rows={tableData}
           loading={loading}
           onRowClick={handleRowClick}
+          onViewHistory={handleViewHistory}
           type={dataType}
         />
 
