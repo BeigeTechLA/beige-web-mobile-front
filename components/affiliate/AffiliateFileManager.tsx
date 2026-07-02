@@ -1233,20 +1233,21 @@ export default function AffiliateFileManager() {
       <div className="space-y-4 lg:space-y-8">
         <div>
           <div className="mb-3 lg:mb-5 flex items-center justify-end">
-            <Button
-              onClick={() => {
-                if (selectionLockActive || !canUploadInSelectedPhase) return;
-                setIsUploadModalOpen(true);
-              }}
-              disabled={selectionLockActive || !canUploadInSelectedPhase}
-              title={canUploadInSelectedPhase ? "Upload Files" : "Upload permission not allowed"}
-              className={`border transition-colors ${isDark
-                ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
-                : "border-black/15 bg-white text-black hover:bg-zinc-50 shadow-sm"
-                } disabled:cursor-not-allowed disabled:opacity-40`}
-            >
-              <Upload size={18} /> Upload Files
-            </Button>
+            {canUploadInSelectedPhase ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className={`border transition-colors ${isDark
+                  ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                  : "border-black/15 bg-white text-black hover:bg-zinc-50 shadow-sm"
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
+              >
+                <Upload size={18} /> Upload Files
+              </Button>
+            ) : null}
           </div>
           <div className="flex items-start gap-5 mb-2 lg:mb-6">
             <div className={`h-12 w-12 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl flex items-center justify-center text-lg lg:text-[30px] font-medium transition-colors ${isDark ? "bg-[#C8E1FF] text-black" : "bg-[#DDEBFF] text-black shadow-inner"
@@ -1754,12 +1755,8 @@ export default function AffiliateFileManager() {
               <EmptyFileState
                 title="No File Uploaded"
                 description="No files have been uploaded for this project yet."
-            onAction={() => {
-              if (selectionLockActive || !canUploadInSelectedPhase) return;
-              setIsUploadModalOpen(true);
-            }}
-            actionLabel="Upload Files"
-            actionDisabled={selectionLockActive || !canUploadInSelectedPhase}
+            onAction={canUploadInSelectedPhase && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+            actionLabel={canUploadInSelectedPhase && !selectionLockActive ? "Upload Files" : undefined}
             isDark={isDark}
           />
             )}

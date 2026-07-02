@@ -659,7 +659,7 @@ export default function CreatorSubFolderDetailsPage() {
     setSelectedUploadVersion(version || null);
     setIsUploadModalOpen(true);
   };
-  const hasVisibleFoldersOrVersionCreate = filteredFolders.length > 0 || isRevisionRootFolder;
+  const hasVisibleFoldersOrVersionCreate = filteredFolders.length > 0 || (isRevisionRootFolder && canUpload);
   const showHeaderUploadButton = canUpload && !isRevisionRootFolder && canUploadSelectedEdits;
 
   const handleCreateRevisionVersion = async () => {
@@ -761,30 +761,32 @@ export default function CreatorSubFolderDetailsPage() {
             <span className="text-sm font-medium">Back</span>
           </Button>
 
-	        <div className="flex items-center gap-2">
-	          <Button
-	            onClick={() => {
-                if (selectionLockActive || !canUpload || !isCommonEventWorkspace) return;
-                setIsCreateFolderModalOpen(true);
-              }}
-              disabled={selectionLockActive || !canUpload || !isCommonEventWorkspace}
-	            className="flex items-center gap-2 rounded-lg border border-white/20 bg-[#202020] px-3 text-white hover:bg-white/10 lg:h-10 lg:px-6 disabled:cursor-not-allowed disabled:opacity-40"
-	          >
-	            <FolderPlus size={18} />
-	            Create Folder
-	          </Button>
-	          <Button
-	            onClick={() => {
-                if (selectionLockActive || !showHeaderUploadButton) return;
-                openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null);
-              }}
-              disabled={selectionLockActive || !showHeaderUploadButton}
-	            className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6 disabled:cursor-not-allowed disabled:opacity-40"
-	          >
-	            <Upload size={18} />
-	            {isSelectedForEditsFolder || isRevisionRootFolder ? `Upload Version${uploadModalVersion} Files` : "Upload Files"}
-	          </Button>
-	        </div>
+	          {canUpload ? (
+	            <div className="flex items-center gap-2">
+	              {isCommonEventWorkspace ? (
+	                <Button
+	                  onClick={() => setIsCreateFolderModalOpen(true)}
+	                  className="flex items-center gap-2 rounded-lg border border-white/20 bg-[#202020] px-3 text-white hover:bg-white/10 lg:h-10 lg:px-6"
+	                >
+	                  <FolderPlus size={18} />
+	                  Create Folder
+	                </Button>
+	              ) : null}
+	              {showHeaderUploadButton ? (
+	                <Button
+	                  onClick={() => {
+                      if (selectionLockActive) return;
+                      openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null);
+                    }}
+                    disabled={selectionLockActive}
+	                  className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
+	                >
+	                  <Upload size={18} />
+	                  {isSelectedForEditsFolder || isRevisionRootFolder ? `Upload Version${uploadModalVersion} Files` : "Upload Files"}
+	                </Button>
+	              ) : null}
+	            </div>
+	          ) : null}
         </div>
 
         {loading ? (
@@ -934,17 +936,13 @@ export default function CreatorSubFolderDetailsPage() {
                               }
                             : undefined
                         }
-                        deleteDisabled={!canDeleteFolders}
 			                  />
 		                ))}
-                    {isRevisionRootFolder ? (
+                    {isRevisionRootFolder && canUpload ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!canUpload || isCreatingRevisionVersion) return;
-                          handleCreateRevisionVersion();
-                        }}
-                        disabled={isCreatingRevisionVersion || !canUpload}
+                        onClick={handleCreateRevisionVersion}
+                        disabled={isCreatingRevisionVersion}
                         className="flex min-h-[202px] w-full flex-col items-center justify-center gap-5 rounded-3xl border border-dashed border-[#E8D1AB]/35 bg-[#18181b] p-5 text-center transition-all hover:border-[#E8D1AB]/60 hover:bg-[#1c1c20] disabled:cursor-not-allowed disabled:opacity-70 lg:max-w-[350px]"
                       >
                         <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]">
@@ -959,17 +957,14 @@ export default function CreatorSubFolderDetailsPage() {
 		            </div>
 		          ) : null}
 
-          {filteredFolders.length === 0 && isRevisionRootFolder ? (
+          {filteredFolders.length === 0 && isRevisionRootFolder && canUpload ? (
             <div className="mb-6">
               <h3 className="mb-3 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
               <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!canUpload || isCreatingRevisionVersion) return;
-                    handleCreateRevisionVersion();
-                  }}
-                  disabled={isCreatingRevisionVersion || !canUpload}
+                  onClick={handleCreateRevisionVersion}
+                  disabled={isCreatingRevisionVersion}
                   className="flex min-h-[202px] w-full flex-col items-center justify-center gap-5 rounded-3xl border border-dashed border-[#E8D1AB]/35 bg-[#18181b] p-5 text-center transition-all hover:border-[#E8D1AB]/60 hover:bg-[#1c1c20] disabled:cursor-not-allowed disabled:opacity-70 lg:max-w-[350px]"
                 >
                   <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]">
@@ -986,14 +981,7 @@ export default function CreatorSubFolderDetailsPage() {
 	          {viewMode === "grid" ? (
 	            filteredData.length === 0 ? (
                 hasVisibleFoldersOrVersionCreate ? null : (
-	              <EmptyFileState
-	                onAction={() => {
-                    if (selectionLockActive || !showHeaderUploadButton) return;
-                    setIsUploadModalOpen(true);
-                  }}
-                  actionLabel="Upload Files"
-                  actionDisabled={selectionLockActive || !showHeaderUploadButton}
-                />
+	              <EmptyFileState onAction={showHeaderUploadButton ? () => setIsUploadModalOpen(true) : undefined} actionLabel={showHeaderUploadButton ? "Upload Files" : undefined} />
                 )
             ) : (
 	              <div className="space-y-4">
@@ -1016,12 +1004,9 @@ export default function CreatorSubFolderDetailsPage() {
                           onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
                           onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
                           onUploadEdited={
-                            !selectionLockActive && isSelectedForEditsFolder && revisionState.nextUploadVersion && canUpload
+                            !selectionLockActive && isSelectedForEditsFolder && revisionState.nextUploadVersion
                               ? () => openUploadModalForVersion(revisionState.nextUploadVersion)
                               : undefined
-                          }
-                          uploadEditedDisabled={
-                            !selectionLockActive && isSelectedForEditsFolder && Boolean(revisionState.nextUploadVersion) && !canUpload
                           }
                           onDelete={
                             !selectionLockActive && canDeleteFiles
@@ -1031,7 +1016,6 @@ export default function CreatorSubFolderDetailsPage() {
                                 }
                               : undefined
                           }
-                          deleteDisabled={!selectionLockActive && !canDeleteFiles}
                           isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                           onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                         />
@@ -1053,14 +1037,7 @@ export default function CreatorSubFolderDetailsPage() {
 	            )
 	          ) : filteredData.length === 0 ? (
               hasVisibleFoldersOrVersionCreate ? null : (
-              <EmptyFileState
-                onAction={() => {
-                  if (selectionLockActive || !showHeaderUploadButton) return;
-                  setIsUploadModalOpen(true);
-                }}
-                actionLabel="Upload Files"
-                actionDisabled={selectionLockActive || !showHeaderUploadButton}
-              />
+	            <EmptyFileState onAction={showHeaderUploadButton ? () => setIsUploadModalOpen(true) : undefined} actionLabel={showHeaderUploadButton ? "Upload Files" : undefined} />
               )
 	          ) : (
 	            <div className="space-y-4">
@@ -1196,19 +1173,19 @@ export default function CreatorSubFolderDetailsPage() {
                                     );
                                   })()
                                 : null}
-	                            <button
-                                className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
+	                            {canDeleteFiles ? (
+                              <button
+                                className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (selectionLockActive || !canDeleteFiles) return;
+                                  if (selectionLockActive) return;
                                   setSelectedFile(file as unknown as Record<string, unknown>);
                                   setIsDeleteModalOpen(true);
                                 }}
-                                disabled={selectionLockActive || !canDeleteFiles}
-                                title={canDeleteFiles ? "Delete file" : "Delete permission not allowed"}
                               >
                                 {openingFileId === file.id ? <span className="text-[10px]">...</span> : <Trash2 size={16} />}
                               </button>
+                            ) : null}
 	                          </div>
 	                        </td>
 	                      </tr>
@@ -1332,15 +1309,15 @@ export default function CreatorSubFolderDetailsPage() {
                 Download
               </Button>
 
-              <Button
-                className="gap-2 bg-[#F04438] text-white hover:bg-[#F04438]/90 disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={() => setIsDeleteModalOpen(true)}
-                disabled={!canDeleteFiles}
-                title={canDeleteFiles ? "Delete selected" : "Delete permission not allowed"}
-              >
-                <Trash2 size={18} />
-                Delete
-              </Button>
+              {canDeleteFiles ? (
+                <Button
+                  className="gap-2 bg-[#F04438] text-white hover:bg-[#F04438]/90"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                >
+                  <Trash2 size={18} />
+                  Delete
+                </Button>
+              ) : null}
             </div>
 
             <button

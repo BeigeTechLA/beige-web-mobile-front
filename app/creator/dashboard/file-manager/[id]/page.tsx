@@ -369,7 +369,6 @@ export default function CreatorFolderDetailsPage() {
                           }
                         : undefined
                     }
-                    deleteDisabled={!isCommonEventWorkspace}
                     onRename={() => toast.info("Folder rename is the next safe step.")}
                   />
                 ))}
@@ -479,7 +478,6 @@ export default function CreatorFolderDetailsPage() {
             setIsShareModalOpen(true);
           }}
           onDelete={isCommonEventWorkspace ? () => setIsDeleteModalOpen(true) : undefined}
-          deleteDisabled={!isCommonEventWorkspace}
           onRename={() => toast.info("Folder rename is the next safe step.")}
         />
       )}

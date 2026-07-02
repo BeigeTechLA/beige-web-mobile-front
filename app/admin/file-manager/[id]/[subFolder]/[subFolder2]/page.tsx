@@ -827,12 +827,12 @@ export default function SubFolderDetailsPage() {
                             stage={fileCardStage}
                             onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
                             onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
-                            onDelete={!selectionLockActive ? () => {
-                              if (!canDelete) return;
+                            onDelete={() => {
+                              if (selectionLockActive || !canDelete) return;
                               setSelectedFile(file);
                               setIsDeleteModalOpen(true);
-                            } : undefined}
-                            deleteDisabled={!canDelete}
+                            }}
+                            deleteDisabled={selectionLockActive || !canDelete}
                             onShare={selectionLockActive ? undefined : () => {
                               setSelectedFile(file);
                               setShareResource({
@@ -910,11 +910,12 @@ export default function SubFolderDetailsPage() {
                             });
                             setIsShareModalOpen(true);
                           }}
-                          onDelete={selectionLockActive ? undefined : () => {
+                          onDelete={() => {
+                            if (selectionLockActive || !canDelete) return;
                             setSelectedFile(file);
                             setIsDeleteModalOpen(true);
                           }}
-                          deleteDisabled={!canDelete}
+                          deleteDisabled={selectionLockActive || !canDelete}
                           isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                           onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                           isDark={isDark}
@@ -1086,8 +1087,9 @@ export default function SubFolderDetailsPage() {
                                 setSelectedFile(file);
                                 setIsDeleteModalOpen(true);
                               }}
-                              deleteDisabled={!canDelete}
-                              isDeleting={openingFileId === file.id}
+                              disabled={!canDelete}
+                              title={canDelete ? "Delete file" : "Delete permission not allowed"}
+                            isDeleting={openingFileId === file.id}
                             />
                             );
                           })}
@@ -1358,6 +1360,7 @@ export default function SubFolderDetailsPage() {
                     setIsDeleteModalOpen(true);
                   }}
                   disabled={!canDelete}
+                  title={canDelete ? "Delete selected" : "Delete permission not allowed"}
                 >
                   <TrashIcon size={18} />
                   <span className="hidden lg:block">Delete</span>

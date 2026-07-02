@@ -636,20 +636,21 @@ export default function CreatorFileManagerPhasePage() {
                       >
                         <DownloadIcon size={16} />
                       </button>
-                      <button
-                        type="button"
-                        className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
-                        disabled={selectionLockActive || !canDeleteFiles}
-                        title={canDeleteFiles ? "Delete file" : "Delete permission not allowed"}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (selectionLockActive || !canDeleteFiles) return;
-                          setSelectedFile(file as unknown as Record<string, unknown>);
-                          setIsDeleteModalOpen(true);
-                        }}
-                      >
-                        <TrashIcon size={16} />
-                      </button>
+                      {canDeleteFiles ? (
+                        <button
+                          type="button"
+                          className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
+                          disabled={selectionLockActive}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectionLockActive) return;
+                            setSelectedFile(file as unknown as Record<string, unknown>);
+                            setIsDeleteModalOpen(true);
+                          }}
+                        >
+                          <TrashIcon size={16} />
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -687,28 +688,34 @@ export default function CreatorFileManagerPhasePage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => {
-              if (selectionLockActive || !canCreateFolder) return;
-              setIsCreateFolderModalOpen(true);
-            }}
-            disabled={selectionLockActive || !canCreateFolder}
-            className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <FolderPlus /> Create Folder
-          </Button>
-          <Button
-            onClick={() => {
-              if (selectionLockActive || !canUpload) return;
-              setIsUploadModalOpen(true);
-            }}
-            disabled={selectionLockActive || !canUpload}
-            className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Upload /> Upload Files
-          </Button>
-        </div>
+        {canUpload || canCreateFolder ? (
+          <div className="flex items-center gap-2">
+            {canCreateFolder ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsCreateFolderModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <FolderPlus /> Create Folder
+              </Button>
+            ) : null}
+            {canUpload ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Upload /> Upload Files
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {loading ? (
@@ -1040,12 +1047,8 @@ export default function CreatorFileManagerPhasePage() {
             ) : viewMode === "grid" ? (
               filteredFiles.length === 0 ? (
                 <EmptyFileState
-                  onAction={() => {
-                    if (selectionLockActive || !canUpload) return;
-                    setIsUploadModalOpen(true);
-                  }}
-                  actionLabel="Upload Files"
-                  actionDisabled={selectionLockActive || !canUpload}
+                  onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+                  actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
                 />
               ) : (
                 <div className="space-y-4">
@@ -1095,12 +1098,8 @@ export default function CreatorFileManagerPhasePage() {
               )
             ) : filteredFiles.length === 0 ? (
               <EmptyFileState
-                onAction={() => {
-                  if (selectionLockActive || !canUpload) return;
-                  setIsUploadModalOpen(true);
-                }}
-                actionLabel="Upload Files"
-                actionDisabled={selectionLockActive || !canUpload}
+                onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+                actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
               />
             ) : (
               renderFilesTable()
@@ -1166,7 +1165,6 @@ export default function CreatorFileManagerPhasePage() {
                 }
               : undefined
           }
-          deleteDisabled={!canDeleteFolders}
           onShare={() => {
             setShareResource({
               resourceType: "folder",
@@ -1233,15 +1231,15 @@ export default function CreatorFileManagerPhasePage() {
                 Download
               </Button>
 
-              <Button
-                className="gap-2 bg-[#F04438] text-white hover:bg-[#F04438]/90 disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={() => setIsDeleteModalOpen(true)}
-                disabled={!canDeleteFiles}
-                title={canDeleteFiles ? "Delete selected" : "Delete permission not allowed"}
-              >
-                <TrashIcon size={18} />
-                Delete
-              </Button>
+              {canDeleteFiles ? (
+                <Button
+                  className="gap-2 bg-[#F04438] text-white hover:bg-[#F04438]/90"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                >
+                  <TrashIcon size={18} />
+                  Delete
+                </Button>
+              ) : null}
             </div>
 
             <button

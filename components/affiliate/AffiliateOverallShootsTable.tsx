@@ -9,7 +9,6 @@ import { affiliateApi, adminApi } from "@/lib/api";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
-import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   Select,
   SelectContent,
@@ -71,7 +70,6 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
   const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { canDelete } = usePermissions("shoots");
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -281,12 +279,8 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
                       <div className="flex justify-end gap-2 mt-1">
                         <button
-                          onClick={(e) => {
-                            if (!canDelete) return;
-                            handleDelete(e, shoot.id);
-                          }}
-                          disabled={!canDelete}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                          onClick={(e) => handleDelete(e, shoot.id)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
                         >
                           <Trash2 size={16} />
                         </button>

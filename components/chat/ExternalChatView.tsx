@@ -679,6 +679,7 @@ export default function ExternalChatView({
     const participant = participantList.find((item) => participantMatchesAppUser(item, effectiveUser));
     return participant?.id ? String(participant.id) : userId;
   }, [participantList, effectiveUser, userId]);
+  const canCreateMessageRoom = isAdminView;
 
   const scopedRooms = useMemo(
     () =>
@@ -1626,8 +1627,13 @@ export default function ExternalChatView({
             {isAdminView && !bookingId ? (
               <button
                 type="button"
-                onClick={() => setIsComposerOpen(true)}
-                className={`rounded-lg lg:rounded-xl py-2 px-3 lg:px-4 lg:py-3 text-xs lg:text-sm font-semibold transition-colors ${isDark
+                onClick={() => {
+                  if (!canCreateMessageRoom) return;
+                  setIsComposerOpen(true);
+                }}
+                disabled={!canCreateMessageRoom}
+                title={canCreateMessageRoom ? "Create Messages" : "Create permission not allowed"}
+                className={`rounded-lg lg:rounded-xl py-2 px-3 lg:px-4 lg:py-3 text-xs lg:text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark
                   ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]"
                   : "bg-black text-white hover:bg-zinc-800"
                   }`}
@@ -1688,8 +1694,13 @@ export default function ExternalChatView({
                   {isAdminView && !bookingId ? (
                     <button
                       type="button"
-                      onClick={() => setIsComposerOpen(true)}
-                      className={`flex h-10 w-10 lg:h-14 lg:w-14 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
+                      onClick={() => {
+                        if (!canCreateMessageRoom) return;
+                        setIsComposerOpen(true);
+                      }}
+                      disabled={!canCreateMessageRoom}
+                      title={canCreateMessageRoom ? "Create Messages" : "Create permission not allowed"}
+                      className={`flex h-10 w-10 lg:h-14 lg:w-14 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
                     >
                       <span className="text-xl lg:text-4xl font-light leading-none -mt-0.5 lg:-mt-1">+</span>
                     </button>

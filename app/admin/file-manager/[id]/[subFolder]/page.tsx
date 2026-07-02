@@ -1437,14 +1437,21 @@ export default function AdminFileManagerPhasePage() {
                                   }}>
                                     Share
                                   </Button>
-                                  <Button variant="ghost" className="text-white/40 hover:text-[#F04438]" onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedFile(item);
-                                    setSelectedFolder(null);
-                                    setIsDeleteModalOpen(true);
-                                  }} disabled={!canDelete}>
-                                    Delete
-                                  </Button>
+                                          <Button
+                                            variant="ghost"
+                                            className="text-white/40 hover:text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (!canDelete) return;
+                                              setSelectedFile(item);
+                                              setSelectedFolder(null);
+                                              setIsDeleteModalOpen(true);
+                                            }}
+                                            disabled={!canDelete}
+                                            title={canDelete ? "Delete file" : "Delete permission not allowed"}
+                                          >
+                                            Delete
+                                          </Button>
                                 </div>
                               </td>
                             </tr>
@@ -1608,8 +1615,13 @@ export default function AdminFileManagerPhasePage() {
                 </Button>
 
                 <Button
-                  onClick={() => setIsDeleteModalOpen(true)}
-                  className="flex-1 lg:flex-none bg-[#F04438] text-white hover:bg-[#d7372d] gap-2"
+                  onClick={() => {
+                    if (!canDelete) return;
+                    setIsDeleteModalOpen(true);
+                  }}
+                  disabled={!canDelete}
+                  title={canDelete ? "Delete selected" : "Delete permission not allowed"}
+                  className="flex-1 lg:flex-none bg-[#F04438] text-white hover:bg-[#d7372d] gap-2 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <TrashIcon size={18} />
                   Delete
