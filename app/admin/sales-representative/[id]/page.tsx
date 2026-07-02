@@ -132,6 +132,7 @@ const getRoleLabel = (roleData: any): string => {
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
+  if (status === "partially_paid" || status === "partial_paid") return "Partially Paid";
   if (status === "payment_pending") return "Payment Pending";
   if (status === "abandoned") return "Cancelled";
   return "In-Progress";

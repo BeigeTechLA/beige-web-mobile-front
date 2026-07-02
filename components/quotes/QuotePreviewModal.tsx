@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ArrowLeft, Check, Copy, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import QuotePreviewDocument from "@/components/quotes/QuotePreviewDocument";
@@ -14,6 +14,7 @@ import {
   resolveSecureQuotePreviewKey,
   resolveSecureQuotePreviewUrl,
 } from "@/lib/quotePreview";
+import { downloadQuotePdf } from "@/lib/quotePdf";
 import { getQuoteSendSuccessMessage, isQuoteAlreadySent } from "@/lib/quoteSend";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -50,6 +51,36 @@ const PreviewActionButton = ({
   </Button>
 );
 
+const getQuoteValidityExpirationTime = (value: unknown) => {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
+
+  const rawValue = String(value).trim();
+  if (!rawValue) {
+    return null;
+  }
+
+  const dateMatch = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateMatch) {
+    const [, year, month, day] = dateMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day), 23, 59, 59, 999).getTime();
+  }
+
+  const parsedTime = new Date(rawValue).getTime();
+  return Number.isFinite(parsedTime) ? parsedTime : null;
+};
+
+const isQuoteValidityExpired = (quote: SalesQuoteDetailData | null | undefined) => {
+  const status = String(quote?.quote_status || quote?.status || "").trim().toLowerCase();
+  if (status === "expired") {
+    return true;
+  }
+
+  const expirationTime = getQuoteValidityExpirationTime(quote?.valid_until ?? quote?.expires_at);
+  return expirationTime !== null && Date.now() > expirationTime;
+};
+
 export default function QuotePreviewModal({
   open,
   onClose,
@@ -64,10 +95,12 @@ export default function QuotePreviewModal({
   const { isDark } = useResolvedTheme();
   const [copied, setCopied] = React.useState(false);
   const [isSending, setIsSending] = React.useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = React.useState(false);
   const [isPreparingLink, setIsPreparingLink] = React.useState(false);
   const [hasSentQuote, setHasSentQuote] = React.useState(false);
   const [generatedPreviewUrl, setGeneratedPreviewUrl] = React.useState<string | null>(null);
   const copyResetTimeoutRef = React.useRef<number | null>(null);
+  const quotePreviewPrintRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     return () => {
@@ -84,7 +117,7 @@ export default function QuotePreviewModal({
   }, [open]);
 
   const quoteData = unwrapSalesQuoteDetail(quote);
-  const isExpired = quoteData?.status?.toLowerCase() === "expired";
+  const isExpired = isQuoteValidityExpired(quoteData);
 
   const resolvedQuoteId = String(
     quoteData?.sales_quote_id ?? quoteData?.quote_id ?? quoteData?.id ?? quoteId ?? ""
@@ -101,7 +134,7 @@ export default function QuotePreviewModal({
   const copyQuoteUrl = secureQuotePreviewUrl ?? generatedPreviewUrl;
   const quoteSentFromData = isQuoteAlreadySent(quoteData);
   const quoteSent = hasSentQuote || quoteSentFromData;
-  const canSendQuote = Boolean(resolvedQuoteId) && !isLoading && !isSending;
+  const canSendQuote = !isExpired && Boolean(resolvedQuoteId) && !isLoading && !isSending;
 
   React.useEffect(() => {
     setHasSentQuote(quoteSentFromData);
@@ -198,6 +231,24 @@ export default function QuotePreviewModal({
     }
   };
 
+  const handleDownloadQuote = async () => {
+    if (!quoteData) {
+      toast.error("Quote preview data is unavailable.");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+    try {
+      await downloadQuotePdf(quoteData, resolvedQuoteId || quoteId, quotePreviewPrintRef.current);
+      toast.success("Quote PDF is ready to save.");
+    } catch (error) {
+      console.error("Failed to download quote PDF", error);
+      toast.error(error instanceof Error ? error.message : "Failed to download quote PDF");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div
       className={`fixed inset-0 z-[110] p-3 backdrop-blur-md sm:p-4 lg:p-6 ${isDark ? "bg-black/85" : "bg-black/50"
@@ -222,37 +273,54 @@ export default function QuotePreviewModal({
             <ArrowLeft size={18} className="mr-2" />
             Back
           </Button>
-          {!isExpired && showShareActions && (
           <div className="hidden items-center gap-3 lg:flex">
-            <PreviewActionButton
-              onClick={() => {
-                void handleCopy();
-              }}
-              disabled={isPreparingLink}
-              className={`h-11 rounded-xl px-4 ${isDark
-                ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-                : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-                }`}
-            >
-              {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-              {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
-            </PreviewActionButton>
-            <PreviewActionButton
-              onClick={() => {
-                void handleSendQuote();
-              }}
-              disabled={!canSendQuote}
-              className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
-            >
-              {isSending ? (
-                <Loader2 size={18} className="mr-2 animate-spin" />
-              ) : (
-                <Send size={18} className="mr-2" />
-              )}
-              {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
-            </PreviewActionButton>
+            {quoteData ? (
+              <PreviewActionButton
+                onClick={() => {
+                  void handleDownloadQuote();
+                }}
+                disabled={isDownloadingPdf}
+                className={`h-11 rounded-xl px-4 ${isDark
+                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                  }`}
+              >
+                {isDownloadingPdf ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
+                {isDownloadingPdf ? "Downloading..." : "Download Quote"}
+              </PreviewActionButton>
+            ) : null}
+            {!isExpired && showShareActions ? (
+              <>
+                <PreviewActionButton
+                  onClick={() => {
+                    void handleCopy();
+                  }}
+                  disabled={isPreparingLink}
+                  className={`h-11 rounded-xl px-4 ${isDark
+                    ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                    : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                    }`}
+                >
+                  {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+                  {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
+                </PreviewActionButton>
+                <PreviewActionButton
+                  onClick={() => {
+                    void handleSendQuote();
+                  }}
+                  disabled={!canSendQuote}
+                  className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
+                >
+                  {isSending ? (
+                    <Loader2 size={18} className="mr-2 animate-spin" />
+                  ) : (
+                    <Send size={18} className="mr-2" />
+                  )}
+                  {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
+                </PreviewActionButton>
+              </>
+            ) : null}
           </div>
-           )}
         </div>
        
 
@@ -289,47 +357,64 @@ export default function QuotePreviewModal({
                 </div>
               </div>
 
-              <QuotePreviewDocument
-                quote={quoteData}
-                quoteId={quoteId}
-                paymentSummaryOverrides={paymentSummaryOverrides}
-              />
+              <div ref={quotePreviewPrintRef}>
+                <QuotePreviewDocument
+                  quote={quoteData}
+                  quoteId={quoteId}
+                  paymentSummaryOverrides={paymentSummaryOverrides}
+                />
+              </div>
             </>
           )}
         </div>
 
         {/* Floating Mobile Buttons */}
         <div className={`flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8 ${isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD] bg-white"}`}>
-          <div className="flex gap-2 lg:hidden w-full">
+          <div className="flex w-full flex-col gap-2 lg:hidden">
+            {quoteData ? (
+              <PreviewActionButton
+                onClick={() => {
+                  void handleDownloadQuote();
+                }}
+                disabled={isDownloadingPdf}
+                className={`w-full h-11 rounded-xl ${isDark
+                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                  }`}
+              >
+                {isDownloadingPdf ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
+                {isDownloadingPdf ? "Downloading..." : "Download Quote"}
+              </PreviewActionButton>
+            ) : null}
             {!showShareActions || isExpired ? null : (
               <>
-            <PreviewActionButton
-              onClick={() => {
-                void handleCopy();
-              }}
-              disabled={isPreparingLink}
-              className={`w-full h-11 rounded-xl ${isDark
-                ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
-                : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-                }`}
-            >
-              {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-              {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
-            </PreviewActionButton>
-            <PreviewActionButton
-              onClick={() => {
-                void handleSendQuote();
-              }}
-              disabled={!canSendQuote}
-              className="w-full h-11 rounded-xl bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-            >
-              {isSending ? (
-                <Loader2 size={18} className="mr-2 animate-spin" />
-              ) : (
-                <Send size={18} className="mr-2" />
-              )}
-              {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
-            </PreviewActionButton>
+                <PreviewActionButton
+                  onClick={() => {
+                    void handleCopy();
+                  }}
+                  disabled={isPreparingLink}
+                  className={`w-full h-11 rounded-xl ${isDark
+                    ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                    : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                    }`}
+                >
+                  {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+                  {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
+                </PreviewActionButton>
+                <PreviewActionButton
+                  onClick={() => {
+                    void handleSendQuote();
+                  }}
+                  disabled={!canSendQuote}
+                  className="w-full h-11 rounded-xl bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                >
+                  {isSending ? (
+                    <Loader2 size={18} className="mr-2 animate-spin" />
+                  ) : (
+                    <Send size={18} className="mr-2" />
+                  )}
+                  {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
+                </PreviewActionButton>
               </>
             )}
           </div>

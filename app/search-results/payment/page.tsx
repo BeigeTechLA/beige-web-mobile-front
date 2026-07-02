@@ -372,10 +372,13 @@ const getPaymentCompletionState = (details: any) => {
     0,
     parseFloat(
       additionalPayment?.outstanding_amount ??
-      details?.pending_amount ??
-      details?.outstanding_amount ??
-      details?.remaining_amount ??
-      0
+        details?.pricing?.payment_summary?.due_amount ??
+        details?.payment_summary?.due_amount ??
+        details?.due_amount ??
+        details?.pending_amount ??
+        details?.outstanding_amount ??
+        details?.remaining_amount ??
+        0
     ) || 0
   );
 
@@ -391,6 +394,15 @@ const getPaymentCompletionState = (details: any) => {
       details?.amount_paid
     )
   );
+  const summaryDueAmount = pickPaymentNumber(
+    details?.pricing?.payment_summary?.due_amount,
+    details?.payment_summary?.due_amount,
+    details?.due_amount,
+  );
+  const hasAuthoritativeDueAmount =
+    details?.pricing?.payment_summary?.due_amount !== undefined ||
+    details?.payment_summary?.due_amount !== undefined ||
+    details?.due_amount !== undefined;
 
   const totalAmount = Math.max(
     0,
@@ -407,6 +419,7 @@ const getPaymentCompletionState = (details: any) => {
     Boolean(booking?.payment_completed_at || booking?.payment_id || details?.has_full_payment);
 
   const isSettled =
+    (!hasAuthoritativeDueAmount || summaryDueAmount <= 0.009) &&
     hasCompletionSignal &&
     outstandingAmount <= 0.009 &&
     (paidAmount > 0 || totalAmount <= 0.009);
@@ -1025,7 +1038,7 @@ function StripePaymentFormMulti({
         coupon: discountCode || undefined,
         page_name: "Payment Page",
         location_in_website: "book_a_shoot_payment_page",
-        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
         booking_id: booking?.bookingId,
         items: [{
           item_name: booking?.shoot_name || "Shoot Booking",
@@ -1047,7 +1060,7 @@ function StripePaymentFormMulti({
         coupon: discountCode || undefined,
         page_name: "Payment Page",
         location_in_website: "book_a_shoot_payment_page",
-        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
         booking_id: booking?.bookingId,
         items: [{
           item_name: booking?.shoot_name || "Shoot Booking",
@@ -1096,17 +1109,15 @@ function StripePaymentFormMulti({
       type: "Action Tracking",
       page_name: "Payment Page",
       location_in_website: "book_a_shoot_payment_page",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       email: isAuthenticated ? user?.email : booking.email,
       phone: isAuthenticated ? user?.phone_number : booking.phone,
       duration_on_page: performance.now() / 1000,
       booking_id: booking?.bookingId,
-      booking_form_fields: {
-        full_name: booking.fullName,
-        phone: booking.phone,
-      }
+      full_name: booking.fullName,
     });
+
     console.log("after GA booking_payment_initiated call");
 
     // 100% DISCOUNT CASE: Bypass Stripe
@@ -1127,8 +1138,8 @@ function StripePaymentFormMulti({
           type: "Action Tracking",
           page_name: "Payment Page",
           location_in_website: "book_a_shoot_payment_page",
-          user_id: isAuthenticated ? user?.id : "Unknown",
-          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          user_id: isAuthenticated ? user?.id : "Guest",
+          user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
           booking_id: booking?.booking_id,
           items: [{
             item_name: booking?.shoot_name || "Shoot Booking",
@@ -1191,8 +1202,8 @@ function StripePaymentFormMulti({
           payment_status: `Fail: ${paymentError.message || "Payment failed"}`,
           value: booking?.totalAmount,
           currency: "USD",
-          user_id: isAuthenticated ? user?.id : "Unknown",
-          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          user_id: isAuthenticated ? user?.id : "Guest",
+          user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
           email: isAuthenticated ? user?.email : booking.email,
           phone: isAuthenticated ? user?.phone_number : booking.phone,
         });
@@ -1579,6 +1590,12 @@ function StripePaymentFormMulti({
 function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
+  const paymentLinkToken = searchParams.get("paymentLink");
+  const paymentLinkAmountParam = searchParams.get("amount");
+  const paymentLinkAmount = React.useMemo(() => {
+    const numericValue = Number(paymentLinkAmountParam);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+  }, [paymentLinkAmountParam]);
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
 
@@ -1808,8 +1825,11 @@ function MultiCreatorPaymentContent() {
       setClientSecret("");
       return;
     }
-    const { booking, quote } = details;
-    const basePayableAmount = resolveBasePayableAmount(details);
+    const { booking } = details;
+    const fullPayableAmount = resolveBasePayableAmount(details);
+    const basePayableAmount = paymentLinkAmount
+      ? Math.min(paymentLinkAmount, fullPayableAmount)
+      : fullPayableAmount;
     const availableCredit = parseFloat(details?.account_credit?.available_credit_amount || 0);
     const canUseCredit = Boolean(details?.account_credit?.can_use_credit) && availableCredit > 0;
     const creditToApply =
@@ -1827,6 +1847,7 @@ function MultiCreatorPaymentContent() {
           payment_source: isAdditionalPaymentFlow(details) ? "additional_invoice" : undefined,
           use_credit: useCreditOverride && canUseCredit,
           credit_amount_used: creditToApply,
+          payment_link_token: paymentLinkToken || undefined,
         },
         {
           headers: getAuthHeaders(),
@@ -1962,6 +1983,7 @@ function MultiCreatorPaymentContent() {
           referral_code: referralCode || null,
           use_credit: useAccountCredit && canUseAccountCredit,
           credit_amount_used: creditAppliedAmount,
+          payment_link_token: paymentLinkToken || undefined,
         },
         {
           headers: getAuthHeaders(),
@@ -2025,7 +2047,12 @@ function MultiCreatorPaymentContent() {
   const { booking, creators, quote } = paymentDetails;
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
-  const basePayableAmount = resolveBasePayableAmount(paymentDetails);
+  const fullPayableAmount = resolveBasePayableAmount(paymentDetails);
+  const basePayableAmount = paymentLinkAmount
+    ? Math.min(paymentLinkAmount, fullPayableAmount)
+    : fullPayableAmount;
+  const isPartialPaymentLink =
+    Boolean(paymentLinkAmount) && paymentLinkAmount! < fullPayableAmount - 0.009;
   const accountCredit = paymentDetails?.account_credit || {};
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
@@ -2103,7 +2130,9 @@ function MultiCreatorPaymentContent() {
                 />
               </div>
             </div>
-            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
+            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">
+              {isPartialPaymentLink ? "Payment Received" : "Booking Confirmed"}
+            </h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(paidAmount)}</p>
             <div className="w-full max-w-2xl mb-6">
               <button
