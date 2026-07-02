@@ -48,6 +48,8 @@ import { getProject } from "@/lib/api";
 import { toast } from "sonner";
 import { MobileRow } from "@/components/creator-profile/MobileRow";
 import { StatCard } from "@/components/admin/StatCard";
+import Topbar from "@/components/admin/Topbar";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 export default function RequestsShootsPage() {
   const router = useRouter();
@@ -83,6 +85,8 @@ export default function RequestsShootsPage() {
     completedShoots: number;
     declinedRequests: number;
   } | null>(null);
+
+  const { isDark } = useResolvedTheme()
 
   /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
@@ -147,9 +151,9 @@ export default function RequestsShootsPage() {
       const pendingFiltered =
         pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
           ? pendingRes.data.filter((p: any) => {
-              const dateStr = p.event_date || p.shoot_date;
-              return isUpcomingDate(dateStr);
-            })
+            const dateStr = p.event_date || p.shoot_date;
+            return isUpcomingDate(dateStr);
+          })
           : [];
       if (pendingFiltered.length > 0) {
         allProjects.push(
@@ -163,9 +167,9 @@ export default function RequestsShootsPage() {
       const upcomingFiltered =
         upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
           ? upcomingRes.data.filter((p: any) => {
-              const dateStr = p.event_date || p.shoot_date;
-              return isUpcomingDate(dateStr);
-            })
+            const dateStr = p.event_date || p.shoot_date;
+            return isUpcomingDate(dateStr);
+          })
           : [];
       if (upcomingFiltered.length > 0) {
         allProjects.push(
@@ -352,448 +356,452 @@ export default function RequestsShootsPage() {
 
 
   return (
-    <div className="mx-auto space-y-4 lg:space-y-8 pb-12 text-white">
-      {/* Header */}
-      <div className="space-y-4 lg:space-y-8">
-        {/* 1. Simple Header: Title & Description */}
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Requests & Shoots</h1>
-          <p className="text-white/60">Manage your production schedule and requests</p>
-        </div>
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8">
+        {/* Header */}
+        <div className="space-y-4 lg:space-y-8">
+          {/* 1. Simple Header: Title & Description */}
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold">Requests & Shoots</h1>
+            <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>Manage your production schedule and requests</p>
+          </div>
 
-        {/* 2. Tabs */}
-        <div className="inline-flex items-center gap-1 rounded-xl bg-[#171717] border border-white/10 p-1">
-          <button
-            onClick={() => handleTabChange("requests")}
-            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-              activeTab === "requests"
+          {/* 2. Tabs */}
+          <div className="inline-flex items-center gap-1 rounded-xl bg-[#171717] border border-white/10 p-1">
+            <button
+              onClick={() => handleTabChange("requests")}
+              className={`px-4 py-2 text-sm rounded-lg transition-colors ${activeTab === "requests"
                 ? "bg-[#E8D1AB] text-black"
                 : "text-white/60 hover:text-white"
-            }`}
-          >
-            Requests
-          </button>
-          <button
-            onClick={() => handleTabChange("shoots")}
-            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-              activeTab === "shoots"
+                }`}
+            >
+              Requests
+            </button>
+            <button
+              onClick={() => handleTabChange("shoots")}
+              className={`px-4 py-2 text-sm rounded-lg transition-colors ${activeTab === "shoots"
                 ? "bg-[#E8D1AB] text-black"
                 : "text-white/60 hover:text-white"
-            }`}
-          >
-            Shoots
-          </button>
-        </div>
+                }`}
+            >
+              Shoots
+            </button>
+          </div>
 
-        {/* 3. Stats Cards Section */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Pending Requests"
-            value={computedStats?.pendingRequests ?? dashboardStats?.pendingRequests || 0}
-            icon={Clock}
-            iconColor="text-yellow-500"
-            valueColor="text-yellow-500"
-            hoverBorder="hover:border-yellow-500/30"
-          />
-          <StatCard
-            label="Confirmed Shoots"
-            value={computedStats?.confirmedRequests ?? dashboardStats?.confirmedRequests || 0}
-            icon={Camera}
-            iconColor="text-[#E8D1AB]"
-            hoverBorder="hover:border-[#E8D1AB]/30"
-          />
-          <StatCard
-            label="Completed"
-            value={computedStats?.completedShoots ?? dashboardStats?.completedShoots || 0}
-            icon={CheckCircle2}
-            iconColor="text-green-400"
-            valueColor="text-green-400"
-            hoverBorder="hover:border-green-400/30"
-          />
-          <StatCard
-            label="Declined"
-            value={computedStats?.declinedRequests ?? dashboardStats?.declinedRequests || 0}
-            icon={Ban}
-            iconColor="text-red-400"
-            valueColor="text-red-400"
-            hoverBorder="hover:border-red-400/30"
-          />
-        </div>
-
-        {/* 3. Filter Bar: Search, Select, and View Toggle */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          {/* Search Box - Now Left Aligned */}
-          <div className="relative w-full lg:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-            <Input
-              placeholder="Search projects..."
-              className="pl-10 bg-[#1A1A1A] border-white/5 w-full md:w-[250px]"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+          {/* 3. Stats Cards Section */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              label="Pending Requests"
+              value={(computedStats?.pendingRequests ?? dashboardStats?.pendingRequests) || 0}
+              icon={Clock}
+              iconColor="text-yellow-500"
+              valueColor="text-yellow-500"
+              hoverBorder="hover:border-yellow-500/30"
+              isDark={isDark}
+            />
+            <StatCard
+              label="Confirmed Shoots"
+              value={(computedStats?.confirmedRequests ?? dashboardStats?.confirmedRequests) || 0}
+              icon={Camera}
+              iconColor="text-[#E8D1AB]"
+              hoverBorder="hover:border-[#E8D1AB]/30"
+              isDark={isDark}
+            />
+            <StatCard
+              label="Completed"
+              value={(computedStats?.completedShoots ?? dashboardStats?.completedShoots) || 0}
+              icon={CheckCircle2}
+              iconColor="text-green-400"
+              valueColor="text-green-400"
+              hoverBorder="hover:border-green-400/30"
+              isDark={isDark}
+            />
+            <StatCard
+              label="Declined"
+              value={(computedStats?.declinedRequests ?? dashboardStats?.declinedRequests) || 0}
+              icon={Ban}
+              iconColor="text-red-400"
+              valueColor="text-red-400"
+              hoverBorder="hover:border-red-400/30"
+              isDark={isDark}
             />
           </div>
 
-          {/* Filter Group - Grouped to stay on the Right */}
-          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="bg-[#1A1A1A] border-white/5 w-full md:w-[140px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                {activeTab === "requests" ? (
-                  <SelectItem value="pending">Pending</SelectItem>
-                ) : (
-                  <SelectItem value="completed">Completed</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-
-            {/* MOBILE VIEW: Dropdown Button */}
-            <div className="md:hidden relative">
-              <Button
-                onClick={toggleDropdown}
-                className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-12 w-12 rounded-lg text-white"
-              >
-                {view === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
-              </Button>
-
-              {/* Dropdown Menu */}
-              {isOpen && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
-                  <button
-                    onClick={() => handleViewChange('grid')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                      }`}
-                  >
-                    <Grid3X3 size={18} />
-                    Grid View
-                  </button>
-                  <button
-                    onClick={() => handleViewChange('list')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                      }`}
-                  >
-                    <List size={18} />
-                    List View
-                  </button>
-                </div>
-              )}
+          {/* 3. Filter Bar: Search, Select, and View Toggle */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Search Box - Now Left Aligned */}
+            <div className="relative w-full lg:w-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+              <Input
+                placeholder="Search projects..."
+                className="pl-10 bg-[#1A1A1A] border-white/5 w-full md:w-[250px]"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
 
-            {/* DESKTOP VIEW: Original Toggle */}
-            <div className="hidden lg:flex bg-[#1A1A1A] p-1 rounded-xl border border-white/5 w-fit">
-              <button
-                onClick={() => handleViewChange("grid")}
-                className={`p-2 rounded-lg transition-all ${view === "grid" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
-                  }`}
-              >
-                <Grid3X3 size={20} />
-              </button>
-              <button
-                onClick={() => handleViewChange("list")}
-                className={`p-2 rounded-lg transition-all ${view === "list" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
-                  }`}
-              >
-                <List size={20} />
-              </button>
+            {/* Filter Group - Grouped to stay on the Right */}
+            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="bg-[#1A1A1A] border-white/5 w-full md:w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  {activeTab === "requests" ? (
+                    <SelectItem value="pending">Pending</SelectItem>
+                  ) : (
+                    <SelectItem value="completed">Completed</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+
+              {/* MOBILE VIEW: Dropdown Button */}
+              <div className="md:hidden relative">
+                <Button
+                  onClick={toggleDropdown}
+                  className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-12 w-12 rounded-lg text-white"
+                >
+                  {view === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
+                </Button>
+
+                {/* Dropdown Menu */}
+                {isOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                    <button
+                      onClick={() => handleViewChange('grid')}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                        }`}
+                    >
+                      <Grid3X3 size={18} />
+                      Grid View
+                    </button>
+                    <button
+                      onClick={() => handleViewChange('list')}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                        }`}
+                    >
+                      <List size={18} />
+                      List View
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* DESKTOP VIEW: Original Toggle */}
+              <div className="hidden lg:flex bg-[#1A1A1A] p-1 rounded-xl border border-white/5 w-fit">
+                <button
+                  onClick={() => handleViewChange("grid")}
+                  className={`p-2 rounded-lg transition-all ${view === "grid" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
+                    }`}
+                >
+                  <Grid3X3 size={20} />
+                </button>
+                <button
+                  onClick={() => handleViewChange("list")}
+                  className={`p-2 rounded-lg transition-all ${view === "list" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
+                    }`}
+                >
+                  <List size={20} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
 
-      {/* Main Content Area */}
-      <div>
-        {filteredProjects.length > 0 ? (
-          view === "grid" ? (
-            /* --- DYNAMIC GRID VIEW --- */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredProjects.map((item) => (
-                <div
-                  key={item.project_id}
-                  className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6 hover:border-[#E8D1AB]/40 transition-all group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                        item.status === "Completed"
+        {/* Main Content Area */}
+        <div>
+          {filteredProjects.length > 0 ? (
+            view === "grid" ? (
+              /* --- DYNAMIC GRID VIEW --- */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredProjects.map((item) => (
+                  <div
+                    key={item.project_id}
+                    className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6 hover:border-[#E8D1AB]/40 transition-all group"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${item.status === "Completed"
                           ? "bg-emerald-400/10 text-emerald-400"
                           : item.status === "Confirmed"
-                          ? "bg-green-400/10 text-green-400"
-                          : "bg-blue-400/10 text-blue-400"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                    <span className="text-white/20 text-xs italic">Recently updated</span>
-                  </div>
-
-                  <h3 className="text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors capitalize">
-                    {item.project_name || item.title || "Untitled Project"}
-                  </h3>
-
-                  <div className="space-y-3 mb-4 lg:mb-6">
-                    <div className="flex items-center gap-3 text-white/60 text-sm">
-                      <CalendarIcon size={16} className="text-[#E8D1AB]" />
-                      <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-white/60 text-sm">
-                      <MapPin size={16} className="text-[#E8D1AB]" />
-                      <span className="truncate">
-                        {formatLocation(item.event_location || item.location)}
+                            ? "bg-green-400/10 text-green-400"
+                            : "bg-blue-400/10 text-blue-400"
+                          }`}
+                      >
+                        {item.status}
                       </span>
+                      <span className="text-white/20 text-xs italic">Recently updated</span>
+                    </div>
+
+                    <h3 className="text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors capitalize">
+                      {item.project_name || item.title || "Untitled Project"}
+                    </h3>
+
+                    <div className="space-y-3 mb-4 lg:mb-6">
+                      <div className="flex items-center gap-3 text-white/60 text-sm">
+                        <CalendarIcon size={16} className="text-[#E8D1AB]" />
+                        <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-white/60 text-sm">
+                        <MapPin size={16} className="text-[#E8D1AB]" />
+                        <span className="truncate">
+                          {formatLocation(item.event_location || item.location)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                      <Button
+                        onClick={() => handleOpenProjectDetails(item.project_id)}
+                        className="bg-transparent border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-6"
+                      >
+                        View Details
+                      </Button>
+
+                      {item.status === "Pending" && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="icon"
+                            onClick={() => setAcceptShootEvent(item)}
+                            className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
+                          >
+                            <Check size={18} />
+                          </Button>
+                          <Button
+                            size="icon"
+                            onClick={() => setDeclineShootEvent(item)}
+                            className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"
+                          >
+                            <X size={18} />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                    <Button
-                      onClick={() => handleOpenProjectDetails(item.project_id)}
-                      className="bg-transparent border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-6"
-                    >
-                      View Details
-                    </Button>
-
-                    {item.status === "Pending" && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="icon"
-                          onClick={() => setAcceptShootEvent(item)}
-                          className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
-                        >
-                          <Check size={18} />
-                        </Button>
-                        <Button
-                          size="icon"
-                          onClick={() => setDeclineShootEvent(item)}
-                          className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"
-                        >
-                          <X size={18} />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            /* --- DYNAMIC LIST VIEW (Matches Screenshot Style) --- */
-            <div className="bg-[#111] border border-white/5 rounded-xl overflow-hidden">
-              {/* DESKTOP TABLE VIEW */}
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-white/[0.03] text-white/40 text-[11px] uppercase tracking-wider">
-                      <th className="px-6 py-4 font-semibold">Shoot ID</th>
-                      <th className="px-6 py-4 font-semibold">Name</th>
-                      <th className="px-6 py-4 font-semibold">Location</th>
-                      <th className="px-6 py-4 font-semibold">Email</th>
-                      <th className="px-6 py-4 font-semibold">Category</th>
-                      <th className="px-6 py-4 font-semibold">Status</th>
-                      <th className="px-6 py-4 font-semibold text-right pr-12">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {filteredProjects.map((item) => {
-                      // Status Logic Mapping
-                      let statusBg = "bg-[#FEF9C3]"; // Light Yellow
-                      let statusText = "text-[#854D0E]"; // Dark Yellow/Brown
-                      let label = "Pending";
-
-                      if (item.status === "Confirmed") {
-                        statusBg = "bg-[#DCFCE7]"; // Light Green
-                        statusText = "text-[#166534]"; // Dark Green
-                        label = "Approved";
-                      } else if (item.status === "Completed") {
-                        statusBg = "bg-[#D1FAE5]"; // Light Emerald
-                        statusText = "text-[#065F46]"; // Dark Emerald
-                        label = "Completed";
-                      } else if (item.status === "Rejected" || item.status === "Declined") {
-                        statusBg = "bg-[#FEE2E2]"; // Light Red
-                        statusText = "text-[#991B1B]"; // Dark Red
-                        label = "Rejected";
-                      }
-
-                      return (
-                        <tr
-                          key={item.project_id}
-                          className="hover:bg-white/[0.01] transition-colors group"
-                        >
-                          {/* Shoot ID Column */}
-                          <td className="px-6 py-5 text-sm text-white/60">
-                            #{item.project_id?.toString().slice(-6) || "123456"}
-                          </td>
-
-                          {/* Name/Project Details Column */}
-                          <td className="px-6 py-5">
-                            <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 overflow-hidden flex items-center justify-center text-[#E8D1AB] font-bold text-xs">
-                                {(item.project_name || "PR").split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="text-sm font-bold text-white leading-tight">
-                                  {item.project_name || "Untitled"}
-                                </div>
-                                <div className="text-[11px] text-white/40 mt-0.5">
-                                  Production Shoot
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Location Column */}
-                          <td className="px-6 py-5 text-sm text-white/60">
-                            <div className="max-w-[180px] truncate">
-                              {formatLocation(item.event_location || item.location)}
-                            </div>
-                          </td>
-
-                          {/* Email Column */}
-                          <td className="px-6 py-5 text-sm text-white/60">
-                            <div className="max-w-[200px] truncate">
-                              {item.guest_email || "N/A"}
-                            </div>
-                          </td>
-
-                          <td className="px-6 py-5 text-sm text-white/60">
-                            Videographer
-                          </td>
-
-                          {/* Status Pill Column (Matched to Screenshot) */}
-                          <td className="px-6 py-5">
-                            <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[12px] font-bold min-w-[100px] ${statusBg} ${statusText}`}>
-                              {label}
-                            </span>
-                          </td>
-
-                          {/* Action Column (Matched to Screenshot) */}
-                          <td className="px-6 py-5">
-                            <div className="flex items-center justify-end gap-6">
-                              {item.status === "Pending" ? (
-                                <div className="flex items-center gap-4">
-                                  {/* Pill Shape Approve Button */}
-                                  <button
-                                    onClick={() => setAcceptShootEvent(item)}
-                                    className="px-4 py-1 rounded-full bg-[#DCFCE7] text-[#166534] text-[12px] font-bold hover:bg-green-200 transition-colors"
-                                  >
-                                    Approve
-                                  </button>
-                                  {/* Red Underlined Decline Link */}
-                                  <button
-                                    onClick={() => setDeclineShootEvent(item)}
-                                    className="text-[#F87171] text-[12px] font-medium underline underline-offset-4 hover:text-red-400"
-                                  >
-                                    Decline
-                                  </button>
-                                </div>
-                              ) : item.status === "Confirmed" ? (
-                                <div className="flex items-center gap-3 text-white/40">
-                                  <button className="hover:text-white transition-colors">
-                                    <Pencil size={18} />
-                                  </button>
-                                  <button className="hover:text-red-400 transition-colors">
-                                    <Trash2 size={18} />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="text-white/20">
-                                  <Info size={18} />
-                                </div>
-                              )}
-
-                              {/* Detail Chevron */}
-                              <button
-                                onClick={() => handleOpenProjectDetails(item.project_id)}
-                                className="text-white/40 hover:text-white transition-colors"
-                              >
-                                <ChevronRight size={20} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* MOBILE COLLAPSIBLE VIEW */}
-              <div className="lg:hidden flex flex-col divide-y divide-white/5">
-                {filteredProjects.map((item) => (
-                  <MobileRow
-                    key={item.project_id}
-                    item={item}
-                    onApprove={() => setAcceptShootEvent(item)}
-                    onDecline={() => setDeclineShootEvent(item)}
-                    onViewDetails={() => handleOpenProjectDetails(item.project_id)}
-                  />
                 ))}
               </div>
+            ) : (
+              /* --- DYNAMIC LIST VIEW (Matches Screenshot Style) --- */
+              <div className="bg-[#111] border border-white/5 rounded-xl overflow-hidden">
+                {/* DESKTOP TABLE VIEW */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-white/[0.03] text-white/40 text-[11px] uppercase tracking-wider">
+                        <th className="px-6 py-4 font-semibold">Shoot ID</th>
+                        <th className="px-6 py-4 font-semibold">Name</th>
+                        <th className="px-6 py-4 font-semibold">Location</th>
+                        <th className="px-6 py-4 font-semibold">Email</th>
+                        <th className="px-6 py-4 font-semibold">Category</th>
+                        <th className="px-6 py-4 font-semibold">Status</th>
+                        <th className="px-6 py-4 font-semibold text-right pr-12">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {filteredProjects.map((item) => {
+                        // Status Logic Mapping
+                        let statusBg = "bg-[#FEF9C3]"; // Light Yellow
+                        let statusText = "text-[#854D0E]"; // Dark Yellow/Brown
+                        let label = "Pending";
+
+                        if (item.status === "Confirmed") {
+                          statusBg = "bg-[#DCFCE7]"; // Light Green
+                          statusText = "text-[#166534]"; // Dark Green
+                          label = "Approved";
+                        } else if (item.status === "Completed") {
+                          statusBg = "bg-[#D1FAE5]"; // Light Emerald
+                          statusText = "text-[#065F46]"; // Dark Emerald
+                          label = "Completed";
+                        } else if (item.status === "Rejected" || item.status === "Declined") {
+                          statusBg = "bg-[#FEE2E2]"; // Light Red
+                          statusText = "text-[#991B1B]"; // Dark Red
+                          label = "Rejected";
+                        }
+
+                        return (
+                          <tr
+                            key={item.project_id}
+                            className="hover:bg-white/[0.01] transition-colors group"
+                          >
+                            {/* Shoot ID Column */}
+                            <td className="px-6 py-5 text-sm text-white/60">
+                              #{item.project_id?.toString().slice(-6) || "123456"}
+                            </td>
+
+                            {/* Name/Project Details Column */}
+                            <td className="px-6 py-5">
+                              <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 overflow-hidden flex items-center justify-center text-[#E8D1AB] font-bold text-xs">
+                                  {(item.project_name || "PR").split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-white leading-tight">
+                                    {item.project_name || "Untitled"}
+                                  </div>
+                                  <div className="text-[11px] text-white/40 mt-0.5">
+                                    Production Shoot
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Location Column */}
+                            <td className="px-6 py-5 text-sm text-white/60">
+                              <div className="max-w-[180px] truncate">
+                                {formatLocation(item.event_location || item.location)}
+                              </div>
+                            </td>
+
+                            {/* Email Column */}
+                            <td className="px-6 py-5 text-sm text-white/60">
+                              <div className="max-w-[200px] truncate">
+                                {item.guest_email || "N/A"}
+                              </div>
+                            </td>
+
+                            <td className="px-6 py-5 text-sm text-white/60">
+                              Videographer
+                            </td>
+
+                            {/* Status Pill Column (Matched to Screenshot) */}
+                            <td className="px-6 py-5">
+                              <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[12px] font-bold min-w-[100px] ${statusBg} ${statusText}`}>
+                                {label}
+                              </span>
+                            </td>
+
+                            {/* Action Column (Matched to Screenshot) */}
+                            <td className="px-6 py-5">
+                              <div className="flex items-center justify-end gap-6">
+                                {item.status === "Pending" ? (
+                                  <div className="flex items-center gap-4">
+                                    {/* Pill Shape Approve Button */}
+                                    <button
+                                      onClick={() => setAcceptShootEvent(item)}
+                                      className="px-4 py-1 rounded-full bg-[#DCFCE7] text-[#166534] text-[12px] font-bold hover:bg-green-200 transition-colors"
+                                    >
+                                      Approve
+                                    </button>
+                                    {/* Red Underlined Decline Link */}
+                                    <button
+                                      onClick={() => setDeclineShootEvent(item)}
+                                      className="text-[#F87171] text-[12px] font-medium underline underline-offset-4 hover:text-red-400"
+                                    >
+                                      Decline
+                                    </button>
+                                  </div>
+                                ) : item.status === "Confirmed" ? (
+                                  <div className="flex items-center gap-3 text-white/40">
+                                    <button className="hover:text-white transition-colors">
+                                      <Pencil size={18} />
+                                    </button>
+                                    <button className="hover:text-red-400 transition-colors">
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="text-white/20">
+                                    <Info size={18} />
+                                  </div>
+                                )}
+
+                                {/* Detail Chevron */}
+                                <button
+                                  onClick={() => handleOpenProjectDetails(item.project_id)}
+                                  className="text-white/40 hover:text-white transition-colors"
+                                >
+                                  <ChevronRight size={20} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE COLLAPSIBLE VIEW */}
+                <div className="lg:hidden flex flex-col divide-y divide-white/5">
+                  {filteredProjects.map((item) => (
+                    <MobileRow
+                      key={item.project_id}
+                      item={item}
+                      onApprove={() => setAcceptShootEvent(item)}
+                      onDecline={() => setDeclineShootEvent(item)}
+                      onViewDetails={() => handleOpenProjectDetails(item.project_id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="col-span-full bg-[#111] border border-white/5 rounded-xl p-12 text-center text-white/40">
+              No projects found matching your criteria.
             </div>
-          )
-        ) : (
-          <div className="col-span-full bg-[#111] border border-white/5 rounded-xl p-12 text-center text-white/40">
-            No projects found matching your criteria.
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Modals */}
+        <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
+          <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm">
+            <DialogHeader className="text-center">
+              <DialogTitle className="text-xl font-bold">Accept Shoot?</DialogTitle>
+            </DialogHeader>
+            <div className="text-center p-4">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-[#E8D1AB] mb-4" />
+              <p className="text-white/60 text-sm mb-6">Confirming will add this project to your active schedule.</p>
+              <div className="flex gap-3">
+                <Button variant="ghost" className="flex-1" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
+                <Button className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a]" onClick={() => handleAcceptProject(acceptShootEvent.project_id, true)}>Confirm</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!declineShootEvent} onOpenChange={() => setDeclineShootEvent(null)}>
+          <DialogContent className="bg-[#111] border-white/10 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <AlertTriangle className="text-red-500" />
+                Decline Request
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-white/60 mb-2 block">Reason for declining</Label>
+                <Select value={declineReason} onValueChange={setDeclineReason}>
+                  <SelectTrigger className="bg-[#1A1A1A] border-white/5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
+                    <SelectItem value="Schedule conflict">Schedule conflict</SelectItem>
+                    <SelectItem value="Rate too low">Rate too low</SelectItem>
+                    <SelectItem value="Location too far">Location too far</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-white/60 mb-2 block">Additional Comments (Optional)</Label>
+                <Textarea
+                  className="bg-[#1A1A1A] border-white/5 text-white"
+                  placeholder="Let the team know why..."
+                  value={declineComments}
+                  onChange={(e) => setDeclineComments(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button variant="ghost" className="flex-1" onClick={() => setDeclineShootEvent(null)}>Cancel</Button>
+                <Button className="flex-1 bg-red-600 text-white hover:bg-red-700" onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}>Decline Shoot</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {/* Modals */}
-      <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
-        <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm">
-          <DialogHeader className="text-center">
-            <DialogTitle className="text-xl font-bold">Accept Shoot?</DialogTitle>
-          </DialogHeader>
-          <div className="text-center p-4">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-[#E8D1AB] mb-4" />
-            <p className="text-white/60 text-sm mb-6">Confirming will add this project to your active schedule.</p>
-            <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
-              <Button className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a]" onClick={() => handleAcceptProject(acceptShootEvent.project_id, true)}>Confirm</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!declineShootEvent} onOpenChange={() => setDeclineShootEvent(null)}>
-        <DialogContent className="bg-[#111] border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <AlertTriangle className="text-red-500" />
-              Decline Request
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-white/60 mb-2 block">Reason for declining</Label>
-              <Select value={declineReason} onValueChange={setDeclineReason}>
-                <SelectTrigger className="bg-[#1A1A1A] border-white/5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
-                  <SelectItem value="Schedule conflict">Schedule conflict</SelectItem>
-                  <SelectItem value="Rate too low">Rate too low</SelectItem>
-                  <SelectItem value="Location too far">Location too far</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-white/60 mb-2 block">Additional Comments (Optional)</Label>
-              <Textarea
-                className="bg-[#1A1A1A] border-white/5 text-white"
-                placeholder="Let the team know why..."
-                value={declineComments}
-                onChange={(e) => setDeclineComments(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button variant="ghost" className="flex-1" onClick={() => setDeclineShootEvent(null)}>Cancel</Button>
-              <Button className="flex-1 bg-red-600 text-white hover:bg-red-700" onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}>Decline Shoot</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </>
   );
 }

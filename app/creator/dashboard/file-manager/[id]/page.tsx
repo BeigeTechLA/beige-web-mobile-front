@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Plus, Search } from "lucide-react";
 
@@ -14,6 +14,7 @@ import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
+import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
   getDisplayInitials,
@@ -22,14 +23,17 @@ import {
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const STATUSES = ["Linked", "Unlinked"];
 
 export default function CreatorFolderDetailsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
+  const { isDark } = useResolvedTheme();
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -214,46 +218,47 @@ export default function CreatorFolderDetailsPage() {
   };
 
   return (
-    <div className="overflow-hidden">
-      <div className="mb-5 flex items-center justify-between gap-2">
-        <Button onClick={() => router.back()} className="flex items-center gap-2 p-0 text-white transition-colors hover:text-white/80">
+    <>
+      <Topbar pathname={pathname} />
+
+      <div className="overflow-x-hidden overflow-y-auto p-4 pb-10 lg:px-10 lg:py-9">
+        <Button onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
-      </div>
 
-      {loading ? (
-        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        {loading ? (
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
         }`}>
-        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-      </div>      
-       ) : error ? (
-        <div className="text-sm text-red-300">{error || "Workspace not found"}</div>
-      ) : !workspaceName ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-[#111111] p-6 text-sm text-white/65">
-          Workspace is not available for this project yet. Older projects may not have one linked.
-        </div>
-      ) : (
-        <>
-          <div>
-            <div className="mb-2 flex items-start gap-5 lg:mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#C8E1FF] text-[#000] lg:h-21 lg:w-21 lg:rounded-2xl lg:text-[30px] lg:font-medium">
-                {getDisplayInitials(workspaceName)}
-              </div>
-              <div className="min-w-0 max-w-3xl flex-1 text-white">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-                  <h1 className="break-words text-sm font-semibold leading-[32px] lg:text-2xl">
-                    {workspaceName}
-                  </h1>
-                  <span className="flex items-center gap-1.5 rounded-full border border-[#6ce9a6]/20 bg-[#D4FFE4] px-2.5 py-1 text-xs font-medium text-[#16A34A]">
-                    Active Project
-                  </span>
+            <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+          </div>
+        ) : error ? (
+          <div className="text-sm text-red-300">{error || "Workspace not found"}</div>
+        ) : !workspaceName ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#111111] p-6 text-sm text-white/65">
+            Workspace is not available for this project yet. Older projects may not have one linked.
+          </div>
+        ) : (
+          <>
+            <div>
+              <div className="mb-2 flex items-start gap-5 lg:mb-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#C8E1FF] text-[#000] lg:h-21 lg:w-21 lg:rounded-2xl lg:text-[30px] lg:font-medium">
+                  {getDisplayInitials(workspaceName)}
                 </div>
-                <p className="hidden text-sm text-[#D0D0D0] lg:block">
-                  <span className="text-[#AAA7A7]">Project Code: </span>
-                  {workspaceCode}
-                </p>
-                {/* {workspaceConsoleUrl ? (
+                <div className="min-w-0 max-w-3xl flex-1 text-white">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+                    <h1 className="break-words text-sm font-semibold leading-[32px] lg:text-2xl">
+                      {workspaceName}
+                    </h1>
+                    <span className="flex items-center gap-1.5 rounded-full border border-[#6ce9a6]/20 bg-[#D4FFE4] px-2.5 py-1 text-xs font-medium text-[#16A34A]">
+                      Active Project
+                    </span>
+                  </div>
+                  <p className={`text-xs lg:text-sm transition-colors duration-300 ${isDark ? "text-[#D0D0D0]" : "text-gray-600"}`}>
+                    <span className={isDark ? "text-[#AAA7A7]" : "text-gray-400"}>Project Code: </span>
+                    {workspaceCode}
+                  </p>
+                  {/* {workspaceConsoleUrl ? (
                   <a
                     href={workspaceConsoleUrl}
                     target="_blank"
@@ -263,14 +268,14 @@ export default function CreatorFolderDetailsPage() {
                     Open Storage Folder
                   </a>
                 ) : null} */}
+                </div>
               </div>
-            </div>
 
-            <p className="text-xs text-[#D0D0D0] lg:hidden">
-              <span className="text-[#AAA7A7]">Project Code: </span>
-              {workspaceCode}
-            </p>
-            {/* {workspaceConsoleUrl ? (
+              <p className="text-xs text-[#D0D0D0] lg:hidden">
+                <span className="text-[#AAA7A7]">Project Code: </span>
+                {workspaceCode}
+              </p>
+              {/* {workspaceConsoleUrl ? (
               <a
                 href={workspaceConsoleUrl}
                 target="_blank"
@@ -280,231 +285,234 @@ export default function CreatorFolderDetailsPage() {
                 Open Storage Folder
               </a>
             ) : null} */}
-          </div>
-
-          <div className="pb-20 lg:pb-0">
-            <div className="mb-3 flex items-center justify-between gap-2 lg:mb-6">
-              <div className="relative max-w-xl flex-1">
-                <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/40 lg:left-3 lg:h-4 lg:w-4" />
-                <input
-                  type="text"
-                  placeholder="Search folder..."
-                  value={searchTerm}
-                  className="w-full rounded-lg border border-white/10 bg-[#18181b] py-1.5 pl-6 pr-4 text-xs text-white placeholder:text-white/40 transition-all focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] lg:py-2 lg:pl-9 lg:text-sm"
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2">
-                {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-                <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
-                  <Button
-                    onClick={() => setViewMode("grid")}
-                    className={`rounded-l-lg px-5 py-2.5 transition-colors ${
-                      viewMode === "grid"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
-                    }`}
-                  >
-                    <Grid3X3 size={20} />
-                  </Button>
-                  <Button
-                    onClick={() => setViewMode("list")}
-                    className={`rounded-r-lg px-5 py-2.5 transition-colors ${
-                      viewMode === "list"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
-                    }`}
-                  >
-                    <List size={20} />
-                  </Button>
-                </div>
-              </div>
             </div>
 
-            {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
-              <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
-                No folder yet. Create your folder to get started.
+            <div className="pb-20 lg:pb-0">
+              <div className="mb-3 flex items-center justify-between gap-2 lg:mb-6">
+                <div className="relative max-w-xl flex-1">
+                  <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
+                  <input
+                    type="text"
+                    placeholder="Search folder..."
+                    value={searchTerm}
+                    className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                      ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                      : "bg-white border-[#E3E3E3] text-black placeholder:text-[#9F9FA9] focus:ring-[#D7D7D7] focus:border-[#D7D7D7]"
+                      }`}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
+                  <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
+                    <Button
+                      onClick={() => setViewMode("grid")}
+                      className={`rounded-l-lg px-5 py-2.5 transition-colors ${viewMode === "grid"
+                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                        : "bg-transparent text-white/40 hover:text-white"
+                        }`}
+                    >
+                      <Grid3X3 size={20} />
+                    </Button>
+                    <Button
+                      onClick={() => setViewMode("list")}
+                      className={`rounded-r-lg px-5 py-2.5 transition-colors ${viewMode === "list"
+                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                        : "bg-transparent text-white/40 hover:text-white"
+                        }`}
+                    >
+                      <List size={20} />
+                    </Button>
+                  </div>
+                </div>
               </div>
-            ) : isCommonEventWorkspace && hasCreatedCpFolders ? (
-              <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
-                <p>Your folder is ready. Open it below to upload files.</p>
-              </div>
-            ) : null}
 
-            {viewMode === "grid" ? (
-              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                {visibleFolders.map((folder) => (
-                  <FolderCard
-                    key={folder.id}
-                    title={folder.title}
-                    fileCount={folder.fileCount}
-                    lastOpened={folder.lastOpened}
-                    userInitials={folder.userInitials}
-                    onOpenLinkModal={() => {
-                      setSelectedFolder(folder);
-                      setIsLinkModalOpen(true);
-                    }}
-                    onOpen={() => {
-                      void openFolderWithAccessCheck(folder);
-                    }}
-                    href={folder.href}
-                    onDownload={async () => {
-                      await handleDownloadSelectedFolder(folder);
-                    }}
-                    onShare={() => {
-                      setShareResource({
-                        resourceType: "folder",
-                        externalId: String(projectId || ""),
-                        phase: getFolderPhase(folder),
-                        path: isCommonEventWorkspace ? folder.rawName || folder.title : undefined,
-                        label: folder.title,
-                      });
-                      setIsShareModalOpen(true);
-                    }}
-                    onDelete={
-                      isCommonEventWorkspace
-                        ? () => {
+              {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
+                <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
+                  No folder yet. Create your folder to get started.
+                </div>
+              ) : isCommonEventWorkspace && hasCreatedCpFolders ? (
+                <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
+                  <p>Your folder is ready. Open it below to upload files.</p>
+                </div>
+              ) : null}
+
+              {viewMode === "grid" ? (
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                  {visibleFolders.map((folder) => (
+                    <FolderCard
+                      key={folder.id}
+                      title={folder.title}
+                      fileCount={folder.fileCount}
+                      lastOpened={folder.lastOpened}
+                      userInitials={folder.userInitials}
+                      onOpenLinkModal={() => {
+                        setSelectedFolder(folder);
+                        setIsLinkModalOpen(true);
+                      }}
+                      onOpen={() => {
+                        void openFolderWithAccessCheck(folder);
+                      }}
+                      href={folder.href}
+                      onDownload={async () => {
+                        await handleDownloadSelectedFolder(folder);
+                      }}
+                      onShare={() => {
+                        setShareResource({
+                          resourceType: "folder",
+                          externalId: String(projectId || ""),
+                          phase: getFolderPhase(folder),
+                          path: isCommonEventWorkspace ? folder.rawName || folder.title : undefined,
+                          label: folder.title,
+                        });
+                        setIsShareModalOpen(true);
+                      }}
+                      onDelete={
+                        isCommonEventWorkspace
+                          ? () => {
                             setSelectedFolder(folder);
                             setIsDeleteModalOpen(true);
                           }
-                        : undefined
-                    }
-                    onRename={() => toast.info("Folder rename is the next safe step.")}
-                  />
-                ))}
-                {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
-                  <button
-                    type="button"
-                    onClick={handleCreateMyEventFolder}
-                    disabled={isCreatingMyFolder}
-                    className="flex min-h-[202px] w-full items-center justify-center rounded-xl border border-dashed border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] transition-all hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22] disabled:cursor-not-allowed disabled:opacity-60 lg:max-w-[350px] lg:rounded-3xl"
-                  >
-                    <span className="flex flex-col items-center gap-2 text-sm font-medium">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5D5B8]/50 bg-[#E5D5B8]/10">
-                        <Plus size={22} />
-                      </span>
-                      {isCreatingMyFolder ? "Creating..." : "Create Your Folder"}
-                    </span>
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="lg:hidden">
-                  {visibleFolders.map((folder) => (
-                    <MobileFolderRow
-                      key={folder.id}
-                      folder={folder}
-                      handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                          : undefined
+                      }
+                      onRename={() => toast.info("Folder rename is the next safe step.")}
                     />
                   ))}
+                  {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
+                    <button
+                      type="button"
+                      onClick={handleCreateMyEventFolder}
+                      disabled={isCreatingMyFolder}
+                      className="flex min-h-[202px] w-full items-center justify-center rounded-xl border border-dashed border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] transition-all hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22] disabled:cursor-not-allowed disabled:opacity-60 lg:max-w-[350px] lg:rounded-3xl"
+                    >
+                      <span className="flex flex-col items-center gap-2 text-sm font-medium">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5D5B8]/50 bg-[#E5D5B8]/10">
+                          <Plus size={22} />
+                        </span>
+                        {isCreatingMyFolder ? "Creating..." : "Create Your Folder"}
+                      </span>
+                    </button>
+                  ) : null}
                 </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="lg:hidden">
+                    {visibleFolders.map((folder) => (
+                      <MobileFolderRow
+                        key={folder.id}
+                        folder={folder}
+                        handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                        isDark={isDark}
+                      />
+                    ))}
+                  </div>
 
-                <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full border-collapse text-left">
-                    <thead>
-                      <tr className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
-                        <th className="rounded-l-xl px-6 py-5 font-medium">Name</th>
-                        <th className="px-6 py-5 text-center font-medium">Files</th>
-                        <th className="px-6 py-5 text-center font-medium">Last Updated</th>
-                        <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleFolders.map((item) => (
-                        <tr
-                          key={item.id}
-                          className="cursor-pointer transition-colors hover:bg-white/[0.02]"
-                          onClick={(e) => {
-                            if ((e.target as HTMLElement).closest("button")) return;
-                            void openFolderWithAccessCheck(item);
-                          }}
-                        >
-                          <td className="px-6 py-5">
-                            <div className="flex items-center gap-3">
-                              <div className="rounded-lg border border-white/5 bg-white/5 p-2">
-                                <FolderOpen className="text-[#E8D1AB]" size={20} />
-                              </div>
-                              <span className="text-sm font-medium text-white">{item.title}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-5 text-center text-sm text-white/60">
-                            {String(item.fileCount).padStart(2, "0")}
-                          </td>
-                          <td className="px-6 py-5 text-center text-sm text-[#8F8F8F]">{item.lastOpened}</td>
-                          <td className="px-6 py-5 text-right">
-                            <Button
-                              variant="ghost"
-                              className="h-10 w-10 rounded-full p-0 text-white/40 hover:bg-white/10 hover:text-white"
-                              onClick={(e) => handleOpenMenu(e, item)}
-                            >
-                              <MoreVertical size={20} />
-                            </Button>
-                          </td>
+                  <div className="hidden overflow-x-auto lg:block">
+                    <table className="w-full border-collapse text-left">
+                      <thead>
+                        <tr className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
+                          <th className="rounded-l-xl px-6 py-5 font-medium">Name</th>
+                          <th className="px-6 py-5 text-center font-medium">Files</th>
+                          <th className="px-6 py-5 text-center font-medium">Last Updated</th>
+                          <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {visibleFolders.map((item) => (
+                          <tr
+                            key={item.id}
+                            className="cursor-pointer transition-colors hover:bg-white/[0.02]"
+                            onClick={(e) => {
+                              if ((e.target as HTMLElement).closest("button")) return;
+                              void openFolderWithAccessCheck(item);
+                            }}
+                          >
+                            <td className="px-6 py-5">
+                              <div className="flex items-center gap-3">
+                                <div className="rounded-lg border border-white/5 bg-white/5 p-2">
+                                  <FolderOpen className="text-[#E8D1AB]" size={20} />
+                                </div>
+                                <span className="text-sm font-semibold">{item.title}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 text-center text-sm text-white/60">
+                              {String(item.fileCount).padStart(2, "0")}
+                            </td>
+                            <td className={`py-5 px-6 font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>{item.lastOpened}</td>
+                            <td className={`py-5 px-6 text-right transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                              <Button
+                                className={`h-10 w-10 rounded-full p-0 transition-colors ${isDark ? "text-white hover:bg-white/10 hover:text-white/90" : "text-black bg-transparent hover:bg-black/5 hover:text-black/90"}`}
+                                onClick={(e) => handleOpenMenu(e, item)}
+                              >
+                                <MoreVertical size={20} />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+              )}
+            </div>
+          </>
+        )}
 
-      {menuAnchor && (
-        <FileActionMenu
-          folderName={selectedFolder?.title || null}
-          isOpen={true}
-          onClose={() => setMenuAnchor(null)}
-          onOpenLinkModal={() => setIsLinkModalOpen(true)}
-          anchor={menuAnchor}
-          href={selectedFolder?.href}
-          onOpen={() => {
-            if (selectedFolder) {
-              void openFolderWithAccessCheck(selectedFolder);
-            }
-          }}
-          onDownload={handleDownloadSelectedFolder}
-          onShare={() => {
-            if (!selectedFolder) return;
-            setShareResource({
-              resourceType: "folder",
-              externalId: String(projectId || ""),
-              phase: getFolderPhase(selectedFolder),
-              path: isCommonEventWorkspace ? selectedFolder.rawName || selectedFolder.title : undefined,
-              label: selectedFolder.title,
-            });
-            setIsShareModalOpen(true);
-          }}
-          onDelete={isCommonEventWorkspace ? () => setIsDeleteModalOpen(true) : undefined}
-          onRename={() => toast.info("Folder rename is the next safe step.")}
+        {menuAnchor && (
+          <FileActionMenu
+            folderName={selectedFolder?.title || null}
+            isOpen={true}
+            onClose={() => setMenuAnchor(null)}
+            onOpenLinkModal={() => setIsLinkModalOpen(true)}
+            anchor={menuAnchor}
+            href={selectedFolder?.href}
+            onOpen={() => {
+              if (selectedFolder) {
+                void openFolderWithAccessCheck(selectedFolder);
+              }
+            }}
+            onDownload={handleDownloadSelectedFolder}
+            onShare={() => {
+              if (!selectedFolder) return;
+              setShareResource({
+                resourceType: "folder",
+                externalId: String(projectId || ""),
+                phase: getFolderPhase(selectedFolder),
+                path: isCommonEventWorkspace ? selectedFolder.rawName || selectedFolder.title : undefined,
+                label: selectedFolder.title,
+              });
+              setIsShareModalOpen(true);
+            }}
+            onDelete={isCommonEventWorkspace ? () => setIsDeleteModalOpen(true) : undefined}
+            onRename={() => toast.info("Folder rename is the next safe step.")}
+            isDark={isDark}
+          />
+        )}
+
+        <LinkToShootModal
+          isOpen={isLinkModalOpen}
+          onClose={() => setIsLinkModalOpen(false)}
+          folderName={selectedFolder?.title || ""}
         />
-      )}
 
-      <LinkToShootModal
-        isOpen={isLinkModalOpen}
-        onClose={() => setIsLinkModalOpen(false)}
-        folderName={selectedFolder?.title || ""}
-      />
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleDeleteSelectedFolder}
+          itemName={selectedFolder?.title || "this folder"}
+          itemType="folder"
+          isDeleting={isDeleting}
+        />
 
-      <DeleteConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteSelectedFolder}
-        itemName={selectedFolder?.title || "this folder"}
-        itemType="folder"
-        isDeleting={isDeleting}
-      />
-      <ShareResourceModal
-        isOpen={isShareModalOpen}
-        onClose={() => {
-          setIsShareModalOpen(false);
-          setShareResource(null);
-        }}
-        resource={shareResource}
-      />
-
-    </div>
+        <ShareResourceModal
+          isOpen={isShareModalOpen}
+          onClose={() => {
+            setIsShareModalOpen(false);
+            setShareResource(null);
+          }}
+          resource={shareResource}
+        />
+      </div>
+    </>
   );
 }

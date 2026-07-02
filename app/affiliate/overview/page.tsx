@@ -207,7 +207,6 @@ export default function AffiliateOverviewPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end">
@@ -221,8 +220,7 @@ export default function AffiliateOverviewPage() {
           </div>
 
           {/* Referral Code Card */}
-          <div className={`border rounded-lg lg:rounded-xl p-1 pr-1 flex items-center gap-3 w-full md:w-auto min-w-[300px] transition-colors ${isDark ? "bg-[#1A1A1A] border-[#E8D1AB]/20" : "bg-white border-zinc-200 shadow-sm"
-            }`}>
+          <div className={`border rounded-lg lg:rounded-xl p-1 pr-1 flex items-center gap-3 w-full md:w-auto min-w-[300px] transition-colors ${isDark ? "bg-[#1A1A1A] border-[#E8D1AB]/20" : "bg-white border-zinc-200 shadow-sm"}`}>
             <div className="px-4 py-2 flex-1">
               <span className="text-xs text-[#E8D1AB] uppercase tracking-wider font-semibold block mb-0.5">
                 Your Code
@@ -271,14 +269,13 @@ export default function AffiliateOverviewPage() {
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <span className={`lg:text-xl font-mono font-bold tracking-widest ${isDark ? "text-white" : "text-black"
-                    }`}>
+                  <span className={`lg:text-xl font-mono font-bold tracking-widest ${isDark ? "text-white" : "text-black"}`}>
                     {stats?.affiliate.referral_code || "------"}
                   </span>
                   <div className="relative group flex items-center">
                     <button
                       onClick={() => setIsEditingCode(true)}
-                      className={` transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-[#747171] hover:text-black"}`}
+                      className={`transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-[#747171] hover:text-black"}`}
                     >
                       <Pencil size={14} />
                     </button>
@@ -461,11 +458,9 @@ export default function AffiliateOverviewPage() {
           </div> */}
 
           {/* Referrals Table Section */}
-          <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"
-            }`}>
+          <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"}`}>
             {/* Header Section */}
-            <div className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
-              }`}>
+            <div className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"}`}>
               <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-[#323232]"}`}>
                 Recent Referrals
               </h2>
@@ -490,15 +485,16 @@ export default function AffiliateOverviewPage() {
                   {referrals.map((referral) => {
                     const isExpanded = expandedId === referral.referral_id;
                     return (
-                      <div key={referral.referral_id} className={`px-4 border-b pb-4 last:border-0 ${isDark ? "border-white/5" : "border-[#E3E3E3]"
-                        }`}>
+                      <div
+                        key={referral.referral_id}
+                        className={`px-4 border-b pb-4 last:border-0 ${isDark ? "border-white/5" : "border-[#E3E3E3]"}`}
+                      >
                         <div
                           className="flex items-center justify-between cursor-pointer pt-4"
                           onClick={() => toggleExpand(referral.referral_id)}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-6 h-6 flex items-center justify-center rounded-full border transition-colors ${isExpanded ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'
-                              }`}>
+                            <div className={`w-6 h-6 flex items-center justify-center rounded-full border transition-colors ${isExpanded ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'}`}>
                               {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                             </div>
                             <div>
@@ -567,8 +563,7 @@ export default function AffiliateOverviewPage() {
                     </tr>
                   ) : (
                     referrals.map((referral) => (
-                      <tr key={referral.referral_id} className={`group transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"
-                        }`}>
+                      <tr key={referral.referral_id} className={`group transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}>
                         <td className={`px-4 py-4 ${isDark ? "text-white/80" : "text-[#323232]"}`}>
                           {formatDate(referral.created_at)}
                         </td>
@@ -627,7 +622,7 @@ export default function AffiliateOverviewPage() {
         onClose={() => setIsShootFormOpen(false)}
         projectId={pendingProjects[0]?.project_id || 0}
         pendingProjects={pendingProjects}
-        isDark ={isDark}
+        isDark={isDark}
       />
     </>
   );

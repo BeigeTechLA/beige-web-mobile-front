@@ -40,6 +40,7 @@ import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
+import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
   getDisplayInitials,
@@ -51,6 +52,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { getProject } from "@/lib/api";
 import { toast } from "sonner";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
@@ -99,6 +101,7 @@ export default function CreatorFileManagerPhasePage() {
     () => String(searchParams.get("path") || slugToWorkspaceName(phaseSlug) || "").trim(),
     [phaseSlug, searchParams]
   );
+  const { isDark } = useResolvedTheme();
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -671,83 +674,85 @@ export default function CreatorFileManagerPhasePage() {
   );
 
   return (
-    <div className="overflow-hidden">
-      <div className="mb-5 flex items-center justify-between">
-        <Button
-          onClick={() => {
-            if (selectionLockActive) return;
-            router.back();
-          }}
-          disabled={selectionLockActive}
-          className="flex items-center gap-2 p-0 text-white transition-colors hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <ArrowLeft size={24} />
-          <span className="text-sm font-medium">Back</span>
-        </Button>
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-x-hidden overflow-y-auto p-4 pb-20 lg:px-10 lg:py-9">
+        <div className="mb-5 flex items-center justify-between">
+          <Button
+            onClick={() => {
+              if (selectionLockActive) return;
+              router.back();
+            }}
+            disabled={selectionLockActive}
+            className="flex items-center gap-2 p-0 text-white transition-colors hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ArrowLeft size={24} />
+            <span className="text-sm font-medium">Back</span>
+          </Button>
 
-        {canUpload || canCreateFolder ? (
-          <div className="flex items-center gap-2">
-            {canCreateFolder ? (
-              <Button
-                onClick={() => {
-                  if (selectionLockActive) return;
-                  setIsCreateFolderModalOpen(true);
-                }}
-                disabled={selectionLockActive}
-                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <FolderPlus /> Create Folder
-              </Button>
-            ) : null}
-            {canUpload ? (
-              <Button
-                onClick={() => {
-                  if (selectionLockActive) return;
-                  setIsUploadModalOpen(true);
-                }}
-                disabled={selectionLockActive}
-                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Upload /> Upload Files
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      {loading ? (
-        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
-        }`}>
-          <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+          {canUpload || canCreateFolder ? (
+            <div className="flex items-center gap-2">
+              {canCreateFolder ? (
+                <Button
+                  onClick={() => {
+                    if (selectionLockActive) return;
+                    setIsCreateFolderModalOpen(true);
+                  }}
+                  disabled={selectionLockActive}
+                  className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <FolderPlus /> Create Folder
+                </Button>
+              ) : null}
+              {canUpload ? (
+                <Button
+                  onClick={() => {
+                    if (selectionLockActive) return;
+                    setIsUploadModalOpen(true);
+                  }}
+                  disabled={selectionLockActive}
+                  className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Upload /> Upload Files
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-      ) : error ? (
-        <div className="text-sm text-red-300">{error || "Folder not found"}</div>
-      ) : (
-        <>
-          <div>
-            <div className="mb-2 flex items-start gap-5 lg:mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#C8E1FF] text-[#000] lg:h-21 lg:w-21 lg:rounded-2xl lg:text-[30px] lg:font-medium">
-                {getDisplayInitials(workspaceName)}
-              </div>
-              <div className="min-w-0 max-w-3xl flex-1 text-white">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-                  <h1 className="break-words text-sm font-semibold leading-[32px] lg:text-2xl">
-                    {workspaceName}
-                  </h1>
-                  <span
-                    className={`flex items-center gap-1.5 rounded-full border border-white/5 px-2.5 py-1 text-xs font-medium ${phaseSlug === "post-production"
+
+        {loading ? (
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+            <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+          </div>
+        ) : error ? (
+          <div className="text-sm text-red-300">{error || "Folder not found"}</div>
+        ) : (
+          <>
+            <div>
+              <div className="mb-2 flex items-start gap-5 lg:mb-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#C8E1FF] text-[#000] lg:h-21 lg:w-21 lg:rounded-2xl lg:text-[30px] lg:font-medium">
+                  {getDisplayInitials(workspaceName)}
+                </div>
+                <div className="min-w-0 max-w-3xl flex-1 text-white">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+                    <h1 className="break-words text-sm font-semibold leading-[32px] lg:text-2xl">
+                      {workspaceName}
+                    </h1>
+                    <span
+                      className={`flex items-center gap-1.5 rounded-full border border-white/5 px-2.5 py-1 text-xs font-medium ${phaseSlug === "post-production"
                         ? "bg-[#E8D2FB] text-[#540B94]"
                         : "bg-[#FDF4FF] text-[#C026D3]"
-                      }`}
-                  >
-                    {viewState.title}
-                  </span>
-                </div>
-                <p className="hidden text-sm text-[#D0D0D0] lg:block">
-                  <span className="text-[#AAA7A7]">Project Code: </span>
-                  {workspaceCode}
-                </p>
-                {/* {workspaceConsoleUrl ? (
+                        }`}
+                    >
+                      {viewState.title}
+                    </span>
+                  </div>
+                  <p className="hidden text-sm text-[#D0D0D0] lg:block">
+                    <span className="text-[#AAA7A7]">Project Code: </span>
+                    {workspaceCode}
+                  </p>
+                  {/* {workspaceConsoleUrl ? (
                   <a
                     href={workspaceConsoleUrl}
                     target="_blank"
@@ -757,219 +762,118 @@ export default function CreatorFileManagerPhasePage() {
                     Open Storage Folder
                   </a>
                 ) : null} */}
-              </div>
-            </div>
-          </div>
-
-          <div className="pb-20 lg:pb-0">
-            {showUploadLockBanner ? (
-              <div className="mb-3 rounded-xl border border-[#E8D1AB]/25 bg-gradient-to-r from-[#2A2215] to-[#17130E] p-3 lg:mb-4 lg:p-4">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-lg bg-[#E8D1AB]/15 p-2 text-[#E8D1AB]">
-                    <CalendarClock size={16} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#F2E4C8]">Uploads unlock on shoot day</p>
-                    <p className="mt-1 text-xs text-[#DCC7A0] lg:text-sm">
-                      Post-production upload will be available on{" "}
-                      <span className="font-medium text-[#F2E4C8]">{formattedShootDate}</span>. You can review folders and existing files now.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-            <div className="mb-3 flex items-center justify-between gap-2 lg:mb-6">
-              <div className="relative max-w-xl flex-1">
-                <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/40 lg:left-3 lg:h-4 lg:w-4" />
-                <input
-                  type="text"
-                  placeholder={viewState.kind === "folders" ? "Search folders..." : "Search files..."}
-                  value={searchTerm}
-                  className="w-full rounded-lg border border-white/10 bg-[#18181b] py-1.5 pl-6 pr-4 text-xs text-white placeholder:text-white/40 transition-all focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] lg:py-2 lg:pl-9 lg:text-sm"
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2">
-                {filteredFiles.length > 0 ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      const nextMode = !isSelectionMode;
-                      setIsSelectionMode(nextMode);
-                      if (!nextMode) setSelectedFilePaths([]);
-                    }}
-                    className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
-                      ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
-                      : "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
-                      }`}
-                  >
-                    <CheckSquare size={18} />
-                    <span>{isSelectionMode ? "Cancel" : "Select"}</span>
-                  </Button>
-                ) : null}
-                {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-                <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
-                  <Button
-                    onClick={() => setViewMode("grid")}
-                    className={`rounded-l-lg px-5 py-2.5 transition-colors ${viewMode === "grid"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
-                      }`}
-                  >
-                    <Grid3X3 size={20} />
-                  </Button>
-                  <Button
-                    onClick={() => setViewMode("list")}
-                    className={`rounded-r-lg px-5 py-2.5 transition-colors ${viewMode === "list"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
-                      }`}
-                  >
-                    <List size={20} />
-                  </Button>
                 </div>
               </div>
             </div>
 
-            {viewState.kind === "folders" ? (
-              viewMode === "grid" ? (
-                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                  {filteredFolders.map((folder) => (
-                    <FolderCard
-                      key={folder.id}
-                      title={folder.title}
-                      fileCount={folder.fileCount}
-                      lastOpened={folder.lastOpened}
-                      category={folder.category}
-                      isLinked={folder.isLinked}
-                      userInitials={folder.userInitials}
-                      onOpenLinkModal={() => undefined}
-                      href={folder.href}
-                      onDownload={async () => {
-                        setSelectedFolder(folder);
-                        try {
-                          const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
-                            phase: currentPhase,
-                            path: getFolderActionPath(folder),
-                          });
-                          if (result?.url) {
-                            window.open(result.url, "_blank", "noopener,noreferrer");
-                          }
-                        } catch (err: unknown) {
-                          toast.error(err instanceof Error ? err.message : "Failed to download folder");
-                        }
-                      }}
-                      onDelete={
-                        canDeleteFolders
-                          ? () => {
-                            setSelectedFolder(folder);
-                            setSelectedFile(null);
-                            setIsDeleteModalOpen(true);
-                          }
-                          : undefined
-                      }
-                      onShare={() => {
-                        setShareResource({
-                          resourceType: "folder",
-                          externalId: String(projectId || ""),
-                          phase: currentPhase,
-                          path: getFolderActionPath(folder),
-                          label: folder.title,
-                        });
-                        setIsShareModalOpen(true);
-                      }}
-                      onRename={() => toast.info("Folder rename is the next safe step.")}
-                    />
-                  ))}
+            <div className="pb-20 lg:pb-0">
+              {showUploadLockBanner ? (
+                <div className="mb-3 rounded-xl border border-[#E8D1AB]/25 bg-gradient-to-r from-[#2A2215] to-[#17130E] p-3 lg:mb-4 lg:p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-lg bg-[#E8D1AB]/15 p-2 text-[#E8D1AB]">
+                      <CalendarClock size={16} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#F2E4C8]">Uploads unlock on shoot day</p>
+                      <p className="mt-1 text-xs text-[#DCC7A0] lg:text-sm">
+                        Post-production upload will be available on{" "}
+                        <span className="font-medium text-[#F2E4C8]">{formattedShootDate}</span>. You can review folders and existing files now.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <div className="lg:hidden">
+              ) : null}
+              <div className="mb-3 flex items-center justify-between gap-2 lg:mb-6">
+                <div className="relative max-w-xl flex-1">
+                  <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/40 lg:left-3 lg:h-4 lg:w-4" />
+                  <input
+                    type="text"
+                    placeholder={viewState.kind === "folders" ? "Search folders..." : "Search files..."}
+                    value={searchTerm}
+                    className="w-full rounded-lg border border-white/10 bg-[#18181b] py-1.5 pl-6 pr-4 text-xs text-white placeholder:text-white/40 transition-all focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] lg:py-2 lg:pl-9 lg:text-sm"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {filteredFiles.length > 0 ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        const nextMode = !isSelectionMode;
+                        setIsSelectionMode(nextMode);
+                        if (!nextMode) setSelectedFilePaths([]);
+                      }}
+                      className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isSelectionMode
+                        ? "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/90"
+                        : "bg-[#202020] text-white/70 border-white/10 hover:text-white hover:border-white/20"
+                        }`}
+                    >
+                      <CheckSquare size={18} />
+                      <span>{isSelectionMode ? "Cancel" : "Select"}</span>
+                    </Button>
+                  ) : null}
+                  {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
+                  <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
+                    <Button
+                      onClick={() => setViewMode("grid")}
+                      className={`rounded-l-lg px-5 py-2.5 transition-colors ${viewMode === "grid"
+                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                        : "bg-transparent text-white/40 hover:text-white"
+                        }`}
+                    >
+                      <Grid3X3 size={20} />
+                    </Button>
+                    <Button
+                      onClick={() => setViewMode("list")}
+                      className={`rounded-r-lg px-5 py-2.5 transition-colors ${viewMode === "list"
+                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                        : "bg-transparent text-white/40 hover:text-white"
+                        }`}
+                    >
+                      <List size={20} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {viewState.kind === "folders" ? (
+                viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                     {filteredFolders.map((folder) => (
-                      <MobileFolderRow
+                      <FolderCard
                         key={folder.id}
-                        folder={folder}
-                        handleOpenMenu={(e) => handleOpenMenu(e, folder)}
-                      />
-                    ))}
-                  </div>
-                  <div className="hidden overflow-x-auto lg:block">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                          <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                          <th className="py-5 px-6 text-center font-medium">Files</th>
-                          <th className="py-5 px-6 text-center font-medium">Last Updated</th>
-                          <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredFolders.map((item) => (
-                          <tr
-                            key={item.id}
-                            className="hover:bg-white/[0.02] transition-colors cursor-pointer"
-                            onClick={(e) => {
-                              if ((e.target as HTMLElement).closest("button")) return;
-                              router.push(item.href || `${pathname}/${item.id}`);
-                            }}
-                          >
-                            <td className="py-5 px-6">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-                                  <FolderOpen className="text-[#E8D1AB]" size={20} />
-                                </div>
-                                <span className="text-white text-sm font-medium">{item.title}</span>
-                              </div>
-                            </td>
-                            <td className="py-5 px-6 text-center text-white/60 text-sm">
-                              {String(item.fileCount).padStart(2, "0")}
-                            </td>
-                            <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
-                            <td className="py-5 px-6 text-right">
-                              <Button
-                                variant="ghost"
-                                className="h-10 w-10 rounded-full p-0 text-white/40 hover:bg-white/10 hover:text-white"
-                                onClick={(e) => handleOpenMenu(e, item)}
-                              >
-                                <MoreVertical size={20} />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )
-            ) : viewState.kind === "mixed" ? (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
-                  {filteredFolders.length === 0 ? (
-                    <EmptyFileState />
-                  ) : (
-                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                      {filteredFolders.map((folder) => (
-                        <FolderCard
-                          key={folder.id}
-                          title={folder.title}
-                          fileCount={folder.fileCount}
-                          lastOpened={folder.lastOpened}
-                          category={folder.category}
-                          isLinked={folder.isLinked}
-                          userInitials={folder.userInitials}
-                          onOpenLinkModal={() => undefined}
-                          href={folder.href}
-                          onDelete={
-                            canDeleteFolders
-                              ? () => {
-                                setSelectedFolder(folder);
-                                setSelectedFile(null);
-                                setIsDeleteModalOpen(true);
-                              }
-                              : undefined
+                        title={folder.title}
+                        fileCount={folder.fileCount}
+                        lastOpened={folder.lastOpened}
+                        category={folder.category}
+                        isLinked={folder.isLinked}
+                        userInitials={folder.userInitials}
+                        onOpenLinkModal={() => undefined}
+                        href={folder.href}
+                        onDownload={async () => {
+                          setSelectedFolder(folder);
+                          try {
+                            const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
+                              phase: currentPhase,
+                              path: getFolderActionPath(folder),
+                            });
+                            if (result?.url) {
+                              window.open(result.url, "_blank", "noopener,noreferrer");
+                            }
+                          } catch (err: unknown) {
+                            toast.error(err instanceof Error ? err.message : "Failed to download folder");
                           }
-                          onShare={() => {
+                        }}
+                        onDelete={
+                          canDeleteFolders
+                            ? () => {
+                              setSelectedFolder(folder);
+                              setSelectedFile(null);
+                              setIsDeleteModalOpen(true);
+                            }
+                            : undefined
+                        }
+                        onShare={() => {
                           setShareResource({
                             resourceType: "folder",
                             externalId: String(projectId || ""),
@@ -977,280 +881,382 @@ export default function CreatorFileManagerPhasePage() {
                             path: getFolderActionPath(folder),
                             label: folder.title,
                           });
+                          setIsShareModalOpen(true);
+                        }}
+                        onRename={() => toast.info("Folder rename is the next safe step.")}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <div className="lg:hidden">
+                      {filteredFolders.map((folder) => (
+                        <MobileFolderRow
+                          key={folder.id}
+                          folder={folder}
+                          handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                        />
+                      ))}
+                    </div>
+                    <div className="hidden overflow-x-auto lg:block">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                            <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                            <th className="py-5 px-6 text-center font-medium">Files</th>
+                            <th className="py-5 px-6 text-center font-medium">Last Updated</th>
+                            <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredFolders.map((item) => (
+                            <tr
+                              key={item.id}
+                              className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                              onClick={(e) => {
+                                if ((e.target as HTMLElement).closest("button")) return;
+                                router.push(item.href || `${pathname}/${item.id}`);
+                              }}
+                            >
+                              <td className="py-5 px-6">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                                    <FolderOpen className="text-[#E8D1AB]" size={20} />
+                                  </div>
+                                  <span className="text-white text-sm font-medium">{item.title}</span>
+                                </div>
+                              </td>
+                              <td className="py-5 px-6 text-center text-white/60 text-sm">
+                                {String(item.fileCount).padStart(2, "0")}
+                              </td>
+                              <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                              <td className="py-5 px-6 text-right">
+                                <Button
+                                  variant="ghost"
+                                  className="h-10 w-10 rounded-full p-0 text-white/40 hover:bg-white/10 hover:text-white"
+                                  onClick={(e) => handleOpenMenu(e, item)}
+                                >
+                                  <MoreVertical size={20} />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              ) : viewState.kind === "mixed" ? (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
+                    {filteredFolders.length === 0 ? (
+                      <EmptyFileState />
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                        {filteredFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            title={folder.title}
+                            fileCount={folder.fileCount}
+                            lastOpened={folder.lastOpened}
+                            category={folder.category}
+                            isLinked={folder.isLinked}
+                            userInitials={folder.userInitials}
+                            onOpenLinkModal={() => undefined}
+                            href={folder.href}
+                            onDelete={
+                              canDeleteFolders
+                                ? () => {
+                                  setSelectedFolder(folder);
+                                  setSelectedFile(null);
+                                  setIsDeleteModalOpen(true);
+                                }
+                                : undefined
+                            }
+                            onShare={() => {
+                              setShareResource({
+                                resourceType: "folder",
+                                externalId: String(projectId || ""),
+                                phase: currentPhase,
+                                path: getFolderActionPath(folder),
+                                label: folder.title,
+                              });
+                              setIsShareModalOpen(true);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
+                    {filteredFiles.length === 0 ? (
+                      <EmptyFileState />
+                    ) : (
+                      viewMode === "grid" ? (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                            {visibleFiles.map((file) => (
+                              <FileCard
+                                key={file.id}
+                                file={{ ...file, previewUrl: previewUrls[file.id] }}
+                                stage={fileCardStage}
+                                onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
+                                onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                                isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                                onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                                onDelete={
+                                  !selectionLockActive && canDeleteFiles
+                                    ? () => {
+                                      setSelectedFile(file as unknown as Record<string, unknown>);
+                                      setIsDeleteModalOpen(true);
+                                    }
+                                    : undefined
+                                }
+                                onShare={selectionLockActive ? undefined : () => {
+                                  setShareResource({
+                                    resourceType: "file",
+                                    externalId: String(projectId || ""),
+                                    phase: currentPhase,
+                                    filepath: file.filepath || undefined,
+                                    label: file.title,
+                                  });
+                                  setIsShareModalOpen(true);
+                                }}
+                              />
+                            ))}
+                          </div>
+                          {hasMoreFiles ? (
+                            <div className="flex justify-center">
+                              <Button
+                                type="button"
+                                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                                onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                              >
+                                View More
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        renderFilesTable()
+                      )
+                    )}
+                  </div>
+                </div>
+              ) : viewMode === "grid" ? (
+                filteredFiles.length === 0 ? (
+                  <EmptyFileState
+                    onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
+                    actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                      {visibleFiles.map((file) => (
+                        <FileCard
+                          key={file.id}
+                          file={{ ...file, previewUrl: previewUrls[file.id] }}
+                          stage={fileCardStage}
+                          onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
+                          onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                          isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
+                          onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
+                          onDelete={
+                            !selectionLockActive && canDeleteFiles
+                              ? () => {
+                                setSelectedFile(file as unknown as Record<string, unknown>);
+                                setIsDeleteModalOpen(true);
+                              }
+                              : undefined
+                          }
+                          onShare={selectionLockActive ? undefined : () => {
+                            setShareResource({
+                              resourceType: "file",
+                              externalId: String(projectId || ""),
+                              phase: currentPhase,
+                              filepath: file.filepath || undefined,
+                              label: file.title,
+                            });
                             setIsShareModalOpen(true);
                           }}
                         />
                       ))}
                     </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
-                  {filteredFiles.length === 0 ? (
-                    <EmptyFileState />
-                  ) : (
-                    viewMode === "grid" ? (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                          {visibleFiles.map((file) => (
-                            <FileCard
-                              key={file.id}
-                              file={{ ...file, previewUrl: previewUrls[file.id] }}
-                              stage={fileCardStage}
-                              onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
-                              onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
-                              isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
-                              onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
-                              onDelete={
-                                !selectionLockActive && canDeleteFiles
-                                  ? () => {
-                                    setSelectedFile(file as unknown as Record<string, unknown>);
-                                    setIsDeleteModalOpen(true);
-                                  }
-                                  : undefined
-                              }
-                              onShare={selectionLockActive ? undefined : () => {
-                                setShareResource({
-                                  resourceType: "file",
-                                  externalId: String(projectId || ""),
-                                  phase: currentPhase,
-                                  filepath: file.filepath || undefined,
-                                  label: file.title,
-                                });
-                                setIsShareModalOpen(true);
-                              }}
-                            />
-                          ))}
-                        </div>
-                        {hasMoreFiles ? (
-                          <div className="flex justify-center">
-                            <Button
-                              type="button"
-                              className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-                              onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
-                            >
-                              View More
-                            </Button>
-                          </div>
-                        ) : null}
+                    {hasMoreFiles ? (
+                      <div className="flex justify-center">
+                        <Button
+                          type="button"
+                          className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                          onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                        >
+                          View More
+                        </Button>
                       </div>
-                    ) : (
-                      renderFilesTable()
-                    )
-                  )}
-                </div>
-              </div>
-            ) : viewMode === "grid" ? (
-              filteredFiles.length === 0 ? (
+                    ) : null}
+                  </div>
+                )
+              ) : filteredFiles.length === 0 ? (
                 <EmptyFileState
                   onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
                   actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
                 />
               ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                    {visibleFiles.map((file) => (
-                      <FileCard
-                        key={file.id}
-                        file={{ ...file, previewUrl: previewUrls[file.id] }}
-                        stage={fileCardStage}
-                        onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
-                        onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
-                        isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
-                        onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
-                        onDelete={
-                          !selectionLockActive && canDeleteFiles
-                            ? () => {
-                              setSelectedFile(file as unknown as Record<string, unknown>);
-                              setIsDeleteModalOpen(true);
-                            }
-                            : undefined
-                        }
-                        onShare={selectionLockActive ? undefined : () => {
-                          setShareResource({
-                            resourceType: "file",
-                            externalId: String(projectId || ""),
-                            phase: currentPhase,
-                            filepath: file.filepath || undefined,
-                            label: file.title,
-                          });
-                          setIsShareModalOpen(true);
-                        }}
-                      />
-                    ))}
-                  </div>
-                  {hasMoreFiles ? (
-                    <div className="flex justify-center">
-                      <Button
-                        type="button"
-                        className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-                        onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
-                      >
-                        View More
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              )
-            ) : filteredFiles.length === 0 ? (
-              <EmptyFileState
-                onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
-              />
-            ) : (
-              renderFilesTable()
-            )}
-          </div>
-        </>
-      )}
+                renderFilesTable()
+              )}
+            </div>
+          </>
+        )}
 
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        folderName={workspaceName || ""}
-        uploadPath={canUpload ? defaultUploadPath : undefined}
-        onUploadComplete={loadPhase}
-      />
+        <UploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          folderName={workspaceName || ""}
+          uploadPath={canUpload ? defaultUploadPath : undefined}
+          onUploadComplete={loadPhase}
+        />
 
-      <CreateFolderModal
-        isOpen={isCreateFolderModalOpen}
-        onClose={() => setIsCreateFolderModalOpen(false)}
-        onCreate={handleCreateFolder}
-        title="Create Folder"
-        description={`Create folder inside ${viewState.title}`}
-      />
+        <CreateFolderModal
+          isOpen={isCreateFolderModalOpen}
+          onClose={() => setIsCreateFolderModalOpen(false)}
+          onCreate={handleCreateFolder}
+          title="Create Folder"
+          description={`Create folder inside ${viewState.title}`}
+        />
 
-      <DeleteConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={() => {
-          if (selectedFilePaths.length > 0) return handleBatchDelete();
-          if (selectedFile) return handleDeleteFile(selectedFile);
-          return handleDeleteSelectedFolder();
-        }}
-        itemName={selectedFilePaths.length > 0 ? `${selectedFilePaths.length} selected files` : selectedFile ? String(selectedFile.title || "this file") : selectedFolder?.title || "this folder"}
-        itemType={selectedFile || selectedFilePaths.length > 0 ? "file" : "folder"}
-        isDeleting={isDeleting}
-      />
-      {menuAnchor && selectedFolder ? (
-        <FileActionMenu
-          folderName={selectedFolder.title}
-          isOpen={true}
-          onClose={() => setMenuAnchor(null)}
-          onOpenLinkModal={() => undefined}
-          anchor={menuAnchor}
-          href={selectedFolder.href}
-          onDownload={async () => {
-            try {
-              const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
-                phase: currentPhase,
-                path: getFolderActionPath(selectedFolder),
-              });
-              if (result?.url) {
-                window.open(result.url, "_blank", "noopener,noreferrer");
-              }
-            } catch (err: unknown) {
-              toast.error(err instanceof Error ? err.message : "Failed to download folder");
-            }
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={() => {
+            if (selectedFilePaths.length > 0) return handleBatchDelete();
+            if (selectedFile) return handleDeleteFile(selectedFile);
+            return handleDeleteSelectedFolder();
           }}
-          onDelete={
-            canDeleteFolders
-              ? () => {
+          itemName={selectedFilePaths.length > 0 ? `${selectedFilePaths.length} selected files` : selectedFile ? String(selectedFile.title || "this file") : selectedFolder?.title || "this folder"}
+          itemType={selectedFile || selectedFilePaths.length > 0 ? "file" : "folder"}
+          isDeleting={isDeleting}
+        />
+        {menuAnchor && selectedFolder ? (
+          <FileActionMenu
+            folderName={selectedFolder.title}
+            isOpen={true}
+            onClose={() => setMenuAnchor(null)}
+            onOpenLinkModal={() => undefined}
+            anchor={menuAnchor}
+            href={selectedFolder.href}
+            onDownload={async () => {
+              try {
+                const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
+                  phase: currentPhase,
+                  path: getFolderActionPath(selectedFolder),
+                });
+                if (result?.url) {
+                  window.open(result.url, "_blank", "noopener,noreferrer");
+                }
+              } catch (err: unknown) {
+                toast.error(err instanceof Error ? err.message : "Failed to download folder");
+              }
+            }}
+            onDelete={
+              canDeleteFolders
+                ? () => {
                   setSelectedFile(null);
                   setIsDeleteModalOpen(true);
                 }
-              : undefined
-          }
-          onShare={() => {
-            setShareResource({
-              resourceType: "folder",
-              externalId: String(projectId || ""),
-              phase: currentPhase,
-              path: getFolderActionPath(selectedFolder),
-              label: selectedFolder.title,
-            });
-            setIsShareModalOpen(true);
+                : undefined
+            }
+            onShare={() => {
+              setShareResource({
+                resourceType: "folder",
+                externalId: String(projectId || ""),
+                phase: currentPhase,
+                path: getFolderActionPath(selectedFolder),
+                label: selectedFolder.title,
+              });
+              setIsShareModalOpen(true);
+            }}
+            onRename={() => toast.info("Folder rename is the next safe step.")}
+          />
+        ) : null}
+
+        <FileViewerModal
+          isOpen={!!viewerFile}
+          onClose={() => {
+            setViewerFile(null);
+            setViewerUrl(null);
           }}
-          onRename={() => toast.info("Folder rename is the next safe step.")}
+          fileName={String(viewerFile?.title || "")}
+          fileUrl={viewerUrl}
+          contentType={typeof viewerFile?.contentType === "string" ? viewerFile.contentType : undefined}
+          fileMetaId={typeof viewerFile?.filepath === "string" ? viewerFile.filepath : null}
         />
-      ) : null}
+        <ShareResourceModal
+          isOpen={isShareModalOpen}
+          onClose={() => {
+            setIsShareModalOpen(false);
+            setShareResource(null);
+          }}
+          resource={shareResource}
+        />
 
-      <FileViewerModal
-        isOpen={!!viewerFile}
-        onClose={() => {
-          setViewerFile(null);
-          setViewerUrl(null);
-        }}
-        fileName={String(viewerFile?.title || "")}
-        fileUrl={viewerUrl}
-        contentType={typeof viewerFile?.contentType === "string" ? viewerFile.contentType : undefined}
-        fileMetaId={typeof viewerFile?.filepath === "string" ? viewerFile.filepath : null}
-      />
-      <ShareResourceModal
-        isOpen={isShareModalOpen}
-        onClose={() => {
-          setIsShareModalOpen(false);
-          setShareResource(null);
-        }}
-        resource={shareResource}
-      />
-
-      {selectedFilePaths.length > 0 ? (
-        <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8D1AB]/50 bg-[#171717] p-4 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
-                {selectedFilePaths.length}
+        {selectedFilePaths.length > 0 ? (
+          <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8D1AB]/50 bg-[#171717] p-4 shadow-2xl">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
+                  {selectedFilePaths.length}
+                </div>
+                <span className="font-medium text-white">Files selected</span>
               </div>
-              <span className="font-medium text-white">Files selected</span>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                className="gap-2 text-white/70 hover:text-white"
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  className="gap-2 text-white/70 hover:text-white"
+                  onClick={() => {
+                    setSelectedFilePaths([]);
+                    setIsSelectionMode(false);
+                  }}
+                >
+                  Clear
+                </Button>
+
+                <div className="mx-1 h-6 w-[1px] bg-white/10" />
+
+                <Button
+                  className="gap-2 border border-white/10 bg-white/10 text-white hover:bg-white/20"
+                  onClick={handleBatchDownload}
+                >
+                  <DownloadIcon size={18} />
+                  Download
+                </Button>
+
+                {canDeleteFiles ? (
+                  <Button
+                    className="gap-2 bg-[#F04438] text-white hover:bg-[#F04438]/90"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    <TrashIcon size={18} />
+                    Delete
+                  </Button>
+                ) : null}
+              </div>
+
+              <button
                 onClick={() => {
                   setSelectedFilePaths([]);
                   setIsSelectionMode(false);
                 }}
+                className="text-white/40 hover:text-white"
               >
-                Clear
-              </Button>
-
-              <div className="mx-1 h-6 w-[1px] bg-white/10" />
-
-              <Button
-                className="gap-2 border border-white/10 bg-white/10 text-white hover:bg-white/20"
-                onClick={handleBatchDownload}
-              >
-                <DownloadIcon size={18} />
-                Download
-              </Button>
-
-              {canDeleteFiles ? (
-                <Button
-                  className="gap-2 bg-[#F04438] text-white hover:bg-[#F04438]/90"
-                  onClick={() => setIsDeleteModalOpen(true)}
-                >
-                  <TrashIcon size={18} />
-                  Delete
-                </Button>
-              ) : null}
+                <CloseIcon size={20} />
+              </button>
             </div>
-
-            <button
-              onClick={() => {
-                setSelectedFilePaths([]);
-                setIsSelectionMode(false);
-              }}
-              className="text-white/40 hover:text-white"
-            >
-              <CloseIcon size={20} />
-            </button>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </>
   );
 }

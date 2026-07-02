@@ -38,9 +38,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useChangePasswordMutation } from "@/lib/redux/features/auth/authApi";
 import SecurityForm from "@/src/components/cpSignup/SecurityForm";
+import { usePathname } from "next/navigation";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 import FeaturedWorkModal from "@/src/components/cpSignup/FeaturedWorkModal";
-import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";  
+import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
 import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
@@ -49,6 +51,7 @@ import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, Del
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmationModal";
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
+import Topbar from "@/components/admin/Topbar";
 
 // --- CONSTANTS ---
 const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -185,6 +188,8 @@ const FileItem = ({ file, onRemove }: { file: File, onRemove: () => void }) => (
 );
 
 export default function ProfilePage() {
+  const pathname = usePathname();
+  const { isDark } = useResolvedTheme();
   const [activeTab, setActiveTab] = useState("Overview");
 
   // Modal & Edit States
@@ -214,7 +219,7 @@ export default function ProfilePage() {
     isOpen: boolean;
     title: string;
     description: string;
-    idsToDelete: number[];  
+    idsToDelete: number[];
   }>({
     isOpen: false,
     title: "",
@@ -576,58 +581,58 @@ export default function ProfilePage() {
     setProfile((prev: any) => ({ ...prev, ...updates }));
   };
 
- const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const userStr = localStorage.getItem("revure_user");
-  const user = userStr ? JSON.parse(userStr) : null;
-  const crewMemberId = user?.crew_member_id;
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
 
-  if (!crewMemberId) {
-    toast.error("User ID not found");
-    return;
-  }
+    if (!crewMemberId) {
+      toast.error("User ID not found");
+      return;
+    }
 
-  const localPreview = URL.createObjectURL(file);
+    const localPreview = URL.createObjectURL(file);
 
-  try {
-    setIsPageLoading(true);
+    try {
+      setIsPageLoading(true);
 
-    setMediaType(file.type.startsWith("video") ? "video" : "image");
-    setMediaPreview(localPreview);
+      setMediaType(file.type.startsWith("video") ? "video" : "image");
+      setMediaPreview(localPreview);
 
-    const response: any = await UploadProfileFile(
-      "portfolio",
-      [file],
-      crewMemberId
-    );
+      const response: any = await UploadProfileFile(
+        "portfolio",
+        [file],
+        crewMemberId
+      );
 
-    if (response?.data && response.data.error === false) {
-      toast.success("Portfolio banner updated successfully");
+      if (response?.data && response.data.error === false) {
+        toast.success("Portfolio banner updated successfully");
 
-      const updatedProfile = await GetMyProfile({
-        crew_member_id: parseInt(crewMemberId),
-      });
+        const updatedProfile = await GetMyProfile({
+          crew_member_id: parseInt(crewMemberId),
+        });
 
-      if (updatedProfile?.data && updatedProfile.data.error === false) {
-        setProfile(updatedProfile.data.data);
+        if (updatedProfile?.data && updatedProfile.data.error === false) {
+          setProfile(updatedProfile.data.data);
+        }
+      } else {
+        toast.error(response?.data?.message || "Upload failed");
+        setMediaPreview(portfolioBannerUrl || null);
       }
-    } else {
-      toast.error(response?.data?.message || "Upload failed");
+    } catch (err) {
+      console.error("Failed to upload portfolio banner:", err);
+      toast.error("An error occurred during upload");
       setMediaPreview(portfolioBannerUrl || null);
+    } finally {
+      setIsPageLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
-  } catch (err) {
-    console.error("Failed to upload portfolio banner:", err);
-    toast.error("An error occurred during upload");
-    setMediaPreview(portfolioBannerUrl || null);
-  } finally {
-    setIsPageLoading(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }
-};
+  };
 
   const handleAddProject = async (data: any) => {
     const userStr = localStorage.getItem("revure_user");
@@ -637,7 +642,7 @@ export default function ProfilePage() {
     if (!crewMemberId) return;
 
     try {
-      setIsPageLoading(true); 
+      setIsPageLoading(true);
 
       const response = await UploadProfileFile(
         "recent_work",
@@ -665,7 +670,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Failed to upload project:", err);
     } finally {
-      setIsPageLoading(false); 
+      setIsPageLoading(false);
     }
   };
 
@@ -683,7 +688,7 @@ export default function ProfilePage() {
     if (!crewMemberId) return;
 
     try {
-      setIsPageLoading(true); 
+      setIsPageLoading(true);
 
       const filesArray = Array.from(selectedFiles);
 
@@ -744,39 +749,39 @@ export default function ProfilePage() {
   };
 
   const handleRemovePortfolioBanner = async () => {
-  const userStr = localStorage.getItem("revure_user");
-  const user = userStr ? JSON.parse(userStr) : null;
-  const crewMemberId = user?.crew_member_id;
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
 
-  if (!crewMemberId || !portfolioBannerFile?.crew_files_id) {
-    setMediaPreview(null);
-    setMediaType(null);
-    return;
-  }
-
-  try {
-    setIsPageLoading(true);
-
-    await DeleteProfileFile(portfolioBannerFile.crew_files_id, {
-      crew_member_id: parseInt(crewMemberId),
-    });
-
-    toast.success("Portfolio banner removed successfully");
-
-    const updatedProfile = await GetMyProfile({
-      crew_member_id: parseInt(crewMemberId),
-    });
-
-    if (updatedProfile?.data && updatedProfile.data.error === false) {
-      setProfile(updatedProfile.data.data);
+    if (!crewMemberId || !portfolioBannerFile?.crew_files_id) {
+      setMediaPreview(null);
+      setMediaType(null);
+      return;
     }
-  } catch (err) {
-    console.error("Failed to remove portfolio banner:", err);
-    toast.error("Failed to remove portfolio banner");
-  } finally {
-    setIsPageLoading(false);
-  }
-};
+
+    try {
+      setIsPageLoading(true);
+
+      await DeleteProfileFile(portfolioBannerFile.crew_files_id, {
+        crew_member_id: parseInt(crewMemberId),
+      });
+
+      toast.success("Portfolio banner removed successfully");
+
+      const updatedProfile = await GetMyProfile({
+        crew_member_id: parseInt(crewMemberId),
+      });
+
+      if (updatedProfile?.data && updatedProfile.data.error === false) {
+        setProfile(updatedProfile.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to remove portfolio banner:", err);
+      toast.error("Failed to remove portfolio banner");
+    } finally {
+      setIsPageLoading(false);
+    }
+  };
 
 
   const handleExecuteDelete = async () => {
@@ -784,7 +789,7 @@ export default function ProfilePage() {
     if (!crewMemberId || deleteModal.idsToDelete.length === 0) return;
 
     try {
-      setIsPageLoading(true); 
+      setIsPageLoading(true);
 
       await Promise.all(
         deleteModal.idsToDelete.map((id) =>
@@ -803,7 +808,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Delete failed:", err);
     } finally {
-      setIsPageLoading(false); 
+      setIsPageLoading(false);
     }
   };
 
@@ -908,879 +913,879 @@ export default function ProfilePage() {
   });
 
 
-
-  
-
-
   return (
     // <div className="min-h-screen bg-black text-white font-sans selection:bg-[#E8D1AB] selection:text-black">
     <>
-      <div className="mx-auto space-y-4 lg:space-y-8">
+      <Topbar pathname={pathname} />
 
-        {/* TOP PROFILE CARD */}
-        <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-8 flex flex-col lg:flex-row gap-8">
-          <div className="flex-1 space-y-4 lg:space-y-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div className="group relative w-15 h-15 lg:w-20 lg:h-20 rounded-full bg-zinc-800 border-2 border-[#E8D1AB] shrink-0">
-                  <div className="w-full h-full rounded-full overflow-hidden">
-                    <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
-                  </div>
-                  <input
-                    type="file"
-                    ref={profilePhotoInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleUploadProfilePhoto}
-                  />
-                  <button
-                    onClick={() => profilePhotoInputRef.current?.click()}
-                    className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  >
-                    <Camera size={20} className="text-white" />
-                  </button>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h1 className="text-lg lg:text-2xl font-bold">{profile.first_name} {profile.last_name}</h1>
-                    {profile.is_available === 1 && (
-                      <span className="px-3 py-0.5 bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] rounded-full flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Available
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-white/60 text-sm max-w-md truncate">{profile.bio || "No bio added yet"}</p>
-                  <div className="flex items-center gap-1 text-white/40 text-xs mt-1">
-                    <MapPin size={12} /> {profile.location?.split(',').slice(-2).join(', ') || "Location not set"}
-                  </div>
-                </div>
-              </div>
-            </div>
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
+        <div className="mx-auto space-y-4 lg:space-y-8">
 
-            <div className="flex flex-wrap gap-2">
-              {profile.skills?.slice(0, 3).map((skill: any) => (
-                <span key={skill.id} className="px-2 lg:px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/60">{skill.name}</span>
-              ))}
-              {profile.skills?.length > 3 && <span className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/40">+{profile.skills.length - 3} more</span>}
-            </div>
-
-            <div className="bg-white/[0.02] text-sm lg:text-base border border-white/5 rounded-lg lg:rounded-2xl flex max-w-sm capitalize">
-              <StatBox value={`$${Math.round(profile.hourly_rate)}`} sublabel="/Hour" />
-              <StatBox value={`${profile.years_of_experience}`} sublabel="Years Exp." />
-              <StatBox value={profile.working_distance?.split(' ')[1] || "25"} sublabel="Miles Radius" />
-            </div>
-
-            {/* Find the Social Buttons section in your JSX (inside the Top Profile Card) */}
-            <div className="flex flex-wrap items-center gap-3">
-              {socialLinks.length > 0 ? (
-                socialLinks.map((link) => {
-                  const platformInfo = SOCIAL_ICONS.find(i => i.id === link.platform);
-                  return (
-                    <a
-                      key={link.id}
-                      href={formatExternalUrl(link.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <SocialButton
-                        icon={platformInfo?.icon || Globe}
-                        label={platformInfo?.label || link.name}
-                      />
-                    </a>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-white/20 italic">No social links added</p>
-              )}
-
-              {/* The Edit Icon for Social Links */}
-              <button
-                onClick={() => setIsSocialLinksModalOpen(true)}
-                className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-[#E8D1AB] hover:text-black transition-all text-white/40"
-                title="Edit Social Links"
-              >
-                <Edit3 size={14} />
-              </button>
-            </div>
-          </div>
-
-          {/* Banner Media Upload UI */}
-          <div
-            onClick={() => !mediaPreview && fileInputRef.current?.click()}
-            className={`w-full lg:w-[450px] min-h-[150px] lg:min-h-[250px] relative rounded-lg lg:rounded-2xl flex flex-col items-center justify-center p-4 text-center group transition-all overflow-hidden
-              ${mediaPreview ? 'bg-black border border-white/10 shadow-2xl' : 'bg-[#E8D1AB]/5 border-2 border-dashed border-[#E8D1AB]/20 cursor-pointer hover:bg-[#E8D1AB]/10'}`}
-          >
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" onChange={handleFileChange} />
-            {!mediaPreview ? (
-              <>
-                <div className="relative w-32 h-24 mb-6">
-                  <div className="absolute top-0 left-0 w-16 h-16 bg-[#E8D1AB]/20 rounded-lg rotate-[-10deg]" />
-                  <div className="absolute bottom-0 right-0 w-20 h-12 bg-[#E8D1AB]/40 rounded-lg rotate-[5deg] flex items-center justify-center">
-                    <ImageIcon size={20} className="text-[#E8D1AB]" />
-                  </div>
-                </div>
-                <p className="text-sm font-bold text-white mb-1">Upload Profile Banner</p>
-                <p className="text-[10px] text-white/40 max-w-[200px]">Showcase your style with a cover photo or video</p>
-              </>
-            ) : (
-              <div className="w-full h-full absolute inset-0 bg-black">
-                {mediaType === "image" ? (
-                  <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <video src={mediaPreview} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-                )}
-               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-               <button
-                    onClick={(e) => {
-                    e.stopPropagation();
-                    fileInputRef.current?.click();
-                  }}
-                className="p-2 bg-white/90 text-black rounded-full"
-                title="Replace Banner"
-                  >
-                <Edit3 size={16} />
-                </button>
-
-              <button
-               onClick={(e) => {
-               e.stopPropagation();
-               handleRemovePortfolioBanner();
-               }}
-                className="p-2 bg-red-500/90 text-white rounded-full"
-                title="Remove Banner"
-                >
-                <X size={16} />
-               </button>
-              </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* NAVIGATION */}
-        <div className="flex border-b border-white/5 gap-4 lg:gap-8 overflow-x-auto no-scrollbar">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-2 lg:pb-4 text-sm font-medium transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white'}`}
-            >
-              {tab}
-              {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#E8D1AB]" />}
-            </button>
-          ))}
-        </div>
-
-        {/* TAB CONTENT */}
-        <div className="min-h-[400px] pb-10 lg:pb-20">
-          {activeTab === "Overview" && (
-            <div className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-
-              {/* PERSONAL INFORMATION */}
-              <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
-                <SectionHeader
-                  title="Personal Information"
-                  isEditing={isEditingPersonalInfo}
-                  onEdit={() => setIsEditingPersonalInfo(!isEditingPersonalInfo)}
-                />
-
-                {isEditingPersonalInfo ? (
-                  <div className="animate-in fade-in zoom-in-95 duration-300">
-                    <PersonalInfoForm profile={profile} onChange={handleProfileUpdate} />
-                    <div className="mt-4 lg:mt-8 flex justify-end">
-                      {/* CHANGED: onClick now calls handleSavePersonalInfo */}
-                      <button
-                        onClick={handleSavePersonalInfo}
-                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
-                      >
-                        Save Changes
-                      </button>
+          {/* TOP PROFILE CARD */}
+          <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-8 flex flex-col lg:flex-row gap-8">
+            <div className="flex-1 space-y-4 lg:space-y-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="group relative w-15 h-15 lg:w-20 lg:h-20 rounded-full bg-zinc-800 border-2 border-[#E8D1AB] shrink-0">
+                    <div className="w-full h-full rounded-full overflow-hidden">
+                      <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
                     </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-10 gap-x-20">
-                    <InfoField label="First Name" value={profile.first_name} />
-                    <InfoField label="Last Name" value={profile.last_name} />
-                    <InfoField label="Email Address" value={profile.email} />
-                    <InfoField label="Contact Phone" value={profile.phone_number} placeholder="Add phone number" />
-                    <InfoField label="Location" value={profile.location} />
-                    <InfoField label="Working Distance" value={profile.working_distance} placeholder="Add distance radius" />
-                  </div>
-                )}
-              </div>
-
-              {/* PROFESSIONAL DETAILS */}
-              <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
-                <SectionHeader
-                  title="Professional Details"
-                  isEditing={isEditingProfessionalInfo}
-                  onEdit={() => setIsEditingProfessionalInfo(!isEditingProfessionalInfo)}
-                />
-
-                {isEditingProfessionalInfo ? (
-                  <div className="animate-in fade-in zoom-in-95 duration-300">
-                    <ProfessionalInfoForm profile={profile} onChange={handleProfileUpdate} />
-                    <div className="mt-4 lg:mt-8 flex justify-end">
-                      {/* UPDATED: Calls handleSaveProfessionalInfo */}
-                      <button
-                        onClick={handleSaveProfessionalInfo}
-                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
-                      >
-                        Save Changes
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-10 gap-x-12">
-                    <InfoField label="Primary Role" value={getRoleLabel(profile.primary_role)} />
-                    <InfoField label="Experience" value={`${profile.years_of_experience} Years`} />
-                    <InfoField label="Hourly Rate" value={`$${profile.hourly_rate}`} />
-                    <div className="col-span-full">
-                      <InfoField label="Bio" value={profile.bio} placeholder="Add a professional bio..." />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* SKILLS */}
-              <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
-                <SectionHeader
-                  title="Skills"
-                  isEditing={isEditingSkills}
-                  onEdit={() => setIsEditingSkills(!isEditingSkills)}
-                />
-
-                {isEditingSkills ? (
-                  <div className="animate-in fade-in zoom-in-95 duration-300">
-                    <SkillsForm
-                      value={profile.skills}
-                      primaryRole={profile.primary_role}
-                      onChange={(newSkills) => handleProfileUpdate({ skills: newSkills })}
+                    <input
+                      type="file"
+                      ref={profilePhotoInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleUploadProfilePhoto}
                     />
-                    <div className="mt-4 lg:mt-8 flex justify-end">
-                      <button
-                        onClick={handleSaveSkills}
-                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
-                      >
-                        Save Changes
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {profile.skills?.length > 0 ? (
-                      profile.skills.map((skill: any, index: number) => (
-                        <span
-                          key={skill.id || index}
-                          className="px-2 lg:px-5 py-2.5 bg-white/5 border border-white/10 rounded-lg lg:rounded-xl text-sm text-white/80"
-                        >
-                          {skill.name || skill}
-                        </span>
-                      ))
-                    ) : (
-                      <p className="text-white/20 italic text-sm">No skills added yet.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* SECURITY */}
-              <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
-                <SectionHeader
-                  title="Security"
-                  isEditing={isEditingSecurity}
-                  onEdit={() => setIsEditingSecurity(!isEditingSecurity)}
-                />
-
-                {isEditingSecurity ? (
-                  <div className="animate-in fade-in zoom-in-95 duration-300">
-                    <SecurityForm onSuccess={() => setIsEditingSecurity(false)} />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg lg:rounded-2xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-[#E8D1AB]/10 rounded-lg flex items-center justify-center text-[#E8D1AB]">
-                        <EyeOff size={20} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">Password</p>
-                        <p className="text-xs text-white/40">Last changed recently</p>
-                      </div>
-                    </div>
                     <button
-                      onClick={() => setIsEditingSecurity(true)}
-                      className="text-xs font-bold text-[#E8D1AB] hover:text-white transition-colors uppercase tracking-wider"
+                      onClick={() => profilePhotoInputRef.current?.click()}
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     >
-                      Change Password
+                      <Camera size={20} className="text-white" />
                     </button>
                   </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h1 className="text-lg lg:text-2xl font-bold">{profile.first_name} {profile.last_name}</h1>
+                      {profile.is_available === 1 && (
+                        <span className="px-3 py-0.5 bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] rounded-full flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Available
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-white/60 text-sm max-w-md truncate">{profile.bio || "No bio added yet"}</p>
+                    <div className="flex items-center gap-1 text-white/40 text-xs mt-1">
+                      <MapPin size={12} /> {profile.location?.split(',').slice(-2).join(', ') || "Location not set"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {profile.skills?.slice(0, 3).map((skill: any) => (
+                  <span key={skill.id} className="px-2 lg:px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/60">{skill.name}</span>
+                ))}
+                {profile.skills?.length > 3 && <span className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/40">+{profile.skills.length - 3} more</span>}
+              </div>
+
+              <div className="bg-white/[0.02] text-sm lg:text-base border border-white/5 rounded-lg lg:rounded-2xl flex max-w-sm capitalize">
+                <StatBox value={`$${Math.round(profile.hourly_rate)}`} sublabel="/Hour" />
+                <StatBox value={`${profile.years_of_experience}`} sublabel="Years Exp." />
+                <StatBox value={profile.working_distance?.split(' ')[1] || "25"} sublabel="Miles Radius" />
+              </div>
+
+              {/* Find the Social Buttons section in your JSX (inside the Top Profile Card) */}
+              <div className="flex flex-wrap items-center gap-3">
+                {socialLinks.length > 0 ? (
+                  socialLinks.map((link) => {
+                    const platformInfo = SOCIAL_ICONS.find(i => i.id === link.platform);
+                    return (
+                      <a
+                        key={link.id}
+                        href={formatExternalUrl(link.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <SocialButton
+                          icon={platformInfo?.icon || Globe}
+                          label={platformInfo?.label || link.name}
+                        />
+                      </a>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-white/20 italic">No social links added</p>
+                )}
+
+                {/* The Edit Icon for Social Links */}
+                <button
+                  onClick={() => setIsSocialLinksModalOpen(true)}
+                  className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-[#E8D1AB] hover:text-black transition-all text-white/40"
+                  title="Edit Social Links"
+                >
+                  <Edit3 size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Banner Media Upload UI */}
+            <div
+              onClick={() => !mediaPreview && fileInputRef.current?.click()}
+              className={`w-full lg:w-[450px] min-h-[150px] lg:min-h-[250px] relative rounded-lg lg:rounded-2xl flex flex-col items-center justify-center p-4 text-center group transition-all overflow-hidden
+              ${mediaPreview ? 'bg-black border border-white/10 shadow-2xl' : 'bg-[#E8D1AB]/5 border-2 border-dashed border-[#E8D1AB]/20 cursor-pointer hover:bg-[#E8D1AB]/10'}`}
+            >
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" onChange={handleFileChange} />
+              {!mediaPreview ? (
+                <>
+                  <div className="relative w-32 h-24 mb-6">
+                    <div className="absolute top-0 left-0 w-16 h-16 bg-[#E8D1AB]/20 rounded-lg rotate-[-10deg]" />
+                    <div className="absolute bottom-0 right-0 w-20 h-12 bg-[#E8D1AB]/40 rounded-lg rotate-[5deg] flex items-center justify-center">
+                      <ImageIcon size={20} className="text-[#E8D1AB]" />
+                    </div>
+                  </div>
+                  <p className="text-sm font-bold text-white mb-1">Upload Profile Banner</p>
+                  <p className="text-[10px] text-white/40 max-w-[200px]">Showcase your style with a cover photo or video</p>
+                </>
+              ) : (
+                <div className="w-full h-full absolute inset-0 bg-black">
+                  {mediaType === "image" ? (
+                    <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <video src={mediaPreview} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                  )}
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                      className="p-2 bg-white/90 text-black rounded-full"
+                      title="Replace Banner"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemovePortfolioBanner();
+                      }}
+                      className="p-2 bg-red-500/90 text-white rounded-full"
+                      title="Remove Banner"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* NAVIGATION */}
+          <div className="flex border-b border-white/5 gap-4 lg:gap-8 overflow-x-auto no-scrollbar">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`pb-2 lg:pb-4 text-sm font-medium transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white'}`}
+              >
+                {tab}
+                {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#E8D1AB]" />}
+              </button>
+            ))}
+          </div>
+
+          {/* TAB CONTENT */}
+          <div className="min-h-[400px] pb-10 lg:pb-20">
+            {activeTab === "Overview" && (
+              <div className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+
+                {/* PERSONAL INFORMATION */}
+                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                  <SectionHeader
+                    title="Personal Information"
+                    isEditing={isEditingPersonalInfo}
+                    onEdit={() => setIsEditingPersonalInfo(!isEditingPersonalInfo)}
+                  />
+
+                  {isEditingPersonalInfo ? (
+                    <div className="animate-in fade-in zoom-in-95 duration-300">
+                      <PersonalInfoForm profile={profile} onChange={handleProfileUpdate} />
+                      <div className="mt-4 lg:mt-8 flex justify-end">
+                        {/* CHANGED: onClick now calls handleSavePersonalInfo */}
+                        <button
+                          onClick={handleSavePersonalInfo}
+                          className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-10 gap-x-20">
+                      <InfoField label="First Name" value={profile.first_name} />
+                      <InfoField label="Last Name" value={profile.last_name} />
+                      <InfoField label="Email Address" value={profile.email} />
+                      <InfoField label="Contact Phone" value={profile.phone_number} placeholder="Add phone number" />
+                      <InfoField label="Location" value={profile.location} />
+                      <InfoField label="Working Distance" value={profile.working_distance} placeholder="Add distance radius" />
+                    </div>
+                  )}
+                </div>
+
+                {/* PROFESSIONAL DETAILS */}
+                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                  <SectionHeader
+                    title="Professional Details"
+                    isEditing={isEditingProfessionalInfo}
+                    onEdit={() => setIsEditingProfessionalInfo(!isEditingProfessionalInfo)}
+                  />
+
+                  {isEditingProfessionalInfo ? (
+                    <div className="animate-in fade-in zoom-in-95 duration-300">
+                      <ProfessionalInfoForm profile={profile} onChange={handleProfileUpdate} />
+                      <div className="mt-4 lg:mt-8 flex justify-end">
+                        {/* UPDATED: Calls handleSaveProfessionalInfo */}
+                        <button
+                          onClick={handleSaveProfessionalInfo}
+                          className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-10 gap-x-12">
+                      <InfoField label="Primary Role" value={getRoleLabel(profile.primary_role)} />
+                      <InfoField label="Experience" value={`${profile.years_of_experience} Years`} />
+                      <InfoField label="Hourly Rate" value={`$${profile.hourly_rate}`} />
+                      <div className="col-span-full">
+                        <InfoField label="Bio" value={profile.bio} placeholder="Add a professional bio..." />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* SKILLS */}
+                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                  <SectionHeader
+                    title="Skills"
+                    isEditing={isEditingSkills}
+                    onEdit={() => setIsEditingSkills(!isEditingSkills)}
+                  />
+
+                  {isEditingSkills ? (
+                    <div className="animate-in fade-in zoom-in-95 duration-300">
+                      <SkillsForm
+                        value={profile.skills}
+                        primaryRole={profile.primary_role}
+                        onChange={(newSkills) => handleProfileUpdate({ skills: newSkills })}
+                      />
+                      <div className="mt-4 lg:mt-8 flex justify-end">
+                        <button
+                          onClick={handleSaveSkills}
+                          className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      {profile.skills?.length > 0 ? (
+                        profile.skills.map((skill: any, index: number) => (
+                          <span
+                            key={skill.id || index}
+                            className="px-2 lg:px-5 py-2.5 bg-white/5 border border-white/10 rounded-lg lg:rounded-xl text-sm text-white/80"
+                          >
+                            {skill.name || skill}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-white/20 italic text-sm">No skills added yet.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECURITY */}
+                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                  <SectionHeader
+                    title="Security"
+                    isEditing={isEditingSecurity}
+                    onEdit={() => setIsEditingSecurity(!isEditingSecurity)}
+                  />
+
+                  {isEditingSecurity ? (
+                    <div className="animate-in fade-in zoom-in-95 duration-300">
+                      <SecurityForm onSuccess={() => setIsEditingSecurity(false)} />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg lg:rounded-2xl">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-[#E8D1AB]/10 rounded-lg flex items-center justify-center text-[#E8D1AB]">
+                          <EyeOff size={20} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white">Password</p>
+                          <p className="text-xs text-white/40">Last changed recently</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setIsEditingSecurity(true)}
+                        className="text-xs font-bold text-[#E8D1AB] hover:text-white transition-colors uppercase tracking-wider"
+                      >
+                        Change Password
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* FEATURED WORK TAB */}
+            {activeTab === "Featured Work" && (
+              <div className="animate-in fade-in duration-500">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {/* ADD NEW PROJECT BOX */}
+                  <div
+                    onClick={() => setIsFeaturedModalOpen(true)}
+                    className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[350px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Plus size={24} className="text-[#E8D1AB]" />
+                    </div>
+                    <p className="text-sm font-bold text-white uppercase tracking-widest">Add featured work</p>
+                  </div>
+
+                  {/* DISPLAY GROUPED PROJECTS */}
+                  {groupedWorks?.map((project: any, pIdx: number) => (
+                    <div key={pIdx} className="group flex flex-col">
+                      <div
+                        className="h-[350px] rounded-lg lg:rounded-2xl overflow-hidden border border-white/10 bg-[#111] relative cursor-pointer"
+                        onClick={() => setLightboxData({ isOpen: true, project, index: 0 })}
+                      >
+                        {/* Main Image */}
+                        <img
+                          src={`${S3_BASE_URL}${project.images[0].file_path}`}
+                          alt={project.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        />
+
+                        {/* HOVER OVERLAY */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-6">
+                          <div className="flex justify-end gap-2">
+                            {/* Inside groupedWorks map */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                confirmDelete('project', project); // project contains all image objects
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-full text-[10px] font-bold hover:bg-red-50 transition-colors shadow-lg"
+                            >
+                              <Trash2 size={14} /> Delete Project
+                            </button>
+                            <button className="p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-colors shadow-lg">
+                              <Edit3 size={16} />
+                            </button>
+                          </div>
+
+                          <div className="self-center">
+                            <div className="px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] text-white border border-white/20">
+                              {project.images.length} Media Items
+                            </div>
+                          </div>
+
+                          <div className="flex justify-center gap-1.5">
+                            {project.images.slice(0, 5).map((_: any, i: number) => (
+                              <div key={i} className={`h-1 rounded-full transition-all ${i === 0 ? 'w-4 bg-white' : 'w-1 bg-white/40'}`} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 px-2">
+                        <h4 className="text-base font-bold text-white tracking-tight">{project.title}</h4>
+                        {
+                          normalizeFeaturedWorkTag(project?.tag) &&
+                          <p className="text-xs text-[#E8D1AB] mt-1 opacity-80 font-medium">#{project.tag}</p>
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {featuredWorks.length === 0 && (
+                  <div className="mt-8">
+                    <TabEmptyState
+                      title="Share your work and get discovered"
+                      description="Showcase your latest creations with the perfect image or video."
+                      buttonText="Upload Project"
+                      footerText="Minimum 1600 × 1200. Max 10MB (images), 20MB (videos)."
+                      onClick={() => setIsFeaturedModalOpen(true)}
+                    />
+                  </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* FEATURED WORK TAB */}
-          {activeTab === "Featured Work" && (
-            <div className="animate-in fade-in duration-500">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {/* ADD NEW PROJECT BOX */}
-                <div
-                  onClick={() => setIsFeaturedModalOpen(true)}
-                  className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[350px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
-                >
-                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Plus size={24} className="text-[#E8D1AB]" />
-                  </div>
-                  <p className="text-sm font-bold text-white uppercase tracking-widest">Add featured work</p>
-                </div>
-
-                {/* DISPLAY GROUPED PROJECTS */}
-                {groupedWorks?.map((project: any, pIdx: number) => (
-                  <div key={pIdx} className="group flex flex-col">
-                    <div
-                      className="h-[350px] rounded-lg lg:rounded-2xl overflow-hidden border border-white/10 bg-[#111] relative cursor-pointer"
-                      onClick={() => setLightboxData({ isOpen: true, project, index: 0 })}
-                    >
-                      {/* Main Image */}
-                      <img
-                        src={`${S3_BASE_URL}${project.images[0].file_path}`}
-                        alt={project.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
-
-                      {/* HOVER OVERLAY */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-6">
-                        <div className="flex justify-end gap-2">
-                          {/* Inside groupedWorks map */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              confirmDelete('project', project); // project contains all image objects
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-full text-[10px] font-bold hover:bg-red-50 transition-colors shadow-lg"
-                          >
-                            <Trash2 size={14} /> Delete Project
-                          </button>
-                          <button className="p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-colors shadow-lg">
-                            <Edit3 size={16} />
-                          </button>
-                        </div>
-
-                        <div className="self-center">
-                          <div className="px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] text-white border border-white/20">
-                            {project.images.length} Media Items
-                          </div>
-                        </div>
-
-                        <div className="flex justify-center gap-1.5">
-                          {project.images.slice(0, 5).map((_: any, i: number) => (
-                            <div key={i} className={`h-1 rounded-full transition-all ${i === 0 ? 'w-4 bg-white' : 'w-1 bg-white/40'}`} />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 px-2">
-                      <h4 className="text-base font-bold text-white tracking-tight">{project.title}</h4>
-                      {
-                        normalizeFeaturedWorkTag(project?.tag) &&
-                        <p className="text-xs text-[#E8D1AB] mt-1 opacity-80 font-medium">#{project.tag}</p>
-                      }
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {featuredWorks.length === 0 && (
-                <div className="mt-8">
-                  <TabEmptyState
-                    title="Share your work and get discovered"
-                    description="Showcase your latest creations with the perfect image or video."
-                    buttonText="Upload Project"
-                    footerText="Minimum 1600 × 1200. Max 10MB (images), 20MB (videos)."
-                    onClick={() => setIsFeaturedModalOpen(true)}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* CERTIFICATES TAB */}
-          {activeTab === "Certificates" && (
-            <div className="animate-in fade-in duration-500">
-              <input
-                type="file"
-                ref={certInputRef}
-                className="hidden"
-                multiple
-                accept="image/*,application/pdf"
-                onChange={handleUploadCertificates}
-              />
-
-              {certifications.length === 0 ? (
-                <TabEmptyState
-                  title="Showcase your certifications"
-                  description="Upload your professional credentials and achievements to build trust with clients."
-                  buttonText="Add Certificate"
-                  footerText="PDF, JPG, DOCX or PNG files. Max 10MB per file."
-                  onClick={() => certInputRef.current?.click()}
+            {/* CERTIFICATES TAB */}
+            {activeTab === "Certificates" && (
+              <div className="animate-in fade-in duration-500">
+                <input
+                  type="file"
+                  ref={certInputRef}
+                  className="hidden"
+                  multiple
+                  accept="image/*,application/pdf"
+                  onChange={handleUploadCertificates}
                 />
-              ) : (
-                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
-                    {/* ADD CARD */}
-                    <div
-                      onClick={() => certInputRef.current?.click()}
-                      className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <Plus size={20} className="text-[#E8D1AB]" />
-                      </div>
-                      <p className="text-sm font-bold text-white mb-1">Add Certificate</p>
-                      <p className="text-[10px] text-white/40 text-center px-6">Highlight achievements with a professional certificate.</p>
-                    </div>
-
-                    {/* CERTIFICATE CARDS */}
-                    {certifications.map((cert: any, index: number) => {
-                      const isPDF = cert.file_path.toLowerCase().endsWith('.pdf');
-                      const fileUrl = `${S3_BASE_URL}${cert.file_path}`;
-
-                      return (
-                        <div key={cert.id || index} className="relative group h-[220px] rounded-lg lg:rounded-2xl overflow-hidden border border-white/10 bg-[#0A0A0A]">
-                          {/* Thumbnail (For PDF we show a placeholder or icon, for image we show the img) */}
-                          {isPDF ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white/20">
-                              <FileText size={48} />
-                              <span className="text-[10px] mt-2 font-bold uppercase tracking-widest">PDF Document</span>
-                            </div>
-                          ) : (
-                            <img src={fileUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-50 transition-all" />
-                          )}
-
-                          <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
-                            <p className="text-xs font-bold text-white">Certificate_{index + 1}</p>
-                          </div>
-
-                          {/* HOVER ACTIONS */}
-                          <div className="absolute top-4 right-4 flex gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
-                            <button
-                              onClick={() => setPreviewCert(cert)}
-                              className="p-2 bg-white/10 backdrop-blur-md hover:bg-white text-white hover:text-black rounded-lg transition-all"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            {/* Inside certifications map */}
-                            <button
-                              onClick={() => confirmDelete('file', cert)}
-                              className="p-2 bg-white/10 backdrop-blur-md hover:bg-red-500 text-white rounded-lg transition-all"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* RESUME TAB */}
-          {activeTab === "Resume" && (
-            <div className="animate-in fade-in duration-500"> {/* Removed flex-center classes here */}
-              <input
-                type="file"
-                ref={resumeInputRef}
-                className="hidden"
-                accept=".pdf,.doc,.docx"
-                onChange={handleUploadResume}
-              />
-
-              {(() => {
-                // Find the resume in the profile data
-                const resumeFile = profile.crew_member_files?.find(
-                  (f: any) => f.file_type === "resume"
-                );
-
-                if (!resumeFile) {
-                  return (
-                    <TabEmptyState
-                      title="Upload your resume"
-                      description="Browse or drag and drop a file here to keep your profile updated."
-                      buttonText="Select File"
-                      footerText="Acceptable file types: PDF, JPG, PNG (max 5MB)"
-                      onClick={() => resumeInputRef.current?.click()}
-                    />
-                  );
-                }
-
-                // RESUME CARD (Wrapped in a flex container ONLY when data exists to keep it centered)
-                return (
-                  <div className="flex justify-center py-4 lg:py-10">
-                    <div className="bg-[#111] border border-white/5 rounded-[2.5rem] p-12 w-full max-w-lg relative flex flex-col items-center justify-center text-center shadow-2xl">
-
-                      {/* Delete Icon (Top Right) */}
-                      <button
-                        onClick={() => confirmDelete('file', resumeFile)}
-                        className="absolute top-6 right-6 p-2.5 bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-500 rounded-full border border-white/5 transition-all"
-                        title="Delete Resume"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-
-                      {/* File Icon Box */}
-                      <div className="w-16 h-20 bg-white border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl">
-                        <div className="relative">
-                          <FileText size={40} className="text-red-500" />
-                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white font-black">
-                            PDF
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* File Details */}
-                      <h3 className="text-xl font-bold text-white mb-1">My Resume</h3>
-                      <p className="text-sm text-white/40 mb-10 font-medium">
-                        Uploaded on {new Date(resumeFile.created_at || Date.now()).toLocaleDateString()}
-                      </p>
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-4">
-                        <button
-                          onClick={() => window.open(`${S3_BASE_URL}${resumeFile.file_path}`, '_blank')}
-                          className="bg-white text-black font-bold px-10 py-3.5 rounded-2xl hover:bg-[#E8D1AB] transition-all active:scale-95 shadow-lg"
-                        >
-                          View File
-                        </button>
-                        <button
-                          onClick={() => resumeInputRef.current?.click()}
-                          className="bg-transparent text-white border border-white/10 font-bold px-10 py-3.5 rounded-2xl hover:bg-white/5 transition-all active:scale-95"
-                        >
-                          Replace
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* PORTFOLIO TAB */}
-          {activeTab === "Portfolio Links" && (
-            <div className="animate-in fade-in duration-500">
-              {(() => {
-                const portfolioLinks = profile.crew_member_files?.filter((f: any) => f.file_type === "link") || [];
-                if (portfolioLinks.length === 0) {
-                  return (
-                    <TabEmptyState
-                      title="Showcase your portfolio links"
-                      description="Add your YouTube, Vimeo, or Google Drive links to showcase your work."
-                      buttonText="Add Portfolio Link"
-                      footerText="Links will be displayed on your public profile."
-                      onClick={() => {
-                        setEditingPortfolioLinks([]);
-                        setIsPortfolioLinksModalOpen(true);
-                      }}
-                    />
-                  );
-                }
-
-                return (
+                {certifications.length === 0 ? (
+                  <TabEmptyState
+                    title="Showcase your certifications"
+                    description="Upload your professional credentials and achievements to build trust with clients."
+                    buttonText="Add Certificate"
+                    footerText="PDF, JPG, DOCX or PNG files. Max 10MB per file."
+                    onClick={() => certInputRef.current?.click()}
+                  />
+                ) : (
                   <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
                       {/* ADD CARD */}
                       <div
-                        onClick={() => {
-                          const mappedLinks = portfolioLinks.map((l: any) => ({
-                            id: l.crew_files_id,
-                            url: l.file_path,
-                            platform: l.tag,
-                            name: PORTFOLIO_ICONS.find(p => p.id === l.tag)?.label || l.tag
-                          }));
-                          setEditingPortfolioLinks(mappedLinks);
-                          setIsPortfolioLinksModalOpen(true);
-                        }}
-                        className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[220px] lg:h-auto min-h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                        onClick={() => certInputRef.current?.click()}
+                        className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
                       >
                         <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                           <Plus size={20} className="text-[#E8D1AB]" />
                         </div>
-                        <p className="text-sm font-bold text-white mb-1">Add Portfolio Link</p>
-                        <p className="text-[10px] text-white/40 text-center px-6">Share your external work links here.</p>
+                        <p className="text-sm font-bold text-white mb-1">Add Certificate</p>
+                        <p className="text-[10px] text-white/40 text-center px-6">Highlight achievements with a professional certificate.</p>
                       </div>
 
-                      {portfolioLinks.map((link: any, index: number) => {
-                        const platform = PORTFOLIO_ICONS.find((p) => p.id === link.tag);
+                      {/* CERTIFICATE CARDS */}
+                      {certifications.map((cert: any, index: number) => {
+                        const isPDF = cert.file_path.toLowerCase().endsWith('.pdf');
+                        const fileUrl = `${S3_BASE_URL}${cert.file_path}`;
+
                         return (
-                          <div
-                            key={link.crew_files_id || index}
-                            className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-4 group hover:border-white/20 transition-all shadow-xl"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
-                                {platform?.icon ? <platform.icon size={24} className="text-[#E8D1AB]" /> : <Globe size={24} className="text-[#E8D1AB]" />}
+                          <div key={cert.id || index} className="relative group h-[220px] rounded-lg lg:rounded-2xl overflow-hidden border border-white/10 bg-[#0A0A0A]">
+                            {/* Thumbnail (For PDF we show a placeholder or icon, for image we show the img) */}
+                            {isPDF ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white/20">
+                                <FileText size={48} />
+                                <span className="text-[10px] mt-2 font-bold uppercase tracking-widest">PDF Document</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => {
-                                    const mappedLinks = portfolioLinks.map((l: any) => ({
-                                      id: l.crew_files_id,
-                                      url: l.file_path,
-                                      platform: l.tag,
-                                      name: PORTFOLIO_ICONS.find(p => p.id === l.tag)?.label || l.tag
-                                    }));
-                                    setEditingPortfolioLinks(mappedLinks);
-                                    setIsPortfolioLinksModalOpen(true);
-                                  }}
-                                  className="p-2 text-white/20 hover:text-[#E8D1AB] hover:bg-white/5 rounded-lg transition-all"
-                                >
-                                  <Pencil size={18} />
-                                </button>
-                                <button onClick={() => confirmDelete('file', link)} className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
+                            ) : (
+                              <img src={fileUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-50 transition-all" />
+                            )}
+
+                            <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
+                              <p className="text-xs font-bold text-white">Certificate_{index + 1}</p>
                             </div>
 
-                            <div className="space-y-1">
-                              <p className="text-sm font-bold text-white uppercase tracking-wider">{platform?.label || "Portfolio Link"}</p>
-                              <p className="text-xs text-white/40 truncate">{link.file_path}</p>
+                            {/* HOVER ACTIONS */}
+                            <div className="absolute top-4 right-4 flex gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
+                              <button
+                                onClick={() => setPreviewCert(cert)}
+                                className="p-2 bg-white/10 backdrop-blur-md hover:bg-white text-white hover:text-black rounded-lg transition-all"
+                              >
+                                <Eye size={16} />
+                              </button>
+                              {/* Inside certifications map */}
+                              <button
+                                onClick={() => confirmDelete('file', cert)}
+                                className="p-2 bg-white/10 backdrop-blur-md hover:bg-red-500 text-white rounded-lg transition-all"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
-
-                            <button
-                              onClick={() => setPlayingVideo(link.file_path)}
-                              className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
-                            >
-                              Play Portfolio
-                              <Play size={14} className="fill-current group-hover/btn:scale-110 transition-transform" />
-                            </button>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                );
-              })()}
-            </div>
-          )}
-          {/* EQUIPMENTS TAB */}
-          {activeTab === "Equipments" && (
-            <div className="animate-in fade-in duration-500">
-              <TabEmptyState
-                title="List your equipment"
-                description="Showcase the professional gear and tools you use to deliver high-quality results."
-                buttonText="Add Equipment"
-                footerText="Cameras, lenses, lighting, or any specialized gear you own."
-              />
-            </div>
-          )}
-
-        </div>
-      </div>
-
-      {/* FULL SCREEN LIGHTBOX VIEWER */}
-      {lightboxData.isOpen && lightboxData.project && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
-          {/* Top Bar */}
-          <div className="flex items-start justify-between gap-6 p-6 lg:p-8">
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-lg lg:text-2xl font-semibold text-white tracking-tight">
-                  {lightboxData.project.title}
-                </h3>
-                {normalizeFeaturedWorkTag(lightboxData.project.tag) && (
-                  <span className="inline-flex items-center rounded-full border border-[#E8D1AB]/30 bg-[#E8D1AB]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#E8D1AB]">
-                    {normalizeFeaturedWorkTag(lightboxData.project.tag)}
-                  </span>
                 )}
               </div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-white/40">
-                Media {lightboxData.index + 1} of {lightboxData.project.images.length}
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Inside Lightbox Top Bar */}
-              <button
-                onClick={() => confirmDelete('file', lightboxData.project.images[lightboxData.index])}
-                className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-red-400 hover:bg-red-500 hover:text-white transition-all"
-              >
-                <Trash2 size={16} /> Delete This Image
-              </button>
-              <button
-                onClick={() => setLightboxData({ ...lightboxData, isOpen: false })}
-                className="rounded-full border border-white/10 bg-white/5 p-3 text-white hover:bg-white/10 transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-          </div>
+            )}
 
-          {/* Main Content (Image + Arrows) */}
-          <div className="flex-1 relative flex items-center justify-center px-4 py-6 lg:px-20 lg:py-8">
-            <button
-              className="absolute left-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
-              onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index - 1 + lightboxData.project.images.length) % lightboxData.project.images.length })}
-            >
-              <ChevronLeft size={32} />
-            </button>
-
-            <div className="w-full max-w-5xl">
-              <div className="relative mx-auto flex aspect-[4/3] max-h-[calc(100vh-16rem)] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#050505] shadow-2xl">
-                <img
-                  src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`}
-                  className="h-full w-full object-contain"
-                  alt="Preview"
+            {/* RESUME TAB */}
+            {activeTab === "Resume" && (
+              <div className="animate-in fade-in duration-500"> {/* Removed flex-center classes here */}
+                <input
+                  type="file"
+                  ref={resumeInputRef}
+                  className="hidden"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleUploadResume}
                 />
+
+                {(() => {
+                  // Find the resume in the profile data
+                  const resumeFile = profile.crew_member_files?.find(
+                    (f: any) => f.file_type === "resume"
+                  );
+
+                  if (!resumeFile) {
+                    return (
+                      <TabEmptyState
+                        title="Upload your resume"
+                        description="Browse or drag and drop a file here to keep your profile updated."
+                        buttonText="Select File"
+                        footerText="Acceptable file types: PDF, JPG, PNG (max 5MB)"
+                        onClick={() => resumeInputRef.current?.click()}
+                      />
+                    );
+                  }
+
+                  // RESUME CARD (Wrapped in a flex container ONLY when data exists to keep it centered)
+                  return (
+                    <div className="flex justify-center py-4 lg:py-10">
+                      <div className="bg-[#111] border border-white/5 rounded-[2.5rem] p-12 w-full max-w-lg relative flex flex-col items-center justify-center text-center shadow-2xl">
+
+                        {/* Delete Icon (Top Right) */}
+                        <button
+                          onClick={() => confirmDelete('file', resumeFile)}
+                          className="absolute top-6 right-6 p-2.5 bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-500 rounded-full border border-white/5 transition-all"
+                          title="Delete Resume"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+
+                        {/* File Icon Box */}
+                        <div className="w-16 h-20 bg-white border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl">
+                          <div className="relative">
+                            <FileText size={40} className="text-red-500" />
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white font-black">
+                              PDF
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* File Details */}
+                        <h3 className="text-xl font-bold text-white mb-1">My Resume</h3>
+                        <p className="text-sm text-white/40 mb-10 font-medium">
+                          Uploaded on {new Date(resumeFile.created_at || Date.now()).toLocaleDateString()}
+                        </p>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => window.open(`${S3_BASE_URL}${resumeFile.file_path}`, '_blank')}
+                            className="bg-white text-black font-bold px-10 py-3.5 rounded-2xl hover:bg-[#E8D1AB] transition-all active:scale-95 shadow-lg"
+                          >
+                            View File
+                          </button>
+                          <button
+                            onClick={() => resumeInputRef.current?.click()}
+                            className="bg-transparent text-white border border-white/10 font-bold px-10 py-3.5 rounded-2xl hover:bg-white/5 transition-all active:scale-95"
+                          >
+                            Replace
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* PORTFOLIO TAB */}
+            {activeTab === "Portfolio Links" && (
+              <div className="animate-in fade-in duration-500">
+                {(() => {
+                  const portfolioLinks = profile.crew_member_files?.filter((f: any) => f.file_type === "link") || [];
+                  if (portfolioLinks.length === 0) {
+                    return (
+                      <TabEmptyState
+                        title="Showcase your portfolio links"
+                        description="Add your YouTube, Vimeo, or Google Drive links to showcase your work."
+                        buttonText="Add Portfolio Link"
+                        footerText="Links will be displayed on your public profile."
+                        onClick={() => {
+                          setEditingPortfolioLinks([]);
+                          setIsPortfolioLinksModalOpen(true);
+                        }}
+                      />
+                    );
+                  }
+
+                  return (
+                    <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* ADD CARD */}
+                        <div
+                          onClick={() => {
+                            const mappedLinks = portfolioLinks.map((l: any) => ({
+                              id: l.crew_files_id,
+                              url: l.file_path,
+                              platform: l.tag,
+                              name: PORTFOLIO_ICONS.find(p => p.id === l.tag)?.label || l.tag
+                            }));
+                            setEditingPortfolioLinks(mappedLinks);
+                            setIsPortfolioLinksModalOpen(true);
+                          }}
+                          className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[220px] lg:h-auto min-h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <Plus size={20} className="text-[#E8D1AB]" />
+                          </div>
+                          <p className="text-sm font-bold text-white mb-1">Add Portfolio Link</p>
+                          <p className="text-[10px] text-white/40 text-center px-6">Share your external work links here.</p>
+                        </div>
+
+                        {portfolioLinks.map((link: any, index: number) => {
+                          const platform = PORTFOLIO_ICONS.find((p) => p.id === link.tag);
+                          return (
+                            <div
+                              key={link.crew_files_id || index}
+                              className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-4 group hover:border-white/20 transition-all shadow-xl"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
+                                  {platform?.icon ? <platform.icon size={24} className="text-[#E8D1AB]" /> : <Globe size={24} className="text-[#E8D1AB]" />}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      const mappedLinks = portfolioLinks.map((l: any) => ({
+                                        id: l.crew_files_id,
+                                        url: l.file_path,
+                                        platform: l.tag,
+                                        name: PORTFOLIO_ICONS.find(p => p.id === l.tag)?.label || l.tag
+                                      }));
+                                      setEditingPortfolioLinks(mappedLinks);
+                                      setIsPortfolioLinksModalOpen(true);
+                                    }}
+                                    className="p-2 text-white/20 hover:text-[#E8D1AB] hover:bg-white/5 rounded-lg transition-all"
+                                  >
+                                    <Pencil size={18} />
+                                  </button>
+                                  <button onClick={() => confirmDelete('file', link)} className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <p className="text-sm font-bold text-white uppercase tracking-wider">{platform?.label || "Portfolio Link"}</p>
+                                <p className="text-xs text-white/40 truncate">{link.file_path}</p>
+                              </div>
+
+                              <button
+                                onClick={() => setPlayingVideo(link.file_path)}
+                                className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
+                              >
+                                Play Portfolio
+                                <Play size={14} className="fill-current group-hover/btn:scale-110 transition-transform" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+            {/* EQUIPMENTS TAB */}
+            {activeTab === "Equipments" && (
+              <div className="animate-in fade-in duration-500">
+                <TabEmptyState
+                  title="List your equipment"
+                  description="Showcase the professional gear and tools you use to deliver high-quality results."
+                  buttonText="Add Equipment"
+                  footerText="Cameras, lenses, lighting, or any specialized gear you own."
+                />
+              </div>
+            )}
+
+          </div>
+        </div>
+
+        {/* FULL SCREEN LIGHTBOX VIEWER */}
+        {lightboxData.isOpen && lightboxData.project && (
+          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
+            {/* Top Bar */}
+            <div className="flex items-start justify-between gap-6 p-6 lg:p-8">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h3 className="text-lg lg:text-2xl font-semibold text-white tracking-tight">
+                    {lightboxData.project.title}
+                  </h3>
+                  {normalizeFeaturedWorkTag(lightboxData.project.tag) && (
+                    <span className="inline-flex items-center rounded-full border border-[#E8D1AB]/30 bg-[#E8D1AB]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#E8D1AB]">
+                      {normalizeFeaturedWorkTag(lightboxData.project.tag)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-white/40">
+                  Media {lightboxData.index + 1} of {lightboxData.project.images.length}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                {/* Inside Lightbox Top Bar */}
+                <button
+                  onClick={() => confirmDelete('file', lightboxData.project.images[lightboxData.index])}
+                  className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                >
+                  <Trash2 size={16} /> Delete This Image
+                </button>
+                <button
+                  onClick={() => setLightboxData({ ...lightboxData, isOpen: false })}
+                  className="rounded-full border border-white/10 bg-white/5 p-3 text-white hover:bg-white/10 transition-colors"
+                >
+                  <X size={24} />
+                </button>
               </div>
             </div>
 
-            <button
-              className="absolute right-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
-              onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index + 1) % lightboxData.project.images.length })}
-            >
-              <ChevronRight size={32} />
-            </button>
-          </div>
-
-          {/* Bottom Filmstrip Thumbnails */}
-          <div className="p-4 lg:p-8 flex justify-center gap-3 overflow-x-auto no-scrollbar">
-            {lightboxData.project.images.map((img: any, idx: number) => (
+            {/* Main Content (Image + Arrows) */}
+            <div className="flex-1 relative flex items-center justify-center px-4 py-6 lg:px-20 lg:py-8">
               <button
-                key={idx}
-                onClick={() => setLightboxData({ ...lightboxData, index: idx })}
-                className={`w-20 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${lightboxData.index === idx ? 'border-[#E8D1AB] scale-110' : 'border-transparent opacity-40 hover:opacity-100'}`}
+                className="absolute left-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
+                onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index - 1 + lightboxData.project.images.length) % lightboxData.project.images.length })}
               >
-                <img src={`${S3_BASE_URL}${img.file_path}`} className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* CERTIFICATE PREVIEW MODAL */}
-      {previewCert && (
-        <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
-          <div className="relative w-full max-w-5xl h-full flex flex-col">
-
-            {/* Top Header */}
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => setPreviewCert(null)}
-                className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl border border-white/10 transition-all"
-              >
-                <span className="text-sm font-bold">Close Preview</span>
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Content Area */}
-            <div className="flex-1 bg-white rounded-2xl overflow-hidden relative shadow-2xl">
-              {/* External Link Button (Top Right of Doc) */}
-              <button
-                onClick={() => window.open(`${S3_BASE_URL}${previewCert.file_path}`, '_blank')}
-                className="absolute top-4 right-4 z-10 p-2 bg-black/60 hover:bg-black text-white rounded-lg transition-all"
-                title="Open in new tab"
-              >
-                <Navigation size={20} />
+                <ChevronLeft size={32} />
               </button>
 
-              {previewCert.file_path.toLowerCase().endsWith('.pdf') ? (
-                <iframe
-                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(S3_BASE_URL + previewCert.file_path)}&embedded=true`}
-                  className="w-full h-full border-none"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-zinc-100">
+              <div className="w-full max-w-5xl">
+                <div className="relative mx-auto flex aspect-[4/3] max-h-[calc(100vh-16rem)] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#050505] shadow-2xl">
                   <img
-                    src={`${S3_BASE_URL}${previewCert.file_path}`}
-                    className="max-w-full max-h-full object-contain"
+                    src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`}
+                    className="h-full w-full object-contain"
                     alt="Preview"
                   />
                 </div>
-              )}
+              </div>
+
+              <button
+                className="absolute right-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
+                onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index + 1) % lightboxData.project.images.length })}
+              >
+                <ChevronRight size={32} />
+              </button>
+            </div>
+
+            {/* Bottom Filmstrip Thumbnails */}
+            <div className="p-4 lg:p-8 flex justify-center gap-3 overflow-x-auto no-scrollbar">
+              {lightboxData.project.images.map((img: any, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => setLightboxData({ ...lightboxData, index: idx })}
+                  className={`w-20 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${lightboxData.index === idx ? 'border-[#E8D1AB] scale-110' : 'border-transparent opacity-40 hover:opacity-100'}`}
+                >
+                  <img src={`${S3_BASE_URL}${img.file_path}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* VIDEO PLAYER MODAL */}
-      {playingVideo && (
-        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+        {/* CERTIFICATE PREVIEW MODAL */}
+        {previewCert && (
+          <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
+            <div className="relative w-full max-w-5xl h-full flex flex-col">
 
-          {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
-          <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
-            <div className="space-y-1 pointer-events-auto">
-              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
-                Portfolio Player
-              </h3>
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#E8D1AB] rounded-full animate-pulse" />
-                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
-                  Now Playing
-                </p>
+              {/* Top Header */}
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => setPreviewCert(null)}
+                  className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl border border-white/10 transition-all"
+                >
+                  <span className="text-sm font-bold">Close Preview</span>
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Content Area */}
+              <div className="flex-1 bg-white rounded-2xl overflow-hidden relative shadow-2xl">
+                {/* External Link Button (Top Right of Doc) */}
+                <button
+                  onClick={() => window.open(`${S3_BASE_URL}${previewCert.file_path}`, '_blank')}
+                  className="absolute top-4 right-4 z-10 p-2 bg-black/60 hover:bg-black text-white rounded-lg transition-all"
+                  title="Open in new tab"
+                >
+                  <Navigation size={20} />
+                </button>
+
+                {previewCert.file_path.toLowerCase().endsWith('.pdf') ? (
+                  <iframe
+                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(S3_BASE_URL + previewCert.file_path)}&embedded=true`}
+                    className="w-full h-full border-none"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-zinc-100">
+                    <img
+                      src={`${S3_BASE_URL}${previewCert.file_path}`}
+                      className="max-w-full max-h-full object-contain"
+                      alt="Preview"
+                    />
+                  </div>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => setPlayingVideo(null)}
-              className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
-            >
-              <X size={20} className="lg:w-6 lg:h-6" />
-            </button>
           </div>
+        )}
 
-          {/* Video Container - Changed layout to allow perfect scrolling without clipping */}
-          <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
-            <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
-              <iframe
-                src={getEmbedUrl(playingVideo) || ""}
-                className="w-full h-full absolute inset-0 border-none"
-                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                allowFullScreen
-                title="Portfolio Video"
-              />
+        {/* VIDEO PLAYER MODAL */}
+        {playingVideo && (
+          <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+
+            {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
+            <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
+              <div className="space-y-1 pointer-events-auto">
+                <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
+                  Portfolio Player
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-[#E8D1AB] rounded-full animate-pulse" />
+                  <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
+                    Now Playing
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPlayingVideo(null)}
+                className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
+              >
+                <X size={20} className="lg:w-6 lg:h-6" />
+              </button>
+            </div>
+
+            {/* Video Container - Changed layout to allow perfect scrolling without clipping */}
+            <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
+              <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
+                <iframe
+                  src={getEmbedUrl(playingVideo) || ""}
+                  className="w-full h-full absolute inset-0 border-none"
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                  allowFullScreen
+                  title="Portfolio Video"
+                />
+              </div>
+            </div>
+
+          </div>
+        )}
+        <FeaturedWorkModal
+          open={isFeaturedModalOpen}
+          onClose={() => setIsFeaturedModalOpen(false)}
+          onAdd={handleAddProject}
+        />
+        <SocialLinksModal
+          open={isSocialLinksModalOpen}
+          onClose={() => setIsSocialLinksModalOpen(false)}
+          links={socialLinks}
+          onChange={handleSaveSocialLinks} // Pass the API handler here
+        />
+        <PortfolioLinksModal
+          open={isPortfolioLinksModalOpen}
+          onClose={() => setIsPortfolioLinksModalOpen(false)}
+          links={editingPortfolioLinks}
+          onChange={handleAddPortfolioLinks}
+        />
+        <DeleteConfirmationModal
+          isOpen={deleteModal.isOpen}
+          onClose={() => setDeleteModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={handleExecuteDelete}
+          title={deleteModal.title}
+          description={deleteModal.description}
+        />
+        {isPageLoading && (
+          <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-[#E8D1AB]" />
+              <p className="text-sm tracking-wide text-white/80">
+              </p>
             </div>
           </div>
-
-        </div>
-      )}
-      <FeaturedWorkModal
-        open={isFeaturedModalOpen}
-        onClose={() => setIsFeaturedModalOpen(false)}
-        onAdd={handleAddProject}
-      />
-      <SocialLinksModal
-        open={isSocialLinksModalOpen}
-        onClose={() => setIsSocialLinksModalOpen(false)}
-        links={socialLinks}
-        onChange={handleSaveSocialLinks} // Pass the API handler here
-      />
-      <PortfolioLinksModal
-        open={isPortfolioLinksModalOpen}
-        onClose={() => setIsPortfolioLinksModalOpen(false)}
-        links={editingPortfolioLinks}
-        onChange={handleAddPortfolioLinks}
-      />
-      <DeleteConfirmationModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal(prev => ({ ...prev, isOpen: false }))}
-        onConfirm={handleExecuteDelete}
-        title={deleteModal.title}
-        description={deleteModal.description}
-      />
-      {isPageLoading && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-10 w-10 animate-spin text-[#E8D1AB]" />
-            <p className="text-sm tracking-wide text-white/80">
-            </p>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </>
-    // </div>
+    // </div> 
   );
 }
 
