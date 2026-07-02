@@ -131,21 +131,6 @@ const GeneratePaymentLink = ({
   const effectiveBookingId = resolvedBookingId ?? bookingId;
   const effectiveLeadId = resolvedLeadId ?? leadId;
 
-  const isPaidBooking = String(bookingStatus || "").toLowerCase() === "paid";
-  const isPaymentPendingBooking = String(bookingStatus || "").toLowerCase().includes("payment pending");
-  const hasPendingAdditionalPayment =
-    Number(additionalPaymentOutstandingAmount ?? 0) > 0 &&
-    !["paid", "success", "completed"].includes(
-      String(additionalPaymentStatus || "").trim().toLowerCase()
-    );
-  const showInvoiceActions =
-    (!!paymentData && !paymentData.isExpired) || isPaidBooking || isPaymentPendingBooking || hasPendingAdditionalPayment;
-  const showGenerateSection =
-    !isPaidBooking &&
-    !isPaymentPendingBooking &&
-    (!paymentData || paymentData.isExpired || paymentData.isUsed);
-  const shouldAttachDiscount =
-    !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
   const normalizedPaymentAmount = Number.parseFloat(paymentAmount);
   const hasCustomPaymentAmount = paymentAmount.trim().length > 0;
   const normalizedPaidAmount = Number(paidAmount ?? 0);
@@ -164,6 +149,30 @@ const GeneratePaymentLink = ({
       : hasOutstandingPaymentAmount
         ? normalizedOutstandingPaymentAmount
         : undefined;
+  const normalizedBookingStatus = String(bookingStatus || "").trim().toLowerCase();
+  const isPaidBooking =
+    ["paid", "completed", "success"].includes(normalizedBookingStatus) &&
+    !hasOutstandingPaymentAmount;
+  const isPaymentPendingBooking =
+    normalizedBookingStatus.includes("payment pending") &&
+    !hasOutstandingPaymentAmount;
+  const hasPendingAdditionalPayment =
+    Number(additionalPaymentOutstandingAmount ?? 0) > 0 &&
+    !["paid", "success", "completed"].includes(
+      String(additionalPaymentStatus || "").trim().toLowerCase()
+    );
+  const showInvoiceActions =
+    (!!paymentData && !paymentData.isExpired) ||
+    isPaidBooking ||
+    isPaymentPendingBooking ||
+    hasPendingAdditionalPayment ||
+    hasOutstandingPaymentAmount;
+  const showGenerateSection =
+    !isPaidBooking &&
+    !isPaymentPendingBooking &&
+    (!paymentData || paymentData.isExpired || paymentData.isUsed);
+  const shouldAttachDiscount =
+    !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
   const handleGenerate = async () => {
     if (isReadOnly) return;
