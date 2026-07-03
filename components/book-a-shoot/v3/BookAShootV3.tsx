@@ -47,6 +47,12 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
+const toUtcIsoIfValid = (value?: string | null) => {
+  if (!value) return value;
+  const date = parseDate(value);
+  return date && !isNaN(date.getTime()) ? date.toISOString() : value;
+};
+
 interface FormFields {
   email: string;
   user_id: number | undefined;
@@ -211,8 +217,8 @@ export const BookAShootV3 = () => {
           earlyInterestPayload.start_time = startTime;
           earlyInterestPayload.end_time = endTime;
           earlyInterestPayload.time_zone = browserTimeZone;
-          earlyInterestPayload.startDate = formData.startDate;
-          earlyInterestPayload.endDate = formData.endDate;
+          earlyInterestPayload.startDate = toUtcIsoIfValid(formData.startDate);
+          earlyInterestPayload.endDate = toUtcIsoIfValid(formData.endDate);
           earlyInterestPayload.booking_type = formData.bookingType;
           earlyInterestPayload.booking_days = (formData.bookingDays || []).map((d: any) => ({
             ...d,

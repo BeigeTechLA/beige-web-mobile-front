@@ -88,6 +88,12 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
+const toUtcIsoIfValid = (value?: string | null) => {
+  if (!value) return value;
+  const date = new Date(value);
+  return date && !isNaN(date.getTime()) ? date.toISOString() : value;
+};
+
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 
 const datePickerColours = {
@@ -1697,8 +1703,8 @@ export const BookAStudio = () => {
       start_time: primaryStudio?.startTime || getLocalTimePart(formData.startDate),
       end_time: primaryStudio?.endTime || getLocalTimePart(formData.endDate),
       time_zone: browserTimeZone,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
+      startDate: toUtcIsoIfValid(formData.startDate),
+      endDate: toUtcIsoIfValid(formData.endDate),
       booking_type: formData.bookingType || "single_day",
       booking_days: (formData.bookingDays || []).map((day) => ({
         ...day,

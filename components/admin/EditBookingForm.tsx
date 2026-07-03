@@ -55,6 +55,12 @@ const TEAM_ROLES = [
   { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> },
 ];
 
+const toUtcIsoIfValid = (value?: string | null) => {
+  if (!value) return value;
+  const date = parseDate(value);
+  return date && !isNaN(date.getTime()) ? date.toISOString() : value;
+};
+
 interface EditBookingFormProps {
   leadId?: string | number;
   initialBookingData: any;
@@ -603,7 +609,8 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
       payload.start_date = startDate;
       payload.start_time = startTime;
       payload.end_time = endTime;
-      payload.start_date_time = formData.startDate;
+      payload.start_date_time = toUtcIsoIfValid(formData.startDate);
+      payload.endDate = toUtcIsoIfValid(formData.endDate);
       payload.duration_hours = duration;
       payload.booking_days = [];
     } else {
