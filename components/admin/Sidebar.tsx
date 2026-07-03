@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useAppSelector } from '@/lib/redux/hooks';
-import { hasModulePermission } from '@/lib/permissions';
+import { hasModulePermission, isSuperAdminUser } from '@/lib/permissions';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -249,6 +249,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2" key={`admin-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
+            if (item.name === "Roles & Permissions" && !isSuperAdminUser(user)) {
+              return null;
+            }
+
             if (item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");
               if (!canView) return null;
