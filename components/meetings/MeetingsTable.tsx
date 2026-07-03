@@ -2,13 +2,11 @@ import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CalendarClock,
   ExternalLink,
   SquarePen,
   Trash2,
   RefreshCw,
   ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { ParticipantAvatarStack } from "./AvatarStack";
@@ -87,7 +85,6 @@ export default function MeetingsStructure({
   isDark
 }: MeetingsStructureProps) {
   const permissions = useAppSelector((state) => state.auth.permissions);
-  const canEditMeeting = hasModulePermission(permissions, ["meetings"], "edit");
   const canDeleteMeeting = hasModulePermission(permissions, ["meetings"], "delete");
 
   return (
@@ -170,8 +167,8 @@ export default function MeetingsStructure({
                   isWithinResponseWindow &&
                   !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
 
-                const canEditThisMeeting = canEditMeeting && !isClientCreatedBySelf;
-                const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
+                const canOpenDetails = !!meeting.id;
+                const canDeleteThisMeeting = isAdminView && canDeleteMeeting;
                 const isResponding = respondingMeetingId === String(meeting.id || "");
 
                 const borderClass = isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]";
@@ -288,14 +285,14 @@ export default function MeetingsStructure({
                         )}
                         <button
                           type="button"
-                          disabled={!canEditThisMeeting}
+                          disabled={!canOpenDetails}
                           onClick={(e) => {
-                            if (!canEditThisMeeting) return;
+                            if (!canOpenDetails) return;
                             e.stopPropagation();
                             setSelectedMeeting(meeting);
                           }}
                           className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium justify-center transition-colors whitespace-nowrap truncate ${
-                            canEditThisMeeting
+                            canOpenDetails
                               ? isDark
                                 ? "border-white/20 bg-[#202020] text-white hover:bg-[#282828]"
                                 : "border-gray-200 bg-[#E5E5E5] text-gray-700 hover:bg-gray-200"
@@ -316,25 +313,27 @@ export default function MeetingsStructure({
                             Open Shoot
                           </Link>
                         )}
-                        <button
-                          type="button"
-                          disabled={!canDeleteThisMeeting}
-                          onClick={(e) => {
-                            if (!canDeleteThisMeeting) return;
-                            e.stopPropagation();
-                            setMeetingPendingDelete(meeting);
-                          }}
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium justify-center transition-colors whitespace-nowrap truncate ${
-                            canDeleteThisMeeting
-                              ? "border-[#FFC3C3] bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFB0B0]"
-                              : isDark
-                                ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
-                                : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
-                          }`}
-                        >
-                          <Trash2 className="shrink-0 w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
+                        {isAdminView ? (
+                          <button
+                            type="button"
+                            disabled={!canDeleteThisMeeting}
+                            onClick={(e) => {
+                              if (!canDeleteThisMeeting) return;
+                              e.stopPropagation();
+                              setMeetingPendingDelete(meeting);
+                            }}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium justify-center transition-colors whitespace-nowrap truncate ${
+                              canDeleteThisMeeting
+                                ? "border-[#FFC3C3] bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFB0B0]"
+                                : isDark
+                                  ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
+                                  : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
+                            }`}
+                          >
+                            <Trash2 className="shrink-0 w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -393,10 +392,9 @@ function MobileMeetingRow({
     !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
 
   const permissions = useAppSelector((state) => state.auth.permissions);
-  const canEditMeeting = hasModulePermission(permissions, ["meetings"], "edit");
   const canDeleteMeeting = hasModulePermission(permissions, ["meetings"], "delete");
-  const canEditThisMeeting = canEditMeeting && !isClientCreatedBySelf;
-  const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
+  const canOpenDetails = !!meeting.id;
+  const canDeleteThisMeeting = isAdminView && canDeleteMeeting;
   const isResponding = respondingMeetingId === String(meeting.id || "");
 
   return (
@@ -546,13 +544,13 @@ function MobileMeetingRow({
                 )}
                 <button
                   type="button"
-                  disabled={!canEditThisMeeting}
+                  disabled={!canOpenDetails}
                   onClick={() => {
-                    if (!canEditThisMeeting) return;
+                    if (!canOpenDetails) return;
                     setSelectedMeeting(meeting);
                   }}
                   className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium justify-center transition-colors w-full ${
-                    canEditThisMeeting
+                    canOpenDetails
                       ? isDark
                         ? "border-white/20 bg-[#202020] text-white"
                         : "border-gray-200 bg-[#E5E5E5] text-gray-700"
@@ -572,24 +570,26 @@ function MobileMeetingRow({
                     Open Shoot
                   </Link>
                 )}
-                <button
-                  type="button"
-                  disabled={!canDeleteThisMeeting}
-                  onClick={() => {
-                    if (!canDeleteThisMeeting) return;
-                    setMeetingPendingDelete(meeting);
-                  }}
-                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium justify-center transition-colors w-full ${
-                    canDeleteThisMeeting
-                      ? "border-[#FFC3C3] bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80"
-                      : isDark
-                        ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
-                        : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
-                  }`}
-                >
-                  <Trash2 className="shrink-0 w-4 h-4" />
-                  <span>Delete</span>
-                </button>
+                {isAdminView ? (
+                  <button
+                    type="button"
+                    disabled={!canDeleteThisMeeting}
+                    onClick={() => {
+                      if (!canDeleteThisMeeting) return;
+                      setMeetingPendingDelete(meeting);
+                    }}
+                    className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium justify-center transition-colors w-full ${
+                      canDeleteThisMeeting
+                        ? "border-[#FFC3C3] bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80"
+                        : isDark
+                          ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
+                          : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
+                    }`}
+                  >
+                    <Trash2 className="shrink-0 w-4 h-4" />
+                    <span>Delete</span>
+                  </button>
+                ) : null}
               </div>
             </div>
           </motion.div>
