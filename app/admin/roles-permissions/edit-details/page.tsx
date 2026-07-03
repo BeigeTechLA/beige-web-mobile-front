@@ -33,26 +33,39 @@ import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermissi
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
+  const getOrdinalSuffix = (day: number) => {
+    if (day > 3 && day < 21) return "th";
+    switch (day % 10) {
+      case 1:
+        return "st";
+      case 2:
+        return "nd";
+      case 3:
+        return "rd";
+      default:
+        return "th";
+    }
+  };
+
   const day = date.getDate();
-  const month = new Intl.DateTimeFormat("en-US", { month: "long" }).format(date);
+  const month = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+  }).format(date);
   const year = date.getFullYear();
-  
+
   const time = new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
   }).format(date);
 
-  return `${day}, ${month} ${year} , ${time}`;
+  return `${day}${getOrdinalSuffix(day)} ${month}, ${year}, ${time}`;
 };
 
-type RoleOption = {
-  value: string;
-  label: string;
-};
 
 const normalizeUserPermissionsPayload = (value: unknown): UserPermissionsMap =>
   normalizePermissionsPayload(value) as UserPermissionsMap;
@@ -328,13 +341,13 @@ export default function AdminRoleEditDetailsRoute() {
 
     const response = hasUserCustomPermissions
       ? await adminApi.updateUserPermissions({
-          user_id: userId,
-          permissions: nextPermissions,
-        })
+        user_id: userId,
+        permissions: nextPermissions,
+      })
       : await adminApi.assignUserPermissions({
-          user_id: userId,
-          permissions: nextPermissions,
-        });
+        user_id: userId,
+        permissions: nextPermissions,
+      });
 
     setIsSaving(false);
 
@@ -405,9 +418,9 @@ export default function AdminRoleEditDetailsRoute() {
       setHasUserCustomPermissions(Object.keys(normalizedPermissions).length > 0);
       setCurrentRoleLabel(
         detailsResponse.data.display_role ||
-          detailsResponse.data.role?.name ||
-          selectedRoleLabel ||
-          currentRoleLabel,
+        detailsResponse.data.role?.name ||
+        selectedRoleLabel ||
+        currentRoleLabel,
       );
       setRoleDescription(detailsResponse.data.role?.description || "");
     }
