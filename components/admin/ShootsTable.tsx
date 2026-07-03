@@ -120,6 +120,9 @@ const FILTER_STATUS_OPTIONS = [
 const PRODUCTION_GAP_FILTER_SET = new Set([
   "pre_production_file_not_provided",
   "pre_production_meeting_not_done",
+  "post_production_raw_footages",
+  "post_production_final_deliverables",
+  "post_production_edits",
   "post_production_file_not_uploaded",
   "post_production_meeting_not_done",
 ]);
@@ -127,8 +130,8 @@ const PRODUCTION_GAP_FILTER_SET = new Set([
 const isProductionGapStatusFilter = (value: string) => PRODUCTION_GAP_FILTER_SET.has(String(value || "").toLowerCase());
 const isMeetingGapStatusFilter = (value: string) =>
   value === "pre_production_meeting_not_done" || value === "post_production_meeting_not_done";
-const isFileGapStatusFilter = (value: string) =>
-  value === "pre_production_file_not_provided" || value === "post_production_file_not_uploaded";
+const isBackendProductionFilter = (value: string) =>
+  isProductionGapStatusFilter(value) && !isMeetingGapStatusFilter(value);
 
 const normalizeStatusKey = (value: string) =>
   String(value || "")
@@ -498,7 +501,7 @@ export const ShootsTable = ({
         if (statusFilter !== "all") {
           params.status = statusFilter;
         }
-        if (productionFilter !== "all" && isFileGapStatusFilter(productionFilter)) {
+        if (productionFilter !== "all" && isBackendProductionFilter(productionFilter)) {
           params.production_filter = productionFilter;
         }
         if (categoryFilter !== "all") {
@@ -707,8 +710,6 @@ export const ShootsTable = ({
         (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery));
       if (!matchesSearch) return false;
 
-      if (statusFilter === "all") return true;
-
       if (isMeetingGapStatusFilter(productionFilter)) {
         const bookingId = String(shoot.id || "").replace("#", "").trim();
         if (!bookingId) return false;
@@ -722,6 +723,8 @@ export const ShootsTable = ({
         // Production gap filters are resolved by backend via `production_filter`.
         return true;
       }
+
+      if (statusFilter === "all") return true;
 
       return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
     });
