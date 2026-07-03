@@ -69,7 +69,7 @@ export async function GET(
     const safeFilename = decodeURIComponent(
       String(upstreamFilename || `beige-invoice-${parsedBookingId}.pdf`).replace(/"/g, "")
     );
-    const contentDisposition = `inline; filename="${safeFilename}"`;
+    const contentDisposition = `${forceDownload ? "attachment" : "inline"}; filename="${safeFilename}"`;
 
     return new NextResponse(pdfBuffer, {
       status: 200,
