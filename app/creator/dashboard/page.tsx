@@ -150,50 +150,71 @@ function DonutChartCard({
   subtitle,
   rightFilter,
   slices,
+  isDark = true // Added theme prop
 }: {
   title: string;
   subtitle?: string;
   rightFilter?: React.ReactNode;
   slices: DonutSlice[];
+  isDark?: boolean;
 }) {
   const gradient = useMemo(() => makeConicGradient(slices), [slices]);
   const total = slices.reduce((a, b) => a + b.value, 0) || 0;
 
   return (
-    <div className="bg-[#0B0B0B] border border-white/5 rounded-2xl p-6 transition-all hover:border-white/10">
+    <div className={`rounded-2xl p-6 transition-all ${isDark
+      ? "bg-[#0B0B0B] border-white/5 hover:border-white/10"
+      : "bg-white border-[#E5E5E5] hover:border-[#E8D1AB]/40 shadow-sm"
+      }`}>
       <div className="flex items-center justify-between mb-4 lg:mb-8">
         <div className="flex items-center gap-2">
-          {/* The vertical accent line from your screenshot */}
+          {/* Vertical brand gold accent line */}
           <div className="w-1 h-5 bg-[#E8D1AB] rounded-full" />
-          <h3 className="font-medium lg:text-lg text-white/90">{title}</h3>
+          <h3 className={`font-medium lg:text-lg ${isDark ? "text-white/90" : "text-black/90"}`}>
+            {title}
+          </h3>
         </div>
         {rightFilter}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8 items-center">
+        {/* Donut Chart Graphics Wrapper */}
         <div className="flex items-center justify-center relative">
           <div className="relative w-44 h-44 rounded-full" style={{ background: gradient }}>
-            <div className="absolute inset-[35px] rounded-full bg-[#0B0B0B]" />
-            {/* Inner Center Text like your screenshot */}
+            {/* Inner Hollow Cutout Mask matching the backdrop background */}
+            <div className={`absolute inset-[35px] rounded-full transition-colors ${isDark ? "bg-[#0B0B0B]" : "bg-[#FFFCF6]"
+              }`} />
+
+            {/* Inner Center Text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold text-white">{total.toLocaleString()}</span>
+              <span className={`text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+                {total.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
 
+        {/* Legend List */}
         <div className="space-y-2 lg:space-y-4">
           {slices.map((s) => {
             return (
               <div key={s.label} className="flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  {/* Circle with number inside - matching screenshot legend */}
+                  {/* Circle with number inside */}
                   <div
-                    className="w-10 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold"
-                    style={{ borderColor: s.colorHex, color: 'white', backgroundColor: `${s.colorHex}15` }}
+                    className="w-10 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors"
+                    style={{
+                      borderColor: s.colorHex,
+                      color: isDark ? "white" : "#000000",
+                      backgroundColor: `${s.colorHex}15`
+                    }}
                   >
                     {s.value}
                   </div>
-                  <p className="text-xs font-medium text-white/50 group-hover:text-white transition-colors">
+                  <p className={`text-xs font-medium transition-colors ${isDark
+                    ? "text-white/50 group-hover:text-white"
+                    : "text-black/60 group-hover:text-black font-medium"
+                    }`}>
                     {s.label}
                   </p>
                 </div>
@@ -205,7 +226,6 @@ function DonutChartCard({
     </div>
   );
 }
-
 // ----------------------
 // MAIN PAGE COMPONENT
 // ----------------------
@@ -715,22 +735,26 @@ export default function CreatorDashboardPage() {
             label="Completed Shoots"
             value={dashboardStats.completedShoots}
             icon={<Camera />}
-            iconColor="text-[#E8D1AB]"
+            iconColor={isDark ? "text-[#E8D1AB]" : "text-[#c48b29]"}
             hoverBorder="hover:border-[#E8D1AB]/30"
+            isDark={isDark}
           />
           <StatCard
             label="Upcoming Shoots"
             value={dashboardStats.upcomingShoots}
             icon={<CalendarIcon />}
-            iconColor="text-blue-400"
+            // iconColor="text-blue-400"
+            iconColor={isDark ? "text-blue-400" : "text-blue-800"}
             hoverBorder="hover:border-blue-400/30"
+            isDark={isDark}
           />
           <StatCard
             label="Pending Requests"
             value={dashboardStats.pendingRequests}
             icon={<Clock />}
-            iconColor="text-yellow-500"
+            iconColor={isDark ? "text-yellow-500" : "text-yellow-800"}
             hoverBorder="hover:border-yellow-500/30"
+            isDark={isDark}
           />
         </div>
 
@@ -905,54 +929,76 @@ export default function CreatorDashboardPage() {
             title="Shoot Status"
             subtitle="Pipeline performance metrics"
             slices={shootStatusSlices}
+            isDark={isDark}
           />
           <DonutChartCard
             title="Shoot Categories"
             subtitle="Distribution of media types"
             rightFilter={
-              <div className="flex bg-[#0B0F14] p-1 rounded-lg border border-white/5">
+              <div className={`flex p-1 rounded-lg border transition-all ${isDark
+                ? "bg-[#0B0F14] border-white/5"
+                : "bg-[#FFFCF6] border-[#E5E5E5]"
+                }`}>
                 <button
                   onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
-                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"}`}
-                >Photo</button>
+                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
+                >
+                  Photo
+                </button>
                 <button
                   onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
-                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"}`}
-                >Video</button>
+                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
+                >
+                  Video
+                </button>
               </div>
             }
             slices={shootCategorySlices}
+            isDark={isDark}
           />
         </div>
 
         {/* --- MODALS --- */}
-
         <Dialog open={showTempEventPopup} onOpenChange={setShowTempEventPopup}>
-          <DialogContent className="max-w-md overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-center text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
+          <DialogContent className={`max-w-md overflow-hidden rounded-xl lg:rounded-4xl border p-0 text-center shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            }`}>
             <DialogTitle className="sr-only">Switch to this event location?</DialogTitle>
-            <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-7">
+
+            <div className={`px-7 py-7 border-b transition-colors ${isDark
+              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              }`}>
+              {/* Icon Frame */}
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <CalendarIcon size={30} className="text-[#E8D1AB]" />
               </div>
-              <h2 className="text-xl font-bold mb-2">Switch to this event location?</h2>
-              <p className="mx-auto mb-8 max-w-sm px-4 text-sm text-white/50">
+
+              <h2 className="lg:text-xl font-bold mb-2">Switch to this event location?</h2>
+              <p className={`mx-auto mb-8 max-w-sm px-4 text-sm transition-colors ${isDark ? "text-white/50" : "text-black/60"}`}>
                 {tempEventLocation
                   ? `"We’ll temporarily set your location to ${tempEventLocation} to match this event for a better experience."`
                   : "Do you want to continue with this event?"}
               </p>
+
+              {/* Action Buttons */}
               <div className="flex gap-3">
                 <Button
                   variant="ghost"
-                  className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
                   disabled={isConfirmingTempEvent}
                   onClick={() => setShowTempEventPopup(false)}
+                  className={`h-12 flex-1 rounded-lg lg:rounded-2xl border transition-colors ${isDark
+                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                    }`}
                 >
                   Not now
                 </Button>
                 <Button
-                  className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold"
                   disabled={isConfirmingTempEvent}
                   onClick={handleConfirmTempEvent}
+                  className="h-12 flex-1 rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold transition-colors"
                 >
                   {isConfirmingTempEvent ? "Please wait..." : "Yes, update location"}
                 </Button>
@@ -963,18 +1009,49 @@ export default function CreatorDashboardPage() {
 
         {/* Accept Shoot Modal */}
         <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
-          <DialogContent className="max-w-md overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-center text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
-            <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-7">
+          <DialogContent className={`max-w-md overflow-hidden rounded-xl lg:rounded-4xl border p-0 text-center shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            }`}>
+            <DialogTitle className="sr-only">Accept Request?</DialogTitle>
+            <div className={`px-7 py-7 border-b transition-colors ${isDark
+              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              }`}>
+              {/* Icon Frame */}
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <CheckCircle2 size={32} className="text-[#E8D1AB]" />
               </div>
+
               <h2 className="text-xl font-bold mb-2">Accept Request?</h2>
-              <p className="mx-auto mb-8 max-w-sm px-4 text-sm text-white/50">
-                Confirming will add <span className="text-white font-medium">{acceptShootEvent?.project_name}</span> to your production schedule.
+
+              <p className={`mx-auto mb-8 max-w-sm px-4 text-sm transition-colors ${isDark ? "text-white/50" : "text-black/60"
+                }`}>
+                Confirming will add{" "}
+                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                  {acceptShootEvent?.project_name}
+                </span>{" "}
+                to your production schedule.
               </p>
+
+              {/* Action Buttons */}
               <div className="flex gap-3">
-                <Button variant="ghost" className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
-                <Button className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold" onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}>Confirm</Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setAcceptShootEvent(null)}
+                  className={`h-12 flex-1 rounded-2xl border transition-colors ${isDark
+                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                    }`}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}
+                  className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold transition-colors"
+                >
+                  Confirm
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -982,26 +1059,66 @@ export default function CreatorDashboardPage() {
 
         {/* Decline Equipment Modal */}
         <Dialog open={!!declineEquipmentItem} onOpenChange={() => setDeclineEquipmentItem(null)}>
-          <DialogContent className="max-w-xl overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
-            <DialogHeader className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-6">
+          <DialogContent className={`max-w-xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            }`}>
+            {/* Header Section */}
+            <DialogHeader className={`px-7 py-6 border-b transition-colors ${isDark
+              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              }`}>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
                 <AlertTriangle className="text-red-500" />
                 Decline Request
               </DialogTitle>
             </DialogHeader>
+
+            {/* Form Options Content */}
             <div className="space-y-5 px-7 py-6">
               <div className="space-y-3">
-                <Label className="text-white/40 text-xs uppercase tracking-widest">Reason for declining</Label>
+                <Label className={`text-xs uppercase tracking-widest ${isDark ? "text-white/40" : "text-black/40"}`}>
+                  Reason for declining
+                </Label>
+
                 {["Schedule conflict", "Equipment unavailable", "Location too far", "Other"].map((reason) => (
-                  <div key={reason} className="flex items-center space-x-3 bg-[#111111] p-4 rounded-2xl border border-white/10 cursor-pointer hover:border-white/20 hover:bg-[#151515] transition-all">
+                  <div
+                    key={reason}
+                    className={`flex items-center space-x-3 p-4 rounded-2xl border cursor-pointer transition-all ${isDark
+                      ? "bg-[#111111] border-white/10 hover:border-white/20 hover:bg-[#151515]"
+                      : "bg-[#FFFDF9] border-[#E5E5E5] hover:border-[#E8D1AB]/60 hover:bg-[#FDF9F0]"
+                      }`}
+                  >
                     <input type="radio" name="decline-reason" id={reason} className="accent-[#E8D1AB]" />
-                    <Label htmlFor={reason} className="text-white/70 font-normal cursor-pointer flex-1">{reason}</Label>
+                    <Label
+                      htmlFor={reason}
+                      className={`font-normal cursor-pointer flex-1 transition-colors ${isDark ? "text-white/70" : "text-black/80"
+                        }`}
+                    >
+                      {reason}
+                    </Label>
                   </div>
                 ))}
               </div>
+
+              {/* Action Footer Buttons */}
               <div className="flex gap-3 pt-4">
-                <Button variant="ghost" className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5" onClick={() => setDeclineEquipmentItem(null)}>Cancel</Button>
-                <Button className="h-12 flex-1 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold" onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}>Decline Request</Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setDeclineEquipmentItem(null)}
+                  className={`h-12 flex-1 rounded-2xl border transition-colors ${isDark
+                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                    }`}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}
+                  className="h-12 flex-1 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+                >
+                  Decline Request
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -1009,42 +1126,73 @@ export default function CreatorDashboardPage() {
 
         {/* Project Details Modal */}
         <Dialog open={projectDetailsOpen} onOpenChange={setProjectDetailsOpen}>
-          <DialogContent className="max-w-2xl overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
-            <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] p-6">
+          <DialogContent className={`max-w-2xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+              ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+              : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            }`}>
+            {/* Header Section */}
+            <div className={`p-6 border-b transition-colors ${isDark
+                ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+                : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              }`}>
               <DialogTitle className="text-xl font-bold text-[#E8D1AB]">Project Overview</DialogTitle>
             </div>
+
+            {/* Content Details Body */}
             <div className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-1">
-                  <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Project Name</Label>
-                  <p className="font-bold text-lg leading-tight">{projectDetailsData?.project?.project_name || projectDetailsData?.project_name || "Untitled"}</p>
+                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Project Name
+                  </Label>
+                  <p className="font-bold text-lg leading-tight">
+                    {projectDetailsData?.project?.project_name || projectDetailsData?.project_name || "Untitled"}
+                  </p>
                 </div>
                 <div className="text-right space-y-1">
-                  <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Scheduled Date</Label>
-                  <p className="text-[#E8D1AB] font-mono">{projectDetailsData?.project?.event_date || projectDetailsData?.event_date || "TBD"}</p>
+                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Scheduled Date
+                  </Label>
+                  <p className="text-[#E8D1AB] font-mono">
+                    {projectDetailsData?.project?.event_date || projectDetailsData?.event_date || "TBD"}
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 border-t border-white/5 pt-6">
+              <div className={`grid grid-cols-2 gap-8 border-t pt-6 transition-colors ${isDark ? "border-white/5" : "border-[#E5E5E5]"
+                }`}>
                 <div className="space-y-1">
-                  <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Time Window</Label>
-                  <p className="text-white/80">
+                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Time Window
+                  </Label>
+                  <p className={isDark ? "text-white/80" : "text-black/80"}>
                     {projectDetailsData?.project?.start_time && projectDetailsData?.project?.end_time
                       ? `${projectDetailsData.project.start_time} - ${projectDetailsData.project.end_time}`
                       : "TBD"}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Location</Label>
-                  <div className="flex items-center gap-2 text-white/80">
+                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Location
+                  </Label>
+                  <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
                     <MapPin size={14} className="text-[#E8D1AB]" />
-                    <span className="truncate">{formatDisplayLocation(projectDetailsData?.project?.event_location || projectDetailsData?.display_location)}</span>
+                    <span className="truncate">
+                      {formatDisplayLocation(projectDetailsData?.project?.event_location || projectDetailsData?.display_location)}
+                    </span>
                   </div>
                 </div>
               </div>
 
+              {/* Action Footer */}
               <div className="flex justify-end pt-6">
-                <Button onClick={() => setProjectDetailsOpen(false)} className="h-12 rounded-2xl bg-[#111111] border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-8 transition-all">
+                <Button
+                  onClick={() => setProjectDetailsOpen(false)}
+                  className={`h-12 rounded-2xl border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-8 transition-all ${isDark
+                      ? "bg-[#111111] border-white/10 text-white"
+                      : "bg-[#F5F5F5] border-black/10 text-black"
+                    }`}
+                >
                   Close Details
                 </Button>
               </div>
@@ -1063,9 +1211,12 @@ export default function CreatorDashboardPage() {
 /**
  * StatCard - Large Value with Subtle Top-Right Icon
  */
-function StatCard({ label, value, icon, iconColor, hoverBorder }: any) {
+function StatCard({ label, value, icon, iconColor, hoverBorder, isDark }: any) {
   return (
-    <div className={`bg-[#111] rounded-lg lg:rounded-xl p-4 lg:p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[120px] flex flex-col justify-center`}>
+    <div className={`rounded-lg lg:rounded-xl p-4 lg:p-6 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[120px] flex flex-col justify-center ${isDark
+      ? "bg-[#111] border-white/5"
+      : "bg-white border-[#E5E5E5] shadow-sm"
+      }`}>
       <div className="absolute top-2 right-2 lg:top-0 lg:right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
         {React.cloneElement(icon, {
           // Responsive size logic
@@ -1074,8 +1225,8 @@ function StatCard({ label, value, icon, iconColor, hoverBorder }: any) {
         })}
       </div>
       <div className="relative z-10">
-        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">{label}</p>
-        <p className="text-2xl lg:text-4xl font-bold text-white">{value}</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>{label}</p>
+        <p className={`text-2xl lg:text-4xl font-bold ${isDark ? "text-white" : "text-black"}`}>{value}</p>
       </div>
     </div>
   );

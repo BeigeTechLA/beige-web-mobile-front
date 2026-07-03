@@ -350,6 +350,7 @@ export default function RequestsShootsPage() {
           setProjectDetailsOpen(false);
           setProjectDetailsData(null);
         }}
+        pathname={pathname}
       />
     );
   }
@@ -368,21 +369,35 @@ export default function RequestsShootsPage() {
           </div>
 
           {/* 2. Tabs */}
-          <div className="inline-flex items-center gap-1 rounded-xl bg-[#171717] border border-white/10 p-1">
+          <div
+            // className="inline-flex items-center gap-1 rounded-xl bg-[#171717] border border-white/10 p-1"
+            className={`flex items-center gap-1 p-1 rounded-xl w-fit border transition-all duration-300 ${isDark
+              ? "bg-[#111] border-[#333]"
+              : "bg-[#fff] border-[#E5E5E5]"
+              }`}
+          >
             <button
               onClick={() => handleTabChange("requests")}
-              className={`px-4 py-2 text-sm rounded-lg transition-colors ${activeTab === "requests"
-                ? "bg-[#E8D1AB] text-black"
-                : "text-white/60 hover:text-white"
+              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all duration-300 ${activeTab === "requests"
+                ? (isDark
+                  ? "bg-[#E5D5B8] text-black shadow-lg"
+                  : "bg-[#E8D1AB] text-black shadow-sm")
+                : (isDark
+                  ? "text-[#777] hover:text-white"
+                  : "text-[#888] hover:text-black")
                 }`}
             >
               Requests
             </button>
             <button
               onClick={() => handleTabChange("shoots")}
-              className={`px-4 py-2 text-sm rounded-lg transition-colors ${activeTab === "shoots"
-                ? "bg-[#E8D1AB] text-black"
-                : "text-white/60 hover:text-white"
+              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all duration-300 ${activeTab === "shoots"
+                ? (isDark
+                  ? "bg-[#E5D5B8] text-black shadow-lg"
+                  : "bg-[#E8D1AB] text-black shadow-sm")
+                : (isDark
+                  ? "text-[#777] hover:text-white"
+                  : "text-[#888] hover:text-black")
                 }`}
             >
               Shoots
@@ -431,7 +446,7 @@ export default function RequestsShootsPage() {
           {/* 3. Filter Bar: Search, Select, and View Toggle */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             {/* Search Box - Now Left Aligned */}
-            <div className="relative w-full lg:w-auto">
+            {/* <div className="relative w-full lg:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
               <Input
                 placeholder="Search projects..."
@@ -439,21 +454,36 @@ export default function RequestsShootsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+            </div> */}
+
+            <div className={`relative flex w-full lg:max-w-xl items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"}`}>
+              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                  ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                  : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
+                  }`}
+              />
             </div>
+
 
             {/* Filter Group - Grouped to stay on the Right */}
             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="bg-[#1A1A1A] border-white/5 w-full md:w-[140px]">
+                <SelectTrigger className={`rounded-xl min-w-[170px] ${isDark ? "border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50 " : "bg-[#fff] border-[#E3E3E3] text-[#323232]"} `}>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectContent className={`${isDark ? "bg-[#1A1A1A] border-white/10 text-white " : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232]"}`}>
+                  <SelectItem value="all" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>All Status</SelectItem>
+                  <SelectItem value="confirmed" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>Confirmed</SelectItem>
                   {activeTab === "requests" ? (
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="pending" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>Pending</SelectItem>
                   ) : (
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="completed" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>Completed</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -462,17 +492,19 @@ export default function RequestsShootsPage() {
               <div className="md:hidden relative">
                 <Button
                   onClick={toggleDropdown}
-                  className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-12 w-12 rounded-lg text-white"
+                  className={`flex items-center gap-2 ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white" : "border-[#E5E5E5] bg-white text-black"} border p-2 h-12 w-12 rounded-lg `}
                 >
                   {view === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
                 </Button>
 
                 {/* Dropdown Menu */}
                 {isOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                  <div className={`absolute top-full right-0 mt-2 w-48 border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "border-[#FFFFFF33] bg-[#171717] text-white" : "border-[#E5E5E5] bg-[#FFFCF6] text-black"}`}>
                     <button
                       onClick={() => handleViewChange('grid')}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid'
+                        ? (isDark ? "bg-white/10 text-white" : "bg-black/5 font-medium text-black")
+                        : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
                         }`}
                     >
                       <Grid3X3 size={18} />
@@ -480,7 +512,9 @@ export default function RequestsShootsPage() {
                     </button>
                     <button
                       onClick={() => handleViewChange('list')}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'list'
+                        ? (isDark ? "bg-white/10 text-white" : "bg-black/5 font-medium text-black")
+                        : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
                         }`}
                     >
                       <List size={18} />
@@ -491,17 +525,25 @@ export default function RequestsShootsPage() {
               </div>
 
               {/* DESKTOP VIEW: Original Toggle */}
-              <div className="hidden lg:flex bg-[#1A1A1A] p-1 rounded-xl border border-white/5 w-fit">
+              <div className={`hidden lg:flex ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-white"} p-1 rounded-xl border w-fit`}>
                 <button
                   onClick={() => handleViewChange("grid")}
-                  className={`p-2 rounded-lg transition-all ${view === "grid" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
+                  className={`relative z-10 inline-flex items-center justify-center rounded-lg  px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${view === "grid"
+                    ? isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black"
+                    : isDark
+                      ? "text-white/60 hover:text-white"
+                      : "text-[#666666] hover:text-black"
                     }`}
                 >
                   <Grid3X3 size={20} />
                 </button>
                 <button
                   onClick={() => handleViewChange("list")}
-                  className={`p-2 rounded-lg transition-all ${view === "list" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
+                  className={`relative z-10 inline-flex items-center justify-center rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${view === "list"
+                    ? isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black"
+                    : isDark
+                      ? "text-white/60 hover:text-white"
+                      : "text-[#666666] hover:text-black"
                     }`}
                 >
                   <List size={20} />
@@ -510,7 +552,6 @@ export default function RequestsShootsPage() {
             </div>
           </div>
         </div>
-
 
         {/* Main Content Area */}
         <div>
@@ -521,7 +562,10 @@ export default function RequestsShootsPage() {
                 {filteredProjects.map((item) => (
                   <div
                     key={item.project_id}
-                    className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6 hover:border-[#E8D1AB]/40 transition-all group"
+                    className={`border rounded-lg lg:rounded-xl p-4 lg:p-6 transition-all group ${isDark
+                      ? "bg-[#111] border-white/5 hover:border-[#E8D1AB]/40"
+                      : "bg-white border-[#E5E5E5] hover:border-[#E8D1AB]/60 shadow-sm"
+                      }`}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <span
@@ -534,29 +578,35 @@ export default function RequestsShootsPage() {
                       >
                         {item.status}
                       </span>
-                      <span className="text-white/20 text-xs italic">Recently updated</span>
+                      <span className={`text-xs italic ${isDark ? "text-white/20" : "text-black/30"}`}>
+                        Recently updated
+                      </span>
                     </div>
 
-                    <h3 className="text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors capitalize">
+                    <h3 className={`text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors capitalize ${isDark ? "text-white" : "text-black"}`}>
                       {item.project_name || item.title || "Untitled Project"}
                     </h3>
 
                     <div className="space-y-3 mb-4 lg:mb-6">
-                      <div className="flex items-center gap-3 text-white/60 text-sm">
+                      <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                         <CalendarIcon size={16} className="text-[#E8D1AB]" />
                         <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-white/60 text-sm">
+                      <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                         <MapPin size={16} className="text-[#E8D1AB]" />
                         <span className="truncate">
                           {formatLocation(item.event_location || item.location)}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+
+                    <div className={`flex items-center justify-between pt-4 border-t ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
                       <Button
                         onClick={() => handleOpenProjectDetails(item.project_id)}
-                        className="bg-transparent border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-6"
+                        className={`border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-6 ${isDark
+                          ? "bg-transparent border-white/10 text-white"
+                          : "bg-[#FFFCF6] border-black/15 text-black"
+                          }`}
                       >
                         View Details
                       </Button>
@@ -566,14 +616,14 @@ export default function RequestsShootsPage() {
                           <Button
                             size="icon"
                             onClick={() => setAcceptShootEvent(item)}
-                            className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
+                            className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-colors"
                           >
                             <Check size={18} />
                           </Button>
                           <Button
                             size="icon"
                             onClick={() => setDeclineShootEvent(item)}
-                            className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"
+                            className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
                           >
                             <X size={18} />
                           </Button>
@@ -585,12 +635,12 @@ export default function RequestsShootsPage() {
               </div>
             ) : (
               /* --- DYNAMIC LIST VIEW (Matches Screenshot Style) --- */
-              <div className="bg-[#111] border border-white/5 rounded-xl overflow-hidden">
+              <div className={`border rounded-xl overflow-hidden transition-all ${isDark ? "bg-[#111] border-white/5" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
                 {/* DESKTOP TABLE VIEW */}
                 <div className="hidden lg:block overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-white/[0.03] text-white/40 text-[11px] uppercase tracking-wider">
+                      <tr className={`text-xs uppercase tracking-wider transition-colors border-b ${isDark ? "bg-white/[0.03] text-white/40 border-white/5" : "bg-black/[0.05] text-black/40 border-[#E5E5E5]"}`}>
                         <th className="px-6 py-4 font-semibold">Shoot ID</th>
                         <th className="px-6 py-4 font-semibold">Name</th>
                         <th className="px-6 py-4 font-semibold">Location</th>
@@ -600,7 +650,7 @@ export default function RequestsShootsPage() {
                         <th className="px-6 py-4 font-semibold text-right pr-12">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className={`divide-y ${isDark ? "divide-white/5" : "divide-[#E5E5E5]"}`}>
                       {filteredProjects.map((item) => {
                         // Status Logic Mapping
                         let statusBg = "bg-[#FEF9C3]"; // Light Yellow
@@ -624,24 +674,24 @@ export default function RequestsShootsPage() {
                         return (
                           <tr
                             key={item.project_id}
-                            className="hover:bg-white/[0.01] transition-colors group"
+                            className={`transition-colors group ${isDark ? "hover:bg-white/[0.01]" : "hover:bg-[#FFFCF6]/50"}`}
                           >
                             {/* Shoot ID Column */}
-                            <td className="px-6 py-5 text-sm text-white/60">
+                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                               #{item.project_id?.toString().slice(-6) || "123456"}
                             </td>
 
                             {/* Name/Project Details Column */}
                             <td className="px-6 py-5">
                               <div className="flex items-center gap-4">
-                                <div className="h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 overflow-hidden flex items-center justify-center text-[#E8D1AB] font-bold text-xs">
+                                <div className="shrink-0 h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 overflow-hidden flex items-center justify-center text-[#E8D1AB] font-bold text-xs">
                                   {(item.project_name || "PR").split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
                                 </div>
                                 <div>
-                                  <div className="text-sm font-bold text-white leading-tight">
+                                  <div className={`text-sm font-bold leading-tight ${isDark ? "text-white" : "text-black"}`}>
                                     {item.project_name || "Untitled"}
                                   </div>
-                                  <div className="text-[11px] text-white/40 mt-0.5">
+                                  <div className={`text-xs mt-0.5 ${isDark ? "text-white/40" : "text-black/40"}`}>
                                     Production Shoot
                                   </div>
                                 </div>
@@ -649,31 +699,31 @@ export default function RequestsShootsPage() {
                             </td>
 
                             {/* Location Column */}
-                            <td className="px-6 py-5 text-sm text-white/60">
+                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                               <div className="max-w-[180px] truncate">
                                 {formatLocation(item.event_location || item.location)}
                               </div>
                             </td>
 
                             {/* Email Column */}
-                            <td className="px-6 py-5 text-sm text-white/60">
+                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                               <div className="max-w-[200px] truncate">
                                 {item.guest_email || "N/A"}
                               </div>
                             </td>
 
-                            <td className="px-6 py-5 text-sm text-white/60">
+                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                               Videographer
                             </td>
 
-                            {/* Status Pill Column (Matched to Screenshot) */}
+                            {/* Status Pill Column */}
                             <td className="px-6 py-5">
                               <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[12px] font-bold min-w-[100px] ${statusBg} ${statusText}`}>
                                 {label}
                               </span>
                             </td>
 
-                            {/* Action Column (Matched to Screenshot) */}
+                            {/* Action Column */}
                             <td className="px-6 py-5">
                               <div className="flex items-center justify-end gap-6">
                                 {item.status === "Pending" ? (
@@ -681,29 +731,30 @@ export default function RequestsShootsPage() {
                                     {/* Pill Shape Approve Button */}
                                     <button
                                       onClick={() => setAcceptShootEvent(item)}
-                                      className="px-4 py-1 rounded-full bg-[#DCFCE7] text-[#166534] text-[12px] font-bold hover:bg-green-200 transition-colors"
+                                      className="px-4 py-1 rounded-full bg-[#DCFCE7] text-[#166534] text-xs font-bold hover:bg-green-200 transition-colors"
                                     >
                                       Approve
                                     </button>
                                     {/* Red Underlined Decline Link */}
                                     <button
                                       onClick={() => setDeclineShootEvent(item)}
-                                      className="text-[#F87171] text-[12px] font-medium underline underline-offset-4 hover:text-red-400"
+                                      className={`text-xs font-medium underline underline-offset-4 transition-colors ${isDark ? "text-[#F87171] hover:text-red-400" : "text-[#EF4444] hover:text-red-600"
+                                        }`}
                                     >
                                       Decline
                                     </button>
                                   </div>
                                 ) : item.status === "Confirmed" ? (
-                                  <div className="flex items-center gap-3 text-white/40">
-                                    <button className="hover:text-white transition-colors">
+                                  <div className={`flex items-center gap-3 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                    <button className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-black"}`}>
                                       <Pencil size={18} />
                                     </button>
-                                    <button className="hover:text-red-400 transition-colors">
+                                    <button className={`transition-colors ${isDark ? "hover:text-red-400" : "hover:text-red-600"}`}>
                                       <Trash2 size={18} />
                                     </button>
                                   </div>
                                 ) : (
-                                  <div className="text-white/20">
+                                  <div className={isDark ? "text-white/20" : "text-black/20"}>
                                     <Info size={18} />
                                   </div>
                                 )}
@@ -711,7 +762,7 @@ export default function RequestsShootsPage() {
                                 {/* Detail Chevron */}
                                 <button
                                   onClick={() => handleOpenProjectDetails(item.project_id)}
-                                  className="text-white/40 hover:text-white transition-colors"
+                                  className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
                                 >
                                   <ChevronRight size={20} />
                                 </button>
@@ -725,7 +776,7 @@ export default function RequestsShootsPage() {
                 </div>
 
                 {/* MOBILE COLLAPSIBLE VIEW */}
-                <div className="lg:hidden flex flex-col divide-y divide-white/5">
+                <div className={`lg:hidden flex flex-col divide-y ${isDark ? "divide-white/5" : "divide-[#E5E5E5]"}`}>
                   {filteredProjects.map((item) => (
                     <MobileRow
                       key={item.project_id}
@@ -733,6 +784,7 @@ export default function RequestsShootsPage() {
                       onApprove={() => setAcceptShootEvent(item)}
                       onDecline={() => setDeclineShootEvent(item)}
                       onViewDetails={() => handleOpenProjectDetails(item.project_id)}
+                      isDark={isDark}
                     />
                   ))}
                 </div>
