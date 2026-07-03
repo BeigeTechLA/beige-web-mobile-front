@@ -285,7 +285,7 @@ const StudioCard = ({
       />
 
       {/* 2. CONSTANT SPEED Animated Card Body */}
-      <motion.div
+      {/* <motion.div
         initial={false}
         whileHover={{
           y: -10,
@@ -306,7 +306,7 @@ const StudioCard = ({
         className={`relative flex h-full flex-col overflow-hidden rounded-[24px] border bg-[#111111] transition-colors duration-300 isolate ${
           selected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10"
         }`}
-      >
+      > */}
         <button type="button" onClick={onSelect} className="relative h-[210px] w-full overflow-hidden rounded-t-[24px]">
           <Image 
             src={studio.image} 
@@ -388,7 +388,7 @@ const StudioCard = ({
             </Link>
           </div>
         </div>
-      </motion.div>
+      {/* </motion.div> */}
     </div>
   );
 };
