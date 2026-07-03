@@ -49,6 +49,8 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
+const CREATORS_PAGE_SIZE = 20;
+
 export const V3SelectDreamTeam: React.FC<Props> = ({
   data,
   updateData,
@@ -69,6 +71,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     data.selectedCrewRoles || {}
   );
   const [showSalesPopup, setShowSalesPopup] = useState(false);
+  const [creatorPage, setCreatorPage] = useState(1);
+  const [loadedCreators, setLoadedCreators] = useState<Creator[]>([]);
 
   // Sales lead mutation
   const [createSalesLead, { isLoading: isCreatingSalesLead }] =
@@ -89,6 +93,17 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
   const searchableContentTypes = data.contentType.filter((t) => t !== "editing" && t !== "studio");
 
+  const creatorSearchKey = [
+    isEditingOnly ? "editor" : searchableContentTypes.join(","),
+    isEditingOnly ? "" : locationLatitude ?? "",
+    isEditingOnly ? "" : locationLongitude ?? "",
+  ].join("|");
+
+  useEffect(() => {
+    setCreatorPage(1);
+    setLoadedCreators([]);
+  }, [creatorSearchKey]);
+
   // Build search params from booking data
   const searchParams = {
     content_types: isEditingOnly
@@ -96,14 +111,15 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       : searchableContentTypes.join(","),
     latitude: isEditingOnly ? undefined : locationLatitude,
     longitude: isEditingOnly ? undefined : locationLongitude,
-    limit: 12,
-    page: 1,
+    limit: CREATORS_PAGE_SIZE,
+    page: creatorPage,
   };
 
   // Fetch real creators from API
   const {
     data: creatorsResponse,
     isLoading,
+    isFetching,
     error,
   } = useSearchCreatorsQuery(searchParams, {
     skip:
@@ -112,7 +128,28 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   });
 
   // Transform API creators to display format
-  const creators: Creator[] = creatorsResponse?.data || [];
+  useEffect(() => {
+    if (!creatorsResponse?.data) return;
+
+    setLoadedCreators((prevCreators) => {
+      const mergedCreators =
+        creatorPage === 1
+          ? creatorsResponse.data
+          : [...prevCreators, ...creatorsResponse.data];
+      const creatorsById = new Map<number, Creator>();
+
+      mergedCreators.forEach((creator) => {
+        creatorsById.set(creator.crew_member_id, creator);
+      });
+
+      return Array.from(creatorsById.values());
+    });
+  }, [creatorPage, creatorsResponse]);
+
+  const creators: Creator[] = loadedCreators;
+  const hasMoreCreators = Boolean(creatorsResponse?.pagination?.hasMore);
+  const isLoadingMoreCreators = isFetching && creatorPage > 1;
+  const totalCreators = creatorsResponse?.pagination?.total;
 
   // Fetch random crew
   const { data: randomCrewResponse } = useGetRandomCrewQuery();
@@ -760,6 +797,32 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {creators.length > 0 && (
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-sm text-white/50">
+            Showing {creators.length}
+            {typeof totalCreators === "number" ? ` of ${totalCreators}` : ""} creator(s)
+          </p>
+          {hasMoreCreators && (
+            <Button
+              type="button"
+              onClick={() => setCreatorPage((page) => page + 1)}
+              disabled={isLoadingMoreCreators}
+              className="h-12 min-w-[190px] rounded-[10px] border border-white/20 bg-[#1A1A1A] px-6 text-sm font-medium text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoadingMoreCreators ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </span>
+              ) : (
+                "Show More Creators"
+              )}
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap justify-center gap-4">
         {requirements.required.video > 0 && (

@@ -315,6 +315,7 @@ export const salesApi = createApi({
       reason_code?: string;
       booking_id?: number;
       discount_code?: string;
+      requested_amount?: number | string | null;
     }, string>({
       query: (token) => `sales/payment-links/${token}/validate`,
       transformResponse: (response: any) => {
