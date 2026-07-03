@@ -1736,7 +1736,11 @@ export default function QuoteDetailsPage({
       setManualPaymentNotes("");
       setManualPaymentProofUrl("");
       setManualPaymentProofFileName("");
-      void refetchLeadDetails();
+      await refreshQuotePrimaryContext();
+      if (quoteLeadId) {
+        await refetchLeadDetails();
+      }
+      dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
     } finally {
       setIsSubmittingManualPayment(false);
     }
