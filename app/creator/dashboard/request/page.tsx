@@ -799,37 +799,80 @@ export default function RequestsShootsPage() {
 
         {/* Modals */}
         <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
-          <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm">
+          <DialogContent className={`max-w-xs lg:max-w-sm transition-all duration-300 border ${isDark
+            ? "bg-[#111] border-white/10 text-white"
+            : "bg-[#FFFDF9] border-[#E5E5E5] text-black shadow-xl"
+            }`}>
             <DialogHeader className="text-center">
-              <DialogTitle className="text-xl font-bold">Accept Shoot?</DialogTitle>
+              <DialogTitle className={`lg:text-xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+                Accept Shoot?
+              </DialogTitle>
             </DialogHeader>
+
             <div className="text-center p-4">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-[#E8D1AB] mb-4" />
-              <p className="text-white/60 text-sm mb-6">Confirming will add this project to your active schedule.</p>
+              {/* Dynamic Status Icon */}
+              <CheckCircle2 className={`mx-auto h-12 w-12 mb-4 transition-colors text-[#E8D1AB]`} />
+
+              {/* Description Text */}
+              <p className={`text-xs lg:text-sm mb-6 transition-colors ${isDark ? "text-white/60" : "text-black/60"
+                }`}>
+                Confirming will add this project to your active schedule.
+              </p>
+
+              {/* Actions */}
               <div className="flex gap-3">
-                <Button variant="ghost" className="flex-1" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
-                <Button className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a]" onClick={() => handleAcceptProject(acceptShootEvent.project_id, true)}>Confirm</Button>
+                <Button
+                  // variant="ghost" 
+                  className={`flex-1 transition-colors ${isDark
+                    ? "bg-white/5 text-white/60 hover:text-white hover:bg-white/10"
+                    : "bg-black/5 text-black/60 hover:text-black hover:bg-black/10"
+                    }`}
+                  onClick={() => setAcceptShootEvent(null)}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  className={`flex-1 font-semibold transition-all bg-[#E8D1AB] text-black hover:bg-[#d4be9a]`}
+                  onClick={() => handleAcceptProject(acceptShootEvent.project_id, true)}
+                >
+                  Confirm
+                </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
 
         <Dialog open={!!declineShootEvent} onOpenChange={() => setDeclineShootEvent(null)}>
-          <DialogContent className="bg-[#111] border-white/10 text-white">
+          <DialogContent className={`transition-all duration-300 border ${isDark
+            ? "bg-[#111] border-white/10 text-white"
+            : "bg-[#FFFDF9] border-[#E5E5E5] text-black shadow-xl"
+            }`}>
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                <AlertTriangle className="text-red-500" />
+              <DialogTitle className={`text-xl font-bold flex items-center gap-2 ${isDark ? "text-white" : "text-black"}`}>
+                <AlertTriangle className="text-red-500 shrink-0" />
                 Decline Request
               </DialogTitle>
             </DialogHeader>
+
             <div className="space-y-4">
+              {/* 1. DROP-DOWN SELECT ELEMENT */}
               <div>
-                <Label className="text-white/60 mb-2 block">Reason for declining</Label>
+                <Label className={`mb-2 block font-medium text-xs uppercase tracking-wider ${isDark ? "text-white/60" : "text-black/60"
+                  }`}>
+                  Reason for declining
+                </Label>
                 <Select value={declineReason} onValueChange={setDeclineReason}>
-                  <SelectTrigger className="bg-[#1A1A1A] border-white/5">
+                  <SelectTrigger className={`transition-colors ${isDark
+                    ? "bg-[#1A1A1A] border-white/5 text-white"
+                    : "bg-[#FFFCF6] border-[#E5E5E5] text-black"
+                    }`}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
+                  <SelectContent className={`border ${isDark
+                    ? "bg-[#1A1A1A] border-white/10 text-white"
+                    : "bg-[#FFFCF6] border-[#E5E5E5] text-black shadow-lg"
+                    }`}>
                     <SelectItem value="Schedule conflict">Schedule conflict</SelectItem>
                     <SelectItem value="Rate too low">Rate too low</SelectItem>
                     <SelectItem value="Location too far">Location too far</SelectItem>
@@ -837,18 +880,42 @@ export default function RequestsShootsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* 2. COMMENTS TEXTAREA FIELD */}
               <div>
-                <Label className="text-white/60 mb-2 block">Additional Comments (Optional)</Label>
+                <Label className={`mb-2 block font-medium text-xs uppercase tracking-wider ${isDark ? "text-white/60" : "text-black/60"
+                  }`}>
+                  Additional Comments (Optional)
+                </Label>
                 <Textarea
-                  className="bg-[#1A1A1A] border-white/5 text-white"
+                  className={`transition-colors ${isDark
+                    ? "bg-[#1A1A1A] border-white/5 text-white placeholder:text-white/30"
+                    : "bg-[#FFFCF6] border-[#E5E5E5] text-black placeholder:text-black/30"
+                    }`}
                   placeholder="Let the team know why..."
                   value={declineComments}
                   onChange={(e) => setDeclineComments(e.target.value)}
                 />
               </div>
+
+              {/* 3. MODAL ACTION ACTIONS */}
               <div className="flex gap-3 pt-4">
-                <Button variant="ghost" className="flex-1" onClick={() => setDeclineShootEvent(null)}>Cancel</Button>
-                <Button className="flex-1 bg-red-600 text-white hover:bg-red-700" onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}>Decline Shoot</Button>
+                <Button
+                  variant="ghost"
+                  className={`flex-1 transition-colors ${isDark
+                    ? "bg-white/5 text-white/60 hover:text-white hover:bg-white/10"
+                    : "bg-black/5 text-black/60 hover:text-black hover:bg-black/10"
+                    }`}
+                  onClick={() => setDeclineShootEvent(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-red-600 text-white hover:bg-red-700 font-semibold transition-colors shadow-sm"
+                  onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}
+                >
+                  Decline Shoot
+                </Button>
               </div>
             </div>
           </DialogContent>

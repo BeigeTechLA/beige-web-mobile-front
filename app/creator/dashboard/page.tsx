@@ -762,24 +762,36 @@ export default function CreatorDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
 
           {/* Map Section */}
-          <div className="lg:col-span-2 bg-[#111] border border-white/5 rounded-lg lg:rounded-xl overflow-hidden relative min-h-[500px]">
+          <div className={`lg:col-span-2 rounded-lg lg:rounded-xl overflow-hidden relative min-h-[500px] transition-all ${isDark
+            ? "bg-[#111] border border-white/5"
+            : "bg-[#FFFCF6] border border-[#E5E5E5] shadow-sm"
+            }`}>
             {/* Map Controls */}
             <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
                 <input
                   type="text"
                   placeholder="Search events..."
-                  className="pl-10 h-10 bg-[#0B0F14]/90 border border-white/10 rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all text-white placeholder:text-white/30"
                   value={mapSearch}
                   onChange={(e) => setMapSearch(e.target.value)}
+                  className={`pl-10 h-10 border rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${isDark
+                    ? "bg-[#0B0F14]/90 border-white/10 text-white placeholder:text-white/30"
+                    : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black placeholder:text-black/40 shadow-sm"
+                    }`}
                 />
               </div>
+
+              {/* Filter Select Dropdown Trigger */}
               <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
-                <SelectTrigger className="h-10 w-36 bg-[#0B0F14]/90 border-white/10 text-white">
+                <SelectTrigger className={`h-10 w-36 border transition-colors ${isDark
+                  ? "bg-[#0B0F14]/90 border-white/10 text-white"
+                  : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black shadow-sm"
+                  }`}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0B0F14] border-white/10 text-white">
+                <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
+                  }`}>
                   <SelectItem value="all">All events</SelectItem>
                   <SelectItem value="active">Active shoots</SelectItem>
                   <SelectItem value="pending">Requests</SelectItem>
@@ -787,6 +799,7 @@ export default function CreatorDashboardPage() {
               </Select>
             </div>
 
+            {/* Mapbox Layer Element */}
             <Map
               {...viewState}
               onMove={(evt) => setViewState(evt.viewState)}
@@ -798,7 +811,9 @@ export default function CreatorDashboardPage() {
                 <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
                   <div
                     onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
-                    className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active' ? 'bg-[#E8D1AB] border-black text-black' : 'bg-yellow-500 border-black text-black'
+                    className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active'
+                      ? 'bg-[#E8D1AB] border-black text-black'
+                      : 'bg-yellow-500 border-black text-black'
                       }`}
                   >
                     {marker.type === 'active' ? <Camera size={14} /> : <Clock size={14} />}
@@ -807,41 +822,73 @@ export default function CreatorDashboardPage() {
               ))}
             </Map>
 
-            {/* Map Legend */}
-            <div className="absolute bottom-4 left-4 bg-[#0B0F14]/95 border border-white/10 p-4 rounded-xl shadow-2xl w-56">
-              <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Status Legend</h4>
+            {/* Map Floating Legend */}
+            <div className={`absolute bottom-4 left-4 border p-4 rounded-xl shadow-2xl w-56 transition-all ${isDark
+              ? "bg-[#0B0F14]/95 border-white/10"
+              : "bg-[#FFFDF9]/95 border-[#E5E5E5]"
+              }`}>
+              <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? "text-white/40" : "text-black/40"
+                }`}>
+                Status Legend
+              </h4>
               <div className="space-y-2.5">
-                <LegendItem color="bg-[#E8D1AB]" label="Active Shoots" count={allShoots.length} />
-                <LegendItem color="bg-yellow-500" label="Pending Requests" count={pendingRequests.length} />
-                <LegendItem color="bg-blue-400" label="Upcoming" count={dashboardStats.upcomingShoots} />
-                <LegendItem color="bg-white/20" label="Equipment" count={dashboardStats.equipmentRequests} />
+                <LegendItem color="bg-[#E8D1AB]" label="Active Shoots" count={allShoots.length} isDark={isDark} />
+                <LegendItem color="bg-yellow-500" label="Pending Requests" count={pendingRequests.length} isDark={isDark} />
+                <LegendItem color="bg-blue-400" label="Upcoming" count={dashboardStats.upcomingShoots} isDark={isDark} />
+                <LegendItem
+                  color={isDark ? "bg-white/20" : "bg-black/15"}
+                  label="Equipment"
+                  count={dashboardStats.equipmentRequests}
+                  isDark={isDark}
+                />
               </div>
             </div>
           </div>
 
           {/* Availability Calendar */}
-          <div className="bg-[#111] border border-white/5 rounded-xl p-6 flex flex-col">
+          <div className={`rounded-xl p-6 flex flex-col transition-all ${isDark
+            ? "bg-[#111] border border-white/5"
+            : "bg-white border border-[#E5E5E5] shadow-sm"
+            }`}>
+            {/* Header Section */}
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-white flex items-center gap-2">
+              <h3 className={`font-bold flex items-center gap-2 ${isDark ? "text-white" : "text-black"}`}>
                 <CalendarIcon size={18} className="text-[#E8D1AB]" />
                 Availability
               </h3>
               <div className="flex gap-1">
-                <button onClick={handlePreviousMonth} className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"><ChevronLeft size={18} /></button>
-                <button onClick={handleNextMonth} className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"><ChevronRight size={18} /></button>
+                <button
+                  onClick={handlePreviousMonth}
+                  className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-white/40 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"
+                    }`}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  onClick={handleNextMonth}
+                  className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-white/40 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"
+                    }`}
+                >
+                  <ChevronRight size={18} />
+                </button>
               </div>
             </div>
 
+            {/* Current Month Banner */}
             <div className="text-center font-bold text-sm mb-6 text-[#E8D1AB] uppercase tracking-widest">
               {date.toLocaleString("default", { month: "long", year: "numeric" })}
             </div>
 
+            {/* Weekday Abbreviations Row */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-                <div key={d} className="text-center text-[10px] font-bold text-white/20 uppercase">{d.slice(0, 1)}</div>
+                <div key={d} className={`text-center text-[10px] font-bold uppercase ${isDark ? "text-white/20" : "text-black/30"}`}>
+                  {d.slice(0, 1)}
+                </div>
               ))}
             </div>
 
+            {/* Days Grid */}
             <div className="grid grid-cols-7 gap-1.5">
               {(() => {
                 const year = date.getFullYear();
@@ -858,22 +905,38 @@ export default function CreatorDashboardPage() {
                   const isToday = curDate.getTime() === today.getTime();
                   const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                   const dayData = (availability as any)?.[dateStr];
-                  let style = "border-white/5 text-white/60 hover:border-white/20";
 
+                  // Base Dynamic Styles for standard days
+                  let style = isDark
+                    ? "border-white/5 text-white/60 hover:border-white/20 hover:bg-white/5"
+                    : "border-[#E5E5E5] text-black/60 hover:border-[#E8D1AB]/50 hover:bg-[#FDF9F0]";
+
+                  // Condition 1: Available (unassigned)
                   if (dayData && dayData.available === true && !dayData.projectAssigned) {
-                    style = "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]";
+                    style = isDark
+                      ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]"
+                      : "border-[#E8D1AB]/40 bg-[#FDF9F0] text-[#8A7043]";
                   }
 
+                  // Condition 2: Explicitly Unavailable
                   if (dayData && dayData.available === false && !dayData.projectAssigned) {
-                    style = "border-red-600/40 bg-black text-[#E8D1AB]";
+                    style = isDark
+                      ? "border-red-600/40 bg-black text-[#E8D1AB]"
+                      : "border-red-200 bg-red-50 text-black";
                   }
 
+                  // Condition 3: Project Assigned
                   if (dayData?.projectAssigned === true) {
-                    style = "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]";
+                    style = isDark
+                      ? "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                      : "border-[#E8D1AB]/60 bg-[#E8D1AB]/15 text-[#735A2B]";
                   }
+
+                  // Condition 4: Today (highest override)
                   if (isToday) {
-                    style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold";
+                    style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold shadow-sm";
                   }
+
                   days.push(
                     <button
                       key={d}
@@ -889,7 +952,8 @@ export default function CreatorDashboardPage() {
                     >
                       {d}
                       {dayData?.projectAssigned === true && !isToday && (
-                        <span className="w-1 h-1 bg-[#E8D1AB] rounded-full mt-0.5" />
+                        <span className={`w-1 h-1 rounded-full mt-0.5 ${isDark || (dayData?.projectAssigned === true) ? "bg-[#E8D1AB]" : "bg-[#735A2B]"
+                          }`} />
                       )}
                     </button>
                   );
@@ -898,24 +962,28 @@ export default function CreatorDashboardPage() {
               })()}
             </div>
 
-            <div className="mt-8 pt-6 border-t border-white/5 space-y-3">
-              <div className="flex items-center justify-between text-[11px] text-white/40">
+            {/* Legend & Action Footer */}
+            <div className={`mt-8 pt-6 border-t space-y-3 ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
                 <div className="flex items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
                   <span>Shoot Assigned</span>
                 </div>
                 <span className="font-mono">Active</span>
               </div>
-              <div className="flex items-center justify-between text-[11px] text-white/40">
+              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
                 <div className="flex items-center gap-3">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/10 border border-red-500/40" />
+                  <span className={`w-2.5 h-2.5 rounded-full border ${isDark ? "bg-red-500/10 border-red-500/40" : "bg-red-50 border-red-300"}`} />
                   <span>Unavailable</span>
                 </div>
                 <span className="font-mono">Blocked</span>
               </div>
               <Button
-                className="w-full mt-6 bg-white/10 text-white border border-white/10 hover:bg-white/15"
                 onClick={() => router.push("/creator/dashboard/availability")}
+                className={`w-full mt-6 border transition-colors ${isDark
+                  ? "bg-white/10 text-white border-white/10 hover:bg-white/15"
+                  : "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/80 shadow-sm"
+                  }`}
               >
                 Go to Availability
               </Button>
@@ -1127,13 +1195,13 @@ export default function CreatorDashboardPage() {
         {/* Project Details Modal */}
         <Dialog open={projectDetailsOpen} onOpenChange={setProjectDetailsOpen}>
           <DialogContent className={`max-w-2xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
-              ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
-              : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
             }`}>
             {/* Header Section */}
             <div className={`p-6 border-b transition-colors ${isDark
-                ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
-                : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
               }`}>
               <DialogTitle className="text-xl font-bold text-[#E8D1AB]">Project Overview</DialogTitle>
             </div>
@@ -1189,8 +1257,8 @@ export default function CreatorDashboardPage() {
                 <Button
                   onClick={() => setProjectDetailsOpen(false)}
                   className={`h-12 rounded-2xl border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-8 transition-all ${isDark
-                      ? "bg-[#111111] border-white/10 text-white"
-                      : "bg-[#F5F5F5] border-black/10 text-black"
+                    ? "bg-[#111111] border-white/10 text-white"
+                    : "bg-[#F5F5F5] border-black/10 text-black"
                     }`}
                 >
                   Close Details
@@ -1235,14 +1303,28 @@ function StatCard({ label, value, icon, iconColor, hoverBorder, isDark }: any) {
 /**
  * LegendItem for Map Status
  */
-function LegendItem({ color, label, count }: { color: string; label: string; count: number }) {
+function LegendItem({ color, label, count, isDark = true }: { color: string; label: string; count: number; isDark?: boolean }) {
   return (
     <div className="flex items-center justify-between group">
       <div className="flex items-center gap-3">
-        <span className={`w-2 h-2 rounded-full ${color} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
-        <span className="text-xs text-white/50 group-hover:text-white/80 transition-colors">{label}</span>
+        {/* Color Pill Indicator */}
+        <span className={`w-2 h-2 rounded-full ${color} transition-shadow ${isDark ? "shadow-[0_0_8px_rgba(0,0,0,0.5)]" : "shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
+          }`} />
+
+        {/* Label Text */}
+        <span className={`text-xs transition-colors ${isDark
+          ? "text-white/50 group-hover:text-white/80"
+          : "text-black/60 group-hover:text-black/90 font-medium"
+          }`}>
+          {label}
+        </span>
       </div>
-      <span className="text-xs font-mono font-bold text-white/80">{count}</span>
+
+      {/* Count Badge */}
+      <span className={`text-xs font-mono font-bold transition-colors ${isDark ? "text-white/80" : "text-black/80"
+        }`}>
+        {count}
+      </span>
     </div>
   );
 }
