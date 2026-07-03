@@ -280,6 +280,9 @@ export default function ShootsPage() {
                     <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
                       Post Production
                     </div>
+                    <SelectItem value="post_production_raw_footages">Raw Footages</SelectItem>
+                    <SelectItem value="post_production_final_deliverables">Final Deliverables</SelectItem>
+                    <SelectItem value="post_production_edits">Edits</SelectItem>
                     <SelectItem value="post_production_file_not_uploaded">File Not Uploaded</SelectItem>
                     <SelectItem value="post_production_meeting_not_done">Meeting Not Scheduled</SelectItem>
                   </SelectContent>
