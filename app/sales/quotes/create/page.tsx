@@ -3785,6 +3785,10 @@ export default function CreateQuotePage() {
   };
 
   const noQuoteChangesMessage = "No changes made, modify anything to save it";
+  const shouldBlockUnchangedEditSave =
+    Boolean(quoteToEdit) && !isDuplicateFlow && !hasUnsavedQuoteChanges;
+  const shouldFinishUnchangedDuplicateQuote =
+    Boolean(quoteToEdit) && isDuplicateFlow && !hasUnsavedQuoteChanges;
 
   const handleSaveQuote = async () => {
     if (!quoteReviewValidation.isValid) {
@@ -3792,8 +3796,16 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
+      return;
+    }
+
+    if (shouldFinishUnchangedDuplicateQuote) {
+      setIsQuoteSaved(true);
+      toast.success("Quote saved successfully");
+      await delayAfterSuccessToast();
+      router.push(editQuoteDetailsHref);
       return;
     }
 
@@ -3806,7 +3818,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
       return;
     }
@@ -3820,7 +3832,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
       return;
     }
@@ -3928,8 +3940,16 @@ export default function CreateQuotePage() {
         : "Continue";
 
   const handleSaveAsDraft = async () => {
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
+      return;
+    }
+
+    if (shouldFinishUnchangedDuplicateQuote) {
+      setIsQuoteSaved(true);
+      toast.success("Draft saved successfully");
+      await delayAfterSuccessToast();
+      router.push(editQuoteDetailsHref);
       return;
     }
 
