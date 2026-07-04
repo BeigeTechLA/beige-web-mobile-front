@@ -161,7 +161,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
                 <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
                 <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
               </div>
-              <MeetingSchedule role={effectiveRole} orderId={id} />
+              <MeetingSchedule role={effectiveRole} orderId={id} createPermissionModuleKey="shoots" />
             </>
           )}
 
@@ -175,7 +175,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
 
           {activeTab === "Meetings" && (
             <>
-              <MeetingSchedule role={effectiveRole} orderId={id} />
+              <MeetingSchedule role={effectiveRole} orderId={id} createPermissionModuleKey="shoots" />
               <MeetingOverviewChart />
             </>
           )}

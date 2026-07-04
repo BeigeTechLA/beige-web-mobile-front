@@ -58,7 +58,7 @@ interface CrewAssignment {
 export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssignment }: AssignedCPProps) {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
-  const { canEdit } = usePermissions("shoots");
+  const { canEdit, canCreate } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [crewMembers, setCrewMembers] = useState<CrewAssignment[]>(assignedCrew);
@@ -77,6 +77,7 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
   const hasCPs = crewMembers.length > 0;
 
   const handleOpenAssignment = () => {
+    if (!canCreate) return;
     const goToAddCreatives = () => router.push(`/admin/shoots/${projectId}/add-creatives`);
     if (onRequestAssignment) {
       onRequestAssignment(goToAddCreatives);
@@ -213,8 +214,8 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
             <div className="flex flex-col lg:flex-row gap-4">
               <Button
                 onClick={handleOpenAssignment}
-                disabled={!canEdit}
-                title={canEdit ? "Add More CPs" : "Edit permission not allowed"}
+                disabled={!canCreate}
+                title={canCreate ? "Add More CPs" : "Create permission not allowed"}
                 className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
               >
                 <Plus /> Add More CPs
@@ -225,14 +226,14 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
           <div className="flex flex-col items-center justify-center h-full py-10 relative z-30">
             <button
               onClick={handleOpenAssignment}
-              disabled={!canEdit}
-              title={canEdit ? "Add CP" : "Edit permission not allowed"}
+              disabled={!canCreate}
+              title={canCreate ? "Add CP" : "Create permission not allowed"}
               className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
             >
               <Plus size={40} className="text-black" />
             </button>
             <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-text-black"}`}>
-              {canEdit ? "Assign Creative Partner" : "No Creative Partner Assigned"}
+              {canCreate ? "Assign Creative Partner" : "Create permission not allowed"}
             </h4>
           </div>
         )}

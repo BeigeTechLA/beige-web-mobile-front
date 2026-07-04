@@ -699,7 +699,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                   ) : null}
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
-                    <MeetingSchedule orderId={id} />
+                    <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   </div>
                 </>
               )}
@@ -718,7 +718,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
               {activeTab === "Meetings" && (
                 <>
-                  <MeetingSchedule orderId={id} />
+                  <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   <div className={`px-5 border-t ${isDark ? "border-t-[#FFFFFF80]" : "border-t-black/40"}`}>
                     <MeetingOverviewChart />
                   </div>
