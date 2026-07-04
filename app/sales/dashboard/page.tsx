@@ -13,6 +13,7 @@ import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDet
 import { useSalesStatus } from "@/context/SalesStatusContext";
 import { toast } from "sonner";
 import { adminApi, salesApi as salesService } from "@/lib/api";
+import { completedCrewRegistrationParams, isCrewRegistrationComplete } from "@/lib/crewRegistration";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { parseSalesAvailabilityStatus } from "@/lib/sales-status";
 import { useTheme } from "next-themes";
@@ -714,9 +715,11 @@ export default function SalesLeadsPage() {
           pagination = clientsPayload.pagination || clientsRes?.pagination;
         }
       } else if (activeTab === "Creative Partner") {
-        const creativeRes = await adminApi.getPendingCP(params);
+        const creativeRes = await adminApi.getPendingCP({ ...params, ...completedCrewRegistrationParams });
         if (creativeRes?.data) {
-          const mappedCreatives = (Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || [])).map((member: any) => {
+          const mappedCreatives = (Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || []))
+          .filter(isCrewRegistrationComplete)
+          .map((member: any) => {
             const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
             const profilePhoto = member.crew_member_files?.find((file: any) => file.file_type === 'profile_photo');
             return {

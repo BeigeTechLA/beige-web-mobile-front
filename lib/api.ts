@@ -1938,13 +1938,15 @@ export const adminApi = {
       };
     }
   },
-  getCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+  getCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string; registration_completed?: boolean; profile_completed?: boolean } = {}) => {
     try {
       const response = await api.post('admin/get-crew-members', {
         page: params.page || 1,
         limit: params.limit || 50,
         search: params.search,
         status: params.status,
+        registration_completed: params.registration_completed,
+        profile_completed: params.profile_completed,
       });
       return response.data;
     } catch (error: any) {
@@ -2144,7 +2146,7 @@ export const adminApi = {
     }
   },
 
-  getPendingCP: async (params: { page?: number; limit?: number; search?: string } = {}) => {
+  getPendingCP: async (params: { page?: number; limit?: number; search?: string; registration_completed?: boolean; profile_completed?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-pending-cp', { params });
       return response.data;

@@ -5,6 +5,7 @@ import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown, Lo
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { completedCrewRegistrationParams, isCrewRegistrationComplete } from "@/lib/crewRegistration";
 import { useTheme } from 'next-themes';
 import {
     Select,
@@ -274,13 +275,14 @@ export const UserManagementTabbed = () => {
             }
 
             if (shouldFetchCreatives) {
-                const creativeParams = { ...params };
+                const creativeParams = { ...params, ...completedCrewRegistrationParams };
                 // If we are in the Creative Tab or All Tab with a specific creative status, pass the status
                 if (isCreativeStatus) creativeParams.status = statusFilter;
 
                 const creativeRes = await adminApi.getCrewMembers(creativeParams);
                 if (creativeRes?.data) {
-                    const items = Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || []);
+                    const items = (Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || []))
+                        .filter(isCrewRegistrationComplete);
                     const mapped = items.map((member: any) => {
                         const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
                         const profilePhoto = member.crew_member_files?.find((f: any) => f.file_type === 'profile_photo');

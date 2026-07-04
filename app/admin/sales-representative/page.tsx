@@ -15,6 +15,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { toast } from "sonner";
 import { adminApi, salesApi as salesService } from "@/lib/api";
+import { completedCrewRegistrationParams, isCrewRegistrationComplete } from "@/lib/crewRegistration";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { useTheme } from "next-themes";
 import {
@@ -984,7 +985,7 @@ export default function AdminSaleRepManagerPage() {
       } else if (activeTab === "Creative Partner") {
         const creativePageSize = 200;
         const fetchCreativePartnerPage = async (page: number) => {
-          const res = await adminApi.getCrewMembers({ ...params, page, limit: creativePageSize });
+          const res = await adminApi.getCrewMembers({ ...params, ...completedCrewRegistrationParams, page, limit: creativePageSize });
           const payload = res?.data?.data || res?.data || {};
           const list = Array.isArray(payload) ? payload : (payload.items || []);
           const pagination = res?.pagination || res?.data?.pagination || payload.pagination || {};
@@ -1000,7 +1001,9 @@ export default function AdminSaleRepManagerPage() {
           creativeItems.push(...nextPage.list);
         }
 
-        allUsers = creativeItems.map((member: any) => {
+        const completedCreativeItems = creativeItems.filter(isCrewRegistrationComplete);
+
+        allUsers = completedCreativeItems.map((member: any) => {
           const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
           const profilePhoto = member.crew_member_files?.find((file: any) => file.file_type === 'profile_photo');
           return {
@@ -1018,7 +1021,7 @@ export default function AdminSaleRepManagerPage() {
           };
         });
 
-        const total = Number(firstPage.pagination?.total_records || firstPage.pagination?.totalRecords || allUsers.length);
+        const total = completedCreativeItems.length;
         setUsers(allUsers);
         setUsersTotalRecords(total || allUsers.length);
         setUsersTotalPages(Math.ceil((total || allUsers.length) / usersLimit) || 1);

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { completedCrewRegistrationParams, isCrewRegistrationComplete } from "@/lib/crewRegistration";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import {
   Select,
@@ -261,6 +262,7 @@ export const CreativePartnersTable = () => {
         const params: any = {
           page: hasMultiWordSearch ? 1 : currentPage,
           limit: hasMultiWordSearch ? 200 : limit,
+          ...completedCrewRegistrationParams,
         };
 
         if (crewSearchParam) params.search = crewSearchParam;
@@ -274,7 +276,8 @@ export const CreativePartnersTable = () => {
             setTotalPages(response.pagination.total_pages || 0);
           }
 
-          const data = Array.isArray(response.data) ? response.data : (response.data.items || []);
+          const data = (Array.isArray(response.data) ? response.data : (response.data.items || []))
+            .filter(isCrewRegistrationComplete);
 
           // Map API response to component data structure
           const mappedUsers = data.map((member: any) => {
