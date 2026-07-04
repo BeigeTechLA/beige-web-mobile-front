@@ -163,7 +163,7 @@ export const CreativePartnersTable = () => {
   const [users, setUsers] = useState<CreativePartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(50);
+  const [limit] = useState(20);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [skillsMap, setSkillsMap] = useState<Record<string, string>>({});

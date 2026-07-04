@@ -1475,6 +1475,13 @@ export const adminApi = {
     start_date?: string;
     end_date?: string;
     date_on?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    history_status?: string;
+    date_from?: string;
+    date_to?: string;
   } = {}) => {
     try {
       const response = await api.get('finance/admin/credit-points/dashboard', {
@@ -1940,11 +1947,13 @@ export const adminApi = {
   },
   getCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
-      const response = await api.post('admin/get-crew-members', {
-        page: params.page || 1,
-        limit: params.limit || 50,
-        search: params.search,
-        status: params.status,
+      const response = await api.get('admin/get-crew-members', {
+        params: {
+          page: params.page || 1,
+          limit: params.limit || 20,
+          search: params.search,
+          status: params.status,
+        },
       });
       return response.data;
     } catch (error: any) {
