@@ -201,6 +201,10 @@ export default function QuotePreviewModal({
     setIsSending(true);
 
     try {
+      if (!copyQuoteUrl) {
+        const newUrl = await createSignedQuotePreviewUrl(resolvedQuoteId);
+        setGeneratedPreviewUrl(newUrl);
+      }
       if (onBeforeSend) {
         const canContinue = await onBeforeSend();
         if (!canContinue) {
@@ -369,8 +373,8 @@ export default function QuotePreviewModal({
         </div>
 
         {/* Floating Mobile Buttons */}
-        <div className={`flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8 ${isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD] bg-white"}`}>
-          <div className="flex w-full flex-col gap-2 lg:hidden">
+        <div className={`lg:hidden px-4 py-4 sm:px-6 ${isDark ? "border-t border-white/10 bg-[#111111]" : "border-t border-[#DFDDDD] bg-white"}`}>
+          <div className="flex w-full flex-col gap-2">
             {quoteData ? (
               <PreviewActionButton
                 onClick={() => {
