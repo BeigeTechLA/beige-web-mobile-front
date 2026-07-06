@@ -88,6 +88,12 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
+const toUtcIsoIfValid = (value?: string | null) => {
+  if (!value) return value;
+  const date = new Date(value);
+  return date && !isNaN(date.getTime()) ? date.toISOString() : value;
+};
+
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 
 const datePickerColours = {
@@ -296,7 +302,7 @@ const StudioCard = ({
       />
 
       {/* 2. CONSTANT SPEED Animated Card Body */}
-      <motion.div
+      {/* <motion.div
         initial={false}
         whileHover={{
           y: -10,
@@ -314,9 +320,10 @@ const StudioCard = ({
           transformStyle: 'preserve-3d',
           willChange: 'transform'
         }}
-        className={`relative flex h-full flex-col overflow-hidden rounded-[24px] border bg-[#111111] transition-colors duration-300 isolate ${selected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10"
-          }`}
-      >
+        className={`relative flex h-full flex-col overflow-hidden rounded-[24px] border bg-[#111111] transition-colors duration-300 isolate ${
+          selected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10"
+        }`}
+      > */}
         <button type="button" onClick={onSelect} className="relative h-[210px] w-full overflow-hidden rounded-t-[24px]">
           <Image
             src={studio.image}
@@ -398,7 +405,7 @@ const StudioCard = ({
             </Link>
           </div>
         </div>
-      </motion.div>
+      {/* </motion.div> */}
     </div>
   );
 };
@@ -1697,8 +1704,8 @@ export const BookAStudio = () => {
       start_time: primaryStudio?.startTime || getLocalTimePart(formData.startDate),
       end_time: primaryStudio?.endTime || getLocalTimePart(formData.endDate),
       time_zone: browserTimeZone,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
+      startDate: toUtcIsoIfValid(formData.startDate),
+      endDate: toUtcIsoIfValid(formData.endDate),
       booking_type: formData.bookingType || "single_day",
       booking_days: (formData.bookingDays || []).map((day) => ({
         ...day,

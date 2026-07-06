@@ -469,7 +469,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         return;
       }
 
-      const hostedInvoiceUrl = response.data?.invoiceUrl || null;
+     const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
       const brandedPdfUrl = buildBeigeInvoiceUrl(numericBookingId, {
         manual: true,
