@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -31,6 +31,10 @@ interface CreditHistoryTable {
   rows: CreditHistoryRow[];
   title?: string;
   loading?: boolean;
+  currentPage?: number;
+  totalPages?: number;
+  totalRecords?: number;
+  onPageChange?: (page: number) => void;
   monthValue?: string;
   monthOptions?: string[];
   onMonthChange?: (value: string) => void;
@@ -89,6 +93,10 @@ export default function CreditHistoryTable({
   rows,
   title = "Credit Points History",
   loading = false,
+  currentPage,
+  totalPages,
+  totalRecords,
+  onPageChange,
   monthValue = "Month",
   monthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"],
   onMonthChange,
@@ -96,34 +104,20 @@ export default function CreditHistoryTable({
   statusOptions = ["All", "Used", "Available"],
   onStatusChange,
   onRowClick,
-  itemsPerPage = 6,
+  itemsPerPage = 20,
 }: CreditHistoryTable) {
   const { theme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark" || theme === "dark";
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const fallbackTotalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
+  const safePage = Math.min(currentPage || 1, totalPages || fallbackTotalPages);
+  const visibleRows = rows;
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [rows, monthValue, statusValue]);
-
-  const visibleRows = useMemo(() => {
-    const startIndex = (safePage - 1) * itemsPerPage;
-    return rows.slice(startIndex, startIndex + itemsPerPage);
-  }, [itemsPerPage, rows, safePage]);
-
-  const startCount = rows.length === 0 ? 0 : (safePage - 1) * itemsPerPage + 1;
-  const endCount = Math.min(safePage * itemsPerPage, rows.length);
-  const paginationItems = buildPaginationItems(safePage, totalPages);
-
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
+  const effectiveTotalRecords = totalRecords ?? rows.length;
+  const effectiveTotalPages = totalPages || fallbackTotalPages;
+  const startCount = effectiveTotalRecords === 0 ? 0 : (safePage - 1) * itemsPerPage + 1;
+  const endCount = Math.min(safePage * itemsPerPage, effectiveTotalRecords);
+  const paginationItems = buildPaginationItems(safePage, effectiveTotalPages);
 
   return (
     <section
@@ -440,7 +434,7 @@ export default function CreditHistoryTable({
           </div>
           <div className="flex gap-2 items-center">
             <button
-              onClick={() => handlePageChange(safePage - 1)}
+              onClick={() => onPageChange?.(safePage - 1)}
               disabled={safePage === 1}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${
                 isDark
@@ -460,9 +454,9 @@ export default function CreditHistoryTable({
                     ...
                   </span>
                 ) : (
-                  <button
+                    <button
                     key={item}
-                    onClick={() => handlePageChange(item)}
+                    onClick={() => onPageChange?.(item)}
                     className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${
                       safePage === item
                         ? isDark
@@ -479,8 +473,8 @@ export default function CreditHistoryTable({
               )}
             </div>
             <button
-              onClick={() => handlePageChange(safePage + 1)}
-              disabled={safePage === totalPages}
+              onClick={() => onPageChange?.(safePage + 1)}
+              disabled={safePage === effectiveTotalPages}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${
                 isDark
                   ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
