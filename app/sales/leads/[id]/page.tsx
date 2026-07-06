@@ -1644,7 +1644,7 @@ export default function SalesLeadDetailsPage() {
 
                   <Button
                     className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                    onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
+                      onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
                   >
                     <Plus size={18} /> Add More CPs
                   </Button>

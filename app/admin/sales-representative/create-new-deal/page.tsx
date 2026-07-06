@@ -67,6 +67,12 @@ const TEAM_ROLES = [
   { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> },
 ];
 
+const toUtcIsoIfValid = (value?: string | null) => {
+  if (!value) return value;
+  const date = parseDate(value);
+  return date && !isNaN(date.getTime()) ? date.toISOString() : value;
+};
+
 const intentOptions = [
   { value: "Hot", label: "Hot" },
   { value: "Warm", label: "Warm" },
@@ -962,7 +968,8 @@ function ClientDetailPage() {
         payload.start_date = getLocalDatePart(formData.startDate);
         payload.start_time = getLocalTimePart(formData.startDate);
         payload.end_time = getLocalTimePart(formData.endDate) || "17:00:00";
-        payload.start_date_time = formData.startDate;
+        payload.start_date_time = toUtcIsoIfValid(formData.startDate);
+        payload.endDate = toUtcIsoIfValid(formData.endDate);
         payload.duration_hours = durationHours;
       } else {
         payload.booking_days = (formData.bookingDays || []).map((d: any) => ({

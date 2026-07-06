@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpToLine, BadgeDollarSign, Coins, Plus, Search, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useDebounce } from "@/hooks/use-debounce";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
@@ -22,7 +23,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import FinanceMetricCards from "@/components/affiliate/FinanceMetricCards";
 import { adminApi, salesApi } from "@/lib/api";
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
-const historyMonthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
+const historyMonthOptions = ["All Time", "Last 30 Days", "This Quarter", "This Year"];
 const historyStatusOptions = ["All", "Used", "Available"];
 const creditTypeOptions = ["Promo", "Refund", "Compensation"];
 
@@ -153,32 +154,6 @@ const parseRestrictionContexts = (value: string) =>
     .map((item) => normalizeRestrictionContext(item))
     .filter(Boolean);
 
-const matchesRange = (value: string, range: string) => {
-  if (!value) return false;
-  const rowDate = new Date(value);
-  if (Number.isNaN(rowDate.getTime())) return false;
-
-  const now = new Date();
-  if (range === "Last 30 Days") {
-    const from = new Date(now);
-    from.setDate(now.getDate() - 30);
-    return rowDate >= from;
-  }
-  if (range === "This Quarter") {
-    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
-    const from = new Date(now.getFullYear(), quarterStartMonth, 1);
-    return rowDate >= from;
-  }
-  if (range === "This Year") {
-    return rowDate.getFullYear() === now.getFullYear();
-  }
-
-  return (
-    rowDate.getMonth() === now.getMonth() &&
-    rowDate.getFullYear() === now.getFullYear()
-  );
-};
-
 const extractDashboardPayload = (response: CreditPointsDashboardResponse) => {
   const data = asRecord(response?.data) || {};
   const history = asRecord(pickFirstValue(data, ["credit_points_history", "history"]));
@@ -198,7 +173,46 @@ const extractDashboardPayload = (response: CreditPointsDashboardResponse) => {
         "dashboard",
       ])
     ),
+    pagination: asRecord(pickFirstValue(history || data, ["pagination"])) || {},
   };
+};
+
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const buildHistoryDateParams = (month: string, selectedDate: Date | null) => {
+  if (selectedDate) {
+    const iso = toIsoDate(selectedDate);
+    return { date_from: iso, date_to: iso };
+  }
+
+  if (month === "All Time") {
+    return {};
+  }
+
+  const now = new Date();
+  if (month === "Last 30 Days") {
+    const from = new Date(now);
+    from.setDate(now.getDate() - 30);
+    return { date_from: toIsoDate(from), date_to: toIsoDate(now) };
+  }
+
+  if (month === "This Quarter") {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const from = new Date(now.getFullYear(), quarterStartMonth, 1);
+    return { date_from: toIsoDate(from), date_to: toIsoDate(now) };
+  }
+
+  if (month === "This Year") {
+    const from = new Date(now.getFullYear(), 0, 1);
+    return { date_from: toIsoDate(from), date_to: toIsoDate(now) };
+  }
+
+  return {};
 };
 
 const mapDashboardHistoryRow = (
@@ -257,11 +271,16 @@ export default function AdminFinancesPage() {
   const [loading, setLoading] = useState(true);
   const [activeMetricId, setActiveMetricId] = useState("available");
   const [metricRange, setMetricRange] = useState("Month");
-  const [historyMonth, setHistoryMonth] = useState("Month");
+  const [historyMonth, setHistoryMonth] = useState("All Time");
   const [historyStatus, setHistoryStatus] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 400);
   const [dashboardMetrics, setDashboardMetrics] = useState<Record<string, unknown>>({});
   const [creditHistoryRows, setCreditHistoryRows] = useState<CreditHistoryRow[]>([]);
+  const [historyTotalRecords, setHistoryTotalRecords] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(0);
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const historyPageSize = 20;
   const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false);
   const [isCreditSuccessModalOpen, setIsCreditSuccessModalOpen] = useState(false);
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
@@ -292,28 +311,40 @@ export default function AdminFinancesPage() {
   const fetchCreditPointsDashboard = useCallback(async () => {
     try {
       setLoading(true);
-
-      const dashboardResponse = await adminApi.getCreditPointsDashboard();
+      const dateParams = buildHistoryDateParams(historyMonth, selectedDate);
+      const dashboardResponse = await adminApi.getCreditPointsDashboard({
+        page: historyCurrentPage,
+        limit: historyPageSize,
+        search: debouncedSearch.trim() || undefined,
+        status: historyStatus === "All" ? undefined : historyStatus.toLowerCase(),
+        ...dateParams,
+      });
 
       if (dashboardResponse?.error) {
         toast.error(dashboardResponse.error);
         setDashboardMetrics({});
         setCreditHistoryRows([]);
+        setHistoryTotalRecords(0);
+        setHistoryTotalPages(0);
         return;
       }
 
-      const { metrics, rows } = extractDashboardPayload(dashboardResponse);
+      const { metrics, rows, pagination } = extractDashboardPayload(dashboardResponse);
       setDashboardMetrics(metrics);
       setCreditHistoryRows(rows.map(mapDashboardHistoryRow));
+      setHistoryTotalRecords(pagination?.total ? Number(pagination.total) : rows.length);
+      setHistoryTotalPages(pagination?.total_pages ? Number(pagination.total_pages) : 1);
     } catch (error) {
       console.error("Failed to load credit points dashboard:", error);
       toast.error("Failed to load credit points dashboard");
       setDashboardMetrics({});
       setCreditHistoryRows([]);
+      setHistoryTotalRecords(0);
+      setHistoryTotalPages(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearch, historyCurrentPage, historyMonth, historyPageSize, historyStatus, selectedDate]);
 
   useEffect(() => {
     fetchCreditPointsDashboard();
@@ -349,47 +380,6 @@ export default function AdminFinancesPage() {
   }, [creditForm.clientSearch, isAddCreditModalOpen, isClientSuggestionOpen]);
 
   const isDark = !mounted || theme === "dark";
-
-  const filteredRows = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
-
-    return creditHistoryRows.filter((row) => {
-      const rowHasUsedPoints = row.usedPoints.startsWith("-");
-
-      if (historyStatus === "Used" && !rowHasUsedPoints) return false;
-      if (historyStatus === "Available" && rowHasUsedPoints) return false;
-      if (historyMonth !== "Month" && !matchesRange(row.date, historyMonth)) return false;
-
-      if (selectedDate) {
-        const rowDate = new Date(row.date);
-        if (
-          Number.isNaN(rowDate.getTime()) ||
-          rowDate.getDate() !== selectedDate.getDate() ||
-          rowDate.getMonth() !== selectedDate.getMonth() ||
-          rowDate.getFullYear() !== selectedDate.getFullYear()
-        ) {
-          return false;
-        }
-      }
-
-      if (normalizedSearch) {
-        const searchableValue = [
-          row.clientName,
-          row.email,
-          row.userId ? String(row.userId) : "",
-          row.guestEmail || "",
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!searchableValue.includes(normalizedSearch)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [creditHistoryRows, historyMonth, historyStatus, searchQuery, selectedDate]);
 
   const metrics = useMemo(
     () => [
@@ -648,7 +638,10 @@ export default function AdminFinancesPage() {
           </div>
           <SortDateButton
             selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
+            onDateChange={(date) => {
+              setSelectedDate(date);
+              setHistoryCurrentPage(1);
+            }}
           />
         </div>
 
@@ -672,7 +665,10 @@ export default function AdminFinancesPage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              setHistoryCurrentPage(1);
+            }}
             placeholder="Search by client name, email, or user id..."
             className={`h-12 w-full rounded-lg border pl-10 pr-4 text-sm transition-colors focus:outline-none ${
               isDark
@@ -683,15 +679,27 @@ export default function AdminFinancesPage() {
         </div>
 
         <CreditHistoryTable
-          rows={filteredRows}
+          rows={creditHistoryRows}
           loading={loading}
+          currentPage={historyCurrentPage}
+          totalPages={historyTotalPages}
+          totalRecords={historyTotalRecords}
+          onPageChange={setHistoryCurrentPage}
           monthValue={historyMonth}
           monthOptions={historyMonthOptions}
-          onMonthChange={setHistoryMonth}
+          onMonthChange={(value) => {
+            setHistoryMonth(value);
+            setSelectedDate(null);
+            setHistoryCurrentPage(1);
+          }}
           statusValue={historyStatus}
           statusOptions={historyStatusOptions}
-          onStatusChange={setHistoryStatus}
+          onStatusChange={(value) => {
+            setHistoryStatus(value);
+            setHistoryCurrentPage(1);
+          }}
           onRowClick={handleCreditHistoryRowClick}
+          itemsPerPage={historyPageSize}
         />
       </div>
 

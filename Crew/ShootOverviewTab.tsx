@@ -1,13 +1,24 @@
 import React, { useMemo } from "react";
-import { MapPin, Clock, Calendar, CheckCircle2 } from "lucide-react";
-import { getProjectTimeText } from "@/lib/utils/shootDetails";
+import { MapPin, Clock, Calendar, CheckCircle2, Users } from "lucide-react";
+import { getPrimaryRoleLabel, getProjectTimeText } from "@/lib/utils/shootDetails";
 import {
   resolveTimelineStage,
   TIMELINE_STAGE,
   timelineStageToHeaderLabel,
 } from "@/lib/utils/projectTimeline";
 
-export default function ShootOverviewTab({ project }: any) {
+export default function ShootOverviewTab({ project, apiResponse, currentCrewMemberId }: any) {
+  const assignedCrew = Array.isArray(apiResponse?.assignedCrew)
+    ? apiResponse.assignedCrew
+    : Array.isArray(project?.assignedCrew)
+      ? project.assignedCrew
+      : Array.isArray(project?.assigned_crews)
+        ? project.assigned_crews
+        : [];
+  const currentAssignment = assignedCrew.find((assignment: any) => {
+    const crewMemberId = assignment?.crew_member_id || assignment?.crew_member?.crew_member_id;
+    return currentCrewMemberId && String(crewMemberId) === String(currentCrewMemberId);
+  });
   const locationText =
     project?.event_location ||
     [project?.location, project?.city, project?.state, project?.country]
@@ -31,9 +42,11 @@ export default function ShootOverviewTab({ project }: any) {
       })
     : "N/A";
   const clientName =
+    apiResponse?.lead_details?.client_name ||
     project?.client?.name ||
     project?.client_name ||
     project?.lead_details?.client_name ||
+    project?.guest_name ||
     "Not Specified";
   const skillsText = (() => {
     const raw = project?.skills_needed;
@@ -54,9 +67,12 @@ export default function ShootOverviewTab({ project }: any) {
     return String(raw);
   })();
 
-     const formatDate = (dateStr?: string) => {
+  const formatDate = (dateStr?: string) => {
     if (!dateStr) return "TBD";
-    const date = new Date(dateStr);
+    const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const date = dateOnlyMatch
+      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      : new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
 
     return date.toLocaleDateString("en-GB", {
@@ -67,6 +83,17 @@ export default function ShootOverviewTab({ project }: any) {
   };
 
   const bookingType = project?.booking_type || project?.bookingType || "Not Specified";
+  const assignedRoleText = currentAssignment?.crew_member
+    ? getPrimaryRoleLabel(
+        currentAssignment.crew_member.primary_role,
+        currentAssignment.crew_member.role_name
+      )
+    : assignedCrew.length === 1
+      ? getPrimaryRoleLabel(
+          assignedCrew[0]?.crew_member?.primary_role,
+          assignedCrew[0]?.crew_member?.role_name
+        )
+      : "Not Specified";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 animate-in fade-in duration-500">
@@ -77,7 +104,7 @@ export default function ShootOverviewTab({ project }: any) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 lg:gap-y-10 lg:gap-x-16">
             <DetailItem label="Shoot Name" value={project?.project_name} />
-            <DetailItem label="User Name" value={clientName} />
+            <DetailItem label="Client Name" value={clientName} />
 
             <DetailItem
               label="Shoot Type"
@@ -106,9 +133,51 @@ export default function ShootOverviewTab({ project }: any) {
               icon={<Clock size={16} className="text-[#E8D1AB]" />}
             />
 
-            <DetailItem label="Assigned Role" value={skillsText} />
+            <DetailItem label="Assigned Role" value={assignedRoleText} />
             <DetailItem label="Booking Type" value={bookingType} />
           </div>
+        </div>
+
+        <div className="bg-white/[0.01] border border-white/5 rounded-lg lg:rounded-3xl p-4 lg:p-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Users size={18} className="text-[#E8D1AB]" />
+            <h3 className="lg:text-lg font-bold">Creative Partners ({assignedCrew.length})</h3>
+          </div>
+
+          {assignedCrew.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {assignedCrew.map((assignment: any) => {
+                const member = assignment?.crew_member || {};
+                const name = [member.first_name, member.last_name].filter(Boolean).join(" ") || "Creative Partner";
+                const role = getPrimaryRoleLabel(member.primary_role, member.role_name);
+                const isYou =
+                  currentCrewMemberId &&
+                  String(member.crew_member_id || assignment?.crew_member_id) === String(currentCrewMemberId);
+
+                return (
+                  <div
+                    key={assignment?.id || member.crew_member_id || name}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white/90">
+                        {name}
+                        {isYou && <span className="ml-2 text-xs font-medium text-[#E8D1AB]">(You)</span>}
+                      </p>
+                      <p className="truncate text-xs text-white/45">{role}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-[#E8D1AB]/15 bg-[#E8D1AB]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB]">
+                      {assignment?.acceptance_status || assignment?.status || "Assigned"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-20 flex items-center justify-center border-2 border-dashed border-white/5 rounded-lg lg:rounded-2xl text-white/20 text-sm">
+              No creative partners assigned
+            </div>
+          )}
         </div>
 
         {/* EQUIPMENT PLACEHOLDER */}

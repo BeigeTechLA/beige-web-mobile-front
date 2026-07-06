@@ -13,11 +13,16 @@ export default function PaymentLinkPage() {
   const router = useRouter();
   const token = params.token as string;
 
-  const { data, isLoading, isFetching, error } = useValidatePaymentLinkQuery(token, {
+  const { data, isLoading, isFetching } = useValidatePaymentLinkQuery(token, {
     skip: !token,
   });
 
   const [countdown, setCountdown] = useState(5);
+  const [urlRequestedAmount, setUrlRequestedAmount] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUrlRequestedAmount(new URLSearchParams(window.location.search).get('amount'));
+  }, []);
 
   useEffect(() => {
     if (!isFetching && data) {
@@ -33,19 +38,23 @@ export default function PaymentLinkPage() {
   
   const paymentDetails = data?.data || data;
   const bookingId = paymentDetails?.booking_id;
+  const requestedAmount = paymentDetails?.requested_amount || urlRequestedAmount;
 
   const isValid = !isAlreadyPaid && (data?.valid === true || !!bookingId);
 
   const handleProceedToPayment = useCallback(() => {
     if (bookingId) {
-      let url = `/search-results/payment?shootId=${bookingId}`;
+      let url = `/search-results/payment?shootId=${bookingId}&paymentLink=${encodeURIComponent(token)}`;
       if (paymentDetails?.discount_code) {
         url += `&discount=${paymentDetails.discount_code}`;
+      }
+      if (requestedAmount) {
+        url += `&amount=${encodeURIComponent(String(requestedAmount))}`;
       }
       console.log("Redirecting to:", url);
       router.push(url);
     }
-  }, [bookingId, paymentDetails, router]);
+  }, [bookingId, paymentDetails, requestedAmount, router, token]);
 
   // Timer Logic
   useEffect(() => {

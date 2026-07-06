@@ -372,10 +372,13 @@ const getPaymentCompletionState = (details: any) => {
     0,
     parseFloat(
       additionalPayment?.outstanding_amount ??
-      details?.pending_amount ??
-      details?.outstanding_amount ??
-      details?.remaining_amount ??
-      0
+        details?.pricing?.payment_summary?.due_amount ??
+        details?.payment_summary?.due_amount ??
+        details?.due_amount ??
+        details?.pending_amount ??
+        details?.outstanding_amount ??
+        details?.remaining_amount ??
+        0
     ) || 0
   );
 
@@ -391,6 +394,15 @@ const getPaymentCompletionState = (details: any) => {
       details?.amount_paid
     )
   );
+  const summaryDueAmount = pickPaymentNumber(
+    details?.pricing?.payment_summary?.due_amount,
+    details?.payment_summary?.due_amount,
+    details?.due_amount,
+  );
+  const hasAuthoritativeDueAmount =
+    details?.pricing?.payment_summary?.due_amount !== undefined ||
+    details?.payment_summary?.due_amount !== undefined ||
+    details?.due_amount !== undefined;
 
   const totalAmount = Math.max(
     0,
@@ -407,6 +419,7 @@ const getPaymentCompletionState = (details: any) => {
     Boolean(booking?.payment_completed_at || booking?.payment_id || details?.has_full_payment);
 
   const isSettled =
+    (!hasAuthoritativeDueAmount || summaryDueAmount <= 0.009) &&
     hasCompletionSignal &&
     outstandingAmount <= 0.009 &&
     (paidAmount > 0 || totalAmount <= 0.009);
@@ -1577,6 +1590,12 @@ function StripePaymentFormMulti({
 function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
+  const paymentLinkToken = searchParams.get("paymentLink");
+  const paymentLinkAmountParam = searchParams.get("amount");
+  const paymentLinkAmount = React.useMemo(() => {
+    const numericValue = Number(paymentLinkAmountParam);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+  }, [paymentLinkAmountParam]);
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
 
@@ -1806,8 +1825,11 @@ function MultiCreatorPaymentContent() {
       setClientSecret("");
       return;
     }
-    const { booking, quote } = details;
-    const basePayableAmount = resolveBasePayableAmount(details);
+    const { booking } = details;
+    const fullPayableAmount = resolveBasePayableAmount(details);
+    const basePayableAmount = paymentLinkAmount
+      ? Math.min(paymentLinkAmount, fullPayableAmount)
+      : fullPayableAmount;
     const availableCredit = parseFloat(details?.account_credit?.available_credit_amount || 0);
     const canUseCredit = Boolean(details?.account_credit?.can_use_credit) && availableCredit > 0;
     const creditToApply =
@@ -1825,6 +1847,7 @@ function MultiCreatorPaymentContent() {
           payment_source: isAdditionalPaymentFlow(details) ? "additional_invoice" : undefined,
           use_credit: useCreditOverride && canUseCredit,
           credit_amount_used: creditToApply,
+          payment_link_token: paymentLinkToken || undefined,
         },
         {
           headers: getAuthHeaders(),
@@ -1960,6 +1983,7 @@ function MultiCreatorPaymentContent() {
           referral_code: referralCode || null,
           use_credit: useAccountCredit && canUseAccountCredit,
           credit_amount_used: creditAppliedAmount,
+          payment_link_token: paymentLinkToken || undefined,
         },
         {
           headers: getAuthHeaders(),
@@ -2023,7 +2047,13 @@ function MultiCreatorPaymentContent() {
   const { booking, creators, quote } = paymentDetails;
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
-  const basePayableAmount = resolveBasePayableAmount(paymentDetails);
+  const fullPayableAmount = resolveBasePayableAmount(paymentDetails);
+  const basePayableAmount = paymentLinkAmount
+    ? Math.min(paymentLinkAmount, fullPayableAmount)
+    : fullPayableAmount;
+  const isPartialPaymentLink =
+    Boolean(paymentLinkAmount) && paymentLinkAmount! < fullPayableAmount - 0.009;
+  const shouldHidePricingBreakdown = Boolean(paymentLinkToken) && isPartialPaymentLink;
   const accountCredit = paymentDetails?.account_credit || {};
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
@@ -2101,7 +2131,9 @@ function MultiCreatorPaymentContent() {
                 />
               </div>
             </div>
-            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
+            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">
+              {isPartialPaymentLink ? "Payment Received" : "Booking Confirmed"}
+            </h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(paidAmount)}</p>
             <div className="w-full max-w-2xl mb-6">
               <button
@@ -2434,122 +2466,126 @@ function MultiCreatorPaymentContent() {
 
                 {quote && (
                   <>
-                    <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
-                      {/* NEW AGGREGATED PRICING DISPLAY */}
+                    {!shouldHidePricingBreakdown && (
+                      <>
+                        <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
+                          {/* NEW AGGREGATED PRICING DISPLAY */}
 
-                      {/* 1. SHOOT COST */}
-                      <div className="flex justify-between mb-3">
-                        <div className="flex flex-col gap-1">
-                          <span className="font-bold text-[#CCC6C6]">Shoot Cost</span>
-                        </div>
-                        <span className="font-bold">{formatCurrency(pricingGroups.shootCost || 0)}</span>
-                      </div>
-
-                      {pricingGroups.additionalCP.totalCost > 0 && (
-                        <div className="flex justify-between mb-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#CCC6C6]">Additional Creative Partner Fees</span>
-                            {/* <div className="text-[11px] text-[#626467] space-y-0.5">
-                            {pricingGroups.additionalCP.videoCount > 0 && (
-                              <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
-                            )}
-                            {pricingGroups.additionalCP.photoCount > 0 && (
-                              <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
-                            )}
-                          </div> */}
-                          </div>
-                          <span className="font-medium">{formatCurrency(pricingGroups.additionalCP.totalCost || 0)}</span>
-                        </div>
-                      )}
-
-                      {pricingGroups.editingFees > 0 && (
-                        <div className="flex justify-between mb-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#CCC6C6]">Editing Cost</span>
-                            <span className=" text-[#787979]">Includes professional editing</span>
-                          </div>
-                          <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
-                        </div>
-                      )}
-
-                      {pricingGroups.studioCost > 0 && (
-                        <div className="flex justify-between mb-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#CCC6C6]">{pricingGroups.studioName || "Studio / Resort"}</span>
-                            <span className=" text-[#787979]">Studio selection</span>
-                          </div>
-                          <span className="font-medium">{formatCurrency(pricingGroups.studioCost)}</span>
-                        </div>
-                      )}
-
-                      {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
-                        <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
-                          <span className="text-[#626467] font-medium">{item.role}</span>
-                          <span className="font-bold">{formatCurrency(item.cost || 0)}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="p-6 lg:p-10 lg:text-[22px] text-white border-b border-b-[#FFFFFF5C]">
-                      <div className="">
-                        <div className="flex justify-between mb-1">
-                          <span className="text-[#CCC6C6]">Subtotal</span>
-                          <span className="font-medium text-[#389903]">{formatCurrency(quote.subtotal || 0)}</span>
-                        </div>
-
-                        {parseFloat(quote.discount_total || quote.discount_amount || 0) > 0 && (
-                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
-                            <div className="flex flex-col">
-                              <span className="text-green-600 font-bold flex items-center gap-1">
-                                <Tag className="w-3 h-3" /> Discount
-                              </span>
-                              {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
-                              {quote.discount_percent && <span className="text-[10px] text-green-600/80">({quote.discount_percent}% off)</span>}
+                          {/* 1. SHOOT COST */}
+                          <div className="flex justify-between mb-3">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-bold text-[#CCC6C6]">Shoot Cost</span>
                             </div>
-                            <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total || quote.discount_amount)}</span>
+                            <span className="font-bold">{formatCurrency(pricingGroups.shootCost || 0)}</span>
                           </div>
-                        )}
 
-                        {parseFloat(quote.referral_discount_amount || 0) > 0 && (
-                          <div className="flex justify-between mt-2">
-                            <span className="text-green-700 font-medium">
-                              10% Referral Discount
-                            </span>
-                            <span className="text-green-700 font-bold">
-                              -{formatCurrency(quote.referral_discount_amount)}
-                            </span>
-                          </div>
-                        )}
+                          {pricingGroups.additionalCP.totalCost > 0 && (
+                            <div className="flex justify-between mb-3">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-[#CCC6C6]">Additional Creative Partner Fees</span>
+                                {/* <div className="text-[11px] text-[#626467] space-y-0.5">
+                                {pricingGroups.additionalCP.videoCount > 0 && (
+                                  <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
+                                )}
+                                {pricingGroups.additionalCP.photoCount > 0 && (
+                                  <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
+                                )}
+                              </div> */}
+                              </div>
+                              <span className="font-medium">{formatCurrency(pricingGroups.additionalCP.totalCost || 0)}</span>
+                            </div>
+                          )}
 
-                        {parseFloat(quote.tax_amount || 0) > 0 && (
-                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
-                            <div className="flex flex-col">
-                              <span className="text-[#CCC6C6] font-medium">
-                                Tax
-                                {parseFloat(quote.tax_rate || 0) > 0 ? ` (${quote.tax_rate}%)` : ""}
-                              </span>
-                              {quote.tax_type && (
-                                <span className="text-[10px] text-[#787979] capitalize">
-                                  {quote.tax_type} tax
+                          {pricingGroups.editingFees > 0 && (
+                            <div className="flex justify-between mb-3">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-[#CCC6C6]">Editing Cost</span>
+                                <span className=" text-[#787979]">Includes professional editing</span>
+                              </div>
+                              <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
+                            </div>
+                          )}
+
+                          {pricingGroups.studioCost > 0 && (
+                            <div className="flex justify-between mb-3">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-[#CCC6C6]">{pricingGroups.studioName || "Studio / Resort"}</span>
+                                <span className=" text-[#787979]">Studio selection</span>
+                              </div>
+                              <span className="font-medium">{formatCurrency(pricingGroups.studioCost)}</span>
+                            </div>
+                          )}
+
+                          {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
+                            <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
+                              <span className="text-[#626467] font-medium">{item.role}</span>
+                              <span className="font-bold">{formatCurrency(item.cost || 0)}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="p-6 lg:p-10 lg:text-[22px] text-white border-b border-b-[#FFFFFF5C]">
+                          <div className="">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-[#CCC6C6]">Subtotal</span>
+                              <span className="font-medium text-[#389903]">{formatCurrency(quote.subtotal || 0)}</span>
+                            </div>
+
+                            {parseFloat(quote.discount_total || quote.discount_amount || 0) > 0 && (
+                              <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                                <div className="flex flex-col">
+                                  <span className="text-green-600 font-bold flex items-center gap-1">
+                                    <Tag className="w-3 h-3" /> Discount
+                                  </span>
+                                  {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
+                                  {quote.discount_percent && <span className="text-[10px] text-green-600/80">({quote.discount_percent}% off)</span>}
+                                </div>
+                                <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total || quote.discount_amount)}</span>
+                              </div>
+                            )}
+
+                            {parseFloat(quote.referral_discount_amount || 0) > 0 && (
+                              <div className="flex justify-between mt-2">
+                                <span className="text-green-700 font-medium">
+                                  10% Referral Discount
                                 </span>
-                              )}
-                            </div>
-                            <span className="font-medium text-white">
-                              {formatCurrency(quote.tax_amount)}
-                            </span>
-                          </div>
-                        )}
+                                <span className="text-green-700 font-bold">
+                                  -{formatCurrency(quote.referral_discount_amount)}
+                                </span>
+                              </div>
+                            )}
 
-                        {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
-                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
-                            <span className="text-green-700 font-medium">Account Credit Applied</span>
-                            <span className="text-green-700 font-bold">
-                              -{formatCurrency(creditAppliedAmount)}
-                            </span>
+                            {parseFloat(quote.tax_amount || 0) > 0 && (
+                              <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                                <div className="flex flex-col">
+                                  <span className="text-[#CCC6C6] font-medium">
+                                    Tax
+                                    {parseFloat(quote.tax_rate || 0) > 0 ? ` (${quote.tax_rate}%)` : ""}
+                                  </span>
+                                  {quote.tax_type && (
+                                    <span className="text-[10px] text-[#787979] capitalize">
+                                      {quote.tax_type} tax
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="font-medium text-white">
+                                  {formatCurrency(quote.tax_amount)}
+                                </span>
+                              </div>
+                            )}
+
+                            {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
+                              <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                                <span className="text-green-700 font-medium">Account Credit Applied</span>
+                                <span className="text-green-700 font-bold">
+                                  -{formatCurrency(creditAppliedAmount)}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
+                        </div>
+                      </>
+                    )}
                     <div className="p-6 lg:p-10 text-lg lg:text-2xl flex justify-between items-start bg-[#E8D1AB] rounded-b-[20px]">
                       <div className="flex flex-col">
                         <span className="font-bold">Total</span>

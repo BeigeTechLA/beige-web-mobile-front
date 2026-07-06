@@ -132,6 +132,7 @@ const getRoleLabel = (roleData: any): string => {
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
+  if (status === "partially_paid" || status === "partial_paid") return "Partially Paid";
   if (status === "payment_pending") return "Payment Pending";
   if (status === "abandoned") return "Cancelled";
   return "In-Progress";
@@ -1047,6 +1048,9 @@ export default function LeadDetailPage() {
     Number(lead?.pricing_breakdown?.total_paid ?? 0),
     Number(effectiveManualPaymentSummary.paidAmount ?? 0)
   );
+  const paymentActionOutstandingAmount = hasPendingAdditionalPayment
+    ? additionalPaymentDetails?.outstandingAmount ?? additionalPaymentOutstandingAmount
+    : effectiveManualPaymentSummary.pendingAmount;
 
   const manualPaymentEntries = useMemo(() => {
     return (lead?.activities || [])
@@ -2373,6 +2377,8 @@ export default function LeadDetailPage() {
               activeLink={lead?.active_payment_link}
               additionalPaymentStatus={rawAdditionalPayment?.payment_status}
               additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
+              paidAmount={effectiveManualPaymentSummary.paidAmount}
+              outstandingPaymentAmount={paymentActionOutstandingAmount}
               isReadOnly={isClosedLostLead}
               readOnlyMessage="Payment actions are disabled for Closed - Lost leads."
             />
