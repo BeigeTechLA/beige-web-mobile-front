@@ -466,13 +466,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         return;
       }
 
-      const hostedInvoiceUrl = response.data?.invoiceUrl || null;
+     const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
-      const isManualInvoice =
-        String(invoicePdfUrl || "").includes("manual=1") ||
-        String(hostedInvoiceUrl || "").includes("manual=1");
       const brandedPdfUrl = buildBeigeInvoiceUrl(numericBookingId, {
-        manual: isManualInvoice,
+        manual: true,
         cacheBust: true,
       });
 

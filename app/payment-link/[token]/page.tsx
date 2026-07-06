@@ -18,6 +18,11 @@ export default function PaymentLinkPage() {
   });
 
   const [countdown, setCountdown] = useState(5);
+  const [urlRequestedAmount, setUrlRequestedAmount] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUrlRequestedAmount(new URLSearchParams(window.location.search).get('amount'));
+  }, []);
 
   useEffect(() => {
     if (!isFetching && data) {
@@ -33,7 +38,7 @@ export default function PaymentLinkPage() {
   
   const paymentDetails = data?.data || data;
   const bookingId = paymentDetails?.booking_id;
-  const requestedAmount = paymentDetails?.requested_amount;
+  const requestedAmount = paymentDetails?.requested_amount || urlRequestedAmount;
 
   const isValid = !isAlreadyPaid && (data?.valid === true || !!bookingId);
 
