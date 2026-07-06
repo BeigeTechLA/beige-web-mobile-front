@@ -12,6 +12,7 @@ import { SortDateButton } from "@/components/admin/SortDateButton";
 import OverviewChart from "@/components/admin/OverviewChart";
 import RecentActivity from "@/components/admin/RecentActivity";
 import ShootByCategory from "@/components/admin/ShootByCategory";
+import QuoteItemUsage from "@/components/admin/QuoteItemUsage";
 import ShootStatusChart from "@/components/admin/ShootStatusChart";
 import StackedDashboard from "@/components/admin/StatsModule";
 import DottedDivider from "@/components/admin/DottedDivider";
@@ -85,7 +86,14 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <LeadsShootsTable />
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="lg:w-3/4">
+            <LeadsShootsTable />
+          </div>
+          <div className="lg:w-1/4 mt-5 lg:mt-8">
+            <QuoteItemUsage />
+          </div>
+        </div>
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>

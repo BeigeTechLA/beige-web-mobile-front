@@ -2073,6 +2073,22 @@ export const adminApi = {
     }
   },
 
+  getQuoteItemUsage: async (category?: 'services' | 'addons' | 'logistics') => {
+    try {
+      const response = await api.get('admin/quote-item-usage', {
+        params: category ? { category } : {},
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Item Usage Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch quote item usage',
+      };
+    }
+  },
+
   getPostProductionMembers: async () => {
     try {
       const response = await api.get('admin/get-post-production-members');
