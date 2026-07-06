@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Eye, History, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { formatRelativeOrAbsoluteDate, getColorThreshold, getDateColorThreshold, getInitials } from "@/lib/utils";
@@ -398,6 +398,7 @@ export default function CPPayoutTable({
                         }}
                         className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
                       >
+                      <Eye size={16} className="opacity-70" />
                         View details
                       </button>
                       {onViewHistory && (
@@ -406,6 +407,7 @@ export default function CPPayoutTable({
                           onClick={() => handleOpenHistory(row)}
                           className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
                         >
+                        <History size={16} className="opacity-70" />
                           View history
                         </button>
                       )}
@@ -632,6 +634,7 @@ export default function CPPayoutTable({
                                 }}
                                 className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
                               >
+                              <Eye size={14} />
                                 View details
                               </button>
                               {onViewHistory && (
@@ -640,6 +643,7 @@ export default function CPPayoutTable({
                                   onClick={() => handleOpenHistory(row)}
                                   className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
                                 >
+                                <History size={14} />
                                   View history
                                 </button>
                               )}
