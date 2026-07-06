@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, Grid3X3, List, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -17,18 +18,34 @@ import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow"
 import { StatusBadge } from "../admin/StatusBadge";
 import { useTheme } from "next-themes";
 import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
+import Lottie from "lottie-react";
+import redAnimation from "@/public/animations/Red.json";
+import yellowAnimation from "@/public/animations/Yellow.json";
+import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 // import BoardMiniMapNavigator from "../admin/BoardMiniMapNavigator";
 
 type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Unknown";
 interface ShootRecord {
   id: string;
+  sourceProject?: Record<string, unknown>;
   customerName: string;
   initials: string;
   date: string;
   category: string;
   price: string;
   status: ShootStatus;
+  needsAttention?: {
+    required: boolean;
+    missing_fields: string[];
+  };
 }
+
+const toTitleCase = (value: string) =>
+  value
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 
 const SALES_KANBAN_STATUS_ORDER: ShootStatus[] = [
   "Initiated",
@@ -77,6 +94,11 @@ export default function SalesShootsTable({ externalSelectedDate,
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [hoveredShootId, setHoveredShootId] = useState<string | null>(null);
+  const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [selectedShootIdForMissingFields, setSelectedShootIdForMissingFields] = useState<string | null>(null);
+  const [selectedShootDataForMissingFields, setSelectedShootDataForMissingFields] = useState<Record<string, unknown> | null>(null);
+  const [fieldsToShow, setFieldsToShow] = useState<string[]>([]);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,9 +154,13 @@ export default function SalesShootsTable({ externalSelectedDate,
           const statusLabel = timelineStageToDashboardLabel(resolveTimelineStage(project)) as ShootStatus;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+          const missingFields = Array.isArray(project.needs_attention?.missing_fields)
+            ? project.needs_attention.missing_fields
+            : [];
 
           return {
             id: `#${project.stream_project_booking_id}`,
+            sourceProject: project,
             customerName,
             initials,
             date: project.event_date ? (parseDate(project.event_date) || new Date(project.event_date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
@@ -143,6 +169,10 @@ export default function SalesShootsTable({ externalSelectedDate,
               ? `$${parseFloat(project.total_value_amount ?? project.total_paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : "$0.00",
             status: statusLabel,
+            needsAttention: project.needs_attention ? {
+              required: missingFields.length > 0,
+              missing_fields: missingFields
+            } : undefined,
           };
         });
         setShoots(mappedShoots);
@@ -454,7 +484,46 @@ export default function SalesShootsTable({ externalSelectedDate,
                         onClick={() => handleRowClick(shoot.id)}
                         className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
                       >
-                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
+                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          <div className="flex items-center gap-2">
+                            {shoot.needsAttention?.required && (
+                              <div
+                                className="relative flex h-8 w-8 shrink-0 items-center justify-center"
+                                onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
+                                onMouseLeave={() => setHoveredShootId(null)}
+                              >
+                                <Lottie animationData={shoot.needsAttention.missing_fields.length >= 3 ? redAnimation : yellowAnimation} loop={true} />
+                                <AnimatePresence>
+                                  {hoveredShootId === `list-${shoot.id}` && (
+                                    <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      exit={{ opacity: 0, x: -10 }}
+                                      className={`absolute left-full ml-3 top-1/2 z-[100] -translate-y-1/2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium shadow-2xl pointer-events-none ${isDark
+                                        ? "border border-white/10 bg-[#222] text-white"
+                                        : "border border-gray-200 bg-white text-black"
+                                      }`}
+                                    >
+                                      <div className="flex flex-col gap-1">
+                                        <span className="mb-1 border-b border-white/10 pb-1 font-bold opacity-70">
+                                          Attention Required:
+                                        </span>
+                                        {shoot.needsAttention.missing_fields.map((field, i) => (
+                                          <span key={i} className="flex items-center gap-1.5">
+                                            <span className="h-1 w-1 rounded-full bg-red-500" />
+                                            {toTitleCase(field)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                      <div className={`absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent ${isDark ? "border-t-[#222]" : "border-t-white"}`} />
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            )}
+                            <span>{shoot.id}</span>
+                          </div>
+                        </td>
                         <td className="py-5 px-6">
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
@@ -538,7 +607,11 @@ export default function SalesShootsTable({ externalSelectedDate,
                               }`}>
                               No shoots in this stage
                             </div>
-                          ) : column.items.map((shoot, idx) => (
+                          ) : column.items.map((shoot, idx) => {
+                            const missingFields = shoot.needsAttention?.missing_fields || [];
+                            const hasMissingFields = missingFields.length > 0;
+
+                            return (
                             <div
                               key={`${column.status}-${idx}`}
                               onClick={() => handleRowClick(shoot.id)}
@@ -578,9 +651,52 @@ export default function SalesShootsTable({ externalSelectedDate,
 
                               <div className="mt-4 space-y-4">
                                 <div>
-                                  <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
-                                    {shoot.id}
-                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#666666]" : "text-[#A3A3A3]"}`}>
+                                      {shoot.id}
+                                    </p>
+                                    {hasMissingFields && (
+                                      <div className="relative" onMouseEnter={() => setHoveredShootId(`grid-${shoot.id}`)} onMouseLeave={() => setHoveredShootId(null)}>
+                                        <span
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setFieldsToShow(missingFields);
+                                            setSelectedShootIdForMissingFields(shoot.id.replace(/^#/, "").trim());
+                                            setSelectedShootDataForMissingFields(shoot.sourceProject || null);
+                                            setIsMissingFieldsModalOpen(true);
+                                          }}
+                                          className={`cursor-pointer text-[10px] font-medium px-2 py-0.5 rounded-full transition-transform hover:scale-105 ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}
+                                        >
+                                          Missing Info
+                                        </span>
+
+                                        <AnimatePresence>
+                                          {hoveredShootId === `grid-${shoot.id}` && (
+                                            <motion.div
+                                              initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                                              exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                                              transition={{ duration: 0.15, ease: "easeOut" }}
+                                              className={`absolute bottom-full right-0 mb-2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none ${isDark ? "bg-[#222] border border-white/10 text-white" : "bg-white border border-gray-200 text-black"}`}
+                                            >
+                                              <div className="flex flex-col gap-1">
+                                                <span className="font-bold opacity-70 border-b border-white/10 pb-1 mb-1 flex items-center justify-between gap-4">
+                                                  Attention Required
+                                                </span>
+                                                {missingFields.map((field, i) => (
+                                                  <span key={i} className="flex items-center gap-1.5">
+                                                    <span className="w-1 h-1 rounded-full bg-red-500" />
+                                                    {toTitleCase(field)}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                              <div className={`absolute top-full right-4 border-4 border-transparent ${isDark ? "border-t-[#222]" : "border-t-white"}`} />
+                                            </motion.div>
+                                          )}
+                                        </AnimatePresence>
+                                      </div>
+                                    )}
+                                  </div>
                                   <h4 className={`mt-2 text-lg font-semibold leading-snug line-clamp-2 ${isDark ? "text-white" : "text-[#111111]"}`}>
                                     {shoot.customerName}
                                   </h4>
@@ -614,7 +730,8 @@ export default function SalesShootsTable({ externalSelectedDate,
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -689,6 +806,15 @@ export default function SalesShootsTable({ externalSelectedDate,
           )}
         </>
       )}
+
+      <MissingFieldsModal
+        isOpen={isMissingFieldsModalOpen}
+        onClose={() => setIsMissingFieldsModalOpen(false)}
+        isDark={isDark}
+        fields={fieldsToShow}
+        shootId={selectedShootIdForMissingFields ?? undefined}
+        initialShootData={selectedShootDataForMissingFields}
+      />
     </div>
   );
 }

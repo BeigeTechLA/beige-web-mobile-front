@@ -13,11 +13,15 @@ import SalesPreProductionTab from "@/components/sales/shoot-details/PreProductio
 import SalesPostProductionTab from "@/components/sales/shoot-details/PostProductionTab";
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
+import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import { adminApi } from "@/lib/api";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, AlertCircle } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
+import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
+import { useTheme } from "next-themes";
 
 type SkillOption = {
   id?: string | number;
@@ -49,8 +53,38 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
+  const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
+  const [isAssignmentMissingDetailsModalOpen, setIsAssignmentMissingDetailsModalOpen] = useState(false);
+  const [pendingAssignmentAction, setPendingAssignmentAction] = useState<(() => void) | null>(null);
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+  const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
   const effectiveRole = userRole === "sales_admin" ? "admin" : "sales";
+
+  const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
+    ? project.needs_attention.missing_fields
+    : [];
+  const hasMissingFields = missingFields.length > 0;
+  const hasFormDetails = !missingFields.includes("onboarding_form");
+  const assignmentMissingDetails = project?.needs_attention?.required ? getCpAssignmentMissingDetails(project) : [];
+
+  const handleAssignmentRequest = (continueAction: () => void) => {
+    if (assignmentMissingDetails.length > 0) {
+      setPendingAssignmentAction(() => continueAction);
+      setIsAssignmentMissingDetailsModalOpen(true);
+      return;
+    }
+
+    continueAction();
+  };
+
+  const handleConfirmAssignmentWithMissingDetails = () => {
+    setIsAssignmentMissingDetailsModalOpen(false);
+    const action = pendingAssignmentAction;
+    setPendingAssignmentAction(null);
+    action?.();
+  };
 
 
   const handleTabChange = (tabName: string) => {
@@ -58,6 +92,10 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
     params.set("tab", tabName);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
       try {
@@ -146,7 +184,34 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-6 lg:-m-10 relative">
         <div className="flex-1 p-6 pb-15 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-          <ShootHeader activeTab={activeTab} project={project} projectId={id} />
+          {hasMissingFields ? (
+            <div
+              className={`-mx-4 -mt-4 mb-4 lg:-mx-10 lg:-mt-10 lg:mb-6 flex items-center justify-between gap-4 border-y px-4 py-3 sm:px-6 lg:px-8 ${isDark
+                ? "border-[#4E4128] bg-[#E8D1AB1A] text-[#E6D8B6]"
+                : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
+              }`}
+            >
+              <p className="min-w-0 truncate text-sm font-medium sm:text-base">
+                {missingFields.length} Attention Required
+              </p>
+
+              <Button
+                type="button"
+                onClick={() => setIsMissingFieldsModalOpen(true)}
+                className="shrink-0 rounded-md bg-black px-5 py-2.5 text-sm font-medium text-[#E6D8B6] transition-colors hover:bg-black/90"
+              >
+                <AlertCircle size={16} className="mr-2" />
+                Take Action
+              </Button>
+            </div>
+          ) : null}
+
+          <ShootHeader
+            activeTab={activeTab}
+            project={project}
+            projectId={id}
+            hasFormDetails={hasFormDetails}
+          />
           <Button
             className="lg:hidden w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
             onClick={() => setIsTimelineOpen(true)}
@@ -160,7 +225,12 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
                 <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
-                <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+                <AssignedCP
+                  projectId={id}
+                  leadId={project?.lead_id}
+                  assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+                  onRequestAssignment={handleAssignmentRequest}
+                />
               </div>
               <MeetingSchedule role={effectiveRole} orderId={id} />
             </>
@@ -212,7 +282,27 @@ const userRole = String((user as { role?: string; userRole?: string } | null)?.r
             </div>
           </div>
         )}
-      </div>
+
+          <AssignmentMissingDetailsModal
+            isOpen={isAssignmentMissingDetailsModalOpen}
+            onClose={() => {
+              setIsAssignmentMissingDetailsModalOpen(false);
+              setPendingAssignmentAction(null);
+            }}
+            onConfirm={handleConfirmAssignmentWithMissingDetails}
+            missingDetails={assignmentMissingDetails}
+            isDark={isDark}
+          />
+
+          <MissingFieldsModal
+            isOpen={isMissingFieldsModalOpen}
+            onClose={() => setIsMissingFieldsModalOpen(false)}
+            isDark={isDark}
+            fields={missingFields}
+            shootId={id}
+            initialShootData={project}
+          />
+        </div>
     </>
   );
 }
