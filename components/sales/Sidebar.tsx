@@ -52,7 +52,7 @@ const salesMenuItems: SalesMenuItem[] = [
     permissionKeys: ['dashboard'],
     children: [
       { name: 'Dashboard', link: '/sales/dashboard' },
-      { name: 'Sales People', link: '/sales/sales-people' },
+      //{ name: 'Sales People', link: '/sales/sales-people' },
     ],
   },
   { name: 'Availability', icon: Calendar, link: '/sales/availability', permissionKeys: ['availability'] },

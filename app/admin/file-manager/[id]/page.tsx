@@ -18,6 +18,7 @@ import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoa
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
   getDisplayInitials,
@@ -39,6 +40,7 @@ export default function AdminFolderDetailsPage() {
   const projectId = params.id;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const { isDark } = useResolvedTheme();
+  const { canDelete } = usePermissions("file_manager");
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -204,6 +206,10 @@ export default function AdminFolderDetailsPage() {
   };
 
   const handleDeleteSelectedFolder = async () => {
+    if (!canDelete) {
+      toast.error("You do not have permission to delete folders");
+      return;
+    }
     if (!selectedFolder?.resourcePath) return;
 
     try {
@@ -369,6 +375,7 @@ export default function AdminFolderDetailsPage() {
                           setSelectedFolder(folder);
                           setIsDeleteModalOpen(true);
                         }}
+                        deleteDisabled={!canDelete}
                         onShare={() => {
                           setSelectedFolder(folder);
                           setShareResource({
@@ -417,6 +424,7 @@ export default function AdminFolderDetailsPage() {
                           setSelectedFolder(folder);
                           setIsDeleteModalOpen(true);
                         }}
+                        deleteDisabled={!canDelete}
                         onShare={() => {
                           setSelectedFolder(folder);
                           setIsShareModalOpen(true);
@@ -433,6 +441,7 @@ export default function AdminFolderDetailsPage() {
                           key={folder.id}
                           folder={folder}
                           handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                          menuDisabled={!canDelete}
                           isDark={isDark}
                         />
                       ))}
@@ -472,6 +481,7 @@ export default function AdminFolderDetailsPage() {
                                 <Button
                                   className={`h-10 w-10 rounded-full p-0 transition-colors ${isDark ? "text-white hover:bg-white/10 hover:text-white/90" : "text-black bg-transparent hover:bg-black/5 hover:text-black/90"}`}
                                   onClick={(e) => handleOpenMenu(e, folder)}
+                                  disabled={!canDelete}
                                 >
                                   <MoreVertical size={20} />
                                 </Button>
@@ -496,6 +506,7 @@ export default function AdminFolderDetailsPage() {
             anchor={menuAnchor}
             href={selectedFolder?.href}
             onDownload={handleDownloadSelectedFolder}
+            deleteDisabled={!canDelete}
             onShare={() => {
               if (!selectedFolder) return;
               setShareResource({

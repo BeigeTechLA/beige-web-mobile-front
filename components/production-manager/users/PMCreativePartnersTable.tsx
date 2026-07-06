@@ -449,14 +449,15 @@ export const PMCreativePartnersTable = () => {
                       <div className="flex items-center justify-end gap-3">
                         {user.status === 'Approved' && (
                           <>
-                            {canDelete && (
-                              <button
-                                onClick={(e) => handleDeleteClick(user.id, e)}
-                                className="hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              disabled={!canDelete}
+                              title={canDelete ? "Delete user" : "Delete permission not allowed"}
+                              className="hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
@@ -464,30 +465,33 @@ export const PMCreativePartnersTable = () => {
                         )}
                         {user.status === 'Pending' && (
                           <>
-                            {canDelete && (
-                              <button
-                                onClick={(e) => handleDeleteClick(user.id, e)}
-                                className="hover:text-red-500 transition-colors mr-2"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
-                            {canEdit && (
-                              <>
-                                <button
-                                  onClick={(e) => handleApprove(user.id, e)}
-                                  className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={(e) => handleDecline(user.id, e)}
-                                  className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2"
-                                >
-                                  Decline
-                                </button>
-                              </>
-                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              disabled={!canDelete}
+                              title={canDelete ? "Delete user" : "Delete permission not allowed"}
+                              className="hover:text-red-500 transition-colors mr-2 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleApprove(user.id, e)}
+                              disabled={!canEdit}
+                              title={canEdit ? "Approve user" : "Edit permission not allowed"}
+                              className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDecline(user.id, e)}
+                              disabled={!canEdit}
+                              title={canEdit ? "Decline user" : "Edit permission not allowed"}
+                              className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Decline
+                            </button>
                             <button className="text-[#666] hover:text-white transition-colors ml-1">
                               <ChevronRight size={20} />
                             </button>
@@ -495,14 +499,15 @@ export const PMCreativePartnersTable = () => {
                         )}
                         {user.status === 'Rejected' && (
                           <>
-                            {canDelete && (
-                              <button
-                                onClick={(e) => handleDeleteClick(user.id, e)}
-                                className="text-[#E0E0E0] hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              disabled={!canDelete}
+                              title={canDelete ? "Delete user" : "Delete permission not allowed"}
+                              className="text-[#E0E0E0] hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                             <button className="text-[#666] hover:text-white transition-colors">
                               <ChevronRight size={20} />
                             </button>
@@ -586,25 +591,32 @@ export const PMCreativePartnersTable = () => {
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
                           <div className="flex gap-2">
-                            {canDelete && (
-                              <button
-                                onClick={(e) => handleDeleteClick(user.id, e)}
-                                className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
-                            {user.status === 'Pending' && canEdit && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              disabled={!canDelete}
+                              title={canDelete ? "Delete user" : "Delete permission not allowed"}
+                              className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                            {user.status === 'Pending' && (
                               <>
                                 <button
+                                  type="button"
                                   onClick={(e) => handleDecline(user.id, e)}
-                                  className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors"
+                                  disabled={!canEdit}
+                                  title={canEdit ? "Decline user" : "Edit permission not allowed"}
+                                  className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   Decline
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={(e) => handleApprove(user.id, e)}
-                                  className="px-4 py-2 bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold rounded-lg hover:bg-[#22C55E]/20 transition-colors border border-[#22C55E]/20"
+                                  disabled={!canEdit}
+                                  title={canEdit ? "Approve user" : "Edit permission not allowed"}
+                                  className="px-4 py-2 bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold rounded-lg hover:bg-[#22C55E]/20 transition-colors border border-[#22C55E]/20 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   Approve
                                 </button>

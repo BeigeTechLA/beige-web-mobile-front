@@ -1630,13 +1630,23 @@ export default function QuotesDashboardPage({
               <Download size={18} className="mr-2" />
               Export
             </Button>
-            {canCreate && (
-              <Link href={createHref}>
-                <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
-                  Create New Quote
-                </Button>
-              </Link>
-            )}
+            <Link
+              href={canCreate ? createHref : "#"}
+              aria-disabled={!canCreate}
+              tabIndex={canCreate ? 0 : -1}
+              onClick={(event) => {
+                if (canCreate) return;
+                event.preventDefault();
+              }}
+            >
+              <Button
+                disabled={!canCreate}
+                title={canCreate ? "Create New Quote" : "Create permission not allowed"}
+                className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+              >
+                Create New Quote
+              </Button>
+            </Link>
           </div>
         }
       />

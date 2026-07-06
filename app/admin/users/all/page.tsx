@@ -29,11 +29,14 @@ export default function AllUsersPage() {
                         <Button className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg ${isDark ? "text-white bg-[#202020] border-white/20 hover:bg-white/10" : "text-[#323232] bg-[#F0F0F0] border-[#E3E3E3] hover:bg-[#E3E3E3]"} border transition-colors `}>
                             <ArrowUpToLine /> Export
                         </Button>
-                        {canCreate && (
-                            <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
-                                Book a Shoot
-                            </Button>
-                        )}
+                        <Button
+                            onClick={() => router.push("/book-a-shoot")}
+                            disabled={!canCreate}
+                            title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
+                            className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7"
+                        >
+                            Book a Shoot
+                        </Button>
                     </>
                 }
             />

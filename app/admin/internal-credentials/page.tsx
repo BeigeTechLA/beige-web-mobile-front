@@ -34,11 +34,8 @@ type RoleApiRecord = {
   role_id?: string | number;
 };
 
-const SUPER_ADMIN_ROLE_ID = 8;
-
 const formatRoleLabel = (role: RoleApiRecord) => {
   const rawId = Number(role?.user_type_id ?? role?.role_id);
-  if (rawId === SUPER_ADMIN_ROLE_ID) return "Super Admin";
   return role?.user_role ?? role?.name ?? `Role ${rawId || ""}`.trim();
 };
 

@@ -28,6 +28,7 @@ type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 interface MeetingsSchedulePanelProps {
   role?: RoleVariant;
   orderId?: string | number | null;
+  createPermissionModuleKey?: string;
 }
 
 const resolveId = (value: unknown) => {
@@ -145,7 +146,7 @@ const MemberStack = ({ meeting, isDark = true }: { meeting: MeetingItem; isDark:
   );
 };
 
-export default function MeetingsSchedulePanel({ orderId, role = "admin" }: MeetingsSchedulePanelProps) {
+export default function MeetingsSchedulePanel({ orderId, role = "admin", createPermissionModuleKey = "meetings" }: MeetingsSchedulePanelProps) {
   const { user } = useAuth();
   const params = useParams<Record<string, string | string[] | undefined>>();
   const paramOrderId =
@@ -183,7 +184,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
-  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
+  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions(createPermissionModuleKey);
   const canCreateMeeting = canCreateByPermission;
   const canDeleteMeeting = canDeleteByPermission;
 
@@ -288,7 +289,15 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
             </div>
 
 
-            <Button onClick={() => setIsModalOpen(true)} className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"}`}>
+            <Button
+              onClick={() => {
+                if (!canCreateMeeting) return;
+                setIsModalOpen(true);
+              }}
+              disabled={!canCreateMeeting}
+              title={canCreateMeeting ? "Create New Meeting" : "Create permission not allowed"}
+              className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"} disabled:cursor-not-allowed disabled:opacity-50`}
+            >
               Create New Meeting
             </Button>
           </div>
