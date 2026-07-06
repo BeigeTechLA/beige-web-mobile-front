@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { ChevronLeft, Download, ExternalLink, FileText, History, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, Download, ExternalLink, FileText, History, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { cpCompensationApi, normalizeCpRoleLabel, type CpCompensationDetails, type CpPaymentHistoryItem } from "@/lib/api/cpCompensation";
 import { formatCurrency } from "@/lib/utils";
-import { Button } from "@/src/components/landing/ui/button";
 
 type HistoryEntry = {
   id: string;
@@ -126,6 +125,8 @@ export default function CpCompensationHistoryPage() {
 
   const [details, setDetails] = useState<CpCompensationDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const hasInitializedExpandedGroup = useRef(false);
 
   useEffect(() => {
     if (!Number.isFinite(numericBookingId) || numericBookingId <= 0) {
@@ -212,6 +213,21 @@ export default function CpCompensationHistoryPage() {
     });
   }, [details]);
 
+  useEffect(() => {
+    if (!hasInitializedExpandedGroup.current && creatorHistoryGroups.length > 0) {
+      setExpandedGroupId(creatorHistoryGroups[0].id);
+      hasInitializedExpandedGroup.current = true;
+    }
+  }, [creatorHistoryGroups]);
+
+  const toggleGroup = (groupId: string) => {
+    if (creatorHistoryGroups.length <= 1) {
+      setExpandedGroupId(groupId);
+      return;
+    }
+    setExpandedGroupId((current) => (current === groupId ? null : groupId));
+  };
+
   const summaryCards = [
     {
       label: "Total CP Payout",
@@ -294,88 +310,118 @@ export default function CpCompensationHistoryPage() {
             </div>
           ) : creatorHistoryGroups.some((group) => group.entries.length > 0) ? (
             <div className="space-y-4 p-4 lg:p-5">
-              {creatorHistoryGroups.map((group) => (
-                <div key={group.id} className={`overflow-hidden rounded-xl border ${isDark ? "border-white/10 bg-[#171717]" : "border-[#EFEFEF] bg-[#FAFAFA]"}`}>
-                  <div className={`flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-white/10 bg-[#1C1C1C]" : "border-[#EFEFEF] bg-white"}`}>
-                    <div>
-                      <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>{group.creatorName}</p>
-                      <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{group.role}</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-right text-xs">
-                      <span className={isDark ? "text-white/45" : "text-black/45"}>Total <b className={isDark ? "text-white/80" : "text-black/80"}>{group.total}</b></span>
-                      <span className={isDark ? "text-white/45" : "text-black/45"}>Paid <b className="text-[#10B981]">{group.paid}</b></span>
-                      <span className={isDark ? "text-white/45" : "text-black/45"}>Remaining <b className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}>{group.remaining}</b></span>
-                    </div>
-                  </div>
+              {creatorHistoryGroups.map((group) => {
+                const isExpanded = expandedGroupId === group.id;
+                const canCollapse = creatorHistoryGroups.length > 1;
 
-                  {group.entries.length > 0 ? group.entries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className={`grid grid-cols-1 gap-4 border-b px-4 py-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center ${isDark ? "border-white/5" : "border-[#EFEFEF]"}`}
+                return (
+                  <div key={group.id} className={`overflow-hidden rounded-xl border ${isDark ? "border-white/10 bg-[#171717]" : "border-[#EFEFEF] bg-[#FAFAFA]"}`}>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.id)}
+                      aria-expanded={isExpanded}
+                      aria-disabled={!canCollapse}
+                      disabled={!canCollapse}
+                      className={`flex w-full flex-col gap-3 border-b p-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-white/10 bg-[#1C1C1C] hover:bg-white/[0.03]" : "border-[#EFEFEF] bg-white hover:bg-[#FCFCFC]"}`}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#2A2520] text-[#E8D1AB]" : "bg-[#F4EFE2] text-[#8A6A3D]"}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#2A2520] text-[#E8D1AB]" : "bg-[#F4EFE2] text-[#8A6A3D]"}`}>
                           <History size={16} />
                         </div>
-
-                        <div className="min-w-0">
-                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
-                            {entry.title}
-                          </p>
-                          <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
-                            {entry.dateLabel}
-                            {entry.subtitle ? ` - ${entry.subtitle}` : ""}
-                          </p>
-
-                          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-                            {entry.receiptUrl ? (
-                              <a
-                                href={buildReceiptViewUrl(entry.receiptUrl, entry.proofFileName || "receipt.pdf", bookingId)}
-                                className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-[#E8D1AB] hover:text-[#F4E8CF]" : "text-[#8A6A3D] hover:text-[#6E5430]"}`}
-                              >
-                                <ExternalLink size={12} />
-                                View Receipt
-                              </a>
-                            ) : entry.proofFileName ? (
-                              <span className={`inline-flex items-center gap-1.5 ${isDark ? "text-white/55" : "text-black/55"}`}>
-                                <FileText size={12} />
-                                Receipt attached: {entry.proofFileName}
-                              </span>
-                            ) : (
-                              <span className={`${isDark ? "text-white/30" : "text-black/30"}`}>
-                                No receipt attached
-                              </span>
-                            )}
-
-                            {entry.receiptDownloadUrl && (
-                              <a
-                                href={entry.receiptDownloadUrl}
-                                rel="noopener noreferrer"
-                                download={entry.proofFileName || "receipt.pdf"}
-                                className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-white/55 hover:text-white" : "text-black/55 hover:text-black"}`}
-                                title="Download receipt"
-                              >
-                                <Download size={12} />
-                                Download
-                              </a>
-                            )}
-                          </div>
+                        <div>
+                          <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>{group.creatorName}</p>
+                          <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{group.role}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:text-right">
-                        <span className={`text-xl font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
-                          {entry.amount || "-"}
-                        </span>
+                      <div className="flex items-center justify-between gap-3 sm:justify-end">
+                        <div className="grid grid-cols-3 gap-3 text-right text-base">
+                          <span className={isDark ? "text-white/50" : "text-black/50"}>Total <b className={isDark ? "text-white/90" : "text-black/90"}>{group.total}</b></span>
+                          <span className={isDark ? "text-white/50" : "text-black/50"}>Paid <b className="text-[#10B981]">{group.paid}</b></span>
+                          <span className={isDark ? "text-white/50" : "text-black/50"}>Remaining <b className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}>{group.remaining}</b></span>
+                        </div>
+                        {canCollapse && (
+                          <ChevronDown
+                            size={18}
+                            className={`shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""} ${isDark ? "text-white/50" : "text-black/45"}`}
+                          />
+                        )}
                       </div>
-                    </div>
-                  )) : (
-                    <div className={`px-1 py-3 text-sm ${isDark ? "text-white/35" : "text-black/35"}`}>
-                      No payment history for this creative partner yet.
-                    </div>
-                  )}
-                </div>
-              ))}
+                    </button>
+
+                    {isExpanded && (
+                      <div>
+                        {group.entries.length > 0 ? group.entries.map((entry) => (
+                          <div
+                            key={entry.id}
+                            className={`grid grid-cols-1 gap-4 border-b px-4 py-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center ${isDark ? "border-white/5" : "border-[#EFEFEF]"}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#2A2520] text-[#E8D1AB]" : "bg-[#F4EFE2] text-[#8A6A3D]"}`}>
+                                <History size={16} />
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                  {entry.title}
+                                </p>
+                                <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
+                                  {entry.dateLabel}
+                                  {entry.subtitle ? ` - ${entry.subtitle}` : ""}
+                                </p>
+
+                                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                                  {entry.receiptUrl ? (
+                                    <a
+                                      href={buildReceiptViewUrl(entry.receiptUrl, entry.proofFileName || "receipt.pdf", bookingId)}
+                                      className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-[#E8D1AB] hover:text-[#F4E8CF]" : "text-[#8A6A3D] hover:text-[#6E5430]"}`}
+                                    >
+                                      <ExternalLink size={12} />
+                                      View Receipt
+                                    </a>
+                                  ) : entry.proofFileName ? (
+                                    <span className={`inline-flex items-center gap-1.5 ${isDark ? "text-white/55" : "text-black/55"}`}>
+                                      <FileText size={12} />
+                                      Receipt attached: {entry.proofFileName}
+                                    </span>
+                                  ) : (
+                                    <span className={`${isDark ? "text-white/30" : "text-black/30"}`}>
+                                      No receipt attached
+                                    </span>
+                                  )}
+
+                                  {entry.receiptDownloadUrl && (
+                                    <a
+                                      href={entry.receiptDownloadUrl}
+                                      rel="noopener noreferrer"
+                                      download={entry.proofFileName || "receipt.pdf"}
+                                      className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-white/55 hover:text-white" : "text-black/55 hover:text-black"}`}
+                                      title="Download receipt"
+                                    >
+                                      <Download size={12} />
+                                      Download
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:text-right">
+                              <span className={`text-xl font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
+                                {entry.amount || "-"}
+                              </span>
+                            </div>
+                          </div>
+                        )) : (
+                          <div className={`px-4 py-4 text-sm ${isDark ? "text-white/35" : "text-black/35"}`}>
+                            No payment history for this creative partner yet.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className={`flex min-h-[240px] items-center justify-center px-6 text-center ${isDark ? "text-white/45" : "text-black/45"}`}>

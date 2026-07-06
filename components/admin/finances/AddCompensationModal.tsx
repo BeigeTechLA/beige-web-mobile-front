@@ -475,53 +475,72 @@ export default function AddCompensationModal({
             <div className="space-y-3 lg:space-y-6 animate-in fade-in duration-200">
               <div className="flex flex-col gap-3 lg:gap-5">
                 <label className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Select Compensation Method</label>
-                <div className={`grid grid-cols-3 p-1.5 border rounded-lg h-14 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
-                  {(["equal", "role", "manual"] as const).map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      onClick={() => setCompensationMethod(method)}
-                      className={`h-10 text-sm lg:text-base capitalize rounded-sm transition-all ${compensationMethod === method
-                        ? "bg-[#E8D1AB] text-black shadow-md font-semibold"
-                        : (isDark ? "text-white/60 hover:text-white" : "text-black/70 hover:text-black")}`}
-                    >
-                      {method === "equal" ? "Equal Split" : method === "role" ? "Role Based" : "Manual"}
-                    </button>
-                  ))}
+                <div className={`grid grid-cols-2 p-1.5 border rounded-lg h-14 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setCompensationMethod("equal")}
+                    className={`h-10 text-sm lg:text-base capitalize rounded-sm transition-all ${compensationMethod === "equal"
+                      ? "bg-[#E8D1AB] text-black shadow-md font-semibold"
+                      : (isDark ? "text-white/60 hover:text-white" : "text-black/70 hover:text-black")}`}
+                  >
+                    Equal Split
+                  </button>
+
+                  {/* Role Based option temporarily hidden because it is not required right now.
+                  <button
+                    type="button"
+                    onClick={() => setCompensationMethod("role")}
+                    className={`h-10 text-sm lg:text-base capitalize rounded-sm transition-all ${compensationMethod === "role"
+                      ? "bg-[#E8D1AB] text-black shadow-md font-semibold"
+                      : (isDark ? "text-white/60 hover:text-white" : "text-black/70 hover:text-black")}`}
+                  >
+                    Role Based
+                  </button>
+                  */}
+
+                  <button
+                    type="button"
+                    onClick={() => setCompensationMethod("manual")}
+                    className={`h-10 text-sm lg:text-base capitalize rounded-sm transition-all ${compensationMethod === "manual"
+                      ? "bg-[#E8D1AB] text-black shadow-md font-semibold"
+                      : (isDark ? "text-white/60 hover:text-white" : "text-black/70 hover:text-black")}`}
+                  >
+                    Manual
+                  </button>
                 </div>
               </div>
 
               <div className={`grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-9 border border-[#E8D1AB33] rounded-lg p-4 lg:p-5 ${isDark ? "bg-[#3D3D3D]" : "bg-[#F4F5F7]"}`}>
                 <div>
-                  <p className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>Total Shoot Amount</p>
-                  <p className={`text-lg lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Total Shoot Amount</p>
+                  <p className={`text-lg lg:text-[22px] font-bold leading-tight ${isDark ? "text-white" : "text-black"}`}>
                     {formatCurrency(shootAmount)}
                   </p>
-                  <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-black/60"}`}>Overall Budget</p>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white/70" : "text-black/60"}`}>Overall Budget</p>
                 </div>
 
                 <div>
-                  <p className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>Total Compensation</p>
-                  <p className="text-lg lg:text-2xl font-bold" style={{ color: percentMeta.color }}>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Total Compensation</p>
+                  <p className="text-lg lg:text-[22px] font-bold leading-tight" style={{ color: percentMeta.color }}>
                     {formatCurrency(totalCompensation)}
                   </p>
-                  <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-black/60"}`}>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white/70" : "text-black/60"}`}>
                     {compensationPercentage.toFixed(1)}% of budget
                   </p>
                 </div>
 
                 <div>
-                  <p className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>Estimated Margin</p>
-                  <p className="text-lg lg:text-2xl font-bold" style={{ color: marginAmount >= 0 ? "#10B981" : "#EF4444" }}>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Estimated Margin</p>
+                  <p className="text-lg lg:text-[22px] font-bold leading-tight" style={{ color: marginAmount >= 0 ? "#10B981" : "#EF4444" }}>
                     {formatCurrency(marginAmount)}
                   </p>
-                  <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-black/60"}`}>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white/70" : "text-black/60"}`}>
                     {marginPercentage.toFixed(1)}% margin
                   </p>
                 </div>
 
                 <div className="lg:col-span-2 w-full">
-                  <p className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>Profitability Estimation</p>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Profitability Estimation</p>
                   <div className="flex gap-1">
                     <div className={`w-full h-1.5 rounded-full mt-3 overflow-hidden ${isDark ? "bg-black/40" : "bg-[#3D3D3D]/20"}`}>
                       <div
@@ -531,7 +550,7 @@ export default function AddCompensationModal({
                     </div>
                     <TrendingUp style={{ color: percentMeta.color }} />
                   </div>
-                  <p className={`text-xs lg:text-sm mt-1.5 ${isDark ? "text-white/70" : "text-black/60"}`}>
+                  <p className={`text-xs lg:text-[13px] leading-tight mt-1.5 ${isDark ? "text-white/70" : "text-black/60"}`}>
                     {percentMeta.label}
                   </p>
                 </div>

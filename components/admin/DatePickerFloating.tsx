@@ -16,6 +16,7 @@ interface DatePickerFloatingProps {
   width?: string;
   classnames?: string;
   labelClasses?: string;
+  label?: string;
 }
 
 export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
@@ -24,6 +25,7 @@ export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
   width,
   classnames,
   labelClasses,
+  label = "Payment Date",
 }) => {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -53,7 +55,7 @@ export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
             {/* Top-Intersecting Floating Label Field Tag */}
             <div className="absolute -top-2.5 left-3 px-1 z-10 bg-inherit">
               <span className={`font-medium ${isDark ? "text-white/60" : "text-black/60"} ${labelClasses}`}>
-                Payment Date
+                {label}
               </span>
             </div>
 

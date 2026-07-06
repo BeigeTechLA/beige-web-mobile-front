@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Eye, History, Search } from "lucide-react";
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Eye, History, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { formatRelativeOrAbsoluteDate, getColorThreshold, getDateColorThreshold, getInitials } from "@/lib/utils";
 import { FinanceStatusBadge } from "./FinanceStatusBadge";
+import { DatePickerFloating } from "../DatePickerFloating";
 import {
   Select,
   SelectContent,
@@ -114,6 +115,9 @@ export default function CPPayoutTable({
   const [mounted, setMounted] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+  const [dueDateModalRowId, setDueDateModalRowId] = useState<string | null>(null);
+  const [rowDueDates, setRowDueDates] = useState<Record<string, Date | null>>({});
+  const [dueDateDraft, setDueDateDraft] = useState<Date | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -191,6 +195,22 @@ export default function CPPayoutTable({
   const handleOpenHistory = (row: ShootCPRow) => {
     setOpenActionMenuId(null);
     onViewHistory?.(row);
+  };
+
+  const handleOpenDueDate = (row: ShootCPRow) => {
+    setOpenActionMenuId(null);
+    setDueDateModalRowId(row.id);
+    setDueDateDraft(rowDueDates[row.id] || null);
+  };
+
+  const handleSaveDueDate = () => {
+    if (!dueDateModalRowId) return;
+    setRowDueDates((current) => ({
+      ...current,
+      [dueDateModalRowId]: dueDateDraft,
+    }));
+    setDueDateModalRowId(null);
+    setDueDateDraft(null);
   };
 
   const totalPages = Math.max(1, Math.ceil(processedRows.length / itemsPerPage));
@@ -385,35 +405,6 @@ export default function CPPayoutTable({
                     </div>
                   </div>
 
-                  {openActionMenuId === row.id && (
-                    <div
-                      className={`absolute right-4 top-16 z-[60] min-w-40 rounded-xl border shadow-xl ${isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenActionMenuId(null);
-                          onRowClick(row);
-                        }}
-                        className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
-                      >
-                      <Eye size={16} className="opacity-70" />
-                        View details
-                      </button>
-                      {onViewHistory && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenHistory(row)}
-                          className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
-                        >
-                        <History size={16} className="opacity-70" />
-                          View history
-                        </button>
-                      )}
-                    </div>
-                  )}
-
                   {/* Mobile Dropdown Subsections */}
                   {isRowExpanded && (
                     <div className="mt-4 grid grid-cols-2 gap-y-4 px-2 text-left animate-in fade-in slide-in-from-top-1 duration-200">
@@ -480,6 +471,16 @@ export default function CPPayoutTable({
                             View History
                           </button>
                         )}
+                        <button
+                          type="button"
+                          className={`mt-2 block text-xs font-semibold underline underline-offset-2 ${isDark ? "text-white/60" : "text-black/50"}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDueDate(row);
+                          }}
+                        >
+                          Due Date
+                        </button>
                       </div>
                     </div>
                   )}
@@ -623,30 +624,46 @@ export default function CPPayoutTable({
 
                           {openActionMenuId === row.id && (
                             <div
-                              className={`absolute right-0 bottom-full mb-2 min-w-40 rounded-xl border shadow-xl z-[60] ${isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
+                              className={`absolute right-0 top-10 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setOpenActionMenuId(null);
                                   onRowClick(row);
                                 }}
-                                className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
+                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
                               >
-                              <Eye size={14} />
+                                <Eye size={16} className="opacity-70" />
                                 View details
                               </button>
                               {onViewHistory && (
                                 <button
                                   type="button"
-                                  onClick={() => handleOpenHistory(row)}
-                                  className={`flex w-full items-center gap-2 rounded-xl px-4 py-3 text-left text-sm transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-[#E8D1AB]/10 hover:text-[#171717]"}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenActionMenuId(null);
+                                    handleOpenHistory(row);
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
                                 >
-                                <History size={14} />
+                                  <History size={16} className="opacity-70" />
                                   View history
                                 </button>
                               )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenDueDate(row);
+                                }}
+                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                              >
+                                <Calendar size={16} className="opacity-70" />
+                                Due date
+                              </button>
                             </div>
                           )}
                         </div>
@@ -657,6 +674,72 @@ export default function CPPayoutTable({
               </tbody>
             </table>
           </div>
+
+          {dueDateModalRowId && (
+            <div
+              className={`fixed inset-0 z-[140] flex items-center justify-center p-4 backdrop-blur-md ${isDark ? "bg-black/80" : "bg-white/80"}`}
+              onClick={() => {
+                setDueDateModalRowId(null);
+                setDueDateDraft(null);
+              }}
+            >
+              <div
+                className={`w-full max-w-lg rounded-2xl border p-4 shadow-2xl ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Set Due Date</h3>
+                    <p className={`mt-1 text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+                      {processedRows.find((row) => row.id === dueDateModalRowId)?.shootName || processedRows.find((row) => row.id === dueDateModalRowId)?.customerName || "Selected row"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDueDateModalRowId(null);
+                      setDueDateDraft(null);
+                    }}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isDark ? "bg-white/5 text-white hover:bg-white/10" : "bg-black/5 text-black hover:bg-black/10"}`}
+                    aria-label="Close due date modal"
+                  >
+                    <span className="text-lg leading-none">&times;</span>
+                  </button>
+                </div>
+
+                <div className="mt-4">
+                  <DatePickerFloating
+                    label="Due Date"
+                    selectedDate={dueDateDraft}
+                    onDateChange={setDueDateDraft}
+                    width="w-full"
+                    classnames="w-full"
+                    labelClasses={isDark ? "bg-[#111111] text-white/60" : "bg-white text-black/60"}
+                  />
+                </div>
+
+                <div className="mt-5 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDueDateModalRowId(null);
+                      setDueDateDraft(null);
+                    }}
+                    className={`rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${isDark ? "border-white/10 text-white hover:bg-white/5" : "border-[#E5E5E5] text-black hover:bg-black/5"}`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveDueDate}
+                    className="rounded-xl bg-[#E8D1AB] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#dec28f]"
+                  >
+                    Save Due Date
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Pagination Footer */}
           <div className={`p-5 flex items-center justify-between border-t text-sm ${isDark ? "border-t-white/5 text-white/60 bg-[#141414]" : "border-t-[#E3E3E3] text-[#666] bg-white"}`}>
