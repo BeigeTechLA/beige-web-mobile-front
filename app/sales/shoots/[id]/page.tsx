@@ -62,7 +62,6 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
   const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
   const effectiveRole = userRole === "sales_admin" ? "admin" : "sales";
   const { canEdit: canManageAsSalesAdmin } = usePermissions("sales_representative");
-  const effectiveRole = canManageAsSalesAdmin ? "admin" : "sales";
 
   const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
     ? project.needs_attention.missing_fields
