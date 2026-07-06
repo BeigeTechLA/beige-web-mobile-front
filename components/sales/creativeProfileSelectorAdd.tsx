@@ -12,6 +12,7 @@ const OVER_200_BUCKET = 250;
 
 type CreativeWithDistance = {
   id: number;
+  crew_member_id?: number;
   first_name?: string;
   last_name?: string;
   name?: string;
@@ -139,6 +140,7 @@ export const CreativeProfileSelectorAdd = ({
   selectedIds: externalSelectedIds,
   onChange,
   onSelectionUpdate,
+  onSelectedCreativesChange,
   leadId,
   projectId,
   currentLocation,
@@ -153,6 +155,7 @@ export const CreativeProfileSelectorAdd = ({
   selectedIds?: number[],
   onChange?: (ids: number[]) => void,
   onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void,
+  onSelectedCreativesChange?: (creatives: CreativeWithDistance[]) => void,
   leadId?: number | string,
   projectId?: number | string,
   currentLocation?: string,
@@ -335,6 +338,11 @@ export const CreativeProfileSelectorAdd = ({
   }, [disableCrewFetch, leadId, projectId, stats?.location, currentLocation, currentLatitude, currentLongitude, roleType, debouncedSearch, appliedFilters.radius]);
   const selectedIds = externalSelectedIds || internalSelectedIds;
 
+  useEffect(() => {
+    if (!onSelectedCreativesChange) return;
+    onSelectedCreativesChange(creatives.filter((creative) => selectedIds.includes(creative.id)));
+  }, [creatives, onSelectedCreativesChange, selectedIds]);
+
   const filteredCreatives = creatives.filter((creative) => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     if (!normalizedSearch) return true;
@@ -387,7 +395,7 @@ export const CreativeProfileSelectorAdd = ({
 
       return bucket <= appliedFilters.radius;
     });
-  }, [appliedFilters.radius, filteredCreatives]);
+  }, [appliedFilters.radius, debouncedSearch, filteredCreatives]);
 
   const visibleCreatives = hasActiveSearch ? filteredCreatives : radiusFilteredCreatives;
 
@@ -815,4 +823,3 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
     </div>
   );
 };
-

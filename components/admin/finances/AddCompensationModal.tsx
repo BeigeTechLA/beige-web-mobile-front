@@ -236,7 +236,12 @@ export default function AddCompensationModal({
     }
 
     resetFormState();
-  }, [isOpen, resetFormState]);
+    if (shoots.length === 1) {
+      const shoot = shoots[0];
+      setSelectedShootId(String(shoot.booking_id));
+      setShootSearchQuery(formatShootOptionLabel(shoot));
+    }
+  }, [isOpen, resetFormState, shoots]);
 
   useEffect(() => {
     if (!currentShoot) {

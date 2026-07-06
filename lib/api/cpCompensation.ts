@@ -269,6 +269,10 @@ export const cpCompensationApi = {
     return apiClient.post<ApiEnvelope<unknown>>("finance/cp-compensation", payload);
   },
 
+  async submitForApproval(payload: AddCpCompensationPayload) {
+    return apiClient.post<ApiEnvelope<unknown>>("sales/bookings/cp-compensation", payload);
+  },
+
   async approve(earningId: number, notes?: string) {
     return apiClient.patch<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/approve`, { notes });
   },

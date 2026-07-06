@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useCallback, useMemo, useState, useEffect, use } from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
@@ -11,6 +11,8 @@ import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSe
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
+import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
+import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -22,6 +24,36 @@ type FulfillmentStats = {
     missing_fields?: string[];
   };
   [key: string]: unknown;
+};
+
+type SelectedCreative = {
+  id: number;
+  crew_member_id?: number;
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  email?: string;
+  specialities?: string;
+  role?: string;
+  hourly_rate?: number | string;
+};
+
+type ConfirmAction = "assign" | "compensation";
+
+const toNumber = (value: unknown, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const asText = (value: unknown, fallback = "") => {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number") return String(value);
+  return fallback;
+};
+
+const asNullableText = (value: unknown) => {
+  const text = asText(value);
+  return text || null;
 };
 
 export default function AddCreativesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +71,10 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>("assign");
+  const [isAddCompOpen, setIsAddCompOpen] = useState(false);
+  const [selectedCreatives, setSelectedCreatives] = useState<SelectedCreative[]>([]);
+  const [isSubmittingCompensation, setIsSubmittingCompensation] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
@@ -54,20 +90,28 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     const fetchFulfillmentStats = async () => {
       if (!projectId) return;
       try {
-        const response = await adminApi.getProjectFulfillmentStats(projectId);
+        const [statsResult, detailsResult] = await Promise.allSettled([
+          adminApi.getProjectFulfillmentStats(projectId),
+          adminApi.getProjectDetails(projectId),
+        ]);
+
+        const response = statsResult.status === "fulfilled" ? statsResult.value : null;
         // `adminApi.getProjectFulfillmentStats` already returns `response.data`
         // BUT if the backend actually returns `{ success: true, data: { ... } }` inside that data:
         const stats = (response?.success && response?.data ? response.data : response) as FulfillmentStats;
+        const detailsResponse = detailsResult.status === "fulfilled" ? detailsResult.value : null;
+        const projectDetails = (detailsResponse?.data?.project || detailsResponse?.project || detailsResponse?.data || {}) as Record<string, unknown>;
+        const mergedStats = { ...projectDetails, ...(stats || {}) } as FulfillmentStats;
 
-        if (stats) {
-          setStats(stats);
+        if (mergedStats) {
+          setStats(mergedStats);
           // Parse fulfillment stats like "0/2" => videographer needed = 2
-          const vReq = parseInt(stats.fulfillment_stats?.videographer?.split('/')[1] || "0");
-          const pReq = parseInt(stats.fulfillment_stats?.photographer?.split('/')[1] || "0");
+          const vReq = parseInt(mergedStats.fulfillment_stats?.videographer?.split('/')[1] || "0");
+          const pReq = parseInt(mergedStats.fulfillment_stats?.photographer?.split('/')[1] || "0");
           setReqCounts({ videographer: vReq, photographer: pReq });
 
           // Also grab location for the crew search
-          if (stats.location) setProjectLocation(stats.location);
+          if (mergedStats.location) setProjectLocation(mergedStats.location);
         }
       } catch (error) {
         console.error("Failed to fetch project fulfillment stats", error);
@@ -76,25 +120,98 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     fetchFulfillmentStats();
   }, [projectId]);
 
-  const handleAssign = async () => {
+  const selectedCompensationShoot = useMemo<PendingCompensationShoot | null>(() => {
+    if (!selectedCreativeIds.length) return null;
+
+    const statsRecord = (stats || {}) as Record<string, unknown>;
+    const shootAmount = toNumber(
+      statsRecord.shoot_amount ??
+      statsRecord.total_amount ??
+      statsRecord.total_value_amount ??
+      statsRecord.budget ??
+      statsRecord.project_budget ??
+      statsRecord.converted_quote_amount,
+      0
+    );
+
+    return {
+      booking_id: Number(projectId),
+      shoot_name: asText(statsRecord.project_name, asText(statsRecord.shoot_name, `Shoot #${projectId}`)),
+      shoot_type: asNullableText(statsRecord.shoot_type || statsRecord.event_type),
+      content_type: asNullableText(statsRecord.content_type),
+      event_date: asNullableText(statsRecord.event_date),
+      shoot_amount: shootAmount,
+      margin_percent: statsRecord.margin_percent == null ? null : toNumber(statsRecord.margin_percent, 0),
+      customer: {
+        name: asNullableText(statsRecord.customer_name),
+        email: asNullableText(statsRecord.customer_email),
+      },
+      creators: selectedCreativeIds
+        .map((id) => selectedCreatives.find((creative) => Number(creative.id) === Number(id)))
+        .filter((creative): creative is SelectedCreative => Boolean(creative))
+        .map((creative) => ({
+          creator_id: Number(creative.crew_member_id || creative.id),
+          creator_name: asText(
+            creative.name,
+            [creative.first_name, creative.last_name].filter(Boolean).join(" ").trim() || `Creator #${creative.id}`
+          ),
+          creator_email: creative.email || null,
+          cp_role: creative.specialities || creative.role || null,
+          hourly_rate: toNumber(creative.hourly_rate, 0),
+        })),
+    };
+  }, [projectId, selectedCreativeIds, selectedCreatives, stats]);
+
+  const compensationShootOptions = useMemo(
+    () => selectedCompensationShoot ? [selectedCompensationShoot] : [],
+    [selectedCompensationShoot]
+  );
+
+  const handleSelectedCreativesChange = useCallback((creatives: SelectedCreative[]) => {
+    setSelectedCreatives((current) => {
+      const next = new Map(current.map((creative) => [Number(creative.id), creative]));
+      creatives.forEach((creative) => next.set(Number(creative.id), creative));
+      return selectedCreativeIds
+        .map((id) => next.get(Number(id)))
+        .filter((creative): creative is SelectedCreative => Boolean(creative));
+    });
+  }, [selectedCreativeIds]);
+
+  const validateSelectedCounts = (action: ConfirmAction) => {
     if (selectedCreativeIds.length === 0) {
       toast.error("Please select at least one creative");
-      return;
+      return false;
     }
 
     const isOverVideographers = selectionCounts.videographer > reqCounts.videographer;
     const isOverPhotographers = selectionCounts.photographer > reqCounts.photographer;
 
     if (isOverVideographers || isOverPhotographers) {
+      setConfirmAction(action);
       setIsConfirmModalOpen(true);
-      return;
+      return false;
     }
 
+    return true;
+  };
+
+  const handleAssign = async () => {
+    if (!validateSelectedCounts("assign")) return;
     executeAssignment();
   };
 
   const handleContinueToCompensation = () => {
-    handleAssign();
+    if (!validateSelectedCounts("compensation")) return;
+    openCompensationDrawer();
+  };
+
+  const openCompensationDrawer = () => {
+    if (!selectedCompensationShoot?.creators.length) {
+      toast.error("Selected CP details are still loading. Please try again.");
+      return;
+    }
+    setIsConfirmModalOpen(false);
+    setIsAddCompOpen(true);
   };
 
   const executeAssignment = async () => {
@@ -127,6 +244,38 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       } else {
         toast.error("An error occurred while assigning crew");
       }
+    }
+  };
+
+  const handleCompensationSubmit = async (payload: AddCpCompensationPayload) => {
+    setIsSubmittingCompensation(true);
+    try {
+      const assignResponse = await assignCrew({
+        project_id: Number(projectId),
+        crew_member_ids: selectedCreativeIds,
+      }).unwrap();
+
+      if (!assignResponse.success) {
+        const message = Array.isArray(assignResponse.errors)
+          ? assignResponse.errors.join(", ")
+          : assignResponse.message || "Failed to assign crew";
+        toast.error(message);
+        return;
+      }
+
+      await cpCompensationApi.submitForApproval(payload);
+      toast.success("CP assigned and compensation sent for finance approval");
+      setIsAddCompOpen(false);
+      router.push(`/admin/shoots/${projectId}`);
+    } catch (error: unknown) {
+      console.error("Failed to submit CP compensation", error);
+      const data = typeof error === "object" && error !== null && "data" in error
+        ? (error as { data?: { errors?: string[]; message?: string } }).data
+        : undefined;
+      const message = data?.errors?.join(", ") || data?.message || "Failed to submit compensation for approval";
+      toast.error(message);
+    } finally {
+      setIsSubmittingCompensation(false);
     }
   };
 
@@ -168,7 +317,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       <AssignmentConfirmationModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={executeAssignment}
+        onConfirm={confirmAction === "compensation" ? openCompensationDrawer : executeAssignment}
         videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
       />
@@ -226,12 +375,22 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           selectedIds={selectedCreativeIds}
           onChange={setSelectedCreativeIds}
           onSelectionUpdate={setSelectionCounts}
+          onSelectedCreativesChange={handleSelectedCreativesChange}
           currentLocation={projectLocation}
           targets={reqCounts}
           roleType={roleType}
           isDark={isDark}
         />
 
+        {selectedCompensationShoot && (
+          <AddCompensationModal
+            isOpen={isAddCompOpen}
+            onClose={() => setIsAddCompOpen(false)}
+            shoots={compensationShootOptions}
+            isSubmitting={isSubmittingCompensation || isLoading}
+            onSubmit={handleCompensationSubmit}
+          />
+        )}
       </div>
     </>
   );
