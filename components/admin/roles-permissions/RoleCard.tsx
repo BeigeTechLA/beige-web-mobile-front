@@ -8,6 +8,7 @@ type RoleCardProps = {
   card: RoleCardData;
   isDark?: boolean;
   onEdit?: (id: string) => void;
+  editDisabled?: boolean;
   onViewUsers?: (id: string) => void;
 };
 
@@ -27,7 +28,7 @@ const getBadgeText = (value: string) => {
     .slice(0, 4);
 };
 
-export function RoleCard({ card, isDark = true, onEdit, onViewUsers }: RoleCardProps) {
+export function RoleCard({ card, isDark = true, onEdit, editDisabled = false, onViewUsers }: RoleCardProps) {
   const fallbackBadges = card.members.filter((member) => !member.isCountBadge);
   const countBadge = card.members.find((member) => member.isCountBadge);
 
@@ -107,21 +108,19 @@ export function RoleCard({ card, isDark = true, onEdit, onViewUsers }: RoleCardP
       </div>
 
       <div className="mt-auto flex items-end justify-between pt-5">
-        {onEdit ? (
-          <button
-            type="button"
-            onClick={() => onEdit(card.id)}
-            className={`text-[13px] font-medium underline underline-offset-4 transition ${
-              isDark
-                ? "text-[#E5D5B8] decoration-[#E5D5B8]/35 hover:text-[#f1e3c7] hover:decoration-[#E5D5B8]"
-                : "text-[#8E6A2A] decoration-[#8E6A2A]/30 hover:text-[#6f531f] hover:decoration-[#8E6A2A]"
-            }`}
-          >
-            Edit Role
-          </button>
-        ) : (
-          <span className={`text-[13px] font-medium ${isDark ? "text-white/25" : "text-[#32323240]"}`}>Edit Role</span>
-        )}
+        <button
+          type="button"
+          onClick={() => onEdit?.(card.id)}
+          disabled={editDisabled}
+          title={editDisabled ? "Edit permission not allowed" : "Edit role"}
+          className={`text-[13px] font-medium underline underline-offset-4 transition disabled:cursor-not-allowed disabled:opacity-35 ${
+            isDark
+              ? "text-[#E5D5B8] decoration-[#E5D5B8]/35 hover:text-[#f1e3c7] hover:decoration-[#E5D5B8]"
+              : "text-[#8E6A2A] decoration-[#8E6A2A]/30 hover:text-[#6f531f] hover:decoration-[#8E6A2A]"
+          }`}
+        >
+          Edit Role
+        </button>
         <button
           type="button"
           onClick={() => onViewUsers?.(card.id)}

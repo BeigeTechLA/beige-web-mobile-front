@@ -281,14 +281,14 @@ export default function AdminDisputesPage() {
                 }`}>
               <ArrowUpToLine /> Export
             </Button>
-            {canCreate && (
             <Button
               onClick={() => setIsDisputeModalOpen(true)}
+              disabled={!canCreate}
+              title={canCreate ? "Add Dispute" : "Create permission not allowed"}
               className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7 hover:bg-[#d9c59d]"
             >
               Add Dispute
             </Button>
-            )}
           </>
         }
       />

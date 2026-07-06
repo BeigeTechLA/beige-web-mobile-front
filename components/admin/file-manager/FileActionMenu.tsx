@@ -23,11 +23,29 @@ interface FileActionMenuProps {
   onRename?: () => void;
   onShare?: () => void;
   onEditVisibility?: () => void;
+  downloadDisabled?: boolean;
+  deleteDisabled?: boolean;
+  shareDisabled?: boolean;
+  editVisibilityDisabled?: boolean;
   isDark?: boolean;
 }
 
 const FileActionMenu: React.FC<FileActionMenuProps> = ({
-  isOpen, onClose, anchor, folderName, href, onOpen, onDownload, onDelete, onShare, onEditVisibility, isDark = true
+  isOpen,
+  onClose,
+  anchor,
+  folderName,
+  href,
+  onOpen,
+  onDownload,
+  onDelete,
+  onShare,
+  onEditVisibility,
+  downloadDisabled = false,
+  deleteDisabled = false,
+  shareDisabled = false,
+  editVisibilityDisabled = false,
+  isDark = true
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -92,14 +110,16 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
               onClose();
             }}
           /> */}
-          {onEditVisibility ? (
+          {(onEditVisibility || editVisibilityDisabled) ? (
             <MenuButton
               icon={<CalendarClock size={18} />}
               label="Visibility date"
               onClick={() => {
+                if (editVisibilityDisabled) return;
                 onEditVisibility();
                 onClose();
               }}
+              disabled={editVisibilityDisabled}
               isDark={isDark}
             />
           ) : null}
@@ -110,30 +130,36 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
 
         {/* Section 2: Sharing */}
         <div className="flex flex-col p-1.5">
-          {onShare ? (
+          {(onShare || shareDisabled) ? (
             <MenuButton
               icon={<Share2 size={18} />}
               label="Share"
               onClick={() => {
+                if (shareDisabled) return;
                 onShare();
                 onClose();
               }}
+              disabled={shareDisabled}
               isDark={isDark}
             />
           ) : null}
-          <MenuButton
-            icon={<Download size={18} />}
-            label="Download"
-            onClick={() => {
-              onDownload?.();
-              onClose();
-            }}
-            isDark={isDark}
-          />
+          {(onDownload || downloadDisabled) ? (
+            <MenuButton
+              icon={<Download size={18} />}
+              label="Download"
+              onClick={() => {
+                if (downloadDisabled) return;
+                onDownload?.();
+                onClose();
+              }}
+              disabled={downloadDisabled}
+              isDark={isDark}
+            />
+          ) : null}
         </div>
 
         {/* Divider */}
-        {onDelete ? (
+        {(onDelete || deleteDisabled) ? (
           <>
             <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#D7D7D7]"}`} />
             <div className="flex flex-col p-1.5">
@@ -142,9 +168,11 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
                 label="Delete"
                 variant="danger"
                 onClick={() => {
+                  if (deleteDisabled) return;
                   onDelete();
                   onClose();
                 }}
+                disabled={deleteDisabled}
                 isDark={isDark}
               />
             </div>
@@ -161,17 +189,20 @@ const MenuButton = ({
   label,
   onClick,
   variant = "default",
+  disabled = false,
   isDark = true
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   variant?: "default" | "danger";
+  disabled?: boolean;
   isDark?: boolean;
 }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[15px] font-medium transition-colors
+    disabled={disabled}
+    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[15px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40
       ${variant === "danger"
         ? "text-[#F04438] hover:bg-[#F04438]/10"
         : isDark

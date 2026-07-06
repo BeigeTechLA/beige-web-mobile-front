@@ -113,8 +113,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     permissions: state.auth.permissions,
     permissionsVersion: state.auth.permissionsVersion,
   }));
-  const isSuperAdmin = isSuperAdminUser(user);
-
   const initialPath = useRef(pathname);
 
   const [mounted, setMounted] = useState(false);
@@ -251,11 +249,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2" key={`admin-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
-            if (item.name === "Roles & Permissions") {
-              if (!isSuperAdmin) return null;
-            } else if (item.permissionKeys && item.permissionKeys.length > 0) {
+            if (item.name === "Roles & Permissions" && !isSuperAdminUser(user)) {
+              return null;
+            }
+
+            if (item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");
-              if (!canView && !isSuperAdmin) return null;
+              if (!canView) return null;
             }
 
             const hasChildren = item.children && item.children.length > 0;

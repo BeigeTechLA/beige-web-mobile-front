@@ -588,17 +588,21 @@ export default function LeadDetailPage() {
                   Client Details
                 </h2>
                 <div className="flex gap-3">
-                  {!lead?.booking_id && canCreate ? (
+                  {!lead?.booking_id ? (
                     <Button
                       onClick={() => router.push(`/sales/client/${leadId}/create-booking`)}
-                      className={`h-10 font-semibold flex items-center px-5 rounded-lg text-sm transition-all bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] `}
+                      disabled={!canCreate}
+                      title={canCreate ? "Create Booking" : "Create permission not allowed"}
+                      className={`h-10 font-semibold flex items-center px-5 rounded-lg text-sm transition-all bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] disabled:cursor-not-allowed disabled:opacity-50 `}
                     >
                       Create Booking
                     </Button>
                   ) : !isQuoteConvertedLead ? (
                     <Button
                       onClick={() => router.push(`/sales/client/${leadId}/edit-details`)}
-                      className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
+                      disabled={!canManageSalesRep}
+                      title={canManageSalesRep ? "Edit Details" : "Edit permission not allowed"}
+                      className={`h-10 border px-5 rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isDark
                     ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
                     : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
                     }`}
@@ -607,8 +611,13 @@ export default function LeadDetailPage() {
                     </Button>
                   ) : null}
                   <Button
-                    onClick={() => setIsIntentModalOpen(true)}
-                    className={`h-10 bg-zinc-800 border border-white/10 hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all ${isDark ? "text-[#E8D1AB]":"text-white"}`}
+                    onClick={() => {
+                      if (!canManageSalesRep) return;
+                      setIsIntentModalOpen(true);
+                    }}
+                    disabled={!canManageSalesRep}
+                    title={canManageSalesRep ? "Update Intent" : "Edit permission not allowed"}
+                    className={`h-10 bg-zinc-800 border border-white/10 hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-[#E8D1AB]":"text-white"}`}
                   >
                     Update Intent
                   </Button>
@@ -782,8 +791,13 @@ export default function LeadDetailPage() {
                   </div>
 
                   <Button
-                    className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                    onClick={() => router.push(`/sales/client/${leadId}/select-creatives`)}
+                    className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    onClick={() => {
+                      if (!canManageSalesRep) return;
+                      router.push(`/sales/client/${leadId}/select-creatives`);
+                    }}
+                    disabled={!canManageSalesRep}
+                    title={canManageSalesRep ? "Add More CPs" : "Edit permission not allowed"}
                   >
                     <Plus size={18} /> Add More CPs
                   </Button>
@@ -893,8 +907,13 @@ export default function LeadDetailPage() {
                 </h2>
                 {!isQuoteConvertedLead && (
                   <Button
-                    onClick={() => router.push(`/sales/client/${params.id}/edit-details`)}
-                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    onClick={() => {
+                      if (!canManageSalesRep) return;
+                      router.push(`/sales/client/${params.id}/edit-details`);
+                    }}
+                    disabled={!canManageSalesRep}
+                    title={canManageSalesRep ? "Edit Details" : "Edit permission not allowed"}
+                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                   >
                     Edit Details
                   </Button>

@@ -233,7 +233,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
                   onRequestAssignment={handleAssignmentRequest}
                 />
               </div>
-              <MeetingSchedule role={effectiveRole} orderId={id} />
+              <MeetingSchedule role={effectiveRole} orderId={id} createPermissionModuleKey="shoots" />
             </>
           )}
 
@@ -247,7 +247,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
 
           {activeTab === "Meetings" && (
             <>
-              <MeetingSchedule role={effectiveRole} orderId={id} />
+              <MeetingSchedule role={effectiveRole} orderId={id} createPermissionModuleKey="shoots" />
               <MeetingOverviewChart />
             </>
           )}

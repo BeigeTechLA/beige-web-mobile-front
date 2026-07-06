@@ -593,17 +593,17 @@ export default function AdminFinancesPage() {
         pathname={pathname}
         actions={
           <div className="flex items-center gap-3">
-             {canCreate && (
              <Button
               type="button"
               variant="beige"
               className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
               onClick={() => setIsAddCreditModalOpen(true)}
+              disabled={!canCreate}
+              title={canCreate ? "Add Credit Points" : "Create permission not allowed"}
             >
               <Plus size={18} />
               Add Credit Points
             </Button>
-             )}
             {/* <Button
               type="button"
               className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "

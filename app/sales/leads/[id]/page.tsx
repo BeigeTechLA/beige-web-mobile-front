@@ -75,6 +75,7 @@ import {
 import { persistQuoteEditorEditReason, type QuoteEditorView } from "@/lib/quoteEdit";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 // Swiper imports
@@ -300,6 +301,10 @@ export default function SalesLeadDetailsPage() {
     "view",
     "/sales/dashboard",
   );
+  const { canEdit: canManageSalesRepEdit } = usePermissions("sales_representative");
+  const { canCreate: canCreateShoot } = usePermissions("shoots");
+  const { canEdit: canManageQuotesEdit } = usePermissions("quotes");
+  const paymentActionsReadOnly = !canManageQuotesEdit;
 
   const [discount, setDiscount] = useState("");
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
@@ -1458,8 +1463,13 @@ export default function SalesLeadDetailsPage() {
                   Client Details
                 </h2>
                 <Button
-                  onClick={() => setIsIntentModalOpen(true)}
-                  className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
+                  onClick={() => {
+                    if (!canManageSalesRepEdit) return;
+                    setIsIntentModalOpen(true);
+                  }}
+                  disabled={!canManageSalesRepEdit}
+                  title={canManageSalesRepEdit ? "Update Intent" : "Edit permission not allowed"}
+                  className={`h-10 border px-5 rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isDark
                     ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
                     : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
                     }`}
@@ -1643,8 +1653,13 @@ export default function SalesLeadDetailsPage() {
                   </div>
 
                   <Button
-                    className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                      onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
+                    className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    onClick={() => {
+                      if (!canManageSalesRepEdit) return;
+                      router.push(`/sales/select-creatives?id=${leadId}`);
+                    }}
+                    disabled={!canManageSalesRepEdit}
+                    title={canManageSalesRepEdit ? "Add More CPs" : "Edit permission not allowed"}
                   >
                     <Plus size={18} /> Add More CPs
                   </Button>
@@ -1755,7 +1770,12 @@ export default function SalesLeadDetailsPage() {
                 {!isQuoteConvertedLead && (
                   <div className="group relative inline-flex">
                     <Button
-                      onClick={() => router.push(`/sales/client/${params.id}/edit-booking`)}
+                      onClick={() => {
+                        if (!canManageSalesRepEdit) return;
+                        router.push(`/sales/client/${params.id}/edit-booking`);
+                      }}
+                      disabled={!canManageSalesRepEdit}
+                      title={canManageSalesRepEdit ? "Edit Details" : "Edit permission not allowed"}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                     >
                       Edit Details
@@ -1765,8 +1785,12 @@ export default function SalesLeadDetailsPage() {
                 {isQuoteConvertedLead && (
                   <div className="group relative inline-flex">
                     <Button
-                      onClick={() => setIsConvertedBookingEditModalOpen(true)}
-                      disabled={!convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      onClick={() => {
+                        if (!canManageSalesRepEdit || !convertedBookingInitialValues || isUpdatingConvertedBooking) return;
+                        setIsConvertedBookingEditModalOpen(true);
+                      }}
+                      disabled={!canManageSalesRepEdit || !convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      title={canManageSalesRepEdit ? "Edit Details" : "Edit permission not allowed"}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                     >
                       Edit Details
@@ -2157,8 +2181,16 @@ export default function SalesLeadDetailsPage() {
                 <Button
                   className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
-                  disabled={isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
-                  title={isDiscountLockedByQuote ? quoteDiscountLockMessage : discountAmount > 0 ? "Discount already applied" : undefined}
+                  disabled={isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0 || !canManageQuotesEdit}
+                  title={
+                    !canManageQuotesEdit
+                      ? "Edit permission not allowed"
+                      : isDiscountLockedByQuote
+                        ? quoteDiscountLockMessage
+                        : discountAmount > 0
+                          ? "Discount already applied"
+                          : undefined
+                  }
                 >
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
@@ -2225,6 +2257,8 @@ export default function SalesLeadDetailsPage() {
               discountLockedMessage={quoteDiscountLockMessage}
               bookingStatus={status}
               isDark={isDark}
+              isReadOnly={paymentActionsReadOnly}
+              readOnlyMessage="Payment actions are disabled for this role."
               activeLink={lead?.active_payment_link}
               additionalPaymentStatus={rawAdditionalPayment?.payment_status}
               additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
@@ -2273,11 +2307,11 @@ export default function SalesLeadDetailsPage() {
                           key={type}
                           type="button"
                           onClick={() => setManualPaymentType(type)}
-                          disabled={effectiveManualPaymentSummary.hasFullPayment}
+                          disabled={effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit}
                           className={`h-10 rounded-lg border text-sm font-medium transition-colors ${manualPaymentType === type
                             ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#E8D1AB] bg-[#FFF3D6] text-black")
                             : (isDark ? "border-white/20 text-white/70 hover:border-white/40" : "border-[#D8D8D8] text-black/70 hover:border-[#BFA780]")
-                            } ${effectiveManualPaymentSummary.hasFullPayment ? "opacity-50 cursor-not-allowed" : ""}`}
+                            } ${(effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit) ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           {type === "full" ? "Full Payment" : "Partial Payment"}
                         </button>
@@ -2307,7 +2341,7 @@ export default function SalesLeadDetailsPage() {
                           setManualPaymentAmount(nextValue);
                         }}
                         placeholder={`Enter amount (max ${formatCurrencyValue(effectiveManualPaymentSummary.pendingAmount)})`}
-                        disabled={effectiveManualPaymentSummary.hasFullPayment}
+                        disabled={effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit}
                         className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                       />
                     )}
@@ -2322,7 +2356,7 @@ export default function SalesLeadDetailsPage() {
                           setManualPaymentAmount("");
                         }
                       }}
-                      disabled={effectiveManualPaymentSummary.hasFullPayment}
+                      disabled={effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit}
                     >
                       <SelectTrigger
                         className={`h-11 rounded-lg border px-3 text-sm ${
@@ -2358,7 +2392,7 @@ export default function SalesLeadDetailsPage() {
                         value={manualPaymentOtherMode}
                         onChange={(event) => setManualPaymentOtherMode(event.target.value)}
                         placeholder="Enter payment mode"
-                        disabled={effectiveManualPaymentSummary.hasFullPayment}
+                        disabled={effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit}
                         className={`h-11 rounded-lg border px-3 text-sm bg-transparent outline-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                       />
                     )}
@@ -2368,7 +2402,7 @@ export default function SalesLeadDetailsPage() {
                         Proof Upload (Required)
                       </label>
                       <div className="flex items-center gap-2">
-                        <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${isDark ? "border-white/20 hover:bg-white/5" : "border-[#D8D8D8] hover:bg-black/[0.03]"}`}>
+                        <label className={`inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm ${isDark ? "border-white/20 hover:bg-white/5" : "border-[#D8D8D8] hover:bg-black/[0.03]"} ${!canManageQuotesEdit ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
                           <ArrowUpToLine size={14} />
                           {isUploadingManualProof ? "Uploading..." : "Choose File"}
                           <input
@@ -2379,7 +2413,7 @@ export default function SalesLeadDetailsPage() {
                               const file = event.target.files?.[0] || null;
                               void handleManualProofUpload(file);
                             }}
-                            disabled={isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment}
+                            disabled={isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit}
                           />
                         </label>
                         {isUploadingManualProof ? (
@@ -2396,13 +2430,13 @@ export default function SalesLeadDetailsPage() {
                       onChange={(event) => setManualPaymentNotes(event.target.value)}
                       placeholder="Notes (optional)"
                       rows={3}
-                      disabled={effectiveManualPaymentSummary.hasFullPayment}
+                      disabled={effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit}
                       className={`rounded-lg border p-3 text-sm bg-transparent outline-none resize-none ${isDark ? "border-white/20 text-white placeholder:text-white/35" : "border-[#D8D8D8] text-black placeholder:text-black/35"}`}
                     />
 
                     <Button
                       onClick={handleManualPaymentSubmit}
-                      disabled={isSubmittingManualPayment || isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment}
+                      disabled={isSubmittingManualPayment || isUploadingManualProof || effectiveManualPaymentSummary.hasFullPayment || !canManageQuotesEdit}
                       className={`h-11 text-sm font-semibold ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
                     >
                       {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
@@ -2561,15 +2595,18 @@ export default function SalesLeadDetailsPage() {
                       <div className="group relative inline-flex">
                         <Button
                           type="button"
-                          onClick={handleEditQuoteRedirect}
-                          disabled={!canEditQuote}
+                          onClick={() => {
+                            if (!canManageQuotesEdit || !canEditQuote) return;
+                            handleEditQuoteRedirect();
+                          }}
+                          disabled={!canManageQuotesEdit || !canEditQuote}
+                          title={!canManageQuotesEdit ? "Edit permission not allowed" : "Edit Quote"}
                           className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
                             isDark
                               ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
                               : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
-                          } ${!canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                          } ${!canManageQuotesEdit || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
                           aria-label="Edit Quote"
-                          title="Edit Quote"
                         >
                           <Edit2 size={14} />
                         </Button>

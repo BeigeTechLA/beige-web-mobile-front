@@ -43,13 +43,24 @@ export default function QuotesEmptyState({ createHref }: QuotesEmptyStateProps) 
           Quotes you create will appear here and can be shared directly with clients.
         </p>
 
-        {canCreate && (
-          <Link href={createHref} className="mt-8">
-            <Button className="h-14 rounded-xl bg-[#E5D5B8] px-8 text-lg font-semibold text-black shadow-[0_18px_40px_rgba(229,213,184,0.18)] hover:bg-[#d4c3a3]">
-              Create New Quote
-            </Button>
-          </Link>
-        )}
+        <Link
+          href={canCreate ? createHref : "#"}
+          aria-disabled={!canCreate}
+          tabIndex={canCreate ? 0 : -1}
+          className="mt-8"
+          onClick={(event) => {
+            if (canCreate) return;
+            event.preventDefault();
+          }}
+        >
+          <Button
+            disabled={!canCreate}
+            title={canCreate ? "Create New Quote" : "Create permission not allowed"}
+            className="h-14 rounded-xl bg-[#E5D5B8] px-8 text-lg font-semibold text-black shadow-[0_18px_40px_rgba(229,213,184,0.18)] hover:bg-[#d4c3a3]"
+          >
+            Create New Quote
+          </Button>
+        </Link>
       </div>
     </div>
   );

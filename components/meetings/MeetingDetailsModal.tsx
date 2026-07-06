@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { DatePicker, datePickerColours } from "@/components/ui/Datepicker";
+import { DatePicker } from "@/components/ui/Datepicker";
 import { TimePicker } from "@/components/ui/Timepicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DeleteMeetingConfirmModal from "@/components/meetings/DeleteMeetingConfirmModal";
@@ -184,15 +184,16 @@ export default function MeetingDetailsModal({
   const effectiveStatus = getEffectiveMeetingStatus(meetingData);
   const isCompleted = effectiveStatus === "completed";
   const isCancelled = String(effectiveStatus || "").toLowerCase() === "cancelled";
-  const { canEdit: canEditByPermission } = usePermissions("meetings");
-  const canManageParticipants = true;
+  const { canEdit: canEditByPermission, canDelete: canDeleteByPermission } = usePermissions("meetings");
+  const canManageMeeting = role === "admin";
+  const canManageParticipants = canManageMeeting && canEditByPermission;
   const createdById = resolveId(meetingData?.created_by?.id);
   const isClientCreatedBySelf =
     role === "client" &&
     !!currentUserId &&
     !!createdById &&
     String(createdById) === String(currentUserId);
-  const canDeleteMeeting = !!meetingData?.id && !isClientCreatedBySelf;
+  const canDeleteMeeting = canManageMeeting && canDeleteByPermission && !!meetingData?.id;
   const meetingStartMs = meetingData?.meeting_date_time ? new Date(meetingData.meeting_date_time).getTime() : NaN;
   const meetingStartValid = Number.isFinite(meetingStartMs);
   const editCutoffMs = meetingStartValid ? meetingStartMs - 60 * 60 * 1000 : NaN;
@@ -210,6 +211,7 @@ export default function MeetingDetailsModal({
   });
   const minimumEditStartTime = getMinimumSelectableMeetingTime(1);
   const canAdminEditOrReschedule =
+    canManageMeeting &&
     canEditByPermission &&
     !!meetingData?.id &&
     !isCompleted &&
@@ -329,6 +331,7 @@ export default function MeetingDetailsModal({
   };
 
   const handleAddParticipants = async () => {
+    if (!canManageParticipants) return;
     if (!meetingData.id || selectedUsers.length === 0) {
       toast.error("Select at least one participant");
       return;
@@ -352,6 +355,7 @@ export default function MeetingDetailsModal({
   };
 
   const handleRemoveParticipant = async (userId: string, participantRole: string) => {
+    if (!canManageParticipants) return;
     if (!meetingData.id || !userId) return;
 
     const roleMap: Record<string, "cp" | "admin" | "participant" | "client"> = {
@@ -392,7 +396,7 @@ export default function MeetingDetailsModal({
   };
 
   const handleDeleteMeeting = async () => {
-    if (!meetingData.id) return;
+    if (!meetingData.id || !canDeleteMeeting) return;
 
     setSubmitting(true);
     try {
@@ -567,18 +571,19 @@ export default function MeetingDetailsModal({
                   Refresh
                 </Button>
 
-                {canDeleteMeeting ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDeleteConfirmOpen(true)}
-                    disabled={submitting}
-                    className="border-[#FFFFFF33] bg-[#FFC3C3] text-[#BD1010] hover:bg-rose-500/20 text-xs lg:text-sm h-9 lg:h-10 flex-1 lg:flex-none justify-center gap-1.5"
-                  >
-                    <Trash2 size={16} />
-                    Delete
-                  </Button>
-                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (!canDeleteMeeting || submitting) return;
+                    setIsDeleteConfirmOpen(true);
+                  }}
+                  disabled={!canDeleteMeeting || submitting}
+                  className="border-[#FFFFFF33] bg-[#FFC3C3] text-[#BD1010] hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40 text-xs lg:text-sm h-9 lg:h-10 flex-1 lg:flex-none justify-center gap-1.5"
+                >
+                  <Trash2 size={16} />
+                  Delete
+                </Button>
               </div>
 
               {/* Admin Configuration Board */}
@@ -792,21 +797,20 @@ export default function MeetingDetailsModal({
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                      {removable ? (
-                        <button
-                          type="button"
-                          disabled={submitting}
-                          onClick={() =>
-                            handleRemoveParticipant(
-                              String(participant?.id || ""),
-                              String(participant?.role || "participant")
-                            )
-                          }
-                          className="rounded-lg lg:rounded-xl border border-[#FFFFFF33] bg-[#FFC3C3] p-2 text-[#BD1010] transition-colors hover:bg-rose-500/20 flex items-center justify-center"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        disabled={!removable || submitting}
+                        onClick={() => {
+                          if (!removable || submitting) return;
+                          handleRemoveParticipant(
+                            String(participant?.id || ""),
+                            String(participant?.role || "participant")
+                          );
+                        }}
+                        className="rounded-lg lg:rounded-xl border border-[#FFFFFF33] bg-[#FFC3C3] p-2 text-[#BD1010] transition-colors hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
                 );
@@ -814,83 +818,104 @@ export default function MeetingDetailsModal({
             </div>
 
             {/* Directory Search Section */}
-            {canManageParticipants ? (
-              <div className={`mt-3 lg:mt-6 rounded-xl lg:rounded-2xl border p-3 lg:p-4 ${isDark ? "border-white/10 bg-black" : "border-[#e3e3e3] bg-white"}`}>
+            <div className={`mt-3 lg:mt-6 rounded-xl lg:rounded-2xl border p-3 lg:p-4 ${isDark ? "border-white/10 bg-black" : "border-[#e3e3e3] bg-white"}`}>
+              <div className="flex items-center justify-between gap-3">
                 <p className={`text-xs lg:text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>Add Participants</p>
-                <div className="mt-2 lg:mt-4 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAddRole("cp")}
-                    className={`rounded-lg lg:rounded-xl border px-3 py-2 text-xs lg:text-sm transition-colors flex-1 text-center ${addRole === "cp" ? (isDark ? "border-[#E5D5B8] bg-[#1B1812] text-white" : "border-[#BCA374] bg-[#E8D1AB]/30 text-black") : (isDark ? "border-white/10 bg-[#0f0f0f] text-white/60" : "border-[#e3e3e3] bg-white text-[#171717B2] hover:bg-[#F4F5F7]")}`}
-                  >
-                    Creative Partners
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAddRole("manager")}
-                    className={`rounded-lg lg:rounded-xl border px-3 py-2 text-xs lg:text-sm transition-colors flex-1 text-center ${addRole === "manager" ? (isDark ? "border-[#E5D5B8] bg-[#1B1812] text-white" : "border-[#BCA374] bg-[#E8D1AB]/30 text-black") : (isDark ? "border-white/10 bg-[#0f0f0f] text-white/60" : "border-[#e3e3e3] bg-white text-[#171717B2] hover:bg-[#F4F5F7]")}`}
-                  >
-                    Staff
-                  </button>
-                </div>
-
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search users..."
-                  className={`mt-2 lg:mt-4 h-10 text-xs lg:text-sm rounded-lg lg:rounded-xl ${isDark ? "border-white/10 bg-[#0f0f0f] text-white placeholder:text-white/30" : "border-[#D7D7D7] bg-white text-black placeholder:text-[#766A6A]"}`}
-                />
-
-                <div className="mt-2 lg:mt-4 max-h-48 lg:max-h-56 space-y-2 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
-                  {directoryLoading ? (
-                    <div className={`flex items-center gap-2 text-xs lg:text-sm py-2 ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
-                      <Loader2 size={14} className="animate-spin" />
-                      Loading users...
-                    </div>
-                  ) : availableUsers.length === 0 ? (
-                    <p className={`text-xs lg:text-sm py-2 ${isDark ? "text-white/40" : "text-[#766A6A]"}`}>No available users found.</p>
-                  ) : (
-                    availableUsers.map((user) => {
-                      const userId = String(user.id || "");
-                      const selected = selectedUsers.includes(userId);
-
-                      return (
-                        <button
-                          key={userId}
-                          type="button"
-                          onClick={() =>
-                            setSelectedUsers((current) =>
-                              selected
-                                ? current.filter((value) => value !== userId)
-                                : [...current, userId]
-                            )
-                          }
-                          className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors ${selected ? (isDark ? "border-[#E5D5B8] bg-[#1B1812]" : "border-[#BCA374] bg-[#FFFDF9]") : (isDark ? "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]" : "border-[#e3e3e3] bg-white hover:bg-[#F4F5F7]")}`}
-                        >
-                          <div className="min-w-0">
-                            <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{user.name || user.email || "User"}</p>
-                            <p className={`truncate text-[11px] ${isDark ? "text-white/40" : "text-[#171717B2]"}`}>{user.email || user.role || ""}</p>
-                          </div>
-                          <div className="shrink-0">
-                            {selected ? <Check size={16} className="text-[#E5D5B8]" /> : <Plus size={14} className="opacity-40" />}
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={handleAddParticipants}
-                  disabled={submitting || selectedUsers.length === 0}
-                  className="mt-4 w-full bg-[#E5D5B8] text-black hover:bg-[#d9c5a0] text-xs lg:text-sm h-10 flex justify-center gap-1.5"
-                >
-                  {submitting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                  Add Selected Participants
-                </Button>
+                {!canManageParticipants ? (
+                  <span className={`text-[10px] lg:text-xs ${isDark ? "text-white/45" : "text-[#766A6A]"}`}>
+                    View only access
+                  </span>
+                ) : null}
               </div>
-            ) : null}
+
+              <div className="mt-2 lg:mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!canManageParticipants) return;
+                    setAddRole("cp");
+                  }}
+                  disabled={!canManageParticipants}
+                  className={`rounded-lg lg:rounded-xl border px-3 py-2 text-xs lg:text-sm transition-colors flex-1 text-center disabled:cursor-not-allowed disabled:opacity-40 ${addRole === "cp" ? (isDark ? "border-[#E5D5B8] bg-[#1B1812] text-white" : "border-[#BCA374] bg-[#E8D1AB]/30 text-black") : (isDark ? "border-white/10 bg-[#0f0f0f] text-white/60" : "border-[#e3e3e3] bg-white text-[#171717B2] hover:bg-[#F4F5F7]")}`}
+                >
+                  Creative Partners
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!canManageParticipants) return;
+                    setAddRole("manager");
+                  }}
+                  disabled={!canManageParticipants}
+                  className={`rounded-lg lg:rounded-xl border px-3 py-2 text-xs lg:text-sm transition-colors flex-1 text-center disabled:cursor-not-allowed disabled:opacity-40 ${addRole === "manager" ? (isDark ? "border-[#E5D5B8] bg-[#1B1812] text-white" : "border-[#BCA374] bg-[#E8D1AB]/30 text-black") : (isDark ? "border-white/10 bg-[#0f0f0f] text-white/60" : "border-[#e3e3e3] bg-white text-[#171717B2] hover:bg-[#F4F5F7]")}`}
+                >
+                  Staff
+                </button>
+              </div>
+
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search users..."
+                disabled={!canManageParticipants}
+                className={`mt-2 lg:mt-4 h-10 text-xs lg:text-sm rounded-lg lg:rounded-xl disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "border-white/10 bg-[#0f0f0f] text-white placeholder:text-white/30" : "border-[#D7D7D7] bg-white text-black placeholder:text-[#766A6A]"}`}
+              />
+
+              <div className="mt-2 lg:mt-4 max-h-48 lg:max-h-56 space-y-2 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+                {!canManageParticipants ? (
+                  <p className={`text-xs lg:text-sm py-2 ${isDark ? "text-white/40" : "text-[#766A6A]"}`}>
+                    Participant management is disabled for this role.
+                  </p>
+                ) : directoryLoading ? (
+                  <div className={`flex items-center gap-2 text-xs lg:text-sm py-2 ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
+                    <Loader2 size={14} className="animate-spin" />
+                    Loading users...
+                  </div>
+                ) : availableUsers.length === 0 ? (
+                  <p className={`text-xs lg:text-sm py-2 ${isDark ? "text-white/40" : "text-[#766A6A]"}`}>No available users found.</p>
+                ) : (
+                  availableUsers.map((user) => {
+                    const userId = String(user.id || "");
+                    const selected = selectedUsers.includes(userId);
+
+                    return (
+                      <button
+                        key={userId}
+                        type="button"
+                        onClick={() => {
+                          if (!canManageParticipants) return;
+                          setSelectedUsers((current) =>
+                            selected
+                              ? current.filter((value) => value !== userId)
+                              : [...current, userId]
+                          );
+                        }}
+                        disabled={!canManageParticipants}
+                        className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${selected ? (isDark ? "border-[#E5D5B8] bg-[#1B1812]" : "border-[#BCA374] bg-[#FFFDF9]") : (isDark ? "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]" : "border-[#e3e3e3] bg-white hover:bg-[#F4F5F7]")}`}
+                      >
+                        <div className="min-w-0">
+                          <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{user.name || user.email || "User"}</p>
+                          <p className={`truncate text-[11px] ${isDark ? "text-white/40" : "text-[#171717B2]"}`}>{user.email || user.role || ""}</p>
+                        </div>
+                        <div className="shrink-0">
+                          {selected ? <Check size={16} className="text-[#E5D5B8]" /> : <Plus size={14} className="opacity-40" />}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleAddParticipants}
+                disabled={!canManageParticipants || submitting || selectedUsers.length === 0}
+                className="mt-4 w-full bg-[#E5D5B8] text-black hover:bg-[#d9c5a0] disabled:cursor-not-allowed disabled:opacity-40 text-xs lg:text-sm h-10 flex justify-center gap-1.5"
+              >
+                {submitting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                Add Selected Participants
+              </Button>
+            </div>
           </div>
 
         </div>

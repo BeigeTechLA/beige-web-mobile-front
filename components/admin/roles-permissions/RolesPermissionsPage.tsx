@@ -31,8 +31,6 @@ const CARD_TONES = [
   "bg-[#F3E8C6] text-[#161616]",
 ];
 
-const SUPER_ADMIN_ROLE_ID = 8;
-
 const getInitials = (value: string) =>
   value
     .split(" ")
@@ -60,13 +58,6 @@ const formatDateTime = (value?: string | null) => {
 
 const sortRolesForDisplay = (inputRoles: AdminRoleRecord[]) =>
   [...inputRoles].sort((a, b) => {
-    const aIsSuperAdmin = Number(a.role_id) === SUPER_ADMIN_ROLE_ID;
-    const bIsSuperAdmin = Number(b.role_id) === SUPER_ADMIN_ROLE_ID;
-
-    if (aIsSuperAdmin !== bIsSuperAdmin) {
-      return aIsSuperAdmin ? -1 : 1;
-    }
-
     return 0;
   });
 
@@ -350,13 +341,10 @@ export function RolesPermissionsPage({
                   key={card.id}
                   card={card}
                   isDark={isDark}
-                  onEdit={
-                    canEdit && Number(card.id) !== SUPER_ADMIN_ROLE_ID
-                      ? (id) => {
-                          router.push(`/admin/roles-permissions/edit-details?role_id=${id}`);
-                        }
-                      : undefined
-                  }
+                  onEdit={(id) => {
+                    router.push(`/admin/roles-permissions/edit-details?role_id=${id}`);
+                  }}
+                  editDisabled={!canEdit}
                   onViewUsers={
                     (id) => {
                       const role = roles.find((item) => String(item.role_id) === String(id));

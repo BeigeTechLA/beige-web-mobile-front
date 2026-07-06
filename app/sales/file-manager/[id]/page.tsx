@@ -160,14 +160,13 @@ export default function SalesFolderDetailsPage() {
       <Topbar
         pathname={pathname}
         actions={
-          canCreate ? (
           <Button
+            disabled={!canCreate}
             onClick={() => setIsUploadModalOpen(true)}
-            className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
+            className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors disabled:cursor-not-allowed disabled:opacity-40 "
           >
             <Upload /> Upload Files
           </Button>
-          ) : null
         }
       />
 

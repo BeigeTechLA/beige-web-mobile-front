@@ -647,14 +647,14 @@ export const CreativePartnersTable = () => {
                       <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                         {user.status === 'Approved' && (
                           <>
-                            {canDelete && (
-                              <button
-                                onClick={(e) => handleDeleteClick(user.id, e)}
-                                className="hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              disabled={!canDelete}
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className="hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
@@ -662,30 +662,30 @@ export const CreativePartnersTable = () => {
                         )}
                         {user.status === 'Pending' && (
                           <>
-                            {canDelete && (
-                              <button
-                                onClick={(e) => handleDeleteClick(user.id, e)}
-                                className="hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
-                            {canEdit && (
-                              <>
-                                <button
-                                  onClick={(e) => handleApprove(user.id, e)}
-                                  className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={(e) => handleDecline(user.id, e)}
-                                  className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2"
-                                >
-                                  Decline
-                                </button>
-                              </>
-                            )}
+                            <button
+                              type="button"
+                              disabled={!canDelete}
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className="hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!canEdit}
+                              onClick={(e) => handleApprove(user.id, e)}
+                              className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!canEdit}
+                              onClick={(e) => handleDecline(user.id, e)}
+                              className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Decline
+                            </button>
                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
@@ -693,14 +693,14 @@ export const CreativePartnersTable = () => {
                         )}
                         {user.status === 'Rejected' && (
                           <>
-                            {canDelete && (
-                              <button
-                                onClick={(e) => handleDeleteClick(user.id, e)}
-                                className="text-[#E0E0E0] hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              disabled={!canDelete}
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className="text-[#E0E0E0] hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
@@ -792,25 +792,29 @@ export const CreativePartnersTable = () => {
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
                           <div className="flex gap-2">
-                            {canDelete && (
-                              <button
-                                onClick={(e) => handleDeleteClick(user.id, e)}
-                                className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
-                            {user.status === 'Pending' && canEdit && (
+                            <button
+                              type="button"
+                              disabled={!canDelete}
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                            {user.status === 'Pending' && (
                               <>
                                 <button
+                                  type="button"
+                                  disabled={!canEdit}
                                   onClick={(e) => handleDecline(user.id, e)}
-                                  className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors"
+                                  className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   Decline
                                 </button>
                                 <button
+                                  type="button"
+                                  disabled={!canEdit}
                                   onClick={(e) => handleApprove(user.id, e)}
-                                  className="px-4 py-2 bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold rounded-lg hover:bg-[#22C55E]/20 transition-colors border border-[#22C55E]/20"
+                                  className="px-4 py-2 bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold rounded-lg hover:bg-[#22C55E]/20 transition-colors border border-[#22C55E]/20 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   Approve
                                 </button>

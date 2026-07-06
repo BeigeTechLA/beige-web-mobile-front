@@ -504,30 +504,26 @@ export default function SalesFileManagerPhasePage() {
         pathname={pathname}
         actions={
           <>
-            {isPreProduction && canCreate ? (
-              <>
-                <Button
-                  onClick={() => {
-                    if (selectionLockActive) return;
-                    setIsUploadModalOpen(true);
-                  }}
-                  disabled={selectionLockActive}
-                  className="bg-[#202020] border border-white/20 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <Upload /> Upload Files
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (selectionLockActive) return;
-                    setIsCreateFolderModalOpen(true);
-                  }}
-                  disabled={selectionLockActive}
-                  className="bg-[#E5D5B8] text-black disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Create Folder
-                </Button>
-              </>
-            ) : null}
+            <Button
+              onClick={() => {
+                if (selectionLockActive || !isPreProduction || !canCreate) return;
+                setIsUploadModalOpen(true);
+              }}
+              disabled={selectionLockActive || !isPreProduction || !canCreate}
+              className="bg-[#202020] border border-white/20 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Upload /> Upload Files
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectionLockActive || !isPreProduction || !canCreate) return;
+                setIsCreateFolderModalOpen(true);
+              }}
+              disabled={selectionLockActive || !isPreProduction || !canCreate}
+              className="bg-[#E5D5B8] text-black disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Create Folder
+            </Button>
           </>
         }
       />
@@ -834,10 +830,14 @@ export default function SalesFileManagerPhasePage() {
                       <div>
                         <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
                         {filteredFiles.length === 0 ? (
-                          <EmptyFileState
-                            onAction={isPreProduction && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                            actionLabel={isPreProduction && !selectionLockActive ? "Upload Files" : undefined}
-                          />
+                            <EmptyFileState
+                              onAction={() => {
+                                if (selectionLockActive || !isPreProduction || !canCreate) return;
+                                setIsUploadModalOpen(true);
+                              }}
+                              actionLabel="Upload Files"
+                              actionDisabled={selectionLockActive || !isPreProduction || !canCreate}
+                            />
                         ) : (
                           <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
@@ -943,8 +943,12 @@ export default function SalesFileManagerPhasePage() {
                         <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
                         {filteredFiles.length === 0 ? (
                           <EmptyFileState
-                            onAction={isPreProduction && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                            actionLabel={isPreProduction && !selectionLockActive ? "Upload Files" : undefined}
+                            onAction={() => {
+                              if (selectionLockActive || !isPreProduction || !canCreate) return;
+                              setIsUploadModalOpen(true);
+                            }}
+                            actionLabel="Upload Files"
+                            actionDisabled={selectionLockActive || !isPreProduction || !canCreate}
                           />
                         ) : (
                           <div className="space-y-4">
@@ -1057,8 +1061,12 @@ export default function SalesFileManagerPhasePage() {
               ) : viewMode === "grid" ? (
                 filteredFiles.length === 0 ? (
                           <EmptyFileState
-                            onAction={isPreProduction && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                            actionLabel={isPreProduction && !selectionLockActive ? "Upload Files" : undefined}
+                            onAction={() => {
+                              if (selectionLockActive || !isPreProduction || !canCreate) return;
+                              setIsUploadModalOpen(true);
+                            }}
+                            actionLabel="Upload Files"
+                            actionDisabled={selectionLockActive || !isPreProduction || !canCreate}
                           />
                 ) : (
                   <div className="space-y-4">
@@ -1096,8 +1104,12 @@ export default function SalesFileManagerPhasePage() {
               ) : (
                 filteredFiles.length === 0 ? (
                   <EmptyFileState
-                    onAction={isPreProduction && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                    actionLabel={isPreProduction && !selectionLockActive ? "Upload Files" : undefined}
+                    onAction={() => {
+                      if (selectionLockActive || !isPreProduction || !canCreate) return;
+                      setIsUploadModalOpen(true);
+                    }}
+                    actionLabel="Upload Files"
+                    actionDisabled={selectionLockActive || !isPreProduction || !canCreate}
                   />
                 ) : (
                   <div className="space-y-4">
@@ -1335,31 +1347,30 @@ export default function SalesFileManagerPhasePage() {
           </div>
         )}
 
-        {isPreProduction && canCreate ? (
-          <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-            <Button
-              onClick={() => {
-                if (selectionLockActive) return;
-                setIsUploadModalOpen(true);
-              }}
-              disabled={selectionLockActive}
-              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Upload size={20} />
-              Upload Files
-            </Button>
-            <Button
-              onClick={() => {
-                if (selectionLockActive) return;
-                setIsCreateFolderModalOpen(true);
-              }}
-              disabled={selectionLockActive}
-              className="w-full bg-[#202020] text-white hover:bg-white/10 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Create Folder
-            </Button>
-          </div>
-        ) : null}
+        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+          <Button
+            onClick={() => {
+              if (selectionLockActive || !isPreProduction || !canCreate) return;
+              setIsUploadModalOpen(true);
+            }}
+            disabled={selectionLockActive || !isPreProduction || !canCreate}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Upload size={20} />
+            Upload Files
+          </Button>
+          <Button
+            onClick={() => {
+              if (selectionLockActive || !isPreProduction || !canCreate) return;
+              setIsCreateFolderModalOpen(true);
+            }}
+            disabled={selectionLockActive || !isPreProduction || !canCreate}
+            className="w-full bg-[#202020] text-white hover:bg-white/10 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Create Folder
+          </Button>
+        </div>
+
       </div>
     </>
   );

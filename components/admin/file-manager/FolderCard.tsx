@@ -42,6 +42,10 @@ interface FolderCardProps {
   onRename?: () => void;
   onShare?: () => void;
   onEditVisibility?: () => void;
+  downloadDisabled?: boolean;
+  deleteDisabled?: boolean;
+  shareDisabled?: boolean;
+  editVisibilityDisabled?: boolean;
   visibilityExpired?: boolean;
 }
 
@@ -61,6 +65,10 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   onRename,
   onShare,
   onEditVisibility,
+  downloadDisabled = false,
+  deleteDisabled = false,
+  shareDisabled = false,
+  editVisibilityDisabled = false,
   visibilityExpired = false
 }) => {
   const router = useRouter();
@@ -201,22 +209,26 @@ export const FolderCard: React.FC<FolderCardProps> = ({
 
       {/* Menu Overlay */}
       {showMenu && menuAnchor && (
-        <FileActionMenu
-          folderName={title}
-          isOpen={true}
-          onClose={() => setMenuAnchor(null)}
-          onOpenLinkModal={onOpenLinkModal}
-          anchor={menuAnchor}
-          href={href}
-          onOpen={onOpen}
-          onDownload={onDownload}
-          onShare={onShare}
-          onDelete={onDelete}
-          onRename={onRename}
-          onEditVisibility={onEditVisibility}
-          isDark={isDark}
-        />
-      )}
+          <FileActionMenu
+            folderName={title}
+            isOpen={true}
+            onClose={() => setMenuAnchor(null)}
+            onOpenLinkModal={onOpenLinkModal}
+            anchor={menuAnchor}
+            href={href}
+            onOpen={onOpen}
+            onDownload={onDownload}
+            onShare={onShare}
+            onDelete={onDelete}
+            onRename={onRename}
+            onEditVisibility={onEditVisibility}
+            downloadDisabled={downloadDisabled}
+            deleteDisabled={deleteDisabled}
+            shareDisabled={shareDisabled}
+            editVisibilityDisabled={editVisibilityDisabled}
+            isDark={isDark}
+          />
+        )}
     </div>
   );
 };

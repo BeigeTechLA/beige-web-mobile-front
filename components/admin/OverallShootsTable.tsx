@@ -377,14 +377,14 @@ export const OverallShootsTable = () => {
                     <div className="text-right">
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
                       <div className="flex justify-end gap-2 mt-1">
-                        {canDelete && (
                         <button
+                          type="button"
+                          disabled={!canDelete}
                           onClick={(e) => handleDeleteClick(e, shoot.id)}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
                         >
                           <Trash2 size={16} />
                         </button>
-                        )}
                         <button
                           onClick={() => handleRowClick(shoot.id)}
                           className="text-[#E5D5B8] text-sm font-medium">Details</button>
