@@ -113,6 +113,7 @@ export default function CreatorFileManagerPhasePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
@@ -529,6 +530,13 @@ export default function CreatorFileManagerPhasePage() {
     }
   };
 
+  const toggleDropdown = () => setIsOpen(!isOpen);
+
+  const handleViewChange = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    setIsOpen(false);
+  };
+
   const renderFilesTable = () => (
     <div className="space-y-4">
       <div className="hidden overflow-x-auto lg:block">
@@ -684,7 +692,7 @@ export default function CreatorFileManagerPhasePage() {
               router.back();
             }}
             disabled={selectionLockActive}
-            className="flex items-center gap-2 p-0 text-white transition-colors hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+            className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}
           >
             <ArrowLeft size={24} />
             <span className="text-sm font-medium">Back</span>
@@ -734,7 +742,7 @@ export default function CreatorFileManagerPhasePage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#C8E1FF] text-[#000] lg:h-21 lg:w-21 lg:rounded-2xl lg:text-[30px] lg:font-medium">
                   {getDisplayInitials(workspaceName)}
                 </div>
-                <div className="min-w-0 max-w-3xl flex-1 text-white">
+                <div className={`min-w-0 max-w-3xl flex-1 ${isDark ? "text-white" : "text-black"}`}>
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
                     <h1 className="break-words text-sm font-semibold leading-[32px] lg:text-2xl">
                       {workspaceName}
@@ -749,7 +757,7 @@ export default function CreatorFileManagerPhasePage() {
                     </span>
                   </div>
                   <p className="hidden text-sm text-[#D0D0D0] lg:block">
-                    <span className="text-[#AAA7A7]">Project Code: </span>
+                    <span className={isDark ? "text-[#AAA7A7]" : "text-gray-400"}>Project Code: </span>
                     {workspaceCode}
                   </p>
                   {/* {workspaceConsoleUrl ? (
@@ -784,13 +792,16 @@ export default function CreatorFileManagerPhasePage() {
                 </div>
               ) : null}
               <div className="mb-3 flex items-center justify-between gap-2 lg:mb-6">
-                <div className="relative max-w-xl flex-1">
-                  <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/40 lg:left-3 lg:h-4 lg:w-4" />
+                <div className={`relative flex w-full lg:max-w-xl items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"}`}>
+                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
                   <input
                     type="text"
-                    placeholder={viewState.kind === "folders" ? "Search folders..." : "Search files..."}
+                    placeholder="Search folder..."
                     value={searchTerm}
-                    className="w-full rounded-lg border border-white/10 bg-[#18181b] py-1.5 pl-6 pr-4 text-xs text-white placeholder:text-white/40 transition-all focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] lg:py-2 lg:pl-9 lg:text-sm"
+                    className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                      ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                      : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
+                      }`}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
@@ -813,25 +824,70 @@ export default function CreatorFileManagerPhasePage() {
                     </Button>
                   ) : null}
                   {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-                  <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
-                    <Button
-                      onClick={() => setViewMode("grid")}
-                      className={`rounded-l-lg px-5 py-2.5 transition-colors ${viewMode === "grid"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
-                        }`}
-                    >
-                      <Grid3X3 size={20} />
-                    </Button>
-                    <Button
-                      onClick={() => setViewMode("list")}
-                      className={`rounded-r-lg px-5 py-2.5 transition-colors ${viewMode === "list"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
-                        }`}
-                    >
-                      <List size={20} />
-                    </Button>
+
+                  {/* View sWitcher */}
+                  <div className="flex gap-2">
+                    {/* MOBILE VIEW: Dropdown Button */}
+                    <div className="lg:hidden relative">
+                      <Button
+                        onClick={toggleDropdown}
+                        className={`flex items-center gap-2 ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white" : "border-[#E5E5E5] bg-white text-black"} border p-2 h-12 w-12 rounded-lg `}
+                      >
+                        {viewMode === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
+                      </Button>
+
+                      {/* Dropdown Menu */}
+                      {isOpen && (
+                        <div className={`absolute top-full right-0 mt-2 w-48 border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "border-[#FFFFFF33] bg-[#171717] text-white" : "border-[#E5E5E5] bg-[#FFFCF6] text-black"}`}>
+                          <button
+                            onClick={() => handleViewChange('grid')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid'
+                              ? (isDark ? "bg-white/10 text-white" : "bg-black/5 font-medium text-black")
+                              : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
+                              }`}
+                          >
+                            <Grid3X3 size={18} />
+                            Grid View
+                          </button>
+                          <button
+                            onClick={() => handleViewChange('list')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list'
+                              ? (isDark ? "bg-white/10 text-white" : "bg-black/5 font-medium text-black")
+                              : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
+                              }`}
+                          >
+                            <List size={18} />
+                            List View
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* DESKTOP VIEW: Original Toggle */}
+                    <div className={`hidden lg:flex ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-white"} p-1 rounded-xl border w-fit`}>
+                      <button
+                        onClick={() => handleViewChange("grid")}
+                        className={`relative z-10 inline-flex items-center justify-center rounded-lg  px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${viewMode === "grid"
+                          ? isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black"
+                          : isDark
+                            ? "text-white/60 hover:text-white"
+                            : "text-[#666666] hover:text-black"
+                          }`}
+                      >
+                        <Grid3X3 size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleViewChange("list")}
+                        className={`relative z-10 inline-flex items-center justify-center rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${viewMode === "list"
+                          ? isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black"
+                          : isDark
+                            ? "text-white/60 hover:text-white"
+                            : "text-[#666666] hover:text-black"
+                          }`}
+                      >
+                        <List size={20} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -895,45 +951,53 @@ export default function CreatorFileManagerPhasePage() {
                           key={folder.id}
                           folder={folder}
                           handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                          isDark={isDark}
                         />
                       ))}
                     </div>
-                    <div className="hidden overflow-x-auto lg:block">
+                    <div className={`border rounded-xl hidden overflow-x-auto lg:block transition-all ${isDark ? "bg-[#111] border-white/5" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                            <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                            <th className="py-5 px-6 text-center font-medium">Files</th>
-                            <th className="py-5 px-6 text-center font-medium">Last Updated</th>
-                            <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
+                          <tr className={`text-xs uppercase tracking-wider transition-colors border-b ${isDark ? "bg-white/[0.03] text-white/40 border-white/5" : "bg-black/[0.05] text-black/40 border-[#E5E5E5]"}`}>
+                            <th className="rounded-tl-xl px-6 py-5 font-medium">Name</th>
+                            <th className="px-6 py-5 font-medium">Files</th>
+                            <th className="px-6 py-5 font-medium">Last Updated</th>
+                            <th className="rounded-tr-xl px-6 py-5 text-right font-medium">Action</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredFolders.map((item) => (
                             <tr
                               key={item.id}
-                              className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                              className={`cursor-pointer items-center transition-colors border-b last:border-0 ${isDark ? "border-white/5 hover:bg-white/[0.02]" : "border-black/5 hover:bg-black/[0.02]"}`}
                               onClick={(e) => {
                                 if ((e.target as HTMLElement).closest("button")) return;
                                 router.push(item.href || `${pathname}/${item.id}`);
                               }}
                             >
-                              <td className="py-5 px-6">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-                                    <FolderOpen className="text-[#E8D1AB]" size={20} />
-                                  </div>
-                                  <span className="text-white text-sm font-medium">{item.title}</span>
+                              <td className="flex items-center gap-2 px-6 py-5">
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-black/5"
+                                  }`}>
+                                  <FolderOpen
+                                    className={isDark ? "fill-[#E8D1AB]/20 text-[#E8D1AB]" : "fill-[#cbb38b]/20 text-[#cbb38b]"}
+                                    size={24}
+                                  />
                                 </div>
+                                <span className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                  {item.title}
+                                </span>
                               </td>
-                              <td className="py-5 px-6 text-center text-white/60 text-sm">
+                              <td className={`px-6 py-5 ${isDark ? "text-white" : "text-black"}`}>
                                 {String(item.fileCount).padStart(2, "0")}
                               </td>
-                              <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                              <td className={`px-6 py-5 ${isDark ? "text-white/60" : "text-black/60"}`}>{item.lastOpened}</td>
                               <td className="py-5 px-6 text-right">
                                 <Button
                                   variant="ghost"
-                                  className="h-10 w-10 rounded-full p-0 text-white/40 hover:bg-white/10 hover:text-white"
+                                  className={`h-10 w-10 rounded-full p-0 transition-colors bg-transparent ${isDark
+                                    ? "text-white hover:bg-white/10 hover:text-white/90"
+                                    : "text-black hover:bg-black/5 hover:text-black/80"
+                                    }`}
                                   onClick={(e) => handleOpenMenu(e, item)}
                                 >
                                   <MoreVertical size={20} />
@@ -1178,6 +1242,7 @@ export default function CreatorFileManagerPhasePage() {
               setIsShareModalOpen(true);
             }}
             onRename={() => toast.info("Folder rename is the next safe step.")}
+            isDark={isDark}
           />
         ) : null}
 
@@ -1191,6 +1256,7 @@ export default function CreatorFileManagerPhasePage() {
           fileUrl={viewerUrl}
           contentType={typeof viewerFile?.contentType === "string" ? viewerFile.contentType : undefined}
           fileMetaId={typeof viewerFile?.filepath === "string" ? viewerFile.filepath : null}
+          isDark={isDark}
         />
         <ShareResourceModal
           isOpen={isShareModalOpen}

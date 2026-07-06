@@ -635,34 +635,41 @@ export default function AvailabilityPage() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
             <div
-              className={`w-full max-w-lg bg-[#111] border border-white/10 text-white rounded-xl lg:rounded-2xl mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl
-            ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
-            max-h-[90vh] overflow-y-auto`}
+              className={`w-full max-w-lg mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl transition-colors duration-200 border
+      ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
+      ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}
+      max-h-[90vh] overflow-y-auto`}
             >
               <button
                 onClick={handleModalClose}
-                className="absolute top-3 right-3 lg:top-6 lg:right-6 text-white/40 hover:text-[#E8D1AB] transition-colors"
+                className={`absolute top-3 right-3 lg:top-6 lg:right-6 transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-black/40 hover:text-[#cbb38b]"}`}
               >
                 <X size={20} />
               </button>
 
-              <h2 className="text-lg lg:text-2xl font-bold mb-1 text-white">Add Availability</h2>
-              <p className="text-white/40 text-xs lg:text-sm mb-4 lg:mb-8">Schedule your working hours</p>
+              <h2 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>
+                Add Availability
+              </h2>
+              <p className={`text-xs lg:text-sm mb-4 lg:mb-8 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                Schedule your working hours
+              </p>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Type</label>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Type
+                  </label>
                   <Select
                     value={formData.type}
                     onValueChange={(value) => handleFormChange(value, "type")}
                   >
-                    <SelectTrigger className="w-full bg-black border-white/10 text-white h-12">
+                    <SelectTrigger className={`w-full h-12 border ${isDark ? "bg-black border-white/10 text-white" : "bg-neutral-50 border-black/10 text-black"}`}>
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${formData.type === "1" ? "bg-green-500" : "bg-red-500"}`} />
                         <SelectValue placeholder="Select option" />
                       </div>
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
+                    <SelectContent className={`border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
                       <SelectItem value="1">Available</SelectItem>
                       <SelectItem value="2">Not Available</SelectItem>
                     </SelectContent>
@@ -670,9 +677,12 @@ export default function AvailabilityPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Date</label>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Date
+                  </label>
                   <DatePicker
                     id="date"
+                    isDark={isDark}
                     onChange={(d) => {
                       setSelectedDate(d);
                       if (formData.recurrence === "4") {
@@ -685,12 +695,16 @@ export default function AvailabilityPage() {
                 {!isAllDay && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Start Time</label>
-                      <TimePicker setTime={(time) => handleTimeChange(time, "startTime")} />
+                      <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        Start Time
+                      </label>
+                      <TimePicker isDark={isDark} setTime={(time) => handleTimeChange(time, "startTime")} />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">End Time</label>
-                      <TimePicker setTime={(time) => handleTimeChange(time, "endTime")} />
+                      <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        End Time
+                      </label>
+                      <TimePicker isDark={isDark} setTime={(time) => handleTimeChange(time, "endTime")} />
                     </div>
                   </div>
                 )}
@@ -701,18 +715,25 @@ export default function AvailabilityPage() {
                     id="allDay"
                     checked={isAllDay}
                     onChange={handleAllDayChange}
-                    className="w-4 h-4 rounded border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]"
+                    className={`w-4 h-4 rounded border transition-colors ${isDark
+                      ? "border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]"
+                      : "border-black/20 bg-neutral-50 text-[#cbb38b] focus:ring-[#cbb38b]"
+                      }`}
                   />
-                  <label htmlFor="allDay" className="text-sm font-medium text-white/80 cursor-pointer">All day availability</label>
+                  <label htmlFor="allDay" className={`text-sm font-medium cursor-pointer ${isDark ? "text-white/80" : "text-black/80"}`}>
+                    All day availability
+                  </label>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Recurrence</label>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Recurrence
+                  </label>
                   <Select value={formData.recurrence} onValueChange={(value) => handleFormChange(value, "recurrence")}>
-                    <SelectTrigger className="w-full bg-black border-white/10 text-white h-12">
+                    <SelectTrigger className={`w-full h-12 border ${isDark ? "bg-black border-white/10 text-white" : "bg-neutral-50 border-black/10 text-black"}`}>
                       <SelectValue placeholder="Does not repeat" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
+                    <SelectContent className={`border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
                       <SelectItem value="1">Does Not Repeat</SelectItem>
                       <SelectItem value="2">Daily</SelectItem>
                       <SelectItem value="3">Weekly</SelectItem>
@@ -722,7 +743,7 @@ export default function AvailabilityPage() {
                 </div>
 
                 {formData.recurrence !== "1" && (
-                  <div className="space-y-4 p-4 bg-white/5 rounded-xl border border-white/5">
+                  <div className={`space-y-4 p-4 rounded-xl border transition-colors ${isDark ? "bg-white/5 border-white/5" : "bg-black/5 border-black/5"}`}>
                     {formData.recurrence === "2" && (
                       <div className="flex items-center gap-3">
                         <input
@@ -730,40 +751,51 @@ export default function AvailabilityPage() {
                           id="incWeekends"
                           checked={formData.includeWeekends}
                           onChange={(e) => handleFormChange(e.target.checked, "includeWeekends")}
-                          className="rounded border-white/10 bg-black"
+                          className={`rounded border ${isDark ? "border-white/10 bg-black" : "border-black/20 bg-neutral-50"}`}
                         />
-                        <label htmlFor="incWeekends" className="text-sm text-white/60">Include Weekends</label>
+                        <label htmlFor="incWeekends" className={`text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          Include Weekends
+                        </label>
                       </div>
                     )}
 
                     {formData.recurrence === "3" && (
                       <div className="space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-white/40">Repeat on</label>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-white/40" : "text-black/40"}`}>
+                          Repeat on
+                        </label>
                         <div className="flex flex-wrap gap-2">
-                          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                            <button
-                              key={day}
-                              type="button"
-                              onClick={() => {
-                                const current = formData.repeatOn || [];
-                                const updated = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
-                                handleFormChange(updated, "repeatOn");
-                              }}
-                              className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${formData.repeatOn.includes(day)
-                                ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
-                                : "bg-black text-white/60 border-white/10 hover:border-white/30"
-                                }`}
-                            >
-                              {day}
-                            </button>
-                          ))}
+                          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => {
+                            const isSelected = formData.repeatOn.includes(day);
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  const current = formData.repeatOn || [];
+                                  const updated = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
+                                  handleFormChange(updated, "repeatOn");
+                                }}
+                                className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${isSelected
+                                  ? isDark
+                                    ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+                                    : "bg-[#cbb38b] text-white border-[#cbb38b]"
+                                  : isDark
+                                    ? "bg-black text-white/60 border-white/10 hover:border-white/30"
+                                    : "bg-neutral-50 text-black/60 border-black/10 hover:border-black/30"
+                                  }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
 
                     {/* MONTHLY */}
                     {formData.recurrence === "4" && (
-                      <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? "text-neutral-300" : "text-neutral-700"}`}>
                         <span>Repeat on Day</span>
                         <input
                           type="text"
@@ -774,15 +806,19 @@ export default function AvailabilityPage() {
                               handleFormChange(val, "monthlyDay");
                             }
                           }}
-                          // Added text-gray-900 and dark:text-white below
-                          className="w-14 px-2 py-1 rounded-lg bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white text-center outline-none focus:ring-2 focus:ring-orange-500"
+                          className={`w-14 px-2 py-1 rounded-lg border text-center outline-none focus:ring-2 transition-colors ${isDark
+                            ? "bg-neutral-800 border-neutral-700 text-white focus:ring-[#E8D1AB]"
+                            : "bg-white border-neutral-200 text-neutral-900 focus:ring-[#cbb38b]"
+                            }`}
                         />
                         <span>of each month</span>
                       </div>
                     )}
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Until Date</label>
-                      <DatePicker id="untilDate" onChange={(d) => handleFormChange(d, "untilDate")} />
+                      <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        Until Date
+                      </label>
+                      <DatePicker id="untilDate" isDark={isDark} onChange={(d) => handleFormChange(d, "untilDate")} />
                     </div>
                   </div>
                 )}
@@ -792,13 +828,13 @@ export default function AvailabilityPage() {
                     type="button"
                     onClick={handleModalClose}
                     variant="ghost"
-                    className="text-white/40 hover:text-white"
+                    className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-bold px-8 rounded-xl"
+                    className={`font-bold px-8 rounded-xl transition-colors text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#d4be9a]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
                   >
                     Save Changes
                   </Button>
@@ -811,7 +847,10 @@ export default function AvailabilityPage() {
         {/* Hover Card for Project Details */}
         {hoveredProject && (
           <div
-            className="fixed z-50 w-[420px] bg-[#111] border border-[#E8D1AB]/30 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150"
+            className={`fixed z-50 w-[420px] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150 border transition-colors ${isDark
+                ? "bg-[#111111] border-[#E8D1AB]/30 text-white"
+                : "bg-white border-[#cbb38b]/40 text-black"
+              }`}
             style={{
               top: hoverPosition.y,
               left: hoverPosition.x,
@@ -819,48 +858,57 @@ export default function AvailabilityPage() {
             onMouseLeave={handleDateLeave}
           >
             {/* Header */}
-            <div className="p-6 border-b border-white/10">
-              <span className="inline-block mb-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full bg-[#E8D1AB]/10 text-[#E8D1AB] border border-[#E8D1AB]/20">
+            <div className={`p-6 border-b ${isDark ? "border-white/10" : "border-black/5"}`}>
+              <span className={`inline-block mb-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${isDark
+                  ? "bg-[#E8D1AB]/10 text-[#E8D1AB] border-[#E8D1AB]/20"
+                  : "bg-[#cbb38b]/15 text-[#cbb38b] border-[#cbb38b]/30"
+                }`}>
                 Active Project
               </span>
 
-              <h3 className="text-xl font-bold text-white mb-4">
+              <h3 className={`text-xl font-bold mb-4 ${isDark ? "text-white" : "text-black"}`}>
                 {hoveredProject.project_name}
               </h3>
 
-              <div className="flex flex-wrap gap-4 text-xs text-white/60">
+              <div className={`flex flex-wrap gap-4 text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
                 <span className="flex items-center gap-2">
-                  <Calendar size={14} className="text-[#E8D1AB]" />
+                  <Calendar size={14} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
                   {hoveredProject.date}
                 </span>
 
                 <span className="flex items-center gap-2">
-                  <MapPin size={14} className="text-[#E8D1AB]" />
+                  <MapPin size={14} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
                   {formatLocation(hoveredProject.event_location)}
                 </span>
 
                 <span className="flex items-center gap-2">
-                  <Clock size={14} className="text-[#E8D1AB]" />
+                  <Clock size={14} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
                   12:00 PM – 4:00 PM
                 </span>
               </div>
             </div>
 
             {/* Middle Section */}
-            <div className="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10 bg-white/[0.01]">
+            <div className={`grid grid-cols-2 divide-x border-b ${isDark
+                ? "divide-white/10 border-white/10 bg-white/[0.01]"
+                : "divide-black/5 border-black/5 bg-black/[0.01]"
+              }`}>
               {/* Streaming */}
               <div className="p-5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
+                <p className={`text-[10px] font-bold uppercase tracking-widest mb-3 ${isDark ? "text-white/40" : "text-black/40"}`}>
                   Streaming Platforms
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                    <Video size={12} className="text-[#E8D1AB]" /> YouTube
+                  <span className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/80" : "border-black/5 bg-neutral-50 text-black/80"
+                    }`}>
+                    <Video size={12} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} /> YouTube
                   </span>
-                  <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                    <Mic size={12} className="text-[#E8D1AB]" /> Twitch
+                  <span className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/80" : "border-black/5 bg-neutral-50 text-black/80"
+                    }`}>
+                    <Mic size={12} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} /> Twitch
                   </span>
-                  <span className="px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/40">
+                  <span className={`px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/40" : "border-black/5 bg-neutral-50 text-black/40"
+                    }`}>
                     +4
                   </span>
                 </div>
@@ -868,17 +916,21 @@ export default function AvailabilityPage() {
 
               {/* Equipment */}
               <div className="p-5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
+                <p className={`text-[10px] font-bold uppercase tracking-widest mb-3 ${isDark ? "text-white/40" : "text-black/40"
+                  }`}>
                   Equipment Assigned
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
+                  <span className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/80" : "border-black/5 bg-neutral-50 text-black/80"
+                    }`}>
                     📷 Camera
                   </span>
-                  <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
+                  <span className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/80" : "border-black/5 bg-neutral-50 text-black/80"
+                    }`}>
                     🎥 Video
                   </span>
-                  <span className="px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/40">
+                  <span className={`px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/40" : "border-black/5 bg-neutral-50 text-black/40"
+                    }`}>
                     +3
                   </span>
                 </div>
@@ -886,14 +938,12 @@ export default function AvailabilityPage() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 px-6 flex items-center justify-between bg-black/20">
-              <span className="text-[10px] font-medium text-white/30 uppercase tracking-tight">
+            <div className={`p-4 px-6 flex items-center justify-between ${isDark ? "bg-black/20" : "bg-neutral-50"
+              }`}>
+              <span className={`text-[10px] font-medium uppercase tracking-tight ${isDark ? "text-white/30" : "text-black/40"
+                }`}>
                 Last Updated 4h ago
               </span>
-
-              {/* <button className="text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB] hover:text-white transition-colors">
-        View Details →
-      </button> */}
             </div>
           </div>
         )}

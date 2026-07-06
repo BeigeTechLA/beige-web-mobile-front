@@ -8,7 +8,6 @@ import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Plus, Search } from "l
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
-import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
@@ -44,6 +43,7 @@ export default function CreatorFolderDetailsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useViewMode();
   const [status, setStatus] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -217,12 +217,20 @@ export default function CreatorFolderDetailsPage() {
     }
   };
 
+  const toggleDropdown = () => setIsOpen(!isOpen);
+
+  const handleViewChange = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    setIsOpen(false);
+  };
+
   return (
     <>
       <Topbar pathname={pathname} />
 
       <div className="overflow-x-hidden overflow-y-auto p-4 pb-10 lg:px-10 lg:py-9">
-        <Button onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
+        <Button 
+        onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
@@ -245,7 +253,7 @@ export default function CreatorFolderDetailsPage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#C8E1FF] text-[#000] lg:h-21 lg:w-21 lg:rounded-2xl lg:text-[30px] lg:font-medium">
                   {getDisplayInitials(workspaceName)}
                 </div>
-                <div className="min-w-0 max-w-3xl flex-1 text-white">
+                <div className={`min-w-0 max-w-3xl flex-1 ${isDark ? "text-white" : "text-black"}`}>
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
                     <h1 className="break-words text-sm font-semibold leading-[32px] lg:text-2xl">
                       {workspaceName}
@@ -289,40 +297,81 @@ export default function CreatorFolderDetailsPage() {
 
             <div className="pb-20 lg:pb-0">
               <div className="mb-3 flex items-center justify-between gap-2 lg:mb-6">
-                <div className="relative max-w-xl flex-1">
-                  <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
+                <div className={`relative flex w-full lg:max-w-xl items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"}`}>
+                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
                   <input
                     type="text"
                     placeholder="Search folder..."
                     value={searchTerm}
-                    className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
-                      ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
-                      : "bg-white border-[#E3E3E3] text-black placeholder:text-[#9F9FA9] focus:ring-[#D7D7D7] focus:border-[#D7D7D7]"
+                    className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                      ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                      : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
                       }`}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
+                {/* View sWitcher */}
                 <div className="flex gap-2">
-                  {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
-                  <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
+                  {/* MOBILE VIEW: Dropdown Button */}
+                  <div className="lg:hidden relative">
                     <Button
-                      onClick={() => setViewMode("grid")}
-                      className={`rounded-l-lg px-5 py-2.5 transition-colors ${viewMode === "grid"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
+                      onClick={toggleDropdown}
+                      className={`flex items-center gap-2 ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white" : "border-[#E5E5E5] bg-white text-black"} border p-2 h-12 w-12 rounded-lg `}
+                    >
+                      {viewMode === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
+                    </Button>
+
+                    {/* Dropdown Menu */}
+                    {isOpen && (
+                      <div className={`absolute top-full right-0 mt-2 w-48 border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "border-[#FFFFFF33] bg-[#171717] text-white" : "border-[#E5E5E5] bg-[#FFFCF6] text-black"}`}>
+                        <button
+                          onClick={() => handleViewChange('grid')}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid'
+                            ? (isDark ? "bg-white/10 text-white" : "bg-black/5 font-medium text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
+                            }`}
+                        >
+                          <Grid3X3 size={18} />
+                          Grid View
+                        </button>
+                        <button
+                          onClick={() => handleViewChange('list')}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list'
+                            ? (isDark ? "bg-white/10 text-white" : "bg-black/5 font-medium text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
+                            }`}
+                        >
+                          <List size={18} />
+                          List View
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* DESKTOP VIEW: Original Toggle */}
+                  <div className={`hidden lg:flex ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-white"} p-1 rounded-xl border w-fit`}>
+                    <button
+                      onClick={() => handleViewChange("grid")}
+                      className={`relative z-10 inline-flex items-center justify-center rounded-lg  px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${viewMode === "grid"
+                        ? isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black"
+                        : isDark
+                          ? "text-white/60 hover:text-white"
+                          : "text-[#666666] hover:text-black"
                         }`}
                     >
                       <Grid3X3 size={20} />
-                    </Button>
-                    <Button
-                      onClick={() => setViewMode("list")}
-                      className={`rounded-r-lg px-5 py-2.5 transition-colors ${viewMode === "list"
-                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
+                    </button>
+                    <button
+                      onClick={() => handleViewChange("list")}
+                      className={`relative z-10 inline-flex items-center justify-center rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${viewMode === "list"
+                        ? isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black"
+                        : isDark
+                          ? "text-white/60 hover:text-white"
+                          : "text-[#666666] hover:text-black"
                         }`}
                     >
                       <List size={20} />
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -407,41 +456,50 @@ export default function CreatorFolderDetailsPage() {
                     ))}
                   </div>
 
-                  <div className="hidden overflow-x-auto lg:block">
+                  <div className={`border rounded-xl hidden overflow-x-auto lg:block transition-all ${isDark ? "bg-[#111] border-white/5" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
                     <table className="w-full border-collapse text-left">
                       <thead>
-                        <tr className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
-                          <th className="rounded-l-xl px-6 py-5 font-medium">Name</th>
-                          <th className="px-6 py-5 text-center font-medium">Files</th>
-                          <th className="px-6 py-5 text-center font-medium">Last Updated</th>
-                          <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
+                        <tr className={`text-xs uppercase tracking-wider transition-colors border-b ${isDark ? "bg-white/[0.03] text-white/40 border-white/5" : "bg-black/[0.05] text-black/40 border-[#E5E5E5]"}`}>
+                          <th className="rounded-tl-xl px-6 py-5 font-medium">Name</th>
+                          <th className="px-6 py-5 font-medium">Files</th>
+                          <th className="px-6 py-5 font-medium">Last Updated</th>
+                          <th className="rounded-tr-xl px-6 py-5 text-right font-medium">Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {visibleFolders.map((item) => (
                           <tr
                             key={item.id}
-                            className="cursor-pointer transition-colors hover:bg-white/[0.02]"
+                            className={`cursor-pointer items-center transition-colors border-b last:border-0 ${isDark ? "border-white/5 hover:bg-white/[0.02]" : "border-black/5 hover:bg-black/[0.02]"}`}
                             onClick={(e) => {
                               if ((e.target as HTMLElement).closest("button")) return;
                               void openFolderWithAccessCheck(item);
                             }}
                           >
-                            <td className="px-6 py-5">
-                              <div className="flex items-center gap-3">
-                                <div className="rounded-lg border border-white/5 bg-white/5 p-2">
-                                  <FolderOpen className="text-[#E8D1AB]" size={20} />
-                                </div>
-                                <span className="text-sm font-semibold">{item.title}</span>
+                            <td className="flex items-center gap-2 px-6 py-5">
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-black/5"
+                                }`}>
+                                <FolderOpen
+                                  className={isDark ? "fill-[#E8D1AB]/20 text-[#E8D1AB]" : "fill-[#cbb38b]/20 text-[#cbb38b]"}
+                                  size={24}
+                                />
                               </div>
+                              <span className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                {item.title}
+                              </span>
                             </td>
-                            <td className="px-6 py-5 text-center text-sm text-white/60">
+                            <td className={`px-6 py-5 ${isDark ? "text-white" : "text-black"}`}>
                               {String(item.fileCount).padStart(2, "0")}
                             </td>
-                            <td className={`py-5 px-6 font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>{item.lastOpened}</td>
-                            <td className={`py-5 px-6 text-right transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                            <td className={`px-6 py-5 ${isDark ? "text-white/60" : "text-black/60"}`}>
+                              {item.lastOpened}
+                            </td>
+                            <td className="px-6 py-5 text-right">
                               <Button
-                                className={`h-10 w-10 rounded-full p-0 transition-colors ${isDark ? "text-white hover:bg-white/10 hover:text-white/90" : "text-black bg-transparent hover:bg-black/5 hover:text-black/90"}`}
+                                className={`h-10 w-10 rounded-full p-0 transition-colors bg-transparent ${isDark
+                                  ? "text-white hover:bg-white/10 hover:text-white/90"
+                                  : "text-black hover:bg-black/5 hover:text-black/80"
+                                  }`}
                                 onClick={(e) => handleOpenMenu(e, item)}
                               >
                                 <MoreVertical size={20} />
@@ -493,6 +551,7 @@ export default function CreatorFolderDetailsPage() {
           isOpen={isLinkModalOpen}
           onClose={() => setIsLinkModalOpen(false)}
           folderName={selectedFolder?.title || ""}
+          isDark={isDark}
         />
 
         <DeleteConfirmModal
@@ -502,6 +561,7 @@ export default function CreatorFolderDetailsPage() {
           itemName={selectedFolder?.title || "this folder"}
           itemType="folder"
           isDeleting={isDeleting}
+          isDark={isDark}
         />
 
         <ShareResourceModal

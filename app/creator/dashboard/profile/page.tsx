@@ -57,27 +57,42 @@ import Topbar from "@/components/admin/Topbar";
 const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
 // --- REUSABLE SUB-COMPONENTS ---
-const StatBox = ({ value, sublabel }: { value: string, sublabel: string }) => (
-  <div className="flex flex-col items-center justify-center border-r border-white/5 last:border-r-0 px-4 py-2">
-    <p className="text-lg font-bold text-white">{value}</p>
-    <p className="text-[10px] text-white/40 uppercase tracking-widest">{sublabel}</p>
+const StatBox = ({ value, sublabel, isDark }: { value: string, sublabel: string, isDark?: boolean }) => (
+  <div className={`w-full flex flex-col items-center justify-center last:border-r-0 px-4 py-2 ${isDark ? "border-r border-white/5" : "border-r border-[#F5EBDA]"}`}>
+    <p className={`lg:text-lg font-bold ${isDark ? "text-white" : "text-[#14171F]"}`}>
+      {value}
+    </p>
+    <p className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-[#677084]"}`}>
+      {sublabel}
+    </p>
   </div>
 );
 
-const SocialButton = ({ icon: Icon, label, onClick }: { icon: any, label: string, onClick?: () => void }) => (
+const SocialButton = ({ icon: Icon, label, onClick, isDark }: { icon: any, label: string, onClick?: () => void, isDark?: boolean }) => (
   <button
     onClick={onClick}
-    className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+    className={`flex items-center gap-2 px-4 py-2 border rounded-lg lg:rounded-xl transition-colors ${isDark
+      ? "bg-white/5 border-white/10 hover:bg-white/10"
+      : "bg-[#FDFAF7] border-[#F1E1C9] hover:bg-[#F1E1C9]/10"
+      }`}
   >
-    <Icon size={16} className="text-[#E8D1AB]" />
-    <span className="text-xs font-medium text-white/80">{label}</span>
+    <Icon size={16} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
+    <span className={`text-xs font-medium ${isDark ? "text-white/80" : "text-[#8C8C8C]"}`}>
+      {label}
+    </span>
   </button>
 );
 
-const InfoField = ({ label, value, placeholder }: { label: string, value?: any, placeholder?: string }) => (
+const InfoField = ({ label, value, placeholder, isDark }: { label: string, value?: any, placeholder?: string, isDark?: boolean }) => (
   <div className="space-y-1">
-    <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">{label}</p>
-    <p className={`text-sm ${value ? 'text-white/80 font-medium' : 'text-white/20 italic'}`}>
+    <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isDark ? "text-white/40" : "text-black/40"
+      }`}>
+      {label}
+    </p>
+    <p className={`text-sm ${value
+      ? (isDark ? 'text-white/80 font-medium' : 'text-black/80 font-medium')
+      : (isDark ? 'text-white/20 italic' : 'text-black/20 italic')
+      }`}>
       {value || placeholder}
     </p>
   </div>
@@ -134,14 +149,18 @@ const getRoleLabel = (roleData: any) => {
   }
 };
 
-const SectionHeader = ({ title, onEdit, isEditing }: { title: string, onEdit?: () => void, isEditing?: boolean }) => (
+const SectionHeader = ({ title, onEdit, isEditing, isDark }: { title: string, onEdit?: () => void, isEditing?: boolean, isDark?: boolean }) => (
   <div className="flex items-center justify-between mb-4 lg:mb-8">
-    <h2 className="text-lg lg:text-xl font-bold text-white tracking-tight">{title}</h2>
+    <h2 className={`text-lg lg:text-xl font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+      {title}
+    </h2>
     <button
       onClick={onEdit}
       className={`p-2 rounded-full transition-all duration-200 ${isEditing
         ? "bg-[#E8D1AB] text-black"
-        : "hover:bg-white/5 text-white/40 hover:text-white"
+        : isDark
+          ? "hover:bg-white/5 text-white/40 hover:text-white"
+          : "hover:bg-black/5 text-black/40 hover:text-black"
         }`}
     >
       {isEditing ? <X size={18} /> : <Edit3 size={18} />}
@@ -149,39 +168,60 @@ const SectionHeader = ({ title, onEdit, isEditing }: { title: string, onEdit?: (
   </div>
 );
 
-const TabEmptyState = ({ title, description, buttonText, footerText, onClick }: any) => (
-  <div className="bg-[#0A0A0A] border border-white/5 rounded-lg lg:rounded-2xl h-[500px] flex items-center justify-center relative overflow-hidden">
+const TabEmptyState = ({ title, description, buttonText, footerText, onClick, isDark }: any) => (
+  <div className={`border rounded-lg lg:rounded-2xl h-[500px] flex items-center justify-center relative overflow-hidden ${isDark ? "bg-[#0A0A0A] border-white/5" : "bg-neutral-50 border-black/5"
+    }`}>
+    {/* Background Grid Lines */}
     <div className="absolute inset-0 grid grid-cols-4 pointer-events-none">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="h-full border-r border-white/[0.03] last:border-r-0 bg-white/[0.01]" />
+        <div
+          key={i}
+          className={`h-full border-r last:border-r-0 ${isDark ? "border-white/[0.03] bg-white/[0.01]" : "border-black/[0.02] bg-black/[0.005]"
+            }`}
+        />
       ))}
     </div>
+
     <div className="relative z-10 flex flex-col items-center text-center max-w-xl px-6">
-      <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">{title}</h2>
-      <p className="text-white/40 text-sm mb-10 leading-relaxed max-w-md">{description}</p>
+      <h2 className={`text-2xl font-bold mb-3 tracking-tight ${isDark ? "text-white" : "text-black"}`}>{title}</h2>
+      <p className={`text-sm mb-10 leading-relaxed max-w-md ${isDark ? "text-white/40" : "text-black/40"}`}>{description}</p>
+
       <button
         onClick={onClick}
-        className="bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black font-bold px-10 py-3.5 rounded-lg lg:rounded-2xl transition-all active:scale-95 shadow-xl"
+        className={`font-bold px-10 py-3.5 rounded-lg lg:rounded-2xl transition-all active:scale-95 shadow-xl ${isDark
+          ? "bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black"
+          : "bg-white text-black border border-black/10 hover:bg-black hover:text-white"
+          }`}
       >
         {buttonText}
       </button>
-      <p className="text-[10px] text-white/30 mt-6 font-medium uppercase tracking-widest">{footerText}</p>
+
+      <p className={`text-xs mt-6 font-medium uppercase tracking-widest ${isDark ? "text-white/30" : "text-black/30"}`}>{footerText}</p>
     </div>
   </div>
 );
 
-const FileItem = ({ file, onRemove }: { file: File, onRemove: () => void }) => (
-  <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl group hover:bg-white/[0.08] transition-all">
+const FileItem = ({ file, onRemove, isDark }: { file: File, onRemove: () => void, isDark?: boolean }) => (
+  <div className={`flex items-center justify-between p-4 border rounded-2xl group transition-all ${isDark
+    ? "bg-white/5 border-white/10 hover:bg-white/[0.08]"
+    : "bg-black/5 border-black/5 hover:bg-black/[0.08]"
+    }`}>
     <div className="flex items-center gap-4">
-      <div className="w-10 h-10 bg-[#E8D1AB]/10 rounded-lg flex items-center justify-center text-[#E8D1AB]">
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/15 text-[#cbb38b]"
+        }`}>
         <FileText size={20} />
       </div>
       <div className="overflow-hidden">
-        <p className="text-sm font-medium text-white truncate max-w-[150px] md:max-w-[300px]">{file.name}</p>
-        <p className="text-[10px] text-white/40 uppercase tracking-widest">{(file.size / 1024).toFixed(0)} KB</p>
+        <p className={`text-sm font-medium truncate max-w-[150px] md:max-w-[300px] ${isDark ? "text-white" : "text-black"}`}>{file.name}</p>
+        <p className={`text-xs uppercase tracking-widest ${isDark ? "text-white/40" : "text-black/40"}`}>{(file.size / 1024).toFixed(0)} KB</p>
       </div>
     </div>
-    <button onClick={onRemove} className="p-2 text-white/20 hover:text-red-500 transition-colors">
+
+    <button
+      onClick={onRemove}
+      className={`p-2 transition-colors ${isDark ? "text-white/20 hover:text-red-500" : "text-black/20 hover:text-red-500"
+        }`}
+    >
       <Trash2 size={18} />
     </button>
   </div>
@@ -914,7 +954,6 @@ export default function ProfilePage() {
 
 
   return (
-    // <div className="min-h-screen bg-black text-white font-sans selection:bg-[#E8D1AB] selection:text-black">
     <>
       <Topbar pathname={pathname} />
 
@@ -922,11 +961,11 @@ export default function ProfilePage() {
         <div className="mx-auto space-y-4 lg:space-y-8">
 
           {/* TOP PROFILE CARD */}
-          <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-8 flex flex-col lg:flex-row gap-8">
+          <div className={`border rounded-lg lg:rounded-xl p-4 lg:p-8 flex flex-col lg:flex-row gap-8 ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"}`}>
             <div className="flex-1 space-y-4 lg:space-y-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="group relative w-15 h-15 lg:w-20 lg:h-20 rounded-full bg-zinc-800 border-2 border-[#E8D1AB] shrink-0">
+                  <div className={`group relative w-15 h-15 lg:w-20 lg:h-20 rounded-full border-2 border-[#E8D1AB] shrink-0 ${isDark ? "bg-zinc-800" : "bg-zinc-100"}`}>
                     <div className="w-full h-full rounded-full overflow-hidden">
                       <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
                     </div>
@@ -946,15 +985,19 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-lg lg:text-2xl font-bold">{profile.first_name} {profile.last_name}</h1>
+                      <h1 className={`text-lg lg:text-2xl font-bold ${isDark ? "text-white" : "text-zinc-900"}`}>
+                        {profile.first_name} {profile.last_name}
+                      </h1>
                       {profile.is_available === 1 && (
-                        <span className="px-3 py-0.5 bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] rounded-full flex items-center gap-1">
+                        <span className="px-3 py-0.5 bg-green-500/10 border border-green-500/20 text-green-500 text-xs rounded-full flex items-center gap-1">
                           <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Available
                         </span>
                       )}
                     </div>
-                    <p className="text-white/60 text-sm max-w-md truncate">{profile.bio || "No bio added yet"}</p>
-                    <div className="flex items-center gap-1 text-white/40 text-xs mt-1">
+                    <p className={`text-sm max-w-md truncate ${isDark ? "text-white/60" : "text-zinc-600"}`}>
+                      {profile.bio || "No bio added yet"}
+                    </p>
+                    <div className={`flex items-center gap-1 text-xs mt-1 ${isDark ? "text-white/40" : "text-zinc-400"}`}>
                       <MapPin size={12} /> {profile.location?.split(',').slice(-2).join(', ') || "Location not set"}
                     </div>
                   </div>
@@ -963,18 +1006,33 @@ export default function ProfilePage() {
 
               <div className="flex flex-wrap gap-2">
                 {profile.skills?.slice(0, 3).map((skill: any) => (
-                  <span key={skill.id} className="px-2 lg:px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/60">{skill.name}</span>
+                  <span
+                    key={skill.id}
+                    className={`px-2 lg:px-4 py-1.5 border rounded-lg text-xs ${isDark
+                      ? "bg-white/5 border-white/10 text-white/60"
+                      : "bg-white border-[#E5E5E5] text-zinc-600"
+                      }`}
+                  >
+                    {skill.name}
+                  </span>
                 ))}
-                {profile.skills?.length > 3 && <span className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/40">+{profile.skills.length - 3} more</span>}
+                {profile.skills?.length > 3 && (
+                  <span className={`px-4 py-1.5 border rounded-lg text-xs ${isDark
+                    ? "bg-white/5 border-white/10 text-white/40"
+                    : "bg-white border-[#E5E5E5] text-zinc-400"
+                    }`}>
+                    +{profile.skills.length - 3} more
+                  </span>
+                )}
               </div>
 
-              <div className="bg-white/[0.02] text-sm lg:text-base border border-white/5 rounded-lg lg:rounded-2xl flex max-w-sm capitalize">
-                <StatBox value={`$${Math.round(profile.hourly_rate)}`} sublabel="/Hour" />
-                <StatBox value={`${profile.years_of_experience}`} sublabel="Years Exp." />
-                <StatBox value={profile.working_distance?.split(' ')[1] || "25"} sublabel="Miles Radius" />
+              <div className={`text-sm lg:text-base border rounded-lg lg:rounded-2xl flex max-w-sm justify-center capitalize ${isDark ? "bg-white/[0.02] border-white/5" : "bg-[#FDFAF7] border-[#F5EBDA]"}`}>
+                <StatBox value={`$${Math.round(profile.hourly_rate)}`} sublabel="/Hour" isDark={isDark} />
+                <StatBox value={`${profile.years_of_experience}`} sublabel="Years Exp." isDark={isDark} />
+                <StatBox value={profile.working_distance?.split(' ')[1] || "25"} sublabel="Miles Radius" isDark={isDark} />
               </div>
 
-              {/* Find the Social Buttons section in your JSX (inside the Top Profile Card) */}
+              {/* Social Buttons */}
               <div className="flex flex-wrap items-center gap-3">
                 {socialLinks.length > 0 ? (
                   socialLinks.map((link) => {
@@ -989,18 +1047,22 @@ export default function ProfilePage() {
                         <SocialButton
                           icon={platformInfo?.icon || Globe}
                           label={platformInfo?.label || link.name}
+                          isDark={isDark}
                         />
                       </a>
                     );
                   })
                 ) : (
-                  <p className="text-xs text-white/20 italic">No social links added</p>
+                  <p className={`text-xs italic ${isDark ? "text-white/20" : "text-zinc-400"}`}>No social links added</p>
                 )}
 
                 {/* The Edit Icon for Social Links */}
                 <button
                   onClick={() => setIsSocialLinksModalOpen(true)}
-                  className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-[#E8D1AB] hover:text-black transition-all text-white/40"
+                  className={`p-2 rounded-lg lg:rounded-xl border hover:bg-[#E8D1AB] hover:text-black transition-all ${isDark
+                    ? "bg-white/5 border-white/10 text-white/40"
+                    : "bg-[#FDFAF7] border-[#F1E1C9] text-[#8C8C8C]"
+                    }`}
                   title="Edit Social Links"
                 >
                   <Edit3 size={14} />
@@ -1011,20 +1073,26 @@ export default function ProfilePage() {
             {/* Banner Media Upload UI */}
             <div
               onClick={() => !mediaPreview && fileInputRef.current?.click()}
-              className={`w-full lg:w-[450px] min-h-[150px] lg:min-h-[250px] relative rounded-lg lg:rounded-2xl flex flex-col items-center justify-center p-4 text-center group transition-all overflow-hidden
-              ${mediaPreview ? 'bg-black border border-white/10 shadow-2xl' : 'bg-[#E8D1AB]/5 border-2 border-dashed border-[#E8D1AB]/20 cursor-pointer hover:bg-[#E8D1AB]/10'}`}
+              className={`w-full lg:w-[450px] min-h-[150px] lg:min-h-[250px] relative rounded-lg lg:rounded-2xl flex flex-col items-center justify-center p-4 text-center group transition-all overflow-hidden ${mediaPreview
+                ? isDark
+                  ? 'bg-black border border-white/10 shadow-2xl'
+                  : 'bg-white border border-black/10 shadow-2xl'
+                : isDark
+                  ? 'bg-[#E8D1AB]/5 border-2 border-dashed border-[#E8D1AB]/20 cursor-pointer hover:bg-[#E8D1AB]/10'
+                  : 'bg-[#E8D1AB]/10 border-2 border-dashed border-[#E8D1AB]/60 cursor-pointer hover:bg-[#E8D1AB]/15'
+                }`}
             >
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" onChange={handleFileChange} />
               {!mediaPreview ? (
                 <>
                   <div className="relative w-32 h-24 mb-6">
-                    <div className="absolute top-0 left-0 w-16 h-16 bg-[#E8D1AB]/20 rounded-lg rotate-[-10deg]" />
-                    <div className="absolute bottom-0 right-0 w-20 h-12 bg-[#E8D1AB]/40 rounded-lg rotate-[5deg] flex items-center justify-center">
-                      <ImageIcon size={20} className="text-[#E8D1AB]" />
+                    <div className={`absolute top-0 left-0 w-16 h-16 rounded-lg rotate-[-10deg] ${isDark ? "bg-[#E8D1AB]/10" : "bg-[#E8D1AB]/15"}`} />
+                    <div className={`absolute bottom-0 right-0 w-20 h-12 rounded-lg rotate-[5deg] flex items-center justify-center ${isDark ? "bg-[#E8D1AB]/30" : "bg-[#E8D1AB]/40"}`}>
+                      <ImageIcon size={20} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-white mb-1">Upload Profile Banner</p>
-                  <p className="text-[10px] text-white/40 max-w-[200px]">Showcase your style with a cover photo or video</p>
+                  <p className={`text-sm font-bold mb-1 ${isDark ? "text-white" : "text-zinc-800"}`}>Upload Profile Banner</p>
+                  <p className={`text-xs max-w-[200px] ${isDark ? "text-white/40" : "text-zinc-500"}`}>Showcase your style with a cover photo or video</p>
                 </>
               ) : (
                 <div className="w-full h-full absolute inset-0 bg-black">
@@ -1050,7 +1118,7 @@ export default function ProfilePage() {
                         e.stopPropagation();
                         handleRemovePortfolioBanner();
                       }}
-                      className="p-2 bg-red-500/90 text-white rounded-full"
+                      className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-colors"
                       title="Remove Banner"
                     >
                       <X size={16} />
@@ -1062,15 +1130,21 @@ export default function ProfilePage() {
           </div>
 
           {/* NAVIGATION */}
-          <div className="flex border-b border-white/5 gap-4 lg:gap-8 overflow-x-auto no-scrollbar">
+          <div className={`flex border-b gap-4 lg:gap-8 overflow-x-auto no-scrollbar ${isDark ? "border-white/5" : "border-black/5"
+            }`}>
             {tabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`pb-2 lg:pb-4 text-sm font-medium transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white'}`}
+                className={`pb-2 lg:pb-4 text-sm font-medium transition-all relative whitespace-nowrap ${activeTab === tab
+                  ? isDark ? 'text-[#E8D1AB]' : 'text-[#0A0A0A]'
+                  : isDark
+                    ? 'text-white/40 hover:text-white'
+                    : 'text-[#737373] hover:text-black'
+                  }`}
               >
                 {tab}
-                {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#E8D1AB]" />}
+                {activeTab === tab && <div className={`absolute bottom-0 left-0 w-full h-0.5 ${isDark ? "bg-[#E8D1AB]" : "bg-[#0A0A0A]"}`} />}
               </button>
             ))}
           </div>
@@ -1081,18 +1155,19 @@ export default function ProfilePage() {
               <div className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
 
                 {/* PERSONAL INFORMATION */}
-                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                <div className={`border rounded-lg lg:rounded-2xl p-4 lg:p-8 ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"
+                  }`}>
                   <SectionHeader
                     title="Personal Information"
                     isEditing={isEditingPersonalInfo}
                     onEdit={() => setIsEditingPersonalInfo(!isEditingPersonalInfo)}
+                    isDark={isDark}
                   />
 
                   {isEditingPersonalInfo ? (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
                       <PersonalInfoForm profile={profile} onChange={handleProfileUpdate} />
                       <div className="mt-4 lg:mt-8 flex justify-end">
-                        {/* CHANGED: onClick now calls handleSavePersonalInfo */}
                         <button
                           onClick={handleSavePersonalInfo}
                           className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
@@ -1102,30 +1177,31 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-10 gap-x-20">
-                      <InfoField label="First Name" value={profile.first_name} />
-                      <InfoField label="Last Name" value={profile.last_name} />
-                      <InfoField label="Email Address" value={profile.email} />
-                      <InfoField label="Contact Phone" value={profile.phone_number} placeholder="Add phone number" />
-                      <InfoField label="Location" value={profile.location} />
-                      <InfoField label="Working Distance" value={profile.working_distance} placeholder="Add distance radius" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-20">
+                      <InfoField label="First Name" value={profile.first_name} isDark={isDark} />
+                      <InfoField label="Last Name" value={profile.last_name} isDark={isDark} />
+                      <InfoField label="Email Address" value={profile.email} isDark={isDark} />
+                      <InfoField label="Contact Phone" value={profile.phone_number} placeholder="Add phone number" isDark={isDark} />
+                      <InfoField label="Location" value={profile.location} isDark={isDark} />
+                      <InfoField label="Working Distance" value={profile.working_distance} placeholder="Add distance radius" isDark={isDark} />
                     </div>
                   )}
                 </div>
 
                 {/* PROFESSIONAL DETAILS */}
-                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                <div className={`border rounded-lg lg:rounded-2xl p-4 lg:p-8 ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"
+                  }`}>
                   <SectionHeader
                     title="Professional Details"
                     isEditing={isEditingProfessionalInfo}
                     onEdit={() => setIsEditingProfessionalInfo(!isEditingProfessionalInfo)}
+                    isDark={isDark}
                   />
 
                   {isEditingProfessionalInfo ? (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
                       <ProfessionalInfoForm profile={profile} onChange={handleProfileUpdate} />
                       <div className="mt-4 lg:mt-8 flex justify-end">
-                        {/* UPDATED: Calls handleSaveProfessionalInfo */}
                         <button
                           onClick={handleSaveProfessionalInfo}
                           className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
@@ -1135,23 +1211,25 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-10 gap-x-12">
-                      <InfoField label="Primary Role" value={getRoleLabel(profile.primary_role)} />
-                      <InfoField label="Experience" value={`${profile.years_of_experience} Years`} />
-                      <InfoField label="Hourly Rate" value={`$${profile.hourly_rate}`} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
+                      <InfoField label="Primary Role" value={getRoleLabel(profile.primary_role)} isDark={isDark} />
+                      <InfoField label="Experience" value={`${profile.years_of_experience} Years`} isDark={isDark} />
+                      <InfoField label="Hourly Rate" value={`$${profile.hourly_rate}`} isDark={isDark} />
                       <div className="col-span-full">
-                        <InfoField label="Bio" value={profile.bio} placeholder="Add a professional bio..." />
+                        <InfoField label="Bio" value={profile.bio} placeholder="Add a professional bio..." isDark={isDark} />
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* SKILLS */}
-                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                <div className={`border rounded-lg lg:rounded-2xl p-4 lg:p-8 ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"
+                  }`}>
                   <SectionHeader
                     title="Skills"
                     isEditing={isEditingSkills}
                     onEdit={() => setIsEditingSkills(!isEditingSkills)}
+                    isDark={isDark}
                   />
 
                   {isEditingSkills ? (
@@ -1176,24 +1254,29 @@ export default function ProfilePage() {
                         profile.skills.map((skill: any, index: number) => (
                           <span
                             key={skill.id || index}
-                            className="px-2 lg:px-5 py-2.5 bg-white/5 border border-white/10 rounded-lg lg:rounded-xl text-sm text-white/80"
+                            className={`px-2 lg:px-5 py-2.5 border rounded-lg lg:rounded-xl text-sm ${isDark
+                              ? "bg-white/5 border-white/10 text-white/80"
+                              : "bg-black/5 border-black/10 text-black/80"
+                              }`}
                           >
                             {skill.name || skill}
                           </span>
                         ))
                       ) : (
-                        <p className="text-white/20 italic text-sm">No skills added yet.</p>
+                        <p className={`italic text-sm ${isDark ? "text-white/20" : "text-black/20"}`}>No skills added yet.</p>
                       )}
                     </div>
                   )}
                 </div>
 
                 {/* SECURITY */}
-                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                <div className={`border rounded-lg lg:rounded-2xl p-4 lg:p-8 ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"
+                  }`}>
                   <SectionHeader
                     title="Security"
                     isEditing={isEditingSecurity}
                     onEdit={() => setIsEditingSecurity(!isEditingSecurity)}
+                    isDark={isDark}
                   />
 
                   {isEditingSecurity ? (
@@ -1201,19 +1284,22 @@ export default function ProfilePage() {
                       <SecurityForm onSuccess={() => setIsEditingSecurity(false)} />
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg lg:rounded-2xl">
+                    <div className={`flex items-center justify-between p-4 border rounded-lg lg:rounded-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/5"
+                      }`}>
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-[#E8D1AB]/10 rounded-lg flex items-center justify-center text-[#E8D1AB]">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/15 text-[#cbb38b]"
+                          }`}>
                           <EyeOff size={20} />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white">Password</p>
-                          <p className="text-xs text-white/40">Last changed recently</p>
+                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Password</p>
+                          <p className={`text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>Last changed recently</p>
                         </div>
                       </div>
                       <button
                         onClick={() => setIsEditingSecurity(true)}
-                        className="text-xs font-bold text-[#E8D1AB] hover:text-white transition-colors uppercase tracking-wider"
+                        className={`text-xs font-bold transition-colors uppercase tracking-wider ${isDark ? "text-[#E8D1AB] hover:text-white" : "text-[#cbb38b] hover:text-black"
+                          }`}
                       >
                         Change Password
                       </button>
@@ -1230,19 +1316,23 @@ export default function ProfilePage() {
                   {/* ADD NEW PROJECT BOX */}
                   <div
                     onClick={() => setIsFeaturedModalOpen(true)}
-                    className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[350px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                    className={`border-2 border-dashed rounded-lg lg:rounded-2xl h-[350px] flex flex-col items-center justify-center cursor-pointer transition-all group ${isDark
+                      ? "border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40"
+                      : "border-black/10 bg-black/[0.01] hover:bg-black/[0.03] hover:border-[#E8D1AB]/60"}`}
                   >
-                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${isDark ? "bg-white/5" : "bg-black/5"}`}>
                       <Plus size={24} className="text-[#E8D1AB]" />
                     </div>
-                    <p className="text-sm font-bold text-white uppercase tracking-widest">Add featured work</p>
+                    <p className={`text-sm font-bold uppercase tracking-widest ${isDark ? "text-white" : "text-black"}`}>
+                      Add featured work
+                    </p>
                   </div>
 
                   {/* DISPLAY GROUPED PROJECTS */}
                   {groupedWorks?.map((project: any, pIdx: number) => (
                     <div key={pIdx} className="group flex flex-col">
                       <div
-                        className="h-[350px] rounded-lg lg:rounded-2xl overflow-hidden border border-white/10 bg-[#111] relative cursor-pointer"
+                        className={`h-[350px] rounded-lg lg:rounded-2xl overflow-hidden border relative cursor-pointer ${isDark ? "border-white/10 bg-[#111111]" : "border-black/5 bg-neutral-50"}`}
                         onClick={() => setLightboxData({ isOpen: true, project, index: 0 })}
                       >
                         {/* Main Image */}
@@ -1255,23 +1345,25 @@ export default function ProfilePage() {
                         {/* HOVER OVERLAY */}
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-6">
                           <div className="flex justify-end gap-2">
-                            {/* Inside groupedWorks map */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                confirmDelete('project', project); // project contains all image objects
+                                confirmDelete('project', project);
                               }}
-                              className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-full text-[10px] font-bold hover:bg-red-50 transition-colors shadow-lg"
+                              className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-full text-xs font-bold hover:bg-red-50 transition-colors shadow-lg"
                             >
                               <Trash2 size={14} /> Delete Project
                             </button>
-                            <button className="p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-colors shadow-lg">
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-colors shadow-lg"
+                            >
                               <Edit3 size={16} />
                             </button>
                           </div>
 
                           <div className="self-center">
-                            <div className="px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] text-white border border-white/20">
+                            <div className="px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-xs text-white border border-white/20">
                               {project.images.length} Media Items
                             </div>
                           </div>
@@ -1285,11 +1377,14 @@ export default function ProfilePage() {
                       </div>
 
                       <div className="mt-5 px-2">
-                        <h4 className="text-base font-bold text-white tracking-tight">{project.title}</h4>
-                        {
-                          normalizeFeaturedWorkTag(project?.tag) &&
-                          <p className="text-xs text-[#E8D1AB] mt-1 opacity-80 font-medium">#{project.tag}</p>
-                        }
+                        <h4 className={`text-base font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                          {project.title}
+                        </h4>
+                        {normalizeFeaturedWorkTag(project?.tag) && (
+                          <p className={`text-xs mt-1 font-medium ${isDark ? "text-[#E8D1AB] opacity-80" : "text-[#cbb38b]"}`}>
+                            #{project.tag}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1303,6 +1398,7 @@ export default function ProfilePage() {
                       buttonText="Upload Project"
                       footerText="Minimum 1600 × 1200. Max 10MB (images), 20MB (videos)."
                       onClick={() => setIsFeaturedModalOpen(true)}
+                      isDark={isDark}
                     />
                   </div>
                 )}
@@ -1328,21 +1424,29 @@ export default function ProfilePage() {
                     buttonText="Add Certificate"
                     footerText="PDF, JPG, DOCX or PNG files. Max 10MB per file."
                     onClick={() => certInputRef.current?.click()}
+                    isDark={isDark}
                   />
                 ) : (
-                  <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                  <div className={`border rounded-lg lg:rounded-2xl p-4 lg:p-8 ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"
+                    }`}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
                       {/* ADD CARD */}
                       <div
                         onClick={() => certInputRef.current?.click()}
-                        className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                        className={`border-2 border-dashed rounded-lg lg:rounded-2xl h-[220px] flex flex-col items-center justify-center cursor-pointer transition-all group ${isDark
+                          ? "border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40"
+                          : "border-black/10 bg-black/[0.01] hover:bg-black/[0.03] hover:border-[#E8D1AB]/60"
+                          }`}
                       >
-                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${isDark ? "bg-white/5" : "bg-black/5"
+                          }`}>
                           <Plus size={20} className="text-[#E8D1AB]" />
                         </div>
-                        <p className="text-sm font-bold text-white mb-1">Add Certificate</p>
-                        <p className="text-[10px] text-white/40 text-center px-6">Highlight achievements with a professional certificate.</p>
+                        <p className={`text-sm font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>Add Certificate</p>
+                        <p className={`text-xs text-center px-6 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                          Highlight achievements with a professional certificate.
+                        </p>
                       </div>
 
                       {/* CERTIFICATE CARDS */}
@@ -1351,15 +1455,18 @@ export default function ProfilePage() {
                         const fileUrl = `${S3_BASE_URL}${cert.file_path}`;
 
                         return (
-                          <div key={cert.id || index} className="relative group h-[220px] rounded-lg lg:rounded-2xl overflow-hidden border border-white/10 bg-[#0A0A0A]">
-                            {/* Thumbnail (For PDF we show a placeholder or icon, for image we show the img) */}
+                          <div
+                            key={cert.id || index}
+                            className={`relative group h-[220px] rounded-lg lg:rounded-2xl overflow-hidden border ${isDark ? "border-white/10 bg-[#0A0A0A]" : "border-black/10 bg-neutral-50"}`}
+                          >
+                            {/* Thumbnail */}
                             {isPDF ? (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white/20">
+                              <div className={`w-full h-full flex flex-col items-center justify-center ${isDark ? "bg-neutral-900 text-white/20" : "bg-neutral-200 text-black/20"}`}>
                                 <FileText size={48} />
-                                <span className="text-[10px] mt-2 font-bold uppercase tracking-widest">PDF Document</span>
+                                <span className="text-xs mt-2 font-bold uppercase tracking-widest">PDF Document</span>
                               </div>
                             ) : (
-                              <img src={fileUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-50 transition-all" />
+                              <img src={fileUrl} alt={`Certificate ${index + 1}`} className="w-full h-full object-cover opacity-80 group-hover:opacity-50 transition-all" />
                             )}
 
                             <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
@@ -1370,14 +1477,14 @@ export default function ProfilePage() {
                             <div className="absolute top-4 right-4 flex gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
                               <button
                                 onClick={() => setPreviewCert(cert)}
-                                className="p-2 bg-white/10 backdrop-blur-md hover:bg-white text-white hover:text-black rounded-lg transition-all"
+                                className={`p-2 backdrop-blur-md rounded-lg transition-all ${isDark ? "bg-white/10 hover:bg-white text-white hover:text-black " : "bg-black/10 hover:bg-black/30 text-black"}`}
                               >
                                 <Eye size={16} />
                               </button>
                               {/* Inside certifications map */}
                               <button
                                 onClick={() => confirmDelete('file', cert)}
-                                className="p-2 bg-white/10 backdrop-blur-md hover:bg-red-500 text-white rounded-lg transition-all"
+                                className={`p-2 backdrop-blur-md hover:bg-red-500 rounded-lg transition-all ${isDark ? "text-white bg-white/10 " : "bg-black/10  text-black hover:text-white"}`}
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -1393,7 +1500,7 @@ export default function ProfilePage() {
 
             {/* RESUME TAB */}
             {activeTab === "Resume" && (
-              <div className="animate-in fade-in duration-500"> {/* Removed flex-center classes here */}
+              <div className="animate-in fade-in duration-500">
                 <input
                   type="file"
                   ref={resumeInputRef}
@@ -1416,6 +1523,7 @@ export default function ProfilePage() {
                         buttonText="Select File"
                         footerText="Acceptable file types: PDF, JPG, PNG (max 5MB)"
                         onClick={() => resumeInputRef.current?.click()}
+                        isDark={isDark}
                       />
                     );
                   }
@@ -1423,19 +1531,23 @@ export default function ProfilePage() {
                   // RESUME CARD (Wrapped in a flex container ONLY when data exists to keep it centered)
                   return (
                     <div className="flex justify-center py-4 lg:py-10">
-                      <div className="bg-[#111] border border-white/5 rounded-[2.5rem] p-12 w-full max-w-lg relative flex flex-col items-center justify-center text-center shadow-2xl">
+                      <div className={`border rounded-[2.5rem] p-12 w-full max-w-lg relative flex flex-col items-center justify-center text-center shadow-2xl ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-black/5"}`}>
 
                         {/* Delete Icon (Top Right) */}
                         <button
                           onClick={() => confirmDelete('file', resumeFile)}
-                          className="absolute top-6 right-6 p-2.5 bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-500 rounded-full border border-white/5 transition-all"
+                          className={`absolute top-6 right-6 p-2.5 rounded-full border transition-all ${isDark
+                            ? "bg-white/5 border-white/5 text-white/40 hover:bg-red-500/20 hover:text-red-500"
+                            : "bg-black/5 border-black/5 text-black/40 hover:bg-red-500/10 hover:text-red-500"
+                            }`}
                           title="Delete Resume"
                         >
                           <Trash2 size={18} />
                         </button>
 
                         {/* File Icon Box */}
-                        <div className="w-16 h-20 bg-white border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl">
+                        <div className={`w-16 h-20 border rounded-2xl flex items-center justify-center mb-6 shadow-xl ${isDark ? "bg-white border-white/10" : "bg-neutral-50 border-black/10"
+                          }`}>
                           <div className="relative">
                             <FileText size={40} className="text-red-500" />
                             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white font-black">
@@ -1445,22 +1557,28 @@ export default function ProfilePage() {
                         </div>
 
                         {/* File Details */}
-                        <h3 className="text-xl font-bold text-white mb-1">My Resume</h3>
-                        <p className="text-sm text-white/40 mb-10 font-medium">
+                        <h3 className={`text-xl font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>My Resume</h3>
+                        <p className={`text-sm mb-10 font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
                           Uploaded on {new Date(resumeFile.created_at || Date.now()).toLocaleDateString()}
                         </p>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 w-full">
                           <button
                             onClick={() => window.open(`${S3_BASE_URL}${resumeFile.file_path}`, '_blank')}
-                            className="bg-white text-black font-bold px-10 py-3.5 rounded-2xl hover:bg-[#E8D1AB] transition-all active:scale-95 shadow-lg"
+                            className={`text-sm lg:text-base w-full font-bold px-5 lg:px-10 py-2.5 lg:py-3.5 rounded-lg lg:rounded-2xl transition-all active:scale-95 shadow-lg ${isDark
+                              ? "bg-white text-black hover:bg-[#E8D1AB]"
+                              : "bg-black text-white hover:bg-[#cbb38b]"
+                              }`}
                           >
                             View File
                           </button>
                           <button
                             onClick={() => resumeInputRef.current?.click()}
-                            className="bg-transparent text-white border border-white/10 font-bold px-10 py-3.5 rounded-2xl hover:bg-white/5 transition-all active:scale-95"
+                            className={`text-sm lg:text-base w-full font-bold px-5 lg:px-10 py-2.5 lg:py-3.5 rounded-lg lg:rounded-2xl transition-all active:scale-95 border ${isDark
+                              ? "bg-transparent text-white border-white/10 hover:bg-white/5"
+                              : "bg-transparent text-black border-black/10 hover:bg-black/5"
+                              }`}
                           >
                             Replace
                           </button>
@@ -1488,12 +1606,14 @@ export default function ProfilePage() {
                           setEditingPortfolioLinks([]);
                           setIsPortfolioLinksModalOpen(true);
                         }}
+                        isDark={isDark}
                       />
                     );
                   }
 
                   return (
-                    <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                    <div className={`border rounded-lg lg:rounded-2xl p-4 lg:p-8 ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"
+                      }`}>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {/* ADD CARD */}
                         <div
@@ -1507,13 +1627,17 @@ export default function ProfilePage() {
                             setEditingPortfolioLinks(mappedLinks);
                             setIsPortfolioLinksModalOpen(true);
                           }}
-                          className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[220px] lg:h-auto min-h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                          className={`border-2 border-dashed rounded-lg lg:rounded-2xl h-[220px] lg:h-auto min-h-[220px] flex flex-col items-center justify-center cursor-pointer transition-all group ${isDark
+                            ? "border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40"
+                            : "border-black/10 bg-black/[0.01] hover:bg-black/[0.03] hover:border-[#E8D1AB]/60"
+                            }`}
                         >
-                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${isDark ? "bg-white/5" : "bg-black/5"
+                            }`}>
                             <Plus size={20} className="text-[#E8D1AB]" />
                           </div>
-                          <p className="text-sm font-bold text-white mb-1">Add Portfolio Link</p>
-                          <p className="text-[10px] text-white/40 text-center px-6">Share your external work links here.</p>
+                          <p className={`text-sm font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>Add Portfolio Link</p>
+                          <p className={`text-xs text-center px-6 ${isDark ? "text-white/40" : "text-black/40"}`}>Share your external work links here.</p>
                         </div>
 
                         {portfolioLinks.map((link: any, index: number) => {
@@ -1521,11 +1645,19 @@ export default function ProfilePage() {
                           return (
                             <div
                               key={link.crew_files_id || index}
-                              className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-4 group hover:border-white/20 transition-all shadow-xl"
+                              className={`border rounded-2xl p-4 flex flex-col gap-4 group transition-all shadow-xl ${isDark
+                                ? "bg-white/5 border-white/10 hover:border-white/20"
+                                : "bg-black/5 border-black/5 hover:border-black/20"
+                                }`}
                             >
                               <div className="flex items-center justify-between">
-                                <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
-                                  {platform?.icon ? <platform.icon size={24} className="text-[#E8D1AB]" /> : <Globe size={24} className="text-[#E8D1AB]" />}
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/10"
+                                  }`}>
+                                  {platform?.icon ? (
+                                    <platform.icon size={24} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
+                                  ) : (
+                                    <Globe size={24} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
@@ -1539,24 +1671,32 @@ export default function ProfilePage() {
                                       setEditingPortfolioLinks(mappedLinks);
                                       setIsPortfolioLinksModalOpen(true);
                                     }}
-                                    className="p-2 text-white/20 hover:text-[#E8D1AB] hover:bg-white/5 rounded-lg transition-all"
+                                    className={`p-2 rounded-lg transition-all ${isDark ? "text-white/20 hover:text-[#E8D1AB] hover:bg-white/5" : "text-black/20 hover:text-[#cbb38b] hover:bg-black/5"}`}
                                   >
                                     <Pencil size={18} />
                                   </button>
-                                  <button onClick={() => confirmDelete('file', link)} className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
+                                  <button
+                                    onClick={() => confirmDelete('file', link)}
+                                    className={`p-2 rounded-lg transition-all ${isDark ? "text-white/20 hover:text-red-500 hover:bg-red-500/10" : "text-black/20 hover:text-red-500 hover:bg-red-500/5"}`}
+                                  >
                                     <Trash2 size={18} />
                                   </button>
                                 </div>
                               </div>
 
                               <div className="space-y-1">
-                                <p className="text-sm font-bold text-white uppercase tracking-wider">{platform?.label || "Portfolio Link"}</p>
-                                <p className="text-xs text-white/40 truncate">{link.file_path}</p>
+                                <p className={`text-sm font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>
+                                  {platform?.label || "Portfolio Link"}
+                                </p>
+                                <p className={`text-xs truncate ${isDark ? "text-white/40" : "text-black/40"}`}>{link.file_path}</p>
                               </div>
 
                               <button
                                 onClick={() => setPlayingVideo(link.file_path)}
-                                className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
+                                className={`w-full border py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn ${isDark
+                                  ? "bg-[#1A1A1A] text-white border-white/10 hover:bg-white hover:text-black"
+                                  : "bg-white text-black border-black/10 hover:bg-black hover:text-white"
+                                  }`}
                               >
                                 Play Portfolio
                                 <Play size={14} className="fill-current group-hover/btn:scale-110 transition-transform" />
@@ -1570,6 +1710,7 @@ export default function ProfilePage() {
                 })()}
               </div>
             )}
+
             {/* EQUIPMENTS TAB */}
             {activeTab === "Equipments" && (
               <div className="animate-in fade-in duration-500">
@@ -1578,6 +1719,7 @@ export default function ProfilePage() {
                   description="Showcase the professional gear and tools you use to deliver high-quality results."
                   buttonText="Add Equipment"
                   footerText="Cameras, lenses, lighting, or any specialized gear you own."
+                  isDark={isDark}
                 />
               </div>
             )}
@@ -1587,7 +1729,7 @@ export default function ProfilePage() {
 
         {/* FULL SCREEN LIGHTBOX VIEWER */}
         {lightboxData.isOpen && lightboxData.project && (
-          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
+          <div className={`fixed inset-0 z-[100] backdrop-blur-xl flex flex-col animate-in fade-in duration-300 ${isDark ? "bg-black/95" : "bg-white/95"}`}>
             {/* Top Bar */}
             <div className="flex items-start justify-between gap-6 p-6 lg:p-8">
               <div className="flex flex-col gap-3">
@@ -1596,12 +1738,15 @@ export default function ProfilePage() {
                     {lightboxData.project.title}
                   </h3>
                   {normalizeFeaturedWorkTag(lightboxData.project.tag) && (
-                    <span className="inline-flex items-center rounded-full border border-[#E8D1AB]/30 bg-[#E8D1AB]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#E8D1AB]">
+                    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${isDark
+                      ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                      : "border-[#cbb38b]/30 bg-[#cbb38b]/20 text-[#fff]"
+                      }`}>
                       {normalizeFeaturedWorkTag(lightboxData.project.tag)}
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-white/40">
+                <p className={`text-xs uppercase tracking-[0.22em] ${isDark ? "text-white/40" : "text-black/40"}`}>
                   Media {lightboxData.index + 1} of {lightboxData.project.images.length}
                 </p>
               </div>
@@ -1609,13 +1754,13 @@ export default function ProfilePage() {
                 {/* Inside Lightbox Top Bar */}
                 <button
                   onClick={() => confirmDelete('file', lightboxData.project.images[lightboxData.index])}
-                  className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                  className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-red-400 hover:bg-red-500 hover:text-white transition-all"
                 >
                   <Trash2 size={16} /> Delete This Image
                 </button>
                 <button
                   onClick={() => setLightboxData({ ...lightboxData, isOpen: false })}
-                  className="rounded-full border border-white/10 bg-white/5 p-3 text-white hover:bg-white/10 transition-colors"
+                  className={`rounded-full border p-3 transition-colors ${isDark ? "border-white/10 bg-white/5 text-white hover:bg-white/10" : "border-black/10 bg-black/5 text-black hover:bg-black/10"}`}
                 >
                   <X size={24} />
                 </button>
@@ -1625,14 +1770,14 @@ export default function ProfilePage() {
             {/* Main Content (Image + Arrows) */}
             <div className="flex-1 relative flex items-center justify-center px-4 py-6 lg:px-20 lg:py-8">
               <button
-                className="absolute left-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
+                className={`absolute left-8 z-10 p-4 rounded-full transition-all active:scale-90 ${isDark ? "bg-white/5 hover:bg-white/10 text-white" : "bg-black/5 hover:bg-black/10 text-black"}`}
                 onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index - 1 + lightboxData.project.images.length) % lightboxData.project.images.length })}
               >
                 <ChevronLeft size={32} />
               </button>
 
               <div className="w-full max-w-5xl">
-                <div className="relative mx-auto flex aspect-[4/3] max-h-[calc(100vh-16rem)] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#050505] shadow-2xl">
+                <div className={`relative mx-auto flex aspect-[4/3] max-h-[calc(100vh-16rem)] w-full items-center justify-center overflow-hidden rounded-2xl shadow-2xl ${isDark ? "bg-[#050505]" : "bg-neutral-950"}`}>
                   <img
                     src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`}
                     className="h-full w-full object-contain"
@@ -1642,7 +1787,7 @@ export default function ProfilePage() {
               </div>
 
               <button
-                className="absolute right-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
+                className={`absolute right-8 z-10 p-4 rounded-full transition-all active:scale-90 ${isDark ? "bg-white/5 hover:bg-white/10 text-white" : "bg-black/5 hover:bg-black/10 text-black"}`}
                 onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index + 1) % lightboxData.project.images.length })}
               >
                 <ChevronRight size={32} />
@@ -1655,9 +1800,12 @@ export default function ProfilePage() {
                 <button
                   key={idx}
                   onClick={() => setLightboxData({ ...lightboxData, index: idx })}
-                  className={`w-20 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${lightboxData.index === idx ? 'border-[#E8D1AB] scale-110' : 'border-transparent opacity-40 hover:opacity-100'}`}
+                  className={`w-20 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${lightboxData.index === idx
+                    ? (isDark ? 'border-[#E8D1AB] scale-110' : 'border-[#cbb38b] scale-110')
+                    : 'border-transparent opacity-40 hover:opacity-100'
+                    }`}
                 >
-                  <img src={`${S3_BASE_URL}${img.file_path}`} className="w-full h-full object-cover" />
+                  <img src={`${S3_BASE_URL}${img.file_path}`} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -1712,32 +1860,36 @@ export default function ProfilePage() {
 
         {/* VIDEO PLAYER MODAL */}
         {playingVideo && (
-          <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+          <div className={`fixed inset-0 z-[120] backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500 ${isDark ? "bg-black/98" : "bg-white/98"}`}>
 
             {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
-            <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
+            <div className={`sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b to-transparent pointer-events-none ${isDark ? "from-black/95 via-black/80" : "from-white/95 via-white/80"}`}>
               <div className="space-y-1 pointer-events-auto">
-                <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
+                <h3 className={`text-xs lg:text-sm font-black uppercase tracking-[0.3em] ${isDark ? "text-white" : "text-black"}`}>
                   Portfolio Player
                 </h3>
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-[#E8D1AB] rounded-full animate-pulse" />
-                  <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? "bg-[#E8D1AB]" : "bg-[#cbb38b]"}`} />
+                  <p className={`text-xs uppercase font-bold tracking-widest ${isDark ? "text-white/30" : "text-black/40"}`}>
                     Now Playing
                   </p>
                 </div>
               </div>
+
               <button
                 onClick={() => setPlayingVideo(null)}
-                className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
+                className={`p-3 lg:p-4 border rounded-full transition-all active:scale-90 shadow-lg pointer-events-auto ${isDark
+                    ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                    : "bg-black/5 border-black/10 text-black hover:bg-black/10"
+                  }`}
               >
                 <X size={20} className="lg:w-6 lg:h-6" />
               </button>
             </div>
 
-            {/* Video Container - Changed layout to allow perfect scrolling without clipping */}
+            {/* Video Container */}
             <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
-              <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
+              <div className={`w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden border relative ${isDark ? "shadow-[0_0_100px_rgba(0,0,0,0.8)] border-white/10" : "shadow-2xl border-black/10"}`}>
                 <iframe
                   src={getEmbedUrl(playingVideo) || ""}
                   className="w-full h-full absolute inset-0 border-none"
@@ -1747,25 +1899,27 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
-
           </div>
         )}
         <FeaturedWorkModal
           open={isFeaturedModalOpen}
           onClose={() => setIsFeaturedModalOpen(false)}
           onAdd={handleAddProject}
+          isDark={isDark}
         />
         <SocialLinksModal
           open={isSocialLinksModalOpen}
           onClose={() => setIsSocialLinksModalOpen(false)}
           links={socialLinks}
           onChange={handleSaveSocialLinks} // Pass the API handler here
+          isDark={isDark}
         />
         <PortfolioLinksModal
           open={isPortfolioLinksModalOpen}
           onClose={() => setIsPortfolioLinksModalOpen(false)}
           links={editingPortfolioLinks}
           onChange={handleAddPortfolioLinks}
+          isDark={isDark}
         />
         <DeleteConfirmationModal
           isOpen={deleteModal.isOpen}
@@ -1773,19 +1927,19 @@ export default function ProfilePage() {
           onConfirm={handleExecuteDelete}
           title={deleteModal.title}
           description={deleteModal.description}
+          isDark={isDark}
         />
         {isPageLoading && (
-          <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+          <div className={`fixed inset-0 z-[9999] backdrop-blur-sm flex items-center justify-center ${isDark ? "bg-black/80" : "bg-white/80"}`}>
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-[#E8D1AB]" />
-              <p className="text-sm tracking-wide text-white/80">
+              <p className={`text-sm tracking-wide ${isDark ? "text-white/80" : "text-black/80"}`}>
               </p>
             </div>
           </div>
         )}
       </div>
     </>
-    // </div> 
   );
 }
 
