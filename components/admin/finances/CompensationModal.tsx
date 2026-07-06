@@ -5,7 +5,7 @@ import { X, CheckCircle2, Edit3, XCircle, Clock } from "lucide-react";
 import { ShootCPRow } from "@/components/admin/finances/CPPayoutTable";
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import type { CpCompensationDetails } from "@/lib/api/cpCompensation";
+import { normalizeCpRoleLabel, type CpCompensationDetails } from "@/lib/api/cpCompensation";
 
 interface CompensationItem {
   id: string;
@@ -20,7 +20,7 @@ interface CompensationItem {
   editing: number;
   travel: number;
   bonus: number;
-  hasAdvance?: boolean;
+  hasPendingAdvance?: boolean;
   advanceAmount?: number;
   advanceDate?: string;
 }
@@ -60,11 +60,11 @@ export default function CompensationModal({
   const { isDark } = useResolvedTheme()
   const compensationList: CompensationItem[] = useMemo(() => (details?.creators || []).map((creator) => {
     const itemAmount = (label: string) => creator.compensation_items.find((item) => item.label === label)?.amount || 0;
-    const latestAdvance = creator.advances?.[0];
+    const pendingAdvance = creator.advances?.find((advance) => !["processed", "paid", "completed"].includes(String(advance.status || "").toLowerCase()));
     return {
       id: String(creator.creator_earning_id),
       name: creator.creator_name || "Unknown Creator",
-      role: creator.cp_role || "Creative Partner",
+      role: normalizeCpRoleLabel(creator.cp_role) || "Creative Partner",
       approvalStatus: creator.approval_status,
       earningStatus: creator.earning_status,
       paidTotal: creator.paid_total,
@@ -74,9 +74,9 @@ export default function CompensationModal({
       editing: itemAmount("Editing Payout"),
       travel: itemAmount("Travel Adjustment"),
       bonus: itemAmount("Bonus/Other Adjustment"),
-      hasAdvance: Boolean(latestAdvance),
-      advanceAmount: latestAdvance?.amount,
-      advanceDate: latestAdvance?.processed_at || undefined,
+      hasPendingAdvance: Boolean(pendingAdvance),
+      advanceAmount: pendingAdvance?.amount,
+      advanceDate: pendingAdvance?.processed_at || undefined,
     };
   }), [details?.creators]);
 
@@ -209,6 +209,7 @@ export default function CompensationModal({
                   const isApproved = creator.approvalStatus === "approved";
                   const remainingBalance = Number(creator.remainingBalance);
                   const isPaid = creator.earningStatus === "paid" || (isApproved && Number.isFinite(remainingBalance) && remainingBalance <= 0);
+                  const canRecordPayment = isApproved && !isPaid && (!Number.isFinite(remainingBalance) || remainingBalance > 0);
                   return (
                     <div
                       key={creator.id}
@@ -287,7 +288,7 @@ export default function CompensationModal({
                         )}
 
                         {/* Pre-Shoot Advance Section Drawer */}
-                        {creator.hasAdvance && (
+                        {creator.hasPendingAdvance && (
                           <div className="space-y-3">
                             <div className="flex flex-col lg:flex-row items-start gap-2 lg:items-center lg:justify-between bg-[#FFFBEB] rounded-lg p-3">
                               <div className="text-xs lg:text-sm">
@@ -311,7 +312,7 @@ export default function CompensationModal({
                         )}
 
                         {/* Context Action Button Panel inside individual active items */}
-                        {!creator.hasAdvance && isChecked && isPendingApproval && (
+                        {!creator.hasPendingAdvance && isChecked && isPendingApproval && (
                           <div className="flex flex-col gap-3">
                             <button
                               onClick={onApproveClick}
@@ -337,7 +338,7 @@ export default function CompensationModal({
                             </div>
                           </div>
                         )}
-                        {isChecked && isApproved && !isPaid && (
+                        {isChecked && canRecordPayment && (
                           <button
                             onClick={() => onPaymentClick?.(Number(creator.id))}
                             className="h-12 min-w-[180px] px-5 rounded-lg inline-flex items-center justify-center gap-2 bg-[#9810FA] hover:bg-[#9810FA]/90 text-white font-semibold text-sm whitespace-nowrap"

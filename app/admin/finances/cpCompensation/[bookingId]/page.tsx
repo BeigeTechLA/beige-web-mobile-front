@@ -2,12 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { ChevronLeft, Download, ExternalLink, History, Loader2 } from "lucide-react";
+import { ChevronLeft, Download, ExternalLink, FileText, History, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { cpCompensationApi, type CpCompensationDetails, type CpPaymentHistoryItem } from "@/lib/api/cpCompensation";
+import { cpCompensationApi, normalizeCpRoleLabel, type CpCompensationDetails, type CpPaymentHistoryItem } from "@/lib/api/cpCompensation";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/src/components/landing/ui/button";
 
@@ -20,6 +20,17 @@ type HistoryEntry = {
   dateSortKey: number;
   receiptUrl?: string | null;
   receiptDownloadUrl?: string | null;
+  proofFileName?: string | null;
+};
+
+type CreatorHistoryGroup = {
+  id: string;
+  creatorName: string;
+  role: string;
+  total: string;
+  paid: string;
+  remaining: string;
+  entries: HistoryEntry[];
 };
 
 const formatHistoryDate = (value?: string | null) => {
@@ -36,19 +47,67 @@ const formatHistoryDate = (value?: string | null) => {
   });
 };
 
+const joinAssetUrl = (baseUrl: string | undefined, pathValue: string) => {
+  const base = String(baseUrl || "").trim();
+  if (!base) return "";
+
+  return `${base.replace(/\/+$/, "")}/${pathValue.replace(/^\/+/, "")}`;
+};
+
+const getReceiptFileName = (value?: string | null) => {
+  const raw = String(value || "").split("?")[0];
+  return raw.split("/").filter(Boolean).pop() || "receipt.pdf";
+};
+
+const resolveReceiptUrl = (value?: string | null, fallbackFileName?: string | null) => {
+  const raw = String(value || fallbackFileName || "").trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  const normalizedPath = raw.replace(/^beige\//i, "");
+  return (
+    joinAssetUrl(process.env.NEXT_PUBLIC_IMG_URL_CDN, normalizedPath) ||
+    joinAssetUrl(process.env.NEXT_PUBLIC_IMG_URL, normalizedPath) ||
+    raw
+  );
+};
+
+const withDownloadDisposition = (url: string, filename: string) => {
+  const params = new URLSearchParams({
+    url,
+    filename,
+    disposition: "attachment",
+  });
+  return `/api/cp-compensation-receipt?${params.toString()}`;
+};
+
+const buildReceiptViewUrl = (url: string, filename: string, bookingId?: string | number) => {
+  const params = new URLSearchParams({
+    url,
+    filename,
+  });
+  if (bookingId) params.set("bookingId", String(bookingId));
+  return `/admin/finances/cpCompensation/receipt-view?${params.toString()}`;
+};
+
 const mapPaymentEntry = (item: CpPaymentHistoryItem, index: number): HistoryEntry => {
   const amount = Number(item.amount || 0);
   const title = String(item.method || item.type || "Payment").replace(/_/g, " ");
+  const rawReceiptValue = item.receipt_url || item.receipt_download_url || null;
+      const proofFileName = item.proof_file_name || (rawReceiptValue ? getReceiptFileName(rawReceiptValue) : null);
+      const receiptUrl = resolveReceiptUrl(item.receipt_url || item.receipt_download_url, proofFileName);
+      const receiptDownloadUrl = receiptUrl ? withDownloadDisposition(receiptUrl, proofFileName || "receipt.pdf") : null;
 
   return {
     id: String(item.id || `payment-${index}`),
-    title,
-    subtitle: String(item.status || item.notes || "Payment recorded"),
+    title: item.type === "partial_payment" ? "Applied as partial payment" : title,
+    subtitle: String(item.notes || item.status || "Payment recorded"),
     amount: formatCurrency(amount),
     dateLabel: formatHistoryDate(item.paid_at),
     dateSortKey: item.paid_at ? new Date(item.paid_at).getTime() : 0,
-    receiptUrl: item.receipt_url || null,
-    receiptDownloadUrl: item.receipt_download_url || null,
+    receiptUrl,
+    receiptDownloadUrl,
+    proofFileName,
   };
 };
 
@@ -103,17 +162,12 @@ export default function CpCompensationHistoryPage() {
     };
   }, [numericBookingId]);
 
-  const historyEntries = useMemo<HistoryEntry[]>(() => {
-    const paymentHistory = (details?.payment_history || details?.history || []) as CpPaymentHistoryItem[];
-    if (paymentHistory.length > 0) {
-      return paymentHistory
-        .map(mapPaymentEntry)
-        .sort((left, right) => right.dateSortKey - left.dateSortKey);
-    }
-
-    const creatorEntries = (details?.creators || []).flatMap((creator) => {
+  const creatorHistoryGroups = useMemo<CreatorHistoryGroup[]>(() => {
+    return (details?.creators || []).map((creator) => {
       const creatorName = creator.creator_name || "Unknown Creator";
-      const role = creator.cp_role || "Creative Partner";
+      const role = normalizeCpRoleLabel(creator.cp_role) || "Creative Partner";
+
+      const paymentEntries = (creator.payment_history || []).map(mapPaymentEntry);
 
       const advances = (creator.advances || []).map((advance, index) => {
         const paidAt = advance.processed_at || null;
@@ -143,24 +197,19 @@ export default function CpCompensationHistoryPage() {
         };
       });
 
-      return [...advances, ...timeline];
-    });
+      const entries = (paymentEntries.length > 0 ? paymentEntries : [...advances, ...timeline])
+        .sort((left, right) => right.dateSortKey - left.dateSortKey);
 
-    const auditEntries = (details?.audit_logs || []).map((log, index) => {
-      const eventDate = log.created_at || null;
       return {
-        id: `audit-${index}-${log.action}-${eventDate || ""}`,
-        title: log.label || log.action || "Audit log",
-        subtitle: log.notes || "Finance activity",
-        amount: "",
-        dateLabel: formatHistoryDate(eventDate),
-        dateSortKey: eventDate ? new Date(eventDate).getTime() : 0,
-        receiptUrl: null,
-        receiptDownloadUrl: null,
+        id: String(creator.creator_earning_id),
+        creatorName,
+        role,
+        total: formatCurrency(creator.total_compensation || 0),
+        paid: formatCurrency(creator.paid_total || 0),
+        remaining: formatCurrency(Math.max(Number(creator.remaining_balance || 0), 0)),
+        entries,
       };
     });
-
-    return [...creatorEntries, ...auditEntries].sort((left, right) => right.dateSortKey - left.dateSortKey);
   }, [details]);
 
   const summaryCards = [
@@ -227,7 +276,7 @@ export default function CpCompensationHistoryPage() {
           ))}
         </div>
 
-        <section className={`overflow-hidden rounded-2xl border ${isDark ? "border-white/5 bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}>
+        <section className={`overflow-hidden rounded-xl border ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}>
           <div className={`flex items-center justify-between gap-4 border-b px-4 py-4 lg:px-5 ${isDark ? "border-white/5" : "border-[#EFEFEF]"}`}>
             <div>
               <h2 className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
@@ -243,65 +292,88 @@ export default function CpCompensationHistoryPage() {
             <div className="flex min-h-[240px] items-center justify-center">
               <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
             </div>
-          ) : historyEntries.length > 0 ? (
-            <div className={`divide-y ${isDark ? "divide-[#252525]" : "divide-[#F1F1F1]"}`}>
-              {historyEntries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="grid grid-cols-1 gap-4 px-4 py-4 sm:grid-cols-[1fr_auto] sm:items-start lg:px-5"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#2A2520] text-[#E8D1AB]" : "bg-[#F4EFE2] text-[#8A6A3D]"}`}>
-                      <History size={16} />
+          ) : creatorHistoryGroups.some((group) => group.entries.length > 0) ? (
+            <div className="space-y-4 p-4 lg:p-5">
+              {creatorHistoryGroups.map((group) => (
+                <div key={group.id} className={`overflow-hidden rounded-xl border ${isDark ? "border-white/10 bg-[#171717]" : "border-[#EFEFEF] bg-[#FAFAFA]"}`}>
+                  <div className={`flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-white/10 bg-[#1C1C1C]" : "border-[#EFEFEF] bg-white"}`}>
+                    <div>
+                      <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>{group.creatorName}</p>
+                      <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{group.role}</p>
                     </div>
+                    <div className="grid grid-cols-3 gap-2 text-right text-xs">
+                      <span className={isDark ? "text-white/45" : "text-black/45"}>Total <b className={isDark ? "text-white/80" : "text-black/80"}>{group.total}</b></span>
+                      <span className={isDark ? "text-white/45" : "text-black/45"}>Paid <b className="text-[#10B981]">{group.paid}</b></span>
+                      <span className={isDark ? "text-white/45" : "text-black/45"}>Remaining <b className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}>{group.remaining}</b></span>
+                    </div>
+                  </div>
 
-                    <div className="min-w-0">
-                      <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
-                        {entry.title}
-                      </p>
-                      <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
-                        {entry.dateLabel}
-                        {entry.subtitle ? ` - ${entry.subtitle}` : ""}
-                      </p>
+                  {group.entries.length > 0 ? group.entries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`grid grid-cols-1 gap-4 border-b px-4 py-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center ${isDark ? "border-white/5" : "border-[#EFEFEF]"}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#2A2520] text-[#E8D1AB]" : "bg-[#F4EFE2] text-[#8A6A3D]"}`}>
+                          <History size={16} />
+                        </div>
 
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-                        {entry.receiptUrl ? (
-                          <a
-                            href={entry.receiptUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-[#E8D1AB] hover:text-[#F4E8CF]" : "text-[#8A6A3D] hover:text-[#6E5430]"}`}
-                          >
-                            <ExternalLink size={12} />
-                            View Receipt
-                          </a>
-                        ) : (
-                          <span className={`${isDark ? "text-white/30" : "text-black/30"}`}>
-                            No receipt attached
-                          </span>
-                        )}
+                        <div className="min-w-0">
+                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            {entry.title}
+                          </p>
+                          <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
+                            {entry.dateLabel}
+                            {entry.subtitle ? ` - ${entry.subtitle}` : ""}
+                          </p>
 
-                        {entry.receiptDownloadUrl && (
-                          <a
-                            href={entry.receiptDownloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-white/55 hover:text-white" : "text-black/55 hover:text-black"}`}
-                            title="Download receipt"
-                          >
-                            <Download size={12} />
-                            Download
-                          </a>
-                        )}
+                          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                            {entry.receiptUrl ? (
+                              <a
+                                href={buildReceiptViewUrl(entry.receiptUrl, entry.proofFileName || "receipt.pdf", bookingId)}
+                                className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-[#E8D1AB] hover:text-[#F4E8CF]" : "text-[#8A6A3D] hover:text-[#6E5430]"}`}
+                              >
+                                <ExternalLink size={12} />
+                                View Receipt
+                              </a>
+                            ) : entry.proofFileName ? (
+                              <span className={`inline-flex items-center gap-1.5 ${isDark ? "text-white/55" : "text-black/55"}`}>
+                                <FileText size={12} />
+                                Receipt attached: {entry.proofFileName}
+                              </span>
+                            ) : (
+                              <span className={`${isDark ? "text-white/30" : "text-black/30"}`}>
+                                No receipt attached
+                              </span>
+                            )}
+
+                            {entry.receiptDownloadUrl && (
+                              <a
+                                href={entry.receiptDownloadUrl}
+                                rel="noopener noreferrer"
+                                download={entry.proofFileName || "receipt.pdf"}
+                                className={`inline-flex items-center gap-1.5 font-medium transition-colors ${isDark ? "text-white/55 hover:text-white" : "text-black/55 hover:text-black"}`}
+                                title="Download receipt"
+                              >
+                                <Download size={12} />
+                                Download
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:text-right">
+                        <span className={`text-xl font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
+                          {entry.amount || "-"}
+                        </span>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:text-right">
-                    <span className={`text-lg font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
-                      {entry.amount || "-"}
-                    </span>
-                  </div>
+                  )) : (
+                    <div className={`px-1 py-3 text-sm ${isDark ? "text-white/35" : "text-black/35"}`}>
+                      No payment history for this creative partner yet.
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -312,19 +384,7 @@ export default function CpCompensationHistoryPage() {
           )}
         </section>
 
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-            className={`h-11 rounded-lg px-5 text-sm font-semibold transition-colors ${isDark
-              ? "border-white/10 bg-[#171717] text-white hover:bg-[#202020]"
-              : "border-[#E5E5E5] bg-white text-black hover:bg-[#F4F5F7]"
-              }`}
-          >
-            Return
-          </Button>
-        </div>
+        
       </div>
     </>
   );

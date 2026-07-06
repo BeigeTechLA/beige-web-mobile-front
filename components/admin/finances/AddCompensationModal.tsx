@@ -5,7 +5,7 @@ import { Check, ChevronDown, TrendingUp, X } from "lucide-react";
 
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import type { AddCpCompensationPayload, PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { normalizeCpRoleLabel, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 
 interface AddCompensationModalProps {
   isOpen: boolean;
@@ -39,19 +39,22 @@ const methodToApi = (method: TabType): AddCpCompensationPayload["compensation_me
 };
 
 const parseAmount = (value: string) => Number(String(value || "0").replace(/[$,]/g, "")) || 0;
+const toMoney = (value: number) => Number(value.toFixed(2));
 
 const formatShootOptionLabel = (shoot: PendingCompensationShoot) =>
   `#${shoot.booking_id} - ${shoot.shoot_name}`;
 
 const getPercentMeta = (percentage: number) => {
-  if (percentage <= 25) {
+  const displayedPercentage = Number(percentage.toFixed(1));
+
+  if (displayedPercentage <= 25) {
     return {
       color: "#10B981",
       label: "Healthy",
     };
   }
 
-  if (percentage > 25 && percentage <= 50) {
+  if (displayedPercentage <= 50) {
     return {
       color: "#F59E0B",
       label: "Review margin",
@@ -176,7 +179,7 @@ export default function AddCompensationModal({
     if (!currentShoot) return;
 
     const defaultPerCreator = currentShoot.creators.length
-      ? Math.round((Number(currentShoot.shoot_amount || 0) * 0.25) / currentShoot.creators.length)
+      ? toMoney((Number(currentShoot.shoot_amount || 0) * 0.25) / currentShoot.creators.length)
       : 0;
 
     setCreatorForms((prev) => currentShoot.creators.reduce<Record<string, CreatorFormState>>((acc, creator) => {
@@ -243,7 +246,7 @@ export default function AddCompensationModal({
     }
 
     const defaultPerCreator = currentShoot.creators.length
-      ? Math.round((Number(currentShoot.shoot_amount || 0) * 0.25) / currentShoot.creators.length)
+      ? toMoney((Number(currentShoot.shoot_amount || 0) * 0.25) / currentShoot.creators.length)
       : 0;
 
     setSelectedCreators(currentShoot.creators.map((creator) => String(creator.creator_id)));
@@ -572,7 +575,7 @@ export default function AddCompensationModal({
                             </div>
                             <div className="min-w-0">
                               <h4 className={`lg:text-lg font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{creator.creator_name || "Unknown Creator"}</h4>
-                              <p className={`text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>{creator.cp_role || "Creative Partner"}</p>
+                              <p className={`text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>{normalizeCpRoleLabel(creator.cp_role) || "Creative Partner"}</p>
                             </div>
                             <div className="hidden bg-[#E8D1AB] text-[#171717] font-semibold text-sm lg:text-lg px-3 py-2 lg:px-6 lg:py-2.5 rounded-full lg:flex items-center gap-1.5">
                               {formatCurrency(getCreatorTotal(creatorId))} <span className="text-[#171717]/60 font-normal">Total Compensation</span>

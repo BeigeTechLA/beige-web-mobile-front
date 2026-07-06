@@ -336,6 +336,9 @@ export default function AdminFinancesPage() {
     return Number(creator?.remaining_balance || creator?.total_compensation || selectedRow?.cpPayout || 0);
   };
 
+  const getPaymentScope = (amount: number, remainingAmount: number): "advance" | "final" =>
+    amount < remainingAmount ? "advance" : "final";
+
   const handleStripePayment = async () => {
     setIsReceiptSubmitting(true);
     try {
@@ -453,19 +456,35 @@ export default function AdminFinancesPage() {
     setIsReceiptSubmitting(true);
     try {
       const earningId = selectedPaymentEarningId || getActionEarningIds()[0];
-      const amount = getPaymentAmount(earningId);
-      if (!earningId || !(amount > 0)) {
+      const remainingAmount = getPaymentAmount(earningId);
+      const amount = Number(payload.amount || 0);
+      if (!earningId || !(remainingAmount > 0)) {
         toast.error("No payable compensation balance found");
         return;
       }
+      if (!(amount > 0)) {
+        toast.error("Enter a valid payment amount");
+        return;
+      }
+      if (amount > remainingAmount) {
+        toast.error(`Payment amount cannot exceed remaining balance of ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(remainingAmount)}`);
+        return;
+      }
+      const bookingId = selectedRow?.bookingId || (selectedRow?.id ? Number(selectedRow.id) : null);
+      const uploadedProof = payload.proofFile
+        ? await cpCompensationApi.uploadPaymentProof(payload.proofFile, { bookingId, earningId })
+        : null;
+      const proofUrl = uploadedProof?.proof_url || uploadedProof?.file_path || payload.proofFile?.name || payload.transactionId;
       await cpCompensationApi.processPayment(earningId, {
         amount,
         payment_method: "outside_platform",
         payment_mode: payload.paymentMethod,
-        proof_url: payload.proofFile?.name || payload.transactionId,
+        proof_url: proofUrl,
+        proof_file_path: uploadedProof?.file_path || undefined,
+        proof_file_name: payload.proofFile?.name,
         transaction_reference: payload.transactionId,
         notes: payload.notes,
-        payment_scope: "final",
+        payment_scope: getPaymentScope(amount, remainingAmount),
       });
       setIsReceiptOpen(false);
       setSelectedPaymentEarningId(null);
@@ -478,7 +497,7 @@ export default function AdminFinancesPage() {
       }
 
       setSuccessTitle("Payment Recorded Successfully");
-      setSuccessSubtext("Creator payout has been marked as paid.");
+      setSuccessSubtext(amount < remainingAmount ? "Partial creator payment has been recorded." : "Creator payout has been marked as fully paid.");
       setSuccessButtonText(""); // Empty text triggers the outside click to close
       setIsSuccessOpen(true);
     } catch (error) {
@@ -667,6 +686,7 @@ export default function AdminFinancesPage() {
           isOpen={isReceiptOpen}
           onClose={() => setIsReceiptOpen(false)}
           rowContext={selectedRow}
+          payableAmount={getPaymentAmount(selectedPaymentEarningId || getActionEarningIds()[0] || null)}
           isSubmitting={isReceiptSubmitting}
           onSubmit={handleReceiptSubmit}
         />

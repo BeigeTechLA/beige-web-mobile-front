@@ -11,7 +11,6 @@ import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSe
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
-import AddCompendationModal from "@/components/admin/finances/AddCompensationModal";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -40,7 +39,6 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [isAddCompOpen, setIsAddCompOpen] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
@@ -96,7 +94,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   };
 
   const handleContinueToCompensation = () => {
-    setIsAddCompOpen(true);
+    handleAssign();
   };
 
   const executeAssignment = async () => {
@@ -234,10 +232,6 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           isDark={isDark}
         />
 
-        <AddCompendationModal
-          isOpen={isAddCompOpen}
-          onClose={() => setIsAddCompOpen(false)}
-        />
       </div>
     </>
   );

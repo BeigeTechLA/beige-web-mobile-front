@@ -44,6 +44,7 @@ export type CpCompensationCreator = {
     processed_at?: string | null;
     notes?: string | null;
   }>;
+  payment_history?: CpPaymentHistoryItem[];
   timeline?: Array<{
     timeline_event_id?: number;
     event_type?: string;
@@ -58,6 +59,10 @@ export type CpCompensationCreator = {
 
 export type CpPaymentHistoryItem = {
   id?: string | number;
+  creator_earning_id?: number;
+  creator_id?: number;
+  creator_name?: string | null;
+  cp_role?: string | null;
   type?: string | null;
   method?: string | null;
   status?: string | null;
@@ -65,7 +70,13 @@ export type CpPaymentHistoryItem = {
   paid_at?: string | null;
   receipt_url?: string | null;
   receipt_download_url?: string | null;
+  proof_file_name?: string | null;
   notes?: string | null;
+};
+
+export type UploadedProof = {
+  file_path?: string | null;
+  proof_url?: string | null;
 };
 
 export type CpCompensationDetails = {
@@ -164,6 +175,38 @@ const asNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(numeric) ? numeric : fallback;
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  "1": "Videographer",
+  "2": "Photographer",
+  "3": "Editor",
+  "9": "Videographer",
+  "10": "Photographer",
+  "11": "Editor",
+};
+
+export const normalizeCpRoleLabel = (value: unknown) => {
+  if (value == null) return "";
+
+  const parseRoleValue = (roleValue: unknown): string[] => {
+    if (Array.isArray(roleValue)) return roleValue.flatMap(parseRoleValue);
+    const raw = String(roleValue || "").trim();
+    if (!raw) return [];
+
+    if (raw.startsWith("[") || raw.startsWith("{")) {
+      try {
+        return parseRoleValue(JSON.parse(raw));
+      } catch {
+        return [raw];
+      }
+    }
+
+    return raw.split(",").map((item) => item.trim()).filter(Boolean);
+  };
+
+  const labels = parseRoleValue(value).map((role) => ROLE_LABELS[role] || role);
+  return [...new Set(labels)].join(", ");
+};
+
 export const mapShootRow = (row: RawCpRow): ShootCPRow => ({
   id: String(row.booking_id),
   bookingId: asNumber(row.booking_id),
@@ -188,7 +231,7 @@ export const mapCreatorRow = (row: RawCpRow): ShootCPRow => ({
   shootId: String(row.booking_id),
   shootName: asString(row.shoot_name, `Shoot #${row.booking_id}`),
   creatorName: asString(row.creator_name, "Unknown Creator"),
-  creatorRoles: [asString(row.cp_role)].filter(Boolean),
+  creatorRoles: [normalizeCpRoleLabel(row.cp_role)].filter(Boolean),
   customerName: row.customer?.name || "Unknown Customer",
   customerEmail: row.customer?.email || "",
   shootBudget: asNumber(row.shoot_amount),
@@ -242,11 +285,26 @@ export const cpCompensationApi = {
     return apiClient.post<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/advance`, payload);
   },
 
+  async uploadPaymentProof(file: File, context?: { bookingId?: number | string | null; earningId?: number | string | null }) {
+    const formData = new FormData();
+    formData.append("proof_file", file);
+    if (context?.bookingId) formData.append("booking_id", String(context.bookingId));
+    if (context?.earningId) formData.append("creator_earning_id", String(context.earningId));
+    const response = await apiClient.getInstance().post<ApiEnvelope<UploadedProof>>(
+      "finance/cp-compensation/payment-proof",
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return response.data.data;
+  },
+
   async processPayment(earningId: number, payload: {
     amount: number;
     payment_method: "stripe" | "manual" | "outside_platform";
     payment_mode?: string;
     proof_url?: string;
+    proof_file_path?: string;
+    proof_file_name?: string;
     transaction_reference?: string;
     notes?: string;
     payment_scope?: "advance" | "final";

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { X, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { ShootCPRow } from "./CPPayoutTable";
 
 export type ReceiptPayload = {
   paymentMethod: string;
+  amount: number;
   transactionId: string;
   proofFile: File | null;
   notes: string;
@@ -18,29 +19,48 @@ export type AddReceiptModalProps = {
   isOpen: boolean;
   onClose: () => void;
   rowContext: ShootCPRow | null;
+  payableAmount?: number;
   onSubmit: (payload: ReceiptPayload) => void;
   isSubmitting?: boolean;
 };
 
 const PAYMENT_METHODS = ["UPI", "Cash", "Bank Transfer", "Credit Card", "Others"];
 
+const formatMoneyValue = (value?: number | null) => {
+  const numeric = Number(value || 0);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric.toFixed(2) : "";
+};
+
 export default function AddReceiptModal({
   onSubmit,
   isSubmitting = false,
   isOpen,
   onClose,
-  rowContext
+  rowContext,
+  payableAmount
 }: AddReceiptModalProps) {
   const { isDark } = useResolvedTheme();
 
   // Component State Elements
   const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [amount, setAmount] = useState<string>(formatMoneyValue(payableAmount || rowContext?.cpPayout));
   const [transactionId, setTransactionId] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAmount(formatMoneyValue(payableAmount || rowContext?.cpPayout));
+      setPaymentMethod("");
+      setTransactionId("");
+      setNotes("");
+      setProofFile(null);
+      setIsDropdownOpen(false);
+    }
+  }, [isOpen, payableAmount, rowContext?.cpPayout]);
 
   if (!isOpen) {
     return null;
@@ -55,6 +75,7 @@ export default function AddReceiptModal({
   const handleSave = () => {
     onSubmit({
       paymentMethod,
+      amount: Number(String(amount || "0").replace(/[$,]/g, "")) || 0,
       transactionId,
       proofFile,
       notes
@@ -85,7 +106,7 @@ export default function AddReceiptModal({
 
         <div className="space-y-4 lg:space-y-5 p-4 lg:p-7">
           {/* Form Fields Matrix Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* 1. Select Payment Method (Custom Float Dropdown Wrapper) */}
             <div className={`relative rounded-xl border px-4 py-2 mt-2 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
               <div className="absolute -top-3 left-3 px-1 text-sm z-10">
@@ -119,6 +140,23 @@ export default function AddReceiptModal({
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className={`relative rounded-xl border px-4 py-2 mt-2 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
+              <div className="absolute -top-3 left-3 px-1 text-sm z-10">
+                <span className={`px-1 text-sm lg:text-base ${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"}`}>
+                  Amount*
+                </span>
+              </div>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                placeholder="$0.00"
+                className={`h-11 lg:h-14 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white placeholder:text-white/30" : "text-black placeholder:text-[#9F9FA9]"}`}
+              />
             </div>
 
             {/* 2. Transaction ID Input Field */}
@@ -186,7 +224,7 @@ export default function AddReceiptModal({
 
           <Button
             type="button"
-            disabled={isSubmitting || !paymentMethod || !transactionId || !proofFile}
+            disabled={isSubmitting || !paymentMethod || !(Number(amount) > 0) || !transactionId || !proofFile}
             onClick={handleSave}
             className="h-10 lg:h-12 w-full lg:w-fit rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base disabled:opacity-40"
           >
