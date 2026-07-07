@@ -36,14 +36,10 @@ const formatHistoryDate = (value?: string | null) => {
   if (!value) return "Date not available";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleString([], {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const day = date.getDate();
+  const month = date.toLocaleString("en-US", { month: "short" });
+  const year = date.getFullYear();
+  return `${month} ${day}, ${year}`;
 };
 
 const joinAssetUrl = (baseUrl: string | undefined, pathValue: string) => {

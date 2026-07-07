@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Eye, History, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
-import { formatRelativeOrAbsoluteDate, getColorThreshold, getDateColorThreshold, getInitials } from "@/lib/utils";
+import { getColorThreshold, getDateColorThreshold, getInitials } from "@/lib/utils";
 import { FinanceStatusBadge } from "./FinanceStatusBadge";
 import { DatePickerFloating } from "../DatePickerFloating";
 import {
@@ -14,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/src/components/landing/ui/tooltip";
 
 export type ShootCPRow = {
   id: string;
@@ -225,6 +231,17 @@ export default function CPPayoutTable({
   const endCount = Math.min(safePage * itemsPerPage, processedRows.length);
   const paginationItems = buildPaginationItems(safePage, totalPages);
 
+  const formatDueDate = (dateString: string) => {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+
+  const day = date.getDate();
+  const month = date.toLocaleString("en-US", { month: "short" });
+  const year = date.getFullYear();
+
+  return `${month} ${day}, ${year}`;
+}
+
   if (!mounted) return null;
 
   return (
@@ -387,7 +404,7 @@ export default function CPPayoutTable({
                       <div>
                         <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-[#171717]'}`}>${row.cpPayout}</p>
                         <p className="text-[11px]" style={{ color: getDateColorThreshold(row.date) }}>
-                          Due: {formatRelativeOrAbsoluteDate(row.date)}
+                          Due: {formatDueDate(row.date)}
                         </p>
                       </div>
 
@@ -519,7 +536,11 @@ export default function CPPayoutTable({
                       <td className={`px-5 py-4 font-medium max-w-[180px] truncate ${isDark ? "text-white" : "text-[#171717]"}`}>
                         {type === "shoots" ? (
                           <>
-                            <p>{row.shootName}</p>
+                            <TruncatedTableText
+                              text={row.shootName || "Untitled Shoot"}
+                              isDark={isDark}
+                              className="block"
+                            />
                             <p className={`text-xs font-normal capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}>{row.category}</p>
                           </>
                         ) : (
@@ -541,7 +562,11 @@ export default function CPPayoutTable({
                                 )}
                               </div>
                               <div>
-                                <p>{row.creatorName || "Unknown Creator"}</p>
+                                <TruncatedTableText
+                                  text={row.creatorName || "Unknown Creator"}
+                                  isDark={isDark}
+                                  className="block"
+                                />
                                 <p className={`text-xs font-normal capitalize truncate max-w-full ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}>
                                   {(row.creatorRoles || []).join(", ") || "No Roles Listed"}
                                 </p>
@@ -561,7 +586,7 @@ export default function CPPayoutTable({
                               {row.shootId || "-"}
                             </span>
                             <span className={`text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
-                              Created: {new Date(row.date).toLocaleDateString()}
+                              Created: {formatDueDate(row.date)}
                             </span>
                           </div>
                         )}
@@ -599,7 +624,7 @@ export default function CPPayoutTable({
                       <td className="px-5 py-4">
                         <p>${row.cpPayout}</p>
                         <p className="text-xs" style={{ color: getDateColorThreshold(row.date) }}>
-                          Due: {formatRelativeOrAbsoluteDate(row.date)}
+                          Due: {formatDueDate(row.date)}
                         </p>
                       </td>
                       <td className="px-5 py-4">
@@ -789,3 +814,47 @@ export default function CPPayoutTable({
     </section>
   );
 }
+
+const TruncatedTableText = ({
+  text,
+  isDark,
+  className = "",
+}: {
+  text: string;
+  isDark: boolean;
+  className?: string;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  const handleMouseEnter = () => {
+    const element = textRef.current;
+    if (element) {
+      setIsOpen(element.scrollWidth > element.offsetWidth);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsOpen(false);
+  };
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip open={isOpen}>
+        <TooltipTrigger asChild>
+          <span
+            ref={textRef}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className={`min-w-0 truncate cursor-default ${className} ${isDark ? "text-white" : "text-[#171717]"}`}
+          >
+            {text}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs break-words">
+          <p>{text}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
