@@ -5,57 +5,45 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils"; // Ensure this import matches your project structure
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const roleOptions = [
-  // { value: "1", label: "Director" },
-  // { value: "2", label: "Camera Operator" },
-  // { value: "3", label: "Audio Engineer" },
-  // { value: "4", label: "Lighting Technician" },
-  // { value: "5", label: "Video Editor" },
-  // { value: "6", label: "Stream Engineer" },
-  // { value: "7", label: "Production Manager" },
-  // { value: "8", label: "Graphics Designer" },
-  { value: "1", label: "Videographer" },
-  { value: "2", label: "Photographers" },
-  { value: "3", label: "Editor" },
-];
+import { Check, ChevronDown } from "lucide-react";
+import { CREATOR_ROLE_OPTIONS, normalizeCreatorRoleIds } from "@/lib/creatorRoles";
 
 interface ProfessionalInfoFormProps {
-  profile?: any;
-  onChange?: (updatedFields: any) => void;
+  profile?: {
+    primary_role?: unknown;
+    years_of_experience?: string | number | null;
+    hourly_rate?: string | number | null;
+    bio?: string | null;
+  };
+  onChange?: (updatedFields: Record<string, unknown>) => void;
 }
 
 const ProfessionalInfoForm = ({ profile = {}, onChange }: ProfessionalInfoFormProps) => {
+  const [isRoleOpen, setIsRoleOpen] = React.useState(false);
   
-  const normalizedRoleValue = useMemo(() => {
-    const rawRole = profile.primary_role;
-    if (!rawRole) return "";
+  const normalizedRoleValues = useMemo(
+    () => normalizeCreatorRoleIds(profile.primary_role),
+    [profile.primary_role]
+  );
 
-    try {
-      if (typeof rawRole === 'string' && rawRole.startsWith('[')) {
-        const parsed = JSON.parse(rawRole);
-        return Array.isArray(parsed) ? String(parsed[0]) : String(rawRole);
-      }
-      return String(rawRole);
-    } catch (e) {
-      return String(rawRole);
-    }
-  }, [profile.primary_role]);
-
-  const handleFieldChange = (fieldName: string, value: any) => {
+  const handleFieldChange = (fieldName: string, value: unknown) => {
     onChange?.({
       [fieldName]: value,
     });
   };
 
   const labelClasses = "text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 block";
+  const selectedRoleLabels = CREATOR_ROLE_OPTIONS
+    .filter((role) => normalizedRoleValues.includes(role.value))
+    .map((role) => role.label);
+
+  const toggleRole = (roleId: string) => {
+    const nextRoles = normalizedRoleValues.includes(roleId)
+      ? normalizedRoleValues.filter((id) => id !== roleId)
+      : [...normalizedRoleValues, roleId];
+
+    handleFieldChange("primary_role", nextRoles);
+  };
   
   /**
    * inputClasses:
@@ -82,21 +70,44 @@ const ProfessionalInfoForm = ({ profile = {}, onChange }: ProfessionalInfoFormPr
         {/* PRIMARY ROLE */}
         <div className="flex flex-col">
           <Label className={labelClasses}>Primary Role</Label>
-          <Select
-            value={normalizedRoleValue}
-            onValueChange={(val) => handleFieldChange("primary_role", val)}
-          >
-            <SelectTrigger className={cn(inputClasses, "h-12")}>
-              <SelectValue placeholder="Select Role" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#111111] border-white/10 text-white">
-              {roleOptions.map((role) => (
-                <SelectItem key={role.value} value={role.value}>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsRoleOpen((open) => !open)}
+              className={cn(inputClasses, "h-12 w-full px-4 text-left flex items-center justify-between")}
+            >
+              <span className={selectedRoleLabels.length ? "text-white" : "text-white/20"}>
+                {selectedRoleLabels.length ? selectedRoleLabels.join(", ") : "Select profile type"}
+              </span>
+              <ChevronDown
+                size={16}
+                className={cn("text-white/40 transition-transform", isRoleOpen && "rotate-180")}
+              />
+            </button>
+
+            {isRoleOpen && (
+              <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 rounded-xl border border-white/10 bg-black p-1 shadow-2xl">
+              {CREATOR_ROLE_OPTIONS.map((role) => (
+                <button
+                  key={role.value}
+                  type="button"
+                  onClick={() => toggleRole(role.value)}
+                  className={cn(
+                    "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors",
+                    normalizedRoleValues.includes(role.value)
+                      ? "bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                      : "text-white/75 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  <span className="flex h-4 w-4 items-center justify-center">
+                    {normalizedRoleValues.includes(role.value) && <Check size={15} />}
+                  </span>
                   {role.label}
-                </SelectItem>
+                </button>
               ))}
-            </SelectContent>
-          </Select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* EXPERIENCE */}

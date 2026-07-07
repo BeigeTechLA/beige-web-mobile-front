@@ -9,13 +9,15 @@ import { toast } from "sonner";
 interface FeaturedWorkModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (item: any) => void;
+  onAdd: (item: any) => void | Promise<void>;
   editItem?: any | null;
 }
 
 interface PreviewItem {
   id: string;
   src: string;
+  fileId?: number;
+  existing?: boolean;
 }
 
 interface StoredFileItem {
@@ -24,7 +26,8 @@ interface StoredFileItem {
 }
 
 const MAX_FILE_SIZE_MB = 30;
-const MAX_TOTAL_PROJECT_MB = 50;
+const MIN_PROJECT_IMAGES = 5;
+const MAX_PROJECT_IMAGES = 10;
 
 // NEW: Allowed types constants
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
@@ -43,6 +46,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
   const [tagInput, setTagInput] = useState("");
   const [imagePreviews, setImagePreviews] = useState<PreviewItem[]>([]);
   const [rawFiles, setRawFiles] = useState<StoredFileItem[]>([]);
+  const [removedFileIds, setRemovedFileIds] = useState<number[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -54,12 +58,28 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
     if (open) {
       if (editItem) {
         setTitle(editItem.title || "");
-        setTags(editItem.tags || []);
-        const previews = editItem.previews || (editItem.image ? [editItem.image] : []);
+        setTags(
+          Array.isArray(editItem.tags)
+            ? editItem.tags
+            : String(editItem.tag || "")
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter(Boolean)
+        );
+        const previews = editItem.images
+          ? editItem.images.map((image: any) => ({
+              src: image.file_path?.startsWith("http")
+                ? image.file_path
+                : `${process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/"}${image.file_path}`,
+              fileId: image.crew_files_id,
+            }))
+          : (editItem.previews || (editItem.image ? [editItem.image] : [])).map((src: string) => ({ src }));
         setImagePreviews(
-          previews.map((src: string) => ({
+          previews.map((preview: any) => ({
             id: createPreviewId(),
-            src,
+            src: preview.src,
+            fileId: preview.fileId,
+            existing: Boolean(preview.fileId),
           }))
         );
         setRawFiles(
@@ -75,6 +95,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
         setImagePreviews([]);
         setRawFiles([]);
       }
+      setRemovedFileIds([]);
       setAddTagsOpen(false);
     }
   }, [open, editItem]);
@@ -82,6 +103,12 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+
+    if (imagePreviews.length + files.length > MAX_PROJECT_IMAGES) {
+      toast.error(`Maximum ${MAX_PROJECT_IMAGES} images allowed per project.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
 
     // 1. Validation: File Type Check
     const invalidFiles = files.filter(f => !ALLOWED_TYPES.includes(f.type));
@@ -168,27 +195,37 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
     setTags(tags.filter((x) => x !== t));
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!title.trim()) {
       toast.error("Please enter a project title.");
       return;
     }
-    if (imagePreviews.length < 5) {
+    if (imagePreviews.length < MIN_PROJECT_IMAGES) {
       toast.error("Low Image Count", {
-        description: "Please upload at least 5 images for this project."
+        description: `Please upload at least ${MIN_PROJECT_IMAGES} images for this project.`
       });
       return;
     }
+    if (imagePreviews.length > MAX_PROJECT_IMAGES) {
+      toast.error(`Maximum ${MAX_PROJECT_IMAGES} images allowed per project.`);
+      return;
+    }
 
-    onAdd({
-      id: editItem ? editItem.id : Date.now(),
-      title,
-      tags,
-      previews: imagePreviews.map((item) => item.src),
-      files: rawFiles.map((item) => item.file),
-    });
+    try {
+      await onAdd({
+        id: editItem ? editItem.id : Date.now(),
+        title,
+        tags,
+        previews: imagePreviews.map((item) => item.src),
+        fileIds: imagePreviews.map((item) => item.fileId).filter(Boolean),
+        removedFileIds,
+        files: rawFiles.map((item) => item.file),
+      });
 
-    onClose();
+      onClose();
+    } catch (error) {
+      console.error("Failed to save featured work:", error);
+    }
   };
 
   return (
@@ -218,7 +255,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
               <div className="flex justify-between items-center ml-1">
                 <label className="text-sm font-medium text-white/60">Thumbnail / Media</label>
                 <span className="text-[10px] text-white/30 tracking-widest uppercase">
-                  {ALLOWED_EXT_TEXT} only • Max {MAX_FILE_SIZE_MB}MB
+                  {MIN_PROJECT_IMAGES}-{MAX_PROJECT_IMAGES} images • Max {MAX_FILE_SIZE_MB}MB each
                 </span>
               </div>
 
@@ -232,7 +269,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
                   </div>
                   <div className="text-center px-6">
                     <div className="font-bold text-white text-lg">{isCompressing ? "Optimizing Files..." : "Upload Project Media"}</div>
-                    <div className="text-sm text-white/40 mt-1">Allowed: {ALLOWED_EXT_TEXT}</div>
+                    <div className="text-sm text-white/40 mt-1">Allowed: {ALLOWED_EXT_TEXT}. Add {MIN_PROJECT_IMAGES}-{MAX_PROJECT_IMAGES} images.</div>
                   </div>
                 </div>
               ) : (
@@ -243,8 +280,19 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
                       <img src={preview.src} className="w-full h-full object-cover" />
                       <button
                         onClick={() => {
-                          setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-                          setRawFiles((prev) => prev.filter((_, i) => i !== index));
+                          setImagePreviews((prev) => {
+                            const removed = prev[index];
+                            if (removed?.fileId) {
+                              setRemovedFileIds((ids) => [...ids, removed.fileId!]);
+                            }
+                            return prev.filter((_, i) => i !== index);
+                          });
+                          if (!preview.existing) {
+                            const newFileIndex = imagePreviews
+                              .slice(0, index)
+                              .filter((item) => !item.existing).length;
+                            setRawFiles((prev) => prev.filter((_, i) => i !== newFileIndex));
+                          }
                         }}
                         className="absolute top-2 right-2 bg-black/60 rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
                       >
@@ -292,7 +340,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
             <Button variant="ghost" onClick={onClose} className="rounded-[12px] h-12 px-8 text-white hover:bg-white/5">Cancel</Button>
             <Button
               onClick={handleAdd}
-              disabled={!title || imagePreviews.length === 0 || isCompressing}
+              disabled={!title || imagePreviews.length < MIN_PROJECT_IMAGES || isCompressing}
               className="rounded-[12px] h-12 px-10 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] font-bold disabled:opacity-50"
             >
               {isCompressing ? "Processing..." : editItem ? "Save Changes" : "Add Project"}

@@ -21,6 +21,7 @@ import { MobileShootRow } from "../shoot-details/MobileShootRow";
 import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DottedDivider from "../DottedDivider";
+import { formatCreatorRoles } from "@/lib/creatorRoles";
 
 interface ProfileProps {
   id: string;
@@ -336,34 +337,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   };
   const status = getStatus();
 
-  // Role mapping: Prioritize role.role_name, then ROLE_MAP, then fallback
-  const ROLE_MAP: Record<string, string> = {
-    '1': 'Videographer',
-    '2': 'Photographer',
-    '3': 'Editor',
-    '4': 'Producer',
-    '5': 'Director',
-  };
-
-  let primaryRole = "No role specified";
-  if (partner.role?.role_name) {
-    primaryRole = partner.role.role_name;
-  } else if (partner.primary_role) {
-    // Handle if primary_role is a JSON string of IDs (like ["9", "10"])
-    try {
-      const rolesArray = typeof partner.primary_role === 'string' && partner.primary_role.startsWith('[')
-        ? JSON.parse(partner.primary_role)
-        : partner.primary_role;
-
-      if (Array.isArray(rolesArray)) {
-        primaryRole = rolesArray.map(r => ROLE_MAP[r] || r).join(", ");
-      } else {
-        primaryRole = ROLE_MAP[partner.primary_role] || partner.primary_role;
-      }
-    } catch (e) {
-      primaryRole = ROLE_MAP[partner.primary_role] || partner.primary_role;
-    }
-  }
+  const primaryRole = partner.primary_role
+    ? formatCreatorRoles(partner.primary_role, "No role specified")
+    : partner.role?.role_name || "No role specified";
 
   // Parse skills
   let skillNames: string[] = [];
@@ -419,6 +395,13 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
       .replace(/_/g, " ")
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
+  const normalizeFeaturedWorkTag = (value: unknown) => {
+    if (typeof value !== "string") return "";
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "[]" || trimmed.toLowerCase() === "no tag") return "";
+    return trimmed;
+  };
+
   // Update UPLOADS_URL to use S3
   const UPLOADS_URL = S3_BASE_URL;
 
@@ -427,11 +410,12 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   if (partner.crew_member_files) {
     partner.crew_member_files.forEach((file: any) => {
       if (file.file_type === 'recent_work') {
-        const groupKey = `${file.title || 'Untitled'}-${file.tag || 'No Tag'}`;
+        const tag = normalizeFeaturedWorkTag(file.tag);
+        const groupKey = `${file.title || 'Untitled'}-${tag || 'untagged'}`;
         if (!featuredWorkGroups[groupKey]) {
           featuredWorkGroups[groupKey] = {
             title: file.title || 'Untitled',
-            tag: file.tag || 'No Tag',
+            tag,
             images: []
           };
         }
@@ -469,6 +453,22 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
     const dateStr = format(date, 'yyyy-MM-dd');
     const dayInfo = (availabilityDetails as any)[dateStr];
     return dayInfo?.projectAssigned === true;
+  };
+
+  const getAvailabilityForDay = (date: Date) => {
+    if (!availabilityDetails) return null;
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return (availabilityDetails as any)[dateStr] || null;
+  };
+
+  const formatAvailabilityTime = (value: unknown) => {
+    if (!value) return "";
+    const match = String(value).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?/);
+    if (!match) return "";
+
+    const time = new Date();
+    time.setHours(Number(match[1]), Number(match[2]), 0, 0);
+    return format(time, "h:mm a");
   };
 
   const toggleDropdown = () => setIsOpen(!isOpen);
@@ -871,7 +871,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                     <div
                       key={key}
                       onClick={() => {
-                        setOpenFolder(`${group.title} (${group.tag})`);
+                        setOpenFolder(group.tag ? `${group.title} (${group.tag})` : group.title);
                         setActiveImages(group.images);
                       }}
                       className={`rounded-xl transition-all group cursor-pointer border ${isDark ? "bg-[#1A1A1A] border-[#333] hover:border-[#444]" : "bg-[#F4F5F7] border-gray-200 hover:border-gray-400 shadow-sm"}`}
@@ -892,9 +892,11 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                       <hr className={`border-[1px] my-1 ${isDark ? "border-white/5" : "border-[#000000]/50 "}`} />
 
                       <div className="flex gap-2 p-5">
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDark ? "bg-[#101010] text-[#999] border-[#333]" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
-                          {group.tag}
-                        </span>
+                        {group.tag && (
+                          <span className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDark ? "bg-[#101010] text-[#999] border-[#333]" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
+                            {group.tag}
+                          </span>
+                        )}
                         <span className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDark ? "bg-[#101010] text-[#E5D5B8] border-[#E5D5B8]/20" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
                           {group.images.length} Image{group.images.length !== 1 ? 's' : ''}
                         </span>
@@ -1003,7 +1005,13 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                 <div className="grid grid-cols-7 bg-[#101010]">
                   {calendarDays.map((day, dayIdx) => {
                     const isCurrentMonth = isSameMonth(day, currentMonth);
+                    const dayAvailability = getAvailabilityForDay(day);
                     const hasShoot = isShootDay(day);
+                    const isAvailable = Boolean(dayAvailability?.available || dayAvailability?.customAvailabilityStatus === 1);
+                    const isUnavailable = Boolean(dayAvailability && !dayAvailability.projectAssigned && !isAvailable);
+                    const startTimeDisplay = formatAvailabilityTime(dayAvailability?.start_time);
+                    const endTimeDisplay = formatAvailabilityTime(dayAvailability?.end_time);
+                    const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
                     const isTodayDate = isSameDay(day, new Date(2026, 0, 16)); // Mocking "Today" as Jan 16 for demo visual match
 
                     // Determine border classes
@@ -1023,13 +1031,33 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                           {format(day, 'd')}
                         </span>
 
-                        {hasShoot && (
+                        {(hasShoot || isAvailable || isUnavailable || hasTimeRange) && (
                           <div className="space-y-1">
+                            {hasShoot && (
                             <div className={`flex items-center gap-1.5 px-2 py-1 rounded border w-fit ${isDark ? "bg-[#1E293B] border-[#334155]" : "bg-blue-50 border-blue-100"
                               }`}>
                               <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
                               <span className={`text-[10px] font-bold leading-none ${isDark ? "text-[#93C5FD]" : "text-blue-700"}`}>Shoot</span>
                             </div>
+                            )}
+                            {!hasShoot && isAvailable && (
+                              <div className="flex items-center gap-1.5 text-green-500/75">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                <span className="text-[10px] font-medium leading-none">Available</span>
+                              </div>
+                            )}
+                            {!hasShoot && isUnavailable && (
+                              <div className="flex items-center gap-1.5 text-red-400/75">
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
+                                <span className="text-[10px] font-medium leading-none">Not Available</span>
+                              </div>
+                            )}
+                            {hasTimeRange && (
+                              <div className={`flex items-center gap-1 text-[10px] ${isDark ? "text-white/45" : "text-[#6D6D6D]"}`}>
+                                <Clock size={11} />
+                                <span>{startTimeDisplay} - {endTimeDisplay}</span>
+                              </div>
+                            )}
                             {/* <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1E293B] border border-[#334155] w-fit">
                               <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
                               <span className="text-[10px] text-[#93C5FD] font-medium leading-none">Shoot</span>

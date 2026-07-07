@@ -21,6 +21,7 @@ import "swiper/css";
 import "swiper/css/effect-coverflow";
 import { getInitials } from "@/lib/utils";
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
+import { formatCreatorRoles } from "@/lib/creatorRoles";
 
 interface ProfileProps {
   id: string;
@@ -222,26 +223,9 @@ export const PMCreativePartnerProfile = ({ id, hideActions = false, isDark = tru
   };
   const status = getStatus();
 
-  // Role mapping: Prioritize role.role_name, then ROLE_MAP, then fallback
-  const ROLE_MAP: Record<string, string> = {
-    '1': 'Videographer',
-    '2': 'Photographer',
-    '3': 'Editor',
-    '4': 'Producer',
-    '5': 'Director',
-  };
-
-  let primaryRole = "No role specified";
-  if (partner.role?.role_name) primaryRole = partner.role.role_name;
-  else if (partner.primary_role) {
-    try {
-      const rolesArray = typeof partner.primary_role === 'string' && partner.primary_role.startsWith('[') ? JSON.parse(partner.primary_role) : partner.primary_role;
-      if (Array.isArray(rolesArray)) primaryRole = rolesArray.map(r => ROLE_MAP[r] || r).join(", ");
-      else primaryRole = ROLE_MAP[partner.primary_role] || partner.primary_role;
-    } catch (e) {
-      primaryRole = ROLE_MAP[partner.primary_role] || partner.primary_role;
-    }
-  }
+  const primaryRole = partner.primary_role
+    ? formatCreatorRoles(partner.primary_role, "No role specified")
+    : partner.role?.role_name || "No role specified";
 
   let skillNames: string[] = [];
   if (partner.skills) {

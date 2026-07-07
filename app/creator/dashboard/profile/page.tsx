@@ -45,10 +45,11 @@ import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
 import { toast } from "sonner";
-import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink } from "@/lib/api";
+import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink, EditFeaturedWorkProject } from "@/lib/api";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmationModal";
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
+import { formatCreatorRoles, normalizeCreatorRoleIds } from "@/lib/creatorRoles";
 
 // --- CONSTANTS ---
 const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -117,19 +118,7 @@ const normalizeFeaturedWorkTag = (value: unknown) => {
   return trimmed;
 };
 
-const getRoleLabel = (roleData: any) => {
-  if (!roleData) return "Not Specified";
-  try {
-    const roles = typeof roleData === 'string' ? JSON.parse(roleData) : roleData;
-    const id = Array.isArray(roles) ? roles[0] : roles;
-    const roleOptions: Record<string, string> = {
-      "1": "Videographer", "2": "Photographers", "3": "Editor",
-    };
-    return roleOptions[id] || "Professional";
-  } catch (e) {
-    return "Professional";
-  }
-};
+const getRoleLabel = (roleData: any) => formatCreatorRoles(roleData);
 
 const SectionHeader = ({ title, onEdit, isEditing }: { title: string, onEdit?: () => void, isEditing?: boolean }) => (
   <div className="flex items-center justify-between mb-4 lg:mb-8">
@@ -189,6 +178,7 @@ export default function ProfilePage() {
 
   // Modal & Edit States
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
+  const [editingFeaturedWork, setEditingFeaturedWork] = useState<any | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(false);
 
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false);
@@ -437,7 +427,7 @@ export default function ProfilePage() {
     // We send primary_role as a stringified array to match how your GET API returns it
     const payload = {
       crew_member_id: parseInt(crewMemberId),
-      primary_role: JSON.stringify([profile.primary_role]),
+      primary_role: normalizeCreatorRoleIds(profile.primary_role),
       years_of_experience: parseInt(profile.years_of_experience),
       hourly_rate: profile.hourly_rate,
       bio: profile.bio
@@ -629,7 +619,17 @@ export default function ProfilePage() {
   }
 };
 
-  const handleAddProject = async (data: any) => {
+  const refreshProfile = async (crewMemberId: string | number) => {
+    const updatedProfile = await GetMyProfile({
+      crew_member_id: parseInt(String(crewMemberId)),
+    });
+
+    if (updatedProfile?.data && updatedProfile.data.error === false) {
+      setProfile(updatedProfile.data.data);
+    }
+  };
+
+  const handleSaveFeaturedWork = async (data: any) => {
     const userStr = localStorage.getItem("revure_user");
     const user = userStr ? JSON.parse(userStr) : null;
     const crewMemberId = user?.crew_member_id;
@@ -639,31 +639,56 @@ export default function ProfilePage() {
     try {
       setIsPageLoading(true); 
 
-      const response = await UploadProfileFile(
-        "recent_work",
-        data.files,
-        crewMemberId,
-        {
-          title: data.title,
-          tag: data.tags.join(","),
-        }
-      );
+      const fileIds = (data.fileIds || []).filter(Boolean);
+      const removedFileIds = (data.removedFileIds || []).filter(Boolean);
+      const newFiles = data.files || [];
+      const tag = data.tags.join(",");
 
-      if (response.data && response.data.error === false) {
-        const updatedProfile = await GetMyProfile({
+      if (removedFileIds.length > 0) {
+        await Promise.all(
+          removedFileIds.map((id: number) =>
+            DeleteProfileFile(id, { crew_member_id: parseInt(crewMemberId) })
+          )
+        );
+      }
+
+      if (fileIds.length > 0) {
+        const editResponse = await EditFeaturedWorkProject({
           crew_member_id: parseInt(crewMemberId),
+          file_ids: fileIds,
+          title: data.title,
+          tag,
         });
 
-        if (updatedProfile.data) {
-          setProfile(updatedProfile.data.data);
+        if (!editResponse?.data || editResponse.data.error !== false) {
+          throw new Error(editResponse?.data?.message || "Update failed");
         }
-
-        setIsFeaturedModalOpen(false);
-      } else {
-        console.error("Upload error:", response.data.message);
       }
+
+      if (newFiles.length > 0) {
+        const response = await UploadProfileFile(
+          "recent_work",
+          newFiles,
+          crewMemberId,
+          {
+            title: data.title,
+            tag,
+          }
+        );
+
+        if (!response?.data || response.data.error !== false) {
+          throw new Error(response?.data?.message || "Upload failed");
+        }
+      }
+
+      await refreshProfile(crewMemberId);
+      setEditingFeaturedWork(null);
+      setIsFeaturedModalOpen(false);
+      toast.success(editingFeaturedWork ? "Featured work updated" : "Featured work added");
     } catch (err) {
       console.error("Failed to upload project:", err);
+      toast.error("Failed to save featured work");
+      throw err;
     } finally {
       setIsPageLoading(false); 
     }
@@ -1225,7 +1250,10 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {/* ADD NEW PROJECT BOX */}
                 <div
-                  onClick={() => setIsFeaturedModalOpen(true)}
+                  onClick={() => {
+                    setEditingFeaturedWork(null);
+                    setIsFeaturedModalOpen(true);
+                  }}
                   className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[350px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
                 >
                   <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -1261,7 +1289,14 @@ export default function ProfilePage() {
                           >
                             <Trash2 size={14} /> Delete Project
                           </button>
-                          <button className="p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-colors shadow-lg">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingFeaturedWork(project);
+                              setIsFeaturedModalOpen(true);
+                            }}
+                            className="p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-colors shadow-lg"
+                          >
                             <Edit3 size={16} />
                           </button>
                         </div>
@@ -1297,8 +1332,11 @@ export default function ProfilePage() {
                     title="Share your work and get discovered"
                     description="Showcase your latest creations with the perfect image or video."
                     buttonText="Upload Project"
-                    footerText="Minimum 1600 × 1200. Max 10MB (images), 20MB (videos)."
-                    onClick={() => setIsFeaturedModalOpen(true)}
+                    footerText="Upload 5-10 images per project. PNG, JPG, JPEG or WebP. Max 30MB per image."
+                    onClick={() => {
+                      setEditingFeaturedWork(null);
+                      setIsFeaturedModalOpen(true);
+                    }}
                   />
                 </div>
               )}
@@ -1748,8 +1786,12 @@ export default function ProfilePage() {
       )}
       <FeaturedWorkModal
         open={isFeaturedModalOpen}
-        onClose={() => setIsFeaturedModalOpen(false)}
-        onAdd={handleAddProject}
+        onClose={() => {
+          setIsFeaturedModalOpen(false);
+          setEditingFeaturedWork(null);
+        }}
+        onAdd={handleSaveFeaturedWork}
+        editItem={editingFeaturedWork}
       />
       <SocialLinksModal
         open={isSocialLinksModalOpen}
@@ -1783,4 +1825,3 @@ export default function ProfilePage() {
     // </div>
   );
 }
-

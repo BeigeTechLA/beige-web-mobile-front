@@ -1435,6 +1435,26 @@ export const EditPortfolioLink = async (crewFilesId: string | number, payload: {
   }
 };
 
+export const EditFeaturedWorkProject = async (payload: {
+  crew_member_id: number;
+  file_ids: Array<string | number>;
+  title: string;
+  tag?: string;
+}) => {
+  try {
+    const response = await api.post("creator/profile/edit-featured-work", payload);
+    return response;
+  } catch (error) {
+    console.error("Edit Featured Work Error:", error);
+    return {
+      data: {
+        error: true,
+        message: "Failed to edit featured work",
+      },
+    };
+  }
+};
+
 export const DeleteProfileFile = async (crewFilesId: string | number, payload: any) => {
   try {
     // Note: We use api.delete and pass the ID in the URL string

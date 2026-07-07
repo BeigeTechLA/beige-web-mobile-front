@@ -68,6 +68,56 @@ const formatDate = (dateString) => {
   });
 };
 
+const getDefaultFormData = () => ({
+  type: "1",
+  recurrence: "1",
+  includeWeekends: false,
+  repeatOn: [],
+  monthlyDay: "",
+  untilDate: null,
+  startTime: null,
+  endTime: null,
+  notes: "",
+});
+
+const parseLocalDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const formatTimeForApi = (value) => {
+  if (!value) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return format(value, "HH:mm:ss");
+  }
+
+  const text = String(value).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+
+  if (!match) return null;
+
+  const hours = Math.min(Number(match[1]), 23).toString().padStart(2, "0");
+  const minutes = Math.min(Number(match[2]), 59).toString().padStart(2, "0");
+  const seconds = Math.min(Number(match[3] || "0"), 59).toString().padStart(2, "0");
+
+  return `${hours}:${minutes}:${seconds}`;
+};
+
+const formatTimeForDisplay = (value) => {
+  const time = formatTimeForApi(value);
+  if (!time) return "";
+
+  const [hours, minutes] = time.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+
+  return format(date, "h:mm a");
+};
+
 export default function AvailabilityPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAllDay, setIsAllDay] = useState(false);
@@ -78,17 +128,7 @@ export default function AvailabilityPage() {
   const [projectDetails, setProjectDetails] = useState(null);
   const [projectLoading, setProjectLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    type: "1",
-    recurrence: "1",
-    includeWeekends: false,
-    repeatOn: [],
-    monthlyDay: "",
-    untilDate: null,
-    startTime: "",
-    endTime: "",
-    notes: "",
-  });
+  const [formData, setFormData] = useState(getDefaultFormData);
 
   const [availability, setAvailability] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
@@ -226,15 +266,29 @@ export default function AvailabilityPage() {
     const user = JSON.parse(localStorage.getItem("revure_user") || "{}");
     const crewMemberId = user?.crew_member_id;
 
-    const formattedDate = format(new Date(selectedDate), "yyyy-MM-dd");
+    const selectedDateValue = parseLocalDate(selectedDate);
+    if (!selectedDateValue) {
+      toast.error("Please select a date");
+      return;
+    }
 
-    let payload = {
+    const formattedDate = format(selectedDateValue, "yyyy-MM-dd");
+    const startTime = formatTimeForApi(formData.startTime);
+    const endTime = formatTimeForApi(formData.endTime);
+    const hasTimeRange = Boolean(startTime && endTime);
+
+    if (!isAllDay && !hasTimeRange) {
+      toast.error("Please select both start and end time");
+      return;
+    }
+
+    const payload = {
       crew_member_id: crewMemberId,
       date: formattedDate,
       availability_status: Number(formData.type),
-      is_full_day: isAllDay ? 1 : 0,
-      start_time: isAllDay ? null : formData.startTime,
-      end_time: isAllDay ? null : formData.endTime,
+      is_full_day: isAllDay || !hasTimeRange ? 1 : 0,
+      start_time: isAllDay ? null : startTime,
+      end_time: isAllDay ? null : endTime,
       recurrence: Number(formData.recurrence),
       notes: formData.notes || "",
     };
@@ -314,6 +368,8 @@ export default function AvailabilityPage() {
   };
 
   const handleModalOpen = () => {
+    setFormData(getDefaultFormData());
+    setIsAllDay(false);
     setIsModalOpen(true);
     setIsAnimating(true);
   };
@@ -322,6 +378,8 @@ export default function AvailabilityPage() {
     setIsAnimating(false);
     setTimeout(() => {
       setIsModalOpen(false);
+      setFormData(getDefaultFormData());
+      setIsAllDay(false);
     }, 300);
   };
 
@@ -335,11 +393,12 @@ export default function AvailabilityPage() {
   const handleAllDayChange = () => {
     setIsAllDay(!isAllDay);
     if (!isAllDay) {
-      setFormData({ ...formData, startTime: "", endTime: "" });
+      setFormData({ ...formData, startTime: null, endTime: null });
     }
   };
 
   const handleTimeChange = (time, field) => {
+    setIsAllDay(false);
     setFormData((prevData) => ({
       ...prevData,
       [field]: time,
@@ -387,6 +446,9 @@ export default function AvailabilityPage() {
 
       const isAvailable = availabilityStatus?.available || availabilityStatus?.projectAssigned;
       const isAssigned = availabilityStatus?.projectAssigned;
+      const startTimeDisplay = formatTimeForDisplay(availabilityStatus?.start_time);
+      const endTimeDisplay = formatTimeForDisplay(availabilityStatus?.end_time);
+      const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
 
       const isPastDate = dateString < todayDateString;
       const isToday = dateString === todayDateString;
@@ -451,9 +513,23 @@ export default function AvailabilityPage() {
                 </div>
               )}
               {isAvailable && !isAssigned && (
-                <div className="flex items-center gap-1 text-green-500/70">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  <span className="hidden lg:block">Available</span>
+                <>
+                  <div className="flex items-center gap-1 text-green-500/70">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    <span className="hidden lg:block">Available</span>
+                  </div>
+                </>
+              )}
+              {!isAvailable && !isAssigned && (
+                <div className="flex items-center gap-1 text-red-400/75">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                  <span className="hidden lg:block">Not Available</span>
+                </div>
+              )}
+              {hasTimeRange && (
+                <div className={`hidden lg:flex items-center gap-1 ${isAvailable ? "text-white/45" : "text-red-200/60"}`}>
+                  <Clock size={11} />
+                  <span>{startTimeDisplay} - {endTimeDisplay}</span>
                 </div>
               )}
             </div>
@@ -651,7 +727,9 @@ export default function AvailabilityPage() {
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Date</label>
                 <DatePicker
-                  id="date"
+                  label=""
+                  value={parseLocalDate(selectedDate)}
+                  minDate={new Date()}
                   onChange={(d) => {
                     setSelectedDate(d);
                     if (formData.recurrence === "4") {
@@ -665,11 +743,20 @@ export default function AvailabilityPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Start Time</label>
-                    <TimePicker setTime={(time) => handleTimeChange(time, "startTime")} />
+                    <TimePicker
+                      label=""
+                      value={formData.startTime}
+                      onChange={(time) => handleTimeChange(time, "startTime")}
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">End Time</label>
-                    <TimePicker setTime={(time) => handleTimeChange(time, "endTime")} />
+                    <TimePicker
+                      label=""
+                      value={formData.endTime}
+                      onChange={(time) => handleTimeChange(time, "endTime")}
+                      minTime={formData.startTime || undefined}
+                    />
                   </div>
                 </div>
               )}
@@ -761,7 +848,12 @@ export default function AvailabilityPage() {
                   )}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Until Date</label>
-                    <DatePicker id="untilDate" onChange={(d) => handleFormChange(d, "untilDate")} />
+                    <DatePicker
+                      label=""
+                      value={formData.untilDate}
+                      minDate={parseLocalDate(selectedDate) || new Date()}
+                      onChange={(d) => handleFormChange(d, "untilDate")}
+                    />
                   </div>
                 </div>
               )}

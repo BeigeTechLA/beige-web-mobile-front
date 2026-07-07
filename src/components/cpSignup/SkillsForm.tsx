@@ -4,42 +4,32 @@ import React from "react";
 import AddSkills from "./addSkills";
 // Ensure these paths are correct for your project structure
 import { videographerSkills, photographerSkills, editorSkills } from "@/app/data/staticData";
+import { normalizeCreatorRoleIds } from "@/lib/creatorRoles";
 
 interface SkillsFormProps {
   value?: any[]; // Array of objects like {id: 19, name: 'Weddings'}
-  primaryRole?: string; // The messy string from API: "["[\"10\"]"]"
+  primaryRole?: unknown;
   onChange?: (skills: any[]) => void;
 }
 
 const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
   
-  // 1. ROBUST ROLE PARSING
-  const getRoleId = () => {
-    try {
-      if (!primaryRole) return null;
-      let parsed = typeof primaryRole === 'string' ? JSON.parse(primaryRole) : primaryRole;
-      
-      // If it's double stringified like ["[\"10\"]"]
-      if (Array.isArray(parsed) && typeof parsed[0] === 'string' && parsed[0].startsWith('[')) {
-        parsed = JSON.parse(parsed[0]);
-      }
-      
-      const id = Array.isArray(parsed) ? parsed[0] : parsed;
-      return id?.toString();
-    } catch (e) {
-      console.error("Error parsing primary_role:", e);
-      return null;
-    }
-  };
-
-  const roleId = getRoleId();
+  const roleIds = normalizeCreatorRoleIds(primaryRole);
 
   // 2. SELECT THE CORRECT LIST BASED ON ROLE
   const getOptionsByRole = () => {
-    // Note: In your specific data: 9=Video, 10=Photo, 11=Editor
-    if (roleId === "1") return videographerSkills;
-    if (roleId === "2") return photographerSkills;
-    if (roleId === "3") return editorSkills;
+    const options = [
+      ...(roleIds.includes("1") ? videographerSkills : []),
+      ...(roleIds.includes("2") ? photographerSkills : []),
+      ...(roleIds.includes("3") ? editorSkills : []),
+    ];
+
+    if (options.length) {
+      return options.filter(
+        (option: any, index: number, arr: any[]) =>
+          arr.findIndex((item: any) => String(item.value) === String(option.value)) === index
+      );
+    }
     
     // Default: Combine all if role is missing/different
     return [...videographerSkills, ...photographerSkills, ...editorSkills];
