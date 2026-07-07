@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Camera,
   Calendar as CalendarIcon,
@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner"; // Using sonner for the high-end look of the first code
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useGetCurrentUserQuery } from "@/lib/redux/features/auth/authApi";
+import Topbar from "@/components/admin/Topbar";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -46,6 +47,7 @@ import {
   CheckVerificationStatus,
   ConfirmCPEventLocation
 } from "@/lib/api";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 // ----------------------------
 // CONSTANTS & HELPERS
@@ -148,50 +150,71 @@ function DonutChartCard({
   subtitle,
   rightFilter,
   slices,
+  isDark = true // Added theme prop
 }: {
   title: string;
   subtitle?: string;
   rightFilter?: React.ReactNode;
   slices: DonutSlice[];
+  isDark?: boolean;
 }) {
   const gradient = useMemo(() => makeConicGradient(slices), [slices]);
   const total = slices.reduce((a, b) => a + b.value, 0) || 0;
 
   return (
-    <div className="bg-[#0B0B0B] border border-white/5 rounded-2xl p-6 transition-all hover:border-white/10">
+    <div className={`rounded-2xl p-6 transition-all ${isDark
+      ? "bg-[#0B0B0B] border-white/5 hover:border-white/10"
+      : "bg-white border-[#E5E5E5] hover:border-[#E8D1AB]/40 shadow-sm"
+      }`}>
       <div className="flex items-center justify-between mb-4 lg:mb-8">
         <div className="flex items-center gap-2">
-          {/* The vertical accent line from your screenshot */}
+          {/* Vertical brand gold accent line */}
           <div className="w-1 h-5 bg-[#E8D1AB] rounded-full" />
-          <h3 className="font-medium lg:text-lg text-white/90">{title}</h3>
+          <h3 className={`font-medium lg:text-lg ${isDark ? "text-white/90" : "text-black/90"}`}>
+            {title}
+          </h3>
         </div>
         {rightFilter}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8 items-center">
+        {/* Donut Chart Graphics Wrapper */}
         <div className="flex items-center justify-center relative">
           <div className="relative w-44 h-44 rounded-full" style={{ background: gradient }}>
-            <div className="absolute inset-[35px] rounded-full bg-[#0B0B0B]" />
-            {/* Inner Center Text like your screenshot */}
+            {/* Inner Hollow Cutout Mask matching the backdrop background */}
+            <div className={`absolute inset-[35px] rounded-full transition-colors ${isDark ? "bg-[#0B0B0B]" : "bg-[#FFFCF6]"
+              }`} />
+
+            {/* Inner Center Text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold text-white">{total.toLocaleString()}</span>
+              <span className={`text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+                {total.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
 
+        {/* Legend List */}
         <div className="space-y-2 lg:space-y-4">
           {slices.map((s) => {
             return (
               <div key={s.label} className="flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  {/* Circle with number inside - matching screenshot legend */}
+                  {/* Circle with number inside */}
                   <div
-                    className="w-10 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold"
-                    style={{ borderColor: s.colorHex, color: 'white', backgroundColor: `${s.colorHex}15` }}
+                    className="w-10 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors"
+                    style={{
+                      borderColor: s.colorHex,
+                      color: isDark ? "white" : "#000000",
+                      backgroundColor: `${s.colorHex}15`
+                    }}
                   >
                     {s.value}
                   </div>
-                  <p className="text-xs font-medium text-white/50 group-hover:text-white transition-colors">
+                  <p className={`text-xs font-medium transition-colors ${isDark
+                    ? "text-white/50 group-hover:text-white"
+                    : "text-black/60 group-hover:text-black font-medium"
+                    }`}>
                     {s.label}
                   </p>
                 </div>
@@ -203,13 +226,15 @@ function DonutChartCard({
     </div>
   );
 }
-
 // ----------------------
 // MAIN PAGE COMPONENT
 // ----------------------
 export default function CreatorDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { isDark } = useResolvedTheme();
+
+  const pathname = usePathname();
   const [showTempEventPopup, setShowTempEventPopup] = useState(false);
   const [isConfirmingTempEvent, setIsConfirmingTempEvent] = useState(false);
   const isCreatorUser = (user as any)?.user_type_id === 2 || (user as any)?.userTypeId === 2;
@@ -255,7 +280,7 @@ export default function CreatorDashboardPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [verificationStatus, setVerificationStatus] = useState<number | null>(null);
-   const [isSyncing, setIsSyncing] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(true);
 
   const [viewState, setViewState] = useState({
     latitude: 39.8283,
@@ -332,7 +357,7 @@ export default function CreatorDashboardPage() {
       try {
         // 1. Ask backend for the REAL current status
         const response = await CheckVerificationStatus({ crew_member_id: crewId });
-        
+
         if (response && !response.error && response.data?.data) {
           const latestStatus = Number(response.data.data.is_crew_verified);
 
@@ -342,7 +367,7 @@ export default function CreatorDashboardPage() {
           // 3. Update LocalStorage (Unlocks the Sidebar links)
           const updatedUser = { ...localUser, is_crew_verified: latestStatus };
           localStorage.setItem("revure_user", JSON.stringify(updatedUser));
-          
+
           console.log("Status synced from backend:", latestStatus);
         }
       } catch (err) {
@@ -512,19 +537,18 @@ export default function CreatorDashboardPage() {
     });
   }, [currentMonth, currentYear]);
 
-
   // Helper Component for Pending/Rejected States
   function VerificationStatusOverlay({ status }: { status: number }) {
     const isPending = status === 0;
 
-     if (isSyncing) {
-    return (
-      <div className="min-h-screen bg-[#111] flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#E8D1AB]/20 border-t-[#E8D1AB] rounded-full animate-spin mb-4" />
-        <p className="text-[#E8D1AB] font-medium tracking-widest text-xs uppercase">Verifying Profile...</p>
-      </div>
-    );
-  }
+    if (isSyncing) {
+      return (
+        <div className="min-h-screen bg-[#111] flex flex-col items-center justify-center">
+          <div className="w-10 h-10 border-4 border-[#E8D1AB]/20 border-t-[#E8D1AB] rounded-full animate-spin mb-4" />
+          <p className="text-[#E8D1AB] font-medium tracking-widest text-xs uppercase">Verifying Profile...</p>
+        </div>
+      );
+    }
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
@@ -612,7 +636,6 @@ export default function CreatorDashboardPage() {
     },
   ];
 
-
   const shootCategorySlices: DonutSlice[] = useMemo(() => {
     const slices = [
       {
@@ -651,7 +674,6 @@ export default function CreatorDashboardPage() {
 
   if (verificationStatus === null) return null;
 
-
   if (verificationStatus !== 1) {
     return <VerificationStatusOverlay status={verificationStatus} />;
   }
@@ -660,18 +682,25 @@ export default function CreatorDashboardPage() {
   // RENDER
   // ----------------------
   return (
-    <div className="max-w-7xl mx-auto space-y-4 lg:space-y-8 pb-12 text-white bg-[#111] p-4 md:p-8">
+    <>
+      <Topbar pathname={pathname} />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Welcome back, {user?.name || "Partner"}</h1>
-          <p className="text-sm lg:text-base text-white/60">Performance overview and shoot schedule</p>
+      <div
+        className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
+        style={{ fontFamily: "var(--font-instrument-sans)" }}
+      >
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div>
+            <h1 className={`text-lg lg:text-3xl lg:leading-[32px] font-bold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
+              }`}>Welcome back, {user?.name || "Partner"}</h1>
+            <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>Performance overview and shoot schedule</p>
+          </div>
         </div>
-      </div>
 
-      {/* Stats Cards (Luxury Style) */}
-      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Stats Cards (Luxury Style) */}
+        {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Completed Shoots"
           value={dashboardStats.completedShoots}
@@ -701,348 +730,545 @@ export default function CreatorDashboardPage() {
           hoverBorder="hover:border-white/20"
         />
       </div> */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          label="Completed Shoots"
-          value={dashboardStats.completedShoots}
-          icon={<Camera />}
-          iconColor="text-[#E8D1AB]"
-          hoverBorder="hover:border-[#E8D1AB]/30"
-        />
-        <StatCard
-          label="Upcoming Shoots"
-          value={dashboardStats.upcomingShoots}
-          icon={<CalendarIcon />}
-          iconColor="text-blue-400"
-          hoverBorder="hover:border-blue-400/30"
-        />
-        <StatCard
-          label="Pending Requests"
-          value={dashboardStats.pendingRequests}
-          icon={<Clock />}
-          iconColor="text-yellow-500"
-          hoverBorder="hover:border-yellow-500/30"
-        />
-      </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard
+            label="Completed Shoots"
+            value={dashboardStats.completedShoots}
+            icon={<Camera />}
+            iconColor={isDark ? "text-[#E8D1AB]" : "text-[#c48b29]"}
+            hoverBorder="hover:border-[#E8D1AB]/30"
+            isDark={isDark}
+          />
+          <StatCard
+            label="Upcoming Shoots"
+            value={dashboardStats.upcomingShoots}
+            icon={<CalendarIcon />}
+            // iconColor="text-blue-400"
+            iconColor={isDark ? "text-blue-400" : "text-blue-800"}
+            hoverBorder="hover:border-blue-400/30"
+            isDark={isDark}
+          />
+          <StatCard
+            label="Pending Requests"
+            value={dashboardStats.pendingRequests}
+            icon={<Clock />}
+            iconColor={isDark ? "text-yellow-500" : "text-yellow-800"}
+            hoverBorder="hover:border-yellow-500/30"
+            isDark={isDark}
+          />
+        </div>
 
-      {/* Main Content Grid: Map & Calendar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        {/* Main Content Grid: Map & Calendar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
 
-        {/* Map Section */}
-        <div className="lg:col-span-2 bg-[#111] border border-white/5 rounded-lg lg:rounded-xl overflow-hidden relative min-h-[500px]">
-          {/* Map Controls */}
-          <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-              <input
-                type="text"
-                placeholder="Search events..."
-                className="pl-10 h-10 bg-[#0B0F14]/90 border border-white/10 rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all text-white placeholder:text-white/30"
-                value={mapSearch}
-                onChange={(e) => setMapSearch(e.target.value)}
-              />
+          {/* Map Section */}
+          <div className={`lg:col-span-2 rounded-lg lg:rounded-xl overflow-hidden relative min-h-[500px] transition-all ${isDark
+            ? "bg-[#111] border border-white/5"
+            : "bg-[#FFFCF6] border border-[#E5E5E5] shadow-sm"
+            }`}>
+            {/* Map Controls */}
+            <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
+              <div className="relative">
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+                <input
+                  type="text"
+                  placeholder="Search events..."
+                  value={mapSearch}
+                  onChange={(e) => setMapSearch(e.target.value)}
+                  className={`pl-10 h-10 border rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${isDark
+                    ? "bg-[#0B0F14]/90 border-white/10 text-white placeholder:text-white/30"
+                    : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black placeholder:text-black/40 shadow-sm"
+                    }`}
+                />
+              </div>
+
+              {/* Filter Select Dropdown Trigger */}
+              <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
+                <SelectTrigger className={`h-10 w-36 border transition-colors ${isDark
+                  ? "bg-[#0B0F14]/90 border-white/10 text-white"
+                  : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black shadow-sm"
+                  }`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
+                  }`}>
+                  <SelectItem value="all">All events</SelectItem>
+                  <SelectItem value="active">Active shoots</SelectItem>
+                  <SelectItem value="pending">Requests</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
-              <SelectTrigger className="h-10 w-36 bg-[#0B0F14]/90 border-white/10 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#0B0F14] border-white/10 text-white">
-                <SelectItem value="all">All events</SelectItem>
-                <SelectItem value="active">Active shoots</SelectItem>
-                <SelectItem value="pending">Requests</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {/* Mapbox Layer Element */}
+            <Map
+              {...viewState}
+              onMove={(evt) => setViewState(evt.viewState)}
+              style={{ width: "100%", height: "100%" }}
+              mapStyle="mapbox://styles/mapbox/dark-v11"
+              mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
+            >
+              {filteredMarkers.map((marker, idx) => (
+                <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
+                  <div
+                    onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
+                    className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active'
+                      ? 'bg-[#E8D1AB] border-black text-black'
+                      : 'bg-yellow-500 border-black text-black'
+                      }`}
+                  >
+                    {marker.type === 'active' ? <Camera size={14} /> : <Clock size={14} />}
+                  </div>
+                </Marker>
+              ))}
+            </Map>
+
+            {/* Map Floating Legend */}
+            <div className={`absolute bottom-4 left-4 border p-4 rounded-xl shadow-2xl w-56 transition-all ${isDark
+              ? "bg-[#0B0F14]/95 border-white/10"
+              : "bg-[#FFFDF9]/95 border-[#E5E5E5]"
+              }`}>
+              <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? "text-white/40" : "text-black/40"
+                }`}>
+                Status Legend
+              </h4>
+              <div className="space-y-2.5">
+                <LegendItem color="bg-[#E8D1AB]" label="Active Shoots" count={allShoots.length} isDark={isDark} />
+                <LegendItem color="bg-yellow-500" label="Pending Requests" count={pendingRequests.length} isDark={isDark} />
+                <LegendItem color="bg-blue-400" label="Upcoming" count={dashboardStats.upcomingShoots} isDark={isDark} />
+                <LegendItem
+                  color={isDark ? "bg-white/20" : "bg-black/15"}
+                  label="Equipment"
+                  count={dashboardStats.equipmentRequests}
+                  isDark={isDark}
+                />
+              </div>
+            </div>
           </div>
 
-          <Map
-            {...viewState}
-            onMove={(evt) => setViewState(evt.viewState)}
-            style={{ width: "100%", height: "100%" }}
-            mapStyle="mapbox://styles/mapbox/dark-v11"
-            mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
-          >
-            {filteredMarkers.map((marker, idx) => (
-              <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
-                <div
-                  onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
-                  className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active' ? 'bg-[#E8D1AB] border-black text-black' : 'bg-yellow-500 border-black text-black'
+          {/* Availability Calendar */}
+          <div className={`rounded-xl p-6 flex flex-col transition-all ${isDark
+            ? "bg-[#111] border border-white/5"
+            : "bg-white border border-[#E5E5E5] shadow-sm"
+            }`}>
+            {/* Header Section */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className={`font-bold flex items-center gap-2 ${isDark ? "text-white" : "text-black"}`}>
+                <CalendarIcon size={18} className="text-[#E8D1AB]" />
+                Availability
+              </h3>
+              <div className="flex gap-1">
+                <button
+                  onClick={handlePreviousMonth}
+                  className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-white/40 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"
                     }`}
                 >
-                  {marker.type === 'active' ? <Camera size={14} /> : <Clock size={14} />}
-                </div>
-              </Marker>
-            ))}
-          </Map>
-
-          {/* Map Legend */}
-          <div className="absolute bottom-4 left-4 bg-[#0B0F14]/95 border border-white/10 p-4 rounded-xl shadow-2xl w-56">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Status Legend</h4>
-            <div className="space-y-2.5">
-              <LegendItem color="bg-[#E8D1AB]" label="Active Shoots" count={allShoots.length} />
-              <LegendItem color="bg-yellow-500" label="Pending Requests" count={pendingRequests.length} />
-              <LegendItem color="bg-blue-400" label="Upcoming" count={dashboardStats.upcomingShoots} />
-              <LegendItem color="bg-white/20" label="Equipment" count={dashboardStats.equipmentRequests} />
-            </div>
-          </div>
-        </div>
-
-        {/* Availability Calendar */}
-        <div className="bg-[#111] border border-white/5 rounded-xl p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <CalendarIcon size={18} className="text-[#E8D1AB]" />
-              Availability
-            </h3>
-            <div className="flex gap-1">
-              <button onClick={handlePreviousMonth} className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"><ChevronLeft size={18} /></button>
-              <button onClick={handleNextMonth} className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"><ChevronRight size={18} /></button>
-            </div>
-          </div>
-
-          <div className="text-center font-bold text-sm mb-6 text-[#E8D1AB] uppercase tracking-widest">
-            {date.toLocaleString("default", { month: "long", year: "numeric" })}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-              <div key={d} className="text-center text-[10px] font-bold text-white/20 uppercase">{d.slice(0, 1)}</div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1.5">
-            {(() => {
-              const year = date.getFullYear();
-              const month = date.getMonth();
-              const firstDay = new Date(year, month, 1).getDay();
-              const daysInMonth = new Date(year, month + 1, 0).getDate();
-              const today = new Date(); today.setHours(0, 0, 0, 0);
-
-              const days = [];
-              for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} />);
-
-              for (let d = 1; d <= daysInMonth; d++) {
-                const curDate = new Date(year, month, d);
-                const isToday = curDate.getTime() === today.getTime();
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const dayData = (availability as any)?.[dateStr];
-                let style = "border-white/5 text-white/60 hover:border-white/20";
-
-                if (dayData && dayData.available === true && !dayData.projectAssigned) {
-                  style = "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]";
-                }
-
-                if (dayData && dayData.available === false && !dayData.projectAssigned) {
-                  style = "border-red-600/40 bg-black text-[#E8D1AB]";
-                }
-
-                if (dayData?.projectAssigned === true) {
-                  style = "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]";
-                }
-                if (isToday) {
-                  style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold";
-                }
-                days.push(
-                  <button
-                    key={d}
-                    onClick={() => {
-                      if (dayData?.projectDetails) {
-                        setProjectDetailsData({ project: dayData.projectDetails });
-                        setProjectDetailsOpen(true);
-                      } else {
-                        toast(`Date selected: ${dateStr}`);
-                      }
-                    }}
-                    className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg border transition-all ${style}`}
-                  >
-                    {d}
-                    {dayData?.projectAssigned === true && !isToday && (
-                      <span className="w-1 h-1 bg-[#E8D1AB] rounded-full mt-0.5" />
-                    )}
-                  </button>
-                );
-              }
-              return days;
-            })()}
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-white/5 space-y-3">
-            <div className="flex items-center justify-between text-[11px] text-white/40">
-              <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
-                <span>Shoot Assigned</span>
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  onClick={handleNextMonth}
+                  className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-white/40 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"
+                    }`}
+                >
+                  <ChevronRight size={18} />
+                </button>
               </div>
-              <span className="font-mono">Active</span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-white/40">
-              <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500/10 border border-red-500/40" />
-                <span>Unavailable</span>
-              </div>
-              <span className="font-mono">Blocked</span>
-            </div>
-            <Button
-              className="w-full mt-6 bg-white/10 text-white border border-white/10 hover:bg-white/15"
-              onClick={() => router.push("/creator/dashboard/availability")}
-            >
-              Go to Availability
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      {/* Donut Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        <DonutChartCard
-          title="Shoot Status"
-          subtitle="Pipeline performance metrics"
-          slices={shootStatusSlices}
-        />
-        <DonutChartCard
-          title="Shoot Categories"
-          subtitle="Distribution of media types"
-          rightFilter={
-            <div className="flex bg-[#0B0F14] p-1 rounded-lg border border-white/5">
-              <button
-                onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
-                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"}`}
-              >Photo</button>
-              <button
-                onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
-                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"}`}
-              >Video</button>
+            {/* Current Month Banner */}
+            <div className="text-center font-bold text-sm mb-6 text-[#E8D1AB] uppercase tracking-widest">
+              {date.toLocaleString("default", { month: "long", year: "numeric" })}
             </div>
-          }
-          slices={shootCategorySlices}
-        />
-      </div>
 
-      {/* --- MODALS --- */}
-
-      <Dialog open={showTempEventPopup} onOpenChange={setShowTempEventPopup}>
-        <DialogContent className="max-w-md overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-center text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
-          <DialogTitle className="sr-only">Switch to this event location?</DialogTitle>
-          <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-7">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <CalendarIcon size={30} className="text-[#E8D1AB]" />
-            </div>
-            <h2 className="text-xl font-bold mb-2">Switch to this event location?</h2>
-            <p className="mx-auto mb-8 max-w-sm px-4 text-sm text-white/50">
-              {tempEventLocation
-                ? `"We’ll temporarily set your location to ${tempEventLocation} to match this event for a better experience."`
-                : "Do you want to continue with this event?"}
-            </p>
-            <div className="flex gap-3">
-              <Button
-                variant="ghost"
-                className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
-                disabled={isConfirmingTempEvent}
-                onClick={() => setShowTempEventPopup(false)}
-              >
-                Not now
-              </Button>
-              <Button
-                className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold"
-                disabled={isConfirmingTempEvent}
-                onClick={handleConfirmTempEvent}
-              >
-                {isConfirmingTempEvent ? "Please wait..." : "Yes, update location"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Accept Shoot Modal */}
-      <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
-        <DialogContent className="max-w-md overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-center text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
-          <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-7">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <CheckCircle2 size={32} className="text-[#E8D1AB]" />
-            </div>
-            <h2 className="text-xl font-bold mb-2">Accept Request?</h2>
-            <p className="mx-auto mb-8 max-w-sm px-4 text-sm text-white/50">
-              Confirming will add <span className="text-white font-medium">{acceptShootEvent?.project_name}</span> to your production schedule.
-            </p>
-            <div className="flex gap-3">
-              <Button variant="ghost" className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
-              <Button className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold" onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}>Confirm</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Decline Equipment Modal */}
-      <Dialog open={!!declineEquipmentItem} onOpenChange={() => setDeclineEquipmentItem(null)}>
-        <DialogContent className="max-w-xl overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
-          <DialogHeader className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-6">
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <AlertTriangle className="text-red-500" />
-              Decline Request
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-5 px-7 py-6">
-            <div className="space-y-3">
-              <Label className="text-white/40 text-xs uppercase tracking-widest">Reason for declining</Label>
-              {["Schedule conflict", "Equipment unavailable", "Location too far", "Other"].map((reason) => (
-                <div key={reason} className="flex items-center space-x-3 bg-[#111111] p-4 rounded-2xl border border-white/10 cursor-pointer hover:border-white/20 hover:bg-[#151515] transition-all">
-                  <input type="radio" name="decline-reason" id={reason} className="accent-[#E8D1AB]" />
-                  <Label htmlFor={reason} className="text-white/70 font-normal cursor-pointer flex-1">{reason}</Label>
+            {/* Weekday Abbreviations Row */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+                <div key={d} className={`text-center text-[10px] font-bold uppercase ${isDark ? "text-white/20" : "text-black/30"}`}>
+                  {d.slice(0, 1)}
                 </div>
               ))}
             </div>
-            <div className="flex gap-3 pt-4">
-              <Button variant="ghost" className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5" onClick={() => setDeclineEquipmentItem(null)}>Cancel</Button>
-              <Button className="h-12 flex-1 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold" onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}>Decline Request</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Project Details Modal */}
-      <Dialog open={projectDetailsOpen} onOpenChange={setProjectDetailsOpen}>
-        <DialogContent className="max-w-2xl overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
-          <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] p-6">
-            <DialogTitle className="text-xl font-bold text-[#E8D1AB]">Project Overview</DialogTitle>
-          </div>
-          <div className="p-8 space-y-6">
-            <div className="grid grid-cols-2 gap-8">
-              <div className="space-y-1">
-                <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Project Name</Label>
-                <p className="font-bold text-lg leading-tight">{projectDetailsData?.project?.project_name || projectDetailsData?.project_name || "Untitled"}</p>
-              </div>
-              <div className="text-right space-y-1">
-                <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Scheduled Date</Label>
-                <p className="text-[#E8D1AB] font-mono">{projectDetailsData?.project?.event_date || projectDetailsData?.event_date || "TBD"}</p>
-              </div>
+            {/* Days Grid */}
+            <div className="grid grid-cols-7 gap-1.5">
+              {(() => {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+
+                const days = [];
+                for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} />);
+
+                for (let d = 1; d <= daysInMonth; d++) {
+                  const curDate = new Date(year, month, d);
+                  const isToday = curDate.getTime() === today.getTime();
+                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                  const dayData = (availability as any)?.[dateStr];
+
+                  // Base Dynamic Styles for standard days
+                  let style = isDark
+                    ? "border-white/5 text-white/60 hover:border-white/20 hover:bg-white/5"
+                    : "border-[#E5E5E5] text-black/60 hover:border-[#E8D1AB]/50 hover:bg-[#FDF9F0]";
+
+                  // Condition 1: Available (unassigned)
+                  if (dayData && dayData.available === true && !dayData.projectAssigned) {
+                    style = isDark
+                      ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]"
+                      : "border-[#E8D1AB]/40 bg-[#FDF9F0] text-[#8A7043]";
+                  }
+
+                  // Condition 2: Explicitly Unavailable
+                  if (dayData && dayData.available === false && !dayData.projectAssigned) {
+                    style = isDark
+                      ? "border-red-600/40 bg-black text-[#E8D1AB]"
+                      : "border-red-200 bg-red-50 text-black";
+                  }
+
+                  // Condition 3: Project Assigned
+                  if (dayData?.projectAssigned === true) {
+                    style = isDark
+                      ? "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                      : "border-[#E8D1AB]/60 bg-[#E8D1AB]/15 text-[#735A2B]";
+                  }
+
+                  // Condition 4: Today (highest override)
+                  if (isToday) {
+                    style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold shadow-sm";
+                  }
+
+                  days.push(
+                    <button
+                      key={d}
+                      onClick={() => {
+                        if (dayData?.projectDetails) {
+                          setProjectDetailsData({ project: dayData.projectDetails });
+                          setProjectDetailsOpen(true);
+                        } else {
+                          toast(`Date selected: ${dateStr}`);
+                        }
+                      }}
+                      className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg border transition-all ${style}`}
+                    >
+                      {d}
+                      {dayData?.projectAssigned === true && !isToday && (
+                        <span className={`w-1 h-1 rounded-full mt-0.5 ${isDark || (dayData?.projectAssigned === true) ? "bg-[#E8D1AB]" : "bg-[#735A2B]"
+                          }`} />
+                      )}
+                    </button>
+                  );
+                }
+                return days;
+              })()}
             </div>
 
-            <div className="grid grid-cols-2 gap-8 border-t border-white/5 pt-6">
-              <div className="space-y-1">
-                <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Time Window</Label>
-                <p className="text-white/80">
-                  {projectDetailsData?.project?.start_time && projectDetailsData?.project?.end_time
-                    ? `${projectDetailsData.project.start_time} - ${projectDetailsData.project.end_time}`
-                    : "TBD"}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Location</Label>
-                <div className="flex items-center gap-2 text-white/80">
-                  <MapPin size={14} className="text-[#E8D1AB]" />
-                  <span className="truncate">{formatDisplayLocation(projectDetailsData?.project?.event_location || projectDetailsData?.display_location)}</span>
+            {/* Legend & Action Footer */}
+            <div className={`mt-8 pt-6 border-t space-y-3 ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
+                <div className="flex items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
+                  <span>Shoot Assigned</span>
                 </div>
+                <span className="font-mono">Active</span>
               </div>
-            </div>
-
-            <div className="flex justify-end pt-6">
-              <Button onClick={() => setProjectDetailsOpen(false)} className="h-12 rounded-2xl bg-[#111111] border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-8 transition-all">
-                Close Details
+              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
+                <div className="flex items-center gap-3">
+                  <span className={`w-2.5 h-2.5 rounded-full border ${isDark ? "bg-red-500/10 border-red-500/40" : "bg-red-50 border-red-300"}`} />
+                  <span>Unavailable</span>
+                </div>
+                <span className="font-mono">Blocked</span>
+              </div>
+              <Button
+                onClick={() => router.push("/creator/dashboard/availability")}
+                className={`w-full mt-6 border transition-colors ${isDark
+                  ? "bg-white/10 text-white border-white/10 hover:bg-white/15"
+                  : "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/80 shadow-sm"
+                  }`}
+              >
+                Go to Availability
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        {/* Donut Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <DonutChartCard
+            title="Shoot Status"
+            subtitle="Pipeline performance metrics"
+            slices={shootStatusSlices}
+            isDark={isDark}
+          />
+          <DonutChartCard
+            title="Shoot Categories"
+            subtitle="Distribution of media types"
+            rightFilter={
+              <div className={`flex p-1 rounded-lg border transition-all ${isDark
+                ? "bg-[#0B0F14] border-white/5"
+                : "bg-[#FFFCF6] border-[#E5E5E5]"
+                }`}>
+                <button
+                  onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
+                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
+                >
+                  Photo
+                </button>
+                <button
+                  onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
+                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
+                >
+                  Video
+                </button>
+              </div>
+            }
+            slices={shootCategorySlices}
+            isDark={isDark}
+          />
+        </div>
+
+        {/* --- MODALS --- */}
+        <Dialog open={showTempEventPopup} onOpenChange={setShowTempEventPopup}>
+          <DialogContent className={`max-w-md overflow-hidden rounded-xl lg:rounded-4xl border p-0 text-center shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            }`}>
+            <DialogTitle className="sr-only">Switch to this event location?</DialogTitle>
+
+            <div className={`px-7 py-7 border-b transition-colors ${isDark
+              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              }`}>
+              {/* Icon Frame */}
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                <CalendarIcon size={30} className="text-[#E8D1AB]" />
+              </div>
+
+              <h2 className="lg:text-xl font-bold mb-2">Switch to this event location?</h2>
+              <p className={`mx-auto mb-8 max-w-sm px-4 text-sm transition-colors ${isDark ? "text-white/50" : "text-black/60"}`}>
+                {tempEventLocation
+                  ? `"We’ll temporarily set your location to ${tempEventLocation} to match this event for a better experience."`
+                  : "Do you want to continue with this event?"}
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  variant="ghost"
+                  disabled={isConfirmingTempEvent}
+                  onClick={() => setShowTempEventPopup(false)}
+                  className={`h-12 flex-1 rounded-lg lg:rounded-2xl border transition-colors ${isDark
+                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                    }`}
+                >
+                  Not now
+                </Button>
+                <Button
+                  disabled={isConfirmingTempEvent}
+                  onClick={handleConfirmTempEvent}
+                  className="h-12 flex-1 rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold transition-colors"
+                >
+                  {isConfirmingTempEvent ? "Please wait..." : "Yes, update location"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Accept Shoot Modal */}
+        <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
+          <DialogContent className={`max-w-md overflow-hidden rounded-xl lg:rounded-4xl border p-0 text-center shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            }`}>
+            <DialogTitle className="sr-only">Accept Request?</DialogTitle>
+            <div className={`px-7 py-7 border-b transition-colors ${isDark
+              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              }`}>
+              {/* Icon Frame */}
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                <CheckCircle2 size={32} className="text-[#E8D1AB]" />
+              </div>
+
+              <h2 className="text-xl font-bold mb-2">Accept Request?</h2>
+
+              <p className={`mx-auto mb-8 max-w-sm px-4 text-sm transition-colors ${isDark ? "text-white/50" : "text-black/60"
+                }`}>
+                Confirming will add{" "}
+                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                  {acceptShootEvent?.project_name}
+                </span>{" "}
+                to your production schedule.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => setAcceptShootEvent(null)}
+                  className={`h-12 flex-1 rounded-2xl border transition-colors ${isDark
+                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                    }`}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}
+                  className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold transition-colors"
+                >
+                  Confirm
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Decline Equipment Modal */}
+        <Dialog open={!!declineEquipmentItem} onOpenChange={() => setDeclineEquipmentItem(null)}>
+          <DialogContent className={`max-w-xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            }`}>
+            {/* Header Section */}
+            <DialogHeader className={`px-7 py-6 border-b transition-colors ${isDark
+              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              }`}>
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <AlertTriangle className="text-red-500" />
+                Decline Request
+              </DialogTitle>
+            </DialogHeader>
+
+            {/* Form Options Content */}
+            <div className="space-y-5 px-7 py-6">
+              <div className="space-y-3">
+                <Label className={`text-xs uppercase tracking-widest ${isDark ? "text-white/40" : "text-black/40"}`}>
+                  Reason for declining
+                </Label>
+
+                {["Schedule conflict", "Equipment unavailable", "Location too far", "Other"].map((reason) => (
+                  <div
+                    key={reason}
+                    className={`flex items-center space-x-3 p-4 rounded-2xl border cursor-pointer transition-all ${isDark
+                      ? "bg-[#111111] border-white/10 hover:border-white/20 hover:bg-[#151515]"
+                      : "bg-[#FFFDF9] border-[#E5E5E5] hover:border-[#E8D1AB]/60 hover:bg-[#FDF9F0]"
+                      }`}
+                  >
+                    <input type="radio" name="decline-reason" id={reason} className="accent-[#E8D1AB]" />
+                    <Label
+                      htmlFor={reason}
+                      className={`font-normal cursor-pointer flex-1 transition-colors ${isDark ? "text-white/70" : "text-black/80"
+                        }`}
+                    >
+                      {reason}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Footer Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setDeclineEquipmentItem(null)}
+                  className={`h-12 flex-1 rounded-2xl border transition-colors ${isDark
+                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                    }`}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}
+                  className="h-12 flex-1 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+                >
+                  Decline Request
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Project Details Modal */}
+        <Dialog open={projectDetailsOpen} onOpenChange={setProjectDetailsOpen}>
+          <DialogContent className={`max-w-2xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+            }`}>
+            {/* Header Section */}
+            <div className={`p-6 border-b transition-colors ${isDark
+              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+              }`}>
+              <DialogTitle className="text-xl font-bold text-[#E8D1AB]">Project Overview</DialogTitle>
+            </div>
+
+            {/* Content Details Body */}
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-1">
+                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Project Name
+                  </Label>
+                  <p className="font-bold text-lg leading-tight">
+                    {projectDetailsData?.project?.project_name || projectDetailsData?.project_name || "Untitled"}
+                  </p>
+                </div>
+                <div className="text-right space-y-1">
+                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Scheduled Date
+                  </Label>
+                  <p className="text-[#E8D1AB] font-mono">
+                    {projectDetailsData?.project?.event_date || projectDetailsData?.event_date || "TBD"}
+                  </p>
+                </div>
+              </div>
+
+              <div className={`grid grid-cols-2 gap-8 border-t pt-6 transition-colors ${isDark ? "border-white/5" : "border-[#E5E5E5]"
+                }`}>
+                <div className="space-y-1">
+                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Time Window
+                  </Label>
+                  <p className={isDark ? "text-white/80" : "text-black/80"}>
+                    {projectDetailsData?.project?.start_time && projectDetailsData?.project?.end_time
+                      ? `${projectDetailsData.project.start_time} - ${projectDetailsData.project.end_time}`
+                      : "TBD"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Location
+                  </Label>
+                  <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
+                    <MapPin size={14} className="text-[#E8D1AB]" />
+                    <span className="truncate">
+                      {formatDisplayLocation(projectDetailsData?.project?.event_location || projectDetailsData?.display_location)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Footer */}
+              <div className="flex justify-end pt-6">
+                <Button
+                  onClick={() => setProjectDetailsOpen(false)}
+                  className={`h-12 rounded-2xl border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-8 transition-all ${isDark
+                    ? "bg-[#111111] border-white/10 text-white"
+                    : "bg-[#F5F5F5] border-black/10 text-black"
+                    }`}
+                >
+                  Close Details
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
   );
 }
 
@@ -1053,9 +1279,12 @@ export default function CreatorDashboardPage() {
 /**
  * StatCard - Large Value with Subtle Top-Right Icon
  */
-function StatCard({ label, value, icon, iconColor, hoverBorder }: any) {
+function StatCard({ label, value, icon, iconColor, hoverBorder, isDark }: any) {
   return (
-    <div className={`bg-[#111] rounded-lg lg:rounded-xl p-4 lg:p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[120px] flex flex-col justify-center`}>
+    <div className={`rounded-lg lg:rounded-xl p-4 lg:p-6 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[120px] flex flex-col justify-center ${isDark
+      ? "bg-[#111] border-white/5"
+      : "bg-white border-[#E5E5E5] shadow-sm"
+      }`}>
       <div className="absolute top-2 right-2 lg:top-0 lg:right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
         {React.cloneElement(icon, {
           // Responsive size logic
@@ -1064,8 +1293,8 @@ function StatCard({ label, value, icon, iconColor, hoverBorder }: any) {
         })}
       </div>
       <div className="relative z-10">
-        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">{label}</p>
-        <p className="text-2xl lg:text-4xl font-bold text-white">{value}</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>{label}</p>
+        <p className={`text-2xl lg:text-4xl font-bold ${isDark ? "text-white" : "text-black"}`}>{value}</p>
       </div>
     </div>
   );
@@ -1074,14 +1303,28 @@ function StatCard({ label, value, icon, iconColor, hoverBorder }: any) {
 /**
  * LegendItem for Map Status
  */
-function LegendItem({ color, label, count }: { color: string; label: string; count: number }) {
+function LegendItem({ color, label, count, isDark = true }: { color: string; label: string; count: number; isDark?: boolean }) {
   return (
     <div className="flex items-center justify-between group">
       <div className="flex items-center gap-3">
-        <span className={`w-2 h-2 rounded-full ${color} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
-        <span className="text-xs text-white/50 group-hover:text-white/80 transition-colors">{label}</span>
+        {/* Color Pill Indicator */}
+        <span className={`w-2 h-2 rounded-full ${color} transition-shadow ${isDark ? "shadow-[0_0_8px_rgba(0,0,0,0.5)]" : "shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
+          }`} />
+
+        {/* Label Text */}
+        <span className={`text-xs transition-colors ${isDark
+          ? "text-white/50 group-hover:text-white/80"
+          : "text-black/60 group-hover:text-black/90 font-medium"
+          }`}>
+          {label}
+        </span>
       </div>
-      <span className="text-xs font-mono font-bold text-white/80">{count}</span>
+
+      {/* Count Badge */}
+      <span className={`text-xs font-mono font-bold transition-colors ${isDark ? "text-white/80" : "text-black/80"
+        }`}>
+        {count}
+      </span>
     </div>
   );
 }
