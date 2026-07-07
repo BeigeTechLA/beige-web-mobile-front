@@ -49,21 +49,23 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
             // If external date cleared and we were in custom, go back to month
             setRange('all');
         }
-    }, [externalSelectedDate]);
+    }, [externalSelectedDate, range]);
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             setIsChartLoading(true);
             try {
-                const params: any = { range };
-                if (range === 'custom' && externalSelectedDate) {
+                const effectiveRange = externalSelectedDate ? 'month' : (range === 'custom' ? 'month' : range);
+                const params: any = { range: effectiveRange };
+                if (externalSelectedDate) {
                     params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
                 }
 
                 const response = await adminApi.getDashboardChartData(params);
-                if (response && !response.error && response.summary && response.charts) {
-                    const { summary, charts } = response;
+                const payload = response?.data ?? response;
+                if (payload && !payload.error && payload.summary && payload.charts) {
+                    const { summary, charts } = payload;
 
                     // Transform Chart Data
                     const labels = charts.total_shoots?.map((item: any) => item.label) || [];

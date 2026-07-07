@@ -82,7 +82,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
     } else if (range === 'custom') {
       setRange('all');
     }
-  }, [externalSelectedDate]);
+  }, [externalSelectedDate, range]);
 
   // 2. Optimized Fetch Logic
   useEffect(() => {
@@ -90,14 +90,15 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
       setIsLoading(true);
       setIsChartLoading(true);
       try {
-        const effectiveRange = externalSelectedDate ? 'custom' : range;
+        const effectiveRange = externalSelectedDate ? 'month' : (range === 'custom' ? 'month' : range);
         const params: any = { range: effectiveRange };
-        if (effectiveRange === 'custom' && externalSelectedDate) {
+        if (externalSelectedDate) {
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
         const response = await adminApi.getDashboardChartData(params);
-        if (response && !response.error && response.summary && response.charts) {
-          const { summary, charts } = response;
+        const payload = response?.data ?? response;
+        if (payload && !payload.error && payload.summary && payload.charts) {
+          const { summary, charts } = payload;
           const labels = charts.total_shoots?.map((item: any) => item.label) || [];
           const consolidatedChartData = labels.map((label: string, index: number) => ({
             name: label,

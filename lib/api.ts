@@ -2109,7 +2109,12 @@ export const adminApi = {
       const response = await api.get('admin/dashboard-chart-data', { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Dashboard Chart Data Error:', error.response?.data || error.message);
+      console.error('Get Dashboard Chart Data Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        params,
+      });
       return {
         success: false,
         data: null,
