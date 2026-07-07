@@ -180,6 +180,13 @@ const tabs: { label: string; value: TabType }[] = [
   { label: "Creators", value: "creators" },
 ];
 
+const formatDateForApi = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 export default function AdminFinancesPage() {
   const pathname = usePathname();
   const router = useRouter();
@@ -303,6 +310,23 @@ export default function AdminFinancesPage() {
     }
 
     router.push(`/admin/finances/cpCompensation/${bookingId}`);
+  };
+
+  const handleDueDateChange = async (row: ShootCPRow, dueDate: Date) => {
+    const bookingId = row.bookingId || Number(row.id);
+    if (!bookingId) {
+      toast.error("This payout does not have a valid booking ID yet.");
+      throw new Error("Missing booking ID");
+    }
+
+    try {
+      await cpCompensationApi.updateDueDate(bookingId, formatDateForApi(dueDate));
+      toast.success("Due date updated");
+      await loadHistory(dataType);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update due date");
+      throw error;
+    }
   };
 
   const handleOpenModify = () => {
@@ -622,6 +646,7 @@ export default function AdminFinancesPage() {
           loading={loading}
           onRowClick={handleRowClick}
           onViewHistory={handleViewHistory}
+          onDueDateChange={handleDueDateChange}
           type={dataType}
         />
 

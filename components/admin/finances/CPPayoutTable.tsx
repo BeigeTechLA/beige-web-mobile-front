@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Eye, History, Search } from "lucide-react";
+import { AlertTriangle, Calendar, ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Eye, History, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
-import { getColorThreshold, getDateColorThreshold, getInitials } from "@/lib/utils";
+import { getColorThreshold, getInitials } from "@/lib/utils";
 import { FinanceStatusBadge } from "./FinanceStatusBadge";
 import { DatePickerFloating } from "../DatePickerFloating";
 import {
@@ -42,6 +42,7 @@ export type ShootCPRow = {
   category: "photography" | "videography";
   avatarImage: string;
   date: string;
+  dueDate?: string | null;
   creatorName?: string;
   creatorRoles?: string[];
   shootId?: string;
@@ -53,6 +54,7 @@ interface CPPayoutTableProps {
   type: "shoots" | "creators";
   onRowClick: (row: ShootCPRow) => void;
   onViewHistory?: (row: ShootCPRow) => void;
+  onDueDateChange?: (row: ShootCPRow, dueDate: Date) => Promise<void>;
 }
 
 const formatCurrency = (amount: number) => {
@@ -110,12 +112,51 @@ const buildPaginationItems = (currentPage: number, totalPages: number): Array<nu
 
 const historyMonthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 
+const parseRowDate = (dateString: string) => {
+  if (!dateString) return null;
+  const normalized = dateString.includes("T") ? dateString : `${dateString}T00:00:00`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const addDays = (date: Date, days: number) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+};
+
+const getDefaultDueDate = (dateString: string) => {
+  const shootDate = parseRowDate(dateString);
+  return shootDate ? addDays(shootDate, 15) : null;
+};
+
+const getDueDateMeta = (date: Date | null) => {
+  if (!date) return { label: "", className: "text-blue-400", icon: false };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(date);
+  due.setHours(0, 0, 0, 0);
+  const daysUntilDue = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+
+  if (daysUntilDue < 0) {
+    return { label: "Overdue", className: "text-red-400", icon: true };
+  }
+  if (daysUntilDue <= 3) {
+    return { label: "Due soon", className: "text-amber-300", icon: true };
+  }
+  if (daysUntilDue <= 7) {
+    return { label: "Upcoming", className: "text-amber-200", icon: false };
+  }
+  return { label: "", className: "text-blue-400", icon: false };
+};
+
 export default function CPPayoutTable({
   rows = [],
   loading = false,
   type,
   onRowClick,
   onViewHistory,
+  onDueDateChange,
 }: CPPayoutTableProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -124,6 +165,8 @@ export default function CPPayoutTable({
   const [dueDateModalRowId, setDueDateModalRowId] = useState<string | null>(null);
   const [rowDueDates, setRowDueDates] = useState<Record<string, Date | null>>({});
   const [dueDateDraft, setDueDateDraft] = useState<Date | null>(null);
+  const [isSavingDueDate, setIsSavingDueDate] = useState(false);
+  const [actionMenuPosition, setActionMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -193,7 +236,10 @@ export default function CPPayoutTable({
   useEffect(() => {
     if (!openActionMenuId) return;
 
-    const handleDocumentClick = () => setOpenActionMenuId(null);
+    const handleDocumentClick = () => {
+      setOpenActionMenuId(null);
+      setActionMenuPosition(null);
+    };
     document.addEventListener("click", handleDocumentClick);
     return () => document.removeEventListener("click", handleDocumentClick);
   }, [openActionMenuId]);
@@ -205,18 +251,28 @@ export default function CPPayoutTable({
 
   const handleOpenDueDate = (row: ShootCPRow) => {
     setOpenActionMenuId(null);
+    setActionMenuPosition(null);
     setDueDateModalRowId(row.id);
-    setDueDateDraft(rowDueDates[row.id] || null);
+    setDueDateDraft(rowDueDates[row.id] || parseRowDate(row.dueDate || "") || getDefaultDueDate(row.date));
   };
 
   const handleSaveDueDate = () => {
     if (!dueDateModalRowId) return;
-    setRowDueDates((current) => ({
-      ...current,
-      [dueDateModalRowId]: dueDateDraft,
-    }));
-    setDueDateModalRowId(null);
-    setDueDateDraft(null);
+    if (!dueDateDraft) return;
+    const selectedRow = processedRows.find((row) => row.id === dueDateModalRowId);
+    if (!selectedRow) return;
+    setIsSavingDueDate(true);
+    Promise.resolve(onDueDateChange?.(selectedRow, dueDateDraft))
+      .then(() => {
+        setRowDueDates((current) => ({
+          ...current,
+          [dueDateModalRowId]: dueDateDraft,
+        }));
+        setDueDateModalRowId(null);
+        setDueDateDraft(null);
+      })
+      .catch(() => undefined)
+      .finally(() => setIsSavingDueDate(false));
   };
 
   const totalPages = Math.max(1, Math.ceil(processedRows.length / itemsPerPage));
@@ -231,18 +287,58 @@ export default function CPPayoutTable({
   const endCount = Math.min(safePage * itemsPerPage, processedRows.length);
   const paginationItems = buildPaginationItems(safePage, totalPages);
 
-  const formatDueDate = (dateString: string) => {
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString;
+  const getRowDueDate = (row: ShootCPRow) => rowDueDates[row.id] || parseRowDate(row.dueDate || "") || getDefaultDueDate(row.date);
 
-  const day = date.getDate();
-  const month = date.toLocaleString("en-US", { month: "short" });
-  const year = date.getFullYear();
+  const formatDueDate = (dateValue: string | Date | null) => {
+    const date = dateValue instanceof Date ? dateValue : parseRowDate(dateValue || "");
+    if (!date) return "No Date";
 
-  return `${month} ${day}, ${year}`;
-}
+    const day = date.getDate();
+    const month = date.toLocaleString("en-US", { month: "short" });
+    const year = date.getFullYear();
+
+    return `${month} ${day}, ${year}`;
+  };
 
   if (!mounted) return null;
+
+  const renderDueDate = (row: ShootCPRow, className = "text-xs") => {
+    const dueDate = getRowDueDate(row);
+    const meta = getDueDateMeta(dueDate);
+    return (
+      <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 ${className}`}>
+        <span className={meta.className}>Due: {formatDueDate(dueDate)}</span>
+        {meta.label && (
+          <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${meta.className} ${isDark ? "bg-white/5" : "bg-black/5"}`}>
+            {meta.icon && <AlertTriangle className="h-3 w-3" />}
+            {meta.label}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const openRowActionMenu = (rowId: string, button: HTMLButtonElement) => {
+    const rect = button.getBoundingClientRect();
+    const menuHeight = 132;
+    const top = rect.bottom + menuHeight + 8 > window.innerHeight
+      ? Math.max(8, rect.top - menuHeight - 8)
+      : rect.bottom + 8;
+    if (openActionMenuId === rowId) {
+      setOpenActionMenuId(null);
+      setActionMenuPosition(null);
+      return;
+    }
+    setActionMenuPosition({
+      top,
+      left: Math.max(8, Math.min(window.innerWidth - 196, rect.right - 180)),
+    });
+    setOpenActionMenuId(rowId);
+  };
+
+  const actionMenuRow = openActionMenuId
+    ? processedRows.find((row) => row.id === openActionMenuId) || null
+    : null;
 
   return (
     <section className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"}`}>
@@ -267,15 +363,15 @@ export default function CPPayoutTable({
                 </SelectTrigger>
                 <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
                   <SelectItem value="All">All Status</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                  {/* <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Partially Paid">Partially Paid</SelectItem> */}
                   <SelectItem value="Approved">Approved</SelectItem>
                   <SelectItem value="Finance approval">Finance Approval</SelectItem>
                   <SelectItem value="Fully Paid">Fully Paid</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select value={sortFilter} onValueChange={(v) => setSortFilter(v)}>
+              {/* <Select value={sortFilter} onValueChange={(v) => setSortFilter(v)}>
                 <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
                   <SelectValue placeholder="Sort By" />
                 </SelectTrigger>
@@ -283,7 +379,7 @@ export default function CPPayoutTable({
                   <SelectItem value="Ascending">Ascending</SelectItem>
                   <SelectItem value="Descending">Descending</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
 
               <Select value={monthFilter} onValueChange={(v) => setMonthFilter(v)}>
                 <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
@@ -403,9 +499,7 @@ export default function CPPayoutTable({
                     <div className="text-right shrink-0 flex items-center gap-2">
                       <div>
                         <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-[#171717]'}`}>${row.cpPayout}</p>
-                        <p className="text-[11px]" style={{ color: getDateColorThreshold(row.date) }}>
-                          Due: {formatDueDate(row.date)}
-                        </p>
+                        {renderDueDate(row, "justify-end text-[11px]")}
                       </div>
 
                       <button
@@ -413,7 +507,7 @@ export default function CPPayoutTable({
                         aria-label="Open row actions"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setOpenActionMenuId((current) => (current === row.id ? null : row.id));
+                          openRowActionMenu(row.id, e.currentTarget);
                         }}
                         className={`p-1.5 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
                       >
@@ -623,9 +717,7 @@ export default function CPPayoutTable({
                       </td>
                       <td className="px-5 py-4">
                         <p>${row.cpPayout}</p>
-                        <p className="text-xs" style={{ color: getDateColorThreshold(row.date) }}>
-                          Due: {formatDueDate(row.date)}
-                        </p>
+                        {renderDueDate(row)}
                       </td>
                       <td className="px-5 py-4">
                         <p style={{ color: getColorThreshold(row.margin, 15, 10) }}>{row.margin}%</p>
@@ -640,57 +732,13 @@ export default function CPPayoutTable({
                             aria-label="Open row actions"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setOpenActionMenuId((current) => (current === row.id ? null : row.id));
+                              openRowActionMenu(row.id, e.currentTarget);
                             }}
                             className={`p-2 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
                           >
                             <EllipsisVertical size={18} />
                           </button>
 
-                          {openActionMenuId === row.id && (
-                            <div
-                              className={`absolute right-0 top-10 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenActionMenuId(null);
-                                  onRowClick(row);
-                                }}
-                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
-                              >
-                                <Eye size={16} className="opacity-70" />
-                                View details
-                              </button>
-                              {onViewHistory && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenActionMenuId(null);
-                                    handleOpenHistory(row);
-                                  }}
-                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
-                                >
-                                  <History size={16} className="opacity-70" />
-                                  View history
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenDueDate(row);
-                                }}
-                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
-                              >
-                                <Calendar size={16} className="opacity-70" />
-                                Due date
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -699,6 +747,54 @@ export default function CPPayoutTable({
               </tbody>
             </table>
           </div>
+
+          {actionMenuRow && actionMenuPosition && (
+            <div
+              className={`fixed z-[160] min-w-[180px] rounded-xl border p-1 shadow-2xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
+              style={{ top: actionMenuPosition.top, left: actionMenuPosition.left }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenActionMenuId(null);
+                  setActionMenuPosition(null);
+                  onRowClick(actionMenuRow);
+                }}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+              >
+                <Eye size={16} className="opacity-70" />
+                View details
+              </button>
+              {onViewHistory && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActionMenuPosition(null);
+                    handleOpenHistory(actionMenuRow);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                >
+                  <History size={16} className="opacity-70" />
+                  View history
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActionMenuPosition(null);
+                  handleOpenDueDate(actionMenuRow);
+                }}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+              >
+                <Calendar size={16} className="opacity-70" />
+                Due date
+              </button>
+            </div>
+          )}
 
           {dueDateModalRowId && (
             <div
@@ -757,9 +853,10 @@ export default function CPPayoutTable({
                   <button
                     type="button"
                     onClick={handleSaveDueDate}
+                    disabled={!dueDateDraft || isSavingDueDate}
                     className="rounded-xl bg-[#E8D1AB] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#dec28f]"
                   >
-                    Save Due Date
+                    {isSavingDueDate ? "Saving..." : "Save Due Date"}
                   </button>
                 </div>
               </div>

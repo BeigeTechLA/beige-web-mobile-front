@@ -515,18 +515,18 @@ export default function AddCompensationModal({
                 </div>
               </div>
 
-              <div className={`grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-9 border border-[#E8D1AB33] rounded-lg p-4 lg:p-5 ${isDark ? "bg-[#3D3D3D]" : "bg-[#F4F5F7]"}`}>
-                <div>
+              <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 border border-[#E8D1AB33] rounded-lg p-4 ${isDark ? "bg-[#3D3D3D]" : "bg-[#F4F5F7]"}`}>
+                <div className="min-w-0">
                   <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Total Shoot Amount</p>
-                  <p className={`text-lg lg:text-[22px] font-bold leading-tight ${isDark ? "text-white" : "text-black"}`}>
+                  <p className={`text-lg lg:text-xl font-bold leading-tight truncate ${isDark ? "text-white" : "text-black"}`}>
                     {formatCurrency(shootAmount)}
                   </p>
                   <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white/70" : "text-black/60"}`}>Overall Budget</p>
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Total Compensation</p>
-                  <p className="text-lg lg:text-[22px] font-bold leading-tight" style={{ color: percentMeta.color }}>
+                  <p className="text-lg lg:text-xl font-bold leading-tight truncate" style={{ color: percentMeta.color }}>
                     {formatCurrency(totalCompensation)}
                   </p>
                   <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white/70" : "text-black/60"}`}>
@@ -534,9 +534,9 @@ export default function AddCompensationModal({
                   </p>
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Estimated Margin</p>
-                  <p className="text-lg lg:text-[22px] font-bold leading-tight" style={{ color: marginAmount >= 0 ? "#10B981" : "#EF4444" }}>
+                  <p className="text-lg lg:text-xl font-bold leading-tight truncate" style={{ color: marginAmount >= 0 ? "#10B981" : "#EF4444" }}>
                     {formatCurrency(marginAmount)}
                   </p>
                   <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white/70" : "text-black/60"}`}>
@@ -544,7 +544,7 @@ export default function AddCompensationModal({
                   </p>
                 </div>
 
-                <div className="lg:col-span-2 w-full">
+                <div className="min-w-0 w-full">
                   <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Profitability Estimation</p>
                   <div className="flex gap-1">
                     <div className={`w-full h-1.5 rounded-full mt-3 overflow-hidden ${isDark ? "bg-black/40" : "bg-[#3D3D3D]/20"}`}>

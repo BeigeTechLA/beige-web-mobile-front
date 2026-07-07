@@ -114,12 +114,33 @@ export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
                   border: isDark ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid #E3E3E3",
                   borderRadius: "16px",
                   color: isDark ? "#fff" : "#323232",
+                  "& .MuiPickersCalendarHeader-label": {
+                    color: isDark ? "#fff" : "#323232",
+                  },
+                  "& .MuiPickersArrowSwitcher-button": {
+                    color: "#E8D1AB",
+                    "&:hover": {
+                      backgroundColor: isDark ? "rgba(232, 209, 171, 0.12)" : "rgba(232, 209, 171, 0.3)",
+                    },
+                  },
                   "& .MuiPickersDay-root": {
                     color: isDark ? "#fff" : "#323232",
-                    "&.Mui-selected": {
+                    "&:hover": {
+                      backgroundColor: isDark ? "rgba(232, 209, 171, 0.14)" : "rgba(232, 209, 171, 0.35)",
+                    },
+                    "&.MuiPickersDay-today": {
+                      borderColor: "#E8D1AB",
+                    },
+                    "&.Mui-selected, &.Mui-selected:focus, &.Mui-selected:hover": {
                       backgroundColor: "#E8D1AB",
                       color: "#000",
-                      "&:hover": { backgroundColor: "#D4C3A3" },
+                    },
+                  },
+                  "& .MuiPickersYear-yearButton.Mui-selected, & .MuiPickersMonth-monthButton.Mui-selected": {
+                    backgroundColor: "#E8D1AB",
+                    color: "#000",
+                    "&:hover, &:focus": {
+                      backgroundColor: "#D4C3A3",
                     },
                   },
                   "& .MuiTypography-root": {

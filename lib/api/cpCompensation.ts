@@ -221,6 +221,7 @@ export const mapShootRow = (row: RawCpRow): ShootCPRow => ({
   category: getCategory(asString(row.shoot_type || row.content_type)),
   avatarImage: row.customer?.image || "",
   date: asString(row.event_date || row.latest_activity_at, new Date().toISOString()),
+  dueDate: asString(row.due_date, ""),
 });
 
 export const mapCreatorRow = (row: RawCpRow): ShootCPRow => ({
@@ -241,6 +242,7 @@ export const mapCreatorRow = (row: RawCpRow): ShootCPRow => ({
   category: getCategory(asString(row.shoot_type || row.content_type)),
   avatarImage: "",
   date: asString(row.event_date || row.latest_activity_at, new Date().toISOString()),
+  dueDate: asString(row.due_date, ""),
 });
 
 export const cpCompensationApi = {
@@ -287,6 +289,13 @@ export const cpCompensationApi = {
 
   async addAdvance(earningId: number, payload: { amount: number; payment_date?: string; notes?: string }) {
     return apiClient.post<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/advance`, payload);
+  },
+
+  async updateDueDate(bookingId: number, dueDate: string) {
+    return apiClient.patch<ApiEnvelope<{ booking_id: number; due_date: string; updated_count: number }>>(
+      `finance/cp-compensation/${bookingId}/due-date`,
+      { due_date: dueDate }
+    );
   },
 
   async uploadPaymentProof(file: File, context?: { bookingId?: number | string | null; earningId?: number | string | null }) {
