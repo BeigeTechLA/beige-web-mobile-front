@@ -1166,7 +1166,7 @@ export default function ProfilePage() {
 
                   {isEditingPersonalInfo ? (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
-                      <PersonalInfoForm profile={profile} onChange={handleProfileUpdate} />
+                      <PersonalInfoForm profile={profile} onChange={handleProfileUpdate} isDark={isDark} />
                       <div className="mt-4 lg:mt-8 flex justify-end">
                         <button
                           onClick={handleSavePersonalInfo}
@@ -1200,7 +1200,7 @@ export default function ProfilePage() {
 
                   {isEditingProfessionalInfo ? (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
-                      <ProfessionalInfoForm profile={profile} onChange={handleProfileUpdate} />
+                      <ProfessionalInfoForm profile={profile} onChange={handleProfileUpdate} isDark={isDark} />
                       <div className="mt-4 lg:mt-8 flex justify-end">
                         <button
                           onClick={handleSaveProfessionalInfo}
@@ -1238,6 +1238,7 @@ export default function ProfilePage() {
                         value={profile.skills}
                         primaryRole={profile.primary_role}
                         onChange={(newSkills) => handleProfileUpdate({ skills: newSkills })}
+                        isDark={isDark}
                       />
                       <div className="mt-4 lg:mt-8 flex justify-end">
                         <button
@@ -1281,14 +1282,12 @@ export default function ProfilePage() {
 
                   {isEditingSecurity ? (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
-                      <SecurityForm onSuccess={() => setIsEditingSecurity(false)} />
+                      <SecurityForm onSuccess={() => setIsEditingSecurity(false)} isDark={isDark} />
                     </div>
                   ) : (
-                    <div className={`flex items-center justify-between p-4 border rounded-lg lg:rounded-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/5"
-                      }`}>
+                    <div className={`flex items-center justify-between p-4 border rounded-lg lg:rounded-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/5"}`}>
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/15 text-[#cbb38b]"
-                          }`}>
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/15 text-[#cbb38b]"}`}>
                           <EyeOff size={20} />
                         </div>
                         <div>
@@ -1298,8 +1297,7 @@ export default function ProfilePage() {
                       </div>
                       <button
                         onClick={() => setIsEditingSecurity(true)}
-                        className={`text-xs font-bold transition-colors uppercase tracking-wider ${isDark ? "text-[#E8D1AB] hover:text-white" : "text-[#cbb38b] hover:text-black"
-                          }`}
+                        className={`text-xs font-bold transition-colors uppercase tracking-wider ${isDark ? "text-[#E8D1AB] hover:text-white" : "text-[#cbb38b] hover:text-black"}`}
                       >
                         Change Password
                       </button>
