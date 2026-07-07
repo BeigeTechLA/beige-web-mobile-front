@@ -190,7 +190,7 @@ export default function RequestsShootsPage() {
           <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-2">
             <div className="flex items-center gap-2">
               <div className="w-[3px] h-6 bg-[#E5D5B8] rounded-full" />
-              <p className="font-medium text-sm lg:text-base">Upcoming Earnings</p>
+              <p className="font-medium text-sm lg:text-base">Earnings</p>
             </div>
             <div className="flex items-center gap-3">
               <Select value={status} onValueChange={(val) => setStatus(val)}>

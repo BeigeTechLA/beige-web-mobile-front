@@ -300,7 +300,7 @@ export const OverallShootsTable = () => {
         </div>
 
         <div className="flex gap-3">
-            <Select value={status} onValueChange={(v) => { setStatus(v); setCurrentPage(1); }}>
+          <Select value={status} onValueChange={(v) => { setStatus(v); setCurrentPage(1); }}>
             <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
               }`}>
               <SelectValue placeholder="Status" />
