@@ -179,6 +179,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const isChildActive = (parentName: string, link?: string) => {
     if (!link || link === "#") return false;
 
+    if (parentName === "Quotes" && link === "/admin/quotes") {
+      return pathname === link;
+    }
+
     if (parentName === "Sales Representative" && link === "/admin/sales-representative") {
       return pathname === link || (
         pathname?.startsWith("/admin/sales-representative/") &&
