@@ -519,10 +519,6 @@ export default function QuotePricingPage() {
     }
   }, [user, isLoading, isPermissionLoading, router]);
 
-  if (isPermissionLoading || !allowed) {
-    return null;
-  }
-
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -673,6 +669,10 @@ export default function QuotePricingPage() {
     { key: "addon", label: "Add-ons", count: data.addon.length },
     { key: "logistics", label: "Logistics", count: data.logistics.length },
   ];
+
+  if (isPermissionLoading || !allowed) {
+    return null;
+  }
 
   return (
     <>
