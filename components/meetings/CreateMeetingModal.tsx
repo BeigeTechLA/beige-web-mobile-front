@@ -31,6 +31,13 @@ import { cn } from "@/lib/utils";
 import SearchAutocomplete from "@/components/chat/SearchAutocomplete";
 type MeetingType = "pre_production" | "post_production";
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
+type GeneratedMeetEvent = {
+  eventId: string;
+  calendarId?: string;
+  meetLink: string;
+  startDateTime: string;
+  endDateTime: string;
+};
 
 interface CreateMeetingModalProps {
   isOpen: boolean;
@@ -254,6 +261,7 @@ export default function CreateMeetingModal({
   );
   const [description, setDescription] = useState("");
   const [meetLink, setMeetLink] = useState("");
+  const [generatedMeetEvent, setGeneratedMeetEvent] = useState<GeneratedMeetEvent | null>(null);
   const [sendNotification, setSendNotification] = useState(true);
   const [projectParticipants, setProjectParticipants] = useState<ParticipantOption[]>([]);
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
@@ -553,8 +561,15 @@ export default function CreateMeetingModal({
 
       if (response?.meetLink) {
         setMeetLink(response.meetLink);
+        setGeneratedMeetEvent(response.eventId ? {
+          eventId: response.eventId,
+          calendarId: response.calendarId || "primary",
+          meetLink: response.meetLink,
+          startDateTime: startIso,
+          endDateTime: endIso,
+        } : null);
         toast.success("Google Meet link generated.");
-        return response.meetLink;
+        return response;
       }
 
       if (response?.authUrl) {
@@ -595,7 +610,7 @@ export default function CreateMeetingModal({
       setIsGeneratingLink(false);
     }
 
-    return "";
+    return null;
   };
 
   const handleSubmit = async () => {
@@ -633,14 +648,53 @@ export default function CreateMeetingModal({
     setIsSubmitting(true);
     try {
       let resolvedLink = meetLink.trim();
+      let resolvedGoogleEvent = generatedMeetEvent;
 
       if (!resolvedLink) {
-        resolvedLink = await generateMeetLink();
+        const generated = await generateMeetLink();
+        resolvedLink = generated?.meetLink?.trim() || "";
+        resolvedGoogleEvent = generated?.eventId ? {
+          eventId: generated.eventId,
+          calendarId: generated.calendarId || "primary",
+          meetLink: resolvedLink,
+          startDateTime: startIso,
+          endDateTime: endIso,
+        } : null;
       }
 
       if (!resolvedLink) {
         toast.error("Google Meet link could not be generated, so the meeting was not created.");
         return;
+      }
+
+      if (resolvedGoogleEvent?.eventId) {
+        const updatedEvent = await meetingsApi.updateEvent({
+          eventId: resolvedGoogleEvent.eventId,
+          calendarId: resolvedGoogleEvent.calendarId || "primary",
+          summary: meetingTitle.trim() || `Meeting for ${getProjectName(selectedOrder)}`,
+          location: "Online",
+          description: description.trim(),
+          startDateTime: startIso,
+          endDateTime: endIso,
+          timeZone: getBrowserTimeZone(),
+        });
+
+        if (updatedEvent?.authUrl) {
+          window.open(updatedEvent.authUrl, "_blank", "noopener,noreferrer");
+          toast.info("Google authorization opened. Complete it, then try creating the meeting again.");
+          return;
+        }
+
+        resolvedLink = updatedEvent?.meetLink || resolvedLink;
+        resolvedGoogleEvent = {
+          eventId: updatedEvent?.eventId || resolvedGoogleEvent.eventId,
+          calendarId: updatedEvent?.calendarId || resolvedGoogleEvent.calendarId || "primary",
+          meetLink: resolvedLink,
+          startDateTime: startIso,
+          endDateTime: endIso,
+        };
+        setMeetLink(resolvedLink);
+        setGeneratedMeetEvent(resolvedGoogleEvent);
       }
 
       await meetingsApi.createMeeting({
@@ -652,6 +706,8 @@ export default function CreateMeetingModal({
         meeting_title: meetingTitle.trim() || `${getProjectName(selectedOrder)} Meeting`,
         description: description.trim() || undefined,
         meetLink: resolvedLink || undefined,
+        googleCalendarEventId: resolvedGoogleEvent?.eventId,
+        googleCalendarId: resolvedGoogleEvent?.calendarId || "primary",
         cp_ids: cpParticipantIds,
         admin_id: currentUserId,
         created_by_id: currentUserId,
@@ -1128,7 +1184,10 @@ export default function CreateMeetingModal({
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Input
                     value={meetLink}
-                    onChange={(event) => setMeetLink(event.target.value)}
+                    onChange={(event) => {
+                      setMeetLink(event.target.value);
+                      setGeneratedMeetEvent(null);
+                    }}
                     placeholder="Auto-generated Google Meet link"
                     className={`h-12 rounded-xl ${isDark ? "placeholder:text-white/30 text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
                   />
