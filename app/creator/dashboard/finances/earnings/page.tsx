@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react"; // Added useMemo
 
 import { toast } from "sonner";
 import { SortDateButton } from "@/components/admin/SortDateButton";
@@ -87,9 +87,7 @@ export default function RequestsShootsPage() {
   const [rawEarnings, setRawEarnings] = useState<any[]>([]);
   const [selectedShootData, setSelectedShootData] = useState<any>(null);
 
-  // NEW: Track the ID of the selected earning for the timeline API
   const [selectedEarningId, setSelectedEarningId] = useState<number | null>(null);
-  // NEW: Hold the dynamic timeline data
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
 
   useEffect(() => {
@@ -120,6 +118,73 @@ export default function RequestsShootsPage() {
     fetchData();
   }, []);
 
+  // --- NEW: Filter Logic for the Earnings List ---
+  const filteredEarnings = useMemo(() => {
+    let filtered = [...rawEarnings];
+
+    // Helper to safely parse dates without timezone shifting
+    const parseDate = (dateStr: string) => {
+      if (!dateStr) return new Date();
+      return new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+    };
+
+    // 1. Filter by Status
+    if (status !== 'all') {
+      filtered = filtered.filter(row => {
+        const rowStatus = row.status_label || row.status;
+        return rowStatus === status;
+      });
+    }
+
+    // 2. Filter by Search Query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(row =>
+        row.shoot_name?.toLowerCase().includes(query) ||
+        row.client_name?.toLowerCase().includes(query) ||
+        row.event_location?.toLowerCase().includes(query)
+      );
+    }
+
+    // 3. Filter by Range / Date
+    if (range === 'week') {
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      filtered = filtered.filter(row => {
+        const eventDate = parseDate(row.event_date);
+        return eventDate >= startOfWeek && eventDate <= endOfWeek;
+      });
+    } else if (range === 'month') {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+      filtered = filtered.filter(row => {
+        const eventDate = parseDate(row.event_date);
+        return eventDate >= startOfMonth && eventDate <= endOfMonth;
+      });
+    } else if (range === 'custom' && selectedDate) {
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      filtered = filtered.filter(row => {
+        const eventDate = parseDate(row.event_date);
+        return eventDate >= startOfDay && eventDate <= endOfDay;
+      });
+    }
+
+    return filtered;
+  }, [rawEarnings, status, searchQuery, range, selectedDate]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -130,26 +195,21 @@ export default function RequestsShootsPage() {
 
   const handleViewEarnings = (row: any) => {
     setSelectedShootData(mapRowToShootData(row));
-    setSelectedEarningId(row.creator_earning_id); // Save the ID for the timeline API
+    setSelectedEarningId(row.creator_earning_id);
     setIsModalOpen(true);
   }
 
-  // UPDATED: Fetch timeline data when the button is clicked
   const handleViewTimeline = async () => {
     if (!selectedEarningId) {
       console.error("No earning ID selected");
       return;
     }
-
-    // Close the breakdown modal
     setIsModalOpen(false);
 
     try {
-      // Fetch the details using the API
       const details = await getCreatorEarningDetails(selectedEarningId);
 
       if (details?.success && details?.data?.timeline) {
-        // Map the API timeline to the TimelineEvent interface
         const mappedTimeline: TimelineEvent[] = details.data.timeline.map((event: any) => ({
           id: event.timeline_event_id.toString(),
           title: event.label || event.event_type,
@@ -159,14 +219,13 @@ export default function RequestsShootsPage() {
         }));
         setTimelineData(mappedTimeline);
       } else {
-        setTimelineData([]); // Fallback to empty if no timeline exists
+        setTimelineData([]);
       }
     } catch (error) {
       console.error("Error fetching timeline details:", error);
       toast.error("Failed to load payout timeline");
       setTimelineData([]);
     } finally {
-      // Open the timeline modal after fetching is complete
       setIsPaymentOpen(true);
     }
   }
@@ -182,9 +241,11 @@ export default function RequestsShootsPage() {
         <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
       </div>
 
+      {/* Pass selectedDate to the chart so it can handle the 'custom' filter */}
       <EarningsOverviewChart
         overviewData={dashboardData?.overview}
         chartData={dashboardData?.chart}
+        selectedDate={selectedDate}
       />
 
       <div className={`transition-colors duration-300 border rounded-2xl w-full mt-3 lg:mt-5 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
@@ -232,9 +293,10 @@ export default function RequestsShootsPage() {
         </div>
         <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
 
+        {/* Use filteredEarnings instead of rawEarnings */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-5 p-3 lg:p-5">
-          {rawEarnings.length > 0 ? (
-            rawEarnings.map((row) => (
+          {filteredEarnings.length > 0 ? (
+            filteredEarnings.map((row) => (
               <EarningsCard
                 key={`key_${row.creator_earning_id}`}
                 data={mapRowToCard(row)}

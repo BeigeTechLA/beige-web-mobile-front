@@ -48,9 +48,10 @@ interface EarningsOverviewChartProps {
     paid: number;
     total: number;
   }>;
+  selectedDate?: Date | null; // Added to handle 'custom' range filtering
 }
 
-export default function EarningsOverviewChart({ overviewData, chartData }: EarningsOverviewChartProps) {
+export default function EarningsOverviewChart({ overviewData, chartData, selectedDate }: EarningsOverviewChartProps) {
   const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -60,19 +61,16 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
   const [isChartLoading, setIsChartLoading] = useState(true);
   const [range, setRange] = useState('all');
 
-  // State to hold the client-side current month to avoid hydration mismatch
   const [currentMonth, setCurrentMonth] = useState<number | null>(null);
 
   useEffect(() => setMounted(true), []);
 
-  // Safely get the current month only after the component mounts on the client
   useEffect(() => {
     setCurrentMonth(new Date().getMonth() + 1);
   }, []);
 
   const isDark = !mounted || theme === "dark";
 
-  // 1. Update metric cards when overviewData arrives from API
   useEffect(() => {
     if (overviewData) {
       setMetrics([
@@ -85,25 +83,36 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
     }
   }, [overviewData]);
 
-  // Calculate the last 6 months based on the client-side current month
+  // --- UPDATED: Filter logic for the Chart based on Range and Selected Date ---
   const filteredChartData = useMemo(() => {
-    if (currentMonth === null || !chartData) return [];
+    if (!chartData || currentMonth === null) return [];
 
-    const last6Months = [];
-    for (let i = 5; i >= 0; i--) {
-      let m = currentMonth - i;
-      // Handle year wrap-around (e.g., if current month is Jan, it goes back to Aug of previous year)
-      if (m <= 0) m += 12;
-      last6Months.push(m);
+    let filtered = [...chartData];
+
+    if (range === 'month' || range === 'week') {
+      // Show only the current month
+      filtered = filtered.filter(item => item.month_number === currentMonth);
+    } else if (range === 'custom' && selectedDate) {
+      // Show the month of the selected date
+      const selectedMonth = selectedDate.getMonth() + 1;
+      filtered = filtered.filter(item => item.month_number === selectedMonth);
+    } else if (range === 'all') {
+      // "All time" shows all 12 months
+      // If you want to restrict "All time" to the last 6 months, uncomment the logic below:
+      /*
+      const last6Months = [];
+      for (let i = 5; i >= 0; i--) {
+        let m = currentMonth - i;
+        if (m <= 0) m += 12;
+        last6Months.push(m);
+      }
+      filtered = filtered.filter(item => last6Months.includes(item.month_number));
+      */
     }
 
-    // Filter the API data to only include these 6 months, and sort them chronologically
-    return (chartData || [])
-      .filter(item => last6Months.includes(item.month_number))
-      .sort((a, b) => last6Months.indexOf(a.month_number) - last6Months.indexOf(b.month_number));
-  }, [chartData, currentMonth]);
+    return filtered.sort((a, b) => a.month_number - b.month_number);
+  }, [chartData, range, currentMonth, selectedDate]);
 
-  // 2. Update chart loading state when filteredChartData is ready
   useEffect(() => {
     if (filteredChartData.length > 0) {
       setIsChartLoading(false);
@@ -180,7 +189,6 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
           </div>
         )}
         <ResponsiveContainer width="100%" height="100%">
-          {/* Use filteredChartData instead of the full chartData */}
           <AreaChart data={filteredChartData}>
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
