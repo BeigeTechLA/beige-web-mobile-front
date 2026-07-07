@@ -46,24 +46,24 @@ export default function EarningsBreakdownModal({
 
   // Fallback structural initialization matching the exact image example values
   const data = shootData || {
-    shootName: "Nike Campaign Shoot",
-    clientName: "Ethan Coleman",
-    status: "Partially Paid",
-    date: "June 18, 2026",
-    location: "Los Angeles, CA",
-    timeWindow: "12:00 PM - 4:00 PM",
+    shootName: "",
+    clientName: "",
+    status: "",
+    date: "",
+    location: "",
+    timeWindow: "",
     breakdown: {
-      baseShoot: 800,
-      editing: 250,
-      travel: 100,
-      bonus: 50,
+      baseShoot: 0,
+      editing: 0,
+      travel: 0,
+      bonus: 0,
     },
     advance: {
-      amount: 300,
-      date: "June 1, 2026",
+      amount: 0,
+      date: "",
     },
-    remainingBalance: 900,
-    paymentProgress: 25,
+    remainingBalance: 0,
+    paymentProgress: 0,
   };
 
   const totalCompensation =
