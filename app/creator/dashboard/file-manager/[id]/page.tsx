@@ -229,16 +229,18 @@ export default function CreatorFolderDetailsPage() {
       <Topbar pathname={pathname} />
 
       <div className="overflow-x-hidden overflow-y-auto p-4 pb-10 lg:px-10 lg:py-9">
-        <Button 
-        onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
+        <Button
+          onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
 
         {loading ? (
-          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
-        }`}>
-            <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark
+            ? "border-[#3D3D3D] bg-[#171717]"
+            : "border-black/5 bg-neutral-50"
+            }`}>
+            <Loader2 className={`animate-spin ${isDark ? "text-[#BFA780]" : "text-[#cbb38b]"}`} size={40} />
           </div>
         ) : error ? (
           <div className="text-sm text-red-300">{error || "Workspace not found"}</div>
@@ -377,11 +379,11 @@ export default function CreatorFolderDetailsPage() {
               </div>
 
               {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
-                <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
+                <div className={`mb-4 rounded-xl border p-3 text-xs lg:mb-6 lg:text-sm transition-all duration-200 ${isDark ? "border-[#E5D5B8]/25 bg-[#E5D5B8]/5 text-[#E8D1AB]" : "border-[#e5e5e5] bg-white text-black/40"}`}>
                   No folder yet. Create your folder to get started.
                 </div>
               ) : isCommonEventWorkspace && hasCreatedCpFolders ? (
-                <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
+                <div className={`mb-4 rounded-xl border p-3 text-xs lg:mb-6 lg:text-sm transition-all duration-200 ${isDark ? "border-[#E5D5B8]/25 bg-[#E5D5B8]/5 text-[#E8D1AB]" : "border-[#e5e5e5] bg-white text-black/40"}`}>
                   <p>Your folder is ready. Open it below to upload files.</p>
                 </div>
               ) : null}
@@ -432,10 +434,16 @@ export default function CreatorFolderDetailsPage() {
                       type="button"
                       onClick={handleCreateMyEventFolder}
                       disabled={isCreatingMyFolder}
-                      className="flex min-h-[202px] w-full items-center justify-center rounded-xl border border-dashed border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] transition-all hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22] disabled:cursor-not-allowed disabled:opacity-60 lg:max-w-[350px] lg:rounded-3xl"
+                      className={`flex min-h-[202px] w-full items-center justify-center border transition-all disabled:cursor-not-allowed disabled:opacity-60 lg:max-w-[350px] lg:rounded-3xl rounded-xl ${isDark
+                        ? "border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22]"
+                        : "border-[#e5e5e5e] bg-white text-[#cbb38b] hover:border-[#cbb38b]/70 hover:bg-neutral-100/70"
+                        }`}
                     >
                       <span className="flex flex-col items-center gap-2 text-sm font-medium">
-                        <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5D5B8]/50 bg-[#E5D5B8]/10">
+                        <span className={`flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${isDark
+                            ? "border-[#E5D5B8]/50 bg-[#E5D5B8]/10"
+                            : "border-[#e5e5e5e] bg-[#cbb38b]/10"
+                          }`}>
                           <Plus size={22} />
                         </span>
                         {isCreatingMyFolder ? "Creating..." : "Create Your Folder"}

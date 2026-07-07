@@ -29,7 +29,8 @@ export default function EmptyFileState({
         alt="No file uploaded"
         width={184}
         height={164}
-        className="mb-6 h-auto w-[150px] lg:w-[184px]"
+        // className="mb-6 h-auto w-[150px] lg:w-[184px]"
+        className={`mb-6 h-auto w-[130px] lg:w-[184px] ${isDark ? "" : "invert brightness-100 hue-rotate-180"}`}
         priority
       />
 

@@ -347,7 +347,8 @@ export default function CreatorFileManagerPage() {
             </div>
           </div>
 
-          {loading ? <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark
+          {loading ? 
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark
             ? "border-[#3D3D3D] bg-[#171717]"
             : "border-black/5 bg-neutral-50"
             }`}>
@@ -355,7 +356,7 @@ export default function CreatorFileManagerPage() {
           </div> : error ? (
             <div className="text-sm text-red-300">{error}</div>
           ) : filteredFolders.length === 0 ? (
-            <EmptyFolderState />
+            <EmptyFolderState isDark={isDark} />
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {filteredFolders.map((folder) => (

@@ -454,8 +454,8 @@ export default function AvailabilityPage() {
                 <div className="space-y-1">
                   {availabilityStatus.projectDetails?.project_name && (
                     <>
-                      <EventDot color="bg-blue-500" label="Shoot" />
-                      <EventDot color="bg-[#E8D1AB]" label="Booked" />
+                      <EventDot color="bg-blue-500" label="Shoot" isDark={isDark} />
+                      <EventDot color="bg-[#E8D1AB]" label="Booked" isDark={isDark} />
                     </>
                   )}
                 </div>
@@ -965,11 +965,11 @@ function Legend({ color, label, desc, isDark = true }: { color: string; label: s
   );
 }
 
-function EventDot({ color, label }: { color: string; label: string }) {
+function EventDot({ color, label, isDark = true }: { color: string; label: string; isDark?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
-      <span className="truncate text-[10px] font-medium text-white/60">{label}</span>
+      <span className={`truncate text-[10px] font-medium ${isDark ? "text-white/60":"text-black/60"}`}>{label}</span>
     </div>
   );
 }

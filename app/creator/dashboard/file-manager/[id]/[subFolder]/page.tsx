@@ -539,12 +539,16 @@ export default function CreatorFileManagerPhasePage() {
 
   const renderFilesTable = () => (
     <div className="space-y-4">
-      <div className="hidden overflow-x-auto lg:block">
-        <table className="w-full text-left text-sm">
-          <thead className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
-            <tr>
+
+      <div className={`border rounded-xl overflow-x-auto no-scrollbar transition-all ${isDark ? "bg-[#111] border-white/5" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className={`text-xs uppercase tracking-wider transition-colors border-b ${isDark
+              ? "bg-white/[0.03] text-white/40 border-white/5"
+              : "bg-black/[0.05] text-black/40 border-[#E5E5E5]"
+              }`}>
               {isSelectionMode ? (
-                <th className="w-10 rounded-l-xl px-6 py-5 font-medium">
+                <th className="rounded-tl-xl p-4 lg:px-6 lg:py-5 font-medium">
                   <Checkbox
                     checked={allVisibleFilesSelected ? true : someVisibleFilesSelected ? "indeterminate" : false}
                     onCheckedChange={() => {
@@ -560,16 +564,19 @@ export default function CreatorFileManagerPhasePage() {
                         return Array.from(new Set([...prev, ...visiblePaths]));
                       });
                     }}
-                    className="h-5 w-5 border-white/50 data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                    className={`h-5 w-5 transition-colors ${isDark
+                      ? "border-white/50 data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                      : "border-black/40 data-[state=checked]:border-[#cbb38b] data-[state=checked]:bg-[#cbb38b] data-[state=checked]:text-white"
+                      }`}
                   />
                 </th>
               ) : null}
-              <th className={`${!isSelectionMode ? "rounded-l-xl" : ""} px-6 py-5 font-medium`}>
+              <th className={`${!isSelectionMode ? "rounded-tl-xl" : ""} p-4 lg:px-6 lg:py-5 font-medium`}>
                 File title
               </th>
-              <th className="px-6 py-5 font-medium">Type</th>
-              <th className="px-6 py-5 font-medium">Last Opened</th>
-              <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
+              <th className="p-4 lg:px-6 lg:py-5 font-medium">Type</th>
+              <th className="p-4 lg:px-6 lg:py-5 font-medium">Last Opened</th>
+              <th className="rounded-tr-xl p-4 lg:px-6 lg:py-5 text-right font-medium">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -582,21 +589,29 @@ export default function CreatorFileManagerPhasePage() {
               return (
                 <tr
                   key={file.id}
-                  className={`group transition-colors ${selectionLockActive ? "cursor-default" : "cursor-pointer hover:bg-white/[0.02]"} ${isSelectionMode && isSelected ? "bg-white/[0.04]" : ""}`}
+                  className={`cursor-pointer items-center transition-colors border-b last:border-0 ${selectionLockActive ? "cursor-default" : isDark ? "border-white/5 hover:bg-white/[0.02]" : "border-black/5 hover:bg-black/[0.02]"
+                    } ${isSelectionMode && isSelected
+                      ? isDark ? "bg-white/[0.04]" : "bg-black/[0.03]"
+                      : ""
+                    }`}
                   onClick={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
                 >
                   {isSelectionMode ? (
-                    <td className="whitespace-nowrap px-6 py-5" onClick={(e) => e.stopPropagation()}>
+                    <td className="whitespace-nowrap p-4 lg:px-6 lg:py-5" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleFileSelection(file.filepath || "")}
-                        className="h-5 w-5 border-white/50 data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                        className={`h-5 w-5 transition-colors ${isDark
+                          ? "border-white/50 data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                          : "border-black/40 data-[state=checked]:border-[#cbb38b] data-[state=checked]:bg-[#cbb38b] data-[state=checked]:text-white"
+                          }`}
                       />
                     </td>
                   ) : null}
-                  <td className="whitespace-nowrap px-6 py-5">
+                  <td className="whitespace-nowrap p-4 lg:px-6 lg:py-5">
                     <div className="flex items-center gap-3">
-                      <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded border border-white/5 bg-[#1A1A1A]">
+                      <div className={`relative h-10 w-10 flex-shrink-0 overflow-hidden rounded border transition-colors ${isDark ? "border-white/5 bg-[#1A1A1A]" : "border-black/5 bg-neutral-100"
+                        }`}>
                         {isImageFile(file.contentType, file.title) && previewUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -621,20 +636,27 @@ export default function CreatorFileManagerPhasePage() {
                           <Icon size={16} className={`${meta.accentClass} absolute inset-0 m-auto`} />
                         )}
                       </div>
-                      <span className="max-w-[240px] truncate font-medium text-white">{file.title}</span>
+                      <span className={`max-w-[240px] truncate font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                        {file.title}
+                      </span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-6 py-5">
-                    <div className="capitalize text-white/60">{meta.label}</div>
+                  <td className="whitespace-nowrap p-4 lg:px-6 lg:py-5">
+                    <div className={`capitalize transition-colors ${isDark ? "text-white/60" : "text-black/60"}`}>
+                      {meta.label}
+                    </div>
                   </td>
-                  <td className="whitespace-nowrap px-6 py-5 text-xs italic text-white/40">
+                  <td className={`whitespace-nowrap p-4 lg:px-6 lg:py-5 text-sm transition-colors ${isDark ? "text-white/60" : "text-black/60"}`}>
                     {file.lastOpened}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-5 text-right">
+                  <td className="whitespace-nowrap p-4 lg:px-6 lg:py-5 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         type="button"
-                        className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        className={`rounded-lg p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                          ? "text-white/40 hover:bg-white/10 hover:text-white"
+                          : "text-black/40 hover:bg-black/5 hover:text-black"
+                          }`}
                         disabled={selectionLockActive}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -647,7 +669,10 @@ export default function CreatorFileManagerPhasePage() {
                       {canDeleteFiles ? (
                         <button
                           type="button"
-                          className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
+                          className={`rounded-lg p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                            ? "text-white/40 hover:bg-white/10 hover:text-[#F04438]"
+                            : "text-black/40 hover:bg-black/5 hover:text-red-500"
+                            }`}
                           disabled={selectionLockActive}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -671,7 +696,10 @@ export default function CreatorFileManagerPhasePage() {
         <div className="flex justify-center">
           <Button
             type="button"
-            className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+            className={`border transition-colors ${isDark
+              ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
+              : "border-black/10 bg-neutral-100 text-black hover:bg-black/5"
+              }`}
             onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
           >
             View More
@@ -719,7 +747,7 @@ export default function CreatorFileManagerPhasePage() {
                     setIsUploadModalOpen(true);
                   }}
                   disabled={selectionLockActive}
-                  className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="border border-white/20 bg-[#E8D0AA] text-black hover:bg-[#D4C3A3] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Upload /> Upload Files
                 </Button>
@@ -729,9 +757,11 @@ export default function CreatorFileManagerPhasePage() {
         </div>
 
         {loading ? (
-          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
-        }`}>
-            <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark
+            ? "border-[#3D3D3D] bg-[#171717]"
+            : "border-black/5 bg-neutral-50"
+            }`}>
+            <Loader2 className={`animate-spin ${isDark ? "text-[#BFA780]" : "text-[#cbb38b]"}`} size={40} />
           </div>
         ) : error ? (
           <div className="text-sm text-red-300">{error || "Folder not found"}</div>
@@ -776,16 +806,21 @@ export default function CreatorFileManagerPhasePage() {
 
             <div className="pb-20 lg:pb-0">
               {showUploadLockBanner ? (
-                <div className="mb-3 rounded-xl border border-[#E8D1AB]/25 bg-gradient-to-r from-[#2A2215] to-[#17130E] p-3 lg:mb-4 lg:p-4">
+                <div className={`mb-3 rounded-xl border p-3 lg:mb-4 lg:p-4 transition-all duration-200 ${isDark ? "border-[#E8D1AB]/25 bg-gradient-to-r from-[#2A2215] to-[#17130E]" : "border-[#cbb38b]/30 bg-gradient-to-r from-[#FAF6EE] to-[#F3EAE0]"}`}>
                   <div className="flex items-start gap-3">
-                    <div className="rounded-lg bg-[#E8D1AB]/15 p-2 text-[#E8D1AB]">
+                    <div className={`rounded-lg p-2 transition-colors ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-[#cbb38b]/15 text-[#cbb38b]"}`}>
                       <CalendarClock size={16} />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-[#F2E4C8]">Uploads unlock on shoot day</p>
-                      <p className="mt-1 text-xs text-[#DCC7A0] lg:text-sm">
+                      <p className={`text-sm font-semibold transition-colors ${isDark ? "text-[#F2E4C8]" : "text-[#7A6444]"}`}>
+                        Uploads unlock on shoot day
+                      </p>
+                      <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-[#DCC7A0]" : "text-[#8A7558]"}`}>
                         Post-production upload will be available on{" "}
-                        <span className="font-medium text-[#F2E4C8]">{formattedShootDate}</span>. You can review folders and existing files now.
+                        <span className={`font-medium transition-colors ${isDark ? "text-[#F2E4C8]" : "text-[#7A6444]"}`}>
+                          {formattedShootDate}
+                        </span>
+                        . You can review folders and existing files now.
                       </p>
                     </div>
                   </div>
@@ -1015,7 +1050,7 @@ export default function CreatorFileManagerPhasePage() {
                   <div>
                     <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
                     {filteredFolders.length === 0 ? (
-                      <EmptyFileState />
+                      <EmptyFileState isDark={isDark} />
                     ) : (
                       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                         {filteredFolders.map((folder) => (
@@ -1057,7 +1092,7 @@ export default function CreatorFileManagerPhasePage() {
                   <div>
                     <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
                     {filteredFiles.length === 0 ? (
-                      <EmptyFileState />
+                      <EmptyFileState isDark={isDark} />
                     ) : (
                       viewMode === "grid" ? (
                         <div className="space-y-4">
@@ -1115,6 +1150,7 @@ export default function CreatorFileManagerPhasePage() {
                   <EmptyFileState
                     onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
                     actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
+                    isDark={isDark}
                   />
                 ) : (
                   <div className="space-y-4">
@@ -1166,6 +1202,7 @@ export default function CreatorFileManagerPhasePage() {
                 <EmptyFileState
                   onAction={canUpload && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
                   actionLabel={canUpload && !selectionLockActive ? "Upload Files" : undefined}
+                  isDark={isDark}
                 />
               ) : (
                 renderFilesTable()
@@ -1180,6 +1217,7 @@ export default function CreatorFileManagerPhasePage() {
           folderName={workspaceName || ""}
           uploadPath={canUpload ? defaultUploadPath : undefined}
           onUploadComplete={loadPhase}
+          isDark={isDark}
         />
 
         <CreateFolderModal
@@ -1188,6 +1226,7 @@ export default function CreatorFileManagerPhasePage() {
           onCreate={handleCreateFolder}
           title="Create Folder"
           description={`Create folder inside ${viewState.title}`}
+          isDark={isDark}
         />
 
         <DeleteConfirmModal
@@ -1201,6 +1240,7 @@ export default function CreatorFileManagerPhasePage() {
           itemName={selectedFilePaths.length > 0 ? `${selectedFilePaths.length} selected files` : selectedFile ? String(selectedFile.title || "this file") : selectedFolder?.title || "this folder"}
           itemType={selectedFile || selectedFilePaths.length > 0 ? "file" : "folder"}
           isDeleting={isDeleting}
+          isDark={isDark}
         />
         {menuAnchor && selectedFolder ? (
           <FileActionMenu
@@ -1268,19 +1308,29 @@ export default function CreatorFileManagerPhasePage() {
         />
 
         {selectedFilePaths.length > 0 ? (
-          <div className="fixed bottom-10 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4">
-            <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8D1AB]/50 bg-[#171717] p-4 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E8D1AB] text-sm font-bold text-black">
+          <div className="fixed bottom-6 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4 lg:bottom-10">
+            <div className={`relative flex flex-col gap-4 rounded-2xl border p-4 shadow-2xl transition-all lg:flex-row lg:items-center lg:justify-between lg:gap-2 ${isDark
+              ? "border-[#E8D1AB]/50 bg-[#171717]"
+              : "border-[#cbb38b]/50 bg-white"
+              }`}>
+
+              {/* Left Info Section */}
+              <div className="flex items-center gap-3 pr-8 lg:pr-0">
+                {/* Selected Items Counter Badge */}
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors ${isDark
+                  ? "bg-[#E8D1AB] text-black"
+                  : "bg-[#cbb38b] text-white"
+                  }`}>
                   {selectedFilePaths.length}
                 </div>
-                <span className="font-medium text-white">Files selected</span>
-              </div>
-
-              <div className="flex items-center gap-2">
+                <span className={`font-medium text-sm lg:text-base transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                  Files selected
+                </span>
+                {/* Clear Button */}
                 <Button
                   variant="ghost"
-                  className="gap-2 text-white/70 hover:text-white"
+                  className={`text-xs lg:text-sm h-9 lg:h-10 transition-colors ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"
+                    }`}
                   onClick={() => {
                     setSelectedFilePaths([]);
                     setIsSelectionMode(false);
@@ -1288,34 +1338,50 @@ export default function CreatorFileManagerPhasePage() {
                 >
                   Clear
                 </Button>
-
-                <div className="mx-1 h-6 w-[1px] bg-white/10" />
-
-                <Button
-                  className="gap-2 border border-white/10 bg-white/10 text-white hover:bg-white/20"
-                  onClick={handleBatchDownload}
-                >
-                  <DownloadIcon size={18} />
-                  Download
-                </Button>
-
-                {canDeleteFiles ? (
-                  <Button
-                    className="gap-2 bg-[#F04438] text-white hover:bg-[#F04438]/90"
-                    onClick={() => setIsDeleteModalOpen(true)}
-                  >
-                    <TrashIcon size={18} />
-                    Delete
-                  </Button>
-                ) : null}
               </div>
 
+              {/* Right Action Trigger Group */}
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
+                {/* Vertical Divider (Hidden on small screens where buttons break lines) */}
+                <div className={`hidden lg:block mx-1 h-6 w-[1px] transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
+
+                {/* Action Buttons Container */}
+                <div className="flex items-center gap-2 w-full lg:w-auto">
+                  {/* Batch Download Button */}
+                  <Button
+                    className={`flex-1 lg:flex-none gap-2 border text-xs lg:text-sm h-9 lg:h-10 transition-colors ${isDark
+                      ? "border-white/10 bg-white/10 text-white hover:bg-white/20"
+                      : "border-black/10 bg-black/5 text-black hover:bg-black/10"
+                      }`}
+                    onClick={handleBatchDownload}
+                  >
+                    <Download size={16} className="lg:size-[18px]" />
+                    Download
+                  </Button>
+
+                  {/* Batch Delete Button */}
+                  {canDeleteFiles ? (
+                    <Button
+                      className={`flex-1 lg:flex-none gap-2 text-xs lg:text-sm h-9 lg:h-10 transition-colors ${isDark
+                        ? "bg-[#F04438] text-white hover:bg-[#F04438]/90"
+                        : "bg-red-500 text-white hover:bg-red-600"
+                        }`}
+                      onClick={() => setIsDeleteModalOpen(true)}
+                    >
+                      <Trash2 size={16} className="lg:size-[18px]" />
+                      Delete
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Absolute Escape Close Cross (Pinned to top corner on tiny viewports) */}
               <button
                 onClick={() => {
                   setSelectedFilePaths([]);
                   setIsSelectionMode(false);
                 }}
-                className="text-white/40 hover:text-white"
+                className={`absolute top-4 right-4 lg:static transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
               >
                 <CloseIcon size={20} />
               </button>
