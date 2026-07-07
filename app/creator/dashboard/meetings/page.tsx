@@ -1,8 +1,17 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
+import Topbar from "@/components/admin/Topbar";
 import MeetingsWorkspaceView from "@/components/meetings/MeetingsWorkspaceView";
 
 export default function CreatorMeetingsPage() {
-  return <MeetingsWorkspaceView role="cp" />;
+  const pathname = usePathname();
+
+  return (
+    <>
+      <Topbar pathname={pathname} />
+      <MeetingsWorkspaceView role="cp" />;
+    </>
+  )
 }
