@@ -193,13 +193,13 @@ export function LoginForm() {
           </div>
 
           <div className="relative space-y-1 lg:space-y-2">
-            <div className="flex items-center justify-between">
-              <Label
-                htmlFor="password"
-                className="block text-sm font-medium text-[#A4A0A0] lg:absolute lg:-top-3 lg:left-4 lg:z-10 lg:px-2 lg:bg-[#101010] lg:text-white/60 lg:pointer-events-none"
-              >
-                Password
-              </Label>
+            <Label
+              htmlFor="password"
+              className="block text-sm font-medium text-[#A4A0A0] lg:absolute lg:-top-3 lg:left-4 lg:z-10 lg:px-2 lg:bg-[#101010] lg:text-white/60 lg:pointer-events-none"
+            >
+              Password
+            </Label>
+            <div className="flex items-center justify-end lg:hidden">
               <Link
                 href="/forgot-password"
                 onClick={() => {
