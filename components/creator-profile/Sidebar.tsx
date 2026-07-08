@@ -154,14 +154,14 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
     { href: "/creator/dashboard/affiliate", icon: LayoutDashboard, label: "Affiliate", isPublic: false },
     { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", isPublic: false },
     { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
-    // {
-    //   label: 'Finances',
-    //   icon: CircleDollarSign,
-    //   isPublic: false,
-    //   children: [
-    //     { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
-    //   ],
-    // },
+    {
+      label: 'Finances',
+      icon: CircleDollarSign,
+      isPublic: false,
+      children: [
+        { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
+      ],
+    },
   ];
 
   return (
