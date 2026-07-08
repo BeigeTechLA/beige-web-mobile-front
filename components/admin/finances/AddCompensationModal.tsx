@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, TrendingUp, X } from "lucide-react";
 
 import { formatCurrency } from "@/lib/utils";
@@ -139,6 +139,7 @@ export default function AddCompensationModal({
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
   const [creatorForms, setCreatorForms] = useState<Record<string, CreatorFormState>>({});
   const [shootSearchQuery, setShootSearchQuery] = useState("");
+  const shootDropdownRef = useRef<HTMLDivElement>(null);
 
   const { isDark } = useResolvedTheme();
 
@@ -268,6 +269,19 @@ export default function AddCompensationModal({
   useEffect(() => {
     syncCreatorFormsForCompensationMethod();
   }, [currentShoot, compensationMethod, syncCreatorFormsForCompensationMethod]);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      if (shootDropdownRef.current && !shootDropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    return () => document.removeEventListener("mousedown", handleDocumentMouseDown);
+  }, [isDropdownOpen]);
 
   const getCreatorTotal = (creatorId: string) => {
     const form = creatorForms[creatorId];
@@ -422,7 +436,7 @@ export default function AddCompensationModal({
         </div>
 
         <div className="flex-1 space-y-3 lg:space-y-5 p-6 lg:p-9">
-          <div className="relative rounded-xl border px-4 py-2 mt-2 transition-colors border-[#5A5A5F] bg-black">
+          <div ref={shootDropdownRef} className="relative rounded-xl border px-4 py-2 mt-2 transition-colors border-[#5A5A5F] bg-black">
             <div className="absolute -top-3 left-3 px-1 text-sm z-2">
               <span className={`px-2 font-medium text-sm lg:text-base ${isDark ? "bg-black text-white/60" : "bg-white text-black/60"}`}>
                 Select Shoot*

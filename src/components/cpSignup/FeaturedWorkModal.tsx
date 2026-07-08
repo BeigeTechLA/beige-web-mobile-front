@@ -1,16 +1,26 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from "react";
-import { Tag, X, Upload, Image as ImageIcon, Loader2, Plus } from "lucide-react";
+import Image from "next/image";
+import { Tag, X, Upload, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { compressImage } from "@/lib/utils";
 import { toast } from "sonner";
 
+interface FeaturedWorkItem {
+  id?: string | number;
+  title?: string;
+  tags?: string[];
+  image?: string;
+  previews?: string[];
+  files?: File[];
+}
+
 interface FeaturedWorkModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (item: any) => void;
-  editItem?: any | null;
+  onAdd: (item: FeaturedWorkItem) => void;
+  editItem?: FeaturedWorkItem | null;
   isDark: boolean;
 }
 
@@ -25,7 +35,8 @@ interface StoredFileItem {
 }
 
 const MAX_FILE_SIZE_MB = 30;
-const MAX_TOTAL_PROJECT_MB = 50;
+const MIN_PROJECT_IMAGES = 5;
+const MAX_PROJECT_IMAGES = 20;
 
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const ALLOWED_EXT_TEXT = "png, jpg, jpeg, webp";
@@ -263,7 +274,14 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
                   {imagePreviews.map((preview, index) => (
                     <div key={preview.id} className={`relative rounded-xl overflow-hidden border aspect-square group ${isDark ? "border-white/20" : "border-black/10"
                       }`}>
-                      <img src={preview.src} alt="Preview element" className="w-full h-full object-cover" />
+                      <Image
+                        src={preview.src}
+                        alt="Preview element"
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="(max-width: 768px) 50vw, 200px"
+                      />
                       <button
                         onClick={() => {
                           setImagePreviews((prev) => prev.filter((_, i) => i !== index));

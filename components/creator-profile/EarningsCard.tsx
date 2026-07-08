@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useResolvedTheme } from '@/lib/useResolvedTheme';
 
 import { Button } from '../ui/button';
 import { Calendar, Clock, Eye, MapPin } from 'lucide-react';
-import { EarningsStatusBadge } from './EarningsStatusBadge';
 import { getInitials } from '@/lib/utils';
 
 export interface EarningsCardData {
@@ -28,6 +27,9 @@ interface EarningsCardProps {
 
 export default function EarningsCard({ data, handleClick }: EarningsCardProps) {
   const { isDark } = useResolvedTheme();
+  const hasDate = Boolean(data.date?.trim());
+  const hasAddress = Boolean(data.address?.trim());
+  const hasTime = Boolean(data.time?.trim());
 
   return (
     <div className={`transition-colors duration-300 border rounded-2xl p-4 lg:p-8 w-full ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
@@ -45,22 +47,27 @@ export default function EarningsCard({ data, handleClick }: EarningsCardProps) {
               {data.company}
             </p>
           </div>
-          <EarningsStatusBadge status={data.status} />
         </div>
 
-        <div className={`flex flex-wrap gap-2 lg:gap-3 text-xs lg:text-sm ${isDark ? "text-[#8C8C8C]" : "text-[#666666]"}`}>
-          <div className="flex gap-1 items-center">
-            <Calendar size={16} />
-            {data.date}
-          </div>
-          <div className="flex gap-1 items-center">
-            <MapPin size={16} />
-            {data.address}
-          </div>
-          <div className="flex gap-1 items-center">
-            <Clock size={16} />
-            {data.time}
-          </div>
+        <div className={`flex items-center gap-2 lg:gap-3 text-xs lg:text-sm overflow-hidden${isDark ? "text-[#8C8C8C]" : "text-[#666666]"}`}>
+          {hasDate && (
+            <div className="flex shrink-0 gap-1 items-center">
+              <Calendar size={16} className="shrink-0" />
+              <span className="whitespace-nowrap">{data.date}</span>
+            </div>
+          )}
+          {hasAddress && (
+            <div className="flex min-w-0 flex-1 gap-1 items-center">
+              <MapPin size={16} className="shrink-0" />
+              <span className="truncate" title={data.address}>{data.address}</span>
+            </div>
+          )}
+          {hasTime && (
+            <div className="flex shrink-0 gap-1 items-center">
+              <Clock size={16} className="shrink-0" />
+              <span className="whitespace-nowrap">{data.time}</span>
+            </div>
+          )}
         </div>
       </div>
       <hr className={`border-t my-4 lg:my-5 ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
@@ -75,7 +82,7 @@ export default function EarningsCard({ data, handleClick }: EarningsCardProps) {
               ? "bg-[#011A12] border-[#10B98133] text-[#10B981]"
               : "bg-[#E6F4EA] border-[#10B98122] text-[#137333]"
             }`}>
-            <p className="text-xs">Advance Paid</p>
+            <p className="text-xs">Paid Amount</p>
             <p className="lg:text-lg font-semibold">${data.advancePaid}</p>
           </div>
 
