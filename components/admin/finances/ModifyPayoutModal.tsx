@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ export type ModifyPayoutModalProps = {
   isOpen: boolean;
   onClose: () => void;
   rowContext: ShootCPRow | null;
+  creatorName?: string | null;
+  currentPayoutAmount?: number;
   onSubmit: (payload: { reason: string; payoutAmount: string }) => void;
   isSubmitting?: boolean;
 };
@@ -21,11 +23,21 @@ export default function ModifyPayoutModal({
   isSubmitting = false,
   isOpen,
   onClose,
-  rowContext
+  rowContext,
+  creatorName,
+  currentPayoutAmount
 }: ModifyPayoutModalProps) {
   const { isDark } = useResolvedTheme();
   const [notes, setNotes] = useState<string>("");
   const [payoutAmount, setPayoutAmount] = useState<string>("");
+  const displayedPayout = Number(currentPayoutAmount || rowContext?.cpPayout || 0);
+
+  useEffect(() => {
+    if (isOpen) {
+      setNotes("");
+      setPayoutAmount(displayedPayout ? String(displayedPayout) : "");
+    }
+  }, [displayedPayout, isOpen]);
 
   if (!isOpen) {
     return null;
@@ -70,12 +82,17 @@ export default function ModifyPayoutModal({
                 <p className={isDark ? "text-white" : "text-black"}>
                   {rowContext?.shootName || "Corporate Shoot"}
                 </p>
+                {creatorName && (
+                  <p className={`text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#7B5B2E]"}`}>
+                    {creatorName}
+                  </p>
+                )}
                 <p className={`capitalize ${isDark ? "text-white/50" : "text-black/50"}`}>
                   {rowContext?.category || "Videography"}
                 </p>
               </div>
               <div className={`flex items-center rounded-full border-[1px] px-3 py-2 lg:px-5 lg:py-3 text-[#E8D1AB] ${isDark ? "bg-black border-white/20" : "bg-white border-black/20"}`}>
-                Current Payout: {formatCurrency(rowContext?.cpPayout || 12500)}
+                Current Payout: {formatCurrency(displayedPayout)}
               </div>
             </div>
           </div>

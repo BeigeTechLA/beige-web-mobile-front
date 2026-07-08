@@ -1,8 +1,7 @@
 "use client";
 
 import React, { Suspense, useMemo } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Download } from "lucide-react";
 
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -18,6 +17,7 @@ const buildProxyUrl = (url: string, filename: string, disposition: "inline" | "a
 
 function CpReceiptViewContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { isDark } = useResolvedTheme();
 
   const receiptUrl = searchParams.get("url") || "";
@@ -39,13 +39,14 @@ function CpReceiptViewContent() {
     <div className={`min-h-screen p-4 lg:px-10 lg:py-8 ${isDark ? "bg-[#0B0B0B] text-white" : "bg-[#F4F5F7] text-black"}`}>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Link
-            href={backHref}
+          <button
+            type="button"
+            onClick={() => router.replace(backHref)}
             className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"}`}
           >
             <ChevronLeft size={16} />
             Back
-          </Link>
+          </button>
           <h1 className="mt-3 text-xl font-semibold">Receipt Preview</h1>
           <p className={`mt-1 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>{filename}</p>
         </div>

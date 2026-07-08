@@ -4,6 +4,9 @@ const getAllowedHosts = () => {
   const urls = [
     process.env.NEXT_PUBLIC_IMG_URL_CDN,
     process.env.NEXT_PUBLIC_IMG_URL,
+    process.env.NEXT_PUBLIC_S3_PREFIX,
+    "https://beige-web-dev.s3.us-east-1.amazonaws.com/beige/",
+    "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/",
   ].filter(Boolean) as string[];
 
   return new Set(
@@ -17,6 +20,18 @@ const getAllowedHosts = () => {
       })
       .filter(Boolean)
   );
+};
+
+const isAllowedReceiptUrl = (url: URL) => {
+  if (!["http:", "https:"].includes(url.protocol)) return false;
+  if (!getAllowedHosts().has(url.host)) return false;
+
+  const isBeigeS3Host = /^beige-web-(dev|prod)\.s3\.us-east-1\.amazonaws\.com$/i.test(url.host);
+  if (isBeigeS3Host) {
+    return url.pathname.startsWith("/beige/");
+  }
+
+  return true;
 };
 
 const sanitizeFilename = (value?: string | null) => {
@@ -41,7 +56,7 @@ export async function GET(request: NextRequest) {
     return new Response("Invalid receipt URL", { status: 400 });
   }
 
-  if (!["http:", "https:"].includes(parsedUrl.protocol) || !getAllowedHosts().has(parsedUrl.host)) {
+  if (!isAllowedReceiptUrl(parsedUrl)) {
     return new Response("Receipt host is not allowed", { status: 403 });
   }
 

@@ -205,6 +205,7 @@ export default function AdminFinancesPage() {
   const [dataType, setDataType] = useState<TabType>("shoots");
   const [selectedRow, setSelectedRow] = useState<ShootCPRow | null>(null);
   const [selectedPaymentEarningId, setSelectedPaymentEarningId] = useState<number | null>(null);
+  const [selectedActionEarningIds, setSelectedActionEarningIds] = useState<number[]>([]);
 
   // Visibility States
   const [isCompOpen, setIsCompOpen] = useState(false);
@@ -287,6 +288,8 @@ export default function AdminFinancesPage() {
 
   const handleRowClick = async (row: ShootCPRow) => {
     setSelectedRow(row);
+    setSelectedActionEarningIds([]);
+    setSelectedPaymentEarningId(null);
     setIsCompOpen(true);
     setDetails(null);
     const bookingId = row.bookingId || Number(row.id);
@@ -329,17 +332,25 @@ export default function AdminFinancesPage() {
     }
   };
 
-  const handleOpenModify = () => {
+  const handleOpenModify = (creatorEarningIds?: number[]) => {
+    const earningIds = creatorEarningIds?.filter(Boolean) || [];
+    if (earningIds.length > 1) {
+      toast.error("Select one Creative Partner to modify payout");
+      return;
+    }
+    setSelectedActionEarningIds(earningIds);
     setIsModifyOpen(true);
     setIsCompOpen(false);
   };
 
-  const handleOpenApprove = () => {
+  const handleOpenApprove = (creatorEarningIds?: number[]) => {
+    setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
     setIsApproveOpen(true);
     setIsCompOpen(false);
   };
 
-  const handleOpenReject = () => {
+  const handleOpenReject = (creatorEarningIds?: number[]) => {
+    setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
     setIsRejectOpen(true);
     setIsCompOpen(false);
   };
@@ -396,8 +407,14 @@ export default function AdminFinancesPage() {
   };
 
   const getActionEarningIds = () => {
+    if (selectedActionEarningIds.length) return selectedActionEarningIds;
     if (selectedRow?.creatorEarningId) return [selectedRow.creatorEarningId];
     return (details?.creators || []).map((creator) => creator.creator_earning_id);
+  };
+
+  const getSelectedActionCreator = () => {
+    const earningId = getActionEarningIds()[0];
+    return details?.creators.find((creator) => creator.creator_earning_id === earningId) || null;
   };
 
   // --- SUBMISSION LIFECYCLE INTERCEPTORS ---
@@ -416,6 +433,7 @@ export default function AdminFinancesPage() {
         items: [{ label: "Base Payout", amount }],
       });
       setIsModifyOpen(false);
+      setSelectedActionEarningIds([]);
       await loadHistory(dataType);
 
       setSuccessTitle("Payout Modify Successfully");
@@ -439,6 +457,7 @@ export default function AdminFinancesPage() {
       }
       await Promise.all(earningIds.map((earningId) => cpCompensationApi.approve(earningId, payload?.reason)));
       setIsApproveOpen(false);
+      setSelectedActionEarningIds([]);
       await loadHistory(dataType);
 
       setSuccessTitle("Payout Approved Successfully");
@@ -462,6 +481,7 @@ export default function AdminFinancesPage() {
       }
       await Promise.all(earningIds.map((earningId) => cpCompensationApi.reject(earningId, payload.reason)));
       setIsRejectOpen(false);
+      setSelectedActionEarningIds([]);
       await loadHistory(dataType);
 
       setSuccessTitle("Payout Reject Successfully");
@@ -685,8 +705,13 @@ export default function AdminFinancesPage() {
         {/* Secondary Execution Action Modal Layer */}
         <ModifyPayoutModal
           isOpen={isModifyOpen}
-          onClose={() => setIsModifyOpen(false)}
+          onClose={() => {
+            setIsModifyOpen(false);
+            setSelectedActionEarningIds([]);
+          }}
           rowContext={selectedRow}
+          creatorName={getSelectedActionCreator()?.creator_name || selectedRow?.creatorName}
+          currentPayoutAmount={getSelectedActionCreator()?.total_compensation || selectedRow?.cpPayout || 0}
           isSubmitting={isModifySubmitting}
           onSubmit={handleModifySubmit}
         />
