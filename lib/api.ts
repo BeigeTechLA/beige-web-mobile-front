@@ -612,6 +612,10 @@ export interface CreatorEarningsParams {
   limit?: number;
   status?: string;
   search?: string;
+  range?: string;
+  date_on?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export type SalesQuoteConvertSingleDayPayload = {

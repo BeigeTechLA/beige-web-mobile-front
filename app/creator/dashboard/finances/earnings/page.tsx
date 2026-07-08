@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import { toast } from "sonner";
 import { SortDateButton } from "@/components/admin/SortDateButton";
@@ -20,6 +20,52 @@ import { getCreatorEarningDetails, getCreatorEarningsDashboard, getCreatorEarnin
 import { useDebounce } from "@/hooks/use-debounce";
 
 const EARNINGS_PAGE_LIMIT = 10;
+
+const toLocalDateString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getWeekDateRange = (date: Date) => {
+  const startDate = new Date(date);
+  const day = startDate.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  startDate.setDate(startDate.getDate() + mondayOffset);
+
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6);
+
+  return {
+    start_date: toLocalDateString(startDate),
+    end_date: toLocalDateString(endDate),
+  };
+};
+
+const getMonthDateRange = (date: Date) => ({
+  start_date: toLocalDateString(new Date(date.getFullYear(), date.getMonth(), 1)),
+  end_date: toLocalDateString(new Date(date.getFullYear(), date.getMonth() + 1, 0)),
+});
+
+const buildEarningsDateParams = (range: string, selectedDate: Date | null) => {
+  const today = new Date();
+
+  if (range === "week") {
+    return { range, ...getWeekDateRange(today) };
+  }
+
+  if (range === "month") {
+    return { range, ...getMonthDateRange(today) };
+  }
+
+  if (range === "custom" && selectedDate) {
+    const date_on = toLocalDateString(selectedDate);
+    return { range, date_on, start_date: date_on, end_date: date_on };
+  }
+
+  return { range: "all" };
+};
 
 const buildPaginationItems = (currentPage: number, totalPages: number): Array<number | "..."> => {
   const pages: Array<number | "..."> = [];
@@ -201,7 +247,7 @@ export default function RequestsShootsPage() {
   const { isDark } = useResolvedTheme()
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [range, setRange] = useState('all');
-  const [status, setStatus] = useState('all');
+  const [status] = useState('all');
 
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -223,6 +269,11 @@ export default function RequestsShootsPage() {
 
   const [selectedEarningId, setSelectedEarningId] = useState<number | null>(null);
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
+
+  const earningsDateParams = useMemo(
+    () => buildEarningsDateParams(range, selectedDate),
+    [range, selectedDate]
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -251,6 +302,7 @@ export default function RequestsShootsPage() {
           limit: EARNINGS_PAGE_LIMIT,
           status,
           search: debouncedSearchQuery,
+          ...earningsDateParams,
         });
 
         const rows = earningsList?.data?.rows || [];
@@ -278,11 +330,17 @@ export default function RequestsShootsPage() {
     };
 
     fetchEarnings();
-  }, [currentPage, debouncedSearchQuery, status]);
+  }, [currentPage, debouncedSearchQuery, status, earningsDateParams]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, status, range]);
+  }, [debouncedSearchQuery, status, range, selectedDate]);
+
+  const handleDateChange = (date: Date | null) => {
+    setSelectedDate(date);
+    setRange(date ? "custom" : "all");
+    setCurrentPage(1);
+  };
 
   if (isLoading) {
     return (
@@ -350,14 +408,12 @@ export default function RequestsShootsPage() {
           <h1 className="text-base lg:text-3xl font-bold">Earnings Dashboard</h1>
           <p className="text-xs lg:text-base text-white/60">Monitor upcoming earnings, track payment status, and view detailed compensation breakdowns for your shoots.</p>
         </div>
-        <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
+        <SortDateButton selectedDate={selectedDate} onDateChange={handleDateChange} />
       </div>
 
-      {/* Pass selectedDate to the chart so it can handle the 'custom' filter */}
       <EarningsOverviewChart
         overviewData={dashboardData?.overview}
         chartData={dashboardData?.chart}
-        selectedDate={selectedDate}
       />
 
       <div className={`transition-colors duration-300 border rounded-2xl w-full mt-3 lg:mt-5 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
@@ -368,7 +424,7 @@ export default function RequestsShootsPage() {
               <p className="font-medium text-sm lg:text-base">Earnings</p>
             </div>
             <div className="flex items-center gap-3">
-              <Select value={status} onValueChange={(val) => { setStatus(val); setCurrentPage(1); }}>
+              {/* <Select value={status} onValueChange={(val) => { setStatus(val); setCurrentPage(1); }}>
                 <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"}`}>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -378,7 +434,7 @@ export default function RequestsShootsPage() {
                   <SelectItem value="Awaiting Response">Awaiting Response</SelectItem>
                   <SelectItem value="Accepted">Accepted</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
               <Select value={range} onValueChange={(val) => { setRange(val); setCurrentPage(1); }}>
                 <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"}`}>
                   <SelectValue placeholder="Range" />

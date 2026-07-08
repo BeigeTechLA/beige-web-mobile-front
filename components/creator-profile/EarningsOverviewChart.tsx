@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useRouter } from 'next/navigation';
 import { useTheme } from "next-themes";
 import {
   Select,
@@ -48,26 +47,19 @@ interface EarningsOverviewChartProps {
     paid: number;
     total: number;
   }>;
-  selectedDate?: Date | null; // Added to handle 'custom' range filtering
+  selectedDate?: Date | null;
 }
 
-export default function EarningsOverviewChart({ overviewData, chartData, selectedDate }: EarningsOverviewChartProps) {
-  const router = useRouter();
+export default function EarningsOverviewChart({ overviewData, chartData }: EarningsOverviewChartProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [activeMetric, setActiveMetric] = useState('upcoming');
-  const [metrics, setMetrics] = useState<any[]>(initialMetrics);
+  const [metrics, setMetrics] = useState(initialMetrics);
   const [isLoading, setIsLoading] = useState(true);
   const [isChartLoading, setIsChartLoading] = useState(true);
   const [range, setRange] = useState('all');
 
-  const [currentMonth, setCurrentMonth] = useState<number | null>(null);
-
   useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    setCurrentMonth(new Date().getMonth() + 1);
-  }, []);
 
   const isDark = !mounted || theme === "dark";
 
@@ -83,41 +75,32 @@ export default function EarningsOverviewChart({ overviewData, chartData, selecte
     }
   }, [overviewData]);
 
-  // --- UPDATED: Filter logic for the Chart based on Range and Selected Date ---
-  const filteredChartData = useMemo(() => {
-    if (!chartData || currentMonth === null) return [];
+  const fixedLastSixMonthsChartData = useMemo(() => {
+    const sourceData = chartData ?? [];
+    const now = new Date();
+    const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
 
-    let filtered = [...chartData];
+    return Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const monthNumber = date.getMonth() + 1;
+      const existingMonth = sourceData.find(item => item.month_number === monthNumber);
 
-    if (range === 'month' || range === 'week') {
-      // Show only the current month
-      filtered = filtered.filter(item => item.month_number === currentMonth);
-    } else if (range === 'custom' && selectedDate) {
-      // Show the month of the selected date
-      const selectedMonth = selectedDate.getMonth() + 1;
-      filtered = filtered.filter(item => item.month_number === selectedMonth);
-    } else if (range === 'all') {
-      // "All time" shows all 12 months
-      // If you want to restrict "All time" to the last 6 months, uncomment the logic below:
-      /*
-      const last6Months = [];
-      for (let i = 5; i >= 0; i--) {
-        let m = currentMonth - i;
-        if (m <= 0) m += 12;
-        last6Months.push(m);
-      }
-      filtered = filtered.filter(item => last6Months.includes(item.month_number));
-      */
-    }
-
-    return filtered.sort((a, b) => a.month_number - b.month_number);
-  }, [chartData, range, currentMonth, selectedDate]);
+      return existingMonth ?? {
+        month: monthFormatter.format(date),
+        month_number: monthNumber,
+        upcoming: 0,
+        pending: 0,
+        paid: 0,
+        total: 0,
+      };
+    });
+  }, [chartData]);
 
   useEffect(() => {
-    if (filteredChartData.length > 0) {
+    if (fixedLastSixMonthsChartData.length > 0) {
       setIsChartLoading(false);
     }
-  }, [filteredChartData]);
+  }, [fixedLastSixMonthsChartData]);
 
   const stopColor = isDark ? "#E5D5B8" : "#000000";
   const stopOpacityStart = isDark ? 0.3 : 0.4;
@@ -149,7 +132,7 @@ export default function EarningsOverviewChart({ overviewData, chartData, selecte
       {/* Metric Cards Grid */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10 rounded-2xl p-4 ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
         }`}>
-        {metrics.map((m: any) => {
+        {metrics.map((m) => {
           const isActive = activeMetric === m.id;
           return (
             <div
@@ -189,7 +172,7 @@ export default function EarningsOverviewChart({ overviewData, chartData, selecte
           </div>
         )}
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={filteredChartData}>
+          <AreaChart data={fixedLastSixMonthsChartData}>
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={stopColor} stopOpacity={stopOpacityStart} />
