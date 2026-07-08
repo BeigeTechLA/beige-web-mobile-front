@@ -38,9 +38,9 @@ interface CompensationModalProps {
   rowContext: ShootCPRow | null;
   details?: CpCompensationDetails | null;
   loading?: boolean;
-  onModifyClick: () => void;
-  onApproveClick: () => void;
-  onRejectClick: () => void;
+  onModifyClick: (creatorEarningIds?: number[]) => void;
+  onApproveClick: (creatorEarningIds?: number[]) => void;
+  onRejectClick: (creatorEarningIds?: number[]) => void;
   onPaymentClick?: (creatorEarningId: number) => void;
 }
 
@@ -133,6 +133,8 @@ export default function CompensationModal({
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
+
+  const getSelectedCreatorIds = () => selectedCreators.map(Number).filter(Boolean);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#101010CC] font-sans backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0">
@@ -315,23 +317,23 @@ export default function CompensationModal({
                         {!creator.hasPendingAdvance && isChecked && isPendingApproval && (
                           <div className="flex flex-col gap-3">
                             <button
-                              onClick={onApproveClick}
+                              onClick={() => onApproveClick([Number(creator.id)])}
                               className="lg:hidden flex h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
                               <CheckCircle2 size={16} /> Approve
                             </button>
                             <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:mt-4 animate-in fade-in duration-150">
                               <button
-                                onClick={onApproveClick}
+                                onClick={() => onApproveClick([Number(creator.id)])}
                                 className="hidden lg:flex h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
                                 <CheckCircle2 size={16} /> Approve
                               </button>
                               <button
-                                onClick={onModifyClick}
+                                onClick={() => onModifyClick([Number(creator.id)])}
                                 className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
                                 <Edit3 size={16} /> Modify
                               </button>
                               <button
-                                onClick={onRejectClick}
+                                onClick={() => onRejectClick([Number(creator.id)])}
                                 className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
                                 <XCircle size={16} /> Reject
                               </button>
@@ -412,23 +414,23 @@ export default function CompensationModal({
         {hasPendingApproval && (
           <div className="sticky bottom-0 inset-x-0 bg-[#0C0C0C] p-5 lg:p-9 flex flex-col gap-3 z-10 mt-auto">
             <button
-                onClick={onApproveClick}
+                onClick={() => onApproveClick(getSelectedCreatorIds())}
                 className="h-12 rounded-lg lg:hidden flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
                 <CheckCircle2 size={16} /> Approve All
               </button>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
               <button
-                onClick={onApproveClick}
+                onClick={() => onApproveClick(getSelectedCreatorIds())}
                 className="h-12 rounded-lg hidden lg:flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
                 <CheckCircle2 size={16} /> Approve All
               </button>
               <button
-                onClick={onModifyClick}
+                onClick={() => onModifyClick(getSelectedCreatorIds())}
                 className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
                 <Edit3 size={16} /> Modify
               </button>
               <button
-                onClick={onRejectClick}
+                onClick={() => onRejectClick(getSelectedCreatorIds())}
                 className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
                 <XCircle size={16} /> Reject All
               </button>
