@@ -122,10 +122,10 @@ export default function EarningsBreakdownModal({
                       {data.clientName}
                     </p>
                   </div>
-                  <div>
+                  {/* <div>
                     <p className="text-[#6B6864] text-xs lg:text-sm">Status</p>
                     <EarningsStatusBadge status={data.status} />
-                  </div>
+                  </div> */}
                 </div>
 
                 <hr className={`border-t ${isDark ? "border-white/40" : "border-[#000000]/30"}`} />
