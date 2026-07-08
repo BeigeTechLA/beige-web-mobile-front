@@ -23,7 +23,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isDark = !mounted || theme === "dark";
 
   return (
-    <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${
+    <div className={`flex flex-1 min-h-0 overflow-hidden relative transition-colors duration-300 ${
       isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
     }`}>
       <div className="hidden lg:block h-full border-r border-transparent">

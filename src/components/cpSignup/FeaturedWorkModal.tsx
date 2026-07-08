@@ -88,6 +88,12 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
+    if (imagePreviews.length + files.length > MAX_PROJECT_IMAGES) {
+      toast.error(`Maximum ${MAX_PROJECT_IMAGES} images allowed per project.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
     const invalidFiles = files.filter(f => !ALLOWED_TYPES.includes(f.type));
     if (invalidFiles.length > 0) {
       toast.error("Invalid File Type", {
@@ -225,7 +231,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
               <div className="flex justify-between items-center ml-1">
                 <label className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/60" : "text-black/60"}`}>Thumbnail / Media</label>
                 <span className={`text-[10px] lg:text-xs tracking-widest uppercase ${isDark ? "text-white/30" : "text-black/40"}`}>
-                  {ALLOWED_EXT_TEXT} only • Max {MAX_FILE_SIZE_MB}MB
+                  {MIN_PROJECT_IMAGES}-{MAX_PROJECT_IMAGES} images &bull; Max {MAX_FILE_SIZE_MB}MB each
                 </span>
               </div>
 
@@ -247,7 +253,9 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
                     <div className={`font-bold text-lg ${isDark ? "text-white" : "text-black"}`}>
                       {isCompressing ? "Optimizing Files..." : "Upload Project Media"}
                     </div>
-                    <div className={`text-sm mt-1 ${isDark ? "text-white/40" : "text-black/40"}`}>Allowed: {ALLOWED_EXT_TEXT}</div>
+                    <div className={`text-sm mt-1 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      Allowed: {ALLOWED_EXT_TEXT}. Add {MIN_PROJECT_IMAGES}-{MAX_PROJECT_IMAGES} images.
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -327,7 +335,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
             </Button>
             <Button
               onClick={handleAdd}
-              disabled={!title || imagePreviews.length === 0 || isCompressing}
+              disabled={!title || imagePreviews.length < MIN_PROJECT_IMAGES || isCompressing}
               className={`rounded-xl h-12 px-10 font-bold disabled:opacity-50 text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#DCD1BE]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
             >
               {isCompressing ? "Processing..." : editItem ? "Save Changes" : "Add Project"}

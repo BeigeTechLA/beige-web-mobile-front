@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { useTheme } from 'next-themes';
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { formatCreatorRoles } from "@/lib/creatorRoles";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -168,7 +169,6 @@ export const CreativePartnersTable = () => {
   const [limit] = useState(20);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [skillsMap, setSkillsMap] = useState<Record<string, string>>({});
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -236,26 +236,6 @@ export const CreativePartnersTable = () => {
     }
   };
 
-  // Fetch skills on mount
-  useEffect(() => {
-    const fetchSkills = async () => {
-      try {
-        const response = await adminApi.getSkills();
-        if (response && response.data) {
-          // Create a map of id to name
-          const skillMap: Record<string, string> = {};
-          response.data.forEach((skill: any) => {
-            skillMap[skill.id?.toString()] = skill.name;
-          });
-          setSkillsMap(skillMap);
-        }
-      } catch (error) {
-        console.error("Failed to fetch skills:", error);
-      }
-    };
-    fetchSkills();
-  }, []);
-
   useEffect(() => {
     const fetchCreativePartners = async () => {
       setLoading(true);
@@ -283,23 +263,12 @@ export const CreativePartnersTable = () => {
             // Combine first_name and last_name
             const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || "Unknown";
 
-            // Role mapping: Use role.role_name if available, otherwise fallback to skills
-            let displayRole = "N/A";
-            if (member.role?.role_name) {
+            // Role mapping: show actual creator roles only. Skills are not roles.
+            let displayRole = formatCreatorRoles(member.primary_role, "");
+            if (!displayRole && member.role?.role_name) {
               displayRole = member.role.role_name;
-            } else if (member.skills) {
-              try {
-                const skillsArray = typeof member.skills === 'string' ? JSON.parse(member.skills) : member.skills;
-                if (Array.isArray(skillsArray) && skillsArray.length > 0) {
-                  const skillNames = skillsArray
-                    .map((skillId: any) => skillsMap[skillId.toString()])
-                    .filter(Boolean);
-                  displayRole = skillNames.length > 0 ? skillNames.join(', ') : "N/A";
-                }
-              } catch (e) {
-                displayRole = "N/A";
-              }
             }
+            if (!displayRole) displayRole = "N/A";
 
             // Get profile photo from crew_member_files
             const profilePhoto = member.crew_member_files?.find(
@@ -365,8 +334,8 @@ export const CreativePartnersTable = () => {
           <Check size={16} strokeWidth={3} />
         </div>
         <div>
-          <h3 className="text-green-500 font-medium text-base">Shoot request accepted</h3>
-          <p className="text-[#888] text-sm">You've successfully accepted the CP</p>
+          <h3 className="text-green-500 font-medium text-base">Creative Partner approved</h3>
+          <p className="text-[#888] text-sm">The creative partner has been approved successfully.</p>
         </div>
         <button onClick={() => toast.dismiss(t)} className="absolute top-4 right-4 text-[#666] hover:text-white transition-colors">
           <X size={20} />
@@ -382,8 +351,8 @@ export const CreativePartnersTable = () => {
           <AlertCircle size={24} strokeWidth={2} />
         </div>
         <div>
-          <h3 className="text-[#ff6b6b] font-medium text-base">Request Declined</h3>
-          <p className="text-[#888] text-sm">The CP request has been declined.</p>
+          <h3 className="text-[#ff6b6b] font-medium text-base">Creative Partner rejected</h3>
+          <p className="text-[#888] text-sm">The creative partner has been rejected.</p>
         </div>
         <button onClick={() => toast.dismiss(t)} className="absolute top-4 right-4 text-[#666] hover:text-white transition-colors">
           <X size={20} />
