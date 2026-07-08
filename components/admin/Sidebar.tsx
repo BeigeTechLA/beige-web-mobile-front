@@ -259,7 +259,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             }
 
             if (item.name === "Users") {
-              const canViewUsers = Boolean(permissions?.users?.view);
+            const canViewUsers = hasModulePermission(permissions, item.permissionKeys, "view");
               if (!canViewUsers) return null;
             } else if (item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");
