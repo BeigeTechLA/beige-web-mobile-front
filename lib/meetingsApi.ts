@@ -30,6 +30,8 @@ export interface MeetingItem {
   meeting_title?: string;
   description?: string;
   meetLink?: string;
+  googleCalendarEventId?: string;
+  googleCalendarId?: string;
   duration?: number;
   order?: MeetingOrderRef | null;
   cps?: MeetingParticipantRef[];
@@ -63,6 +65,8 @@ export interface CreateMeetingPayload {
   meeting_title?: string;
   description?: string;
   meetLink?: string;
+  googleCalendarEventId?: string;
+  googleCalendarId?: string;
   client_id?: string | number;
   cp_ids?: Array<string | number>;
   admin_id?: string | number;
@@ -84,8 +88,22 @@ export interface CreateEventPayload {
 
 export interface CreateEventResponse {
   meetLink?: string;
+  eventId?: string;
+  calendarId?: string;
+  htmlLink?: string;
   authUrl?: string;
   error?: string;
+}
+
+export interface UpdateEventPayload {
+  eventId: string;
+  calendarId?: string;
+  summary?: string;
+  location?: string;
+  description?: string;
+  startDateTime?: string;
+  endDateTime?: string;
+  timeZone?: string;
 }
 
 export interface MeetingParticipantsPayload {
@@ -129,6 +147,10 @@ export const meetingsApi = {
 
   async createEvent(payload: CreateEventPayload) {
     return apiClient.post<CreateEventResponse>("external-meetings/create-event", payload);
+  },
+
+  async updateEvent(payload: UpdateEventPayload) {
+    return apiClient.post<CreateEventResponse>("external-meetings/update-event", payload);
   },
 
   async getById(meetingId: string | number) {

@@ -259,3 +259,24 @@ input[type="number"] {
 .quote-editor-theme-light textarea::placeholder {
   color: rgba(0, 0, 0, 0.45) !important;
 }
+
+/* General Vertical Scrollbar Styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  display: block; /* Explicitly forces Safari to acknowledge the track existence */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15); /* Slightly bumped opacity for visibility */
+  border-radius: 10px;
+}
+
+/* Give Safari a strong feedback target on hover */
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+  
+}

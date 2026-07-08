@@ -11,12 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {usePathname} from "next/navigation";
 import EarningsOverviewChart from "@/components/creator-profile/EarningsOverviewChart";
 import EarningsCard, { EarningsCardData } from "@/components/creator-profile/EarningsCard";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { Search } from "lucide-react";
 import EarningsBreakdownModal from "@/components/creator-profile/EarningsBreakdownModal";
 import PaymentTimelineModal, { TimelineEvent } from "@/components/creator-profile/PaymentTimelineModal";
+import Topbar from "@/components/admin/Topbar";
 
 export const dummyShootCards: EarningsCardData[] = [
   {
@@ -144,6 +146,7 @@ const dummyTimeline: TimelineEvent[] = [
 
 export default function RequestsShootsPage() {
   const { isDark } = useResolvedTheme()
+  const pathname = usePathname();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [range, setRange] = useState('all');
   const [status, setStatus] = useState('all');
@@ -172,18 +175,20 @@ export default function RequestsShootsPage() {
   }
 
   return (
-    <div className="mx-auto space-y-4 lg:space-y-8 pb-12 text-white">
-      {/* Header */}
-      <div className="mb-3 flex items-center justify-between lg:mb-6">
-        <div>
-          <h1 className="text-base lg:text-3xl font-bold">Earnings Dashboard</h1>
-          <p className="text-xs lg:text-base text-white/60">Monitor upcoming earnings, track payment status, and view detailed compensation breakdowns for your shoots.</p>
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
+        {/* Header */}
+        <div className="mb-3 flex items-center justify-between lg:mb-6">
+          <div>
+            <h1 className="text-base lg:text-3xl font-bold">Earnings Dashboard</h1>
+            <p className="text-xs lg:text-base text-white/60">Monitor upcoming earnings, track payment status, and view detailed compensation breakdowns for your shoots.</p>
+          </div>
+
+          <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
         </div>
 
-        <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
-      </div>
-
-      <EarningsOverviewChart />
+        <EarningsOverviewChart />
 
       <div className={`transition-colors duration-300 border rounded-2xl w-full mt-3 lg:mt-5 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
         <div className="space-y-3 lg:space-y-6 p-3 lg:p-5">
@@ -240,19 +245,20 @@ export default function RequestsShootsPage() {
         </div>
       </div>
 
-      <EarningsBreakdownModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        shootData={dummyShootData}
-        onDownloadProof={() => console.log("Downloading...")}
-        onViewTimeline={() => handleViewTimeline()}
-      />
+        <EarningsBreakdownModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          shootData={dummyShootData}
+          onDownloadProof={() => console.log("Downloading...")}
+          onViewTimeline={() => handleViewTimeline()}
+        />
 
-      <PaymentTimelineModal
-        isOpen={isPaymentOpen}
-        onClose={() => setIsPaymentOpen(false)}
-        timelineData={dummyTimeline}
-      />
-    </div>
+        <PaymentTimelineModal
+          isOpen={isPaymentOpen}
+          onClose={() => setIsPaymentOpen(false)}
+          timelineData={dummyTimeline}
+        />
+      </div>
+    </>
   );
 }

@@ -18,12 +18,14 @@ type AddSkillsProps = {
   value?: string[];
   onChange: (val: string[]) => void;
   options: SkillOption[];
+  isDark?: boolean;
 };
 
 const AddSkills = ({
   value = [],
   onChange,
-  options
+  options,
+  isDark = true
 }: AddSkillsProps) => {
   const [tempSelected, setTempSelected] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
@@ -64,16 +66,17 @@ const AddSkills = ({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-3 items-center">
-        {/* Added modal={false} to ensure it doesn't lock background scroll */}
         <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               className={cn(
-                "flex-1 h-12 justify-between bg-[#111111] border-[#333333] text-white font-normal",
-                "hover:bg-[#111111] hover:text-white",
-                "focus:ring-1 focus:ring-[#BEA784] focus:ring-offset-0 transition-none",
-                !tempSelected.length && "text-muted-foreground"
+                "flex-1 h-12 justify-between font-normal shadow-none transition-colors border",
+                isDark 
+                  ? "bg-black border-white/10 text-white hover:bg-black hover:text-white focus:ring-1 focus:ring-[#E8D1AB]/50" 
+                  : "bg-neutral-50 border-black/10 text-black hover:bg-neutral-50 hover:text-black focus:ring-1 focus:ring-[#cbb38b]/50",
+                "focus:ring-offset-0 transition-none",
+                !tempSelected.length && (isDark ? "text-white/20" : "text-black/30")
               )}
             >
               {tempSelected.length
@@ -83,20 +86,19 @@ const AddSkills = ({
             </Button>
           </PopoverTrigger>
 
-          {/* 
-            FIX: We use PopoverPrimitive.Content DIRECTLY without PopoverPrimitive.Portal.
-            This keeps the dropdown inside the local DOM tree, making it scroll
-            naturally with the field.
-          */}
           <PopoverPrimitive.Content
             align="start"
             sideOffset={4}
             className={cn(
-              "z-50 w-[320px] rounded-md border border-[#333333] bg-[#111111] p-1 text-white shadow-md outline-none",
+              "z-50 w-[320px] rounded-md border p-1 shadow-md outline-none transition-colors",
+              isDark ? "border-white/10 bg-[#111111] text-white" : "border-black/10 bg-white text-black",
               "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
             )}
           >
-            <div className="max-h-[300px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900">
+            <div className={cn(
+              "max-h-[300px] overflow-y-auto p-1 scrollbar-thin",
+              isDark ? "scrollbar-thumb-neutral-700 scrollbar-track-neutral-900" : "scrollbar-thumb-neutral-300 scrollbar-track-neutral-100"
+            )}>
               {options.map((opt) => {
                 const isSelected = tempSelected.includes(opt.value);
                 const isAlreadyAdded = value.includes(opt.value);
@@ -107,15 +109,20 @@ const AddSkills = ({
                     onClick={() => !isAlreadyAdded && toggleTempSkill(opt.value)}
                     className={cn(
                       "relative flex items-start justify-between gap-3 px-3 py-2.5 rounded-sm cursor-pointer transition-colors",
-                      "hover:bg-neutral-800",
-                      isSelected && "bg-neutral-800",
+                      isDark 
+                        ? "hover:bg-neutral-800 text-white" 
+                        : "hover:bg-neutral-100 text-black",
+                      isSelected && (isDark ? "bg-neutral-800" : "bg-neutral-100"),
                       isAlreadyAdded && "opacity-40 cursor-not-allowed grayscale"
                     )}
                   >
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium text-white">{opt.label}</span>
+                      <span className="text-sm font-medium">{opt.label}</span>
                       {opt.description && (
-                        <span className="text-xs text-muted-foreground leading-snug">
+                        <span className={cn(
+                          "text-xs leading-snug",
+                          isDark ? "text-white/40" : "text-black/40"
+                        )}>
                           {opt.description}
                         </span>
                       )}
@@ -123,9 +130,12 @@ const AddSkills = ({
 
                     <div className="flex items-center gap-2 pt-1">
                       {isAlreadyAdded && (
-                        <span className="text-[10px] font-bold text-[#BEA784]">ADDED</span>
+                        <span className={cn(
+                          "text-[10px] font-bold",
+                          isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"
+                        )}>ADDED</span>
                       )}
-                      {isSelected && <Check className="w-4 h-4 text-[#BEA784]" />}
+                      {isSelected && <Check className={cn("w-4 h-4", isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]")} />}
                     </div>
                   </div>
                 );
@@ -138,7 +148,12 @@ const AddSkills = ({
           type="button"
           onClick={handleAddSkills}
           disabled={!tempSelected.length}
-          className="bg-[#BEA784] hover:bg-[#a38d6b] h-12 px-6 font-semibold text-black disabled:opacity-50"
+          className={cn(
+            "h-12 px-6 font-semibold shadow-none border-0 disabled:opacity-50 transition-colors",
+            isDark 
+              ? "bg-[#E8D1AB] hover:bg-[#dcb98a] text-black" 
+              : "bg-[#cbb38b] hover:bg-[#bfa57c] text-white"
+          )}
         >
           <Plus className="w-4 h-4 mr-1" />
           Add {tempSelected.length ? `(${tempSelected.length})` : ""}
@@ -149,13 +164,21 @@ const AddSkills = ({
         {value.map((id) => (
           <div
             key={id}
-            className="px-3 py-1.5 border border-[#333333] bg-[#111111] text-sm text-white font-medium rounded-md flex items-center gap-2"
+            className={cn(
+              "px-3 py-1.5 border text-sm font-medium rounded-md flex items-center gap-2 transition-colors",
+              isDark 
+                ? "border-white/10 bg-[#111111] text-white" 
+                : "border-black/10 bg-neutral-100 text-black"
+            )}
           >
             {getLabel(id)}
             <button
               type="button"
               onClick={() => removeSkill(id)}
-              className="hover:text-red-500 transition-colors"
+              className={cn(
+                "transition-colors",
+                isDark ? "text-white/40 hover:text-red-400" : "text-black/40 hover:text-red-500"
+              )}
             >
               <X className="w-3.5 h-3.5" />
             </button>
