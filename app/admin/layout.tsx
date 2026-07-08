@@ -66,15 +66,51 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isResolvingInitialRoute, setIsResolvingInitialRoute] = useState(true);
+  const shouldGateInitialAdminRoute = pathname === "/admin" || pathname === "/admin/dashboard";
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const userId = user?.id;
-    if (!mounted || !userId) return;
+    if (!mounted) return;
 
-    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
-  }, [user?.id, mounted, dispatch]);
+    if (!shouldGateInitialAdminRoute) {
+      setIsResolvingInitialRoute(false);
+      return;
+    }
+
+    if (!userId) {
+      setIsResolvingInitialRoute(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsResolvingInitialRoute(true);
+
+    const resolveInitialRoute = async () => {
+      const latestPermissions =
+        permissions ?? (await fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false }));
+
+      if (isCancelled) return;
+
+      if (!canAccessPortalPath(pathname, latestPermissions)) {
+        const fallbackPath = getFirstAllowedPortalPath("admin", latestPermissions);
+        if (fallbackPath && fallbackPath !== pathname) {
+          router.replace(fallbackPath);
+          return;
+        }
+      }
+
+      setIsResolvingInitialRoute(false);
+    };
+
+    void resolveInitialRoute();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, mounted, dispatch, pathname, permissions, router, shouldGateInitialAdminRoute]);
 
   useEffect(() => {
     if (!mounted || !permissions) return;
@@ -97,7 +133,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ? "bg-[#0f0f0f] text-white" 
           : "bg-[#F4F5F7] text-[#000000]"
       }`}>
-        <LayoutContent>{children}</LayoutContent>
+        {isResolvingInitialRoute && shouldGateInitialAdminRoute ? null : (
+          <LayoutContent>{children}</LayoutContent>
+        )}
       </div>
     </SidebarProvider>
   );

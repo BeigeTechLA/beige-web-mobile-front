@@ -218,13 +218,6 @@ export const expandPermissionKeys = (moduleKeys: string[] = []) => {
 
     const aliases = MODULE_ALIASES[normalized] || [];
     aliases.forEach((alias) => expanded.add(normalizeKey(alias)));
-
-    Object.entries(MODULE_ALIASES).forEach(([canonicalKey, aliasList]) => {
-      if (canonicalKey === normalized || aliasList.some((alias) => normalizeKey(alias) === normalized)) {
-        expanded.add(normalizeKey(canonicalKey));
-        aliasList.forEach((alias) => expanded.add(normalizeKey(alias)));
-      }
-    });
   });
 
   return Array.from(expanded);
@@ -343,10 +336,11 @@ export const canAccessPortalPath = (
   // Bypass route access check for affiliate (client) and creator (creative partner) portals
   if (portal === "affiliate" || portal === "creator") return true;
 
-  if (
-    pathname === `/${portal}` ||
-    pathname === `/${portal}/dashboard`
-  ) {
+  if (pathname === `/${portal}` || pathname === `/${portal}/dashboard`) {
+    if (portal === "admin" || portal === "sales" || portal === "production-manager") {
+      return hasModulePermission(permissions, ["dashboard"], "view");
+    }
+
     return hasAnyPermission(permissions);
   }
 

@@ -78,15 +78,59 @@ export default function ProdManagerLayout({ children }: { children: React.ReactN
   const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isResolvingInitialRoute, setIsResolvingInitialRoute] = useState(true);
+  const shouldGateInitialPmRoute =
+    pathname === "/production-manager" || pathname === "/production-manager/dashboard";
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const userId = user?.id;
-    if (!mounted || !userId) return;
+    if (!mounted) return;
+
+    if (!shouldGateInitialPmRoute) {
+      setIsResolvingInitialRoute(false);
+      return;
+    }
+
+    if (!userId) {
+      setIsResolvingInitialRoute(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsResolvingInitialRoute(true);
+
+    const resolveInitialRoute = async () => {
+      const latestPermissions =
+        permissions ?? (await fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false }));
+
+      if (isCancelled) return;
+
+      if (!canAccessPortalPath(pathname, latestPermissions)) {
+        const fallbackPath = getFirstAllowedPortalPath("production-manager", latestPermissions);
+        if (fallbackPath && fallbackPath !== pathname) {
+          router.replace(fallbackPath);
+          return;
+        }
+      }
+
+      setIsResolvingInitialRoute(false);
+    };
+
+    void resolveInitialRoute();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, mounted, dispatch, pathname, permissions, router, shouldGateInitialPmRoute]);
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!mounted || !userId || shouldGateInitialPmRoute) return;
 
     void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
-  }, [user?.id, mounted, dispatch]);
+  }, [user?.id, mounted, dispatch, shouldGateInitialPmRoute]);
 
   useEffect(() => {
     if (!mounted || !permissions) return;
@@ -108,7 +152,7 @@ export default function ProdManagerLayout({ children }: { children: React.ReactN
           ? "bg-[#0f0f0f] text-white"
           : "bg-[#F4F5F7] text-[#000000]"
         }`}>
-        <LayoutContent>{children}</LayoutContent>
+        {isResolvingInitialRoute && shouldGateInitialPmRoute ? null : <LayoutContent>{children}</LayoutContent>}
       </div>
     </SidebarProvider>
   );
