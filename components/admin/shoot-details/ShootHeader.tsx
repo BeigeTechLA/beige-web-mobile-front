@@ -322,6 +322,7 @@ export default function ShootHeader({
     project?.email ||
     ""
   ).trim();
+  const isSalesView = pathname?.startsWith("/sales");
   const resolvedClientId = Number(
     project?.client_id ||
     project?.client_record_id ||
@@ -597,16 +598,18 @@ export default function ShootHeader({
                       className={`text-sm leading-relaxed break-all transition-colors hover:opacity-80 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}
                       title="Email ID"
                       aria-label={`Email ${guestEmail}`}
-                    >
-                      {guestEmail}
+                      >
+                        {guestEmail}
                     </a>
-                    <button
-                      type="button"
-                      onClick={handleViewClientDetails}
-                      className={`text-xs font-medium underline underline-offset-2 ml-1 ${isDark ? "text-[#E8D1AB] hover:text-[#F2E2C2]" : "text-[#7A5A00] hover:text-[#5E4300]"}`}
-                    >
-                      View Client Details
-                    </button>
+                    {!isSalesView ? (
+                      <button
+                        type="button"
+                        onClick={handleViewClientDetails}
+                        className={`text-xs font-medium underline underline-offset-2 ml-1 ${isDark ? "text-[#E8D1AB] hover:text-[#F2E2C2]" : "text-[#7A5A00] hover:text-[#5E4300]"}`}
+                      >
+                        View Client Details
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

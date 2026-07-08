@@ -57,6 +57,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
   const [isAssignmentMissingDetailsModalOpen, setIsAssignmentMissingDetailsModalOpen] = useState(false);
   const [pendingAssignmentAction, setPendingAssignmentAction] = useState<(() => void) | null>(null);
   const { theme, resolvedTheme } = useTheme();
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
@@ -224,7 +225,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
 
           {activeTab === "Overview" && (
             <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:min-h-[572px]">
                 <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
                 <AssignedCP
                   projectId={id}

@@ -137,10 +137,10 @@ export default function MeetingsStructure({
                 }`}>
                 {/* Defined exact explicit widths on the table headers */}
                 <th className="p-5 font-medium w-[30%]">Meeting</th>
-                <th className="p-5 font-medium w-[15%]">Date & Time</th>
+                <th className="p-5 font-medium w-[22%]">Date & Time</th>
                 <th className="p-5 font-medium text-center w-[15%]">Participants</th>
                 <th className="p-5 font-medium text-center w-[12%]">Status</th>
-                <th className="p-5 font-medium text-right w-[28%]">Actions</th>
+                <th className="p-5 font-medium text-right w-[21%]">Actions</th>
               </tr>
             </thead>
             <tbody >
@@ -214,7 +214,7 @@ export default function MeetingsStructure({
                       <div className="flex flex-col gap-1 min-w-0">
                         <TruncatedDateTime value={formatDateTime(meeting.meeting_date_time)} isDark={isDark} />
                         {canRespond && (
-                          <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium capitalize text-amber-300 truncate">
+                          <span className="mt-1 inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-1 text-xs font-semibold leading-none text-amber-300">
                             Your response: {formatInvitationResponse(currentResponse ?? "")}
                           </span>
                         )}
@@ -478,8 +478,8 @@ function MobileMeetingRow({
                   <div className="text-sm mt-1 flex flex-col gap-1">
                     <TruncatedDateTime value={formatDateTime(meeting.meeting_date_time)} isDark={isDark} />
                     {canRespond && (
-                      <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium capitalize text-amber-300 truncate">
-                        Your response: {formatInvitationResponse(currentResponse ?? "")}
+                      <span className="inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold leading-none text-amber-300">
+                        Response: {formatInvitationResponse(currentResponse ?? "")}
                       </span>
                     )}
                   </div>
