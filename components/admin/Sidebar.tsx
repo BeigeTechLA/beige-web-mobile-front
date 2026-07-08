@@ -200,6 +200,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       );
     }
 
+    if (link === "/admin/quotes") {
+      return pathname === link;
+    }
+
     return isActiveLink(link);
   };
 
@@ -253,7 +257,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               return null;
             }
 
-            if (item.permissionKeys && item.permissionKeys.length > 0) {
+            if (item.name === "Users") {
+              const canViewUsers = Boolean(permissions?.users?.view);
+              if (!canViewUsers) return null;
+            } else if (item.permissionKeys && item.permissionKeys.length > 0) {
               const canView = hasModulePermission(permissions, item.permissionKeys, "view");
               if (!canView) return null;
             }

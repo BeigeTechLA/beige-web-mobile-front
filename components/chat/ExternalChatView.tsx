@@ -37,6 +37,7 @@ import {
 import ConversationComposerModal from "@/components/chat/ConversationComposerModal";
 import ManageParticipantsModal from "@/components/chat/ManageParticipantsModal";
 import EmptyChatState from "./EmptyChatState";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type RoomSortOrder = "latest" | "oldest";
@@ -628,6 +629,7 @@ export default function ExternalChatView({
   const userName = String(effectiveUser?.name || effectiveUser?.email || "").trim();
   const safeUserName = userName || `User ${userId || "guest"}`;
   const isAdminView = role === "admin";
+  const { canCreate: canCreateMessages } = usePermissions("messages");
   const shouldUseDirectRoom = Boolean(directRoomMode && bookingId);
   const socketServerUrl = useMemo(() => {
     const explicitSocketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "").trim();
@@ -679,7 +681,7 @@ export default function ExternalChatView({
     const participant = participantList.find((item) => participantMatchesAppUser(item, effectiveUser));
     return participant?.id ? String(participant.id) : userId;
   }, [participantList, effectiveUser, userId]);
-  const canCreateMessageRoom = isAdminView;
+  const canCreateMessageRoom = isAdminView && canCreateMessages;
 
   const scopedRooms = useMemo(
     () =>
