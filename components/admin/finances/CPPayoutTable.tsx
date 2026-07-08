@@ -476,21 +476,29 @@ export default function CPPayoutTable({
                       <div className="min-w-0 flex-1">
                         {type === "shoots" ? (
                           <>
-                            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#323232]"}`}>
-                              {row.shootName}
-                            </p>
-                            <p className={`text-xs capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}>
-                              {row.category}
-                            </p>
+                            <TruncatedTableText
+                              text={row.shootName || "Untitled Shoot"}
+                              isDark={isDark}
+                              className="block max-w-full text-sm font-semibold"
+                            />
+                            <TruncatedTableText
+                              text={row.category || "No Category"}
+                              isDark={isDark}
+                              className={`block max-w-full text-xs capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}
+                            />
                           </>
                         ) : (
                           <>
-                            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#323232]"}`}>
-                              {row.creatorName || "Unknown Creator"}
-                            </p>
-                            <p className={`text-xs capitalize max-w-full truncate ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}>
-                              {(row.creatorRoles || []).join(", ") || "No Roles Listed"}
-                            </p>
+                            <TruncatedTableText
+                              text={row.creatorName || "Unknown Creator"}
+                              isDark={isDark}
+                              className="block max-w-full text-sm font-semibold"
+                            />
+                            <TruncatedTableText
+                              text={(row.creatorRoles || []).join(", ") || "No Roles Listed"}
+                              isDark={isDark}
+                              className={`block max-w-full text-xs capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}
+                            />
                           </>
                         )}
                       </div>
@@ -523,7 +531,11 @@ export default function CPPayoutTable({
                         <>
                           <div>
                             <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Customer</p>
-                            <p className={`text-xs truncate font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>{row.customerName}</p>
+                            <TruncatedTableText
+                              text={row.customerName}
+                              isDark={isDark}
+                              className="block text-xs font-medium"
+                            />
                             {/* <p className={`text-[11px] truncate ${isDark ? "text-white/40" : "text-black/40"}`}>{row.customerEmail}</p> */}
                           </div>
                           <div className="text-right">
@@ -535,7 +547,11 @@ export default function CPPayoutTable({
                         <>
                           <div>
                             <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Shoot Title Context</p>
-                            <p className={`text-xs truncate font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>{row.shootName}</p>
+                            <TruncatedTableText
+                              text={row.shootName || "Untitled Shoot"}
+                              isDark={isDark}
+                              className="block text-xs font-medium"
+                            />
                           </div>
                           <div className="text-right">
                             <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Shoot ID</p>
@@ -639,7 +655,7 @@ export default function CPPayoutTable({
                           </>
                         ) : (
                           <>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
                               <div
                                 className="shrink-0 relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-[15px] font-medium text-[#171717]"
                                 style={{ backgroundColor: "#FED1EF" }}
@@ -655,15 +671,17 @@ export default function CPPayoutTable({
                                   getInitials((row.creatorName || ""))
                                 )}
                               </div>
-                              <div>
+                              <div className="min-w-0 flex-1">
                                 <TruncatedTableText
                                   text={row.creatorName || "Unknown Creator"}
                                   isDark={isDark}
-                                  className="block"
+                                  className="block max-w-full"
                                 />
-                                <p className={`text-xs font-normal capitalize truncate max-w-full ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}>
-                                  {(row.creatorRoles || []).join(", ") || "No Roles Listed"}
-                                </p>
+                                <TruncatedTableText
+                                  text={(row.creatorRoles || []).join(", ") || "No Roles Listed"}
+                                  isDark={isDark}
+                                  className={`block max-w-full text-xs font-normal capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}
+                                />
                               </div>
                             </div>
                           </>
@@ -943,7 +961,7 @@ const TruncatedTableText = ({
             ref={textRef}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            className={`min-w-0 truncate cursor-default ${className} ${isDark ? "text-white" : "text-[#171717]"}`}
+            className={`min-w-0 truncate cursor-default ${isDark ? "text-white" : "text-[#171717]"} ${className}`}
           >
             {text}
           </span>
