@@ -3,7 +3,7 @@
 import React from "react";
 import { X, Calendar, MapPin, Clock, Download, Send } from "lucide-react";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { EarningsStatusBadge, Status } from "./EarningsStatusBadge";
+import { Status } from "./EarningsStatusBadge";
 import { formatCurrency } from "@/lib/utils";
 
 interface EarningsBreakdownModalProps {
@@ -29,6 +29,15 @@ interface EarningsBreakdownModalProps {
     remainingBalance: number;
     paymentProgress: number; // e.g., 25
   };
+  paymentReceipts?: Array<{
+    id: string;
+    title: string;
+    subtitle?: string;
+    amount: string;
+    dateLabel: string;
+    downloadUrl?: string | null;
+    fileName?: string | null;
+  }>;
   onDownloadProof?: () => void;
   onViewTimeline?: () => void;
 }
@@ -37,6 +46,7 @@ export default function EarningsBreakdownModal({
   isOpen,
   onClose,
   shootData,
+  paymentReceipts = [],
   onDownloadProof,
   onViewTimeline,
 }: EarningsBreakdownModalProps) {
@@ -229,6 +239,41 @@ export default function EarningsBreakdownModal({
               </div>
             </div>
 
+            {paymentReceipts.length > 0 && (
+              <div className="space-y-3 lg:space-y-4">
+                <h3 className="text-base lg:text-xl font-semibold text-white capitalize">
+                  Payment Receipts
+                </h3>
+                <div className="rounded-lg bg-[#1F1F1F] divide-y divide-white/10 overflow-hidden">
+                  {paymentReceipts.map((receipt) => (
+                    <div key={receipt.id} className="flex items-center justify-between gap-3 p-3 lg:p-4">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <p className="text-sm font-semibold text-white">{receipt.title}</p>
+                          <span className="text-sm font-bold text-[#E8D1AB]">{receipt.amount}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-white/50 truncate">
+                          {receipt.dateLabel}{receipt.subtitle ? ` - ${receipt.subtitle}` : ""}
+                        </p>
+                      </div>
+                      {receipt.downloadUrl ? (
+                        <a
+                          href={receipt.downloadUrl}
+                          download={receipt.fileName || "payment-proof.pdf"}
+                          className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 text-white/80 transition-colors hover:border-[#E8D1AB] hover:text-[#E8D1AB]"
+                          title={`Download ${receipt.fileName || "payment proof"}`}
+                        >
+                          <Download size={15} />
+                        </a>
+                      ) : (
+                        <span className="shrink-0 text-xs text-white/30">No proof</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Section 4: Progress Indicator Metric Tracking Bar */}
             <div className="space-y-2">
               <div className="flex justify-between items-center text-xs lg:text-sm">
@@ -256,10 +301,11 @@ export default function EarningsBreakdownModal({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-8 pt-2">
             <button
               onClick={onDownloadProof}
-              className="h-14 lg:h-12 rounded-lg border border-[#262626] lg:border-[#8E8E8E] bg-[#1F1F1F] lg:bg-[#101010] hover:bg-[#101010]/90 text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+              disabled={paymentReceipts.length !== 1}
+              className="h-14 lg:h-12 rounded-lg border border-[#262626] lg:border-[#8E8E8E] bg-[#1F1F1F] lg:bg-[#101010] hover:bg-[#101010]/90 text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download size={16} className="text-white" />
-              <span>Download Payment Proof</span>
+              <span>{paymentReceipts.length > 1 ? "Use Receipt List" : "Download Payment Proof"}</span>
             </button>
             <button
               onClick={onViewTimeline}

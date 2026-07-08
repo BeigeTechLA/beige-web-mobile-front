@@ -54,7 +54,12 @@ export default function PaymentTimelineModal({
         <hr className={`border-t ${isDark ? "border-[#CACACA]" : "border-[#000000]/30"}`} />
 
         <div className="p-6 lg:p-8 overflow-y-auto no-scrollbar">
-          <div className="relative space-y-6 lg:space-y-16">
+          {data.length === 0 ? (
+            <div className={`flex min-h-[240px] items-center justify-center rounded-lg border text-sm ${isDark ? "border-white/10 bg-white/[0.03] text-white/50" : "border-black/10 bg-black/[0.03] text-black/50"}`}>
+              No payout timeline is available yet.
+            </div>
+          ) : (
+          <div className="relative space-y-6 lg:space-y-12">
             {data.map((event, idx) => {
               const isLast = idx === data.length - 1;
 
@@ -85,7 +90,7 @@ export default function PaymentTimelineModal({
 
                   {/* Description Context & Time Fields Row Content */}
                   <div className="flex-1 flex flex-col sm:flex-row sm:items-start justify-between gap-1 sm:gap-4 min-w-0">
-                    <div className="text-lg lg:text-[22px] tracking-wide">
+                    <div className="text-base lg:text-xl tracking-wide">
                       <span
                         className={`font-medium ${isDark ? "text-white" : "text-black"}`}
                       >
@@ -99,7 +104,7 @@ export default function PaymentTimelineModal({
                     </div>
 
                     {event.date && (
-                      <span className={`text-base lg:text-xl font-normal whitespace-nowrap pt-0.5 sm:text-right ${isDark ? "text-[#8C9097]" : "text-black/20"}`}>
+                      <span className={`text-sm lg:text-lg font-normal whitespace-nowrap pt-0.5 sm:text-right ${isDark ? "text-[#8C9097]" : "text-black/40"}`}>
                         {event.date}
                       </span>
                     )}
@@ -108,6 +113,7 @@ export default function PaymentTimelineModal({
               );
             })}
           </div>
+          )}
         </div>
       </div>
     </div>

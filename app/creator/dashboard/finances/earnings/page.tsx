@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {usePathname} from "next/navigation";
+import { usePathname } from "next/navigation";
 import EarningsOverviewChart from "@/components/creator-profile/EarningsOverviewChart";
 import EarningsCard, { EarningsCardData } from "@/components/creator-profile/EarningsCard";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -19,6 +19,8 @@ import EarningsBreakdownModal from "@/components/creator-profile/EarningsBreakdo
 import PaymentTimelineModal, { TimelineEvent } from "@/components/creator-profile/PaymentTimelineModal";
 import { getCreatorEarningDetails, getCreatorEarningsDashboard, getCreatorEarningsList } from "@/lib/api";
 import { useDebounce } from "@/hooks/use-debounce";
+import Topbar from "@/components/admin/Topbar";
+import { formatCurrency } from "@/lib/utils";
 
 const EARNINGS_PAGE_LIMIT = 10;
 
@@ -138,6 +140,20 @@ interface CreatorEarningsDashboardData {
   }>;
 }
 
+interface PaymentProofData {
+  id?: string | number;
+  type?: string | null;
+  method?: string | null;
+  status?: string | null;
+  amount?: number | string | null;
+  paid_at?: string | null;
+  receipt_url?: string | null;
+  receipt_download_url?: string | null;
+  proof_file_name?: string | null;
+  notes?: string | null;
+  transaction_reference?: string | null;
+}
+
 interface SelectedShootData {
   shootName: string;
   clientName: string;
@@ -167,6 +183,124 @@ interface TimelineApiEvent {
   event_date?: string;
   is_completed: boolean;
 }
+
+interface PaymentReceiptItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  amount: string;
+  dateLabel: string;
+  downloadUrl?: string | null;
+  fileName?: string | null;
+}
+
+interface CreatorEarningDetailsData {
+  timeline?: TimelineApiEvent[];
+  payment_history?: PaymentProofData[];
+}
+
+const joinAssetUrl = (baseUrl: string | undefined, pathValue: string) => {
+  const base = String(baseUrl || "").trim();
+  if (!base) return "";
+  return `${base.replace(/\/+$/, "")}/${pathValue.replace(/^\/+/, "")}`;
+};
+
+const getReceiptFileName = (value?: string | null) => {
+  const raw = String(value || "").split("?")[0];
+  return raw.split("/").filter(Boolean).pop() || "payment-proof.pdf";
+};
+
+const resolveReceiptUrl = (value?: string | null, fallbackFileName?: string | null) => {
+  const raw = String(value || fallbackFileName || "").trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  const normalizedPath = raw.replace(/^beige\//i, "");
+  return (
+    joinAssetUrl(process.env.NEXT_PUBLIC_IMG_URL_CDN, normalizedPath) ||
+    joinAssetUrl(process.env.NEXT_PUBLIC_IMG_URL, normalizedPath) ||
+    raw
+  );
+};
+
+const buildProofDownloadUrl = (url: string, filename: string) => {
+  const params = new URLSearchParams({
+    url,
+    filename,
+    disposition: "attachment",
+  });
+  return `/api/cp-compensation-receipt?${params.toString()}`;
+};
+
+const formatPaymentType = (value?: string | null) => {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized.includes("advance") || normalized.includes("partial")) return "Applied as partial payment";
+  if (normalized.includes("final")) return "Final payment";
+  return "Payment received";
+};
+
+const mapPaymentHistoryToReceipts = (paymentHistory: PaymentProofData[] = []): PaymentReceiptItem[] => (
+  paymentHistory.map((payment, index) => {
+    const rawProofUrl = payment.receipt_download_url || payment.receipt_url || null;
+    const fileName = payment.proof_file_name || (rawProofUrl ? getReceiptFileName(rawProofUrl) : "payment-proof.pdf");
+    const resolvedProofUrl = resolveReceiptUrl(rawProofUrl, fileName);
+    const method = String(payment.method || "").trim();
+    const reference = String(payment.transaction_reference || "").trim();
+    const notes = String(payment.notes || "").trim();
+    const subtitle = [
+      method ? `via ${method}` : "",
+      reference ? `ref ${reference}` : "",
+      notes,
+    ].filter(Boolean).join(" - ");
+
+    return {
+      id: String(payment.id || `payment-${index}`),
+      title: formatPaymentType(payment.type),
+      subtitle,
+      amount: formatCurrency(Number(payment.amount || 0)),
+      dateLabel: formatDate(payment.paid_at || undefined, "long") || "Date not available",
+      downloadUrl: resolvedProofUrl ? buildProofDownloadUrl(resolvedProofUrl, fileName) : null,
+      fileName,
+    };
+  })
+);
+
+const mapDetailsToPayoutTimeline = (detailsData: CreatorEarningDetailsData): TimelineEvent[] => {
+  const events: TimelineEvent[] = [];
+  const financeApproval = (detailsData?.timeline || []).find((event: TimelineApiEvent) => (
+    event.event_type === "awaiting_finance_approval"
+  ));
+
+  if (financeApproval) {
+    events.push({
+      id: String(financeApproval.timeline_event_id || "finance-approval"),
+      title: financeApproval.label || "Finance Approval",
+      description: financeApproval.sub_label || undefined,
+      date: financeApproval.event_date ? formatDate(financeApproval.event_date, "long") : undefined,
+      isCompleted: financeApproval.is_completed,
+    });
+  }
+
+  const paymentEvents = (detailsData?.payment_history || []).map((payment: PaymentProofData, index: number) => {
+    const method = String(payment.method || "").trim();
+    const notes = String(payment.notes || "").trim();
+    const description = [
+      `${formatCurrency(Number(payment.amount || 0))} paid`,
+      method ? `via ${method}` : "",
+      notes,
+    ].filter(Boolean).join(" - ");
+
+    return {
+      id: String(payment.id || `payment-${index}`),
+      title: formatPaymentType(payment.type),
+      description,
+      date: payment.paid_at ? formatDate(payment.paid_at, "long") : undefined,
+      isCompleted: true,
+    };
+  });
+
+  return [...events, ...paymentEvents];
+};
 
 const getEarningStatus = (row: CreatorEarningRow): EarningsCardData["status"] =>
   row.status || row.status_label || "Unknown";
@@ -271,6 +405,7 @@ export default function RequestsShootsPage() {
 
   const [selectedEarningId, setSelectedEarningId] = useState<number | null>(null);
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
+  const [paymentReceipts, setPaymentReceipts] = useState<PaymentReceiptItem[]>([]);
 
   const earningsDateParams = useMemo(
     () => buildEarningsDateParams(range, selectedDate),
@@ -352,10 +487,20 @@ export default function RequestsShootsPage() {
     );
   }
 
-  const handleViewEarnings = (row: CreatorEarningRow) => {
+  const handleViewEarnings = async (row: CreatorEarningRow) => {
     setSelectedShootData(mapRowToShootData(row));
     setSelectedEarningId(Number(row.creator_earning_id));
+    setPaymentReceipts([]);
     setIsModalOpen(true);
+
+    try {
+      const details = await getCreatorEarningDetails(Number(row.creator_earning_id));
+      if (details?.success && details?.data?.payment_history) {
+        setPaymentReceipts(mapPaymentHistoryToReceipts(details.data.payment_history));
+      }
+    } catch (error) {
+      console.error("Error fetching payment receipts:", error);
+    }
   }
 
   const totalPages = Math.max(1, pagination.total_pages);
@@ -381,15 +526,8 @@ export default function RequestsShootsPage() {
     try {
       const details = await getCreatorEarningDetails(selectedEarningId);
 
-      if (details?.success && details?.data?.timeline) {
-        const mappedTimeline: TimelineEvent[] = details.data.timeline.map((event: TimelineApiEvent) => ({
-          id: event.timeline_event_id.toString(),
-          title: event.label || event.event_type,
-          description: event.sub_label || undefined,
-          date: event.event_date ? formatDate(event.event_date, 'long') : undefined,
-          isCompleted: event.is_completed,
-        }));
-        setTimelineData(mappedTimeline);
+      if (details?.success && details?.data) {
+        setTimelineData(mapDetailsToPayoutTimeline(details.data));
       } else {
         setTimelineData([]);
       }
@@ -402,15 +540,46 @@ export default function RequestsShootsPage() {
     }
   }
 
+  const handleDownloadProof = async () => {
+    if (!selectedEarningId) {
+      toast.error("Select an earning first");
+      return;
+    }
+
+    try {
+      const details = await getCreatorEarningDetails(selectedEarningId);
+      const receipts = mapPaymentHistoryToReceipts(details?.data?.payment_history || []);
+      setPaymentReceipts(receipts);
+      const latestReceipt = receipts.find((receipt) => receipt.downloadUrl);
+
+      if (!latestReceipt?.downloadUrl) {
+        toast.error("No payment proof is attached for this earning yet");
+        return;
+      }
+
+      if (receipts.filter((receipt) => receipt.downloadUrl).length > 1) {
+        toast.message("Multiple receipts found. Use the receipt list to download each payment proof.");
+      }
+
+      window.open(latestReceipt.downloadUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Error downloading payment proof:", error);
+      toast.error("Failed to download payment proof");
+    }
+  };
+
   return (
-    <div className="mx-auto space-y-4 lg:space-y-8 pb-12 text-white">
+    <>
+    <Topbar pathname={pathname} />
+    <div className="overflow-hidden p-4 pb-12 text-white lg:px-10 lg:py-9">
+    <div className="mx-auto w-full max-w-[1800px] space-y-4 lg:space-y-8">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between lg:mb-6">
         <div>
           <h1 className="text-base lg:text-3xl font-bold">Earnings Dashboard</h1>
           <p className="text-xs lg:text-base text-white/60">Monitor upcoming earnings, track payment status, and view detailed compensation breakdowns for your shoots.</p>
         </div>
-        <SortDateButton selectedDate={selectedDate} onDateChange={handleDateChange} />
+        {/* <SortDateButton selectedDate={selectedDate} onDateChange={handleDateChange} /> */}
       </div>
 
       <EarningsOverviewChart
@@ -437,7 +606,7 @@ export default function RequestsShootsPage() {
                   <SelectItem value="Accepted">Accepted</SelectItem>
                 </SelectContent>
               </Select> */}
-              <Select value={range} onValueChange={(val) => { setRange(val); setCurrentPage(1); }}>
+              {/* <Select value={range} onValueChange={(val) => { setRange(val); setCurrentPage(1); }}>
                 <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"}`}>
                   <SelectValue placeholder="Range" />
                 </SelectTrigger>
@@ -447,7 +616,7 @@ export default function RequestsShootsPage() {
                   <SelectItem value="month">This Month</SelectItem>
                   {selectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
                 </SelectContent>
-              </Select>
+              </Select> */}
             </div>
           </div>
           <div className="relative w-full">
@@ -549,7 +718,8 @@ export default function RequestsShootsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         shootData={selectedShootData}
-        onDownloadProof={() => console.log("Downloading...")}
+        paymentReceipts={paymentReceipts}
+        onDownloadProof={handleDownloadProof}
         onViewTimeline={() => handleViewTimeline()}
       />
 
@@ -559,5 +729,7 @@ export default function RequestsShootsPage() {
         timelineData={timelineData}
       />
     </div>
+    </div>
+    </>
   );
 }

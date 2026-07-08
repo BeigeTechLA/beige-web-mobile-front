@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Image from "next/image";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useTheme } from "next-themes";
 import {
@@ -10,18 +11,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatCurrency } from "@/lib/utils";
 
 const CustomClockIcon = ({ size = 16 }) => (
-  <img src="/images/misc/overviewicons/Clock.svg" width={size} height={size} alt="clock" />
+  <Image src="/images/misc/overviewicons/Clock.svg" width={size} height={size} alt="clock" />
 );
 const CustomDollarIcon = ({ size = 16 }) => (
-  <img src="/images/misc/overviewicons/DollarMinimalistic.svg" width={size} height={size} alt="dollar" />
+  <Image src="/images/misc/overviewicons/DollarMinimalistic.svg" width={size} height={size} alt="dollar" />
 );
 const CustomGraphIcon = ({ size = 16 }) => (
-  <img src="/images/misc/overviewicons/GraphUp.svg" width={size} height={size} alt="graph" />
+  <Image src="/images/misc/overviewicons/GraphUp.svg" width={size} height={size} alt="graph" />
 );
 const CustomWalletIcon = ({ size = 16 }) => (
-  <img src="/images/misc/overviewicons/WalletMoney.svg" width={size} height={size} alt="wallet" />
+  <Image src="/images/misc/overviewicons/WalletMoney.svg" width={size} height={size} alt="wallet" />
 );
 
 const initialMetrics = [
@@ -104,9 +106,11 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
 
   const stopColor = isDark ? "#E5D5B8" : "#000000";
   const stopOpacityStart = isDark ? 0.3 : 0.4;
+  const chartMetricKey = "paid";
+  const chartMetricLabel = "Paid Earnings";
 
   return (
-    <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div className={`transition-colors duration-300 border rounded-2xl p-4 lg:p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       {/* Header */}
       <div className="flex justify-between items-center mb-5 lg:mb-8">
         <div className="flex items-center gap-2">
@@ -114,7 +118,7 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
           <p className="font-medium text-sm lg:text-base">Overview</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={range} onValueChange={(val) => setRange(val)}>
+          {/* <Select value={range} onValueChange={(val) => setRange(val)}>
             <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
               }`}>
               <SelectValue placeholder="Range" />
@@ -125,12 +129,12 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
               <SelectItem value="month">This Month</SelectItem>
               {overviewData && <SelectItem value="custom">Selected Date</SelectItem>}
             </SelectContent>
-          </Select>
+          </Select> */}
         </div>
       </div>
 
       {/* Metric Cards Grid */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10 rounded-2xl p-4 ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-8 lg:mb-10 rounded-xl p-3 lg:p-4 ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
         }`}>
         {metrics.map((m) => {
           const isActive = activeMetric === m.id;
@@ -152,8 +156,8 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
                 </div>
               </div>
 
-              <div className="text-[26px] font-bold mb-2">
-                {isLoading ? <div className={`h-8 w-12 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-zinc-200"}`} /> : "$" + m.value}
+              <div className="text-2xl lg:text-[26px] font-bold mb-2">
+                {isLoading ? <div className={`h-8 w-12 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-zinc-200"}`} /> : formatCurrency(m.value)}
               </div>
 
               <div className={`text-xs flex gap-1 items-center ${isActive ? 'text-[#171717]' : (isDark ? 'text-white/70' : 'text-zinc-500')}`}>
@@ -193,6 +197,13 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
               axisLine={false}
               tickLine={false}
               tick={{ fill: isDark ? '#ffffff66' : '#32323266', fontSize: 12 }}
+              width={64}
+              tickFormatter={(value) => {
+                const numeric = Number(value);
+                if (!Number.isFinite(numeric)) return String(value);
+                if (numeric >= 1000) return `$${Math.round(numeric / 1000)}k`;
+                return `$${numeric}`;
+              }}
             />
             <Tooltip
               contentStyle={{
@@ -203,10 +214,11 @@ export default function EarningsOverviewChart({ overviewData, chartData }: Earni
               }}
               itemStyle={{ color: '#BFA780' }}
               cursor={{ stroke: '#E5D5B8', strokeWidth: 1 }}
+              formatter={(value) => [formatCurrency(Number(value || 0)), chartMetricLabel]}
             />
             <Area
               type="monotone"
-              dataKey={activeMetric}
+              dataKey={chartMetricKey}
               stroke={isDark ? '#E5D5B8' : '#00000066'}
               strokeWidth={2}
               fillOpacity={1}
