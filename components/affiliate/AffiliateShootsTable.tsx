@@ -27,6 +27,8 @@ import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type Status = "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Pending" | "Cancelled" | "Unknown";
+const PAID_PAYMENT_STATUSES = new Set(["paid", "completed", "success", "no_payment_due"]);
+const PARTIAL_PAYMENT_STATUSES = new Set(["partially_paid", "partial_paid"]);
 
 interface ShootRecord {
   id: string;
@@ -40,7 +42,7 @@ interface ShootRecord {
   rawPrice: number; // Added for correct numerical sorting
   status: Status;
   hasQuote: boolean;
-  paymentStatus: "paid" | "pending";
+  paymentStatus: "paid" | "partial" | "pending";
   needsAttention?: {
     required: boolean;
     missing_fields: string[];
@@ -189,7 +191,11 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
             rawPrice: numericAmount,
             status: statusLabel as Status,
             hasQuote,
-            paymentStatus: project.payment_status === "paid" || !!project.payment_id ? "paid" : "pending",
+            paymentStatus: PAID_PAYMENT_STATUSES.has(String(project.payment_status || "").toLowerCase()) || !!project.payment_id
+              ? "paid"
+              : PARTIAL_PAYMENT_STATUSES.has(String(project.payment_status || "").toLowerCase())
+                ? "partial"
+                : "pending",
             needsAttention: project.needs_attention
               ? {
                 required: Boolean(project.needs_attention.required),
@@ -451,14 +457,16 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                       <p className={`text-[10px] uppercase tracking-wider ${isDark ? "text-white/40" : "text-[#666666]"}`}>Payment</p>
                       <p className={`text-sm font-medium mt-0.5 ${shoot.paymentStatus === "paid"
                         ? (isDark ? "text-emerald-400" : "text-emerald-600")
-                        : (isDark ? "text-amber-400" : "text-amber-600")
+                        : shoot.paymentStatus === "partial"
+                          ? (isDark ? "text-blue-300" : "text-blue-600")
+                          : (isDark ? "text-amber-400" : "text-amber-600")
                         }`}>
-                        {shoot.paymentStatus === "paid" ? "Done" : "Pending"}
+                        {shoot.paymentStatus === "paid" ? "Done" : shoot.paymentStatus === "partial" ? "Partial" : "Pending"}
                       </p>
                     </div>
                     {/* Action Buttons Container */}
                     <div className="col-span-2 pt-2 space-y-2">
-                      {shoot.paymentStatus === "pending" && (
+                      {shoot.paymentStatus !== "paid" && (
                         <button
                           onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
                           className={`w-full py-2 rounded-lg text-sm font-semibold transition-all bg-[#E8D1AB] text-black hover:bg-[#dcb98a]`}
@@ -592,15 +600,15 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
 
                       {/* Payment */}
                       <td className="py-5 px-6">
-                        <span className={`px-4 py-1 text-xs lg:px-6 lg:py-2 lg:text-sm rounded-full font-semibold ${shoot.paymentStatus === "paid" ? "text-green-400 bg-green-400/10" : "text-yellow-400 bg-yellow-400/10"}`}>
-                          {shoot.paymentStatus === "paid" ? "Done" : "Pending"}
+                        <span className={`px-4 py-1 text-xs lg:px-6 lg:py-2 lg:text-sm rounded-full font-semibold ${shoot.paymentStatus === "paid" ? "text-green-400 bg-green-400/10" : shoot.paymentStatus === "partial" ? "text-blue-300 bg-blue-400/10" : "text-yellow-400 bg-yellow-400/10"}`}>
+                          {shoot.paymentStatus === "paid" ? "Done" : shoot.paymentStatus === "partial" ? "Partial" : "Pending"}
                         </span>
                       </td>
 
                       {/* Action */}
                       <td className="py-5 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {shoot.paymentStatus === "pending" && (
+                          {shoot.paymentStatus !== "paid" && (
                             <button
                               onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
                               className="px-3 py-1.5 rounded-lg bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-xs font-semibold"
