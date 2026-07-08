@@ -1,17 +1,34 @@
 "use client";
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Calendar, User, Wallet, Settings, X, type LucideIcon, CircleDollarSign, ChevronDown } from 'lucide-react';
-import Link from 'next/link';
-import { useAuth } from "@/lib/hooks/useAuth";
+import Link from "next/link";
 import Image from "next/image";
-
+import {
+  LayoutDashboard,
+  Camera,
+  FolderOpen,
+  CalendarClock,
+  MessageCircle,
+  Calendar,
+  User,
+  CircleDollarSign,
+  ChevronDown,
+  Wallet,
+  Settings,
+  LogOut,
+  X,
+  type LucideIcon
+} from "lucide-react";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
 
 interface SidebarProps {
   onClose?: () => void;
+  permissionsVersion?: number;
 }
 
 type MenuItem = {
@@ -22,18 +39,15 @@ type MenuItem = {
   children?: { label: string; href: string; isPublic?: boolean }[];
 };
 
-export default function Sidebar({ onClose }: SidebarProps) {
+export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { isDark } = useResolvedTheme();
 
   const initialPath = useRef(pathname);
-
-  const [mounted, setMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Finances"]);
-
-  useEffect(() => setMounted(true), []);
 
   // Auto-expand dynamic parent routes on load/change
   useEffect(() => {
@@ -57,7 +71,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
     router.push("/");
   }, [logout, onClose, router]);
 
-  // LOGIC TO SYNC SIDEBAR LOCKS AND CHECK STATUS
+  // Handle active validation states inside sidebar frame 
   useEffect(() => {
     const syncStatus = async () => {
       const userStr = typeof window !== 'undefined' ? localStorage.getItem("revure_user") : null;
@@ -94,8 +108,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
       onClose();
     }
   }, [pathname, onClose]);
-
-  const isDark = !mounted || true;
 
   const handleNavigation = (link: string) => {
     if (link && link !== "#") {
@@ -142,20 +154,23 @@ export default function Sidebar({ onClose }: SidebarProps) {
     { href: "/creator/dashboard/affiliate", icon: LayoutDashboard, label: "Affiliate", isPublic: false },
     { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", isPublic: false },
     { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
-    {
-      label: 'Finances',
-      icon: CircleDollarSign,
-      isPublic: false,
-      children: [
-        { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
-      ],
-    },
+    // {
+    //   label: 'Finances',
+    //   icon: CircleDollarSign,
+    //   isPublic: false,
+    //   children: [
+    //     { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
+    //   ],
+    // },
   ];
 
   return (
-    <aside className={`
+    <aside key={`creator-nav-${permissionsVersion}`} className={`
       w-full lg:w-64 border-r flex flex-col justify-between py-6 lg:py-9 px-5 h-full overflow-hidden transition-colors duration-100
-      ${isDark ? "border-zinc-800 bg-[#0A0A0A]" : "border-[#D8D8D8] bg-white"}
+      ${isDark
+        ? "border-zinc-800 bg-[#0A0A0A]"
+        : "border-[#D8D8D8] bg-white shadow-[0_8px_24px_0_rgba(149,157,165,0.10)]"
+      }
     `}>
       {/* Mobile Header with Logo and Close Button */}
       <div className="flex items-center justify-between lg:justify-center mb-8">
@@ -166,9 +181,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
             width={100}
             height={20}
           />
-          <span className={`absolute right-0 -bottom-3 text-[8px] font-medium tracking-wide py-[1px] px-1 rounded-full border backdrop-blur-xs overflow-hidden ${
-            isDark ? "text-white border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)]" : "text-black border-black/20"
-          }`}>
+          {/* Beta Tag */}
+          <span className={`absolute right-0 -bottom-3 text-[8px] font-medium tracking-wide py-[1px] px-1 rounded-full border backdrop-blur-xs overflow-hidden ${isDark ? "text-white border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)]" : "text-black border-black/20 shadow-sm"
+            }`}>
             Beta
             <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
           </span>
@@ -231,7 +246,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
                 {/* Submenu Expansion container */}
                 {hasChildren && isExpanded && (
-                  <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
+                  <div className={`mt-1 ml-4 border-l pl-4 space-y-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}>
                     {item.children!.map((child) => {
                       const childActive = isChildActive(child.href);
                       const childLocked = !isVerified && !child.isPublic;
@@ -248,11 +263,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
                         <button
                           key={child.label}
                           onClick={() => handleNavigation(child.href)}
-                          className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${
-                            childActive
+                          className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${childActive
                               ? (isDark ? "text-white font-medium bg-zinc-900" : "text-[#101010] font-bold bg-zinc-100")
                               : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
-                          }`}
+                            }`}
                         >
                           {child.label}
                         </button>
@@ -289,9 +303,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
         <button
           onClick={handleLogout}
-          className={`flex items-center w-full gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-            isDark ? "text-[#171717] bg-[#FFFFFF]" : "text-[#FFFFFF] bg-[#171717]"
-          }`}
+          className={`flex items-center w-full gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${isDark ? "text-[#171717] bg-[#FFFFFF]" : "text-[#FFFFFF] bg-[#171717]"}`}
         >
           <LogOut size={16} />
           <span>Sign Out</span>

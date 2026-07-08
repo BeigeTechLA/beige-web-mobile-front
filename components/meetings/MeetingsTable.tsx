@@ -192,7 +192,7 @@ export default function MeetingsStructure({
                             >
                               <TruncatedMeetingTitle
                                 title={part.trim()}
-                                isDark={true}
+                                isDark={isDark}
                               />
                             </div>
                           ))}
@@ -424,7 +424,7 @@ function MobileMeetingRow({
                 >
                   <TruncatedMeetingTitle
                     title={part.trim()}
-                    isDark={true}
+                    isDark={isDark}
                   />
                 </div>
               ))}

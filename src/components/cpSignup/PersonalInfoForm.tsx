@@ -50,7 +50,37 @@ const locationPickerDarkTheme = {
   searchResultHover: "#1A1A1A",
 };
 
-const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
+// Light theme definitions for LocationPicker
+const locationPickerLightTheme = {
+  inputBg: "#FAFAFA",
+  inputBorder: "rgba(0,0,0,0.1)",
+  inputBorderHover: "#cbb38b",
+  inputBorderFocus: "#cbb38b",
+  labelText: "rgba(0,0,0,0.4)",
+  placeholderText: "rgba(0,0,0,0.3)",
+  primaryText: "#000000",
+  secondaryText: "rgba(0,0,0,0.6)",
+  iconBg: "#F5F5F5",
+  iconBgHover: "rgba(203, 179, 139, 0.1)",
+  iconColor: "rgba(0,0,0,0.4)",
+  iconColorHover: "#cbb38b",
+  iconBgSelected: "rgba(203, 179, 139, 0.2)",
+  iconColorSelected: "#cbb38b",
+  buttonPrimaryBg: "#cbb38b",
+  buttonPrimaryBgHover: "#bfa57c",
+  buttonPrimaryText: "#FFFFFF",
+  buttonSecondaryBg: "transparent",
+  buttonSecondaryBgHover: "rgba(0,0,0,0.05)",
+  buttonSecondaryText: "#000000",
+  accent: "#cbb38b",
+  accentHover: "#bfa57c",
+  paperBg: "#FFFFFF",
+  divider: "rgba(0,0,0,0.1)",
+  searchResultHover: "#F0F0F0",
+};
+
+// Assuming isDark context flag is provided or passed here
+const PersonalInfoForm = ({ profile = {}, onChange, isDark = true }: any) => {
   const [formData, setFormData] = useState({
     first_name: profile.first_name || "",
     last_name: profile.last_name || "",
@@ -99,12 +129,18 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
     onChange?.(newData);
   };
 
-  const labelClasses = "text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 block";
-  const inputClasses = "h-12 bg-black border-white/10 text-white rounded-xl focus:border-[#E8D1AB]/50 focus:ring-0 transition-all placeholder:text-white/10";
+  const labelClasses = `text-[10px] font-bold uppercase tracking-widest mb-2 block transition-colors ${
+    isDark ? "text-white/40" : "text-black/40"
+  }`;
+
+  const inputClasses = `h-12 border rounded-xl focus:ring-0 transition-all text-sm md:text-base ${
+    isDark 
+      ? "bg-black border-white/10 text-white focus:border-[#E8D1AB]/50 placeholder:text-white/20" 
+      : "bg-neutral-50 border-black/10 text-black focus:border-[#cbb38b]/50 placeholder:text-black/30"
+  }`;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12 animate-in fade-in duration-500">
-
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12 animate-in fade-in duration-300">
       <div className="flex flex-col">
         <Label className={labelClasses}>First Name</Label>
         <Input
@@ -155,7 +191,7 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
           value={formData.location}
           onChange={handleLocationChange}
           placeholder="Click to select venue location on map"
-          colors={locationPickerDarkTheme} // Pass the dark theme here
+          colors={isDark ? locationPickerDarkTheme : locationPickerLightTheme}
         />
       </div>
 
@@ -168,7 +204,9 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
           <SelectTrigger className={inputClasses}>
             <SelectValue placeholder="Select working distance" />
           </SelectTrigger>
-          <SelectContent className="bg-[#111111] border-white/10 text-white">
+          <SelectContent className={`border transition-colors ${
+            isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/10 text-black"
+          }`}>
             {distanceOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}

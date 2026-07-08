@@ -735,7 +735,7 @@ export default function SubFolderDetailsPage() {
 
             <div className="p-4 lg:p-5">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
-                <div className="relative w-full lg:max-w-md lg:max-w-xl">
+                <div className="relative w-full lg:max-w-md lg:max-w-lg">
                   <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 ${isDark ? "text-white/40" : "text-black/40"}`} />
 	                  <input
 	                    type="text"

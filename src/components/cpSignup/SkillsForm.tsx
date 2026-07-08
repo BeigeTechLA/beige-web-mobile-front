@@ -9,9 +9,10 @@ interface SkillsFormProps {
   value?: any[]; // Array of objects like {id: 19, name: 'Weddings'}
   primaryRole?: string; // The messy string from API: "["[\"10\"]"]"
   onChange?: (skills: any[]) => void;
+  isDark?: boolean;
 }
 
-const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
+const SkillsForm = ({ value = [], primaryRole, onChange, isDark = true }: SkillsFormProps) => {
   
   // 1. ROBUST ROLE PARSING
   const getRoleId = () => {
@@ -36,7 +37,6 @@ const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
 
   // 2. SELECT THE CORRECT LIST BASED ON ROLE
   const getOptionsByRole = () => {
-    // Note: In your specific data: 9=Video, 10=Photo, 11=Editor
     if (roleId === "1") return videographerSkills;
     if (roleId === "2") return photographerSkills;
     if (roleId === "3") return editorSkills;
@@ -48,7 +48,6 @@ const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
   const currentOptions = getOptionsByRole();
 
   // 3. MAP PROFILE SKILLS TO IDs (for the selection UI)
-  // Profile has {id, name}, Static Data has {value, label}
   const selectedIds = value?.map(skill => {
     if (typeof skill === 'object' && skill !== null) {
       return (skill.id || skill.value)?.toString();
@@ -61,10 +60,9 @@ const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
       <AddSkills
         value={selectedIds}
         options={currentOptions} // Uses value/label directly from your static data
+        isDark={isDark}
         onChange={(newIds) => {
           // 4. MAP BACK TO PROFILE FORMAT {id, name}
-          // When user selects a skill, find it in the static list 
-          // and format it for the API/State
           const updatedSkills = currentOptions
             .filter((opt: any) => newIds.includes(opt.value.toString()))
             .map((opt: any) => ({

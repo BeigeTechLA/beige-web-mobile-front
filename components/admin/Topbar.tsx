@@ -31,6 +31,9 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
     .filter((path) => path)
     .filter((path) => path !== "admin");
 
+  const pathSegments = pathname.replace(/\/$/, "").split("/");
+  const isDashboardRoot = pathSegments[pathSegments.length - 1] === "dashboard";
+
   const isShootsPage = pathname.includes("shoots");
 
   const isDark = !mounted || theme === "dark";
@@ -52,8 +55,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsOpen(true)}
-              className={`p-1 rounded-md transition-colors ${isDark ? "text-white hover:bg-zinc-800" : "text-[#101010] hover:bg-zinc-100"
-                }`}
+              className={`p-1 rounded-md transition-colors ${isDark ? "text-white hover:bg-zinc-800" : "text-[#101010] hover:bg-zinc-100"}`}
             >
               <Menu size={28} />
             </button>
@@ -73,8 +75,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
 
           <div className="flex items-center gap-3">
             <ModeToggle />
-            <div className={`w-8 h-8 rounded-full overflow-hidden border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"
-              }`}>
+            <div className={`w-8 h-8 rounded-full overflow-hidden border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"}`}>
               <Image width={32} height={32} src="/images/avatar.png" alt="User" />
             </div>
           </div>
@@ -148,7 +149,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
           {actions}
 
           {
-            pathname.includes("dashboard") && (
+            (isDashboardRoot) && (
               <>
                 <ModeToggle />
                 <div className={`relative shrink-0 w-12 h-12 rounded-full overflow-hidden cursor-pointer border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"
