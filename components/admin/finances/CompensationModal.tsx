@@ -30,9 +30,28 @@ type AuditEntry = {
   label: string;
   subLabel?: string | null;
   date?: string | null;
+  paymentKey?: string | null;
 };
 
 const isPaymentEvent = (value?: string | null) => String(value || "").includes("payment");
+
+const getPaymentAmountFromText = (value?: string | null) => {
+  const match = String(value || "").match(/-?\$?\s*([\d,]+(?:\.\d{1,2})?)/);
+  if (!match) return null;
+  const amount = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const getPaymentAuditKey = (creatorEarningId: number | string, eventType?: string | null, amount?: number | null, date?: string | null) => {
+  const timestamp = date ? new Date(date).getTime() : 0;
+  const minuteBucket = Number.isFinite(timestamp) && timestamp > 0 ? Math.floor(timestamp / 60000) : 0;
+  return [
+    creatorEarningId,
+    String(eventType || "payment").toLowerCase(),
+    Number(amount || 0).toFixed(2),
+    minuteBucket,
+  ].join("|");
+};
 
 interface CompensationModalProps {
   isOpen: boolean;
@@ -84,26 +103,43 @@ export default function CompensationModal({
 
   const auditEntries: AuditEntry[] = useMemo(() => {
     const logs: AuditEntry[] = [
-      ...(details?.audit_logs || []).map((log) => ({
-        id: `audit-${log.action}-${log.created_at || ""}`,
-        label: log.label || log.action || "Finance activity",
-        subLabel: isPaymentEvent(log.action) ? `Paid to ${log.creators?.[0]?.creator_name || "Unknown Creator"}${log.notes ? ` - ${log.notes}` : ""}` : log.notes,
-        date: log.created_at,
-      })),
+      ...(details?.audit_logs || [])
+        .filter((log) => !isPaymentEvent(log.action))
+        .map((log) => ({
+          id: `audit-${log.action}-${log.created_at || ""}`,
+          label: log.label || log.action || "Finance activity",
+          subLabel: log.notes,
+          date: log.created_at,
+        })),
       ...(details?.creators || []).flatMap((creator) =>
-        (creator.timeline || []).map((event) => ({
-          id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || ""}-${event.sort_order || ""}-${event.event_date || ""}`,
-          label: event.label || event.event_type || "Payment activity",
-          subLabel: isPaymentEvent(event.event_type)
-            ? `Paid to ${creator.creator_name || "Unknown Creator"}${event.sub_label ? ` - ${event.sub_label}` : ""}`
-            : event.sub_label || creator.creator_name || null,
-          date: event.event_date,
-        }))
+        (creator.timeline || []).map((event) => {
+          const paymentAmount = Number(event.amount) || getPaymentAmountFromText(event.sub_label);
+          return {
+            id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || ""}-${event.sort_order || ""}-${event.event_date || ""}`,
+            label: isPaymentEvent(event.event_type)
+              ? "Payment Processed"
+              : event.label || event.event_type || "Payment activity",
+            subLabel: isPaymentEvent(event.event_type)
+              ? `Paid to ${creator.creator_name || "Unknown Creator"}${paymentAmount ? ` - ${formatCurrency(paymentAmount)}` : ""}`
+              : event.sub_label || creator.creator_name || null,
+            date: event.event_date,
+            paymentKey: isPaymentEvent(event.event_type)
+              ? getPaymentAuditKey(creator.creator_earning_id, event.event_type, paymentAmount, event.event_date)
+              : null,
+          };
+        })
       ),
     ];
 
+    const seenPaymentKeys = new Set<string>();
     return logs
       .filter((entry) => entry.label)
+      .filter((entry) => {
+        if (!entry.paymentKey) return true;
+        if (seenPaymentKeys.has(entry.paymentKey)) return false;
+        seenPaymentKeys.add(entry.paymentKey);
+        return true;
+      })
       .sort((a, b) => {
         const left = a.date ? new Date(a.date).getTime() : 0;
         const right = b.date ? new Date(b.date).getTime() : 0;
@@ -445,4 +481,3 @@ export default function CompensationModal({
     </div>
   );
 }
-
