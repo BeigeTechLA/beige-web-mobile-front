@@ -42,7 +42,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
     <header className={`
       border-b transition-colors duration-300
       ${isDark
-        ? "border-zinc-800 bg-[#0f0f0f] shadow-none"
+        ? "border-[#3A3A3A] bg-[#171717] shadow-none"
         : "border-[#D8D8D8] bg-white shadow-[0_8px_24px_0_rgba(149,157,165,0.10)]"
       }
     `}>
